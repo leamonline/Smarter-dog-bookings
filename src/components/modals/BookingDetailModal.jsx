@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { BRAND, SERVICES, PRICING, SALON_SLOTS, LARGE_DOG_SLOTS, ALERT_OPTIONS } from "../../constants/index.js";
 import { computeSlotCapacities } from "../../engine/capacity.js";
 import { formatFullDate } from "../../engine/utils.js";
+import { toDateStr } from "../../supabase/transforms.js";
 import { SizeTag } from "../ui/SizeTag.jsx";
 import { IconTick, IconEdit, IconMessage, IconBlock } from "../icons/index.jsx";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 import { ContactPopup } from "./ContactPopup.jsx";
 
-export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState, dogs, humans, onUpdateDog }) {
+export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -45,8 +46,8 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
 
   const inputStyle = { padding: "8px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit", color: BRAND.text };
 
-  const editDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][editData.date.getDay()];
-  const editDayBookings = bookingsByDay[editDayKey] || [];
+  const editDateStr = toDateStr(editData.date);
+  const editDayBookings = bookingsByDate[editDateStr] || [];
   const otherBookings = editDayBookings.filter(b => b.id !== booking.id);
   const editDayCapacities = computeSlotCapacities(otherBookings, SALON_SLOTS);
 
@@ -95,11 +96,11 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
     if (!editData.slot) return;
 
     let finalNotes = editData.groomNotes;
-    const originalDateStr = formatFullDate(currentDateObj);
-    const newDateStr = formatFullDate(editData.date);
+    const originalDateDisplay = formatFullDate(currentDateObj);
+    const newDateDisplay = formatFullDate(editData.date);
 
-    if (originalDateStr !== newDateStr || booking.slot !== editData.slot) {
-      const stamp = `\n\n[Booking moved by Staff from ${originalDateStr} at ${booking.slot} to ${newDateStr} at ${editData.slot}]`;
+    if (originalDateDisplay !== newDateDisplay || booking.slot !== editData.slot) {
+      const stamp = `\n\n[Booking moved by Staff from ${originalDateDisplay} at ${booking.slot} to ${newDateDisplay} at ${editData.slot}]`;
       finalNotes += stamp;
     }
 
@@ -115,7 +116,7 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
       customPrice: editData.customPrice,
     });
 
-    const newDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][editData.date.getDay()];
+    const newDateStr = toDateStr(editData.date);
 
     onUpdate({
       ...booking,
@@ -124,7 +125,7 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
       pickupBy: editData.pickupBy,
       payment: editData.payment,
       slot: editData.slot
-    }, currentDayKey, newDayKey);
+    }, currentDateStr, newDateStr);
 
     setIsEditing(false);
   };
@@ -394,8 +395,8 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
             setEditData(prev => ({...prev, date: newDate}));
             setShowDatePicker(false);
 
-            const newDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][newDate.getDay()];
-            const dayBk = bookingsByDay[newDayKey] || [];
+            const newDateStr = toDateStr(newDate);
+            const dayBk = bookingsByDate[newDateStr] || [];
             const filteredBookings = dayBk.filter(b => b.id !== booking.id);
             const dayCapacities = computeSlotCapacities(filteredBookings, SALON_SLOTS);
 

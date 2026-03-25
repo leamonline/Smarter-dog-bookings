@@ -71,8 +71,10 @@ export function DatePickerModal({ currentDate, onSelectDate, onClose, dayOpenSta
           {cells.map((d, i) => {
             if (d === null) return <div key={`e${i}`} />;
 
-            const dayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date(viewYear, viewMonth, d).getDay()];
-            const isOpen = dayOpenState ? dayOpenState[dayKey] : true;
+            const cellDate = new Date(viewYear, viewMonth, d);
+            const dateStr = cellDate.toISOString().split("T")[0];
+            // dayOpenState may be keyed by date string or day-of-week — try date first
+            const isOpen = dayOpenState ? (dayOpenState[dateStr] !== undefined ? dayOpenState[dateStr] : true) : true;
             const disabled = dayOpenState && !isOpen;
 
             return (

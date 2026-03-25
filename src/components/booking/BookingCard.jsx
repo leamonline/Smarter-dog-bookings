@@ -10,7 +10,7 @@ const ICON_COL_STYLE = {
   width: 28, minWidth: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 };
 
-export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState, dogs, humans, onUpdateDog }) {
+export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog }) {
   const [showDetail, setShowDetail] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const service = SERVICES.find((s) => s.id === booking.service);
@@ -37,7 +37,7 @@ export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdat
           <StaffIconBtn icon={<IconMessage />} title="Message owner" onClick={(e) => { e.stopPropagation(); setShowContact(true); }} />
         </div>
       </div>
-      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDayKey={currentDayKey} currentDateObj={currentDateObj} bookingsByDay={bookingsByDay} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} />}
+      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} />}
       {showContact && <ContactPopup human={humans[booking.owner]} onClose={() => setShowContact(false)} />}
     </>
   );
