@@ -57,5 +57,64 @@ export function useDogs(humansById) {
     [dogs]
   );
 
-  return { dogs, dogsById, loading, error, updateDog };
+  const addDog = useCallback(
+    async (dogData) => {
+      const tempId = `temp-${Date.now()}`;
+      const newDog = {
+        id: tempId,
+        name: dogData.name,
+        breed: dogData.breed,
+        age: dogData.age || "",
+        humanId: dogData.humanId,
+        alerts: [],
+        groomNotes: dogData.groomNotes || "",
+        customPrice: undefined,
+      };
+
+      // Optimistic update
+      setDogs((prev) => ({ ...prev, [dogData.name]: newDog }));
+
+      if (!supabase) return newDog;
+
+      // Resolve owner UUID
+      const owner = Object.values(humansById).find(
+        (h) => h.fullName === dogData.humanId
+      );
+      if (!owner) {
+        console.error("Owner not found:", dogData.humanId);
+        return newDog;
+      }
+
+      const { data, error: err } = await supabase
+        .from("dogs")
+        .insert({
+          name: dogData.name,
+          breed: dogData.breed,
+          age: dogData.age || "",
+          human_id: owner.id,
+          groom_notes: dogData.groomNotes || "",
+        })
+        .select()
+        .single();
+
+      if (err) {
+        console.error("Failed to add dog:", err);
+        setDogs((prev) => {
+          const next = { ...prev };
+          delete next[dogData.name];
+          return next;
+        });
+        return null;
+      }
+
+      // Update with real ID
+      const realDog = { ...newDog, id: data.id };
+      setDogs((prev) => ({ ...prev, [dogData.name]: realDog }));
+      setDogsById((prev) => ({ ...prev, [data.id]: data }));
+      return realDog;
+    },
+    [humansById]
+  );
+
+  return { dogs, dogsById, loading, error, updateDog, addDog };
 }

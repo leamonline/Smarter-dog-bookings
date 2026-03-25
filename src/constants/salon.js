@@ -35,6 +35,14 @@ export const PRICING = {
   puppy_cut: { small: "\u00A338", medium: "\u00A338", large: "N/A" },
 };
 
+export const BOOKING_STATUSES = [
+  { id: "Not Arrived", label: "Not Arrived", color: "#92400E", bg: "#FFF8E0" },
+  { id: "Checked In", label: "Checked In", color: "#16A34A", bg: "#DCFCE7" },
+  { id: "In the Bath", label: "In the Bath", color: "#0099BD", bg: "#E0F7FC" },
+  { id: "Ready for Pick-up", label: "Ready for Pick-up", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: "Completed", label: "Completed", color: "#1F2937", bg: "#F3F4F6" },
+];
+
 export const ALERT_OPTIONS = [
   { label: "Bites / Nips", color: "#E8567F" },
   { label: "Reactive to dogs", color: "#E8567F" },

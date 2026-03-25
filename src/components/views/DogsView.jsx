@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { BRAND } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
+import { AddDogModal } from "../modals/AddDogModal.jsx";
 
-export function DogsView({ dogs, humans, onOpenDog }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const filteredDogs = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -27,24 +29,35 @@ export function DogsView({ dogs, humans, onOpenDog }) {
           <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>Search by name, breed, owner, or alerts.</div>
         </div>
 
-        <div style={{ position: "relative", width: "100%", maxWidth: 320 }}>
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-            <IconSearch size={16} colour={BRAND.textLight} />
+        <div style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", maxWidth: 460 }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
+              <IconSearch size={16} colour={BRAND.textLight} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search dogs..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%", padding: "10px 14px 10px 38px", borderRadius: 10,
+                border: `1.5px solid ${BRAND.greyLight}`, fontSize: 14, fontFamily: "inherit",
+                boxSizing: "border-box", outline: "none", color: BRAND.text,
+                transition: "border-color 0.15s"
+              }}
+              onFocus={e => e.target.style.borderColor = BRAND.blue}
+              onBlur={e => e.target.style.borderColor = BRAND.greyLight}
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search dogs..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{
-              width: "100%", padding: "10px 14px 10px 38px", borderRadius: 10,
-              border: `1.5px solid ${BRAND.greyLight}`, fontSize: 14, fontFamily: "inherit",
-              boxSizing: "border-box", outline: "none", color: BRAND.text,
-              transition: "border-color 0.15s"
-            }}
-            onFocus={e => e.target.style.borderColor = BRAND.blue}
-            onBlur={e => e.target.style.borderColor = BRAND.greyLight}
-          />
+          <button onClick={() => setShowAddModal(true)} style={{
+            background: BRAND.blue, color: BRAND.white, border: "none", borderRadius: 10,
+            padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = BRAND.blueDark}
+          onMouseLeave={e => e.currentTarget.style.background = BRAND.blue}>
+            + Add Dog
+          </button>
         </div>
       </div>
 
@@ -101,6 +114,8 @@ export function DogsView({ dogs, humans, onOpenDog }) {
           </div>
         )}
       </div>
+
+      {showAddModal && <AddDogModal onClose={() => setShowAddModal(false)} onAdd={onAddDog} humans={humans} />}
 
       <style>{`
         @keyframes fadeIn {

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { BRAND, SERVICES, PRICING, SALON_SLOTS, LARGE_DOG_SLOTS, ALERT_OPTIONS } from "../../constants/index.js";
+import { BRAND, SERVICES, PRICING, SALON_SLOTS, LARGE_DOG_SLOTS, ALERT_OPTIONS, BOOKING_STATUSES } from "../../constants/index.js";
 import { computeSlotCapacities } from "../../engine/capacity.js";
 import { formatFullDate } from "../../engine/utils.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -179,14 +179,39 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
 
         {/* Body */}
         <div style={{ padding: "16px 24px 0" }}>
-          {/* Status row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5 }}>Status</span>
-            <span style={{
-              fontSize: 13, fontWeight: 700, padding: "4px 12px", borderRadius: 8,
-              background: booking.status === "Checked In" ? BRAND.openGreenBg : booking.status === "Completed" ? BRAND.blueLight : BRAND.yellowLight,
-              color: booking.status === "Checked In" ? BRAND.openGreen : booking.status === "Completed" ? BRAND.blueDark : "#92400E",
-            }}>{booking.status || "Not Arrived"}</span>
+          {/* Status workflow */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>Status</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {BOOKING_STATUSES.map((s) => {
+                const currentStatus = booking.status || "Not Arrived";
+                const isActive = currentStatus === s.id;
+                const currentIdx = BOOKING_STATUSES.findIndex(st => st.id === currentStatus);
+                const thisIdx = BOOKING_STATUSES.findIndex(st => st.id === s.id);
+                const isPast = thisIdx < currentIdx;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      if (!isActive) {
+                        onUpdate({ ...booking, status: s.id }, currentDateStr, currentDateStr);
+                      }
+                    }}
+                    style={{
+                      padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      cursor: isActive ? "default" : "pointer",
+                      background: isActive ? s.bg : isPast ? "#F9FAFB" : BRAND.white,
+                      color: isActive ? s.color : isPast ? BRAND.textLight : BRAND.grey,
+                      border: isActive ? `2px solid ${s.color}` : `1px solid ${BRAND.greyLight}`,
+                      transition: "all 0.15s",
+                      opacity: isPast ? 0.6 : 1,
+                    }}
+                  >
+                    {isActive ? "\u25CF " : ""}{s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Owner */}

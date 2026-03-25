@@ -94,5 +94,65 @@ export function useHumans() {
     [humans, humansById]
   );
 
-  return { humans, humansById, loading, error, updateHuman };
+  const addHuman = useCallback(
+    async (humanData) => {
+      const key = `${humanData.name} ${humanData.surname}`;
+      const tempId = `temp-${Date.now()}`;
+      const newHuman = {
+        id: tempId,
+        name: humanData.name,
+        surname: humanData.surname,
+        phone: humanData.phone || "",
+        sms: humanData.sms || false,
+        whatsapp: humanData.whatsapp || false,
+        email: humanData.email || "",
+        fb: "",
+        insta: "",
+        tiktok: "",
+        address: humanData.address || "",
+        notes: humanData.notes || "",
+        historyFlag: "",
+        trustedIds: [],
+      };
+
+      // Optimistic update
+      setHumans((prev) => ({ ...prev, [key]: newHuman }));
+
+      if (!supabase) return newHuman;
+
+      const { data, error: err } = await supabase
+        .from("humans")
+        .insert({
+          name: humanData.name,
+          surname: humanData.surname,
+          phone: humanData.phone || "",
+          sms: humanData.sms || false,
+          whatsapp: humanData.whatsapp || false,
+          email: humanData.email || "",
+          address: humanData.address || "",
+          notes: humanData.notes || "",
+        })
+        .select()
+        .single();
+
+      if (err) {
+        console.error("Failed to add human:", err);
+        setHumans((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        return null;
+      }
+
+      // Update with real ID
+      const realHuman = { ...newHuman, id: data.id };
+      setHumans((prev) => ({ ...prev, [key]: realHuman }));
+      setHumansById((prev) => ({ ...prev, [data.id]: { ...data, fullName: key } }));
+      return realHuman;
+    },
+    []
+  );
+
+  return { humans, humansById, loading, error, updateHuman, addHuman };
 }
