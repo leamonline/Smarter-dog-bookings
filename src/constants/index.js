@@ -6,4 +6,5 @@ export {
   LARGE_DOG_SLOTS,
   PRICING,
   ALERT_OPTIONS,
+  BOOKING_STATUSES,
 } from "./salon.js";

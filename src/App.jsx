@@ -4,6 +4,7 @@ import { computeSlotCapacities } from "./engine/capacity.js";
 import { SAMPLE_BOOKINGS_BY_DAY, SAMPLE_HUMANS, SAMPLE_DOGS } from "./data/sample.js";
 import { supabase } from "./supabase/client.js";
 import { toDateStr } from "./supabase/transforms.js";
+import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans.js";
 import { useDogs } from "./supabase/hooks/useDogs.js";
 import { useBookings } from "./supabase/hooks/useBookings.js";
@@ -22,6 +23,7 @@ import { DogCardModal } from "./components/modals/DogCardModal.jsx";
 import { SettingsView } from "./components/views/SettingsView.jsx";
 import { HumansView } from "./components/views/HumansView.jsx";
 import { DogsView } from "./components/views/DogsView.jsx";
+import { LoginPage } from "./components/auth/LoginPage.jsx";
 
 // Offline fallback: convert sample bookings to date-based format
 function buildOfflineBookingsByDate(weekStart) {
@@ -37,6 +39,10 @@ function buildOfflineBookingsByDate(weekStart) {
 }
 
 export default function App() {
+  // Auth
+  const { user, staffProfile, loading: authLoading, error: authError, signIn, signUp, signOut, isOwner } = useAuth();
+  const isOnline = !!supabase;
+
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedHumanId, setSelectedHumanId] = useState(null);
   const [selectedDogId, setSelectedDogId] = useState(null);
@@ -77,13 +83,27 @@ export default function App() {
   const currentDayConfig = ALL_DAYS[selectedDay];
 
   // ========================================
+  // AUTH GATE: Show login if online and not authenticated
+  // ========================================
+  if (authLoading) {
+    return (
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (isOnline && !user) {
+    return <LoginPage onSignIn={signIn} onSignUp={signUp} error={authError} isOffline={false} />;
+  }
+
+  // ========================================
   // DATA: Supabase hooks with offline fallback
   // ========================================
-  const isOnline = !!supabase;
 
   // Supabase hooks (no-op when supabase is null)
-  const { humans: sbHumans, humansById, loading: hl, error: he, updateHuman: sbUpdateHuman } = useHumans();
-  const { dogs: sbDogs, dogsById, loading: dl, error: de, updateDog: sbUpdateDog } = useDogs(humansById);
+  const { humans: sbHumans, humansById, loading: hl, error: he, updateHuman: sbUpdateHuman, addHuman: sbAddHuman } = useHumans();
+  const { dogs: sbDogs, dogsById, loading: dl, error: de, updateDog: sbUpdateDog, addDog: sbAddDog } = useDogs(humansById);
   const { bookingsByDate: sbBookings, loading: bl, error: be, addBooking: sbAddBooking, removeBooking: sbRemoveBooking, updateBooking: sbUpdateBooking } = useBookings(weekStart, dogsById, humansById);
   const { config: sbConfig, loading: cl, updateConfig: sbUpdateConfig } = useSalonConfig();
   const { daySettings: sbDaySettings, loading: dsl, toggleDayOpen: sbToggleDayOpen, setOverride: sbSetOverride, addExtraSlot: sbAddExtraSlot, removeExtraSlot: sbRemoveExtraSlot } = useDaySettings(weekStart);
@@ -137,6 +157,19 @@ export default function App() {
 
   const updateConfig = isOnline ? sbUpdateConfig : useCallback((updater) => {
     setOfflineConfig(prev => typeof updater === "function" ? updater(prev) : updater);
+  }, []);
+
+  const addHuman = isOnline ? sbAddHuman : useCallback((humanData) => {
+    const key = `${humanData.name} ${humanData.surname}`;
+    const newHuman = { id: `h-${Date.now()}`, ...humanData, fb: "", insta: "", tiktok: "", historyFlag: "", trustedIds: [] };
+    setOfflineHumans(prev => ({ ...prev, [key]: newHuman }));
+    return newHuman;
+  }, []);
+
+  const addDog = isOnline ? sbAddDog : useCallback((dogData) => {
+    const newDog = { id: `d-${Date.now()}`, ...dogData, alerts: [], groomNotes: dogData.groomNotes || "", customPrice: undefined };
+    setOfflineDogs(prev => ({ ...prev, [dogData.name]: newDog }));
+    return newDog;
   }, []);
 
   const handleAdd = isOnline
@@ -331,22 +364,24 @@ export default function App() {
           onMouseEnter={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; } }}
           onMouseLeave={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>Settings</button>
 
-          <button style={{
-            background: BRAND.coralLight, border: "none", borderRadius: 8,
-            padding: "9px 16px", fontSize: 13, fontWeight: 700, color: BRAND.coral,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.coral; e.currentTarget.style.color = BRAND.white; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.coralLight; e.currentTarget.style.color = BRAND.coral; }}>Log out</button>
+          {isOnline && user && (
+            <button onClick={signOut} style={{
+              background: BRAND.coralLight, border: "none", borderRadius: 8,
+              padding: "9px 16px", fontSize: 13, fontWeight: 700, color: BRAND.coral,
+              cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.coral; e.currentTarget.style.color = BRAND.white; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.coralLight; e.currentTarget.style.color = BRAND.coral; }}>Log out</button>
+          )}
         </div>
       </div>
 
       {activeView === "settings" ? (
-        <SettingsView onBack={() => setActiveView("dashboard")} config={salonConfig} onUpdateConfig={updateConfig} />
+        <SettingsView onBack={() => setActiveView("dashboard")} config={salonConfig} onUpdateConfig={updateConfig} isOwner={isOwner} />
       ) : activeView === "humans" ? (
-        <HumansView humans={humans} dogs={dogs} onOpenHuman={setSelectedHumanId} />
+        <HumansView humans={humans} dogs={dogs} onOpenHuman={setSelectedHumanId} onAddHuman={addHuman} />
       ) : activeView === "dogs" ? (
-        <DogsView dogs={dogs} humans={humans} onOpenDog={setSelectedDogId} />
+        <DogsView dogs={dogs} humans={humans} onOpenDog={setSelectedDogId} onAddDog={addDog} />
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
