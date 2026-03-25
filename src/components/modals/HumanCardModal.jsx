@@ -1,8 +1,47 @@
 import { useState, useMemo } from "react";
-import { BRAND } from "../../constants/index.js";
+import { BRAND, SERVICES } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 
-export function HumanCardModal({ humanId, onClose, onOpenHuman, onOpenDog, humans, dogs, onUpdateHuman }) {
+function HumanBookingHistory({ humanId, dogs, bookingsByDate }) {
+  const history = useMemo(() => {
+    if (!bookingsByDate) return [];
+    const humanDogNames = new Set(
+      Object.values(dogs).filter(d => d.humanId === humanId).map(d => d.name)
+    );
+    const entries = [];
+    for (const [dateStr, bookings] of Object.entries(bookingsByDate)) {
+      for (const b of bookings) {
+        if (humanDogNames.has(b.dogName) || b.owner === humanId) {
+          entries.push({ ...b, date: dateStr });
+        }
+      }
+    }
+    return entries.sort((a, b) => b.date.localeCompare(a.date));
+  }, [humanId, dogs, bookingsByDate]);
+
+  if (history.length === 0) return null;
+
+  return (
+    <>
+      <div style={{ marginTop: 20, fontWeight: 800, fontSize: 12, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Recent Bookings</div>
+      {history.slice(0, 5).map((b, i) => {
+        const svc = SERVICES.find(s => s.id === b.service);
+        return (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${BRAND.greyLight}`, fontSize: 12 }}>
+            <div>
+              <span style={{ fontWeight: 600, color: BRAND.text }}>{b.date}</span>
+              <span style={{ color: BRAND.textLight, marginLeft: 6 }}>{b.dogName}</span>
+              <span style={{ color: BRAND.textLight, marginLeft: 4 }}>{svc?.icon} {svc?.name}</span>
+            </div>
+            <span style={{ fontWeight: 600, color: b.status === "Completed" ? BRAND.openGreen : BRAND.textLight, fontSize: 11 }}>{b.status}</span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+export function HumanCardModal({ humanId, onClose, onOpenHuman, onOpenDog, humans, dogs, onUpdateHuman, bookingsByDate }) {
   const human = humans[humanId] || { name: humanId, surname: "", phone: "", sms: false, whatsapp: false, email: "", fb: "", insta: "", tiktok: "", address: "", notes: "", trustedIds: [] };
   const humanDogs = Object.values(dogs).filter(d => d.humanId === humanId).sort((a,b) => a.name.localeCompare(b.name));
 
@@ -122,6 +161,8 @@ export function HumanCardModal({ humanId, onClose, onOpenHuman, onOpenDog, human
           >
             {showTrustedSearch ? "Cancel" : "+ Add a trusted Human"}
           </button>
+
+          <HumanBookingHistory humanId={humanId} dogs={dogs} bookingsByDate={bookingsByDate} />
 
           {showTrustedSearch && (
             <div style={{ marginTop: 10 }}>

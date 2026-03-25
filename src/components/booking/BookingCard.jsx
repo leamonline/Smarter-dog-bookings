@@ -10,7 +10,7 @@ const ICON_COL_STYLE = {
   width: 28, minWidth: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 };
 
-export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog }) {
+export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog, onRebook }) {
   const [showDetail, setShowDetail] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const service = SERVICES.find((s) => s.id === booking.service);
@@ -40,6 +40,7 @@ export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdat
         <div style={ICON_COL_STYLE}><SizeTag size={booking.size} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, color: BRAND.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {booking.confirmed && <span title="Confirmed" style={{ color: BRAND.openGreen, marginRight: 3, fontSize: 11 }}>{"\u2713"}</span>}
             <span style={{ cursor: "pointer", borderBottom: `1px dashed ${BRAND.blue}`, color: BRAND.blueDark }} onClick={(e) => { e.stopPropagation(); onOpenDog && onOpenDog(booking.dogName); }}>{booking.dogName}</span>
             <span style={{ fontWeight: 400, color: BRAND.textLight, marginLeft: 4, fontSize: 12 }}>({booking.breed})</span>
           </div>
@@ -66,7 +67,7 @@ export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdat
           <StaffIconBtn icon={<IconMessage />} title="Message owner" onClick={(e) => { e.stopPropagation(); setShowContact(true); }} />
         </div>
       </div>
-      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} />}
+      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} onRebook={onRebook} />}
       {showContact && <ContactPopup human={humans[booking.owner]} onClose={() => setShowContact(false)} />}
     </>
   );

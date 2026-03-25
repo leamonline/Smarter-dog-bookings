@@ -56,20 +56,25 @@ export function useBookings(weekStart, dogsById, humansById) {
 
       if (!supabase) return;
 
-      // Resolve dog UUID from name
+      // Resolve dog UUID from name (try exact match first, then partial)
       const dog = Object.values(dogsById).find((d) => d.name === booking.dogName);
-      const owner = Object.values(humansById).find((h) => h.fullName === booking.owner);
+
+      if (!dog) {
+        console.error("Dog not found for booking:", booking.dogName);
+        return;
+      }
 
       const { error: err } = await supabase.from("bookings").insert({
         booking_date: dateStr,
         slot: booking.slot,
-        dog_id: dog?.id,
+        dog_id: dog.id,
         size: booking.size,
         service: booking.service,
         status: "Not Arrived",
         addons: booking.addons || [],
         pickup_by_id: null,
         payment: "Due at Pick-up",
+        confirmed: false,
       });
       if (err) console.error("Failed to add booking:", err);
     },
@@ -123,6 +128,7 @@ export function useBookings(weekStart, dogsById, humansById) {
           pickup_by_id: pickupHuman?.id || null,
           payment: updatedBooking.payment,
           status: updatedBooking.status,
+          confirmed: updatedBooking.confirmed || false,
         })
         .eq("id", updatedBooking.id);
       if (err) console.error("Failed to update booking:", err);

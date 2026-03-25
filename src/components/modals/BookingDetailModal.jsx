@@ -8,7 +8,7 @@ import { IconTick, IconEdit, IconMessage, IconBlock } from "../icons/index.jsx";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 import { ContactPopup } from "./ContactPopup.jsx";
 
-export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog }) {
+export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog, onRebook }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -214,6 +214,23 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
             </div>
           </div>
 
+          {/* Confirmed toggle */}
+          <div style={{ padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: BRAND.textLight }}>Client Confirmed</span>
+            <button
+              onClick={() => onUpdate({ ...booking, confirmed: !booking.confirmed }, currentDateStr, currentDateStr)}
+              style={{
+                background: booking.confirmed ? BRAND.openGreenBg : BRAND.closedRedBg,
+                color: booking.confirmed ? BRAND.openGreen : BRAND.closedRed,
+                border: `1.5px solid ${booking.confirmed ? BRAND.openGreen : BRAND.closedRed}`,
+                borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+            >
+              {booking.confirmed ? "\u2713 Confirmed" : "Not confirmed"}
+            </button>
+          </div>
+
           {/* Owner */}
           <div style={{ padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -392,22 +409,35 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
             }} onMouseEnter={e => e.currentTarget.style.background = BRAND.offWhite} onMouseLeave={e => e.currentTarget.style.background = BRAND.white}>Cancel</button>
           </div>
         ) : (
-          <div style={{ padding: "16px 24px 20px", display: "flex", gap: 10, background: BRAND.offWhite, borderTop: `1px solid ${BRAND.greyLight}` }}>
-            <button onClick={() => setIsEditing(true)} style={{
-              flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              background: BRAND.blue, color: BRAND.white, transition: "background 0.15s"
-            }} onMouseEnter={e => e.currentTarget.style.background = BRAND.blueDark} onMouseLeave={e => e.currentTarget.style.background = BRAND.blue}><IconEdit size={16} colour={BRAND.white} /> Edit</button>
-            <button onClick={() => setShowContact(true)} style={{
-              flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              background: BRAND.teal, color: BRAND.white, transition: "background 0.15s"
-            }} onMouseEnter={e => e.currentTarget.style.background = "#236b5d"} onMouseLeave={e => e.currentTarget.style.background = BRAND.teal}><IconMessage size={16} colour={BRAND.white} /> Message</button>
-            <button onClick={() => { onRemove(booking.id); onClose(); }} style={{
-              flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              background: BRAND.coralLight, color: BRAND.coral, transition: "background 0.15s"
-            }} onMouseEnter={e => e.currentTarget.style.background = "#fbd4df"} onMouseLeave={e => e.currentTarget.style.background = BRAND.coralLight}><IconBlock size={16} colour={BRAND.coral} /> Cancel</button>
+          <div style={{ padding: "16px 24px 20px", display: "flex", flexDirection: "column", gap: 10, background: BRAND.offWhite, borderTop: `1px solid ${BRAND.greyLight}` }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setIsEditing(true)} style={{
+                flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                background: BRAND.blue, color: BRAND.white, transition: "background 0.15s"
+              }} onMouseEnter={e => e.currentTarget.style.background = BRAND.blueDark} onMouseLeave={e => e.currentTarget.style.background = BRAND.blue}><IconEdit size={16} colour={BRAND.white} /> Edit</button>
+              <button onClick={() => setShowContact(true)} style={{
+                flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                background: BRAND.teal, color: BRAND.white, transition: "background 0.15s"
+              }} onMouseEnter={e => e.currentTarget.style.background = "#236b5d"} onMouseLeave={e => e.currentTarget.style.background = BRAND.teal}><IconMessage size={16} colour={BRAND.white} /> Message</button>
+              <button onClick={() => { onRemove(booking.id); onClose(); }} style={{
+                flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                background: BRAND.coralLight, color: BRAND.coral, transition: "background 0.15s"
+              }} onMouseEnter={e => e.currentTarget.style.background = "#fbd4df"} onMouseLeave={e => e.currentTarget.style.background = BRAND.coralLight}><IconBlock size={16} colour={BRAND.coral} /> Cancel</button>
+            </div>
+            {booking.status === "Completed" && onRebook && (
+              <button onClick={() => { onRebook(booking); onClose(); }} style={{
+                width: "100%", padding: "12px 0", borderRadius: 10, border: `2px solid ${BRAND.blue}`,
+                fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                background: BRAND.blueLight, color: BRAND.blueDark, transition: "all 0.15s",
+              }} onMouseEnter={e => { e.currentTarget.style.background = BRAND.blue; e.currentTarget.style.color = BRAND.white; }}
+                 onMouseLeave={e => { e.currentTarget.style.background = BRAND.blueLight; e.currentTarget.style.color = BRAND.blueDark; }}>
+                {"\uD83D\uDD01"} Rebook this dog
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -24,6 +24,8 @@ import { SettingsView } from "./components/views/SettingsView.jsx";
 import { HumansView } from "./components/views/HumansView.jsx";
 import { DogsView } from "./components/views/DogsView.jsx";
 import { LoginPage } from "./components/auth/LoginPage.jsx";
+import { DaySummary } from "./components/layout/DaySummary.jsx";
+import { AddBookingForm } from "./components/booking/AddBookingForm.jsx";
 
 // Offline fallback: convert sample bookings to date-based format
 function buildOfflineBookingsByDate(weekStart) {
@@ -48,6 +50,7 @@ export default function App() {
   const [selectedDogId, setSelectedDogId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [rebookData, setRebookData] = useState(null);
 
   // Week navigation
   const [weekOffset, setWeekOffset] = useState(0);
@@ -393,8 +396,9 @@ export default function App() {
               <Legend />
               <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${BRAND.greyLight}`, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <DayHeader day={currentDayConfig.full} date={dates[selectedDay]} dogCount={dogCount} maxDogs={16} isOpen={true} onToggleOpen={toggleDayOpen} onCalendarClick={() => setShowDatePicker(true)} />
+                <DaySummary bookings={dayBookings} />
                 {activeSlots.map((slot, i) => (
-                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={updateDog} />
+                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={updateDog} onRebook={setRebookData} />
                 ))}
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${BRAND.greyLight}`, background: BRAND.white, display: "flex", flexDirection: "column", gap: 8 }}>
                   {(currentSettings.extraSlots || []).length > 0 && (
@@ -418,11 +422,36 @@ export default function App() {
           {showDatePicker && (
             <DatePickerModal currentDate={currentDateObj} dayOpenState={dayOpenState} onSelectDate={handleDatePick} onClose={() => setShowDatePicker(false)} />
           )}
+
+          {rebookData && (
+            <div onClick={() => setRebookData(null)} style={{
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+            }}>
+              <div onClick={(e) => e.stopPropagation()} style={{
+                background: BRAND.white, borderRadius: 16, width: 400, padding: "20px 24px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: BRAND.text, marginBottom: 4 }}>Rebook {rebookData.dogName}</div>
+                <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 12 }}>Pre-filled from previous appointment. Pick a slot and confirm.</div>
+                <AddBookingForm
+                  slot={rebookData.slot}
+                  bookings={dayBookings}
+                  activeSlots={activeSlots}
+                  dogs={dogs}
+                  humans={humans}
+                  prefill={rebookData}
+                  onAdd={(b) => { handleAdd(b); setRebookData(null); }}
+                  onCancel={() => setRebookData(null)}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} humans={humans} dogs={dogs} onUpdateHuman={updateHuman} />}
-      {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} dogs={dogs} onUpdateDog={updateDog} />}
+      {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} humans={humans} dogs={dogs} onUpdateHuman={updateHuman} bookingsByDate={bookingsByDate} />}
+      {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} dogs={dogs} onUpdateDog={updateDog} bookingsByDate={bookingsByDate} />}
     </div>
   );
 }
