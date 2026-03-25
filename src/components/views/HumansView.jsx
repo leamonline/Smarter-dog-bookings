@@ -1,25 +1,24 @@
 import { useState, useMemo } from "react";
 import { BRAND } from "../../constants/index.js";
-import { SAMPLE_HUMANS, SAMPLE_DOGS } from "../../data/sample.js";
 import { IconSearch } from "../icons/index.jsx";
 
-export function HumansView({ onOpenHuman }) {
+export function HumansView({ humans, dogs, onOpenHuman }) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredHumans = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    const allHumans = Object.values(SAMPLE_HUMANS).sort((a, b) => a.name.localeCompare(b.name));
+    const allHumans = Object.values(humans).sort((a, b) => a.name.localeCompare(b.name));
     if (!query) return allHumans;
 
     return allHumans.filter(human => {
       const fullName = `${human.name} ${human.surname}`.toLowerCase();
-      const dogs = Object.values(SAMPLE_DOGS).filter(d => d.humanId === `${human.name} ${human.surname}`);
-      const dogSearchString = dogs.map(d => `${d.name} ${d.breed}`).join(" ").toLowerCase();
+      const humanDogs = Object.values(dogs).filter(d => d.humanId === `${human.name} ${human.surname}`);
+      const dogSearchString = humanDogs.map(d => `${d.name} ${d.breed}`).join(" ").toLowerCase();
       const searchString = `${fullName} ${human.phone} ${human.email} ${human.address} ${human.notes} ${human.historyFlag} ${human.trustedIds.join(" ")} ${dogSearchString}`;
 
       return searchString.includes(query);
     });
-  }, [searchQuery]);
+  }, [searchQuery, humans, dogs]);
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease-in" }}>
@@ -53,7 +52,7 @@ export function HumansView({ onOpenHuman }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {filteredHumans.map(human => {
           const fullName = `${human.name} ${human.surname}`;
-          const dogs = Object.values(SAMPLE_DOGS).filter(d => d.humanId === fullName);
+          const humanDogs = Object.values(dogs).filter(d => d.humanId === fullName);
 
           return (
             <div
@@ -79,7 +78,7 @@ export function HumansView({ onOpenHuman }) {
               <div style={{ padding: "14px 16px" }}>
                 <div style={{ fontSize: 11, color: BRAND.textLight, marginBottom: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Dogs</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {dogs.length > 0 ? dogs.map(d => (
+                  {humanDogs.length > 0 ? humanDogs.map(d => (
                     <span key={d.id} style={{ background: BRAND.offWhite, border: `1px solid ${BRAND.greyLight}`, padding: "4px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, color: BRAND.text }}>
                       {d.name} <span style={{ color: BRAND.textLight, fontWeight: 500 }}>({d.breed})</span>
                     </span>
@@ -98,6 +97,13 @@ export function HumansView({ onOpenHuman }) {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

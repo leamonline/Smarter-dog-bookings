@@ -1,18 +1,19 @@
 import { useState, useMemo } from "react";
 import { BRAND, SERVICES, PRICING, SALON_SLOTS, LARGE_DOG_SLOTS, ALERT_OPTIONS } from "../../constants/index.js";
-import { SAMPLE_HUMANS, SAMPLE_DOGS } from "../../data/sample.js";
 import { computeSlotCapacities } from "../../engine/capacity.js";
 import { formatFullDate } from "../../engine/utils.js";
 import { SizeTag } from "../ui/SizeTag.jsx";
 import { IconTick, IconEdit, IconMessage, IconBlock } from "../icons/index.jsx";
 import { DatePickerModal } from "./DatePickerModal.jsx";
+import { ContactPopup } from "./ContactPopup.jsx";
 
-export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState }) {
+export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState, dogs, humans, onUpdateDog }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showContact, setShowContact] = useState(false);
 
-  const dogData = Object.values(SAMPLE_DOGS).find(d => d.name === booking.dogName) || {};
+  const dogData = Object.values(dogs).find(d => d.name === booking.dogName) || {};
   const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
 
   const initialDefaultPriceNum = parseInt((PRICING[booking.service]?.[booking.size] || "0").replace(/\D/g, '')) || 0;
@@ -39,11 +40,10 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
   });
   const [hasAllergy, setHasAllergy] = useState(() => dogData.alerts?.some(a => a.startsWith("Allergic to ")));
 
-  const primaryHuman = SAMPLE_HUMANS[booking.owner];
+  const primaryHuman = humans[booking.owner];
   const trustedHumans = primaryHuman?.trustedIds || [];
 
   const inputStyle = { padding: "8px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit", color: BRAND.text };
-  const headerSelectStyle = { background: "rgba(255,255,255,0.2)", color: BRAND.white, border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 13, fontWeight: 600, outline: "none", cursor: "pointer", fontFamily: "inherit" };
 
   const editDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][editData.date.getDay()];
   const editDayBookings = bookingsByDay[editDayKey] || [];
@@ -83,12 +83,6 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
     </div>
   );
 
-  const SectionTitle = ({ children }) => (
-    <div style={{ fontWeight: 800, fontSize: 12, color: BRAND.blueDark, marginTop: 24, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-      {children}
-    </div>
-  );
-
   const handleCloseAttempt = () => {
     if (isEditing) {
       setShowExitConfirm(true);
@@ -113,10 +107,13 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
     if (hasAllergy && allergyInput.trim()) {
       finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
     }
-    dogData.alerts = finalAlerts;
-    dogData.groomNotes = finalNotes;
 
-    dogData.customPrice = editData.customPrice;
+    // Update dog via callback (no direct mutation)
+    onUpdateDog(booking.dogName, {
+      alerts: finalAlerts,
+      groomNotes: finalNotes,
+      customPrice: editData.customPrice,
+    });
 
     const newDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][editData.date.getDay()];
 
@@ -168,7 +165,7 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
               </div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{booking.breed}</div>
               {isEditing ? (
-                <select value={editData.service} onChange={e => setEditData({...editData, service: e.target.value})} style={headerSelectStyle}>
+                <select value={editData.service} onChange={e => setEditData({...editData, service: e.target.value})} style={{ background: "rgba(255,255,255,0.2)", color: BRAND.white, border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 13, fontWeight: 600, outline: "none", cursor: "pointer", fontFamily: "inherit" }}>
                   {SERVICES.map(s => <option key={s.id} value={s.id} style={{ color: BRAND.text }}>{s.icon} {s.name}</option>)}
                 </select>
               ) : (
@@ -246,13 +243,11 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
           ) : (
             ((dogData.alerts && dogData.alerts.length > 0) || (hasAllergy && allergyInput)) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16, marginTop: 28, justifyContent: "center", width: "100%" }}>
-                 {editData.alerts.filter(a => !a.startsWith("Allergic to ")).map(alertLabel => {
-                   return (
-                     <div key={alertLabel} style={{ background: BRAND.coral, color: BRAND.white, padding: "10px 18px", borderRadius: 24, fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(232,86,127,0.25)", textAlign: "center" }}>
-                       {"\u26A0\uFE0F"} {alertLabel} {"\u26A0\uFE0F"}
-                     </div>
-                   );
-                 })}
+                 {editData.alerts.filter(a => !a.startsWith("Allergic to ")).map(alertLabel => (
+                   <div key={alertLabel} style={{ background: BRAND.coral, color: BRAND.white, padding: "10px 18px", borderRadius: 24, fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(232,86,127,0.25)", textAlign: "center" }}>
+                     {"\u26A0\uFE0F"} {alertLabel} {"\u26A0\uFE0F"}
+                   </div>
+                 ))}
                  {hasAllergy && allergyInput && (
                    <div style={{ background: BRAND.coral, color: BRAND.white, padding: "10px 18px", borderRadius: 24, fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(232,86,127,0.25)", textAlign: "center" }}>
                      {"\u26A0\uFE0F"} Allergic to {allergyInput} {"\u26A0\uFE0F"}
@@ -377,7 +372,7 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
               cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               background: BRAND.blue, color: BRAND.white, transition: "background 0.15s"
             }} onMouseEnter={e => e.currentTarget.style.background = BRAND.blueDark} onMouseLeave={e => e.currentTarget.style.background = BRAND.blue}><IconEdit size={16} colour={BRAND.white} /> Edit</button>
-            <button onClick={onClose} style={{
+            <button onClick={() => setShowContact(true)} style={{
               flex: 1, padding: "12px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
               cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               background: BRAND.teal, color: BRAND.white, transition: "background 0.15s"
@@ -400,8 +395,8 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
             setShowDatePicker(false);
 
             const newDayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][newDate.getDay()];
-            const dayBookings = bookingsByDay[newDayKey] || [];
-            const filteredBookings = dayBookings.filter(b => b.id !== booking.id);
+            const dayBk = bookingsByDay[newDayKey] || [];
+            const filteredBookings = dayBk.filter(b => b.id !== booking.id);
             const dayCapacities = computeSlotCapacities(filteredBookings, SALON_SLOTS);
 
             const needed = booking.size === "large" ? (LARGE_DOG_SLOTS[editData.slot]?.seats ?? 2) : 1;
@@ -422,6 +417,8 @@ export function BookingDetailModal({ booking, onClose, onRemove, onOpenHuman, on
           onClose={() => setShowDatePicker(false)}
         />
       )}
+
+      {showContact && <ContactPopup human={primaryHuman} onClose={() => setShowContact(false)} />}
 
       {/* Exit Confirmation Modal */}
       {showExitConfirm && (

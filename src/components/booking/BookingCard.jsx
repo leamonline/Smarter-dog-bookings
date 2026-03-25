@@ -4,13 +4,15 @@ import { SizeTag } from "../ui/SizeTag.jsx";
 import { StaffIconBtn } from "../ui/StaffIconBtn.jsx";
 import { IconEdit, IconMessage } from "../icons/index.jsx";
 import { BookingDetailModal } from "../modals/BookingDetailModal.jsx";
+import { ContactPopup } from "../modals/ContactPopup.jsx";
 
 const ICON_COL_STYLE = {
   width: 28, minWidth: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 };
 
-export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState }) {
+export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdate, currentDayKey, currentDateObj, bookingsByDay, dayOpenState, dogs, humans, onUpdateDog }) {
   const [showDetail, setShowDetail] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const service = SERVICES.find((s) => s.id === booking.service);
   return (
     <>
@@ -32,10 +34,11 @@ export function BookingCard({ booking, onRemove, onOpenHuman, onOpenDog, onUpdat
         </div>
         <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
           <StaffIconBtn icon={<IconEdit />} title="Edit appointment" onClick={(e) => { e.stopPropagation(); setShowDetail(true); }} />
-          <StaffIconBtn icon={<IconMessage />} title="Message owner" onClick={(e) => { e.stopPropagation(); }} />
+          <StaffIconBtn icon={<IconMessage />} title="Message owner" onClick={(e) => { e.stopPropagation(); setShowContact(true); }} />
         </div>
       </div>
-      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDayKey={currentDayKey} currentDateObj={currentDateObj} bookingsByDay={bookingsByDay} dayOpenState={dayOpenState} />}
+      {showDetail && <BookingDetailModal booking={booking} onClose={() => setShowDetail(false)} onRemove={onRemove} onOpenHuman={onOpenHuman} onUpdate={onUpdate} currentDayKey={currentDayKey} currentDateObj={currentDateObj} bookingsByDay={bookingsByDay} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} />}
+      {showContact && <ContactPopup human={humans[booking.owner]} onClose={() => setShowContact(false)} />}
     </>
   );
 }

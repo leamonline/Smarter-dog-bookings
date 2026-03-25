@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
-import { BRAND, SALON_SLOTS, ALL_DAYS } from "./constants/index.js";
+import { BRAND, SALON_SLOTS, ALL_DAYS, PRICING, LARGE_DOG_SLOTS } from "./constants/index.js";
 import { computeSlotCapacities } from "./engine/capacity.js";
-import { SAMPLE_BOOKINGS_BY_DAY } from "./data/sample.js";
+import { SAMPLE_BOOKINGS_BY_DAY, SAMPLE_HUMANS, SAMPLE_DOGS } from "./data/sample.js";
 import { Legend } from "./components/ui/Legend.jsx";
 import { SlotRow } from "./components/booking/SlotRow.jsx";
 import { DayHeader } from "./components/layout/DayHeader.jsx";
@@ -12,13 +12,26 @@ import { HumanCardModal } from "./components/modals/HumanCardModal.jsx";
 import { DogCardModal } from "./components/modals/DogCardModal.jsx";
 import { SettingsView } from "./components/views/SettingsView.jsx";
 import { HumansView } from "./components/views/HumansView.jsx";
+import { DogsView } from "./components/views/DogsView.jsx";
 
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedHumanId, setSelectedHumanId] = useState(null);
   const [selectedDogId, setSelectedDogId] = useState(null);
 
+  // Core data state (lifted from sample data)
+  const [dogs, setDogs] = useState(SAMPLE_DOGS);
+  const [humans, setHumans] = useState(SAMPLE_HUMANS);
   const [bookingsByDay, setBookingsByDay] = useState(SAMPLE_BOOKINGS_BY_DAY);
+
+  // Salon config state
+  const [salonConfig, setSalonConfig] = useState({
+    defaultPickupOffset: 120,
+    pricing: { ...PRICING },
+    enforceCapacity: true,
+    largeDogSlots: { ...LARGE_DOG_SLOTS },
+  });
+
   const [selectedDay, setSelectedDay] = useState(0);
   const [overridesByDay, setOverridesByDay] = useState({});
   const defaultOpenState = {};
@@ -26,6 +39,15 @@ export default function App() {
   const [dayOpenState, setDayOpenState] = useState(defaultOpenState);
   const [extraSlotsByDay, setExtraSlotsByDay] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Data update callbacks
+  const handleUpdateDog = useCallback((dogName, updates) => {
+    setDogs(prev => ({ ...prev, [dogName]: { ...prev[dogName], ...updates } }));
+  }, []);
+
+  const handleUpdateHuman = useCallback((humanKey, updates) => {
+    setHumans(prev => ({ ...prev, [humanKey]: { ...prev[humanKey], ...updates } }));
+  }, []);
 
   // Week navigation
   const [weekOffset, setWeekOffset] = useState(0);
@@ -176,13 +198,18 @@ export default function App() {
           <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 2 }}>Salon Dashboard</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button style={{
-            background: BRAND.white, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8,
-            padding: "8px 14px", fontSize: 13, fontWeight: 600, color: BRAND.text,
+          <button
+          onClick={() => setActiveView("dogs")}
+          style={{
+            background: activeView === "dogs" ? BRAND.blueLight : BRAND.white,
+            border: `1px solid ${activeView === "dogs" ? BRAND.blue : BRAND.greyLight}`,
+            borderRadius: 8,
+            padding: "8px 14px", fontSize: 13, fontWeight: 600,
+            color: activeView === "dogs" ? BRAND.blueDark : BRAND.text,
             cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; }}>
+          onMouseEnter={(e) => { if (activeView !== "dogs") { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; } }}
+          onMouseLeave={(e) => { if (activeView !== "dogs") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>
             Dogs
           </button>
 
@@ -228,9 +255,11 @@ export default function App() {
       </div>
 
       {activeView === "settings" ? (
-        <SettingsView onBack={() => setActiveView("dashboard")} />
+        <SettingsView onBack={() => setActiveView("dashboard")} config={salonConfig} onUpdateConfig={setSalonConfig} />
       ) : activeView === "humans" ? (
-        <HumansView onOpenHuman={setSelectedHumanId} />
+        <HumansView humans={humans} dogs={dogs} onOpenHuman={setSelectedHumanId} />
+      ) : activeView === "dogs" ? (
+        <DogsView dogs={dogs} humans={humans} onOpenDog={setSelectedDogId} />
       ) : (
         <>
           {/* Week navigation */}
@@ -245,7 +274,7 @@ export default function App() {
               <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${BRAND.greyLight}`, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <DayHeader day={currentDayConfig.full} date={dates[selectedDay]} dogCount={dogCount} maxDogs={16} isOpen={true} onToggleOpen={() => toggleDayOpen(currentDayConfig.key)} onCalendarClick={() => setShowDatePicker(true)} />
                 {activeSlots.map((slot, i) => (
-                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDayKey={currentDayConfig.key} currentDateObj={currentDateObj} bookingsByDay={bookingsByDay} dayOpenState={dayOpenState} />
+                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDayKey={currentDayConfig.key} currentDateObj={currentDateObj} bookingsByDay={bookingsByDay} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={handleUpdateDog} />
                 ))}
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${BRAND.greyLight}`, background: BRAND.white, display: "flex", flexDirection: "column", gap: 8 }}>
                   {(extraSlotsByDay[currentDayConfig.key] || []).length > 0 && (
@@ -289,8 +318,8 @@ export default function App() {
         </>
       )}
 
-      {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} />}
-      {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} />}
+      {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} humans={humans} dogs={dogs} onUpdateHuman={handleUpdateHuman} />}
+      {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} dogs={dogs} onUpdateDog={handleUpdateDog} />}
     </div>
   );
 }
