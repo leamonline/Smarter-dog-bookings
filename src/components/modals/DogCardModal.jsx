@@ -1,8 +1,43 @@
-import { useState } from "react";
-import { BRAND, ALERT_OPTIONS } from "../../constants/index.js";
+import { useState, useMemo } from "react";
+import { BRAND, ALERT_OPTIONS, SERVICES } from "../../constants/index.js";
 import { IconEdit, IconTick } from "../icons/index.jsx";
 
-export function DogCardModal({ dogId, onClose, onOpenHuman, dogs, onUpdateDog }) {
+function BookingHistory({ dogName, bookingsByDate }) {
+  const history = useMemo(() => {
+    if (!bookingsByDate) return [];
+    const entries = [];
+    for (const [dateStr, bookings] of Object.entries(bookingsByDate)) {
+      for (const b of bookings) {
+        if (b.dogName === dogName) {
+          entries.push({ ...b, date: dateStr });
+        }
+      }
+    }
+    return entries.sort((a, b) => b.date.localeCompare(a.date));
+  }, [dogName, bookingsByDate]);
+
+  if (history.length === 0) return null;
+
+  return (
+    <div style={{ padding: "0 24px" }}>
+      <div style={{ marginTop: 16, fontWeight: 800, fontSize: 12, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Recent Bookings</div>
+      {history.slice(0, 5).map((b, i) => {
+        const svc = SERVICES.find(s => s.id === b.service);
+        return (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${BRAND.greyLight}`, fontSize: 12 }}>
+            <div>
+              <span style={{ fontWeight: 600, color: BRAND.text }}>{b.date}</span>
+              <span style={{ color: BRAND.textLight, marginLeft: 6 }}>{svc?.icon} {svc?.name}</span>
+            </div>
+            <span style={{ fontWeight: 600, color: b.status === "Completed" ? BRAND.openGreen : BRAND.textLight, fontSize: 11 }}>{b.status}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function DogCardModal({ dogId, onClose, onOpenHuman, dogs, onUpdateDog, bookingsByDate }) {
   const dog = Object.values(dogs).find(d => d.name === dogId) || { name: dogId, breed: "", age: "", humanId: "", alerts: [], groomNotes: "" };
 
   const [isEditing, setIsEditing] = useState(false);
@@ -140,6 +175,9 @@ export function DogCardModal({ dogId, onClose, onOpenHuman, dogs, onUpdateDog })
             )
           )}
         </div>
+
+        {/* Booking History */}
+        <BookingHistory dogName={dog.name} bookingsByDate={bookingsByDate} />
 
         {/* Footer actions */}
         <div style={{ padding: "16px 24px 20px", display: "flex", gap: 10, background: BRAND.offWhite, borderTop: `1px solid ${BRAND.greyLight}`, marginTop: 16 }}>

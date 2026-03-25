@@ -6,6 +6,7 @@ export function AddDogModal({ onClose, onAdd, humans }) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [age, setAge] = useState("");
+  const [size, setSize] = useState("small");
   const [ownerQuery, setOwnerQuery] = useState("");
   const [selectedOwner, setSelectedOwner] = useState("");
   const [groomNotes, setGroomNotes] = useState("");
@@ -36,6 +37,7 @@ export function AddDogModal({ onClose, onAdd, humans }) {
       name: name.trim(),
       breed: breed.trim(),
       age: age.trim(),
+      size,
       humanId: selectedOwner,
       groomNotes: groomNotes.trim(),
     });
@@ -87,10 +89,20 @@ export function AddDogModal({ onClose, onAdd, humans }) {
             </div>
           </div>
 
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Age</label>
-            <input value={age} onChange={e => setAge(e.target.value)} placeholder="3 yrs" style={inputStyle}
-              onFocus={e => e.target.style.borderColor = BRAND.blue} onBlur={e => e.target.style.borderColor = BRAND.greyLight} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Age</label>
+              <input value={age} onChange={e => setAge(e.target.value)} placeholder="3 yrs" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = BRAND.blue} onBlur={e => e.target.style.borderColor = BRAND.greyLight} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Size *</label>
+              <select value={size} onChange={e => setSize(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
           </div>
 
           <div>

@@ -5,7 +5,7 @@ import { AddBookingForm } from "./AddBookingForm.jsx";
 import { AvailableSeat } from "../ui/AvailableSeat.jsx";
 import { BlockedSeat } from "../ui/BlockedSeat.jsx";
 
-export function SlotRow({ slot, slotIndex, capacity, bookings, onAdd, onRemove, overrides, onOverride, activeSlots, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog }) {
+export function SlotRow({ slot, slotIndex, capacity, bookings, onAdd, onRemove, overrides, onOverride, activeSlots, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog, onRebook }) {
   const [showForm, setShowForm] = useState(false);
   const [formSeat, setFormSeat] = useState(null);
   const hour = parseInt(slot.split(":")[0]);
@@ -47,10 +47,10 @@ export function SlotRow({ slot, slotIndex, capacity, bookings, onAdd, onRemove, 
         {seats.map((seat, i) => (
           <div key={i}>
             {seat.type === "booking" ? (
-              <BookingCard booking={seat.booking} onRemove={onRemove} onOpenHuman={onOpenHuman} onOpenDog={onOpenDog} onUpdate={onUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} />
+              <BookingCard booking={seat.booking} onRemove={onRemove} onOpenHuman={onOpenHuman} onOpenDog={onOpenDog} onUpdate={onUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={onUpdateDog} onRebook={onRebook} />
             ) : seat.type === "available" ? (
               showForm && formSeat === i ? (
-                <AddBookingForm slot={slot} bookings={bookings} activeSlots={activeSlots} onAdd={(b) => { onAdd(b); setShowForm(false); setFormSeat(null); }} onCancel={() => { setShowForm(false); setFormSeat(null); }} />
+                <AddBookingForm slot={slot} bookings={bookings} activeSlots={activeSlots} dogs={dogs} humans={humans} onAdd={(b) => { onAdd(b); setShowForm(false); setFormSeat(null); }} onCancel={() => { setShowForm(false); setFormSeat(null); }} />
               ) : (
                 <AvailableSeat
                   onAddBooking={() => { setShowForm(true); setFormSeat(i); }}
@@ -59,7 +59,7 @@ export function SlotRow({ slot, slotIndex, capacity, bookings, onAdd, onRemove, 
               )
             ) : (
               showForm && formSeat === i ? (
-                <AddBookingForm slot={slot} bookings={bookings} activeSlots={activeSlots} onAdd={(b) => { onAdd(b); setShowForm(false); setFormSeat(null); }} onCancel={() => { setShowForm(false); setFormSeat(null); }} />
+                <AddBookingForm slot={slot} bookings={bookings} activeSlots={activeSlots} dogs={dogs} humans={humans} onAdd={(b) => { onAdd(b); setShowForm(false); setFormSeat(null); }} onCancel={() => { setShowForm(false); setFormSeat(null); }} />
               ) : (
                 <BlockedSeat
                   onAddBooking={() => { setShowForm(true); setFormSeat(i); }}

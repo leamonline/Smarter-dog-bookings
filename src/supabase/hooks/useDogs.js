@@ -45,6 +45,7 @@ export function useDogs(humansById) {
       if (updates.groomNotes !== undefined) dbUpdates.groom_notes = updates.groomNotes;
       if (updates.alerts !== undefined) dbUpdates.alerts = updates.alerts;
       if (updates.customPrice !== undefined) dbUpdates.custom_price = updates.customPrice;
+      if (updates.size !== undefined) dbUpdates.size = updates.size;
 
       if (Object.keys(dbUpdates).length > 0) {
         const { error: err } = await supabase.from("dogs").update(dbUpdates).eq("id", dog.id);
@@ -65,6 +66,7 @@ export function useDogs(humansById) {
         name: dogData.name,
         breed: dogData.breed,
         age: dogData.age || "",
+        size: dogData.size || null,
         humanId: dogData.humanId,
         alerts: [],
         groomNotes: dogData.groomNotes || "",
@@ -91,6 +93,7 @@ export function useDogs(humansById) {
           name: dogData.name,
           breed: dogData.breed,
           age: dogData.age || "",
+          size: dogData.size || null,
           human_id: owner.id,
           groom_notes: dogData.groomNotes || "",
         })
