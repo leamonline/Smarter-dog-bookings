@@ -32,40 +32,39 @@ export function useAuth() {
     }
     return data;
   }, []);
-
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
       return;
     }
 
-    // Check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        const profile = await fetchProfile(session.user.id);
-        setStaffProfile(profile);
-      }
-      setLoading(false);
-    });
+    let cancelled = false;
 
-    // Listen for auth changes
+    // Only use onAuthStateChange — it fires INITIAL_SESSION on mount,
+    // so we don't need a separate getSession() call (which causes lock contention).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (cancelled) return;
+
         if (session?.user) {
           setUser(session.user);
           const profile = await fetchProfile(session.user.id);
-          setStaffProfile(profile);
+          if (!cancelled) setStaffProfile(profile);
         } else {
           setUser(null);
           setStaffProfile(null);
         }
+
+        // Mark loading done after the initial session check
+        if (loading) setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
-
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
   const signIn = useCallback(async (email, password) => {
     if (!supabase) {
       setError("Supabase not configured. Running in offline mode.");
@@ -99,7 +98,6 @@ export function useAuth() {
     }
     return { data };
   }, []);
-
   const signOut = useCallback(async () => {
     if (!supabase) return;
     const { error: err } = await supabase.auth.signOut();
