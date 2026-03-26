@@ -45,6 +45,9 @@ export default function App() {
   const { user, staffProfile, loading: authLoading, error: authError, signIn, signUp, signOut, isOwner } = useAuth();
   const isOnline = !!supabase;
 
+  // ========================================
+  // UI STATE (before any early returns)
+  // ========================================
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedHumanId, setSelectedHumanId] = useState(null);
   const [selectedDogId, setSelectedDogId] = useState(null);
@@ -86,32 +89,17 @@ export default function App() {
   const currentDayConfig = ALL_DAYS[selectedDay];
 
   // ========================================
-  // AUTH GATE: Show login if online and not authenticated
+  // DATA: Supabase hooks (must be called before any early returns)
   // ========================================
-  if (authLoading) {
-    return (
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (isOnline && !user) {
-    return <LoginPage onSignIn={signIn} onSignUp={signUp} error={authError} isOffline={false} />;
-  }
-
-  // ========================================
-  // DATA: Supabase hooks with offline fallback
-  // ========================================
-
-  // Supabase hooks (no-op when supabase is null)
   const { humans: sbHumans, humansById, loading: hl, error: he, updateHuman: sbUpdateHuman, addHuman: sbAddHuman } = useHumans();
   const { dogs: sbDogs, dogsById, loading: dl, error: de, updateDog: sbUpdateDog, addDog: sbAddDog } = useDogs(humansById);
   const { bookingsByDate: sbBookings, loading: bl, error: be, addBooking: sbAddBooking, removeBooking: sbRemoveBooking, updateBooking: sbUpdateBooking } = useBookings(weekStart, dogsById, humansById);
   const { config: sbConfig, loading: cl, updateConfig: sbUpdateConfig } = useSalonConfig();
   const { daySettings: sbDaySettings, loading: dsl, toggleDayOpen: sbToggleDayOpen, setOverride: sbSetOverride, addExtraSlot: sbAddExtraSlot, removeExtraSlot: sbRemoveExtraSlot } = useDaySettings(weekStart);
 
-  // Offline state (used when no Supabase)
+  // ========================================
+  // OFFLINE STATE (must be called before any early returns)
+  // ========================================
   const [offlineDogs, setOfflineDogs] = useState(SAMPLE_DOGS);
   const [offlineHumans, setOfflineHumans] = useState(SAMPLE_HUMANS);
   const [offlineBookings, setOfflineBookings] = useState(() => buildOfflineBookingsByDate(weekStart));
@@ -121,12 +109,6 @@ export default function App() {
     enforceCapacity: true,
     largeDogSlots: { ...LARGE_DOG_SLOTS },
   });
-
-  // Rebuild offline bookings when week changes
-  const offlineBookingsByDate = useMemo(() => {
-    if (isOnline) return {};
-    return offlineBookings;
-  }, [isOnline, offlineBookings]);
 
   // Offline day settings
   const [offlineDaySettings, setOfflineDaySettings] = useState(() => {
@@ -139,7 +121,15 @@ export default function App() {
     return settings;
   });
 
-  // Pick online or offline
+  // Rebuild offline bookings when week changes
+  const offlineBookingsByDate = useMemo(() => {
+    if (isOnline) return {};
+    return offlineBookings;
+  }, [isOnline, offlineBookings]);
+
+  // ========================================
+  // PICK ONLINE OR OFFLINE DATA
+  // ========================================
   const dogs = isOnline ? sbDogs : offlineDogs;
   const humans = isOnline ? sbHumans : offlineHumans;
   const bookingsByDate = isOnline ? sbBookings : offlineBookingsByDate;
@@ -149,120 +139,147 @@ export default function App() {
   const isLoading = isOnline && (hl || dl || bl || cl || dsl);
   const dataError = he || de || be;
 
-  // Unified callbacks
-  const updateDog = isOnline ? sbUpdateDog : useCallback((name, updates) => {
+  // ========================================
+  // OFFLINE CALLBACKS (declared unconditionally)
+  // ========================================
+  const offlineUpdateDog = useCallback((name, updates) => {
     setOfflineDogs(prev => ({ ...prev, [name]: { ...prev[name], ...updates } }));
   }, []);
 
-  const updateHuman = isOnline ? sbUpdateHuman : useCallback((key, updates) => {
+  const offlineUpdateHuman = useCallback((key, updates) => {
     setOfflineHumans(prev => ({ ...prev, [key]: { ...prev[key], ...updates } }));
   }, []);
 
-  const updateConfig = isOnline ? sbUpdateConfig : useCallback((updater) => {
+  const offlineUpdateConfig = useCallback((updater) => {
     setOfflineConfig(prev => typeof updater === "function" ? updater(prev) : updater);
   }, []);
 
-  const addHuman = isOnline ? sbAddHuman : useCallback((humanData) => {
+  const offlineAddHuman = useCallback((humanData) => {
     const key = `${humanData.name} ${humanData.surname}`;
     const newHuman = { id: `h-${Date.now()}`, ...humanData, fb: "", insta: "", tiktok: "", historyFlag: "", trustedIds: [] };
     setOfflineHumans(prev => ({ ...prev, [key]: newHuman }));
     return newHuman;
   }, []);
 
-  const addDog = isOnline ? sbAddDog : useCallback((dogData) => {
+  const offlineAddDog = useCallback((dogData) => {
     const newDog = { id: `d-${Date.now()}`, ...dogData, alerts: [], groomNotes: dogData.groomNotes || "", customPrice: undefined };
     setOfflineDogs(prev => ({ ...prev, [dogData.name]: newDog }));
     return newDog;
   }, []);
 
+  const offlineHandleAdd = useCallback((booking) => {
+    setOfflineBookings(prev => ({
+      ...prev,
+      [currentDateStr]: [...(prev[currentDateStr] || []), booking],
+    }));
+  }, [currentDateStr]);
+
+  const offlineHandleRemove = useCallback((bookingId) => {
+    setOfflineBookings(prev => ({
+      ...prev,
+      [currentDateStr]: (prev[currentDateStr] || []).filter(b => b.id !== bookingId),
+    }));
+  }, [currentDateStr]);
+
+  const offlineHandleUpdate = useCallback((updatedBooking, fromDateStr, toDateStr) => {
+    setOfflineBookings(prev => {
+      const newState = { ...prev };
+      if (fromDateStr === toDateStr) {
+        newState[fromDateStr] = (newState[fromDateStr] || []).map(b => b.id === updatedBooking.id ? updatedBooking : b);
+      } else {
+        newState[fromDateStr] = (newState[fromDateStr] || []).filter(b => b.id !== updatedBooking.id);
+        newState[toDateStr] = [...(newState[toDateStr] || []), updatedBooking];
+      }
+      return newState;
+    });
+  }, []);
+
+  // ========================================
+  // DAY SETTINGS OFFLINE CALLBACKS
+  // ========================================
+  const offlineToggleDayOpen = useCallback(() => {
+    setOfflineDaySettings(prev => ({
+      ...prev,
+      [currentDateStr]: { ...prev[currentDateStr], isOpen: !prev[currentDateStr]?.isOpen },
+    }));
+  }, [currentDateStr]);
+
+  const offlineHandleOverride = useCallback((slot, seatIndex, action) => {
+    setOfflineDaySettings(prev => {
+      const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
+      const overrides = { ...current.overrides };
+      const slotOv = { ...(overrides[slot] || {}) };
+      if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
+      else slotOv[seatIndex] = action;
+      overrides[slot] = slotOv;
+      return { ...prev, [currentDateStr]: { ...current, overrides } };
+    });
+  }, [currentDateStr]);
+
+  const offlineHandleAddSlot = useCallback(() => {
+    setOfflineDaySettings(prev => {
+      const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
+      const existing = current.extraSlots || [];
+      const lastSlot = existing.length > 0 ? existing[existing.length - 1] : SALON_SLOTS[SALON_SLOTS.length - 1];
+      let [h, m] = lastSlot.split(":").map(Number);
+      m += 30;
+      if (m >= 60) { h += 1; m -= 60; }
+      const newSlot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+      return { ...prev, [currentDateStr]: { ...current, extraSlots: [...existing, newSlot] } };
+    });
+  }, [currentDateStr]);
+
+  const offlineHandleRemoveSlot = useCallback(() => {
+    setOfflineDaySettings(prev => {
+      const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
+      const existing = current.extraSlots || [];
+      if (existing.length === 0) return prev;
+      return { ...prev, [currentDateStr]: { ...current, extraSlots: existing.slice(0, -1) } };
+    });
+  }, [currentDateStr]);
+
+  // ========================================
+  // UNIFIED CALLBACKS (pick online or offline)
+  // ========================================
+  const updateDog = isOnline ? sbUpdateDog : offlineUpdateDog;
+  const updateHuman = isOnline ? sbUpdateHuman : offlineUpdateHuman;
+  const updateConfig = isOnline ? sbUpdateConfig : offlineUpdateConfig;
+  const addHuman = isOnline ? sbAddHuman : offlineAddHuman;
+  const addDog = isOnline ? sbAddDog : offlineAddDog;
   const handleAdd = isOnline
     ? useCallback((booking) => sbAddBooking(currentDateStr, booking), [sbAddBooking, currentDateStr])
-    : useCallback((booking) => {
-        setOfflineBookings(prev => ({
-          ...prev,
-          [currentDateStr]: [...(prev[currentDateStr] || []), booking],
-        }));
-      }, [currentDateStr]);
-
+    : offlineHandleAdd;
   const handleRemove = isOnline
     ? useCallback((bookingId) => sbRemoveBooking(currentDateStr, bookingId), [sbRemoveBooking, currentDateStr])
-    : useCallback((bookingId) => {
-        setOfflineBookings(prev => ({
-          ...prev,
-          [currentDateStr]: (prev[currentDateStr] || []).filter(b => b.id !== bookingId),
-        }));
-      }, [currentDateStr]);
+    : offlineHandleRemove;
+  const handleUpdate = isOnline ? sbUpdateBooking : offlineHandleUpdate;
 
-  const handleUpdate = isOnline
-    ? sbUpdateBooking
-    : useCallback((updatedBooking, fromDateStr, toDateStr) => {
-        setOfflineBookings(prev => {
-          const newState = { ...prev };
-          if (fromDateStr === toDateStr) {
-            newState[fromDateStr] = (newState[fromDateStr] || []).map(b => b.id === updatedBooking.id ? updatedBooking : b);
-          } else {
-            newState[fromDateStr] = (newState[fromDateStr] || []).filter(b => b.id !== updatedBooking.id);
-            newState[toDateStr] = [...(newState[toDateStr] || []), updatedBooking];
-          }
-          return newState;
-        });
-      }, []);
-
-  // Day settings callbacks
+  // ========================================
+  // DAY SETTINGS (pick online or offline)
+  // ========================================
   const currentSettings = daySettings[currentDateStr] || { isOpen: false, overrides: {}, extraSlots: [] };
   const isOpen = currentSettings.isOpen;
   const dayOverrides = currentSettings.overrides || {};
 
   const toggleDayOpen = isOnline
     ? useCallback(() => sbToggleDayOpen(currentDateStr), [sbToggleDayOpen, currentDateStr])
-    : useCallback(() => {
-        setOfflineDaySettings(prev => ({
-          ...prev,
-          [currentDateStr]: { ...prev[currentDateStr], isOpen: !prev[currentDateStr]?.isOpen },
-        }));
-      }, [currentDateStr]);
+    : offlineToggleDayOpen;
 
   const handleOverride = isOnline
     ? useCallback((slot, seatIndex, action) => sbSetOverride(currentDateStr, slot, seatIndex, action), [sbSetOverride, currentDateStr])
-    : useCallback((slot, seatIndex, action) => {
-        setOfflineDaySettings(prev => {
-          const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
-          const overrides = { ...current.overrides };
-          const slotOv = { ...(overrides[slot] || {}) };
-          if (slotOv[seatIndex] === action) delete slotOv[seatIndex];
-          else slotOv[seatIndex] = action;
-          overrides[slot] = slotOv;
-          return { ...prev, [currentDateStr]: { ...current, overrides } };
-        });
-      }, [currentDateStr]);
+    : offlineHandleOverride;
 
   const handleAddSlot = isOnline
     ? useCallback(() => sbAddExtraSlot(currentDateStr), [sbAddExtraSlot, currentDateStr])
-    : useCallback(() => {
-        setOfflineDaySettings(prev => {
-          const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
-          const existing = current.extraSlots || [];
-          const lastSlot = existing.length > 0 ? existing[existing.length - 1] : SALON_SLOTS[SALON_SLOTS.length - 1];
-          let [h, m] = lastSlot.split(":").map(Number);
-          m += 30;
-          if (m >= 60) { h += 1; m -= 60; }
-          const newSlot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-          return { ...prev, [currentDateStr]: { ...current, extraSlots: [...existing, newSlot] } };
-        });
-      }, [currentDateStr]);
+    : offlineHandleAddSlot;
 
   const handleRemoveSlot = isOnline
     ? useCallback(() => sbRemoveExtraSlot(currentDateStr), [sbRemoveExtraSlot, currentDateStr])
-    : useCallback(() => {
-        setOfflineDaySettings(prev => {
-          const current = prev[currentDateStr] || { isOpen: true, overrides: {}, extraSlots: [] };
-          const existing = current.extraSlots || [];
-          if (existing.length === 0) return prev;
-          return { ...prev, [currentDateStr]: { ...current, extraSlots: existing.slice(0, -1) } };
-        });
-      }, [currentDateStr]);
+    : offlineHandleRemoveSlot;
 
-  // Bookings + capacity
+  // ========================================
+  // BOOKINGS + CAPACITY
+  // ========================================
   const dayBookings = bookingsByDate[currentDateStr] || [];
   const activeSlots = useMemo(() => {
     return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
@@ -275,7 +292,9 @@ export default function App() {
 
   const dogCount = dayBookings.length;
 
-  // Date picker
+  // ========================================
+  // DATE PICKER
+  // ========================================
   const handleDatePick = useCallback((pickedDate) => {
     const dayOfWeek = pickedDate.getDay();
     const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -309,8 +328,20 @@ export default function App() {
   }, [dates, daySettings]);
 
   // ========================================
-  // RENDER
+  // AUTH GATE: Show login if online and not authenticated
+  // (AFTER all hooks but BEFORE final return)
   // ========================================
+  if (authLoading) {
+    return (
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (isOnline && !user) {
+    return <LoginPage onSignIn={signIn} onSignUp={signUp} error={authError} isOffline={false} />;
+  }
 
   if (isLoading) {
     return (
@@ -319,6 +350,10 @@ export default function App() {
       </div>
     );
   }
+
+  // ========================================
+  // RENDER
+  // ========================================
 
   return (
     <div style={{
