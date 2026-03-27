@@ -448,38 +448,58 @@ export default function App() {
     });
   }, [currentDateStr, currentDateObj]);
 
+  // Online callbacks (always declared to avoid conditional hook calls)
+  const onlineHandleAdd = useCallback(
+    (booking, targetDateStr = currentDateStr) =>
+      sbAddBooking(targetDateStr, booking),
+    [sbAddBooking, currentDateStr],
+  );
+  const onlineHandleAddToDate = useCallback(
+    (booking, dateStr) => sbAddBooking(dateStr, booking),
+    [sbAddBooking],
+  );
+  const offlineHandleAddToDate = useCallback((booking, dateStr) => {
+    setOfflineBookings((prev) => ({
+      ...prev,
+      [dateStr]: [...(prev[dateStr] || []), booking],
+    }));
+  }, []);
+  const onlineHandleRemove = useCallback(
+    (bookingId) => sbRemoveBooking(currentDateStr, bookingId),
+    [sbRemoveBooking, currentDateStr],
+  );
+  const onlineToggleDayOpen = useCallback(
+    () => sbToggleDayOpen(currentDateStr),
+    [sbToggleDayOpen, currentDateStr],
+  );
+  const onlineHandleOverride = useCallback(
+    (slot, seatIndex, action) =>
+      sbSetOverride(currentDateStr, slot, seatIndex, action),
+    [sbSetOverride, currentDateStr],
+  );
+  const onlineHandleAddSlot = useCallback(
+    () => sbAddExtraSlot(currentDateStr),
+    [sbAddExtraSlot, currentDateStr],
+  );
+  const onlineHandleRemoveSlot = useCallback(
+    () => sbRemoveExtraSlot(currentDateStr),
+    [sbRemoveExtraSlot, currentDateStr],
+  );
+
+  // Pick online or offline callbacks (no conditional hook calls!)
   const updateDog = isOnline ? sbUpdateDog : offlineUpdateDog;
   const updateHuman = isOnline ? sbUpdateHuman : offlineUpdateHuman;
   const updateConfig = isOnline ? sbUpdateConfig : offlineUpdateConfig;
   const addHuman = isOnline ? sbAddHuman : offlineAddHuman;
   const addDog = isOnline ? sbAddDog : offlineAddDog;
-
-  const handleAdd = isOnline
-    ? useCallback(
-        (booking, targetDateStr = currentDateStr) =>
-          sbAddBooking(targetDateStr, booking),
-        [sbAddBooking, currentDateStr],
-      )
-    : offlineHandleAdd;
-
-  // Add booking to any date (used by NewBookingModal)
-  const handleAddToDate = isOnline
-    ? useCallback((booking, dateStr) => sbAddBooking(dateStr, booking), [sbAddBooking])
-    : useCallback((booking, dateStr) => {
-        setOfflineBookings(prev => ({
-          ...prev,
-          [dateStr]: [...(prev[dateStr] || []), booking],
-        }));
-      }, []);
-
-  const handleRemove = isOnline
-    ? useCallback(
-        (bookingId) => sbRemoveBooking(currentDateStr, bookingId),
-        [sbRemoveBooking, currentDateStr],
-      )
-    : offlineHandleRemove;
-
+  const handleAdd = isOnline ? onlineHandleAdd : offlineHandleAdd;
+  const handleAddToDate = isOnline ? onlineHandleAddToDate : offlineHandleAddToDate;
+  const handleRemove = isOnline ? onlineHandleRemove : offlineHandleRemove;
   const handleUpdate = isOnline ? sbUpdateBooking : offlineHandleUpdate;
+  const toggleDayOpen = isOnline ? onlineToggleDayOpen : offlineToggleDayOpen;
+  const handleOverride = isOnline ? onlineHandleOverride : offlineHandleOverride;
+  const handleAddSlot = isOnline ? onlineHandleAddSlot : offlineHandleAddSlot;
+  const handleRemoveSlot = isOnline ? onlineHandleRemoveSlot : offlineHandleRemoveSlot;
 
   const currentSettings = daySettings[currentDateStr] || {
     isOpen: getDefaultOpenForDate(currentDateObj),
@@ -488,35 +508,6 @@ export default function App() {
   };
   const isOpen = currentSettings.isOpen;
   const dayOverrides = currentSettings.overrides || {};
-
-  const toggleDayOpen = isOnline
-    ? useCallback(
-        () => sbToggleDayOpen(currentDateStr),
-        [sbToggleDayOpen, currentDateStr],
-      )
-    : offlineToggleDayOpen;
-
-  const handleOverride = isOnline
-    ? useCallback(
-        (slot, seatIndex, action) =>
-          sbSetOverride(currentDateStr, slot, seatIndex, action),
-        [sbSetOverride, currentDateStr],
-      )
-    : offlineHandleOverride;
-
-  const handleAddSlot = isOnline
-    ? useCallback(
-        () => sbAddExtraSlot(currentDateStr),
-        [sbAddExtraSlot, currentDateStr],
-      )
-    : offlineHandleAddSlot;
-
-  const handleRemoveSlot = isOnline
-    ? useCallback(
-        () => sbRemoveExtraSlot(currentDateStr),
-        [sbRemoveExtraSlot, currentDateStr],
-      )
-    : offlineHandleRemoveSlot;
 
   const dayBookings = bookingsByDate[currentDateStr] || [];
   const activeSlots = useMemo(() => {
@@ -758,98 +749,8 @@ export default function App() {
             color: activeView === "settings" ? BRAND.blueDark : BRAND.text,
             cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
           }}
-        >
-          <button
-            onClick={() => setActiveView("dogs")}
-            style={{
-              background: activeView === "dogs" ? BRAND.blueLight : BRAND.white,
-              border: `1px solid ${activeView === "dogs" ? BRAND.blue : BRAND.greyLight}`,
-              borderRadius: 8,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: activeView === "dogs" ? BRAND.blueDark : BRAND.text,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeView !== "dogs") {
-                e.currentTarget.style.borderColor = BRAND.blue;
-                e.currentTarget.style.color = BRAND.blue;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeView !== "dogs") {
-                e.currentTarget.style.borderColor = BRAND.greyLight;
-                e.currentTarget.style.color = BRAND.text;
-              }
-            }}
-          >
-            Dogs
-          </button>
-
-          <button
-            onClick={() => setActiveView("humans")}
-            style={{
-              background:
-                activeView === "humans" ? BRAND.tealLight : BRAND.white,
-              border: `1px solid ${activeView === "humans" ? BRAND.teal : BRAND.greyLight}`,
-              borderRadius: 8,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: activeView === "humans" ? "#1F6659" : BRAND.text,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeView !== "humans") {
-                e.currentTarget.style.borderColor = BRAND.teal;
-                e.currentTarget.style.color = BRAND.teal;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeView !== "humans") {
-                e.currentTarget.style.borderColor = BRAND.greyLight;
-                e.currentTarget.style.color = BRAND.text;
-              }
-            }}
-          >
-            Humans
-          </button>
-
-          <button
-            onClick={() => setActiveView("settings")}
-            style={{
-              background:
-                activeView === "settings" ? BRAND.blueLight : BRAND.white,
-              border: `1px solid ${activeView === "settings" ? BRAND.blue : BRAND.greyLight}`,
-              borderRadius: 8,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: activeView === "settings" ? BRAND.blueDark : BRAND.text,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeView !== "settings") {
-                e.currentTarget.style.borderColor = BRAND.blue;
-                e.currentTarget.style.color = BRAND.blue;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeView !== "settings") {
-                e.currentTarget.style.borderColor = BRAND.greyLight;
-                e.currentTarget.style.color = BRAND.text;
-              }
-            }}
-          >
-            Settings
-          </button>
+          onMouseEnter={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; } }}
+          onMouseLeave={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>Settings</button>
 
           {isOnline && user && (
             <button
@@ -962,6 +863,7 @@ export default function App() {
                       onUpdateDog={updateDog}
                       onRebook={handleOpenRebook}
                       daySettings={daySettings}
+                      onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
                     />
                   ))}
                   <div
@@ -1109,20 +1011,6 @@ export default function App() {
                     slot, then confirm.
                   </div>
 
-          {isOpen ? (
-            <>
-              <Legend />
-              <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${BRAND.greyLight}`, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <DayHeader day={currentDayConfig.full} date={dates[selectedDay]} dogCount={dogCount} maxDogs={16} isOpen={true} onToggleOpen={toggleDayOpen} onCalendarClick={() => setShowDatePicker(true)} />
-                <DaySummary bookings={dayBookings} />
-                {activeSlots.map((slot, i) => (
-                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={updateDog} onRebook={setRebookData} onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })} />
-                ))}
-                <div style={{ padding: "12px 16px", borderTop: `1px solid ${BRAND.greyLight}`, background: BRAND.white, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {(currentSettings.extraSlots || []).length > 0 && (
-                    <button onClick={handleRemoveSlot} style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", background: BRAND.blue, color: BRAND.white, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueDark; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.blue; }}>Remove added timeslot</button>
                   <button
                     type="button"
                     onClick={() => setShowRebookDatePicker(true)}
@@ -1329,8 +1217,19 @@ export default function App() {
         </Suspense>
       )}
 
-      {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} humans={humans} dogs={dogs} onUpdateHuman={updateHuman} bookingsByDate={bookingsByDate} />}
-      {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} dogs={dogs} onUpdateDog={updateDog} bookingsByDate={bookingsByDate} />}
+      {selectedDogId && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <DogCardModal
+            dogId={selectedDogId}
+            onClose={() => setSelectedDogId(null)}
+            onOpenHuman={setSelectedHumanId}
+            dogs={dogs}
+            humans={humans}
+            onUpdateDog={updateDog}
+            bookingsByDate={bookingsByDate}
+          />
+        </Suspense>
+      )}
 
       {showNewBooking && (
         <NewBookingModal
@@ -1361,18 +1260,6 @@ export default function App() {
           onClose={() => setShowAddHumanModal(false)}
           onAdd={async (humanData) => { const result = await addHuman(humanData); return result; }}
         />
-      {selectedDogId && (
-        <Suspense fallback={<LoadingSpinner />}>
-          <DogCardModal
-            dogId={selectedDogId}
-            onClose={() => setSelectedDogId(null)}
-            onOpenHuman={setSelectedHumanId}
-            dogs={dogs}
-            humans={humans}
-            onUpdateDog={updateDog}
-            bookingsByDate={bookingsByDate}
-          />
-        </Suspense>
       )}
     </div>
   );

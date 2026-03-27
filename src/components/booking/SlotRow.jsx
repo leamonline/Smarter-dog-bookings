@@ -4,10 +4,6 @@ import { BookingCard } from "./BookingCard.jsx";
 import { AvailableSeat } from "../ui/AvailableSeat.jsx";
 import { BlockedSeat } from "../ui/BlockedSeat.jsx";
 
-export function SlotRow({ slot, slotIndex, capacity, bookings, onAdd, onRemove, overrides, onOverride, activeSlots, onOpenHuman, onOpenDog, onUpdate, currentDateStr, currentDateObj, bookingsByDate, dayOpenState, dogs, humans, onUpdateDog, onRebook, onOpenNewBooking }) {
-  const hour = parseInt(slot.split(":")[0]);
-  const min = parseInt(slot.split(":")[1]);
-  const displayTime = `${hour > 12 ? hour - 12 : hour}:${min.toString().padStart(2, "0")}${hour >= 12 ? "pm" : "am"}`;
 function getSeatsNeeded(booking, slot) {
   if (booking.size !== "large") return 1;
   const rule = LARGE_DOG_SLOTS[slot];
