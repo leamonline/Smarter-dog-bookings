@@ -2,22 +2,54 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
 
+function groupBookingsByDate(rows, dogsById, humansById) {
+  const transformed = dbBookingsToArray(rows, dogsById, humansById);
+  const grouped = {};
+
+  for (let i = 0; i < transformed.length; i++) {
+    const row = rows[i];
+    const dateKey = row.booking_date;
+    if (!grouped[dateKey]) grouped[dateKey] = [];
+    grouped[dateKey].push(transformed[i]);
+  }
+
+  return grouped;
+}
+
 export function useBookings(weekStart, dogsById, humansById) {
   const [bookingsByDate, setBookingsByDate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!supabase || !weekStart || !dogsById || !humansById) {
+    if (!supabase || !weekStart) {
+      setBookingsByDate({});
       setLoading(false);
       return;
     }
-    if (Object.keys(dogsById).length === 0 || Object.keys(humansById).length === 0) {
+
+    if (!dogsById || !humansById) {
+      setLoading(true);
       return;
     }
 
-    async function fetch() {
+    const dogIds = Object.keys(dogsById);
+    const humanIds = Object.keys(humansById);
+
+    // Empty humans or dogs should not deadlock the app.
+    // A fresh project can legitimately have no records yet.
+    if (dogIds.length === 0 || humanIds.length === 0) {
+      setBookingsByDate({});
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchBookings() {
       setLoading(true);
+      setError(null);
+
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
@@ -29,112 +61,215 @@ export function useBookings(weekStart, dogsById, humansById) {
         .select("*")
         .gte("booking_date", startStr)
         .lte("booking_date", endStr)
+        .order("booking_date")
         .order("slot");
 
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (cancelled) return;
 
-      const transformed = dbBookingsToArray(data, dogsById, humansById);
-      const grouped = {};
-      for (let i = 0; i < transformed.length; i++) {
-        const dateKey = data[i].booking_date;
-        if (!grouped[dateKey]) grouped[dateKey] = [];
-        grouped[dateKey].push(transformed[i]);
+      if (err) {
+        setError(err.message);
+        setBookingsByDate({});
+        setLoading(false);
+        return;
       }
-      setBookingsByDate(grouped);
+
+      setBookingsByDate(groupBookingsByDate(data || [], dogsById, humansById));
       setLoading(false);
     }
-    fetch();
+
+    fetchBookings();
+
+    return () => {
+      cancelled = true;
+    };
   }, [weekStart, dogsById, humansById]);
 
   const addBooking = useCallback(
     async (dateStr, booking) => {
-      // Optimistic update
-      setBookingsByDate((prev) => ({
-        ...prev,
-        [dateStr]: [...(prev[dateStr] || []), booking],
-      }));
-
-      if (!supabase) return;
-
-      // Resolve dog UUID from name (try exact match first, then partial)
-      const dog = Object.values(dogsById).find((d) => d.name === booking.dogName);
-
-      if (!dog) {
-        console.error("Dog not found for booking:", booking.dogName);
-        return;
+      if (!supabase) {
+        setBookingsByDate((prev) => ({
+          ...prev,
+          [dateStr]: [...(prev[dateStr] || []), booking],
+        }));
+        return booking;
       }
 
-      const { error: err } = await supabase.from("bookings").insert({
+      setError(null);
+
+      const dogId =
+        booking._dogId ||
+        Object.values(dogsById || {}).find((d) => d.name === booking.dogName)
+          ?.id;
+
+      if (!dogId) {
+        const message = `Dog not found for booking: ${booking.dogName}`;
+        console.error(message);
+        setError(message);
+        return null;
+      }
+
+      const pickupHumanId =
+        booking._pickupById ||
+        (booking.pickupBy
+          ? Object.values(humansById || {}).find(
+              (h) => h.fullName === booking.pickupBy,
+            )?.id
+          : null);
+
+      const insertPayload = {
         booking_date: dateStr,
         slot: booking.slot,
-        dog_id: dog.id,
+        dog_id: dogId,
         size: booking.size,
         service: booking.service,
-        status: "Not Arrived",
+        status: booking.status || "Not Arrived",
         addons: booking.addons || [],
-        pickup_by_id: null,
-        payment: "Due at Pick-up",
-        confirmed: false,
-      });
-      if (err) console.error("Failed to add booking:", err);
+        pickup_by_id: pickupHumanId || null,
+        payment: booking.payment || "Due at Pick-up",
+        confirmed: booking.confirmed ?? false,
+      };
+
+      const { data, error: err } = await supabase
+        .from("bookings")
+        .insert(insertPayload)
+        .select("*")
+        .single();
+
+      if (err) {
+        console.error("Failed to add booking:", err);
+        setError(err.message);
+        return null;
+      }
+
+      const inserted = dbBookingsToArray([data], dogsById, humansById)[0];
+
+      setBookingsByDate((prev) => ({
+        ...prev,
+        [dateStr]: [...(prev[dateStr] || []), inserted],
+      }));
+
+      return inserted;
     },
-    [dogsById, humansById]
+    [dogsById, humansById],
   );
 
-  const removeBooking = useCallback(
-    async (dateStr, bookingId) => {
+  const removeBooking = useCallback(async (dateStr, bookingId) => {
+    if (!supabase) {
       setBookingsByDate((prev) => ({
         ...prev,
         [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
       }));
+      return true;
+    }
 
-      if (!supabase) return;
-      const { error: err } = await supabase.from("bookings").delete().eq("id", bookingId);
-      if (err) console.error("Failed to remove booking:", err);
-    },
-    []
-  );
+    setError(null);
+
+    const { error: err } = await supabase
+      .from("bookings")
+      .delete()
+      .eq("id", bookingId);
+
+    if (err) {
+      console.error("Failed to remove booking:", err);
+      setError(err.message);
+      return false;
+    }
+
+    setBookingsByDate((prev) => ({
+      ...prev,
+      [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
+    }));
+
+    return true;
+  }, []);
 
   const updateBooking = useCallback(
-    async (updatedBooking, fromDateStr, toDateStr) => {
+    async (updatedBooking, fromDateStr, toDateStrValue) => {
+      if (!supabase) {
+        setBookingsByDate((prev) => {
+          const next = { ...prev };
+          if (fromDateStr === toDateStrValue) {
+            next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
+              b.id === updatedBooking.id ? updatedBooking : b,
+            );
+          } else {
+            next[fromDateStr] = (next[fromDateStr] || []).filter(
+              (b) => b.id !== updatedBooking.id,
+            );
+            next[toDateStrValue] = [
+              ...(next[toDateStrValue] || []),
+              updatedBooking,
+            ];
+          }
+          return next;
+        });
+        return updatedBooking;
+      }
+
+      setError(null);
+
+      const pickupHumanId =
+        updatedBooking._pickupById ||
+        (updatedBooking.pickupBy
+          ? Object.values(humansById || {}).find(
+              (h) => h.fullName === updatedBooking.pickupBy,
+            )?.id
+          : null);
+
+      const updatePayload = {
+        booking_date: toDateStrValue,
+        slot: updatedBooking.slot,
+        service: updatedBooking.service,
+        addons: updatedBooking.addons || [],
+        pickup_by_id: pickupHumanId || null,
+        payment: updatedBooking.payment || "Due at Pick-up",
+        status: updatedBooking.status || "Not Arrived",
+        confirmed: updatedBooking.confirmed ?? false,
+      };
+
+      const { data, error: err } = await supabase
+        .from("bookings")
+        .update(updatePayload)
+        .eq("id", updatedBooking.id)
+        .select("*")
+        .single();
+
+      if (err) {
+        console.error("Failed to update booking:", err);
+        setError(err.message);
+        return null;
+      }
+
+      const persisted = dbBookingsToArray([data], dogsById, humansById)[0];
+
       setBookingsByDate((prev) => {
-        const newState = { ...prev };
-        if (fromDateStr === toDateStr) {
-          newState[fromDateStr] = (newState[fromDateStr] || []).map((b) =>
-            b.id === updatedBooking.id ? updatedBooking : b
+        const next = { ...prev };
+
+        if (fromDateStr === toDateStrValue) {
+          next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
+            b.id === persisted.id ? persisted : b,
           );
         } else {
-          newState[fromDateStr] = (newState[fromDateStr] || []).filter(
-            (b) => b.id !== updatedBooking.id
+          next[fromDateStr] = (next[fromDateStr] || []).filter(
+            (b) => b.id !== persisted.id,
           );
-          newState[toDateStr] = [...(newState[toDateStr] || []), updatedBooking];
+          next[toDateStrValue] = [...(next[toDateStrValue] || []), persisted];
         }
-        return newState;
+
+        return next;
       });
 
-      if (!supabase) return;
-
-      const pickupHuman = updatedBooking.pickupBy
-        ? Object.values(humansById).find((h) => h.fullName === updatedBooking.pickupBy)
-        : null;
-
-      const { error: err } = await supabase
-        .from("bookings")
-        .update({
-          booking_date: toDateStr,
-          slot: updatedBooking.slot,
-          service: updatedBooking.service,
-          addons: updatedBooking.addons || [],
-          pickup_by_id: pickupHuman?.id || null,
-          payment: updatedBooking.payment,
-          status: updatedBooking.status,
-          confirmed: updatedBooking.confirmed || false,
-        })
-        .eq("id", updatedBooking.id);
-      if (err) console.error("Failed to update booking:", err);
+      return persisted;
     },
-    [humansById]
+    [humansById, dogsById],
   );
 
-  return { bookingsByDate, loading, error, addBooking, removeBooking, updateBooking };
+  return {
+    bookingsByDate,
+    loading,
+    error,
+    addBooking,
+    removeBooking,
+    updateBooking,
+  };
 }
