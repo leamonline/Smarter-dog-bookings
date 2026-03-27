@@ -26,6 +26,9 @@ import { DogsView } from "./components/views/DogsView.jsx";
 import { LoginPage } from "./components/auth/LoginPage.jsx";
 import { DaySummary } from "./components/layout/DaySummary.jsx";
 import { AddBookingForm } from "./components/booking/AddBookingForm.jsx";
+import { NewBookingModal } from "./components/modals/NewBookingModal.jsx";
+import { AddDogModal } from "./components/modals/AddDogModal.jsx";
+import { AddHumanModal } from "./components/modals/AddHumanModal.jsx";
 
 // Offline fallback: convert sample bookings to date-based format
 function buildOfflineBookingsByDate(weekStart) {
@@ -51,6 +54,9 @@ export default function App() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const [rebookData, setRebookData] = useState(null);
+  const [showNewBooking, setShowNewBooking] = useState(null); // null or { dateStr, slot }
+  const [showAddDogModal, setShowAddDogModal] = useState(false);
+  const [showAddHumanModal, setShowAddHumanModal] = useState(false);
 
   // Week navigation
   const [weekOffset, setWeekOffset] = useState(0);
@@ -183,6 +189,16 @@ export default function App() {
           [currentDateStr]: [...(prev[currentDateStr] || []), booking],
         }));
       }, [currentDateStr]);
+
+  // Add booking to any date (used by NewBookingModal)
+  const handleAddToDate = isOnline
+    ? useCallback((booking, dateStr) => sbAddBooking(dateStr, booking), [sbAddBooking])
+    : useCallback((booking, dateStr) => {
+        setOfflineBookings(prev => ({
+          ...prev,
+          [dateStr]: [...(prev[dateStr] || []), booking],
+        }));
+      }, []);
 
   const handleRemove = isOnline
     ? useCallback((bookingId) => sbRemoveBooking(currentDateStr, bookingId), [sbRemoveBooking, currentDateStr])
@@ -337,6 +353,14 @@ export default function App() {
           <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 2 }}>Salon Dashboard</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <button onClick={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })} style={{
+            background: BRAND.blue, border: "none",
+            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
+            color: BRAND.white, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueDark; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.blue; }}>+ New Booking</button>
+
           <button onClick={() => setActiveView("dogs")} style={{
             background: activeView === "dogs" ? BRAND.blueLight : BRAND.white,
             border: `1px solid ${activeView === "dogs" ? BRAND.blue : BRAND.greyLight}`,
@@ -398,7 +422,7 @@ export default function App() {
                 <DayHeader day={currentDayConfig.full} date={dates[selectedDay]} dogCount={dogCount} maxDogs={16} isOpen={true} onToggleOpen={toggleDayOpen} onCalendarClick={() => setShowDatePicker(true)} />
                 <DaySummary bookings={dayBookings} />
                 {activeSlots.map((slot, i) => (
-                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={updateDog} onRebook={setRebookData} />
+                  <SlotRow key={slot} slot={slot} slotIndex={i} capacity={capacities[slot]} bookings={dayBookings} onAdd={handleAdd} onRemove={handleRemove} overrides={dayOverrides[slot]} onOverride={handleOverride} activeSlots={activeSlots} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} onUpdate={handleUpdate} currentDateStr={currentDateStr} currentDateObj={currentDateObj} bookingsByDate={bookingsByDate} dayOpenState={dayOpenState} dogs={dogs} humans={humans} onUpdateDog={updateDog} onRebook={setRebookData} onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })} />
                 ))}
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${BRAND.greyLight}`, background: BRAND.white, display: "flex", flexDirection: "column", gap: 8 }}>
                   {(currentSettings.extraSlots || []).length > 0 && (
@@ -452,6 +476,37 @@ export default function App() {
 
       {selectedHumanId && <HumanCardModal humanId={selectedHumanId} onClose={() => setSelectedHumanId(null)} onOpenHuman={setSelectedHumanId} onOpenDog={setSelectedDogId} humans={humans} dogs={dogs} onUpdateHuman={updateHuman} bookingsByDate={bookingsByDate} />}
       {selectedDogId && <DogCardModal dogId={selectedDogId} onClose={() => setSelectedDogId(null)} onOpenHuman={setSelectedHumanId} dogs={dogs} onUpdateDog={updateDog} bookingsByDate={bookingsByDate} />}
+
+      {showNewBooking && (
+        <NewBookingModal
+          onClose={() => setShowNewBooking(null)}
+          onAdd={(booking, dateStr) => { handleAddToDate(booking, dateStr); setShowNewBooking(null); }}
+          dogs={dogs}
+          humans={humans}
+          bookingsByDate={bookingsByDate}
+          dayOpenState={dayOpenState}
+          daySettings={daySettings}
+          onOpenAddDog={() => setShowAddDogModal(true)}
+          onOpenAddHuman={() => setShowAddHumanModal(true)}
+          initialDateStr={showNewBooking.dateStr}
+          initialSlot={showNewBooking.slot}
+        />
+      )}
+
+      {showAddDogModal && (
+        <AddDogModal
+          onClose={() => setShowAddDogModal(false)}
+          onAdd={async (dogData) => { const result = await addDog(dogData); return result; }}
+          humans={humans}
+        />
+      )}
+
+      {showAddHumanModal && (
+        <AddHumanModal
+          onClose={() => setShowAddHumanModal(false)}
+          onAdd={async (humanData) => { const result = await addHuman(humanData); return result; }}
+        />
+      )}
     </div>
   );
 }
