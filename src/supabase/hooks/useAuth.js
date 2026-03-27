@@ -32,7 +32,6 @@ export function useAuth() {
     }
     return data;
   }, []);
-
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -85,7 +84,10 @@ export function useAuth() {
       subscription.unsubscribe();
     };
   }, []);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 10725dc0f98bfa22b23463a90ac26188cbab5ddd
   const signIn = useCallback(async (email, password) => {
     if (!supabase) {
       setError("Supabase not configured. Running in offline mode.");
@@ -119,7 +121,6 @@ export function useAuth() {
     }
     return { data };
   }, []);
-
   const signOut = useCallback(async () => {
     if (!supabase) return;
     const { error: err } = await supabase.auth.signOut();
