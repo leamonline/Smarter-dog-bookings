@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { supabase } from "../../supabase/client.js";
+import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { BRAND } from "../../constants/index.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
