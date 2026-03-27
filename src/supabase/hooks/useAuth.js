@@ -39,29 +39,48 @@ export function useAuth() {
     }
 
     let cancelled = false;
+    let initialDone = false;
 
-    // Only use onAuthStateChange — it fires INITIAL_SESSION on mount,
-    // so we don't need a separate getSession() call (which causes lock contention).
+    // Safety-net: if onAuthStateChange never fires (e.g. blocked network,
+    // Supabase outage), force loading off after 5 seconds so the login
+    // form still appears.
+    const timeout = setTimeout(() => {
+      if (!initialDone && !cancelled) {
+        console.warn("useAuth: auth callback did not fire within 5 s — forcing loading off");
+        initialDone = true;
+        setLoading(false);
+      }
+    }, 5000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (cancelled) return;
 
-        if (session?.user) {
-          setUser(session.user);
-          const profile = await fetchProfile(session.user.id);
-          if (!cancelled) setStaffProfile(profile);
-        } else {
-          setUser(null);
-          setStaffProfile(null);
+        try {
+          if (session?.user) {
+            setUser(session.user);
+            const profile = await fetchProfile(session.user.id);
+            if (!cancelled) setStaffProfile(profile);
+          } else {
+            setUser(null);
+            setStaffProfile(null);
+          }
+        } catch (err) {
+          console.error("useAuth: error in auth callback:", err);
+        } finally {
+          // Always mark loading done after the first callback, regardless
+          // of whether the profile fetch succeeded.
+          if (!initialDone && !cancelled) {
+            initialDone = true;
+            setLoading(false);
+          }
         }
-
-        // Mark loading done after the initial session check
-        if (loading) setLoading(false);
       }
     );
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
