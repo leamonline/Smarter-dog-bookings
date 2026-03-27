@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BRAND } from "../../constants/index.js";
 
-export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
+export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -27,6 +27,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     await onRequestOtp(normalised);
     setSubmitting(false);
   };
+
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (code.length < 6) {
@@ -59,6 +60,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     fontSize: 15, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
     fontFamily: "inherit", transition: "all 0.15s", marginTop: 8,
   };
+
   return (
     <div style={{ minHeight: "100vh", background: "#F8FFFE", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
@@ -146,6 +148,20 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             </>
           )}
         </div>
+
+        {/* Demo mode button — for testing before Twilio is configured */}
+        {onDemoMode && (
+          <button onClick={onDemoMode} style={{
+            width: "100%", marginTop: 16, padding: "12px", borderRadius: 10,
+            border: `1.5px dashed ${BRAND.textLight}`, background: "transparent",
+            fontSize: 13, fontWeight: 600, color: BRAND.textLight,
+            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND.teal; e.currentTarget.style.color = BRAND.teal; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = BRAND.textLight; e.currentTarget.style.color = BRAND.textLight; }}>
+            Demo Mode — Preview as a customer
+          </button>
+        )}
       </div>
     </div>
   );
