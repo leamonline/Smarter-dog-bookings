@@ -84,10 +84,6 @@ export function useAuth() {
       subscription.unsubscribe();
     };
   }, []);
-<<<<<<< HEAD
-
-=======
->>>>>>> 10725dc0f98bfa22b23463a90ac26188cbab5ddd
   const signIn = useCallback(async (email, password) => {
     if (!supabase) {
       setError("Supabase not configured. Running in offline mode.");
