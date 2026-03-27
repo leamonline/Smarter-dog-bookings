@@ -39,32 +39,52 @@ export function useAuth() {
       return;
     }
 
-    // Check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        const profile = await fetchProfile(session.user.id);
-        setStaffProfile(profile);
-      }
-      setLoading(false);
-    });
+    let cancelled = false;
+    let initialDone = false;
 
-    // Listen for auth changes
+    // Safety-net: if onAuthStateChange never fires (e.g. blocked network,
+    // Supabase outage), force loading off after 5 seconds so the login
+    // form still appears.
+    const timeout = setTimeout(() => {
+      if (!initialDone && !cancelled) {
+        console.warn("useAuth: auth callback did not fire within 5 s — forcing loading off");
+        initialDone = true;
+        setLoading(false);
+      }
+    }, 5000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-          const profile = await fetchProfile(session.user.id);
-          setStaffProfile(profile);
-        } else {
-          setUser(null);
-          setStaffProfile(null);
+        if (cancelled) return;
+
+        try {
+          if (session?.user) {
+            setUser(session.user);
+            const profile = await fetchProfile(session.user.id);
+            if (!cancelled) setStaffProfile(profile);
+          } else {
+            setUser(null);
+            setStaffProfile(null);
+          }
+        } catch (err) {
+          console.error("useAuth: error in auth callback:", err);
+        } finally {
+          // Always mark loading done after the first callback, regardless
+          // of whether the profile fetch succeeded.
+          if (!initialDone && !cancelled) {
+            initialDone = true;
+            setLoading(false);
+          }
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signIn = useCallback(async (email, password) => {
     if (!supabase) {

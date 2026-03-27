@@ -9,7 +9,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Use a simple in-memory lock instead of navigator.locks, which causes
+// deadlocks when multiple Supabase hooks mount simultaneously.
+const navigatorLockFallback = async (name, _opts, fn) => {
+  // Serialise callers with a promise queue per lock name.
+  navigatorLockFallback._q = navigatorLockFallback._q || {};
+  const prev = navigatorLockFallback._q[name] || Promise.resolve();
+  const next = prev.catch(() => {}).then(() => fn());
+  navigatorLockFallback._q[name] = next;
+  return next;
+};
+
 export const supabase =
   supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          lock: navigatorLockFallback,
+        },
+      })
     : null;
