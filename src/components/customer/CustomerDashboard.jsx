@@ -11,6 +11,14 @@ const SERVICE_LABELS = {
   "nail-trim": "Nail Trim",
 };
 
+const SERVICE_ICONS = {
+  "full-groom": "\u2702\uFE0F",
+  "bath-and-brush": "\uD83D\uDEC1",
+  "bath-and-deshed": "\uD83E\uDDF9",
+  "puppy-groom": "\uD83D\uDC3E",
+  "nail-trim": "\u2702\uFE0F",
+};
+
 const STATUS_COLOURS = {
   "Not Arrived": { bg: "#FEF3C7", text: "#92400E" },
   "Checked In": { bg: "#D1FAE5", text: "#065F46" },
@@ -19,13 +27,6 @@ const STATUS_COLOURS = {
   "On the Table": { bg: "#EDE9FE", text: "#5B21B6" },
   "Finished": { bg: "#D1FAE5", text: "#065F46" },
   "Completed": { bg: "#F3F4F6", text: "#374151" },
-};
-const SERVICE_ICONS = {
-  "full-groom": "\u2702\uFE0F",
-  "bath-and-brush": "\uD83D\uDEC1",
-  "bath-and-deshed": "\uD83E\uDDF9",
-  "puppy-groom": "\uD83D\uDC3E",
-  "nail-trim": "\u2702\uFE0F",
 };
 
 function formatSlot(slot) {
@@ -37,28 +38,35 @@ function formatSlot(slot) {
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
-  const [activeTab, setActiveTab] = useState("bookings");
   const [dogs, setDogs] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [trustedHumans, setTrustedHumans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingDetails, setEditingDetails] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState({
-    phone: humanRecord?.phone || "",
-    email: humanRecord?.email || "",
+    name: humanRecord?.name || "",
+    surname: humanRecord?.surname || "",
     address: humanRecord?.address || "",
+    email: humanRecord?.email || "",
+    whatsapp: humanRecord?.whatsapp || false,
+    fb: humanRecord?.fb || "",
+    insta: humanRecord?.insta || "",
+    tiktok: humanRecord?.tiktok || "",
   });
+
   const humanName = `${humanRecord?.name || ""} ${humanRecord?.surname || ""}`.trim();
 
-  // Fetch dogs and bookings for this human
+  // Fetch dogs, bookings, trusted humans
   useEffect(() => {
     if (!supabase || !humanRecord?.id) { setLoading(false); return; }
 
     async function fetchData() {
-      // Get dogs owned by this human
+      // Dogs
       const { data: dogRows } = await supabase
         .from("dogs")
         .select("*")
@@ -66,12 +74,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         .order("name");
       setDogs(dogRows || []);
 
-      // Get bookings for those dogs (upcoming + recent)
+      // Bookings (last 60 days + future)
       const dogIds = (dogRows || []).map(d => d.id);
       if (dogIds.length > 0) {
-        const today = toDateStr(new Date());
         const pastDate = new Date();
-        pastDate.setDate(pastDate.getDate() - 30);
+        pastDate.setDate(pastDate.getDate() - 60);
         const pastStr = toDateStr(pastDate);
 
         const { data: bookingRows } = await supabase
@@ -79,28 +86,71 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           .select("*, dogs(name, breed, size)")
           .in("dog_id", dogIds)
           .gte("booking_date", pastStr)
-          .order("booking_date", { ascending: true })
-          .order("slot", { ascending: true });
+          .order("booking_date", { ascending: false })
+          .order("slot", { ascending: false });
         setBookings(bookingRows || []);
       }
+
+      // Trusted humans (from trusted_ids if stored, or pickup_by relationships)
+      // For now, look up humans who have picked up this human's dogs
+      if (dogIds.length > 0) {
+        const { data: pickupBookings } = await supabase
+          .from("bookings")
+          .select("pickup_by_id")
+          .in("dog_id", dogIds)
+          .not("pickup_by_id", "is", null)
+          .not("pickup_by_id", "eq", humanRecord.id);
+
+        if (pickupBookings && pickupBookings.length > 0) {
+          const uniqueIds = [...new Set(pickupBookings.map(b => b.pickup_by_id))];
+          const { data: trustedRows } = await supabase
+            .from("humans")
+            .select("id, name, surname, phone")
+            .in("id", uniqueIds);
+          setTrustedHumans(trustedRows || []);
+        }
+      }
+
       setLoading(false);
     }
     fetchData();
   }, [humanRecord]);
-  // Split bookings into upcoming vs past
-  const today = toDateStr(new Date());
-  const upcoming = useMemo(() => bookings.filter(b => b.booking_date >= today), [bookings, today]);
-  const past = useMemo(() => bookings.filter(b => b.booking_date < today).reverse(), [bookings, today]);
 
-  // Save contact details
-  const handleSaveDetails = useCallback(async () => {
+  // Save details
+  const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
+    setSaving(true);
     const { error: err } = await supabase
       .from("humans")
-      .update({ phone: details.phone, email: details.email, address: details.address })
+      .update({
+        name: details.name,
+        surname: details.surname,
+        address: details.address,
+        email: details.email,
+        whatsapp: details.whatsapp,
+        fb: details.fb,
+        insta: details.insta,
+        tiktok: details.tiktok,
+      })
       .eq("id", humanRecord.id);
-    if (!err) setEditingDetails(false);
+    setSaving(false);
+    if (!err) setEditing(false);
   }, [humanRecord, details]);
+
+  // Cancel editing — reset to original values
+  const handleCancel = useCallback(() => {
+    setDetails({
+      name: humanRecord?.name || "",
+      surname: humanRecord?.surname || "",
+      address: humanRecord?.address || "",
+      email: humanRecord?.email || "",
+      whatsapp: humanRecord?.whatsapp || false,
+      fb: humanRecord?.fb || "",
+      insta: humanRecord?.insta || "",
+      tiktok: humanRecord?.tiktok || "",
+    });
+    setEditing(false);
+  }, [humanRecord]);
 
   // Cancel a booking
   const handleCancelBooking = useCallback(async (bookingId) => {
@@ -111,6 +161,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       setBookings(prev => prev.filter(b => b.id !== bookingId));
     }
   }, []);
+
+  const today = toDateStr(new Date());
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#F8FFFE", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>
@@ -119,205 +172,268 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     );
   }
 
-  const tabStyle = (active) => ({
-    padding: "10px 20px", borderRadius: 8, border: "none", fontSize: 14, fontWeight: 700,
-    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-    background: active ? BRAND.teal : "transparent",
-    color: active ? BRAND.white : BRAND.textLight,
-  });
-
+  // Shared styles
   const cardStyle = {
-    background: BRAND.white, borderRadius: 12, padding: 16,
-    border: `1px solid ${BRAND.greyLight}`, marginBottom: 12,
+    background: BRAND.white, borderRadius: 14, padding: "20px 24px",
+    border: `1px solid ${BRAND.greyLight}`, marginBottom: 16,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
   };
+
+  const sectionTitle = (text) => (
+    <div style={{ fontWeight: 800, fontSize: 12, color: BRAND.teal, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>{text}</div>
+  );
+
+  const detailRow = (label, value, isEditing, editComponent) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+      <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>{label}</span>
+      {isEditing ? editComponent : (
+        <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text, textAlign: "right", flex: 1, marginLeft: 12 }}>{value || "\u2014"}</span>
+      )}
+    </div>
+  );
+
+  const inputStyle = {
+    flex: 1, marginLeft: 12, padding: "8px 12px", borderRadius: 8,
+    border: `1.5px solid ${BRAND.teal}`, fontSize: 14, fontFamily: "inherit",
+    boxSizing: "border-box", outline: "none", color: BRAND.text,
+    textAlign: "right",
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#F8FFFE", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      {/* Header */}
-      <div style={{ background: BRAND.white, borderBottom: `1px solid ${BRAND.greyLight}`, padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.text }}>
-            Smarter<span style={{ color: BRAND.teal }}>Dog</span>
+
+      {/* Header bar */}
+      <div style={{
+        background: `linear-gradient(135deg, ${BRAND.teal}, #236b5d)`,
+        padding: "20px 20px 28px", position: "relative",
+      }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
+              Smarter<span style={{ color: BRAND.white }}>Dog</span> Customer Portal
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: BRAND.white }}>{humanName}</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>{humanRecord?.phone || ""}</div>
           </div>
-          <div style={{ fontSize: 12, color: BRAND.textLight }}>Hi, {humanName}</div>
+          <button onClick={onSignOut} style={{
+            background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
+            color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
+            backdropFilter: "blur(4px)",
+          }}>Log out</button>
         </div>
-        <button onClick={onSignOut} style={{
-          background: BRAND.coralLight, border: "none", borderRadius: 8,
-          padding: "8px 14px", fontSize: 13, fontWeight: 700, color: BRAND.coral,
-          cursor: "pointer", fontFamily: "inherit",
-        }}>Log out</button>
       </div>
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px 16px" }}>
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 20, background: BRAND.white, borderRadius: 10, padding: 4, border: `1px solid ${BRAND.greyLight}` }}>
-          <button onClick={() => setActiveTab("bookings")} style={tabStyle(activeTab === "bookings")}>Bookings</button>
-          <button onClick={() => setActiveTab("dogs")} style={tabStyle(activeTab === "dogs")}>My Dogs</button>
-          <button onClick={() => setActiveTab("details")} style={tabStyle(activeTab === "details")}>My Details</button>
-        </div>
-        {/* BOOKINGS TAB */}
-        {activeTab === "bookings" && (
-          <div>
-            {upcoming.length === 0 && past.length === 0 ? (
-              <div style={cardStyle}>
-                <div style={{ textAlign: "center", padding: 20, color: BRAND.textLight }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🐾</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>No bookings yet</div>
-                  <div style={{ fontSize: 13 }}>Give the salon a call to book your first appointment!</div>
-                </div>
-              </div>
+      <div style={{ maxWidth: 600, margin: "-12px auto 0", padding: "0 16px 32px", position: "relative", zIndex: 1 }}>
+
+        {/* ==================== MY DETAILS ==================== */}
+        <div style={cardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            {sectionTitle("My Details")}
+            {!editing ? (
+              <button onClick={() => setEditing(true)} style={{
+                background: BRAND.teal, border: "none", borderRadius: 8, padding: "6px 16px",
+                fontSize: 13, fontWeight: 700, color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
+              }}>Edit</button>
             ) : (
-              <>
-                {upcoming.length > 0 && (
-                  <>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.teal, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Upcoming</div>
-                    {upcoming.map(b => {
-                      const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Not Arrived"];
-                      return (
-                        <div key={b.id} style={cardStyle}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 700, color: BRAND.text }}>
-                                {SERVICE_ICONS[b.service] || "🐕"} {b.dogs?.name || "Unknown"}
-                                <span style={{ fontWeight: 400, color: BRAND.textLight }}> ({b.dogs?.breed})</span>
-                              </div>
-                              <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 2 }}>
-                                {SERVICE_LABELS[b.service] || b.service}
-                              </div>
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: sc.bg, color: sc.text }}>
-                              {b.status}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: BRAND.text }}>
-                            📅 {formatDate(b.booking_date)} at {formatSlot(b.slot)}
-                          </div>
-                          {b.booking_date > today && b.status === "Not Arrived" && (
-                            <button onClick={() => handleCancelBooking(b.id)} style={{
-                              marginTop: 10, width: "100%", padding: "8px", borderRadius: 8,
-                              border: `1px solid ${BRAND.coral}`, background: "transparent",
-                              fontSize: 13, fontWeight: 600, color: BRAND.coral,
-                              cursor: "pointer", fontFamily: "inherit",
-                            }}>Cancel appointment</button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-                {past.length > 0 && (
-                  <>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, marginTop: 20 }}>Past</div>
-                    {past.slice(0, 5).map(b => (
-                      <div key={b.id} style={{ ...cardStyle, opacity: 0.7 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>
-                          {b.dogs?.name} — {SERVICE_LABELS[b.service] || b.service}
-                        </div>
-                        <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 2 }}>
-                          {formatDate(b.booking_date)} at {formatSlot(b.slot)}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={handleSave} disabled={saving} style={{
+                  background: BRAND.teal, border: "none", borderRadius: 8, padding: "6px 16px",
+                  fontSize: 13, fontWeight: 700, color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
+                  opacity: saving ? 0.6 : 1,
+                }}>{saving ? "Saving..." : "Save"}</button>
+                <button onClick={handleCancel} style={{
+                  background: BRAND.white, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8,
+                  padding: "6px 14px", fontSize: 13, fontWeight: 600, color: BRAND.textLight,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>Cancel</button>
+              </div>
             )}
           </div>
-        )}
-        {/* DOGS TAB */}
-        {activeTab === "dogs" && (
-          <div>
-            {dogs.length === 0 ? (
-              <div style={cardStyle}>
-                <div style={{ textAlign: "center", padding: 20, color: BRAND.textLight }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🐕</div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>No dogs on file</div>
-                  <div style={{ fontSize: 13 }}>Ask the salon to add your dog to the system.</div>
-                </div>
+
+          {/* First Name + Surname */}
+          {editing ? (
+            <div style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", marginBottom: 4 }}>First Name</div>
+                <input value={details.name} onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
+                  style={{ ...inputStyle, flex: undefined, width: "100%", marginLeft: 0, textAlign: "left" }} />
               </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", marginBottom: 4 }}>Surname</div>
+                <input value={details.surname} onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
+                  style={{ ...inputStyle, flex: undefined, width: "100%", marginLeft: 0, textAlign: "left" }} />
+              </div>
+            </div>
+          ) : (
+            detailRow("Name", `${details.name} ${details.surname}`.trim(), false, null)
+          )}
+
+          {/* Address */}
+          {detailRow("Address", details.address, editing,
+            <input value={details.address} onChange={e => setDetails(d => ({ ...d, address: e.target.value }))} style={inputStyle} />
+          )}
+
+          {/* Email */}
+          {detailRow("Email", details.email, editing,
+            <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} style={inputStyle} />
+          )}
+
+          {/* WhatsApp toggle */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+            <span style={{ fontSize: 14, color: BRAND.textLight }}>WhatsApp</span>
+            {editing ? (
+              <button onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))} style={{
+                background: details.whatsapp ? BRAND.teal : BRAND.greyLight,
+                border: "none", borderRadius: 20, width: 48, height: 26, cursor: "pointer",
+                position: "relative", transition: "background 0.2s",
+              }}>
+                <div style={{
+                  position: "absolute", top: 3, left: details.whatsapp ? 25 : 3,
+                  width: 20, height: 20, borderRadius: "50%", background: BRAND.white,
+                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </button>
             ) : (
-              dogs.map(dog => (
-                <div key={dog.id} style={cardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.text }}>{dog.name}</div>
-                      <div style={{ fontSize: 13, color: BRAND.textLight }}>{dog.breed}{dog.age ? ` · ${dog.age}` : ""}</div>
-                    </div>
-                    {dog.size && (
-                      <span style={{
-                        fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20,
-                        background: dog.size === "large" ? "#FDE2E8" : dog.size === "medium" ? "#D6F5EE" : "#FEF3C7",
-                        color: dog.size === "large" ? BRAND.coral : dog.size === "medium" ? "#065F46" : "#92400E",
-                      }}>{dog.size}</span>
-                    )}
+              <span style={{ fontSize: 14, fontWeight: 600, color: details.whatsapp ? BRAND.teal : BRAND.coral }}>
+                {details.whatsapp ? "\u2705 Active" : "\u274C Off"}
+              </span>
+            )}
+          </div>
+
+          {/* Facebook */}
+          {detailRow("Facebook", details.fb, editing,
+            <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..." style={inputStyle} />
+          )}
+
+          {/* Instagram */}
+          {detailRow("Instagram", details.insta ? `@${details.insta.replace(/^@/, "")}` : "", editing,
+            <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle" style={inputStyle} />
+          )}
+
+          {/* TikTok */}
+          {detailRow("TikTok", details.tiktok ? `@${details.tiktok.replace(/^@/, "")}` : "", editing,
+            <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle" style={inputStyle} />
+          )}
+        </div>
+
+        {/* ==================== DOGS ==================== */}
+        <div style={cardStyle}>
+          {sectionTitle("Dogs")}
+          {dogs.length === 0 ? (
+            <div style={{ fontSize: 14, color: BRAND.textLight, fontStyle: "italic", padding: "8px 0" }}>No dogs on file</div>
+          ) : (
+            dogs.map(dog => (
+              <div key={dog.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.text }}>{dog.name}</div>
+                  <div style={{ fontSize: 13, color: BRAND.textLight }}>
+                    {dog.breed}{dog.size ? ` \u00B7 ${dog.size}` : ""}
                   </div>
                   {dog.groom_notes && (
-                    <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 8, padding: "8px 10px", background: "#F9FAFB", borderRadius: 6 }}>
+                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 4, padding: "4px 8px", background: "#F9FAFB", borderRadius: 4 }}>
                       {dog.groom_notes}
                     </div>
                   )}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                  {dog.size && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
+                      background: dog.size === "large" ? "#FDE2E8" : dog.size === "medium" ? "#D6F5EE" : "#FEF3C7",
+                      color: dog.size === "large" ? BRAND.coral : dog.size === "medium" ? "#065F46" : "#92400E",
+                    }}>{dog.size}</span>
+                  )}
                   {dog.alerts && dog.alerts.length > 0 && (
-                    <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {dog.alerts.map((a, i) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: "#FEE2E2", color: "#991B1B" }}>⚠️ {a}</span>
-                      ))}
-                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: BRAND.coral }}>{"\u26A0\uFE0F"} {dog.alerts.length} alert{dog.alerts.length > 1 ? "s" : ""}</span>
                   )}
                 </div>
-              ))
-            )}
-          </div>
-        )}
-        {/* DETAILS TAB */}
-        {activeTab === "details" && (
-          <div style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.text }}>{humanName}</div>
-              {!editingDetails && (
-                <button onClick={() => setEditingDetails(true)} style={{
-                  background: BRAND.teal, border: "none", borderRadius: 8, padding: "6px 14px",
-                  fontSize: 13, fontWeight: 700, color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
-                }}>Edit</button>
-              )}
-            </div>
+              </div>
+            ))
+          )}
+        </div>
 
-            {editingDetails ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Phone</label>
-                  <input value={details.phone} onChange={e => setDetails(d => ({ ...d, phone: e.target.value }))}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Email</label>
-                  <input value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Address</label>
-                  <textarea value={details.address} onChange={e => setDetails(d => ({ ...d, address: e.target.value }))} rows={2}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", resize: "vertical" }} />
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={handleSaveDetails} style={{
-                    flex: 1, padding: "10px", borderRadius: 8, border: "none", background: BRAND.teal,
-                    color: BRAND.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                  }}>Save</button>
-                  <button onClick={() => setEditingDetails(false)} style={{
-                    flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`,
-                    background: BRAND.white, color: BRAND.textLight, fontSize: 14, fontWeight: 600,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>Cancel</button>
-                </div>
+        {/* ==================== TRUSTED HUMANS ==================== */}
+        <div style={cardStyle}>
+          {sectionTitle("Trusted Humans")}
+          {trustedHumans.length === 0 ? (
+            <div style={{ fontSize: 14, color: BRAND.textLight, fontStyle: "italic", padding: "8px 0" }}>None listed</div>
+          ) : (
+            trustedHumans.map(th => (
+              <div key={th.id} style={{ padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>{th.name} {th.surname}</div>
+                <div style={{ fontSize: 12, color: BRAND.textLight }}>{th.phone}</div>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div><span style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight }}>PHONE</span><div style={{ fontSize: 14, color: BRAND.text }}>{humanRecord?.phone || "—"}</div></div>
-                <div><span style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight }}>EMAIL</span><div style={{ fontSize: 14, color: BRAND.text }}>{humanRecord?.email || "—"}</div></div>
-                <div><span style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight }}>ADDRESS</span><div style={{ fontSize: 14, color: BRAND.text }}>{humanRecord?.address || "—"}</div></div>
-              </div>
-            )}
+            ))
+          )}
+          <div style={{
+            marginTop: 12, padding: "10px", borderRadius: 10, border: `1.5px dashed ${BRAND.teal}`,
+            background: BRAND.tealLight, color: BRAND.teal, fontSize: 13, fontWeight: 700,
+            textAlign: "center",
+          }}>
+            Contact the salon to add a trusted human
           </div>
-        )}
+        </div>
+
+        {/* ==================== RECENT BOOKINGS ==================== */}
+        <div style={cardStyle}>
+          {sectionTitle("Recent Bookings")}
+          {bookings.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>{"\uD83D\uDC3E"}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.text, marginBottom: 2 }}>No bookings yet</div>
+              <div style={{ fontSize: 13, color: BRAND.textLight }}>Give the salon a call to book your first appointment!</div>
+            </div>
+          ) : (
+            bookings.slice(0, 10).map(b => {
+              const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Not Arrived"];
+              const isFuture = b.booking_date >= today;
+              const canCancel = isFuture && b.status === "Not Arrived";
+
+              return (
+                <div key={b.id} style={{
+                  padding: "12px 0", borderBottom: `1px solid ${BRAND.greyLight}`,
+                  opacity: isFuture ? 1 : 0.7,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>
+                          {formatDate(b.booking_date)}
+                        </span>
+                        {isFuture && (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: BRAND.tealLight, color: BRAND.teal }}>UPCOMING</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 14, color: BRAND.text, marginTop: 2 }}>
+                        {b.dogs?.name || "Unknown"}{" "}
+                        <span style={{ color: BRAND.textLight }}>{SERVICE_ICONS[b.service] || ""} {SERVICE_LABELS[b.service] || b.service}</span>
+                      </div>
+                      {b.slot && (
+                        <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 2 }}>
+                          {formatSlot(b.slot)}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 6,
+                      background: sc.bg, color: sc.text, whiteSpace: "nowrap",
+                    }}>{b.status}</span>
+                  </div>
+                  {canCancel && (
+                    <button onClick={() => handleCancelBooking(b.id)} style={{
+                      marginTop: 8, width: "100%", padding: "8px", borderRadius: 8,
+                      border: `1px solid ${BRAND.coral}`, background: "transparent",
+                      fontSize: 13, fontWeight: 600, color: BRAND.coral,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}>Cancel appointment</button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
       </div>
     </div>
   );
