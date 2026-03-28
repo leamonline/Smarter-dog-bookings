@@ -386,13 +386,14 @@ export function NewBookingModal({
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         background: BRAND.white, borderRadius: 20, width: 440, maxHeight: "92vh",
-        overflow: "auto", boxShadow: "0 12px 48px rgba(0,0,0,0.2)",
+        display: "flex", flexDirection: "column", boxShadow: "0 12px 48px rgba(0,0,0,0.2)",
       }}>
         {/* Header */}
         <div style={{
           background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
           padding: "18px 24px", borderRadius: "20px 20px 0 0",
           display: "flex", justifyContent: "space-between", alignItems: "center",
+          flexShrink: 0,
         }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.white }}>New Booking</div>
@@ -407,7 +408,8 @@ export function NewBookingModal({
           }}>{"\u00D7"}</button>
         </div>
 
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* ─── Search section (overflow visible so dropdown isn't clipped) ─── */}
+        <div style={{ padding: "20px 24px 0 24px", overflow: "visible", flexShrink: 0, position: "relative", zIndex: 10 }}>
 
           {/* ─── STEP 1: Dog Search ─── */}
           {selectedDog ? (
@@ -539,6 +541,10 @@ export function NewBookingModal({
               </div>
             </div>
           )}
+        </div>
+
+        {/* ─── Rest of form (scrollable) ─── */}
+        <div style={{ padding: "16px 24px 20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
 
           {/* ─── STEP 2: Service Selection ─── */}
           {selectedDog && (
