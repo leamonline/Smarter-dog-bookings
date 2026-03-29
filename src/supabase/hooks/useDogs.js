@@ -45,8 +45,49 @@ export function useDogs(humansById) {
 
     fetchDogs();
 
+    // Real-time subscription for dogs
+    const channel = supabase
+      .channel("dogs-realtime")
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "dogs" },
+        (payload) => {
+          const oldRow = payload.old;
+          if (!oldRow.id) return;
+          setDogsById((prev) => {
+            const next = { ...prev };
+            delete next[oldRow.id];
+            return next;
+          });
+          setDogs((prev) => {
+            const next = { ...prev };
+            const entry = Object.entries(next).find(
+              ([, dog]) => dog.id === oldRow.id,
+            );
+            if (entry) delete next[entry[0]];
+            return next;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "dogs" },
+        () => {
+          fetchDogs();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "dogs" },
+        () => {
+          fetchDogs();
+        },
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [humansById]);
 
