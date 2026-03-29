@@ -101,8 +101,49 @@ export function useHumans() {
 
     fetchHumans();
 
+    // Real-time subscription for humans
+    const channel = supabase
+      .channel("humans-realtime")
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "humans" },
+        (payload) => {
+          const oldRow = payload.old;
+          if (!oldRow.id) return;
+          setHumansById((prev) => {
+            const next = { ...prev };
+            delete next[oldRow.id];
+            return next;
+          });
+          setHumans((prev) => {
+            const next = { ...prev };
+            const entry = Object.entries(next).find(
+              ([, human]) => human.id === oldRow.id,
+            );
+            if (entry) delete next[entry[0]];
+            return next;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "humans" },
+        () => {
+          fetchHumans();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "humans" },
+        () => {
+          fetchHumans();
+        },
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, []);
 
