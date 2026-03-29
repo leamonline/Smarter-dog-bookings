@@ -3,35 +3,10 @@ import { BRAND } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 
-export function HumansView({ humans, dogs, onOpenHuman, onAddHuman }) {
-  const [searchQuery, setSearchQuery] = useState("");
+export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredHumans = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    const allHumans = Object.values(humans).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    if (!query) return allHumans;
-
-    return allHumans.filter((human) => {
-      const fullName = (
-        human.fullName || `${human.name} ${human.surname}`
-      ).toLowerCase();
-      const humanDogs = Object.values(dogs).filter(
-        (dog) =>
-          dog._humanId === human.id ||
-          dog.humanId === (human.fullName || `${human.name} ${human.surname}`),
-      );
-      const dogSearchString = humanDogs
-        .map((dog) => `${dog.name} ${dog.breed}`)
-        .join(" ")
-        .toLowerCase();
-      const searchString = `${fullName} ${human.phone} ${human.email} ${human.address} ${human.notes} ${human.historyFlag} ${(human.trustedIds || []).join(" ")} ${dogSearchString}`;
-
-      return searchString.includes(query);
-    });
-  }, [searchQuery, humans, dogs]);
+  const sortedHumans = useMemo(() => Object.values(humans).sort((a, b) => a.name.localeCompare(b.name)), [humans]);
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease-in" }}>
@@ -86,7 +61,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman }) {
               type="text"
               placeholder="Search rolodex..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearch(e.target.value)}
               style={{
                 width: "100%",
                 padding: "10px 14px 10px 38px",
@@ -141,7 +116,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman }) {
           gap: 16,
         }}
       >
-        {filteredHumans.map((human) => {
+        {sortedHumans.map((human) => {
           const fullName = human.fullName || `${human.name} ${human.surname}`;
           const humanDogs = Object.values(dogs).filter(
             (dog) => dog._humanId === human.id || dog.humanId === fullName,
@@ -258,7 +233,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman }) {
           );
         })}
 
-        {filteredHumans.length === 0 && (
+        {sortedHumans.length === 0 && !isSearching && (
           <div
             style={{
               gridColumn: "1 / -1",
@@ -269,12 +244,60 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman }) {
           >
             <div style={{ fontSize: 32, marginBottom: 12 }}>{"🔍"}</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>
-              No humans found matching "{searchQuery}"
+              {searchQuery ? `No humans found matching "${searchQuery}"` : "No humans yet."}
             </div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>
-              Try searching by phone number or dog breed instead.
-            </div>
+            {searchQuery && (
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                Try searching by phone number or dog breed instead.
+              </div>
+            )}
           </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          marginTop: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        <div style={{ fontSize: 13, color: BRAND.textLight }}>
+          {isSearching ? (
+            <span style={{ fontStyle: "italic" }}>Searching...</span>
+          ) : (
+            <span>Showing {sortedHumans.length} of {totalCount} humans</span>
+          )}
+        </div>
+        {hasMore && !isSearching && (
+          <button
+            onClick={loadMore}
+            style={{
+              border: `1px solid ${BRAND.greyLight}`,
+              borderRadius: 10,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              background: BRAND.white,
+              color: BRAND.text,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = BRAND.teal;
+              e.currentTarget.style.color = BRAND.teal;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = BRAND.greyLight;
+              e.currentTarget.style.color = BRAND.text;
+            }}
+          >
+            Load more
+          </button>
         )}
       </div>
 
