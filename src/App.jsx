@@ -1,4 +1,11 @@
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+} from "react";
 import {
   BRAND,
   SALON_SLOTS,
@@ -102,7 +109,6 @@ export default function App() {
     loading: authLoading,
     error: authError,
     signIn,
-    signUp,
     signOut,
     isOwner,
   } = useAuth();
@@ -223,6 +229,25 @@ export default function App() {
     });
     return settings;
   });
+
+  // When weekStart changes in offline mode, rebuild the sample bookings and
+  // day-settings for the newly-visible week. Without this, navigating to
+  // another week in offline/demo mode showed an empty or stale schedule.
+  useEffect(() => {
+    if (isOnline) return;
+    setOfflineBookings(buildOfflineBookingsByDate(weekStart));
+    const settings = {};
+    ALL_DAYS.forEach((day, i) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      settings[toDateStr(d)] = {
+        isOpen: day.defaultOpen,
+        overrides: {},
+        extraSlots: [],
+      };
+    });
+    setOfflineDaySettings(settings);
+  }, [weekStart, isOnline]);
 
   const offlineBookingsByDate = useMemo(() => {
     if (isOnline) return {};
@@ -493,13 +518,19 @@ export default function App() {
   const addHuman = isOnline ? sbAddHuman : offlineAddHuman;
   const addDog = isOnline ? sbAddDog : offlineAddDog;
   const handleAdd = isOnline ? onlineHandleAdd : offlineHandleAdd;
-  const handleAddToDate = isOnline ? onlineHandleAddToDate : offlineHandleAddToDate;
+  const handleAddToDate = isOnline
+    ? onlineHandleAddToDate
+    : offlineHandleAddToDate;
   const handleRemove = isOnline ? onlineHandleRemove : offlineHandleRemove;
   const handleUpdate = isOnline ? sbUpdateBooking : offlineHandleUpdate;
   const toggleDayOpen = isOnline ? onlineToggleDayOpen : offlineToggleDayOpen;
-  const handleOverride = isOnline ? onlineHandleOverride : offlineHandleOverride;
+  const handleOverride = isOnline
+    ? onlineHandleOverride
+    : offlineHandleOverride;
   const handleAddSlot = isOnline ? onlineHandleAddSlot : offlineHandleAddSlot;
-  const handleRemoveSlot = isOnline ? onlineHandleRemoveSlot : offlineHandleRemoveSlot;
+  const handleRemoveSlot = isOnline
+    ? onlineHandleRemoveSlot
+    : offlineHandleRemoveSlot;
 
   const currentSettings = daySettings[currentDateStr] || {
     isOpen: getDefaultOpenForDate(currentDateObj),
@@ -653,12 +684,7 @@ export default function App() {
           </div>
         }
       >
-        <LoginPage
-          onSignIn={signIn}
-          onSignUp={signUp}
-          error={authError}
-          isOffline={false}
-        />
+        <LoginPage onSignIn={signIn} error={authError} isOffline={false} />
       </Suspense>
     );
   }
@@ -713,44 +739,131 @@ export default function App() {
             Salon Dashboard
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button onClick={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })} style={{
-            background: BRAND.blue, border: "none",
-            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
-            color: BRAND.white, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueDark; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.blue; }}>+ New Booking</button>
+        >
+          <button
+            onClick={() =>
+              setShowNewBooking({ dateStr: currentDateStr, slot: "" })
+            }
+            style={{
+              background: BRAND.blue,
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 700,
+              color: BRAND.white,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = BRAND.blueDark;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = BRAND.blue;
+            }}
+          >
+            + New Booking
+          </button>
 
-          <button onClick={() => setActiveView("dogs")} style={{
-            background: activeView === "dogs" ? BRAND.blueLight : BRAND.white,
-            border: `1px solid ${activeView === "dogs" ? BRAND.blue : BRAND.greyLight}`,
-            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600,
-            color: activeView === "dogs" ? BRAND.blueDark : BRAND.text,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
-          }}
-          onMouseEnter={(e) => { if (activeView !== "dogs") { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; } }}
-          onMouseLeave={(e) => { if (activeView !== "dogs") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>Dogs</button>
+          <button
+            onClick={() => setActiveView("dogs")}
+            style={{
+              background: activeView === "dogs" ? BRAND.blueLight : BRAND.white,
+              border: `1px solid ${activeView === "dogs" ? BRAND.blue : BRAND.greyLight}`,
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: activeView === "dogs" ? BRAND.blueDark : BRAND.text,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (activeView !== "dogs") {
+                e.currentTarget.style.borderColor = BRAND.blue;
+                e.currentTarget.style.color = BRAND.blue;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeView !== "dogs") {
+                e.currentTarget.style.borderColor = BRAND.greyLight;
+                e.currentTarget.style.color = BRAND.text;
+              }
+            }}
+          >
+            Dogs
+          </button>
 
-          <button onClick={() => setActiveView("humans")} style={{
-            background: activeView === "humans" ? BRAND.tealLight : BRAND.white,
-            border: `1px solid ${activeView === "humans" ? BRAND.teal : BRAND.greyLight}`,
-            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600,
-            color: activeView === "humans" ? "#1F6659" : BRAND.text,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
-          }}
-          onMouseEnter={(e) => { if (activeView !== "humans") { e.currentTarget.style.borderColor = BRAND.teal; e.currentTarget.style.color = BRAND.teal; } }}
-          onMouseLeave={(e) => { if (activeView !== "humans") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>Humans</button>
+          <button
+            onClick={() => setActiveView("humans")}
+            style={{
+              background:
+                activeView === "humans" ? BRAND.tealLight : BRAND.white,
+              border: `1px solid ${activeView === "humans" ? BRAND.teal : BRAND.greyLight}`,
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: activeView === "humans" ? "#1F6659" : BRAND.text,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (activeView !== "humans") {
+                e.currentTarget.style.borderColor = BRAND.teal;
+                e.currentTarget.style.color = BRAND.teal;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeView !== "humans") {
+                e.currentTarget.style.borderColor = BRAND.greyLight;
+                e.currentTarget.style.color = BRAND.text;
+              }
+            }}
+          >
+            Humans
+          </button>
 
-          <button onClick={() => setActiveView("settings")} style={{
-            background: activeView === "settings" ? BRAND.blueLight : BRAND.white,
-            border: `1px solid ${activeView === "settings" ? BRAND.blue : BRAND.greyLight}`,
-            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600,
-            color: activeView === "settings" ? BRAND.blueDark : BRAND.text,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
-          }}
-          onMouseEnter={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.color = BRAND.blue; } }}
-          onMouseLeave={(e) => { if (activeView !== "settings") { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.text; } }}>Settings</button>
+          <button
+            onClick={() => setActiveView("settings")}
+            style={{
+              background:
+                activeView === "settings" ? BRAND.blueLight : BRAND.white,
+              border: `1px solid ${activeView === "settings" ? BRAND.blue : BRAND.greyLight}`,
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: activeView === "settings" ? BRAND.blueDark : BRAND.text,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (activeView !== "settings") {
+                e.currentTarget.style.borderColor = BRAND.blue;
+                e.currentTarget.style.color = BRAND.blue;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeView !== "settings") {
+                e.currentTarget.style.borderColor = BRAND.greyLight;
+                e.currentTarget.style.color = BRAND.text;
+              }
+            }}
+          >
+            Settings
+          </button>
 
           {isOnline && user && (
             <button
@@ -863,7 +976,9 @@ export default function App() {
                       onUpdateDog={updateDog}
                       onRebook={handleOpenRebook}
                       daySettings={daySettings}
-                      onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
+                      onOpenNewBooking={(dateStr, slot) =>
+                        setShowNewBooking({ dateStr, slot })
+                      }
                     />
                   ))}
                   <div
@@ -1234,7 +1349,10 @@ export default function App() {
       {showNewBooking && (
         <NewBookingModal
           onClose={() => setShowNewBooking(null)}
-          onAdd={(booking, dateStr) => { handleAddToDate(booking, dateStr); setShowNewBooking(null); }}
+          onAdd={(booking, dateStr) => {
+            handleAddToDate(booking, dateStr);
+            setShowNewBooking(null);
+          }}
           dogs={dogs}
           humans={humans}
           bookingsByDate={bookingsByDate}
@@ -1250,7 +1368,10 @@ export default function App() {
       {showAddDogModal && (
         <AddDogModal
           onClose={() => setShowAddDogModal(false)}
-          onAdd={async (dogData) => { const result = await addDog(dogData); return result; }}
+          onAdd={async (dogData) => {
+            const result = await addDog(dogData);
+            return result;
+          }}
           humans={humans}
         />
       )}
@@ -1258,7 +1379,10 @@ export default function App() {
       {showAddHumanModal && (
         <AddHumanModal
           onClose={() => setShowAddHumanModal(false)}
-          onAdd={async (humanData) => { const result = await addHuman(humanData); return result; }}
+          onAdd={async (humanData) => {
+            const result = await addHuman(humanData);
+            return result;
+          }}
         />
       )}
     </div>
