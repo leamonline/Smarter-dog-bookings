@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { BRAND } from "../../constants/index.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -42,6 +43,7 @@ function formatDate(dateStr) {
 }
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
+  const navigate = useNavigate();
   const [dogs, setDogs] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [trustedHumans, setTrustedHumans] = useState([]);
@@ -228,6 +230,17 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       </div>
 
       <div style={{ maxWidth: 600, margin: "-12px auto 0", padding: "0 16px 32px", position: "relative", zIndex: 1 }}>
+
+        <button
+          onClick={() => navigate("/customer/book")}
+          style={{
+            width: "100%", padding: "16px", borderRadius: 12, border: "none",
+            background: BRAND.teal, color: BRAND.white, fontSize: 16, fontWeight: 700,
+            cursor: "pointer", fontFamily: "inherit", marginBottom: 20,
+          }}
+        >
+          Book a Groom
+        </button>
 
         {/* ==================== MY DETAILS ==================== */}
         <div style={cardStyle}>

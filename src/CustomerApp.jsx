@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
+import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { BRAND } from "./constants/index.js";
 import { customerSupabase as supabase } from "./supabase/customerClient.js";
 
 export default function CustomerApp() {
+  const navigate = useNavigate();
   const {
     user,
     humanRecord,
@@ -58,9 +61,25 @@ export default function CustomerApp() {
     setDemoList([]);
   };
 
-  // If in demo mode and a human is selected, show dashboard
+  // If in demo mode and a human is selected, fall through to Routes block below
+  const activeHuman = demoMode ? demoHuman : humanRecord;
+  const handleSignOut = demoMode ? exitDemo : signOut;
+
   if (demoMode && demoHuman) {
-    return <CustomerDashboard humanRecord={demoHuman} onSignOut={exitDemo} />;
+    return (
+      <Routes>
+        <Route path="book" element={
+          <BookingWizard
+            humanRecord={activeHuman}
+            onComplete={() => navigate("/customer")}
+            onCancel={() => navigate("/customer")}
+          />
+        } />
+        <Route path="*" element={
+          <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
+        } />
+      </Routes>
+    );
   }
 
   // If in demo mode, show customer picker
@@ -311,6 +330,19 @@ export default function CustomerApp() {
     );
   }
 
-  // Authenticated + matched — show dashboard
-  return <CustomerDashboard humanRecord={humanRecord} onSignOut={signOut} />;
+  // Authenticated + matched — show dashboard or booking wizard
+  return (
+    <Routes>
+      <Route path="book" element={
+        <BookingWizard
+          humanRecord={activeHuman}
+          onComplete={() => navigate("/customer")}
+          onCancel={() => navigate("/customer")}
+        />
+      } />
+      <Route path="*" element={
+        <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
+      } />
+    </Routes>
+  );
 }
