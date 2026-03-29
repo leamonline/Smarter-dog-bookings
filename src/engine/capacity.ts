@@ -1,5 +1,5 @@
 import { LARGE_DOG_SLOTS } from "../constants/index.js";
-import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule } from "../types/index.js";
+import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index.js";
 
 // ============================================================
 // SEAT CALCULATION
@@ -378,4 +378,150 @@ export function canBookSlot(
   }
 
   return { allowed: true };
+}
+
+// ============================================================
+// MULTI-DOG SLOT GROUPING
+// ============================================================
+
+function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Booking {
+  return {
+    id: `temp-${dog.id}`,
+    slot,
+    size: dog.size,
+    dogName: "",
+    breed: "",
+    service: "full-groom" as any,
+    owner: "",
+    status: "Not Arrived" as any,
+    addons: [],
+    pickupBy: "",
+    payment: "",
+    confirmed: false,
+    _dogId: dog.id,
+    _ownerId: null,
+    _pickupById: null,
+    _bookingDate: "",
+  };
+}
+
+function trySlotSplit(
+  dogs: Array<{ id: string; size: DogSize }>,
+  indicesA: number[],
+  indicesB: number[],
+  slotA: string,
+  slotB: string,
+  bookings: Booking[],
+  activeSlots: string[],
+): SlotAllocation | null {
+  let simulated = [...bookings];
+  const assignments: Array<{ dogId: string; slot: string }> = [];
+
+  // Place dogs assigned to slotA
+  for (const idx of indicesA) {
+    const dog = dogs[idx];
+    const result = canBookSlot(simulated, slotA, dog.size, activeSlots);
+    if (!result.allowed) return null;
+    simulated = [...simulated, makeTempBooking(dog, slotA)];
+    assignments.push({ dogId: dog.id, slot: slotA });
+  }
+
+  // Place dogs assigned to slotB
+  for (const idx of indicesB) {
+    const dog = dogs[idx];
+    const result = canBookSlot(simulated, slotB, dog.size, activeSlots);
+    if (!result.allowed) return null;
+    simulated = [...simulated, makeTempBooking(dog, slotB)];
+    assignments.push({ dogId: dog.id, slot: slotB });
+  }
+
+  // Drop-off time is the earlier slot (earlier in activeSlots order)
+  const idxA = activeSlots.indexOf(slotA);
+  const idxB = activeSlots.indexOf(slotB);
+  const dropOffTime = idxA <= idxB ? slotA : slotB;
+
+  return {
+    dropOffTime,
+    assignments,
+    groupId: crypto.randomUUID(),
+  };
+}
+
+export function findGroupedSlots(
+  dogs: Array<{ id: string; size: DogSize }>,
+  bookings: Booking[],
+  activeSlots: string[],
+): SlotAllocation[] {
+  const count = dogs.length;
+
+  // Out of range
+  if (count === 0 || count > 4) return [];
+
+  const results: SlotAllocation[] = [];
+  const seenDropOffs = new Set<string>();
+
+  function addResult(allocation: SlotAllocation | null) {
+    if (!allocation) return;
+    if (seenDropOffs.has(allocation.dropOffTime)) return;
+    seenDropOffs.add(allocation.dropOffTime);
+    results.push(allocation);
+  }
+
+  if (count === 1) {
+    for (const slot of activeSlots) {
+      const dog = dogs[0];
+      const result = canBookSlot(bookings, slot, dog.size, activeSlots);
+      if (result.allowed) {
+        addResult({
+          dropOffTime: slot,
+          assignments: [{ dogId: dog.id, slot }],
+          groupId: crypto.randomUUID(),
+        });
+      }
+    }
+    return results;
+  }
+
+  if (count === 2) {
+    for (const slot of activeSlots) {
+      // Simulate placing dog[0] then dog[1] in the same slot
+      const r0 = canBookSlot(bookings, slot, dogs[0].size, activeSlots);
+      if (!r0.allowed) continue;
+      const simulated = [...bookings, makeTempBooking(dogs[0], slot)];
+      const r1 = canBookSlot(simulated, slot, dogs[1].size, activeSlots);
+      if (!r1.allowed) continue;
+      addResult({
+        dropOffTime: slot,
+        assignments: [
+          { dogId: dogs[0].id, slot },
+          { dogId: dogs[1].id, slot },
+        ],
+        groupId: crypto.randomUUID(),
+      });
+    }
+    return results;
+  }
+
+  if (count === 3) {
+    for (let i = 0; i < activeSlots.length - 1; i++) {
+      const slotA = activeSlots[i];
+      const slotB = activeSlots[i + 1];
+
+      // Try 2 in slotA, 1 in slotB
+      addResult(trySlotSplit(dogs, [0, 1], [2], slotA, slotB, bookings, activeSlots));
+      // Try 1 in slotA, 2 in slotB
+      addResult(trySlotSplit(dogs, [0], [1, 2], slotA, slotB, bookings, activeSlots));
+    }
+    return results;
+  }
+
+  // count === 4
+  for (let i = 0; i < activeSlots.length - 1; i++) {
+    const slotA = activeSlots[i];
+    const slotB = activeSlots[i + 1];
+
+    // Try 2 in slotA, 2 in slotB
+    addResult(trySlotSplit(dogs, [0, 1], [2, 3], slotA, slotB, bookings, activeSlots));
+  }
+  return results;
 }

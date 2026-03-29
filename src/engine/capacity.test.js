@@ -21,6 +21,7 @@ import {
   computeSlotCapacities,
   canBookSlot,
   getBookableSeatCount,
+  findGroupedSlots,
 } from "./capacity.js";
 
 const SLOTS = [
@@ -461,6 +462,71 @@ section("Early Close + 2-2-1 Interaction");
   ];
   const caps = computeSlotCapacities(bookings, SLOTS);
   assert(caps["13:00"].max === 0, "13:00 max = 0 despite 12:30 double (early close)");
+}
+
+// ============================================================
+// MULTI-DOG SLOT GROUPING
+// ============================================================
+section("MULTI-DOG SLOT GROUPING");
+
+function dogs(sizes) {
+  return sizes.map((size, i) => ({ id: `dog-${i}`, size }));
+}
+
+// 1 small dog finds slots
+{
+  const result = findGroupedSlots(dogs(["small"]), [], SLOTS);
+  assert(result.length > 0, "1 small dog should find available slots");
+  assert(result[0].assignments.length === 1, "1 dog = 1 assignment");
+  assert(result[0].dropOffTime === result[0].assignments[0].slot, "1 dog: dropoff = slot");
+}
+
+// 2 dogs same slot
+{
+  const result = findGroupedSlots(dogs(["small", "small"]), [], SLOTS);
+  assert(result.length > 0, "2 small dogs should find available slots");
+  assert(result[0].assignments.length === 2, "2 dogs = 2 assignments");
+  assert(result[0].assignments[0].slot === result[0].assignments[1].slot, "2 dogs in same slot");
+}
+
+// 3 dogs across 2 slots
+{
+  const result = findGroupedSlots(dogs(["small", "small", "small"]), [], SLOTS);
+  assert(result.length > 0, "3 small dogs should find slots");
+  assert(result[0].assignments.length === 3, "3 dogs = 3 assignments");
+  const uniqueSlots = [...new Set(result[0].assignments.map(a => a.slot))];
+  assert(uniqueSlots.length === 2, "3 dogs use 2 different slots");
+}
+
+// 4 dogs across 2 slots
+{
+  const result = findGroupedSlots(dogs(["small", "small", "small", "small"]), [], SLOTS);
+  assert(result.length > 0, "4 small dogs should find slots");
+  assert(result[0].assignments.length === 4, "4 dogs = 4 assignments");
+  const uniqueSlots = [...new Set(result[0].assignments.map(a => a.slot))];
+  assert(uniqueSlots.length === 2, "4 dogs use 2 different slots");
+}
+
+// Full day returns empty
+{
+  const fullBookings = SLOTS.flatMap(slot => [b(slot, "small"), b(slot, "small")]);
+  const result = findGroupedSlots(dogs(["small"]), fullBookings, SLOTS);
+  assert(result.length === 0, "Full day should return no slots");
+}
+
+// Drop-off is earlier slot
+{
+  const result = findGroupedSlots(dogs(["small", "small", "small"]), [], SLOTS);
+  if (result.length > 0) {
+    const assignedSlots = result[0].assignments.map(a => a.slot).sort();
+    assert(result[0].dropOffTime === assignedSlots[0], "Drop-off = earlier slot");
+  }
+}
+
+// 0 or 5+ dogs returns empty
+{
+  assert(findGroupedSlots([], [], SLOTS).length === 0, "0 dogs = empty");
+  assert(findGroupedSlots(dogs(["small","small","small","small","small"]), [], SLOTS).length === 0, "5 dogs = empty");
 }
 
 // ============================================================
