@@ -2,8 +2,6 @@ import { useMemo, useState } from "react";
 import {
   BRAND,
   SERVICES,
-  ALERT_OPTIONS,
-  BOOKING_STATUSES,
   SALON_SLOTS,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
@@ -17,14 +15,25 @@ import {
   normalizeServiceForSize,
 } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
-import { SizeTag } from "../ui/SizeTag.jsx";
-import { IconTick, IconEdit, IconMessage, IconBlock } from "../icons/index.jsx";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 import { ContactPopup } from "./ContactPopup.jsx";
 
-const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
+import {
+  DetailRow,
+  LogisticsLabel,
+  FinanceLabel,
+  modalInputStyle,
+} from "./booking-detail/shared.jsx";
+import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
+import {
+  BookingStatusBar,
+  ClientConfirmedToggle,
+} from "./booking-detail/BookingStatusBar.jsx";
+import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
+import { BookingActions } from "./booking-detail/BookingActions.jsx";
+import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
 
-// getDefaultOpenForDate is now imported from engine/utils.js
+const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
 
 function buildEditState(booking, dogData, currentDateObj) {
   const size = booking.size || dogData?.size || "small";
@@ -193,105 +202,6 @@ export function BookingDetailModal({
   if (activeAddons.includes("Flea Bath")) amountDue += 10;
   if (activePayment === "Deposit Paid") amountDue -= 10;
   else if (activePayment === "Paid in Full") amountDue = 0;
-
-  const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
-
-  const inputStyle = {
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: `1px solid ${BRAND.greyLight}`,
-    fontSize: 13,
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-    color: BRAND.text,
-  };
-
-  const LogisticsLabel = ({ text }) => (
-    <span
-      style={{
-        color: BRAND.blueDark,
-        textTransform: "uppercase",
-        fontWeight: 800,
-        fontSize: 12,
-        letterSpacing: 0.5,
-      }}
-    >
-      {text}
-    </span>
-  );
-
-  const FinanceLabel = ({ text }) => (
-    <span
-      style={{
-        color: BRAND.openGreen,
-        textTransform: "uppercase",
-        fontWeight: 800,
-        fontSize: 12,
-        letterSpacing: 0.5,
-      }}
-    >
-      {text}
-    </span>
-  );
-
-  const detailRow = (label, value, editNode = null, verticalEdit = false) => (
-    <div
-      style={{
-        padding: "10px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems:
-            isEditing && editNode && !verticalEdit ? "center" : "flex-start",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            color: BRAND.textLight,
-            flexShrink: 0,
-            paddingRight: 12,
-            paddingTop: isEditing && editNode && !verticalEdit ? 0 : 2,
-          }}
-        >
-          {label}
-        </span>
-        {isEditing && editNode && !verticalEdit ? (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              justifyContent: "flex-end",
-              maxWidth: "65%",
-            }}
-          >
-            {editNode}
-          </div>
-        ) : (
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: BRAND.text,
-              textAlign: "right",
-              wordBreak: "break-word",
-            }}
-          >
-            {value}
-          </span>
-        )}
-      </div>
-      {isEditing && editNode && verticalEdit && (
-        <div style={{ marginTop: 8 }}>{editNode}</div>
-      )}
-    </div>
-  );
 
   const resetEditState = () => {
     setEditData(buildEditState(booking, dogData, currentDateObj));
@@ -491,247 +401,31 @@ export function BookingDetailModal({
           boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         }}
       >
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-            padding: "20px 24px",
-            borderRadius: "16px 16px 0 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <SizeTag size={booking.size} headerMode />
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: BRAND.white,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {booking.dogName}
-                {ageYo && (
-                  <span
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 14,
-                      opacity: 0.8,
-                      marginLeft: 6,
-                    }}
-                  >
-                    {ageYo}
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "rgba(255,255,255,0.8)",
-                  marginTop: 2,
-                }}
-              >
-                {booking.breed}
-              </div>
-              {isEditing ? (
-                <select
-                  value={editData.service}
-                  onChange={(e) => {
-                    setEditData((prev) => ({
-                      ...prev,
-                      service: e.target.value,
-                      customPrice:
-                        dogData?.customPrice !== undefined
-                          ? dogData.customPrice
-                          : getNumericPrice(
-                              getServicePriceLabel(
-                                e.target.value,
-                                booking.size,
-                              ),
-                            ),
-                    }));
-                    setSaveError("");
-                  }}
-                  style={{
-                    background: "rgba(255,255,255,0.2)",
-                    color: BRAND.white,
-                    border: "1px solid rgba(255,255,255,0.3)",
-                    borderRadius: 6,
-                    padding: "6px 10px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    outline: "none",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {allowedServices.map((service) => (
-                    <option
-                      key={service.id}
-                      value={service.id}
-                      style={{ color: BRAND.text }}
-                    >
-                      {service.icon} {service.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "rgba(255,255,255,0.8)",
-                    marginTop: 2,
-                  }}
-                >
-                  {serviceObj?.icon} {serviceObj?.name}
-                </div>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={handleCloseAttempt}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              borderRadius: 8,
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: 14,
-              color: BRAND.white,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {"×"}
-          </button>
-        </div>
+        <BookingHeader
+          booking={booking}
+          dogData={dogData}
+          isEditing={isEditing}
+          editData={editData}
+          setEditData={setEditData}
+          setSaveError={setSaveError}
+          allowedServices={allowedServices}
+          onClose={handleCloseAttempt}
+        />
 
         <div style={{ padding: "16px 24px 0" }}>
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: BRAND.textLight,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 10,
-              }}
-            >
-              Status
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {BOOKING_STATUSES.map((status) => {
-                const currentStatus = booking.status || "Not Arrived";
-                const isActive = currentStatus === status.id;
-                const currentIdx = BOOKING_STATUSES.findIndex(
-                  (st) => st.id === currentStatus,
-                );
-                const thisIdx = BOOKING_STATUSES.findIndex(
-                  (st) => st.id === status.id,
-                );
-                const isPast = thisIdx < currentIdx;
+          <BookingStatusBar
+            booking={booking}
+            currentDateStr={currentDateStr}
+            onUpdate={onUpdate}
+          />
 
-                return (
-                  <button
-                    key={status.id}
-                    onClick={async () => {
-                      if (!isActive) {
-                        await onUpdate(
-                          { ...booking, status: status.id },
-                          currentDateStr,
-                          currentDateStr,
-                        );
-                      }
-                    }}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: isActive ? "default" : "pointer",
-                      background: isActive
-                        ? status.bg
-                        : isPast
-                          ? "#F9FAFB"
-                          : BRAND.white,
-                      color: isActive
-                        ? status.color
-                        : isPast
-                          ? BRAND.textLight
-                          : BRAND.grey,
-                      border: isActive
-                        ? `2px solid ${status.color}`
-                        : `1px solid ${BRAND.greyLight}`,
-                      transition: "all 0.15s",
-                      opacity: isPast ? 0.6 : 1,
-                    }}
-                  >
-                    {isActive ? "● " : ""}
-                    {status.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <ClientConfirmedToggle
+            booking={booking}
+            currentDateStr={currentDateStr}
+            onUpdate={onUpdate}
+          />
 
-          <div
-            style={{
-              padding: "10px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: 13, color: BRAND.textLight }}>
-              Client Confirmed
-            </span>
-            <button
-              onClick={async () => {
-                await onUpdate(
-                  { ...booking, confirmed: !booking.confirmed },
-                  currentDateStr,
-                  currentDateStr,
-                );
-              }}
-              style={{
-                background: booking.confirmed
-                  ? BRAND.openGreenBg
-                  : BRAND.closedRedBg,
-                color: booking.confirmed ? BRAND.openGreen : BRAND.closedRed,
-                border: `1.5px solid ${
-                  booking.confirmed ? BRAND.openGreen : BRAND.closedRed
-                }`,
-                borderRadius: 8,
-                padding: "4px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all 0.15s",
-              }}
-            >
-              {booking.confirmed ? "✓ Confirmed" : "Not confirmed"}
-            </button>
-          </div>
-
+          {/* Human / Owner row */}
           <div
             style={{
               padding: "10px 0",
@@ -762,344 +456,205 @@ export function BookingDetailModal({
             </div>
           </div>
 
-          {isEditing ? (
-            <div style={{ marginTop: 20, marginBottom: 16 }}>
-              <div
-                style={{
-                  fontWeight: 800,
-                  fontSize: 12,
-                  color: BRAND.coral,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  marginBottom: 12,
-                  textAlign: "center",
-                }}
-              >
-                Alerts
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 10,
-                  justifyContent: "center",
-                }}
-              >
-                {ALERT_OPTIONS.map((opt) => {
-                  const active = editData.alerts.includes(opt.label);
-                  return (
-                    <button
-                      key={opt.label}
-                      type="button"
-                      onClick={() => {
-                        if (active) {
-                          setEditData((prev) => ({
-                            ...prev,
-                            alerts: prev.alerts.filter((a) => a !== opt.label),
-                          }));
-                        } else {
-                          setEditData((prev) => ({
-                            ...prev,
-                            alerts: [...prev.alerts, opt.label],
-                          }));
-                        }
-                      }}
-                      style={{
-                        background: active ? opt.color : BRAND.white,
-                        color: active ? BRAND.white : opt.color,
-                        border: `2px solid ${opt.color}`,
-                        padding: "8px 14px",
-                        borderRadius: 20,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setHasAllergy(!hasAllergy)}
-                  style={{
-                    background: hasAllergy ? BRAND.coral : BRAND.white,
-                    color: hasAllergy ? BRAND.white : BRAND.coral,
-                    border: `2px solid ${BRAND.coral}`,
-                    padding: "10px 18px",
-                    borderRadius: 24,
-                    fontSize: 14,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                  }}
-                >
-                  {"⚠️"} Allergy {"⚠️"}
-                </button>
-              </div>
+          <BookingAlerts
+            isEditing={isEditing}
+            editData={editData}
+            setEditData={setEditData}
+            dogData={dogData}
+            hasAllergy={hasAllergy}
+            setHasAllergy={setHasAllergy}
+            allergyInput={allergyInput}
+            setAllergyInput={setAllergyInput}
+          />
 
-              {hasAllergy && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder="What is the dog allergic to?"
-                    value={allergyInput}
-                    onChange={(e) => setAllergyInput(e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      textAlign: "center",
-                      borderColor: BRAND.coral,
-                      borderWidth: 2,
-                      padding: "10px",
-                      width: "100%",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            ((dogData.alerts && dogData.alerts.length > 0) ||
-              (hasAllergy && allergyInput)) && (
+          {/* Logistics rows */}
+          <DetailRow
+            label={<LogisticsLabel text="Grooming Notes" />}
+            value={
+              <span style={{ whiteSpace: "pre-wrap" }}>
+                {editData.groomNotes || "Standard groom (no specific notes)"}
+              </span>
+            }
+            editNode={
+              <textarea
+                value={editData.groomNotes}
+                onChange={(e) =>
+                  setEditData((prev) => ({
+                    ...prev,
+                    groomNotes: e.target.value,
+                  }))
+                }
+                style={{
+                  ...modalInputStyle,
+                  resize: "vertical",
+                  minHeight: 44,
+                  textAlign: "right",
+                }}
+              />
+            }
+            isEditing={isEditing}
+          />
+
+          <DetailRow
+            label={<LogisticsLabel text="Date" />}
+            value={formatFullDate(isEditing ? editData.date : currentDateObj)}
+            editNode={
+              <button
+                onClick={() => setShowDatePicker(true)}
+                style={{
+                  ...modalInputStyle,
+                  flex: 1,
+                  textAlign: "left",
+                  background: BRAND.white,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>
+                  {formatFullDate(editData.date)}
+                </span>
+                <span style={{ fontSize: 14 }}>{"\uD83D\uDCC5"}</span>
+              </button>
+            }
+            verticalEdit
+            isEditing={isEditing}
+          />
+
+          <DetailRow
+            label={<LogisticsLabel text="Drop-off time" />}
+            value={
+              isEditing
+                ? editData.slot || (
+                    <span style={{ color: BRAND.coral }}>None selected</span>
+                  )
+                : booking.slot
+            }
+            editNode={
               <div
                 style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 10,
-                  marginBottom: 16,
-                  marginTop: 28,
-                  justifyContent: "center",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
+                  gap: 6,
                   width: "100%",
                 }}
               >
-                {(dogData.alerts || [])
-                  .filter((a) => !a.startsWith("Allergic to "))
-                  .map((alertLabel) => (
-                    <div
-                      key={alertLabel}
-                      style={{
-                        background: BRAND.coral,
-                        color: BRAND.white,
-                        padding: "10px 18px",
-                        borderRadius: 24,
-                        fontSize: 14,
-                        fontWeight: 800,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 6,
-                        boxShadow: "0 4px 12px rgba(232,86,127,0.25)",
-                        textAlign: "center",
-                      }}
-                    >
-                      {"⚠️"} {alertLabel} {"⚠️"}
-                    </div>
-                  ))}
-                {hasAllergy && allergyInput && (
-                  <div
+                {editActiveSlots.length > 0 ? (
+                  editActiveSlots.map((slot) => {
+                    const allowed = canBookSlot(
+                      otherBookings,
+                      slot,
+                      booking.size,
+                      editActiveSlots,
+                      {
+                        overrides: editSettings.overrides?.[slot] || {},
+                      },
+                    ).allowed;
+
+                    const seatStates = getSeatStatesForSlot(
+                      otherBookings,
+                      slot,
+                      editActiveSlots,
+                      editSettings.overrides?.[slot] || {},
+                    );
+                    const isStaffOpened = seatStates.some(
+                      (seat) => seat.staffOpened,
+                    );
+
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => {
+                          if (!allowed) return;
+                          setEditData((prev) => ({ ...prev, slot }));
+                          setSaveError("");
+                        }}
+                        disabled={!allowed}
+                        style={{
+                          padding: "8px 0",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: allowed ? "pointer" : "not-allowed",
+                          background:
+                            editData.slot === slot
+                              ? BRAND.blue
+                              : isStaffOpened
+                                ? BRAND.blueLight
+                                : BRAND.white,
+                          color:
+                            editData.slot === slot
+                              ? BRAND.white
+                              : allowed
+                                ? BRAND.text
+                                : BRAND.textLight,
+                          border: `1.5px solid ${
+                            editData.slot === slot
+                              ? BRAND.blue
+                              : isStaffOpened
+                                ? BRAND.blue
+                                : BRAND.greyLight
+                          }`,
+                          textAlign: "center",
+                          opacity: allowed ? 1 : 0.5,
+                        }}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span
                     style={{
-                      background: BRAND.coral,
-                      color: BRAND.white,
-                      padding: "10px 18px",
-                      borderRadius: 24,
-                      fontSize: 14,
-                      fontWeight: 800,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                      boxShadow: "0 4px 12px rgba(232,86,127,0.25)",
-                      textAlign: "center",
+                      fontSize: 13,
+                      color: BRAND.coral,
+                      fontWeight: 600,
+                      gridColumn: "1 / -1",
                     }}
                   >
-                    {"⚠️"} Allergic to {allergyInput} {"⚠️"}
-                  </div>
+                    No available slots on this date
+                  </span>
                 )}
               </div>
-            )
-          )}
+            }
+            verticalEdit
+            isEditing={isEditing}
+          />
 
-          {detailRow(
-            <LogisticsLabel text="Grooming Notes" />,
-            <span style={{ whiteSpace: "pre-wrap" }}>
-              {editData.groomNotes || "Standard groom (no specific notes)"}
-            </span>,
-            <textarea
-              value={editData.groomNotes}
-              onChange={(e) =>
-                setEditData((prev) => ({
-                  ...prev,
-                  groomNotes: e.target.value,
-                }))
-              }
-              style={{
-                ...inputStyle,
-                resize: "vertical",
-                minHeight: 44,
-                textAlign: "right",
-              }}
-            />,
-          )}
+          <DetailRow
+            label={<LogisticsLabel text="Service" />}
+            value={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`}
+            editNode={
+              <select
+                value={editData.service}
+                onChange={(e) => {
+                  setEditData((prev) => ({
+                    ...prev,
+                    service: e.target.value,
+                    customPrice:
+                      dogData?.customPrice !== undefined
+                        ? dogData.customPrice
+                        : getNumericPrice(
+                            getServicePriceLabel(e.target.value, booking.size),
+                          ),
+                  }));
+                  setSaveError("");
+                }}
+                style={modalInputStyle}
+              >
+                {allowedServices.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.icon} {service.name}
+                  </option>
+                ))}
+              </select>
+            }
+            isEditing={isEditing}
+          />
 
-          {detailRow(
-            <LogisticsLabel text="Date" />,
-            formatFullDate(isEditing ? editData.date : currentDateObj),
-            <button
-              onClick={() => setShowDatePicker(true)}
-              style={{
-                ...inputStyle,
-                flex: 1,
-                textAlign: "left",
-                background: BRAND.white,
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontWeight: 600 }}>
-                {formatFullDate(editData.date)}
-              </span>
-              <span style={{ fontSize: 14 }}>{"📅"}</span>
-            </button>,
-            true,
-          )}
-
-          {detailRow(
-            <LogisticsLabel text="Drop-off time" />,
-            isEditing
-              ? editData.slot || (
-                  <span style={{ color: BRAND.coral }}>None selected</span>
-                )
-              : booking.slot,
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
-                gap: 6,
-                width: "100%",
-              }}
-            >
-              {editActiveSlots.length > 0 ? (
-                editActiveSlots.map((slot) => {
-                  const allowed = canBookSlot(
-                    otherBookings,
-                    slot,
-                    booking.size,
-                    editActiveSlots,
-                    {
-                      overrides: editSettings.overrides?.[slot] || {},
-                    },
-                  ).allowed;
-
-                  const seatStates = getSeatStatesForSlot(
-                    otherBookings,
-                    slot,
-                    editActiveSlots,
-                    editSettings.overrides?.[slot] || {},
-                  );
-                  const isStaffOpened = seatStates.some(
-                    (seat) => seat.staffOpened,
-                  );
-
-                  return (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => {
-                        if (!allowed) return;
-                        setEditData((prev) => ({ ...prev, slot }));
-                        setSaveError("");
-                      }}
-                      disabled={!allowed}
-                      style={{
-                        padding: "8px 0",
-                        borderRadius: 8,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: allowed ? "pointer" : "not-allowed",
-                        background:
-                          editData.slot === slot
-                            ? BRAND.blue
-                            : isStaffOpened
-                              ? BRAND.blueLight
-                              : BRAND.white,
-                        color:
-                          editData.slot === slot
-                            ? BRAND.white
-                            : allowed
-                              ? BRAND.text
-                              : BRAND.textLight,
-                        border: `1.5px solid ${
-                          editData.slot === slot
-                            ? BRAND.blue
-                            : isStaffOpened
-                              ? BRAND.blue
-                              : BRAND.greyLight
-                        }`,
-                        textAlign: "center",
-                        opacity: allowed ? 1 : 0.5,
-                      }}
-                    >
-                      {slot}
-                    </button>
-                  );
-                })
-              ) : (
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: BRAND.coral,
-                    fontWeight: 600,
-                    gridColumn: "1 / -1",
-                  }}
-                >
-                  No available slots on this date
-                </span>
-              )}
-            </div>,
-            true,
-          )}
-
-          {detailRow(
-            <LogisticsLabel text="Service" />,
-            `${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`,
-            <select
-              value={editData.service}
-              onChange={(e) => {
-                setEditData((prev) => ({
-                  ...prev,
-                  service: e.target.value,
-                  customPrice:
-                    dogData?.customPrice !== undefined
-                      ? dogData.customPrice
-                      : getNumericPrice(
-                          getServicePriceLabel(e.target.value, booking.size),
-                        ),
-                }));
-                setSaveError("");
-              }}
-              style={inputStyle}
-            >
-              {allowedServices.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.icon} {service.name}
-                </option>
-              ))}
-            </select>,
-          )}
-
+          {/* Add-ons */}
           {isEditing ? (
             <div
               style={{
@@ -1152,88 +707,102 @@ export function BookingDetailModal({
               </div>
             </div>
           ) : editData.addons && editData.addons.length > 0 ? (
-            detailRow(
-              <LogisticsLabel text="Add-ons" />,
-              editData.addons.join(", "),
-            )
+            <DetailRow
+              label={<LogisticsLabel text="Add-ons" />}
+              value={editData.addons.join(", ")}
+              isEditing={isEditing}
+            />
           ) : null}
 
-          {detailRow(
-            <LogisticsLabel text="Pick-up Human" />,
-            isEditing ? selectedPickupLabel : booking.pickupBy || booking.owner,
-            <select
-              value={editData.pickupBy}
-              onChange={(e) => {
-                setEditData((prev) => ({
-                  ...prev,
-                  pickupBy: e.target.value,
-                }));
-              }}
-              style={inputStyle}
-            >
-              {pickupOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>,
-          )}
+          <DetailRow
+            label={<LogisticsLabel text="Pick-up Human" />}
+            value={isEditing ? selectedPickupLabel : booking.pickupBy || booking.owner}
+            editNode={
+              <select
+                value={editData.pickupBy}
+                onChange={(e) => {
+                  setEditData((prev) => ({
+                    ...prev,
+                    pickupBy: e.target.value,
+                  }));
+                }}
+                style={modalInputStyle}
+              >
+                {pickupOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            }
+            isEditing={isEditing}
+          />
 
           <div style={{ height: 24 }} />
 
-          {detailRow(
-            <FinanceLabel text="Base Price" />,
-            isEditing ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontWeight: 600 }}>{"£"}</span>
-                <input
-                  type="number"
-                  value={editData.customPrice}
-                  onChange={(e) =>
-                    setEditData((prev) => ({
-                      ...prev,
-                      customPrice: Number(e.target.value),
-                    }))
-                  }
-                  style={{ ...inputStyle, width: 80 }}
-                />
-              </div>
-            ) : (
-              `£${activePrice}`
-            ),
-          )}
+          {/* Finance rows */}
+          <DetailRow
+            label={<FinanceLabel text="Base Price" />}
+            value={
+              isEditing ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>{"\u00A3"}</span>
+                  <input
+                    type="number"
+                    value={editData.customPrice}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        customPrice: Number(e.target.value),
+                      }))
+                    }
+                    style={{ ...modalInputStyle, width: 80 }}
+                  />
+                </div>
+              ) : (
+                `\u00A3${activePrice}`
+              )
+            }
+            isEditing={isEditing}
+          />
 
-          {detailRow(
-            <FinanceLabel text="Payment Status" />,
-            isEditing ? editData.payment : booking.payment || "Due at Pick-up",
-            <select
-              value={editData.payment}
-              onChange={(e) =>
-                setEditData((prev) => ({
-                  ...prev,
-                  payment: e.target.value,
-                }))
-              }
-              style={inputStyle}
-            >
-              <option value="Due at Pick-up">Due at Pick-up</option>
-              <option value="Deposit Paid">Deposit Paid</option>
-              <option value="Paid in Full">Paid in Full</option>
-            </select>,
-          )}
+          <DetailRow
+            label={<FinanceLabel text="Payment Status" />}
+            value={isEditing ? editData.payment : booking.payment || "Due at Pick-up"}
+            editNode={
+              <select
+                value={editData.payment}
+                onChange={(e) =>
+                  setEditData((prev) => ({
+                    ...prev,
+                    payment: e.target.value,
+                  }))
+                }
+                style={modalInputStyle}
+              >
+                <option value="Due at Pick-up">Due at Pick-up</option>
+                <option value="Deposit Paid">Deposit Paid</option>
+                <option value="Paid in Full">Paid in Full</option>
+              </select>
+            }
+            isEditing={isEditing}
+          />
 
-          {detailRow(
-            <FinanceLabel text="Amount Due" />,
-            <span
-              style={{
-                fontWeight: 800,
-                color: amountDue > 0 ? BRAND.coral : BRAND.openGreen,
-                fontSize: 16,
-              }}
-            >
-              £{Math.max(0, amountDue)}
-            </span>,
-          )}
+          <DetailRow
+            label={<FinanceLabel text="Amount Due" />}
+            value={
+              <span
+                style={{
+                  fontWeight: 800,
+                  color: amountDue > 0 ? BRAND.coral : BRAND.openGreen,
+                  fontSize: 16,
+                }}
+              >
+                {"\u00A3"}{Math.max(0, amountDue)}
+              </span>
+            }
+            isEditing={isEditing}
+          />
 
           {saveError && (
             <div
@@ -1272,213 +841,25 @@ export function BookingDetailModal({
           <div style={{ clear: "both" }} />
         </div>
 
-        {isEditing ? (
-          <div
-            style={{
-              padding: "16px 24px 20px",
-              display: "flex",
-              gap: 10,
-              background: BRAND.offWhite,
-              borderTop: `1px solid ${BRAND.greyLight}`,
-            }}
-          >
-            <button
-              onClick={handleSave}
-              disabled={!editData.slot || saving}
-              style={{
-                flex: 1,
-                padding: "12px 0",
-                borderRadius: 10,
-                border: "none",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: !editData.slot || saving ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                background:
-                  !editData.slot || saving ? BRAND.greyLight : BRAND.blue,
-                color: !editData.slot || saving ? BRAND.textLight : BRAND.white,
-                transition: "background 0.15s",
-              }}
-            >
-              <IconTick size={16} colour={BRAND.white} />{" "}
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              onClick={() => {
-                resetEditState();
-                setIsEditing(false);
-              }}
-              style={{
-                flex: 1,
-                padding: "12px 0",
-                borderRadius: 10,
-                border: `1.5px solid ${BRAND.greyLight}`,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                background: BRAND.white,
-                color: BRAND.textLight,
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = BRAND.offWhite)
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = BRAND.white)
-              }
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div
-            style={{
-              padding: "16px 24px 20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              background: BRAND.offWhite,
-              borderTop: `1px solid ${BRAND.greyLight}`,
-            }}
-          >
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => {
-                  resetEditState();
-                  setIsEditing(true);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "12px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: BRAND.blue,
-                  color: BRAND.white,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = BRAND.blueDark)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = BRAND.blue)
-                }
-              >
-                <IconEdit size={16} colour={BRAND.white} /> Edit
-              </button>
-              <button
-                onClick={() => setShowContact(true)}
-                style={{
-                  flex: 1,
-                  padding: "12px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: BRAND.teal,
-                  color: BRAND.white,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#236b5d")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = BRAND.teal)
-                }
-              >
-                <IconMessage size={16} colour={BRAND.white} /> Message
-              </button>
-              <button
-                onClick={async () => {
-                  const removed = await onRemove(booking.id);
-                  if (removed !== false) onClose();
-                }}
-                style={{
-                  flex: 1,
-                  padding: "12px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: BRAND.coralLight,
-                  color: BRAND.coral,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#fbd4df")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = BRAND.coralLight)
-                }
-              >
-                <IconBlock size={16} colour={BRAND.coral} /> Cancel
-              </button>
-            </div>
-            {booking.status === "Completed" && onRebook && (
-              <button
-                onClick={() => {
-                  onRebook(booking);
-                  onClose();
-                }}
-                style={{
-                  width: "100%",
-                  padding: "12px 0",
-                  borderRadius: 10,
-                  border: `2px solid ${BRAND.blue}`,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: BRAND.blueLight,
-                  color: BRAND.blueDark,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = BRAND.blue;
-                  e.currentTarget.style.color = BRAND.white;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = BRAND.blueLight;
-                  e.currentTarget.style.color = BRAND.blueDark;
-                }}
-              >
-                {"🔁"} Rebook this dog
-              </button>
-            )}
-          </div>
-        )}
+        <BookingActions
+          isEditing={isEditing}
+          editData={editData}
+          saving={saving}
+          booking={booking}
+          onSave={handleSave}
+          onCancelEdit={() => {
+            resetEditState();
+            setIsEditing(false);
+          }}
+          onEnterEdit={() => {
+            resetEditState();
+            setIsEditing(true);
+          }}
+          onShowContact={() => setShowContact(true)}
+          onRemove={onRemove}
+          onClose={onClose}
+          onRebook={onRebook}
+        />
       </div>
 
       {showDatePicker && (
@@ -1498,90 +879,13 @@ export function BookingDetailModal({
       )}
 
       {showExitConfirm && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1100,
+        <ExitConfirmDialog
+          onDiscard={() => {
+            setShowExitConfirm(false);
+            onClose();
           }}
-        >
-          <div
-            style={{
-              background: BRAND.white,
-              borderRadius: 16,
-              padding: 24,
-              width: 300,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                marginBottom: 8,
-                color: BRAND.text,
-              }}
-            >
-              Discard changes?
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.textLight,
-                marginBottom: 20,
-              }}
-            >
-              You have unsaved changes. Are you sure you want to close?
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => {
-                  setShowExitConfirm(false);
-                  onClose();
-                }}
-                style={{
-                  flex: 1,
-                  padding: "10px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  background: BRAND.coral,
-                  color: BRAND.white,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => setShowExitConfirm(false)}
-                style={{
-                  flex: 1,
-                  padding: "10px 0",
-                  borderRadius: 10,
-                  border: `1.5px solid ${BRAND.greyLight}`,
-                  background: BRAND.white,
-                  color: BRAND.text,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Keep editing
-              </button>
-            </div>
-          </div>
-        </div>
+          onKeepEditing={() => setShowExitConfirm(false)}
+        />
       )}
     </div>
   );
