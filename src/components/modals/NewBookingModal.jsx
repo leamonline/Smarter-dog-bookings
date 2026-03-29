@@ -277,6 +277,8 @@ export function NewBookingModal({
   onOpenAddHuman,
   initialDateStr,
   initialSlot,
+  onSearchDogs,
+  isSearchingDogs,
 }) {
   const [dogQuery, setDogQuery] = useState("");
   const [selectedDog, setSelectedDog] = useState(null);
@@ -295,20 +297,11 @@ export function NewBookingModal({
     }
   }, [step]);
 
-  // Build search entries (owner + trusted human variations)
-  const allEntries = useMemo(() => buildSearchEntries(dogs, humans), [dogs, humans]);
-
-  // Filter by query
+  // Build search entries from current dogs state (for display in dropdown)
   const filteredEntries = useMemo(() => {
-    if (!dogQuery.trim() || selectedDog) return [];
-    const q = dogQuery.toLowerCase().trim();
-    return allEntries
-      .filter(entry => {
-        const searchStr = `${entry.dog.name} ${entry.dog.breed} ${entry.humanKey} ${entry.humanPhone}`.toLowerCase();
-        return searchStr.includes(q);
-      })
-      .slice(0, 8);
-  }, [dogQuery, allEntries, selectedDog]);
+    if (selectedDog) return [];
+    return buildSearchEntries(dogs, humans).slice(0, 8);
+  }, [dogs, humans, selectedDog]);
 
   const handleSelectEntry = (entry) => {
     setSelectedDog(entry.dog);
@@ -467,14 +460,26 @@ export function NewBookingModal({
                   ref={searchRef}
                   placeholder="Start typing a dog's name, breed, or owner..."
                   value={dogQuery}
-                  onChange={(e) => { setDogQuery(e.target.value); setError(""); }}
+                  onChange={(e) => { setDogQuery(e.target.value); setError(""); onSearchDogs?.(e.target.value); }}
                   style={{ ...inputStyle, paddingLeft: 36, fontSize: 15 }}
                   onFocus={(e) => (e.target.style.borderColor = BRAND.blue)}
                   onBlur={(e) => (e.target.style.borderColor = BRAND.greyLight)}
                 />
 
+                {/* Searching indicator */}
+                {isSearchingDogs && dogQuery.trim().length > 0 && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
+                    background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: "12px 14px",
+                    fontSize: 13, color: BRAND.textLight, fontStyle: "italic",
+                  }}>
+                    Searching...
+                  </div>
+                )}
+
                 {/* Dropdown results */}
-                {filteredEntries.length > 0 && (
+                {!isSearchingDogs && filteredEntries.length > 0 && (
                   <div style={{
                     position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
                     background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
@@ -524,7 +529,7 @@ export function NewBookingModal({
                 )}
 
                 {/* No results + add buttons */}
-                {dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
+                {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
                   <div style={{
                     position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
                     background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
