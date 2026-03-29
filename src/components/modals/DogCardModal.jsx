@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BRAND, ALERT_OPTIONS, SERVICES } from "../../constants/index.js";
 import {
   getDogByIdOrName,
@@ -6,24 +6,80 @@ import {
 } from "../../engine/bookingRules.js";
 import { IconEdit, IconTick } from "../icons/index.jsx";
 
-function BookingHistory({ dogName, bookingsByDate }) {
-  const history = useMemo(() => {
-    if (!bookingsByDate) return [];
-    const entries = [];
-    for (const [dateStr, bookings] of Object.entries(bookingsByDate)) {
-      for (const b of bookings) {
-        if (b.dogName === dogName) {
-          entries.push({ ...b, date: dateStr });
-        }
-      }
-    }
-    return entries.sort((a, b) => b.date.localeCompare(a.date));
-  }, [dogName, bookingsByDate]);
+function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (history.length === 0) return null;
+  useEffect(() => {
+    if (!dogId || !fetchBookingHistoryForDog) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchBookingHistoryForDog(dogId)
+      .then((data) => {
+        if (!cancelled) {
+          setHistory(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("GroomingHistory fetch error:", err);
+          setError(err.message || "Unknown error");
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [dogId, fetchBookingHistoryForDog]);
+
+  const completed = useMemo(
+    () => history.filter((b) => b.status === "Completed"),
+    [history],
+  );
+
+  const lastVisitWeeksAgo = useMemo(() => {
+    if (completed.length === 0) return null;
+    const lastDate = new Date(completed[0].date);
+    const now = new Date();
+    const diffMs = now - lastDate;
+    return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  }, [completed]);
+
+  const frequencyRange = useMemo(() => {
+    if (completed.length < 2) return null;
+    const gaps = [];
+    for (let i = 0; i < completed.length - 1; i++) {
+      const a = new Date(completed[i].date);
+      const b = new Date(completed[i + 1].date);
+      const diffWeeks = Math.round(Math.abs(a - b) / (7 * 24 * 60 * 60 * 1000));
+      if (diffWeeks > 0) gaps.push(diffWeeks);
+    }
+    if (gaps.length === 0) return null;
+    const min = Math.min(...gaps);
+    const max = Math.max(...gaps);
+    return { min, max, avg: Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length) };
+  }, [completed]);
+
+  const isOverdue = useMemo(() => {
+    if (lastVisitWeeksAgo === null || frequencyRange === null) return false;
+    return lastVisitWeeksAgo > frequencyRange.max + 1;
+  }, [lastVisitWeeksAgo, frequencyRange]);
+
+  const handleRetry = () => {
+    if (!dogId || !fetchBookingHistoryForDog) return;
+    setLoading(true);
+    setError(null);
+    fetchBookingHistoryForDog(dogId)
+      .then((data) => { setHistory(data); setLoading(false); })
+      .catch((err) => { setError(err.message || "Unknown error"); setLoading(false); });
+  };
 
   return (
-    <div style={{ padding: "0 24px" }}>
+    <div style={{ padding: "0 24px", marginTop: 8 }}>
       <div
         style={{
           marginTop: 16,
@@ -35,43 +91,101 @@ function BookingHistory({ dogName, bookingsByDate }) {
           marginBottom: 8,
         }}
       >
-        Recent Bookings
+        Grooming History
       </div>
-      {history.slice(0, 5).map((b, i) => {
-        const svc = SERVICES.find((s) => s.id === b.service);
-        return (
-          <div
-            key={`${b.date}-${b.id || b.slot}-${i}`}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "6px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-              fontSize: 12,
-            }}
-          >
-            <div>
+
+      {loading && (
+        <div style={{ fontSize: 12, color: BRAND.textLight, paddingBottom: 8 }}>
+          Loading...
+        </div>
+      )}
+
+      {!loading && error && (
+        <div
+          onClick={handleRetry}
+          style={{
+            fontSize: 12,
+            color: BRAND.coral,
+            cursor: "pointer",
+            paddingBottom: 8,
+          }}
+        >
+          Couldn't load history. Tap to retry.
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {lastVisitWeeksAgo !== null && (
+            <div style={{ fontSize: 12, color: BRAND.textLight, marginBottom: 4 }}>
+              {isOverdue ? (
+                <span style={{ color: BRAND.coral, fontWeight: 700 }}>
+                  Overdue — last visit was {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
+                </span>
+              ) : (
+                <span>
+                  Last visit:{" "}
+                  <span style={{ fontWeight: 600, color: BRAND.text }}>
+                    {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+
+          {frequencyRange && (
+            <div style={{ fontSize: 12, color: BRAND.textLight, marginBottom: 8 }}>
+              Usually every{" "}
               <span style={{ fontWeight: 600, color: BRAND.text }}>
-                {b.date}
-              </span>
-              <span style={{ color: BRAND.textLight, marginLeft: 6 }}>
-                {svc?.icon} {svc?.name}
+                {frequencyRange.min === frequencyRange.max
+                  ? `${frequencyRange.min} week${frequencyRange.min !== 1 ? "s" : ""}`
+                  : `${frequencyRange.min}–${frequencyRange.max} weeks`}
               </span>
             </div>
-            <span
-              style={{
-                fontWeight: 600,
-                color:
-                  b.status === "Completed" ? BRAND.openGreen : BRAND.textLight,
-                fontSize: 11,
-              }}
-            >
-              {b.status}
-            </span>
-          </div>
-        );
-      })}
+          )}
+
+          {history.length === 0 ? (
+            <div style={{ fontSize: 12, color: BRAND.textLight, paddingBottom: 8 }}>
+              No previous visits recorded.
+            </div>
+          ) : (
+            history.map((b, i) => {
+              const svc = SERVICES.find((s) => s.id === b.service);
+              return (
+                <div
+                  key={`${b.date}-${b.id || b.slot}-${i}`}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "6px 0",
+                    borderBottom: `1px solid ${BRAND.greyLight}`,
+                    fontSize: 12,
+                  }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 600, color: BRAND.text }}>
+                      {b.date}
+                    </span>
+                    <span style={{ color: BRAND.textLight, marginLeft: 6 }}>
+                      {svc?.icon} {svc?.name || b.service}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: b.status === "Completed" ? BRAND.openGreen : BRAND.textLight,
+                      fontSize: 11,
+                    }}
+                  >
+                    {b.status}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -84,6 +198,7 @@ export function DogCardModal({
   humans = {},
   onUpdateDog,
   bookingsByDate,
+  fetchBookingHistoryForDog,
 }) {
   const resolvedDog = getDogByIdOrName(dogs, dogId) || {
     id: dogId,
@@ -431,9 +546,9 @@ export function DogCardModal({
           )}
         </div>
 
-        <BookingHistory
-          dogName={resolvedDog.name}
-          bookingsByDate={bookingsByDate}
+        <GroomingHistory
+          dogId={resolvedDog.id}
+          fetchBookingHistoryForDog={fetchBookingHistoryForDog}
         />
 
         <div

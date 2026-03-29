@@ -134,6 +134,7 @@ export default function App() {
     addBooking: sbAddBooking,
     removeBooking: sbRemoveBooking,
     updateBooking: sbUpdateBooking,
+    fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
   } = useBookings(weekStart, dogsById, humansById);
   const {
     config: sbConfig,
@@ -442,6 +443,7 @@ export default function App() {
               humans={humans}
               onUpdateDog={updateDog}
               bookingsByDate={bookingsByDate}
+              fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
             />
           </Suspense>
         )}
