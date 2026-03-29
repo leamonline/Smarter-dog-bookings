@@ -46,15 +46,14 @@ export function useBookings(weekStart, dogsById, humansById) {
 
     let cancelled = false;
 
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const startStr = toDateStr(weekStart);
+    const endStr = toDateStr(weekEnd);
+
     async function fetchBookings() {
       setLoading(true);
       setError(null);
-
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-
-      const startStr = toDateStr(weekStart);
-      const endStr = toDateStr(weekEnd);
 
       const { data, error: err } = await supabase
         .from("bookings")
@@ -79,8 +78,102 @@ export function useBookings(weekStart, dogsById, humansById) {
 
     fetchBookings();
 
+    // Real-time subscription for bookings within the current week
+    const channel = supabase
+      .channel("bookings-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "bookings" },
+        (payload) => {
+          const newRow = payload.new;
+          if (newRow.booking_date < startStr || newRow.booking_date > endStr)
+            return;
+          const transformed = dbBookingsToArray(
+            [newRow],
+            dogsById,
+            humansById,
+          )[0];
+          setBookingsByDate((prev) => {
+            const dateKey = newRow.booking_date;
+            const existing = (prev[dateKey] || []).filter(
+              (b) => b.id !== newRow.id,
+            );
+            return { ...prev, [dateKey]: [...existing, transformed] };
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings" },
+        (payload) => {
+          const newRow = payload.new;
+          const oldRow = payload.old;
+          if (newRow.booking_date < startStr || newRow.booking_date > endStr) {
+            // Updated booking moved outside our week — remove it if it was here
+            if (oldRow.id) {
+              setBookingsByDate((prev) => {
+                const next = { ...prev };
+                for (const dateKey of Object.keys(next)) {
+                  next[dateKey] = next[dateKey].filter(
+                    (b) => b.id !== oldRow.id,
+                  );
+                }
+                return next;
+              });
+            }
+            return;
+          }
+          const transformed = dbBookingsToArray(
+            [newRow],
+            dogsById,
+            humansById,
+          )[0];
+          setBookingsByDate((prev) => {
+            const next = { ...prev };
+            // Remove from old date if date changed
+            if (oldRow.booking_date && oldRow.booking_date !== newRow.booking_date) {
+              next[oldRow.booking_date] = (next[oldRow.booking_date] || []).filter(
+                (b) => b.id !== newRow.id,
+              );
+            }
+            // Upsert on new date
+            const dateKey = newRow.booking_date;
+            const existing = (next[dateKey] || []).filter(
+              (b) => b.id !== newRow.id,
+            );
+            next[dateKey] = [...existing, transformed];
+            return next;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "bookings" },
+        (payload) => {
+          const oldRow = payload.old;
+          if (!oldRow.id) return;
+          setBookingsByDate((prev) => {
+            const dateKey = oldRow.booking_date;
+            if (dateKey && prev[dateKey]) {
+              return {
+                ...prev,
+                [dateKey]: prev[dateKey].filter((b) => b.id !== oldRow.id),
+              };
+            }
+            // If we don't have the date, search all dates
+            const next = { ...prev };
+            for (const key of Object.keys(next)) {
+              next[key] = next[key].filter((b) => b.id !== oldRow.id);
+            }
+            return next;
+          });
+        },
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [weekStart, dogsById, humansById]);
 
