@@ -147,7 +147,7 @@ export function useAuth() {
     });
 
     if (err) {
-      setError(err.message);
+      setError("Sign-up failed. Please try again.");
       return { error: err };
     }
 
