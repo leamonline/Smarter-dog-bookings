@@ -16,3 +16,8 @@ export {
   onInputFocus,
   onInputBlur,
 } from "./styles.js";
+export {
+  BREED_SIZE_MAP,
+  BREED_LIST,
+  getSizeForBreed,
+} from "./breeds.js";

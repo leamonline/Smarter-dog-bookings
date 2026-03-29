@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
-import { BRAND } from "../../constants/index.js";
+import { BRAND, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 
 export function AddDogModal({ onClose, onAdd, humans }) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [age, setAge] = useState("");
-  const [size, setSize] = useState("small");
+  const [size, setSize] = useState("");
+  const [sizeAutoSet, setSizeAutoSet] = useState(false);
+  const [sizeOverridden, setSizeOverridden] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState("");
   const [selectedOwner, setSelectedOwner] = useState("");
   const [groomNotes, setGroomNotes] = useState("");
@@ -25,6 +27,10 @@ export function AddDogModal({ onClose, onAdd, humans }) {
     e.preventDefault();
     if (!name.trim() || !breed.trim()) {
       setError("Dog name and breed are required.");
+      return;
+    }
+    if (!size) {
+      setError("This breed isn't recognised — please select a size manually.");
       return;
     }
     if (!selectedOwner) {
@@ -84,7 +90,22 @@ export function AddDogModal({ onClose, onAdd, humans }) {
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Breed *</label>
-              <input value={breed} onChange={e => { setBreed(e.target.value); setError(""); }} placeholder="Cockapoo" style={inputStyle}
+              <input value={breed} onChange={e => {
+                const val = e.target.value;
+                setBreed(val);
+                setError("");
+                // Auto-detect size from breed
+                const detected = getSizeForBreed(val);
+                if (detected && !sizeOverridden) {
+                  setSize(detected);
+                  setSizeAutoSet(true);
+                } else if (!detected) {
+                  if (sizeAutoSet && !sizeOverridden) {
+                    setSize("");
+                    setSizeAutoSet(false);
+                  }
+                }
+              }} placeholder="Cockapoo" style={inputStyle}
                 onFocus={e => e.target.style.borderColor = BRAND.blue} onBlur={e => e.target.style.borderColor = BRAND.greyLight} />
             </div>
           </div>
@@ -96,8 +117,25 @@ export function AddDogModal({ onClose, onAdd, humans }) {
                 onFocus={e => e.target.style.borderColor = BRAND.blue} onBlur={e => e.target.style.borderColor = BRAND.greyLight} />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Size *</label>
-              <select value={size} onChange={e => setSize(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>
+                Size *
+                {sizeAutoSet && !sizeOverridden && (
+                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: BRAND.openGreen, marginLeft: 6 }}>auto</span>
+                )}
+                {!size && breed.trim() && (
+                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: BRAND.coral, marginLeft: 6 }}>unknown breed</span>
+                )}
+              </label>
+              <select value={size} onChange={e => {
+                setSize(e.target.value);
+                setSizeOverridden(true);
+                setSizeAutoSet(false);
+              }} style={{
+                ...inputStyle,
+                cursor: "pointer",
+                borderColor: sizeAutoSet && !sizeOverridden ? BRAND.openGreen : !size && breed.trim() ? BRAND.coral : BRAND.greyLight,
+              }}>
+                <option value="">Select size</option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
