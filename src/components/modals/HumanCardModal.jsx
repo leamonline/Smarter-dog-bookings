@@ -169,19 +169,31 @@ export function HumanCardModal({
       .slice(0, 5);
   }, [trustedSearchQuery, humans, human.id, human.trustedIds]);
 
-  const handleAddTrusted = (selectedHumanId) => {
+  const handleAddTrusted = async (selectedHumanId) => {
     const currentTrusted = human.trustedIds || [];
-    onUpdateHuman(human.id || humanId, {
+    const myId = human.id || humanId;
+
+    // Step 1: Add them to our trusted list
+    onUpdateHuman(myId, {
       trustedIds: [...currentTrusted, selectedHumanId],
     });
 
+    // Step 2: Add us to their trusted list
     const selectedHuman = getHumanByIdOrName(humans, selectedHumanId);
     if (selectedHuman) {
       const theirTrusted = selectedHuman.trustedIds || [];
-      if (!theirTrusted.includes(human.id || humanId)) {
-        onUpdateHuman(selectedHuman.id || selectedHumanId, {
-          trustedIds: [...theirTrusted, human.id || humanId],
-        });
+      if (!theirTrusted.includes(myId)) {
+        try {
+          await onUpdateHuman(selectedHuman.id || selectedHumanId, {
+            trustedIds: [...theirTrusted, myId],
+          });
+        } catch {
+          // Step 2 failed — roll back step 1 to prevent one-directional trust
+          onUpdateHuman(myId, {
+            trustedIds: currentTrusted,
+          });
+          console.error("Failed to create bidirectional trust; rolled back.");
+        }
       }
     }
 

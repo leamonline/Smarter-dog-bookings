@@ -131,7 +131,7 @@ export function AddDogModal({ onClose, onAdd, humans }) {
                 {ownerResults.length > 0 && (
                   <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden", background: BRAND.white, zIndex: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
                     {ownerResults.map(([key, h]) => (
-                      <div key={key} onMouseDown={() => { setSelectedOwner(key); setOwnerQuery(key); }} style={{
+                      <div key={key} onMouseDown={() => { setSelectedOwner(h.id || key); setOwnerQuery(`${h.name} ${h.surname}`.trim() || key); }} style={{
                         padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${BRAND.greyLight}`,
                         transition: "background 0.1s",
                       }}

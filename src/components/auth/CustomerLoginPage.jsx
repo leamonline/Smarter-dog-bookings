@@ -11,7 +11,8 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
   const normalisePhone = (raw) => {
     let p = raw.replace(/\s+/g, "").replace(/[^0-9+]/g, "");
     if (p.startsWith("07")) p = "+44" + p.slice(1);
-    if (p.startsWith("44")) p = "+" + p;
+    if (p.startsWith("44") && !p.startsWith("+44")) p = "+" + p;
+    if (!p.startsWith("+44")) return ""; // reject non-UK numbers
     return p;
   };
 

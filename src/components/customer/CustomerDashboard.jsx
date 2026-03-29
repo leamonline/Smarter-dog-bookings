@@ -91,24 +91,18 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         setBookings(bookingRows || []);
       }
 
-      // Trusted humans (from trusted_ids if stored, or pickup_by relationships)
-      // For now, look up humans who have picked up this human's dogs
-      if (dogIds.length > 0) {
-        const { data: pickupBookings } = await supabase
-          .from("bookings")
-          .select("pickup_by_id")
-          .in("dog_id", dogIds)
-          .not("pickup_by_id", "is", null)
-          .not("pickup_by_id", "eq", humanRecord.id);
+      // Trusted humans from the dedicated junction table
+      const { data: trustedLinks } = await supabase
+        .from("human_trusted_contacts")
+        .select("trusted_id, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
+        .eq("human_id", humanRecord.id);
 
-        if (pickupBookings && pickupBookings.length > 0) {
-          const uniqueIds = [...new Set(pickupBookings.map(b => b.pickup_by_id))];
-          const { data: trustedRows } = await supabase
-            .from("humans")
-            .select("id, name, surname, phone")
-            .in("id", uniqueIds);
-          setTrustedHumans(trustedRows || []);
-        }
+      if (trustedLinks) {
+        setTrustedHumans(
+          trustedLinks
+            .map(link => link.humans)
+            .filter(Boolean)
+        );
       }
 
       setLoading(false);
@@ -152,15 +146,21 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord]);
 
-  // Cancel a booking
+  // Cancel a booking — with client-side ownership guard
   const handleCancelBooking = useCallback(async (bookingId) => {
     if (!supabase) return;
+
+    // Verify this booking belongs to one of the user's dogs
+    const dogIds = dogs.map(d => d.id);
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking || !dogIds.includes(booking.dog_id)) return;
+
     if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
     const { error: err } = await supabase.from("bookings").delete().eq("id", bookingId);
     if (!err) {
       setBookings(prev => prev.filter(b => b.id !== bookingId));
     }
-  }, []);
+  }, [dogs, bookings]);
 
   const today = toDateStr(new Date());
 
@@ -215,7 +215,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             <div style={{ fontSize: 26, fontWeight: 800, color: BRAND.white }}>{humanName}</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>{humanRecord?.phone || ""}</div>
           </div>
-          <button onClick={onSignOut} style={{
+          <button onClick={() => {
+            if (editing && !window.confirm("You have unsaved changes. Sign out anyway?")) return;
+            onSignOut();
+          }} style={{
             background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
             borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
             color: BRAND.white, cursor: "pointer", fontFamily: "inherit",

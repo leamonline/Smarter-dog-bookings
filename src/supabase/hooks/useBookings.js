@@ -159,7 +159,7 @@ export function useBookings(weekStart, dogsById, humansById) {
         ...prev,
         [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
       }));
-      return true;
+      return { success: true };
     }
 
     setError(null);
@@ -172,7 +172,7 @@ export function useBookings(weekStart, dogsById, humansById) {
     if (err) {
       console.error("Failed to remove booking:", err);
       setError(err.message);
-      return false;
+      return { success: false, error: err.message };
     }
 
     setBookingsByDate((prev) => ({
@@ -180,7 +180,7 @@ export function useBookings(weekStart, dogsById, humansById) {
       [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
     }));
 
-    return true;
+    return { success: true };
   }, []);
 
   const updateBooking = useCallback(

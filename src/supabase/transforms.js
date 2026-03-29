@@ -209,6 +209,10 @@ export function appConfigToDb(config) {
 
 export function toDateStr(date) {
   if (typeof date === "string") return date;
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    if (import.meta.env?.DEV) console.warn("toDateStr received invalid date:", date);
+    return "";
+  }
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");

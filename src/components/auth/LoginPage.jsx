@@ -25,8 +25,12 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     }
     setLocalError("");
     setSubmitting(true);
-    const result = await onSignIn(email.trim(), password);
-    if (result?.error) setSubmitting(false);
+    try {
+      const result = await onSignIn(email.trim(), password);
+      if (result?.error) setSubmitting(false);
+    } catch {
+      setSubmitting(false);
+    }
   };
 
   const inputStyle = {

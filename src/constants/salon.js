@@ -3,6 +3,9 @@ export const SALON_SLOTS = [
   "11:00", "11:30", "12:00", "12:30", "13:00",
 ];
 
+/** Maximum dogs that can be groomed in a single slot (the 2-2-1 rule = 5 seats). */
+export const MAX_DOGS_PER_SLOT = 5;
+
 export const SERVICES = [
   { id: "full-groom", name: "Full Groom", icon: "\u2702\uFE0F" },
   { id: "bath-and-brush", name: "Bath & Brush", icon: "\uD83D\uDEC1" },

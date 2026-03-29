@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { BRAND, SERVICES, BOOKING_STATUSES } from "../../constants/index.js";
+import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
@@ -29,22 +30,24 @@ const ICON_COL_STYLE = {
   flexShrink: 0,
 };
 
-export function BookingCard({
-  booking,
-  onRemove,
-  onOpenHuman,
-  onOpenDog,
-  onUpdate,
-  currentDateStr,
-  currentDateObj,
-  bookingsByDate,
-  dayOpenState,
-  dogs,
-  humans,
-  onUpdateDog,
-  onRebook,
-  daySettings,
-}) {
+export function BookingCard({ booking }) {
+  // All shared data now comes from SalonContext
+  const {
+    dogs,
+    humans,
+    currentDateStr,
+    currentDateObj,
+    bookingsByDate,
+    dayOpenState,
+    daySettings,
+    onRemove,
+    onUpdate,
+    onUpdateDog,
+    onOpenHuman,
+    onOpenDog,
+    onRebook,
+  } = useSalon();
+
   const [showDetail, setShowDetail] = useState(false);
   const [showContact, setShowContact] = useState(false);
 

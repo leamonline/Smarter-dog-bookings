@@ -1,21 +1,26 @@
 /**
  * Seed script for Supabase.
- * Run: VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... node src/supabase/seed.js
+ * Run: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node src/supabase/seed.js
  *
+ * ⚠️  Uses the service_role key to bypass RLS. Never expose this key client-side.
  * Requires: npm install @supabase/supabase-js (already installed)
  */
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables");
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error(
+    "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.\n" +
+    "Get the service_role key from: Supabase Dashboard → Settings → API → service_role\n" +
+    "⚠️  Never use the anon key for seeding — it is subject to RLS."
+  );
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // -- Sample data (inline to avoid ESM import issues with Vite paths) --
 

@@ -7,7 +7,7 @@ import {
   SALON_SLOTS,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
-import { formatFullDate } from "../../engine/utils.js";
+import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
 import {
   getAllowedServicesForSize,
   getDogByIdOrName,
@@ -24,11 +24,7 @@ import { ContactPopup } from "./ContactPopup.jsx";
 
 const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
 
-function getDefaultOpenForDate(date) {
-  const day = date.getDay();
-  if (day === 1 || day === 2 || day === 3) return true;
-  return false;
-}
+// getDefaultOpenForDate is now imported from engine/utils.js
 
 function buildEditState(booking, dogData, currentDateObj) {
   const size = booking.size || dogData?.size || "small";
@@ -887,7 +883,7 @@ export function BookingDetailModal({
                   width: "100%",
                 }}
               >
-                {editData.alerts
+                {(dogData.alerts || [])
                   .filter((a) => !a.startsWith("Allergic to "))
                   .map((alertLabel) => (
                     <div

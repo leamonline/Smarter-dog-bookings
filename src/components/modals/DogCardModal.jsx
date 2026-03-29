@@ -41,7 +41,7 @@ function BookingHistory({ dogName, bookingsByDate }) {
         const svc = SERVICES.find((s) => s.id === b.service);
         return (
           <div
-            key={i}
+            key={`${b.date}-${b.id || b.slot}-${i}`}
             style={{
               display: "flex",
               justifyContent: "space-between",

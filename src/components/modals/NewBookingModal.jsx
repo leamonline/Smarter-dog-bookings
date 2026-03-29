@@ -106,6 +106,15 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
     return hasAvailability ? "available" : "full";
   };
 
+  // Memoize statuses for all days in the month to avoid recomputing on every render
+  const dateStatuses = useMemo(() => {
+    const statuses = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      statuses[d] = getDateStatus(d);
+    }
+    return statuses;
+  }, [viewYear, viewMonth, daysInMonth, bookingsByDate, dayOpenState, daySettings]);
+
   return (
     <div>
       {/* Month nav */}
@@ -140,7 +149,7 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
         {cells.map((d, i) => {
           if (d === null) return <div key={`e${i}`} />;
 
-          const status = getDateStatus(d);
+          const status = dateStatuses[d];
           const dateStr = toDateStr(new Date(viewYear, viewMonth, d));
           const isSelected = dateStr === selectedDateStr;
           const isClickable = status === "available";
@@ -347,7 +356,7 @@ export function NewBookingModal({
     }
 
     onAdd({
-      id: Date.now(),
+      id: crypto.randomUUID(),
       slot: selectedSlot,
       dogName: selectedDog.name,
       breed: selectedDog.breed,

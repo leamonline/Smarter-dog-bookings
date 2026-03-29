@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BRAND, LARGE_DOG_SLOTS } from "../../constants/index.js";
+import { useSalon } from "../../contexts/SalonContext.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { AvailableSeat } from "../ui/AvailableSeat.jsx";
 import { BlockedSeat } from "../ui/BlockedSeat.jsx";
@@ -65,23 +66,14 @@ export function SlotRow({
   capacity,
   bookings,
   onAdd,
-  onRemove,
   overrides,
   onOverride,
   activeSlots,
-  onOpenHuman,
-  onOpenDog,
-  onUpdate,
-  currentDateStr,
-  currentDateObj,
-  bookingsByDate,
-  dayOpenState,
-  dogs,
-  humans,
-  onUpdateDog,
-  onRebook,
-  daySettings,
+  onOpenNewBooking,
 }) {
+  // Shared data from SalonContext — replaces 12+ drilled props
+  const { dogs, humans, currentDateStr } = useSalon();
+
   const [showForm, setShowForm] = useState(false);
   const [formSeat, setFormSeat] = useState(null);
 
@@ -142,22 +134,7 @@ export function SlotRow({
         {seats.map((seat, i) => (
           <div key={i}>
             {seat.type === "booking" ? (
-              <BookingCard
-                booking={seat.booking}
-                onRemove={onRemove}
-                onOpenHuman={onOpenHuman}
-                onOpenDog={onOpenDog}
-                onUpdate={onUpdate}
-                currentDateStr={currentDateStr}
-                currentDateObj={currentDateObj}
-                bookingsByDate={bookingsByDate}
-                dayOpenState={dayOpenState}
-                dogs={dogs}
-                humans={humans}
-                onUpdateDog={onUpdateDog}
-                onRebook={onRebook}
-                daySettings={daySettings}
-              />
+              <BookingCard booking={seat.booking} />
             ) : showForm && formSeat === i ? (
               <AddBookingForm
                 slot={slot}
@@ -187,3 +164,5 @@ export function SlotRow({
     </div>
   );
 }
+
+import { AddBookingForm } from "./AddBookingForm.jsx";
