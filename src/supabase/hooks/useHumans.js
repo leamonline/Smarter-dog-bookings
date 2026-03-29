@@ -103,7 +103,7 @@ export function useHumans() {
 
     // Real-time subscription for humans
     const channel = supabase
-      .channel("humans-realtime")
+      .channel(`humans-realtime-${Date.now()}-${Math.random()}`)
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "humans" },

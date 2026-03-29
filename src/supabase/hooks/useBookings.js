@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
 
@@ -20,6 +20,11 @@ export function useBookings(weekStart, dogsById, humansById) {
   const [bookingsByDate, setBookingsByDate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const dogsByIdRef = useRef(dogsById);
+  const humansByIdRef = useRef(humansById);
+  useEffect(() => { dogsByIdRef.current = dogsById; }, [dogsById]);
+  useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
 
   useEffect(() => {
     if (!supabase || !weekStart) {
@@ -80,7 +85,7 @@ export function useBookings(weekStart, dogsById, humansById) {
 
     // Real-time subscription for bookings within the current week
     const channel = supabase
-      .channel("bookings-realtime")
+      .channel(`bookings-realtime-${Date.now()}-${Math.random()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bookings" },
@@ -90,8 +95,8 @@ export function useBookings(weekStart, dogsById, humansById) {
             return;
           const transformed = dbBookingsToArray(
             [newRow],
-            dogsById,
-            humansById,
+            dogsByIdRef.current,
+            humansByIdRef.current,
           )[0];
           setBookingsByDate((prev) => {
             const dateKey = newRow.booking_date;
@@ -125,8 +130,8 @@ export function useBookings(weekStart, dogsById, humansById) {
           }
           const transformed = dbBookingsToArray(
             [newRow],
-            dogsById,
-            humansById,
+            dogsByIdRef.current,
+            humansByIdRef.current,
           )[0];
           setBookingsByDate((prev) => {
             const next = { ...prev };

@@ -47,7 +47,7 @@ export function useDogs(humansById) {
 
     // Real-time subscription for dogs
     const channel = supabase
-      .channel("dogs-realtime")
+      .channel(`dogs-realtime-${Date.now()}-${Math.random()}`)
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dogs" },
