@@ -137,3 +137,59 @@ export interface DayConfig {
   full: string;
   defaultOpen: boolean;
 }
+
+export interface WizardDog {
+  dogId: string;
+  name: string;
+  size: DogSize;
+}
+
+export interface SlotAllocation {
+  dropOffTime: string;
+  assignments: Array<{ dogId: string; slot: string }>;
+  groupId: string;
+}
+
+export interface WizardState {
+  step: 1 | 2 | 3 | 4 | 5;
+  selectedDogs: WizardDog[];
+  services: Record<string, ServiceId>;
+  selectedDate: string | null;
+  selectedSlot: string | null;
+  slotAllocation: SlotAllocation | null;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  hasMore: boolean;
+  totalCount: number;
+}
+
+export interface SearchState {
+  query: string;
+  isSearching: boolean;
+}
+
+export interface BookingHistoryEntry {
+  id: string;
+  date: string;
+  slot: string;
+  service: string;
+  status: string;
+  size: string;
+  addons: string[];
+  payment: string;
+}
+
+export interface NotificationLog {
+  id: string;
+  bookingId: string;
+  groupId: string | null;
+  humanId: string;
+  channel: "whatsapp" | "sms" | "email";
+  triggerType: "confirmed" | "reminder" | "cancelled";
+  status: "sent" | "failed" | "pending";
+  errorMessage: string | null;
+  sentAt: string | null;
+  createdAt: string;
+}
