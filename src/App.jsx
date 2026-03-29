@@ -118,6 +118,12 @@ export default function App() {
     error: he,
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
+    hasMore: humansHasMore,
+    totalCount: humansTotalCount,
+    loadMore: humansLoadMore,
+    searchHumans: humansSearchHumans,
+    searchQuery: humansSearchQuery,
+    isSearching: humansIsSearching,
   } = useHumans();
   const {
     dogs: sbDogs,
@@ -126,6 +132,12 @@ export default function App() {
     error: de,
     updateDog: sbUpdateDog,
     addDog: sbAddDog,
+    hasMore: dogsHasMore,
+    totalCount: dogsTotalCount,
+    loadMore: dogsLoadMore,
+    searchDogs: dogsSearchDogs,
+    searchQuery: dogsSearchQuery,
+    isSearching: dogsIsSearching,
   } = useDogs(humansById);
   const {
     bookingsByDate: sbBookings,
@@ -376,6 +388,12 @@ export default function App() {
               dogs={dogs}
               onOpenHuman={setSelectedHumanId}
               onAddHuman={addHuman}
+              hasMore={humansHasMore}
+              totalCount={humansTotalCount}
+              loadMore={humansLoadMore}
+              onSearch={humansSearchHumans}
+              searchQuery={humansSearchQuery}
+              isSearching={humansIsSearching}
             />
           ) : activeView === "dogs" ? (
             <DogsView
@@ -383,6 +401,12 @@ export default function App() {
               humans={humans}
               onOpenDog={setSelectedDogId}
               onAddDog={addDog}
+              hasMore={dogsHasMore}
+              totalCount={dogsTotalCount}
+              loadMore={dogsLoadMore}
+              onSearch={dogsSearchDogs}
+              searchQuery={dogsSearchQuery}
+              isSearching={dogsIsSearching}
             />
           ) : (
             <WeekCalendarView
@@ -464,6 +488,8 @@ export default function App() {
             onOpenAddHuman={() => setShowAddHumanModal(true)}
             initialDateStr={showNewBooking.dateStr}
             initialSlot={showNewBooking.slot}
+            onSearchDogs={dogsSearchDogs}
+            isSearchingDogs={dogsIsSearching}
           />
         )}
 

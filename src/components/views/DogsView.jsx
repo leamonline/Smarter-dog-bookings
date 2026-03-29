@@ -4,28 +4,10 @@ import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
-  const [searchQuery, setSearchQuery] = useState("");
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredDogs = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    const allDogs = Object.values(dogs).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    if (!query) return allDogs;
-
-    return allDogs.filter((dog) => {
-      const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
-      const ownerName =
-        owner?.fullName ||
-        (owner ? `${owner.name} ${owner.surname}`.trim() : dog.humanId || "");
-      const alertStr = (dog.alerts || []).join(" ");
-      const searchString =
-        `${dog.name} ${dog.breed} ${dog.age || ""} ${ownerName} ${alertStr} ${dog.groomNotes || ""}`.toLowerCase();
-      return searchString.includes(query);
-    });
-  }, [searchQuery, dogs, humans]);
+  const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease-in" }}>
@@ -80,7 +62,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
               type="text"
               placeholder="Search dogs..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearch(e.target.value)}
               style={{
                 width: "100%",
                 padding: "10px 14px 10px 38px",
@@ -135,7 +117,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
           gap: 16,
         }}
       >
-        {filteredDogs.map((dog) => {
+        {sortedDogs.map((dog) => {
           const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
           const ownerName =
             owner?.fullName ||
@@ -273,7 +255,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
           );
         })}
 
-        {filteredDogs.length === 0 && (
+        {sortedDogs.length === 0 && !isSearching && (
           <div
             style={{
               gridColumn: "1 / -1",
@@ -284,12 +266,60 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog }) {
           >
             <div style={{ fontSize: 32, marginBottom: 12 }}>{"🐾"}</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>
-              No dogs found matching "{searchQuery}"
+              {searchQuery ? `No dogs found matching "${searchQuery}"` : "No dogs yet."}
             </div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>
-              Try searching by breed or owner name instead.
-            </div>
+            {searchQuery && (
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                Try searching by breed or owner name instead.
+              </div>
+            )}
           </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          marginTop: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        <div style={{ fontSize: 13, color: BRAND.textLight }}>
+          {isSearching ? (
+            <span style={{ fontStyle: "italic" }}>Searching...</span>
+          ) : (
+            <span>Showing {sortedDogs.length} of {totalCount} dogs</span>
+          )}
+        </div>
+        {hasMore && !isSearching && (
+          <button
+            onClick={loadMore}
+            style={{
+              border: `1px solid ${BRAND.greyLight}`,
+              borderRadius: 10,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              background: BRAND.white,
+              color: BRAND.text,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = BRAND.blue;
+              e.currentTarget.style.color = BRAND.blue;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = BRAND.greyLight;
+              e.currentTarget.style.color = BRAND.text;
+            }}
+          >
+            Load more
+          </button>
         )}
       </div>
 
