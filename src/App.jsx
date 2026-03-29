@@ -22,6 +22,7 @@ import { useSalonConfig } from "./supabase/hooks/useSalonConfig.js";
 import { useDaySettings } from "./supabase/hooks/useDaySettings.js";
 import { useWeekNav } from "./hooks/useWeekNav.js";
 import { useOfflineState } from "./hooks/useOfflineState.js";
+import { useModalState } from "./hooks/useModalState.js";
 import { SalonProvider } from "./contexts/SalonContext.jsx";
 import { Legend } from "./components/ui/Legend.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
@@ -85,14 +86,17 @@ export default function App() {
 
   // --- Navigation & view state ---
   const [activeView, setActiveView] = useState("dashboard");
-  const [selectedHumanId, setSelectedHumanId] = useState(null);
-  const [selectedDogId, setSelectedDogId] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [rebookData, setRebookData] = useState(null);
-  const [showNewBooking, setShowNewBooking] = useState(null);
-  const [showAddDogModal, setShowAddDogModal] = useState(false);
-  const [showAddHumanModal, setShowAddHumanModal] = useState(false);
-  const [showRebookDatePicker, setShowRebookDatePicker] = useState(false);
+  const {
+    selectedHumanId, setSelectedHumanId,
+    selectedDogId, setSelectedDogId,
+    showDatePicker, setShowDatePicker,
+    showNewBooking, setShowNewBooking,
+    showAddDogModal, setShowAddDogModal,
+    showAddHumanModal, setShowAddHumanModal,
+    rebookData, setRebookData,
+    showRebookDatePicker, setShowRebookDatePicker,
+    openNewBooking, closeNewBooking, closeRebook,
+  } = useModalState();
 
   // --- Week navigation (extracted hook) ---
   const {
