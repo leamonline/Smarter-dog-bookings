@@ -126,7 +126,7 @@ export function useAuth() {
     });
 
     if (err) {
-      setError(err.message);
+      setError("Invalid email or password");
       return { error: err };
     }
 

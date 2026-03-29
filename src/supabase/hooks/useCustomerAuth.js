@@ -132,7 +132,7 @@ export function useCustomerAuth() {
     });
 
     if (err) {
-      setError(err.message);
+      setError("Could not send verification code. Please check your number and try again.");
       return { error: err };
     }
 
@@ -156,7 +156,7 @@ export function useCustomerAuth() {
       });
 
       if (err) {
-        setError(err.message);
+        setError("Invalid code. Please try again.");
         return { error: err };
       }
 
