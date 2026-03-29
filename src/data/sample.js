@@ -20,18 +20,18 @@ export const SAMPLE_DOGS = {
 
 export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
-    { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full_groom", owner: "Sarah Jones", status: "Checked In", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
-    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath_brush", owner: "Dave Smith", status: "Not Arrived", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
-    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full_groom", owner: "Emma Wilson" },
-    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath_deshed", owner: "Tom Baker" },
-    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full_groom", owner: "Lisa Brown" },
-    { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath_brush", owner: "Jenny Taylor" },
-    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath_deshed", owner: "Mark Johnson" },
+    { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: "Checked In", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
+    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: "Not Arrived", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson" },
+    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker" },
+    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown" },
+    { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor" },
+    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson" },
   ],
   tue: [
-    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full_groom", owner: "Amy Clarke" },
-    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath_brush", owner: "Rik Patel" },
-    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full_groom", owner: "Helen Wright" },
+    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke" },
+    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel" },
+    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright" },
   ],
   wed: [],
   thu: [], fri: [], sat: [], sun: [],

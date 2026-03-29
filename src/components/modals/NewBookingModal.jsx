@@ -272,7 +272,7 @@ export function NewBookingModal({
   const [dogQuery, setDogQuery] = useState("");
   const [selectedDog, setSelectedDog] = useState(null);
   const [selectedHumanKey, setSelectedHumanKey] = useState("");
-  const [service, setService] = useState("full_groom");
+  const [service, setService] = useState("full-groom");
   const [selectedDateStr, setSelectedDateStr] = useState(initialDateStr || "");
   const [selectedSlot, setSelectedSlot] = useState(initialSlot || "");
   const [error, setError] = useState("");

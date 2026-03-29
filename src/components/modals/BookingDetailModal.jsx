@@ -33,7 +33,7 @@ function getDefaultOpenForDate(date) {
 function buildEditState(booking, dogData, currentDateObj) {
   const size = booking.size || dogData?.size || "small";
   const service = normalizeServiceForSize(
-    booking.service || "full_groom",
+    booking.service || "full-groom",
     size,
   );
   const basePrice =

@@ -4,10 +4,10 @@ export const SALON_SLOTS = [
 ];
 
 export const SERVICES = [
-  { id: "full_groom", name: "Full Groom", icon: "\u2702\uFE0F" },
-  { id: "bath_brush", name: "Bath & Brush", icon: "\uD83D\uDEC1" },
-  { id: "bath_deshed", name: "Bath & Deshed", icon: "\uD83E\uDDF9" },
-  { id: "puppy_cut", name: "Puppy Cut", icon: "\uD83D\uDC3E" },
+  { id: "full-groom", name: "Full Groom", icon: "\u2702\uFE0F" },
+  { id: "bath-and-brush", name: "Bath & Brush", icon: "\uD83D\uDEC1" },
+  { id: "bath-and-deshed", name: "Bath & Deshed", icon: "\uD83E\uDDF9" },
+  { id: "puppy-groom", name: "Puppy Groom", icon: "\uD83D\uDC3E" },
 ];
 
 export const ALL_DAYS = [
@@ -20,19 +20,24 @@ export const ALL_DAYS = [
   { key: "sun", label: "Sun", full: "Sunday", defaultOpen: false },
 ];
 
+// Large dog slot rules:
+// - 08:30, 09:00: Start-of-day exception — large dog takes 1 seat, can share with small/medium
+// - 12:00: Can share with small/medium (1 seat), BUT triggers early close on 13:00
+// - 12:30, 13:00: Full takeover — large dog fills both seats, no sharing
+// - Back-to-back large dogs (2-seat each) only permitted at 12:30 + 13:00
 export const LARGE_DOG_SLOTS = {
   "08:30": { seats: 1, canShare: true, needsApproval: false },
   "09:00": { seats: 1, canShare: true, needsApproval: false, conditional: true },
-  "12:00": { seats: 2, canShare: false, needsApproval: false },
+  "12:00": { seats: 1, canShare: true, needsApproval: false },
   "12:30": { seats: 2, canShare: false, needsApproval: false },
   "13:00": { seats: 2, canShare: false, needsApproval: false },
 };
 
 export const PRICING = {
-  full_groom: { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
-  bath_brush: { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  bath_deshed: { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  puppy_cut: { small: "\u00A338", medium: "\u00A338", large: "N/A" },
+  "full-groom": { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
+  "bath-and-brush": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
+  "bath-and-deshed": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
+  "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
 };
 
 export const BOOKING_STATUSES = [

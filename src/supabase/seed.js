@@ -27,7 +27,6 @@ const SAMPLE_HUMANS = {
   "Lisa Brown": { name: "Lisa", surname: "Brown", phone: "07700 900115", sms: true, whatsapp: false, email: "lisa@example.com", fb: "", insta: "", tiktok: "", address: "202 Elm St", notes: "", trustedIds: [], historyFlag: "" },
   "Jenny Taylor": { name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [], historyFlag: "" },
   "Mark Johnson": { name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [], historyFlag: "" },
-  // Extra humans referenced in bookings but not in main sample
   "Amy Clarke": { name: "Amy", surname: "Clarke", phone: "", sms: false, whatsapp: false, email: "", fb: "", insta: "", tiktok: "", address: "", notes: "", trustedIds: [], historyFlag: "" },
   "Rik Patel": { name: "Rik", surname: "Patel", phone: "", sms: false, whatsapp: false, email: "", fb: "", insta: "", tiktok: "", address: "", notes: "", trustedIds: [], historyFlag: "" },
   "Helen Wright": { name: "Helen", surname: "Wright", phone: "", sms: false, whatsapp: false, email: "", fb: "", insta: "", tiktok: "", address: "", notes: "", trustedIds: [], historyFlag: "" },
@@ -41,7 +40,6 @@ const SAMPLE_DOGS = {
   "Daisy": { name: "Daisy", breed: "Poodle", age: "1 yr", humanId: "Lisa Brown", alerts: [], groomNotes: "" },
   "Milo": { name: "Milo", breed: "Maltese", age: "6 yrs", humanId: "Jenny Taylor", alerts: [], groomNotes: "" },
   "Rex": { name: "Rex", breed: "Labrador", age: "7 yrs", humanId: "Mark Johnson", alerts: [], groomNotes: "" },
-  // Extra dogs from bookings
   "Coco": { name: "Coco", breed: "Pomeranian", age: "", humanId: "Amy Clarke", alerts: [], groomNotes: "" },
   "Teddy": { name: "Teddy", breed: "Goldendoodle", age: "", humanId: "Rik Patel", alerts: [], groomNotes: "" },
   "Poppy": { name: "Poppy", breed: "Cocker Spaniel", age: "", humanId: "Helen Wright", alerts: [], groomNotes: "" },
@@ -49,32 +47,32 @@ const SAMPLE_DOGS = {
 
 const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
-    { slot: "08:30", dogName: "Bella", size: "small", service: "full_groom", status: "Checked In", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
-    { slot: "08:30", dogName: "Max", size: "medium", service: "bath_brush", status: "Not Arrived", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
-    { slot: "09:00", dogName: "Luna", size: "small", service: "full_groom" },
-    { slot: "09:00", dogName: "Charlie", size: "medium", service: "bath_deshed" },
-    { slot: "10:00", dogName: "Daisy", size: "small", service: "full_groom" },
-    { slot: "10:00", dogName: "Milo", size: "small", service: "bath_brush" },
-    { slot: "12:00", dogName: "Rex", size: "large", service: "bath_deshed" },
+    { slot: "08:30", dogName: "Bella", size: "small", service: "full-groom", status: "Checked In", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
+    { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: "Not Arrived", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { slot: "09:00", dogName: "Luna", size: "small", service: "full-groom" },
+    { slot: "09:00", dogName: "Charlie", size: "medium", service: "bath-and-deshed" },
+    { slot: "10:00", dogName: "Daisy", size: "small", service: "full-groom" },
+    { slot: "10:00", dogName: "Milo", size: "small", service: "bath-and-brush" },
+    { slot: "12:00", dogName: "Rex", size: "large", service: "bath-and-deshed" },
   ],
   tue: [
-    { slot: "08:30", dogName: "Coco", size: "small", service: "full_groom" },
-    { slot: "09:00", dogName: "Teddy", size: "medium", service: "bath_brush" },
-    { slot: "09:30", dogName: "Poppy", size: "medium", service: "full_groom" },
+    { slot: "08:30", dogName: "Coco", size: "small", service: "full-groom" },
+    { slot: "09:00", dogName: "Teddy", size: "medium", service: "bath-and-brush" },
+    { slot: "09:30", dogName: "Poppy", size: "medium", service: "full-groom" },
   ],
 };
 
 const PRICING = {
-  full_groom: { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
-  bath_brush: { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  bath_deshed: { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  puppy_cut: { small: "\u00A338", medium: "\u00A338", large: "N/A" },
+  "full-groom": { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
+  "bath-and-brush": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
+  "bath-and-deshed": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
+  "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
 };
 
 const LARGE_DOG_SLOTS = {
   "08:30": { seats: 1, canShare: true, needsApproval: false },
   "09:00": { seats: 1, canShare: true, needsApproval: false, conditional: true },
-  "12:00": { seats: 2, canShare: false, needsApproval: false },
+  "12:00": { seats: 1, canShare: true, needsApproval: false },
   "12:30": { seats: 2, canShare: false, needsApproval: false },
   "13:00": { seats: 2, canShare: false, needsApproval: false },
 };

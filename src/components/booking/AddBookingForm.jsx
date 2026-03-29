@@ -39,7 +39,7 @@ export function AddBookingForm({
   const [selectedDog, setSelectedDog] = useState(initialDog);
   const [size, setSize] = useState(initialSize);
   const [service, setService] = useState(
-    normalizeServiceForSize(prefill?.service || "full_groom", initialSize),
+    normalizeServiceForSize(prefill?.service || "full-groom", initialSize),
   );
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
