@@ -148,7 +148,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord]);
 
-  // Cancel a booking — with client-side ownership guard
+  // Cancel a booking — with client-side ownership guard and group booking support
   const handleCancelBooking = useCallback(async (bookingId) => {
     if (!supabase) return;
 
@@ -157,7 +157,42 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     const booking = bookings.find(b => b.id === bookingId);
     if (!booking || !dogIds.includes(booking.dog_id)) return;
 
-    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    // Check if this booking is part of a group
+    if (booking.group_id) {
+      const { data: groupBookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("group_id", booking.group_id)
+        .neq("id", bookingId);
+
+      const otherGroupBookings = groupBookings || [];
+
+      if (otherGroupBookings.length > 0) {
+        const totalInGroup = otherGroupBookings.length + 1;
+        const cancelAll = window.confirm(
+          `This booking is part of a group of ${totalInGroup} dogs. Cancel all bookings in this group, or just this one?\n\nOK = Cancel all\nCancel = Just this one`
+        );
+
+        if (cancelAll) {
+          // Delete all bookings with this group_id
+          const { error: err } = await supabase
+            .from("bookings")
+            .delete()
+            .eq("group_id", booking.group_id);
+          if (!err) {
+            const groupIds = new Set([bookingId, ...otherGroupBookings.map(b => b.id)]);
+            setBookings(prev => prev.filter(b => !groupIds.has(b.id)));
+          }
+          return;
+        }
+        // If they clicked Cancel in the dialog, fall through to single deletion below
+      }
+    }
+
+    // Single booking cancellation (no group, or user chose "just this one")
+    if (!booking.group_id) {
+      if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    }
     const { error: err } = await supabase.from("bookings").delete().eq("id", bookingId);
     if (!err) {
       setBookings(prev => prev.filter(b => b.id !== bookingId));
