@@ -362,6 +362,33 @@ export function useBookings(weekStart, dogsById, humansById) {
     [humansById, dogsById],
   );
 
+  const fetchBookingHistoryForDog = useCallback(async (dogId) => {
+    if (!supabase) return [];
+
+    const { data, error: err } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("dog_id", dogId)
+      .order("booking_date", { ascending: false })
+      .limit(10);
+
+    if (err) {
+      console.error("Failed to fetch booking history:", err);
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      date: row.booking_date,
+      slot: row.slot,
+      service: row.service,
+      status: row.status,
+      size: row.size,
+      addons: row.addons || [],
+      payment: row.payment,
+    }));
+  }, []);
+
   return {
     bookingsByDate,
     loading,
@@ -369,5 +396,6 @@ export function useBookings(weekStart, dogsById, humansById) {
     addBooking,
     removeBooking,
     updateBooking,
+    fetchBookingHistoryForDog,
   };
 }
