@@ -1,25 +1,8 @@
 import { BRAND, ALL_DAYS } from "../../constants/index.js";
 
-function WeekArrowBtn({ direction, onClick }) {
-  return (
-    <button onClick={onClick} style={{
-      width: 28, display: "flex", alignItems: "center", justifyContent: "center",
-      background: BRAND.blue, border: "none", borderRadius: 8, cursor: "pointer",
-      transition: "all 0.15s", flexShrink: 0,
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.75"; }}
-    onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}>
-      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={BRAND.white} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-        {direction === "left" ? <path d="M10 3l-5 5 5 5" /> : <path d="M6 3l5 5-5 5" />}
-      </svg>
-    </button>
-  );
-}
-
-export function WeekNav({ selectedDay, onSelectDay, bookingsByDate, dates, dayOpenState, onPrevWeek, onNextWeek }) {
+export function WeekNav({ selectedDay, onSelectDay, bookingsByDate, dates, dayOpenState }) {
   return (
     <div style={{ display: "flex", gap: 4, background: BRAND.offWhite, borderRadius: 12, padding: 4 }}>
-      <WeekArrowBtn direction="left" onClick={onPrevWeek} />
       {ALL_DAYS.map((day, i) => {
         const isSelected = selectedDay === i;
         const dateStr = dates[i]?.dateStr;
@@ -57,7 +40,6 @@ export function WeekNav({ selectedDay, onSelectDay, bookingsByDate, dates, dayOp
           </button>
         );
       })}
-      <WeekArrowBtn direction="right" onClick={onNextWeek} />
     </div>
   );
 }

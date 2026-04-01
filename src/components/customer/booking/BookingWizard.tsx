@@ -107,15 +107,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           booking_date: selectedDate,
           slot,
           dog_id: dog.dogId,
-          dog_name: dog.name,
-          breed: rawDog?.breed || "",
           size: dog.size,
           service: services[dog.dogId],
-          owner_id: humanRecord.id,
-          owner: `${humanRecord.name} ${humanRecord.surname}`.trim(),
           status: "Not Arrived",
           confirmed: false,
           addons: [],
+          payment: "Due at Pick-up",
           group_id: selectedDogs.length > 1 ? groupId : null,
         };
       });

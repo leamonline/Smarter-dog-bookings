@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BRAND } from "../../constants/index.js";
+import { supabase } from "../../supabase/client.js";
 
 /**
  * Staff login page — sign-in only.
@@ -12,6 +13,26 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Forgot password
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) { setResetError("Please enter your email address."); return; }
+    setResetSending(true);
+    setResetError("");
+    const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetSending(false);
+    if (err) { setResetError(err.message); return; }
+    setResetSent(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,7 +156,71 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           Sign in to manage the salon.
         </div>
 
-        <form
+        {/* ── Forgot password mode ── */}
+        {forgotMode && (
+          <div style={{ marginBottom: 20 }}>
+            {resetSent ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>📧</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: BRAND.text, marginBottom: 6 }}>Check your inbox</div>
+                <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 16 }}>
+                  We've sent a password reset link to <strong>{resetEmail}</strong>.
+                </div>
+                <button
+                  onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
+                  style={{ fontSize: 13, color: BRAND.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                >
+                  ← Back to sign in
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: BRAND.text, marginBottom: 2 }}>Reset your password</div>
+                <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 4 }}>
+                  Enter your email and we'll send you a reset link.
+                </div>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={e => { setResetEmail(e.target.value); setResetError(""); }}
+                  placeholder="you@smarterdog.co.uk"
+                  style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = BRAND.blue)}
+                  onBlur={e => (e.target.style.borderColor = BRAND.greyLight)}
+                  autoFocus
+                />
+                {resetError && (
+                  <div style={{ fontSize: 13, color: BRAND.coral, fontWeight: 600, background: BRAND.coralLight, padding: "8px 12px", borderRadius: 8 }}>
+                    {resetError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={resetSending}
+                  style={{
+                    width: "100%", padding: "12px", borderRadius: 10, border: "none",
+                    background: resetSending ? BRAND.greyLight : BRAND.blue,
+                    color: resetSending ? BRAND.textLight : BRAND.white,
+                    fontSize: 14, fontWeight: 700, cursor: resetSending ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {resetSending ? "Sending…" : "Send reset link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setResetError(""); setResetEmail(""); }}
+                  style={{ fontSize: 13, color: BRAND.textLight, background: "none", border: "none", cursor: "pointer", textAlign: "center" }}
+                >
+                  ← Back to sign in
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ── Sign in form ── */}
+        {!forgotMode && <form
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 12 }}
         >
@@ -237,7 +322,19 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           >
             {submitting ? "Signing in..." : "Sign In"}
           </button>
-        </form>
+
+          <button
+            type="button"
+            onClick={() => { setForgotMode(true); setLocalError(""); setResetEmail(email); }}
+            style={{
+              background: "none", border: "none", color: BRAND.textLight,
+              fontSize: 13, cursor: "pointer", textAlign: "center",
+              padding: "4px 0", fontFamily: "inherit",
+            }}
+          >
+            Forgot password?
+          </button>
+        </form>}
 
         <div
           style={{

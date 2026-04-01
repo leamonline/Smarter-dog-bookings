@@ -39,6 +39,37 @@ export function AppToolbar({
         }}
       >
         <button
+          onClick={() => setActiveView("dashboard")}
+          style={{
+            background:
+              activeView === "dashboard" ? BRAND.blueLight : BRAND.white,
+            border: `1px solid ${activeView === "dashboard" ? BRAND.blue : BRAND.greyLight}`,
+            borderRadius: 8,
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: activeView === "dashboard" ? BRAND.blueDark : BRAND.text,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            if (activeView !== "dashboard") {
+              e.currentTarget.style.borderColor = BRAND.blue;
+              e.currentTarget.style.color = BRAND.blue;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeView !== "dashboard") {
+              e.currentTarget.style.borderColor = BRAND.greyLight;
+              e.currentTarget.style.color = BRAND.text;
+            }
+          }}
+        >
+          Dashboard
+        </button>
+
+        <button
           onClick={onNewBooking}
           style={{
             background: BRAND.blue,

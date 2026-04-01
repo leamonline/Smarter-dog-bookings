@@ -381,6 +381,8 @@ export default function App() {
               config={salonConfig}
               onUpdateConfig={updateConfig}
               isOwner={isOwner}
+              user={user}
+              staffProfile={staffProfile}
             />
           ) : activeView === "humans" ? (
             <HumansView

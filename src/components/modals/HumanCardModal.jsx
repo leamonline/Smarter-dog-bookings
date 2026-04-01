@@ -138,6 +138,23 @@ export function HumanCardModal({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [dogs, human.id, humanFullName]);
 
+  // Dogs this human is trusted to drop off / pick up (owned by their trusted humans)
+  const trustedDogs = useMemo(() => {
+    const trustedIds = human.trustedIds || [];
+    if (trustedIds.length === 0) return [];
+
+    const trustedSet = new Set(trustedIds);
+    return Object.values(dogs || {})
+      .filter((dog) => {
+        const ownerId = dog._humanId || null;
+        const ownerName = dog.humanId || "";
+        // Must belong to a trusted human, not to this human
+        if (ownerId === human.id || ownerName === humanFullName) return false;
+        return trustedSet.has(ownerId) || trustedSet.has(ownerName);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [dogs, human.id, humanFullName, human.trustedIds]);
+
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);
   const [trustedSearchQuery, setTrustedSearchQuery] = useState("");
 
@@ -344,75 +361,87 @@ export function HumanCardModal({
             </div>
           )}
 
-          <div
-            style={{
-              marginTop: 20,
-              fontWeight: 800,
-              fontSize: 12,
-              color: BRAND.blueDark,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              marginBottom: 8,
-            }}
-          >
-            Dogs
-          </div>
-          {humanDogs.length > 0 ? (
-            humanDogs.map((dog) => (
-              <div
-                key={dog.id}
-                onClick={() => {
-                  onClose();
-                  onOpenDog && onOpenDog(dog.id || dog.name);
-                }}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "10px 0",
-                  borderBottom: `1px solid ${BRAND.greyLight}`,
-                  cursor: "pointer",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: BRAND.text,
-                    }}
-                  >
-                    {dog.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: BRAND.textLight }}>
-                    {dog.breed} {"·"} {dog.age}
-                  </div>
-                </div>
-                {dog.alerts && dog.alerts.length > 0 && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: BRAND.coral,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {"⚠️"} {dog.alerts.length} alert
-                    {dog.alerts.length > 1 ? "s" : ""}
-                  </span>
+          {/* ── Dog pill helper ── */}
+          {(() => {
+            const SIZE_COLOURS = {
+              small:  { bg: "#FEF3C7", text: "#92400E" },
+              medium: { bg: "#D6F5EE", text: "#065F46" },
+              large:  { bg: "#FDE2E8", text: BRAND.coral },
+            };
+            const defaultColour = { bg: BRAND.greyLight, text: BRAND.textLight };
+
+            const DogPill = ({ dog }) => {
+              const colours = SIZE_COLOURS[dog.size] || defaultColour;
+              const hasAlerts = dog.alerts && dog.alerts.length > 0;
+              return (
+                <span
+                  onClick={() => { onClose(); onOpenDog && onOpenDog(dog.id || dog.name); }}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "6px 12px", borderRadius: 20, cursor: "pointer",
+                    background: colours.bg, color: colours.text,
+                    fontSize: 12, fontWeight: 700, transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = "0.8"; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+                >
+                  {hasAlerts && "⚠️ "}{dog.name} · {dog.breed}
+                </span>
+              );
+            };
+
+            return (
+              <>
+                {/* DOGS (own dogs) — only show if they have some */}
+                {humanDogs.length > 0 && (
+                  <>
+                    <div style={{
+                      marginTop: 20, fontWeight: 800, fontSize: 12,
+                      color: BRAND.blueDark, textTransform: "uppercase",
+                      letterSpacing: 0.5, marginBottom: 8,
+                    }}>
+                      Dogs
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {humanDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
+                    </div>
+                  </>
                 )}
-              </div>
-            ))
-          ) : (
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.textLight,
-                fontStyle: "italic",
-              }}
-            >
-              No dogs linked
-            </div>
-          )}
+
+                {/* DOGS TRUSTED WITH — only show if they're trusted with others' dogs */}
+                {trustedDogs.length > 0 && (
+                  <>
+                    <div style={{
+                      marginTop: 20, fontWeight: 800, fontSize: 12,
+                      color: BRAND.blueDark, textTransform: "uppercase",
+                      letterSpacing: 0.5, marginBottom: 8,
+                    }}>
+                      Dogs Trusted With
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {trustedDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
+                    </div>
+                  </>
+                )}
+
+                {/* If neither section has dogs */}
+                {humanDogs.length === 0 && trustedDogs.length === 0 && (
+                  <>
+                    <div style={{
+                      marginTop: 20, fontWeight: 800, fontSize: 12,
+                      color: BRAND.blueDark, textTransform: "uppercase",
+                      letterSpacing: 0.5, marginBottom: 8,
+                    }}>
+                      Dogs
+                    </div>
+                    <div style={{ fontSize: 13, color: BRAND.textLight, fontStyle: "italic" }}>
+                      No dogs linked
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           <div
             style={{

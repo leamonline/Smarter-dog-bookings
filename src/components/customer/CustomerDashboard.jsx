@@ -330,10 +330,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} style={inputStyle} />
           )}
 
-          {/* WhatsApp toggle */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-            <span style={{ fontSize: 14, color: BRAND.textLight }}>WhatsApp</span>
-            {editing ? (
+          {/* Mobile — read-only (login number) */}
+          {detailRow("Mobile", humanRecord?.phone || "", false, null)}
+
+          {/* WhatsApp toggle — edit mode only */}
+          {editing && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <span style={{ fontSize: 14, color: BRAND.textLight }}>WhatsApp</span>
               <button onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))} style={{
                 background: details.whatsapp ? BRAND.teal : BRAND.greyLight,
                 border: "none", borderRadius: 20, width: 48, height: 26, cursor: "pointer",
@@ -345,26 +348,31 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                   transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 }} />
               </button>
-            ) : (
-              <span style={{ fontSize: 14, fontWeight: 600, color: details.whatsapp ? BRAND.teal : BRAND.coral }}>
-                {details.whatsapp ? "\u2705 Active" : "\u274C Off"}
-              </span>
-            )}
-          </div>
-
-          {/* Facebook */}
-          {detailRow("Facebook", details.fb, editing,
-            <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..." style={inputStyle} />
+            </div>
           )}
 
-          {/* Instagram */}
-          {detailRow("Instagram", details.insta ? `@${details.insta.replace(/^@/, "")}` : "", editing,
-            <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle" style={inputStyle} />
+          {/* Facebook — edit mode only */}
+          {editing && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>Facebook</span>
+              <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..." style={inputStyle} />
+            </div>
           )}
 
-          {/* TikTok */}
-          {detailRow("TikTok", details.tiktok ? `@${details.tiktok.replace(/^@/, "")}` : "", editing,
-            <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle" style={inputStyle} />
+          {/* Instagram — edit mode only */}
+          {editing && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>Instagram</span>
+              <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle" style={inputStyle} />
+            </div>
+          )}
+
+          {/* TikTok — edit mode only */}
+          {editing && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>TikTok</span>
+              <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle" style={inputStyle} />
+            </div>
           )}
         </div>
 

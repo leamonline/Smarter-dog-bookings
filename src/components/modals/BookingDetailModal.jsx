@@ -64,6 +64,7 @@ export function BookingDetailModal({
   onClose,
   onRemove,
   onOpenHuman,
+  onOpenDog,
   onUpdate,
   currentDateStr,
   currentDateObj,
@@ -425,6 +426,64 @@ export function BookingDetailModal({
             onUpdate={onUpdate}
           />
 
+          {/* Dog row */}
+          <div
+            style={{
+              padding: "10px 0",
+              borderBottom: `1px solid ${BRAND.greyLight}`,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Dog
+              </span>
+              <span
+                onClick={() =>
+                  onOpenDog &&
+                  onOpenDog(dogData?.id || booking._dogId || booking.dogName)
+                }
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: BRAND.teal,
+                  cursor: "pointer",
+                  borderBottom: `1px dashed ${BRAND.teal}`,
+                }}
+              >
+                {booking.dogName}
+              </span>
+            </div>
+          </div>
+
+          {/* Breed row */}
+          <div
+            style={{
+              padding: "10px 0",
+              borderBottom: `1px solid ${BRAND.greyLight}`,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Breed
+              </span>
+              <span
+                onClick={() =>
+                  onOpenDog &&
+                  onOpenDog(dogData?.id || booking._dogId || booking.dogName)
+                }
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: BRAND.teal,
+                  cursor: "pointer",
+                  borderBottom: `1px dashed ${BRAND.teal}`,
+                }}
+              >
+                {booking.breed || dogData?.breed || "—"}
+              </span>
+            </div>
+          </div>
+
           {/* Human / Owner row */}
           <div
             style={{
@@ -432,8 +491,8 @@ export function BookingDetailModal({
               borderBottom: `1px solid ${BRAND.greyLight}`,
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, color: BRAND.textLight }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Human
               </span>
               <span

@@ -1,0 +1,69 @@
+<h2>Booking Wizard Architecture</h2>
+<p class="subtitle">How should the multi-step booking flow be structured?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Single Component with Step State</h3>
+      <p>One <code>BookingWizard.jsx</code> component manages a <code>step</code> state variable (1-5). Each step renders a different section inline. All wizard state lives in one place.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Simple — all state in one component</li>
+          <li>Easy to pass data between steps</li>
+          <li>No routing complexity</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>File grows large as steps get complex</li>
+          <li>No URL-based step navigation (can't bookmark/refresh mid-flow)</li>
+          <li>All step code loaded upfront</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Orchestrator + Step Components</h3>
+      <p><code>BookingWizard.jsx</code> holds shared state and orchestrates flow. Each step is its own component: <code>DogSelection</code>, <code>ServiceSelection</code>, <code>DatePicker</code>, <code>SlotPicker</code>, <code>BookingConfirmation</code>. Wizard passes state down, steps call back up.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Each step is focused and testable</li>
+          <li>Wizard stays small (~200 lines)</li>
+          <li>Follows the pattern from BookingDetailModal decomposition in Phase 1</li>
+          <li>Easy to add/reorder steps later</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Prop threading between orchestrator and steps</li>
+          <li>Still no URL-based navigation</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Route-per-Step with Shared Context</h3>
+      <p>Each step is a nested route (<code>/customer/book/dogs</code>, <code>/customer/book/service</code>, etc.). A React Context or <code>useBookingWizard</code> hook holds shared state across routes.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>URL reflects current step</li>
+          <li>Browser back/forward works</li>
+          <li>Each step lazy-loadable</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Most complex — context management, route guards, state persistence</li>
+          <li>Overkill for a 5-step wizard</li>
+          <li>Risk of state loss on page refresh</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem; padding: 1.2rem; background: rgba(99,102,241,0.08); border-radius: 8px;">
+  <h3>💡 Recommendation: Option B</h3>
+  <p>The orchestrator + step components pattern is the sweet spot. It mirrors the BookingDetailModal decomposition you've already done in Phase 1, keeps files small and testable, and avoids the over-engineering of route-per-step for a flow that takes under 2 minutes to complete. The wizard is unlikely to be bookmarked mid-flow.</p>
+</div>

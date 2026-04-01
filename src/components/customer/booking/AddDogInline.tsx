@@ -10,8 +10,6 @@ interface AddDogInlineProps {
   onCancel: () => void;
 }
 
-const SIZE_OPTIONS: DogSize[] = ["small", "medium", "large"];
-
 export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProps) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -31,17 +29,38 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
     setError(null);
     try {
       if (!supabase) throw new Error("Not connected");
+
+      const dogSize = size || getSizeForBreed(breed) as DogSize || null;
+
+      // Try direct insert first (works for authenticated customers)
       const { data, error: err } = await supabase
         .from("dogs")
         .insert({
           name: name.trim(),
           breed: breed.trim() || null,
-          size: size || null,
+          size: dogSize,
           human_id: humanId,
         })
         .select()
         .single();
-      if (err) throw err;
+
+      if (err) {
+        // RLS failure (e.g. demo mode) — fall back to RPC
+        if (err.message?.includes("row-level security")) {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc("demo_add_dog", {
+            p_name: name.trim(),
+            p_breed: breed.trim() || "",
+            p_size: dogSize || "medium",
+            p_human_id: humanId,
+          });
+          if (rpcErr) throw rpcErr;
+          const d = rpcData as any;
+          onDogAdded({ id: d.id, name: d.name, breed: d.breed || "", size: d.size || null });
+          return;
+        }
+        throw err;
+      }
+
       onDogAdded({
         id: data.id,
         name: data.name,
@@ -110,30 +129,12 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: 13, color: BRAND.text, fontWeight: 600 }}>Size</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          {SIZE_OPTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSize(s)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 6,
-                border: size === s ? `2px solid ${BRAND.teal}` : `2px solid ${BRAND.greyLight}`,
-                background: size === s ? BRAND.teal : BRAND.white,
-                color: size === s ? BRAND.white : BRAND.text,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {s}
-            </button>
-          ))}
+      {/* Size is auto-detected from breed — no manual selector for customers */}
+      {!getSizeForBreed(breed) && breed.trim() && (
+        <div style={{ fontSize: 12, color: BRAND.textLight }}>
+          We'll confirm {name.trim() || "your dog"}'s size when you visit — just enter the breed and we'll sort it.
         </div>
-      </div>
+      )}
 
       {error && (
         <div style={{ color: BRAND.coral, fontSize: 13 }}>{error}</div>

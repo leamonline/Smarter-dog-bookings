@@ -3,19 +3,7 @@ import { BRAND, BOOKING_STATUSES } from "../../../constants/index.js";
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: BRAND.textLight,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 10,
-        }}
-      >
-        Status
-      </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
         {BOOKING_STATUSES.map((status) => {
           const currentStatus = booking.status || "Not Arrived";
           const isActive = currentStatus === status.id;
@@ -83,7 +71,7 @@ export function ClientConfirmedToggle({ booking, currentDateStr, onUpdate }) {
         alignItems: "center",
       }}
     >
-      <span style={{ fontSize: 13, color: BRAND.textLight }}>
+      <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
         Client Confirmed
       </span>
       <button

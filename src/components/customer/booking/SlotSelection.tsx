@@ -44,7 +44,7 @@ export function SlotSelection({
         }
         const { data } = await supabase
           .from("bookings")
-          .select("id, slot, size, dog_name, breed, service, owner, status, addons, pickup_by, payment, confirmed, dog_id, owner_id, pickup_by_id, booking_date")
+          .select("id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date")
           .eq("booking_date", selectedDate);
 
         if (cancelled) return;
@@ -53,17 +53,17 @@ export function SlotSelection({
           id: row.id,
           slot: row.slot,
           size: row.size,
-          dogName: row.dog_name,
-          breed: row.breed || "",
+          dogName: "",
+          breed: "",
           service: row.service,
-          owner: row.owner || "",
+          owner: "",
           status: row.status,
           addons: row.addons || [],
-          pickupBy: row.pickup_by || "",
+          pickupBy: "",
           payment: row.payment || "",
           confirmed: row.confirmed || false,
           _dogId: row.dog_id,
-          _ownerId: row.owner_id || null,
+          _ownerId: null,
           _pickupById: row.pickup_by_id || null,
           _bookingDate: row.booking_date,
         }));
@@ -133,9 +133,11 @@ export function SlotSelection({
                   <div style={{ fontWeight: 700, fontSize: 16, color: BRAND.text }}>
                     {formatSlot(allocation.dropOffTime)}
                   </div>
-                  <div style={{ fontSize: 13, color: BRAND.textLight }}>
-                    Drop off all dogs at this time
-                  </div>
+                  {selectedDogs.length > 1 && (
+                    <div style={{ fontSize: 13, color: BRAND.textLight }}>
+                      Drop off all dogs at this time
+                    </div>
+                  )}
                 </div>
                 {selected && (
                   <span style={{ color: BRAND.teal, fontSize: 20, fontWeight: 700 }}>✓</span>

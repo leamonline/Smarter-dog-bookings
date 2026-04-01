@@ -28,15 +28,11 @@ export default function CustomerApp() {
   const [demoList, setDemoList] = useState([]);
   const [demoLoading, setDemoLoading] = useState(false);
 
-  // Fetch demo customers list
+  // Fetch demo customers list (uses RPC to bypass RLS)
   const loadDemoList = async () => {
     if (!supabase) return;
     setDemoLoading(true);
-    const { data } = await supabase
-      .from("humans")
-      .select("id, name, surname, phone")
-      .neq("phone", "")
-      .order("name");
+    const { data } = await supabase.rpc("get_demo_customers");
     setDemoList(data || []);
     setDemoLoading(false);
   };
@@ -44,11 +40,7 @@ export default function CustomerApp() {
   const handleDemoSelect = async (humanId) => {
     if (!supabase) return;
     setDemoLoading(true);
-    const { data } = await supabase
-      .from("humans")
-      .select("*")
-      .eq("id", humanId)
-      .single();
+    const { data } = await supabase.rpc("get_demo_customer", { p_human_id: humanId }).single();
     if (data) {
       setDemoHuman(data);
     }

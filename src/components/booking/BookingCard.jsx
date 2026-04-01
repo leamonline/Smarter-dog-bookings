@@ -251,6 +251,7 @@ export function BookingCard({ booking }) {
             onClose={() => setShowDetail(false)}
             onRemove={onRemove}
             onOpenHuman={onOpenHuman}
+            onOpenDog={onOpenDog}
             onUpdate={onUpdate}
             currentDateStr={currentDateStr}
             currentDateObj={currentDateObj}
