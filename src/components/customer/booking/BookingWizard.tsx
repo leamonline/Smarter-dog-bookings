@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { BRAND } from "../../../constants/index.js";
-import type { WizardDog, WizardState, ServiceId, SlotAllocation } from "../../../types/index.js";
+import { BRAND, SALON_SLOTS } from "../../../constants/index.js";
+import { findGroupedSlots } from "../../../engine/capacity.js";
+import type { WizardDog, WizardState, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
 import { DogSelection } from "./DogSelection.js";
 import { ServiceSelection } from "./ServiceSelection.js";
 import { DateSelection } from "./DateSelection.js";
@@ -39,39 +40,42 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [dogs, setDogs] = useState<RawDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
+  const [dogsError, setDogsError] = useState<string | null>(null);
   const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>([]);
   const [services, setServices] = useState<Record<string, ServiceId>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slotAllocation, setSlotAllocation] = useState<SlotAllocation | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [booked, setBooked] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setDogsLoading(true);
-      try {
-        if (!supabase) return;
-        const { data } = await supabase
-          .from("dogs")
-          .select("id, name, breed, size")
-          .eq("human_id", humanRecord.id)
-          .order("name");
-        if (cancelled) return;
-        setDogs(
-          (data || []).map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            breed: d.breed || "",
-            size: d.size || null,
-          }))
-        );
-      } finally {
-        if (!cancelled) setDogsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  const fetchDogs = useCallback(async () => {
+    setDogsLoading(true);
+    setDogsError(null);
+    try {
+      if (!supabase) return;
+      const { data, error: fetchErr } = await supabase
+        .from("dogs")
+        .select("id, name, breed, size")
+        .eq("human_id", humanRecord.id)
+        .order("name");
+      if (fetchErr) throw fetchErr;
+      setDogs(
+        (data || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          breed: d.breed || "",
+          size: d.size || null,
+        }))
+      );
+    } catch (e: any) {
+      setDogsError(e.message || "Could not load your dogs");
+    } finally {
+      setDogsLoading(false);
+    }
   }, [humanRecord.id]);
+
+  useEffect(() => { fetchDogs(); }, [fetchDogs]);
 
   const toggleDog = (dog: WizardDog) => {
     setSelectedDogs((prev) => {
@@ -97,12 +101,36 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     try {
       if (!supabase) throw new Error("Not connected");
 
+      // Re-validate slot availability before inserting (guards against race conditions)
+      const { data: currentBookings } = await supabase
+        .from("bookings")
+        .select("id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date")
+        .eq("booking_date", selectedDate);
+
+      const bookings: Booking[] = (currentBookings || []).map((row: any) => ({
+        id: row.id, slot: row.slot, size: row.size, dogName: "", breed: "",
+        service: row.service, owner: "", status: row.status, addons: row.addons || [],
+        pickupBy: "", payment: row.payment || "", confirmed: row.confirmed || false,
+        _dogId: row.dog_id, _ownerId: null, _pickupById: row.pickup_by_id || null,
+        _bookingDate: row.booking_date,
+      }));
+
+      const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
+      const stillAvailable = findGroupedSlots(dogsForSlots, bookings, SALON_SLOTS);
+      const match = stillAvailable.find((a) => a.dropOffTime === slotAllocation.dropOffTime);
+
+      if (!match) {
+        setError("Sorry, that time slot is no longer available. Please go back and choose another.");
+        setStep(4);
+        setSubmitting(false);
+        return;
+      }
+
       const groupId = slotAllocation.groupId;
 
       const records = selectedDogs.map((dog) => {
         const assignment = slotAllocation.assignments.find((a) => a.dogId === dog.dogId);
         const slot = assignment?.slot ?? slotAllocation.dropOffTime;
-        const rawDog = dogs.find((d) => d.id === dog.dogId);
         return {
           booking_date: selectedDate,
           slot,
@@ -120,13 +148,47 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const { error: insertError } = await supabase.from("bookings").insert(records);
       if (insertError) throw insertError;
 
-      onComplete();
+      setBooked(true);
     } catch (e: any) {
       setError(e.message || "Could not create booking");
     } finally {
       setSubmitting(false);
     }
   };
+
+  // --- Success screen ---
+  if (booked) {
+    const dateLabel = selectedDate
+      ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : "";
+    const dropOff = slotAllocation?.dropOffTime || "";
+    const fmtTime = (s: string) => { const [h, m] = s.split(":").map(Number); return `${h > 12 ? h - 12 : h}:${String(m).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
+
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "48px 16px", textAlign: "center", fontFamily: "inherit" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.text, marginBottom: 8 }}>
+          Booking confirmed!
+        </div>
+        <div style={{ fontSize: 14, color: BRAND.textLight, marginBottom: 24, lineHeight: 1.5 }}>
+          {selectedDogs.map((d) => d.name).join(" & ")} — {dateLabel} at {fmtTime(dropOff)}
+        </div>
+        <div style={{
+          padding: "12px 16px", borderRadius: 10, background: BRAND.tealLight,
+          color: BRAND.teal, fontSize: 13, fontWeight: 600, marginBottom: 24,
+        }}>
+          You'll receive a confirmation message shortly.
+        </div>
+        <button onClick={onComplete} style={{
+          padding: "12px 32px", borderRadius: 8, border: "none",
+          background: BRAND.teal, color: BRAND.white, fontWeight: 700,
+          fontSize: 15, cursor: "pointer", fontFamily: "inherit",
+        }}>
+          Back to dashboard
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -195,6 +257,25 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           }}
         >
           {error}
+        </div>
+      )}
+
+      {/* Dogs fetch error */}
+      {dogsError && step === 1 && (
+        <div style={{
+          padding: "14px 16px", borderRadius: 10, background: BRAND.coralLight,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span style={{ color: BRAND.coral, fontSize: 13, fontWeight: 600 }}>
+            {dogsError}
+          </span>
+          <button onClick={fetchDogs} style={{
+            padding: "6px 14px", borderRadius: 6, border: "none",
+            background: BRAND.coral, color: BRAND.white, fontSize: 12,
+            fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+          }}>
+            Retry
+          </button>
         </div>
       )}
 

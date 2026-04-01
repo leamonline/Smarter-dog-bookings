@@ -35,7 +35,7 @@ export function WeekNav({ selectedDay, onSelectDay, bookingsByDate, dates, dayOp
           >
             <span>{day.label}</span>
             <span style={{ fontSize: 11, fontWeight: 800, color: countColor, lineHeight: 1 }}>
-              {isOpen ? count : "\u2014"}
+              {isOpen ? `${count} Dog${count !== 1 ? "s" : ""}` : "\u2014"}
             </span>
           </button>
         );

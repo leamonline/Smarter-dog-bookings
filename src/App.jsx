@@ -5,14 +5,8 @@ import {
   lazy,
   Suspense,
 } from "react";
-import {
-  BRAND,
-  ALL_DAYS,
-  SALON_SLOTS,
-} from "./constants/index.js";
-import { canBookSlot } from "./engine/capacity.js";
+import { BRAND } from "./constants/index.js";
 import { supabase } from "./supabase/client.js";
-import { toDateStr } from "./supabase/transforms.js";
 import { getDefaultOpenForDate } from "./engine/utils.js";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans.js";
@@ -23,6 +17,7 @@ import { useDaySettings } from "./supabase/hooks/useDaySettings.js";
 import { useWeekNav } from "./hooks/useWeekNav.js";
 import { useOfflineState } from "./hooks/useOfflineState.js";
 import { useModalState } from "./hooks/useModalState.js";
+import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
@@ -242,44 +237,11 @@ export default function App() {
     return state;
   }, [dates, daySettings]);
 
-  // --- Rebook logic ---
-  const handleOpenRebook = useCallback(
-    (booking) => {
-      const targetDate = currentDateObj;
-      const targetDateStr = toDateStr(targetDate);
-      const targetSettings = daySettings[targetDateStr] || {
-        isOpen:
-          dayOpenState[targetDateStr] ?? getDefaultOpenForDate(targetDate),
-        overrides: {},
-        extraSlots: [],
-      };
-      const targetSlots = [
-        ...SALON_SLOTS,
-        ...(targetSettings.extraSlots || []),
-      ];
-      const targetBookings = bookingsByDate[targetDateStr] || [];
-
-      const defaultSlot =
-        targetSlots.find(
-          (slot) =>
-            canBookSlot(targetBookings, slot, booking.size, targetSlots, {
-              overrides: targetSettings.overrides?.[slot] || {},
-            }).allowed,
-        ) || "";
-
-      setRebookData({
-        ...booking,
-        date: targetDate,
-        dateStr: targetDateStr,
-        slot: defaultSlot,
-        status: "Not Arrived",
-        payment: "Due at Pick-up",
-        confirmed: false,
-      });
-      setShowRebookDatePicker(false);
-    },
-    [currentDateObj, daySettings, dayOpenState, bookingsByDate],
-  );
+  // --- Rebook logic (extracted hook) ---
+  const { handleOpenRebook } = useRebookFlow({
+    currentDateObj, daySettings, dayOpenState, bookingsByDate,
+    setRebookData, setShowRebookDatePicker,
+  });
 
   // --- Loading / Auth gates ---
   if (authLoading) {
@@ -477,8 +439,9 @@ export default function App() {
         {showNewBooking && (
           <NewBookingModal
             onClose={() => setShowNewBooking(null)}
-            onAdd={(booking, dateStr) => {
-              handleAddToDate(booking, dateStr);
+            onAdd={(bookingOrArray, dateStr) => {
+              const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
+              list.forEach(b => handleAddToDate(b, dateStr));
               setShowNewBooking(null);
             }}
             dogs={dogs}

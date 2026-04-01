@@ -23,14 +23,14 @@ function ViewBtn({ mode, label, calendarMode, setCalendarMode }) {
 function WeekArrow({ direction, onClick, colour = BRAND.blue }) {
   return (
     <button onClick={(e) => { e.stopPropagation(); onClick(); }} style={{
-      width: 62, height: 62, display: "flex", alignItems: "center", justifyContent: "center",
+      width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
       background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer",
       flexShrink: 0, transition: "all 0.15s",
       boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
     }}
     onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.75"; }}
     onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}>
-      <svg width={20} height={20} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
         {direction === "left" ? <path d="M10 3l-5 5 5 5" /> : <path d="M6 3l5 5-5 5" />}
       </svg>
     </button>

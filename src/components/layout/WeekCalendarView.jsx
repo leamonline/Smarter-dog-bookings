@@ -67,11 +67,11 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
       }}>
         {/* Prev arrow — far left */}
         <button onClick={() => goMonth(-1)} style={{
-          width: 62, height: 62, display: "flex", alignItems: "center", justifyContent: "center",
+          width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
           background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
           boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
         }}>
-          <svg width={20} height={20} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3l-5 5 5 5" />
           </svg>
         </button>
@@ -109,11 +109,11 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
 
         {/* Next arrow — far right */}
         <button onClick={() => goMonth(1)} style={{
-          width: 62, height: 62, display: "flex", alignItems: "center", justifyContent: "center",
+          width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
           background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
           boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
         }}>
-          <svg width={20} height={20} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 3l5 5-5 5" />
           </svg>
         </button>
@@ -226,7 +226,7 @@ export function WeekCalendarView({
   // New booking modal trigger
   setShowNewBooking,
 }) {
-  const [calendarMode, setCalendarMode] = useState("week"); // "week" | "month"
+  const [calendarMode, setCalendarMode] = useState("day"); // "day" | "week" | "month"
 
   const isOpen = currentSettings.isOpen;
   const dayOverrides = currentSettings.overrides || {};
@@ -307,19 +307,19 @@ export function WeekCalendarView({
 
   return (
     <>
-      {/* ── Week nav bar ── */}
-      <div style={{ marginBottom: 16 }}>
-        <WeekNav
-          selectedDay={selectedDay}
-          onSelectDay={(i) => { setSelectedDay(i); if (calendarMode === "week") setCalendarMode("day"); }}
-          bookingsByDate={bookingsByDate}
-          dates={dates}
-          dayOpenState={dayOpenState}
-        />
+      {/* ── Week nav bar + legend info button ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <div style={{ flex: 1 }}>
+          <WeekNav
+            selectedDay={selectedDay}
+            onSelectDay={(i) => { setSelectedDay(i); if (calendarMode === "week") setCalendarMode("day"); }}
+            bookingsByDate={bookingsByDate}
+            dates={dates}
+            dayOpenState={dayOpenState}
+          />
+        </div>
+        <Legend />
       </div>
-
-      {/* ── Legend — shown on all views ── */}
-      <Legend />
 
       {/* ── Month view ── */}
       {calendarMode === "month" && (
@@ -479,11 +479,11 @@ export function WeekCalendarView({
           }}>
             {/* Prev week arrow — far left */}
             <button onClick={goToPrevWeek} style={{
-              width: 62, height: 62, display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
               background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
             }}>
-              <svg width={20} height={20} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.week} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.week} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 3l-5 5 5 5" />
               </svg>
             </button>
@@ -533,11 +533,11 @@ export function WeekCalendarView({
 
             {/* Next week arrow — far right */}
             <button onClick={goToNextWeek} style={{
-              width: 62, height: 62, display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
               background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
             }}>
-              <svg width={20} height={20} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.week} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.week} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 3l5 5-5 5" />
               </svg>
             </button>

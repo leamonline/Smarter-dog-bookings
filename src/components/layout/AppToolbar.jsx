@@ -27,7 +27,7 @@ export function AppToolbar({
           Smarter<span style={{ color: BRAND.blue }}>Dog</span>
         </div>
         <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 2 }}>
-          Salon Dashboard
+          Salon Bookings
         </div>
       </div>
       <div
@@ -66,7 +66,7 @@ export function AppToolbar({
             }
           }}
         >
-          Dashboard
+          Bookings
         </button>
 
         <button

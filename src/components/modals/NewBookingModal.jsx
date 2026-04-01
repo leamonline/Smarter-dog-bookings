@@ -169,6 +169,14 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
             opacity = 1;
             fontWeight = 700;
           }
+          if (status === "closed") {
+            bg = BRAND.coralLight;
+            color = BRAND.coral;
+            border = `2px solid ${BRAND.coralLight}`;
+            cursor = "not-allowed";
+            opacity = 0.7;
+            fontWeight = 600;
+          }
           if (status === "full") {
             bg = BRAND.coralLight;
             color = BRAND.coral;
@@ -178,9 +186,9 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
             fontWeight = 600;
           }
           if (isSelected) {
-            bg = BRAND.openGreen;
+            bg = BRAND.blue;
             color = BRAND.white;
-            border = `2px solid ${BRAND.openGreen}`;
+            border = `2px solid ${BRAND.blue}`;
             opacity = 1;
           }
           if (isToday(d) && !isSelected) {
@@ -198,7 +206,7 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
                 background: bg, color, opacity, transition: "all 0.15s",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}
-              onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = BRAND.openGreen; e.currentTarget.style.color = BRAND.white; } }}
+              onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = BRAND.blueLight; e.currentTarget.style.color = BRAND.blue; } }}
               onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = BRAND.openGreenBg; e.currentTarget.style.color = BRAND.openGreen; } }}
             >
               {d}
@@ -210,7 +218,7 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
   );
 }
 
-function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSize, onSelectSlot, selectedSlot }) {
+function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, onSelectSlot, selectedSlot }) {
   const dayBookings = bookingsByDate?.[dateStr] || [];
   const settings = daySettings?.[dateStr];
   const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
@@ -219,9 +227,14 @@ function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSize, on
   const availableSlots = activeSlots.filter(slot => {
     const cap = capacities[slot];
     if (!cap || cap.available <= 0) return false;
-    // Also check if the specific size can book
-    const check = canBookSlot(dayBookings, slot, selectedSize, activeSlots);
-    return check.allowed;
+    // Check that ALL dogs can fit — simulate sequential booking
+    let simulated = [...dayBookings];
+    for (const size of selectedSizes) {
+      const check = canBookSlot(simulated, slot, size, activeSlots);
+      if (!check.allowed) return false;
+      simulated = [...simulated, { slot, size, id: `sim-${size}-${Math.random()}` }];
+    }
+    return true;
   });
 
   if (availableSlots.length === 0) {
@@ -233,7 +246,7 @@ function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSize, on
   }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
       {availableSlots.map(slot => {
         const hour = parseInt(slot.split(":")[0]);
         const min = parseInt(slot.split(":")[1]);
@@ -245,14 +258,14 @@ function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSize, on
             key={slot}
             onClick={() => onSelectSlot(slot)}
             style={{
-              padding: "10px 18px", borderRadius: 10,
-              border: isSelected ? `2px solid ${BRAND.openGreen}` : `2px solid ${BRAND.greyLight}`,
-              background: isSelected ? BRAND.openGreen : BRAND.white,
+              padding: "10px 0", borderRadius: 10,
+              border: isSelected ? `2px solid ${BRAND.blue}` : `2px solid ${BRAND.greyLight}`,
+              background: isSelected ? BRAND.blue : BRAND.white,
               color: isSelected ? BRAND.white : BRAND.text,
               fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              transition: "all 0.15s", minWidth: 80, textAlign: "center",
+              transition: "all 0.15s", textAlign: "center",
             }}
-            onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = BRAND.openGreen; e.currentTarget.style.background = BRAND.openGreenBg; } }}
+            onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.background = BRAND.blueLight; } }}
             onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.background = BRAND.white; } }}
           >
             {displayTime}
@@ -281,82 +294,122 @@ export function NewBookingModal({
   isSearchingDogs,
 }) {
   const [dogQuery, setDogQuery] = useState("");
-  const [selectedDog, setSelectedDog] = useState(null);
+  const [dogEntries, setDogEntries] = useState([]); // { dog, humanKey, service }
   const [selectedHumanKey, setSelectedHumanKey] = useState("");
-  const [service, setService] = useState("full-groom");
+  const [addingAnotherDog, setAddingAnotherDog] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState(initialDateStr || "");
   const [selectedSlot, setSelectedSlot] = useState(initialSlot || "");
   const [error, setError] = useState("");
-  const [step, setStep] = useState(1); // 1=search dog, 2=pick service, 3=pick date, 4=pick time
   const searchRef = useRef(null);
+
+  const hasDogs = dogEntries.length > 0;
 
   // Auto-focus the search field
   useEffect(() => {
-    if (step === 1 && searchRef.current) {
+    if (!hasDogs && searchRef.current) {
       searchRef.current.focus();
     }
-  }, [step]);
+  }, [hasDogs]);
 
   // Build search entries from current dogs state (for display in dropdown)
   const filteredEntries = useMemo(() => {
-    if (selectedDog) return [];
+    if (hasDogs) return [];
     return buildSearchEntries(dogs, humans).slice(0, 8);
-  }, [dogs, humans, selectedDog]);
+  }, [dogs, humans, hasDogs]);
+
+  // Same owner's other dogs for "add another" picker
+  const sameOwnerDogs = useMemo(() => {
+    if (!selectedHumanKey) return [];
+    return Object.values(dogs || {}).filter(d =>
+      d.humanId === selectedHumanKey &&
+      !dogEntries.some(e => e.dog.id === d.id)
+    );
+  }, [dogs, selectedHumanKey, dogEntries]);
 
   const handleSelectEntry = (entry) => {
-    setSelectedDog(entry.dog);
+    setDogEntries([{ dog: entry.dog, humanKey: entry.humanKey, service: "full-groom" }]);
     setSelectedHumanKey(entry.humanKey);
     setDogQuery(entry.dog.name);
     setError("");
-    setStep(2);
   };
 
-  const handleClearDog = () => {
-    setSelectedDog(null);
+  const handleAddAnotherDog = (dog) => {
+    setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom" }]);
+    setAddingAnotherDog(false);
+    setSelectedSlot(""); // Reset slot — capacity may have changed
+  };
+
+  const handleRemoveDog = (dogId) => {
+    setDogEntries(prev => {
+      const next = prev.filter(e => e.dog.id !== dogId);
+      if (next.length === 0) {
+        setSelectedHumanKey("");
+        setDogQuery("");
+        setSelectedDateStr("");
+        setSelectedSlot("");
+      }
+      return next;
+    });
+    setSelectedSlot("");
+  };
+
+  const handleServiceChange = (dogId, newService) => {
+    setDogEntries(prev => prev.map(e =>
+      e.dog.id === dogId ? { ...e, service: newService } : e
+    ));
+  };
+
+  const handleClearAll = () => {
+    setDogEntries([]);
     setSelectedHumanKey("");
     setDogQuery("");
     setSelectedDateStr("");
     setSelectedSlot("");
-    setStep(1);
+    setAddingAnotherDog(false);
   };
 
   const handleSelectDate = (date) => {
     const dateStr = toDateStr(date);
     setSelectedDateStr(dateStr);
     setSelectedSlot("");
-    setStep(4);
   };
 
   const handleSelectSlot = (slot) => {
     setSelectedSlot(slot);
   };
 
-  const size = selectedDog?.size || "small";
+  const selectedSizes = dogEntries.map(e => e.dog.size || "small");
 
   const handleConfirm = () => {
-    if (!selectedDog) { setError("Please select a dog."); return; }
+    if (dogEntries.length === 0) { setError("Please select a dog."); return; }
     if (!selectedDateStr) { setError("Please select a date."); return; }
     if (!selectedSlot) { setError("Please select a time slot."); return; }
 
-    // Final capacity check
+    // Final capacity check — simulate each dog sequentially
     const dayBookings = bookingsByDate?.[selectedDateStr] || [];
     const settings = daySettings?.[selectedDateStr];
     const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
-    const check = canBookSlot(dayBookings, selectedSlot, size, activeSlots);
-    if (!check.allowed) {
-      setError(check.reason);
-      return;
+    let simulated = [...dayBookings];
+    for (const entry of dogEntries) {
+      const size = entry.dog.size || "small";
+      const check = canBookSlot(simulated, selectedSlot, size, activeSlots);
+      if (!check.allowed) {
+        setError(`No room for ${entry.dog.name}: ${check.reason}`);
+        return;
+      }
+      simulated = [...simulated, { slot: selectedSlot, size, id: `check-${entry.dog.id}` }];
     }
 
-    onAdd({
+    const bookings = dogEntries.map(entry => ({
       id: crypto.randomUUID(),
       slot: selectedSlot,
-      dogName: selectedDog.name,
-      breed: selectedDog.breed,
-      size,
-      service,
-      owner: selectedDog.humanId,
-    }, selectedDateStr);
+      dogName: entry.dog.name,
+      breed: entry.dog.breed,
+      size: entry.dog.size || "small",
+      service: entry.service,
+      owner: entry.dog.humanId,
+    }));
+    onAdd(bookings, selectedDateStr);
   };
 
   const inputStyle = {
@@ -400,7 +453,7 @@ export function NewBookingModal({
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.white }}>New Booking</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
-              {selectedDog ? `${selectedDog.name} — ${selectedDog.breed}` : "Search for a dog to get started"}
+              {hasDogs ? dogEntries.map(e => e.dog.name).join(", ") : "Search for a dog to get started"}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -413,41 +466,137 @@ export function NewBookingModal({
         {/* ─── Search section (overflow visible so dropdown isn't clipped) ─── */}
         <div style={{ padding: "20px 24px 0 24px", overflow: "visible", flexShrink: 0, position: "relative", zIndex: 10 }}>
 
-          {/* ─── STEP 1: Dog Search ─── */}
-          {selectedDog ? (
-            <div style={{
-              background: BRAND.blueLight, borderRadius: 12, padding: "12px 14px",
-              display: "flex", alignItems: "center", gap: 10,
-              border: `1.5px solid ${BRAND.blue}`,
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, background: BRAND.blue,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 20, flexShrink: 0,
-              }}>🐕</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: BRAND.blueDark }}>
-                  {selectedDog.name}
-                  {selectedDog.alerts?.length > 0 && <span style={{ marginLeft: 6 }}>⚠️</span>}
-                </div>
-                <div style={{ fontSize: 12, color: BRAND.text }}>
-                  {selectedDog.breed} · {size} · {selectedHumanKey}
-                </div>
-                {selectedDog.alerts?.length > 0 && (
-                  <div style={{ fontSize: 11, color: BRAND.coral, fontWeight: 600, marginTop: 2 }}>
-                    {selectedDog.alerts.join(", ")}
+          {/* ─── STEP 1: Dog Search / Dog Cards ─── */}
+          {hasDogs ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {dogEntries.map((entry, idx) => (
+                <div key={entry.dog.id} style={{
+                  background: BRAND.blueLight, borderRadius: 12, padding: "10px 14px",
+                  border: `1.5px solid ${BRAND.blue}`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8, background: BRAND.blue,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 18, flexShrink: 0,
+                    }}>🐕</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: BRAND.blueDark }}>
+                        {entry.dog.name}
+                        {entry.dog.alerts?.length > 0 && <span style={{ marginLeft: 6 }}>⚠️</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: BRAND.text }}>
+                        {entry.dog.breed} · {entry.dog.size || "small"} · {entry.humanKey}
+                      </div>
+                      {entry.dog.alerts?.length > 0 && (
+                        <div style={{ fontSize: 10, color: BRAND.coral, fontWeight: 600, marginTop: 1 }}>
+                          {entry.dog.alerts.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => handleRemoveDog(entry.dog.id)} style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 18, color: BRAND.textLight, fontWeight: 700, padding: "4px 8px",
+                      borderRadius: 6, transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.coral; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; }}>
+                      ×
+                    </button>
                   </div>
-                )}
+                  {/* Inline service dropdown */}
+                  <select
+                    value={entry.service}
+                    onChange={(e) => handleServiceChange(entry.dog.id, e.target.value)}
+                    style={{
+                      width: "100%", marginTop: 8, padding: "8px 10px", borderRadius: 8,
+                      border: `1px solid ${BRAND.greyLight}`, fontSize: 12,
+                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
+                      background: BRAND.white, color: BRAND.text, boxSizing: "border-box",
+                    }}
+                  >
+                    {SERVICES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.icon} {s.name} — {PRICING[s.id]?.[entry.dog.size || "small"] || "N/A"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+
+              {/* Add another dog / Start over buttons */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => setAddingAnotherDog(true)} style={{
+                  flex: 1, padding: "8px 12px", borderRadius: 8,
+                  border: `1.5px dashed ${BRAND.blue}`, background: BRAND.white,
+                  color: BRAND.blue, fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueLight; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.white; }}>
+                  + Add another dog
+                </button>
+                <button type="button" onClick={handleClearAll} style={{
+                  padding: "8px 12px", borderRadius: 8,
+                  border: `1.5px solid ${BRAND.greyLight}`, background: BRAND.white,
+                  color: BRAND.textLight, fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = BRAND.coral; e.currentTarget.style.color = BRAND.coral; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.textLight; }}>
+                  Start over
+                </button>
               </div>
-              <button type="button" onClick={handleClearDog} style={{
-                background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 8,
-                padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                color: BRAND.textLight, fontFamily: "inherit", transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = BRAND.coral; e.currentTarget.style.color = BRAND.coral; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.textLight; }}>
-                Change
-              </button>
+
+              {/* Same-owner dog picker */}
+              {addingAnotherDog && (
+                <div style={{
+                  background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)", overflow: "hidden",
+                }}>
+                  <div style={{ padding: "8px 12px", fontSize: 11, fontWeight: 700, color: BRAND.textLight, borderBottom: `1px solid ${BRAND.greyLight}` }}>
+                    {selectedHumanKey}'s other dogs
+                  </div>
+                  {sameOwnerDogs.length === 0 ? (
+                    <div style={{ padding: "12px", fontSize: 12, color: BRAND.textLight }}>
+                      No other dogs for this owner.
+                    </div>
+                  ) : (
+                    sameOwnerDogs.map(dog => (
+                      <div key={dog.id}
+                        onMouseDown={() => handleAddAnotherDog(dog)}
+                        style={{
+                          padding: "10px 12px", cursor: "pointer",
+                          borderBottom: `1px solid ${BRAND.greyLight}`,
+                          transition: "background 0.1s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                      >
+                        <span style={{ fontSize: 13, fontWeight: 700, color: BRAND.text }}>{dog.name}</span>
+                        <span style={{ fontSize: 12, color: BRAND.textLight, marginLeft: 6 }}>{dog.breed} · {dog.size || "small"}</span>
+                      </div>
+                    ))
+                  )}
+                  <div
+                    onMouseDown={() => { onClose(); onOpenAddDog?.(); }}
+                    style={{
+                      padding: "10px 12px", cursor: "pointer", fontSize: 12,
+                      fontWeight: 700, color: BRAND.blue, transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                  >
+                    + New dog for {selectedHumanKey}
+                  </div>
+                  <div style={{ padding: "6px 12px", borderTop: `1px solid ${BRAND.greyLight}` }}>
+                    <button type="button" onClick={() => setAddingAnotherDog(false)} style={{
+                      background: "none", border: "none", fontSize: 11, color: BRAND.textLight,
+                      cursor: "pointer", fontFamily: "inherit", padding: 0,
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div>
@@ -560,26 +709,8 @@ export function NewBookingModal({
         {/* ─── Rest of form (scrollable) ─── */}
         <div style={{ padding: "16px 24px 20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
 
-          {/* ─── STEP 2: Service Selection ─── */}
-          {selectedDog && (
-            <div>
-              <label style={labelStyle}>Service</label>
-              <select
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-                style={{ ...inputStyle, cursor: "pointer", fontWeight: 600 }}
-              >
-                {SERVICES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.icon} {s.name} — {PRICING[s.id]?.[size] || "N/A"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* ─── STEP 3: Date Selection ─── */}
-          {selectedDog && (
+          {/* ─── STEP 2: Date Selection ─── */}
+          {hasDogs && (
             <div>
               <label style={labelStyle}>Choose a Date</label>
               <AvailabilityCalendar
@@ -592,8 +723,8 @@ export function NewBookingModal({
             </div>
           )}
 
-          {/* ─── STEP 4: Time Slot Selection ─── */}
-          {selectedDateStr && selectedDog && (
+          {/* ─── STEP 3: Time Slot Selection ─── */}
+          {selectedDateStr && hasDogs && (
             <div>
               <label style={labelStyle}>
                 Available Times — {selectedDateDisplay}
@@ -602,7 +733,7 @@ export function NewBookingModal({
                 dateStr={selectedDateStr}
                 bookingsByDate={bookingsByDate}
                 daySettings={daySettings}
-                selectedSize={size}
+                selectedSizes={selectedSizes}
                 onSelectSlot={handleSelectSlot}
                 selectedSlot={selectedSlot}
               />
@@ -621,21 +752,29 @@ export function NewBookingModal({
 
           {/* ─── Actions ─── */}
           <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={handleConfirm}
-              disabled={!selectedDog || !selectedDateStr || !selectedSlot}
-              style={{
-                flex: 1, padding: "13px 0", borderRadius: 12, border: "none",
-                background: (!selectedDog || !selectedDateStr || !selectedSlot) ? BRAND.greyLight : BRAND.blue,
-                color: (!selectedDog || !selectedDateStr || !selectedSlot) ? BRAND.textLight : BRAND.white,
-                fontWeight: 700, fontSize: 14, cursor: (!selectedDog || !selectedDateStr || !selectedSlot) ? "not-allowed" : "pointer",
-                fontFamily: "inherit", transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { if (selectedDog && selectedDateStr && selectedSlot) e.currentTarget.style.background = BRAND.blueDark; }}
-              onMouseLeave={(e) => { if (selectedDog && selectedDateStr && selectedSlot) e.currentTarget.style.background = BRAND.blue; }}
-            >
-              Confirm Booking
-            </button>
+            {(() => {
+              const ready = hasDogs && selectedDateStr && selectedSlot;
+              const label = dogEntries.length > 1
+                ? `Confirm ${dogEntries.length} Bookings`
+                : "Confirm Booking";
+              return (
+                <button
+                  onClick={handleConfirm}
+                  disabled={!ready}
+                  style={{
+                    flex: 1, padding: "13px 0", borderRadius: 12, border: "none",
+                    background: ready ? BRAND.blue : BRAND.greyLight,
+                    color: ready ? BRAND.white : BRAND.textLight,
+                    fontWeight: 700, fontSize: 14, cursor: ready ? "pointer" : "not-allowed",
+                    fontFamily: "inherit", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { if (ready) e.currentTarget.style.background = BRAND.blueDark; }}
+                  onMouseLeave={(e) => { if (ready) e.currentTarget.style.background = BRAND.blue; }}
+                >
+                  {label}
+                </button>
+              );
+            })()}
             <button onClick={onClose} style={{
               padding: "13px 20px", borderRadius: 12, border: `1.5px solid ${BRAND.greyLight}`,
               background: BRAND.white, color: BRAND.textLight, fontSize: 14, fontWeight: 600,

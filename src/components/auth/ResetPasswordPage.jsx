@@ -188,7 +188,7 @@ export function ResetPasswordPage() {
           <div style={{ fontSize: 28, fontWeight: 800, color: BRAND.text }}>
             Smarter<span style={{ color: BRAND.blue }}>Dog</span>
           </div>
-          <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>Salon Dashboard</div>
+          <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>Salon Bookings</div>
         </div>
 
         <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.text, marginBottom: 4 }}>

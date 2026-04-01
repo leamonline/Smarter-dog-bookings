@@ -4,6 +4,7 @@ import { useSalon } from "../../contexts/SalonContext.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { AvailableSeat } from "../ui/AvailableSeat.jsx";
 import { BlockedSeat } from "../ui/BlockedSeat.jsx";
+import { IconTick } from "../icons/index.jsx";
 
 function getSeatsNeeded(booking, slot) {
   if (booking.size !== "large") return 1;
@@ -131,35 +132,53 @@ export function SlotRow({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {seats.map((seat, i) => (
-          <div key={i}>
-            {seat.type === "booking" ? (
-              <BookingCard booking={seat.booking} />
-            ) : showForm && formSeat === i ? (
-              <AddBookingForm
-                slot={slot}
-                bookings={bookings}
-                activeSlots={activeSlots}
-                dogs={dogs}
-                humans={humans}
-                slotOverrides={slotOverrides}
-                selectedSeatIndex={i}
-                onAdd={handleSubmitAdd}
-                onCancel={closeForm}
-              />
-            ) : seat.type === "available" ? (
-                <AvailableSeat
-                  onAddBooking={() => onOpenNewBooking?.(currentDateStr, slot)}
-                  onBlock={() => onOverride(slot, i, "blocked")}
-                />
-            ) : (
-                <BlockedSeat
-                  onAddBooking={() => onOpenNewBooking?.(currentDateStr, slot)}
-                  onOpen={() => onOverride(slot, i, "open")}
-                />
-            )}
+        {/* Compact mode: both seats available, no form open */}
+        {seats.every((s) => s.type === "available") && !showForm ? (
+          <div
+            onClick={() => onOpenNewBooking?.(currentDateStr, slot)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 12px", borderRadius: 10,
+              background: "#F0FAFF", cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#E0F4FF"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#F0FAFF"; }}
+          >
+            <IconTick size={14} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: BRAND.teal }}>2 available</span>
           </div>
-        ))}
+        ) : (
+          seats.map((seat, i) => (
+            <div key={i}>
+              {seat.type === "booking" ? (
+                <BookingCard booking={seat.booking} />
+              ) : showForm && formSeat === i ? (
+                <AddBookingForm
+                  slot={slot}
+                  bookings={bookings}
+                  activeSlots={activeSlots}
+                  dogs={dogs}
+                  humans={humans}
+                  slotOverrides={slotOverrides}
+                  selectedSeatIndex={i}
+                  onAdd={handleSubmitAdd}
+                  onCancel={closeForm}
+                />
+              ) : seat.type === "available" ? (
+                  <AvailableSeat
+                    onAddBooking={() => onOpenNewBooking?.(currentDateStr, slot)}
+                    onBlock={() => onOverride(slot, i, "blocked")}
+                  />
+              ) : (
+                  <BlockedSeat
+                    onAddBooking={() => onOpenNewBooking?.(currentDateStr, slot)}
+                    onOpen={() => onOverride(slot, i, "open")}
+                  />
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

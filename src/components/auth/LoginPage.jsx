@@ -83,7 +83,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             Smarter<span style={{ color: BRAND.blue }}>Dog</span>
           </div>
           <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>
-            Salon Dashboard
+            Salon Bookings
           </div>
         </div>
         <div
@@ -129,7 +129,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           Smarter<span style={{ color: BRAND.blue }}>Dog</span>
         </div>
         <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>
-          Salon Dashboard
+          Salon Bookings
         </div>
       </div>
 
