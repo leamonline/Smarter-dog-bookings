@@ -1,15 +1,11 @@
-import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import App from "./App.jsx";
-import CustomerApp from "./CustomerApp.jsx";
-import { ResetPasswordPage } from "./components/auth/ResetPasswordPage.jsx";
+import { initializeApp } from "firebase/app";
 
-createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/customer/*" element={<CustomerApp />} />
-      <Route path="/*" element={<App />} />
-    </Routes>
-  </BrowserRouter>
-);
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "smarter-dog-bookings.firebaseapp.com",
+  projectId: "smarter-dog-bookings",
+};
+
+const app = initializeApp(firebaseConfig);
+
+console.log("Firebase connected:", app);
