@@ -378,6 +378,8 @@ export function NewBookingModal({
     setSelectedSlot(slot);
   };
 
+  const [recurringWeeks, setRecurringWeeks] = useState(0);
+
   const selectedSizes = dogEntries.map(e => e.dog.size || "small");
 
   const handleConfirm = () => {
@@ -385,30 +387,55 @@ export function NewBookingModal({
     if (!selectedDateStr) { setError("Please select a date."); return; }
     if (!selectedSlot) { setError("Please select a time slot."); return; }
 
-    // Final capacity check — simulate each dog sequentially
-    const dayBookings = bookingsByDate?.[selectedDateStr] || [];
-    const settings = daySettings?.[selectedDateStr];
-    const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
-    let simulated = [...dayBookings];
-    for (const entry of dogEntries) {
-      const size = entry.dog.size || "small";
-      const check = canBookSlot(simulated, selectedSlot, size, activeSlots);
-      if (!check.allowed) {
-        setError(`No room for ${entry.dog.name}: ${check.reason}`);
-        return;
+    const bookings = [];
+    const occurrences = recurringWeeks > 0 ? Math.floor(52 / recurringWeeks) : 1;
+    let baseDate = new Date(selectedDateStr + "T00:00:00");
+
+    for (let i = 0; i < occurrences; i++) {
+      const targetDate = new Date(baseDate);
+      targetDate.setDate(baseDate.getDate() + (i * recurringWeeks * 7));
+      const targetDateStr = toDateStr(targetDate);
+      
+      const dayBookings = bookingsByDate?.[targetDateStr] || [];
+      const settings = daySettings?.[targetDateStr];
+      const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
+      let simulated = [...dayBookings];
+      
+      let allFit = true;
+      let failureReason = "";
+
+      for (const entry of dogEntries) {
+        const size = entry.dog.size || "small";
+        const check = canBookSlot(simulated, selectedSlot, size, activeSlots);
+        if (!check.allowed) {
+          allFit = false;
+          failureReason = check.reason;
+          break;
+        }
+        simulated = [...simulated, { slot: selectedSlot, size, id: `check-${entry.dog.id}` }];
       }
-      simulated = [...simulated, { slot: selectedSlot, size, id: `check-${entry.dog.id}` }];
+
+      if (allFit) {
+        dogEntries.forEach(entry => {
+          bookings.push({
+             id: crypto.randomUUID(),
+             slot: selectedSlot,
+             dogName: entry.dog.name,
+             breed: entry.dog.breed,
+             size: entry.dog.size || "small",
+             service: entry.service,
+             owner: entry.dog.humanId,
+             _bookingDate: targetDateStr
+          });
+        });
+      } else {
+        if (i === 0) {
+          setError(`Booking on ${targetDateStr} failed: ${failureReason} (Choose a different starting date)`);
+          return;
+        }
+      }
     }
 
-    const bookings = dogEntries.map(entry => ({
-      id: crypto.randomUUID(),
-      slot: selectedSlot,
-      dogName: entry.dog.name,
-      breed: entry.dog.breed,
-      size: entry.dog.size || "small",
-      service: entry.service,
-      owner: entry.dog.humanId,
-    }));
     onAdd(bookings, selectedDateStr);
   };
 
@@ -745,8 +772,31 @@ export function NewBookingModal({
             <div style={{
               fontSize: 13, color: BRAND.coral, fontWeight: 600,
               background: BRAND.coralLight, padding: "10px 14px", borderRadius: 10,
+              marginBottom: 16,
             }}>
               {error}
+            </div>
+          )}
+
+          {/* ─── STEP 4: Recurring (Optional) ─── */}
+          {hasDogs && selectedDateStr && selectedSlot && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Repeat Booking (Optional)</label>
+              <select
+                value={recurringWeeks}
+                onChange={(e) => setRecurringWeeks(Number(e.target.value))}
+                style={{ ...inputStyle, cursor: "pointer", background: BRAND.white }}
+              >
+                <option value={0}>None (Once off)</option>
+                <option value={4}>Every 4 weeks</option>
+                <option value={6}>Every 6 weeks</option>
+                <option value={8}>Every 8 weeks</option>
+              </select>
+              {recurringWeeks > 0 && (
+                <div style={{ marginTop: 8, fontSize: 13, color: BRAND.teal, fontWeight: 600 }}>
+                  This will generate bookings for the rest of the year. If a day is full, that slot will be skipped.
+                </div>
+              )}
             </div>
           )}
 

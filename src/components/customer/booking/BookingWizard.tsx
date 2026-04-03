@@ -48,6 +48,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
 
   const fetchDogs = useCallback(async () => {
     setDogsLoading(true);
@@ -156,8 +157,27 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     }
   };
 
-  // --- Success screen ---
-  if (booked) {
+  const handleJoinWaitlist = async () => {
+    if (!selectedDate) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (!supabase) throw new Error("Not connected");
+      const { error: waitErr } = await supabase.from("waitlist_entries").insert({
+        human_id: humanRecord.id,
+        target_date: selectedDate
+      });
+      if (waitErr) throw waitErr;
+      setWaitlistJoined(true);
+    } catch (e: any) {
+      setError(e.message || "Could not join waitlist");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // --- Success screens ---
+  if (booked || waitlistJoined) {
     const dateLabel = selectedDate
       ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "";
@@ -319,6 +339,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           onSelect={(allocation) => setSlotAllocation(allocation)}
           onNext={() => setStep(5)}
           onBack={() => setStep(3)}
+          onJoinWaitlist={handleJoinWaitlist}
         />
       )}
 

@@ -11,6 +11,7 @@ interface SlotSelectionProps {
   onSelect: (allocation: SlotAllocation) => void;
   onNext: () => void;
   onBack: () => void;
+  onJoinWaitlist?: () => void;
 }
 
 function formatSlot(slot: string): string {
@@ -27,6 +28,7 @@ export function SlotSelection({
   onSelect,
   onNext,
   onBack,
+  onJoinWaitlist,
 }: SlotSelectionProps) {
   const [availableSlots, setAvailableSlots] = useState<SlotAllocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,9 +102,29 @@ export function SlotSelection({
             color: BRAND.coral,
             fontSize: 14,
             fontWeight: 600,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
           }}
         >
-          No availability on this date for your selected dogs. Please try another day.
+          <div>No availability on this date. Please try another day.</div>
+          
+          <button
+             onClick={onJoinWaitlist}
+             style={{
+               alignSelf: "flex-start",
+               padding: "10px 16px",
+               borderRadius: 8,
+               border: "none",
+               background: BRAND.coral,
+               color: BRAND.white,
+               fontWeight: 700,
+               fontSize: 13,
+               cursor: "pointer",
+             }}
+          >
+            Join Waitlist for this date
+          </button>
         </div>
       )}
 

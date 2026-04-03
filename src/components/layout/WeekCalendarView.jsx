@@ -13,7 +13,7 @@ import { ClosedDayView } from "./ClosedDayView.jsx";
 import { WeekNav } from "./WeekNav.jsx";
 import { DaySummary } from "./DaySummary.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
-
+import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -437,6 +437,11 @@ export function WeekCalendarView({
                 Add another timeslot
               </button>
             </div>
+            <WaitlistPanel
+              currentDateObj={currentDateObj}
+              humans={humans}
+              dogs={dogs}
+            />
           </div>
         </>
       )}

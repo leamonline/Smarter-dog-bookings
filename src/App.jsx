@@ -23,6 +23,7 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
+import { ReportsView } from "./components/views/ReportsView.jsx";
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -372,6 +373,8 @@ export default function App() {
               searchQuery={dogsSearchQuery}
               isSearching={dogsIsSearching}
             />
+          ) : activeView === "reports" ? (
+            <ReportsView />
           ) : (
             <WeekCalendarView
               selectedDay={selectedDay}
@@ -441,7 +444,7 @@ export default function App() {
             onClose={() => setShowNewBooking(null)}
             onAdd={(bookingOrArray, dateStr) => {
               const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-              list.forEach(b => handleAddToDate(b, dateStr));
+              list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
               setShowNewBooking(null);
             }}
             dogs={dogs}

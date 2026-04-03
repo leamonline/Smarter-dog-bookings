@@ -185,6 +185,37 @@ export function AppToolbar({
           Settings
         </button>
 
+        <button
+          onClick={() => setActiveView("reports")}
+          style={{
+            background:
+              activeView === "reports" ? BRAND.blueLight : BRAND.white,
+            border: `1px solid ${activeView === "reports" ? BRAND.blue : BRAND.greyLight}`,
+            borderRadius: 8,
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: activeView === "reports" ? BRAND.blueDark : BRAND.text,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            if (activeView !== "reports") {
+              e.currentTarget.style.borderColor = BRAND.blue;
+              e.currentTarget.style.color = BRAND.blue;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeView !== "reports") {
+              e.currentTarget.style.borderColor = BRAND.greyLight;
+              e.currentTarget.style.color = BRAND.text;
+            }
+          }}
+        >
+          Reports
+        </button>
+
         {isOnline && user && (
           <button
             onClick={onSignOut}

@@ -39,7 +39,7 @@ as $$
   select exists (
     select 1
     from staff_profiles
-    where user_id = auth.uid()
+    where user_id = (select auth.uid())
   );
 $$;
 
@@ -96,7 +96,7 @@ begin
   -- Claim the record on first login
   if v_human.customer_user_id is null then
     update humans
-    set    customer_user_id = auth.uid()
+    set    customer_user_id = (select auth.uid())
     where  id = v_human.id
     returning * into v_human;
   end if;
@@ -119,40 +119,40 @@ alter table humans enable row level security;
 create policy "staff_select_humans"
   on humans for select
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 -- Customers can read their own human record
 create policy "customer_select_own_human"
   on humans for select
   to authenticated
-  using (customer_user_id = auth.uid());
+  using (customer_user_id = (select auth.uid()));
 
 -- Staff can insert humans (adding new clients)
 create policy "staff_insert_humans"
   on humans for insert
   to authenticated
-  with check (is_staff());
+  with check ((select is_staff()));
 
 -- Staff can update any human record
 create policy "staff_update_humans"
   on humans for update
   to authenticated
-  using    (is_staff())
-  with check (is_staff());
+  using    ((select is_staff()))
+  with check ((select is_staff()));
 
 -- Customers can update their own record
 -- (name, address, email, social links, whatsapp preference)
 create policy "customer_update_own_human"
   on humans for update
   to authenticated
-  using    (customer_user_id = auth.uid())
-  with check (customer_user_id = auth.uid());
+  using    (customer_user_id = (select auth.uid()))
+  with check (customer_user_id = (select auth.uid()));
 
 -- Staff can delete humans
 create policy "staff_delete_humans"
   on humans for delete
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 
 -- ---- HUMAN TRUSTED CONTACTS --------------------------------
@@ -162,8 +162,8 @@ alter table human_trusted_contacts enable row level security;
 create policy "staff_all_trusted_contacts"
   on human_trusted_contacts for all
   to authenticated
-  using    (is_staff())
-  with check (is_staff());
+  using    ((select is_staff()))
+  with check ((select is_staff()));
 
 -- Customers can view their own trusted-contact links
 create policy "customer_select_own_trusted_contacts"
@@ -174,7 +174,7 @@ create policy "customer_select_own_trusted_contacts"
       select 1
       from   humans
       where  humans.id = human_trusted_contacts.human_id
-        and  humans.customer_user_id = auth.uid()
+        and  humans.customer_user_id = (select auth.uid())
     )
   );
 
@@ -186,7 +186,7 @@ alter table dogs enable row level security;
 create policy "staff_select_dogs"
   on dogs for select
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 -- Customers can read their own dogs
 create policy "customer_select_own_dogs"
@@ -197,7 +197,7 @@ create policy "customer_select_own_dogs"
       select 1
       from   humans
       where  humans.id = dogs.human_id
-        and  humans.customer_user_id = auth.uid()
+        and  humans.customer_user_id = (select auth.uid())
     )
   );
 
@@ -205,18 +205,18 @@ create policy "customer_select_own_dogs"
 create policy "staff_insert_dogs"
   on dogs for insert
   to authenticated
-  with check (is_staff());
+  with check ((select is_staff()));
 
 create policy "staff_update_dogs"
   on dogs for update
   to authenticated
-  using    (is_staff())
-  with check (is_staff());
+  using    ((select is_staff()))
+  with check ((select is_staff()));
 
 create policy "staff_delete_dogs"
   on dogs for delete
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 
 -- ---- BOOKINGS ----------------------------------------------
@@ -226,7 +226,7 @@ alter table bookings enable row level security;
 create policy "staff_select_bookings"
   on bookings for select
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 -- Customers can read bookings for their own dogs
 create policy "customer_select_own_bookings"
@@ -238,7 +238,7 @@ create policy "customer_select_own_bookings"
       from   dogs
       join   humans on humans.id = dogs.human_id
       where  dogs.id   = bookings.dog_id
-        and  humans.customer_user_id = auth.uid()
+        and  humans.customer_user_id = (select auth.uid())
     )
   );
 
@@ -246,20 +246,20 @@ create policy "customer_select_own_bookings"
 create policy "staff_insert_bookings"
   on bookings for insert
   to authenticated
-  with check (is_staff());
+  with check ((select is_staff()));
 
 -- Staff can update bookings (status workflow, rescheduling, etc.)
 create policy "staff_update_bookings"
   on bookings for update
   to authenticated
-  using    (is_staff())
-  with check (is_staff());
+  using    ((select is_staff()))
+  with check ((select is_staff()));
 
 -- Staff can delete any booking
 create policy "staff_delete_bookings"
   on bookings for delete
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 -- Customers can cancel their own FUTURE bookings
 create policy "customer_cancel_own_bookings"
@@ -272,7 +272,7 @@ create policy "customer_cancel_own_bookings"
       from   dogs
       join   humans on humans.id = dogs.human_id
       where  dogs.id   = bookings.dog_id
-        and  humans.customer_user_id = auth.uid()
+        and  humans.customer_user_id = (select auth.uid())
     )
   );
 
@@ -285,7 +285,7 @@ alter table salon_config enable row level security;
 create policy "staff_select_salon_config"
   on salon_config for select
   to authenticated
-  using (is_staff());
+  using ((select is_staff()));
 
 -- Only owners can insert / update / delete config rows
 create policy "owner_insert_salon_config"
@@ -295,7 +295,7 @@ create policy "owner_insert_salon_config"
     exists (
       select 1
       from   staff_profiles
-      where  user_id = auth.uid()
+      where  user_id = (select auth.uid())
         and  role    = 'owner'
     )
   );
@@ -307,7 +307,7 @@ create policy "owner_update_salon_config"
     exists (
       select 1
       from   staff_profiles
-      where  user_id = auth.uid()
+      where  user_id = (select auth.uid())
         and  role    = 'owner'
     )
   )
@@ -315,7 +315,7 @@ create policy "owner_update_salon_config"
     exists (
       select 1
       from   staff_profiles
-      where  user_id = auth.uid()
+      where  user_id = (select auth.uid())
         and  role    = 'owner'
     )
   );
@@ -327,7 +327,7 @@ create policy "owner_delete_salon_config"
     exists (
       select 1
       from   staff_profiles
-      where  user_id = auth.uid()
+      where  user_id = (select auth.uid())
         and  role    = 'owner'
     )
   );
@@ -340,5 +340,5 @@ alter table day_settings enable row level security;
 create policy "staff_all_day_settings"
   on day_settings for all
   to authenticated
-  using    (is_staff())
-  with check (is_staff());
+  using    ((select is_staff()))
+  with check ((select is_staff()));
