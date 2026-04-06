@@ -248,7 +248,13 @@ export function DogCardModal({
     return `${months} ${months === 1 ? "month" : "months"}`;
   };
 
-  const displayAge = calcAge(resolvedDog.dob) || resolvedDog.age || "";
+  const displayAge = calcAge(resolvedDog.dob) || (() => {
+    const raw = resolvedDog.age || "";
+    if (!raw) return "";
+    // If it's just a number with no unit, append "yrs"
+    if (/^\d+$/.test(raw.trim())) return `${raw.trim()} yrs`;
+    return raw;
+  })();
   const [editOwnerId, setEditOwnerId] = useState(ownerOpenValue);
   const [ownerSearchQuery, setOwnerSearchQuery] = useState("");
   const [showOwnerSearch, setShowOwnerSearch] = useState(false);
@@ -758,15 +764,15 @@ export function DogCardModal({
                     background: hasAllergy ? BRAND.coral : BRAND.white,
                     color: hasAllergy ? BRAND.white : BRAND.coral,
                     border: `2px solid ${BRAND.coral}`,
-                    padding: "8px 14px",
-                    borderRadius: 20,
-                    fontSize: 13,
-                    fontWeight: 800,
+                    padding: "6px 12px",
+                    borderRadius: 16,
+                    fontSize: 12,
+                    fontWeight: 700,
                     cursor: "pointer",
                     transition: "all 0.15s",
                   }}
                 >
-                  {"⚠️"} Allergy {"⚠️"}
+                  Allergy
                 </button>
               </div>
               {hasAllergy && (
@@ -817,7 +823,7 @@ export function DogCardModal({
                         fontWeight: 700,
                       }}
                     >
-                      {"⚠️"} {alert}
+                      {alert}
                     </span>
                   ))}
                 </div>

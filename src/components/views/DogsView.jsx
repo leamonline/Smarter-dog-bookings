@@ -185,7 +185,22 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                       marginTop: 4,
                     }}
                   >
-                    {dog.breed} {"·"} {dog.age}
+                    {dog.breed} {"·"} {(() => {
+                      if (dog.dob) {
+                        const [y, m] = dog.dob.split("-").map(Number);
+                        if (y && m) {
+                          const now = new Date();
+                          let yrs = now.getFullYear() - y;
+                          let mos = now.getMonth() + 1 - m;
+                          if (mos < 0) { yrs--; mos += 12; }
+                          if (yrs >= 1) return `${yrs} ${yrs === 1 ? "yr" : "yrs"}`;
+                          return `${mos} ${mos === 1 ? "month" : "months"}`;
+                        }
+                      }
+                      const raw = dog.age || "";
+                      if (/^\d+$/.test(raw.trim())) return `${raw.trim()} yrs`;
+                      return raw;
+                    })()}
                   </div>
                 </div>
                 {alertCount > 0 && (
