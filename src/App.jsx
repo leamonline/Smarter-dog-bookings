@@ -433,6 +433,7 @@ export default function App() {
               dogs={dogs}
               humans={humans}
               onUpdateDog={updateDog}
+              onUpdateHuman={updateHuman}
               bookingsByDate={bookingsByDate}
               fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
             />

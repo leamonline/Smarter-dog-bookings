@@ -126,6 +126,12 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
               : dog.humanId || "");
           const alertCount = (dog.alerts || []).length;
 
+          const sizeTheme = {
+            small:  { bg: "#FFF8E0", text: "#D4A500", border: "#F5C518", shadow: "rgba(245,197,24,0.15)" },
+            medium: { bg: BRAND.tealLight, text: "#1E6B5C", border: BRAND.teal, shadow: "rgba(45,139,122,0.15)" },
+            large:  { bg: BRAND.coralLight, text: "#C93D63", border: BRAND.coral, shadow: "rgba(232,86,127,0.15)" },
+          }[dog.size] || { bg: BRAND.blueLight, text: BRAND.blueDark, border: BRAND.blue, shadow: "rgba(0,184,224,0.12)" };
+
           return (
             <div
               key={dog.id}
@@ -140,10 +146,10 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = BRAND.blue;
+                e.currentTarget.style.borderColor = sizeTheme.border;
                 e.currentTarget.style.transform = "translateY(-2px)";
                 e.currentTarget.style.boxShadow =
-                  "0 6px 16px rgba(0,184,224,0.12)";
+                  `0 6px 16px ${sizeTheme.shadow}`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = BRAND.greyLight;
@@ -153,7 +159,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
             >
               <div
                 style={{
-                  background: BRAND.blueLight,
+                  background: sizeTheme.bg,
                   padding: "14px 16px",
                   borderBottom: `1px solid ${BRAND.greyLight}`,
                   display: "flex",
@@ -166,7 +172,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                     style={{
                       fontSize: 16,
                       fontWeight: 800,
-                      color: BRAND.blueDark,
+                      color: sizeTheme.text,
                     }}
                   >
                     {dog.name}

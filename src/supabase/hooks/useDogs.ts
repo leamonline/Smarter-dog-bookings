@@ -259,6 +259,7 @@ export function useDogs(humansById: Record<string, any>) {
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.breed !== undefined) dbUpdates.breed = updates.breed;
       if (updates.age !== undefined) dbUpdates.age = updates.age;
+      if (updates.dob !== undefined) dbUpdates.dob = updates.dob;
       if (updates.groomNotes !== undefined)
         dbUpdates.groom_notes = updates.groomNotes;
       if (updates.alerts !== undefined) dbUpdates.alerts = updates.alerts;

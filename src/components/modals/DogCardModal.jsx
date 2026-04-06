@@ -4,9 +4,9 @@ import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
-import { IconEdit, IconTick } from "../icons/index.jsx";
+import { IconEdit, IconTick, IconSearch } from "../icons/index.jsx";
 
-function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
+function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -85,7 +85,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
           marginTop: 16,
           fontWeight: 800,
           fontSize: 12,
-          color: BRAND.blueDark,
+          color: accentColour || BRAND.blueDark,
           textTransform: "uppercase",
           letterSpacing: 0.5,
           marginBottom: 8,
@@ -165,7 +165,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
                 >
                   <div>
                     <span style={{ fontWeight: 600, color: BRAND.text }}>
-                      {b.date}
+                      {b.date?.split("-").reverse().join("-")}
                     </span>
                     <span style={{ color: BRAND.textLight, marginLeft: 6 }}>
                       {svc?.icon} {svc?.name || b.service}
@@ -197,6 +197,7 @@ export function DogCardModal({
   dogs,
   humans = {},
   onUpdateDog,
+  onUpdateHuman,
   bookingsByDate,
   fetchBookingHistoryForDog,
 }) {
@@ -220,6 +221,37 @@ export function DogCardModal({
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(resolvedDog.name || "");
+  const [editBreed, setEditBreed] = useState(resolvedDog.breed || "");
+
+  // DOB stored as "YYYY-MM", e.g. "2022-03"
+  const existingDob = resolvedDog.dob || "";
+  const [editDobMonth, setEditDobMonth] = useState(() => {
+    if (existingDob) return existingDob.split("-")[1] || "";
+    return "";
+  });
+  const [editDobYear, setEditDobYear] = useState(() => {
+    if (existingDob) return existingDob.split("-")[0] || "";
+    return "";
+  });
+
+  // Calculate age from DOB
+  const calcAge = (dob) => {
+    if (!dob) return null;
+    const [y, m] = dob.split("-").map(Number);
+    if (!y || !m) return null;
+    const now = new Date();
+    let years = now.getFullYear() - y;
+    let months = now.getMonth() + 1 - m;
+    if (months < 0) { years--; months += 12; }
+    if (years >= 1) return `${years} ${years === 1 ? "yr" : "yrs"}`;
+    return `${months} ${months === 1 ? "month" : "months"}`;
+  };
+
+  const displayAge = calcAge(resolvedDog.dob) || resolvedDog.age || "";
+  const [editOwnerId, setEditOwnerId] = useState(ownerOpenValue);
+  const [ownerSearchQuery, setOwnerSearchQuery] = useState("");
+  const [showOwnerSearch, setShowOwnerSearch] = useState(false);
   const [editNotes, setEditNotes] = useState(resolvedDog.groomNotes || "");
   const [editAlerts, setEditAlerts] = useState([...(resolvedDog.alerts || [])]);
 
@@ -233,19 +265,103 @@ export function DogCardModal({
     (resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")),
   );
 
+  // Trusted humans (from owner's trusted contacts)
+  const [showTrustedSearch, setShowTrustedSearch] = useState(false);
+  const [trustedSearchQuery, setTrustedSearchQuery] = useState("");
+
+  const trustedIds = owner?.trustedIds || [];
+
+  const trustedSearchResults = useMemo(() => {
+    if (!trustedSearchQuery.trim()) return [];
+    const query = trustedSearchQuery.toLowerCase().trim();
+    return Object.values(humans)
+      .filter((h) => {
+        if (!h || h.id === owner?.id) return false;
+        if (trustedIds.includes(h.id) || trustedIds.includes(h.fullName)) return false;
+        const fullName = (h.fullName || `${h.name || ""} ${h.surname || ""}`).toLowerCase();
+        const phone = (h.phone || "").toLowerCase();
+        return fullName.includes(query) || phone.includes(query);
+      })
+      .slice(0, 5);
+  }, [trustedSearchQuery, humans, owner?.id, trustedIds]);
+
+  const handleAddTrusted = async (selectedHumanId) => {
+    if (!owner || !onUpdateHuman) return;
+    const currentTrusted = owner.trustedIds || [];
+    const ownerKey = owner.fullName || owner.id;
+
+    // Add to owner's trusted list
+    await onUpdateHuman(ownerKey, {
+      trustedIds: [...currentTrusted, selectedHumanId],
+    });
+
+    // Bidirectional: add owner to their trusted list
+    const selectedHuman = getHumanByIdOrName(humans, selectedHumanId);
+    if (selectedHuman) {
+      const theirTrusted = selectedHuman.trustedIds || [];
+      const myId = owner.id || ownerKey;
+      if (!theirTrusted.includes(myId)) {
+        const theirKey = selectedHuman.fullName || selectedHuman.id;
+        await onUpdateHuman(theirKey, {
+          trustedIds: [...theirTrusted, myId],
+        });
+      }
+    }
+
+    setTrustedSearchQuery("");
+    setShowTrustedSearch(false);
+  };
+
+  // Owner search results
+  const ownerSearchResults = useMemo(() => {
+    if (!ownerSearchQuery.trim()) return [];
+    const query = ownerSearchQuery.toLowerCase().trim();
+    return Object.values(humans)
+      .filter((h) => {
+        if (!h) return false;
+        const fullName = (h.fullName || `${h.name || ""} ${h.surname || ""}`).toLowerCase();
+        const phone = (h.phone || "").toLowerCase();
+        return fullName.includes(query) || phone.includes(query);
+      })
+      .slice(0, 5);
+  }, [ownerSearchQuery, humans]);
+
+  const editOwner = editOwnerId
+    ? getHumanByIdOrName(humans, editOwnerId)
+    : null;
+  const editOwnerLabel = editOwner?.fullName || editOwnerId || "";
+
   const handleSave = async () => {
     const finalAlerts = editAlerts.filter((a) => !a.startsWith("Allergic to "));
     if (hasAllergy && allergyInput.trim()) {
       finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
     }
-    await onUpdateDog(resolvedDog.id || resolvedDog.name, {
+    const updates = {
       groomNotes: editNotes,
       alerts: finalAlerts,
-    });
+    };
+    if (editName.trim() && editName !== resolvedDog.name) updates.name = editName.trim();
+    if (editBreed !== resolvedDog.breed) updates.breed = editBreed.trim();
+    const composedDob = editDobYear && editDobMonth ? `${editDobYear}-${editDobMonth}` : "";
+    if (composedDob !== (resolvedDog.dob || "")) {
+      updates.dob = composedDob || null;
+      // Also update the age string for backwards compatibility
+      updates.age = calcAge(composedDob) || "";
+    }
+    if (editOwnerId !== ownerOpenValue) updates.humanId = editOwnerId;
+
+    await onUpdateDog(resolvedDog.id || resolvedDog.name, updates);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
+    setEditName(resolvedDog.name || "");
+    setEditBreed(resolvedDog.breed || "");
+    setEditDobMonth(existingDob ? existingDob.split("-")[1] || "" : "");
+    setEditDobYear(existingDob ? existingDob.split("-")[0] || "" : "");
+    setEditOwnerId(ownerOpenValue);
+    setOwnerSearchQuery("");
+    setShowOwnerSearch(false);
     setEditNotes(resolvedDog.groomNotes || "");
     setEditAlerts([...(resolvedDog.alerts || [])]);
     const allergy = (resolvedDog.alerts || []).find((a) =>
@@ -258,26 +374,39 @@ export function DogCardModal({
     setIsEditing(false);
   };
 
+  const sizeColourMap = {
+    small: { from: "#F5C518", to: "#D4A500" },
+    medium: { from: "#2D8B7A", to: "#1E6B5C" },
+    large: { from: "#E8567F", to: "#C93D63" },
+  };
+  const sizeAccent = sizeColourMap[resolvedDog.size]?.to || BRAND.blueDark;
+
+  const sectionLabel = {
+    fontWeight: 800,
+    fontSize: 12,
+    color: sizeAccent,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  };
+
   const detailRow = (label, value) => (
     <div
       style={{
-        display: "flex",
-        justifyContent: "space-between",
         padding: "8px 0",
         borderBottom: `1px solid ${BRAND.greyLight}`,
       }}
     >
-      <span style={{ fontSize: 13, color: BRAND.textLight }}>{label}</span>
-      <span
+      <span style={sectionLabel}>{label}</span>
+      <div
         style={{
           fontSize: 13,
           fontWeight: 600,
           color: BRAND.text,
-          textAlign: "right",
+          marginTop: 4,
         }}
       >
         {value || "—"}
-      </span>
+      </div>
     </div>
   );
 
@@ -292,6 +421,8 @@ export function DogCardModal({
     fontFamily: "inherit",
     color: BRAND.text,
   };
+
+  const headerColour = sizeColourMap[resolvedDog.size] || { from: BRAND.blue, to: BRAND.blueDark };
 
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
@@ -324,7 +455,7 @@ export function DogCardModal({
       >
         <div
           style={{
-            background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
+            background: `linear-gradient(135deg, ${headerColour.from}, ${headerColour.to})`,
             padding: "20px 24px",
             borderRadius: "16px 16px 0 0",
             display: "flex",
@@ -332,19 +463,103 @@ export function DogCardModal({
             alignItems: "flex-start",
           }}
         >
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.white }}>
-              {resolvedDog.name}
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.8)",
-                marginTop: 4,
-              }}
-            >
-              {resolvedDog.breed} {"·"} {resolvedDog.age}
-            </div>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            {isEditing ? (
+              <>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Dog name"
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: BRAND.white,
+                    background: "rgba(255,255,255,0.15)",
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    borderRadius: 8,
+                    padding: "4px 10px",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <input
+                    value={editBreed}
+                    onChange={(e) => setEditBreed(e.target.value)}
+                    placeholder="Breed"
+                    style={{
+                      fontSize: 13,
+                      color: BRAND.white,
+                      background: "rgba(255,255,255,0.15)",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      borderRadius: 6,
+                      padding: "3px 8px",
+                      flex: 1,
+                      outline: "none",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Born</span>
+                  <select
+                    value={editDobMonth}
+                    onChange={(e) => setEditDobMonth(e.target.value)}
+                    style={{
+                      fontSize: 12,
+                      color: BRAND.white,
+                      background: "rgba(255,255,255,0.15)",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      borderRadius: 6,
+                      padding: "3px 4px",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="" style={{ color: BRAND.text }}>Month</option>
+                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
+                      <option key={m} value={String(i + 1).padStart(2, "0")} style={{ color: BRAND.text }}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={editDobYear}
+                    onChange={(e) => setEditDobYear(e.target.value)}
+                    style={{
+                      fontSize: 12,
+                      color: BRAND.white,
+                      background: "rgba(255,255,255,0.15)",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      borderRadius: 6,
+                      padding: "3px 4px",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="" style={{ color: BRAND.text }}>Year</option>
+                    {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <option key={y} value={String(y)} style={{ color: BRAND.text }}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.white }}>
+                  {resolvedDog.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "rgba(255,255,255,0.8)",
+                    marginTop: 4,
+                  }}
+                >
+                  {resolvedDog.breed} {"·"} {displayAge}
+                </div>
+              </>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -361,6 +576,7 @@ export function DogCardModal({
               fontSize: 14,
               color: BRAND.white,
               fontWeight: 700,
+              flexShrink: 0,
             }}
           >
             {"×"}
@@ -368,24 +584,102 @@ export function DogCardModal({
         </div>
 
         <div style={{ padding: "16px 24px 0" }}>
-          {detailRow("Owner", ownerLabel)}
-          {ownerOpenValue && (
-            <div style={{ textAlign: "right", marginTop: -2, marginBottom: 8 }}>
-              <span
-                onClick={() => {
-                  onClose();
-                  onOpenHuman && onOpenHuman(ownerOpenValue);
-                }}
+          {isEditing ? (
+            <div style={{ padding: "8px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <div style={{ ...sectionLabel, marginBottom: 6 }}>Owner</div>
+              <div
+                onClick={() => setShowOwnerSearch(!showOwnerSearch)}
                 style={{
-                  fontSize: 12,
-                  color: BRAND.teal,
+                  ...inputStyle,
                   cursor: "pointer",
-                  fontWeight: 600,
-                  borderBottom: `1px dashed ${BRAND.teal}`,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: showOwnerSearch ? BRAND.blueLight : BRAND.white,
                 }}
               >
-                View human card →
-              </span>
+                <span style={{ fontWeight: 600 }}>{editOwnerLabel || "Select owner..."}</span>
+                <span style={{ fontSize: 11, color: BRAND.textLight }}>
+                  {showOwnerSearch ? "▲" : "▼"}
+                </span>
+              </div>
+              {showOwnerSearch && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
+                      <IconSearch size={14} colour={BRAND.textLight} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search by name or phone..."
+                      value={ownerSearchQuery}
+                      onChange={(e) => setOwnerSearchQuery(e.target.value)}
+                      autoFocus
+                      style={{
+                        ...inputStyle,
+                        paddingLeft: 32,
+                        borderColor: BRAND.blue,
+                      }}
+                    />
+                  </div>
+                  {ownerSearchResults.length > 0 && (
+                    <div style={{ marginTop: 4, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden" }}>
+                      {ownerSearchResults.map((candidate) => {
+                        const fullName = candidate.fullName || `${candidate.name || ""} ${candidate.surname || ""}`.trim();
+                        return (
+                          <div
+                            key={candidate.id}
+                            onClick={() => {
+                              setEditOwnerId(candidate.id);
+                              setOwnerSearchQuery("");
+                              setShowOwnerSearch(false);
+                            }}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              borderBottom: `1px solid ${BRAND.greyLight}`,
+                              transition: "background 0.1s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>{fullName}</div>
+                            {candidate.phone && (
+                              <div style={{ fontSize: 12, color: BRAND.textLight }}>{candidate.phone}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {ownerSearchQuery.trim() && ownerSearchResults.length === 0 && (
+                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 6, textAlign: "center" }}>
+                      No matching humans found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: "8px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <div style={sectionLabel}>Owner</div>
+              <div
+                onClick={() => {
+                  if (ownerOpenValue) {
+                    onClose();
+                    onOpenHuman && onOpenHuman(ownerOpenValue);
+                  }
+                }}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: BRAND.teal,
+                  marginTop: 4,
+                  cursor: ownerOpenValue ? "pointer" : "default",
+                }}
+              >
+                {ownerLabel || "—"}
+              </div>
             </div>
           )}
 
@@ -396,13 +690,7 @@ export function DogCardModal({
                 borderBottom: `1px solid ${BRAND.greyLight}`,
               }}
             >
-              <div
-                style={{
-                  fontSize: 13,
-                  color: BRAND.textLight,
-                  marginBottom: 6,
-                }}
-              >
+              <div style={{ ...sectionLabel, marginBottom: 6 }}>
                 Groom Notes
               </div>
               <textarea
@@ -419,11 +707,7 @@ export function DogCardModal({
             <div style={{ marginTop: 16 }}>
               <div
                 style={{
-                  fontWeight: 800,
-                  fontSize: 12,
-                  color: BRAND.coral,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
+                  ...sectionLabel,
                   marginBottom: 10,
                   textAlign: "center",
                 }}
@@ -513,12 +797,8 @@ export function DogCardModal({
               <>
                 <div
                   style={{
+                    ...sectionLabel,
                     marginTop: 16,
-                    fontWeight: 800,
-                    fontSize: 12,
-                    color: BRAND.coral,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
                     marginBottom: 8,
                   }}
                 >
@@ -546,9 +826,126 @@ export function DogCardModal({
           )}
         </div>
 
+        {/* Trusted Humans */}
+        <div style={{ padding: "0 24px", marginTop: 12 }}>
+          <div style={{ ...sectionLabel, marginBottom: 8 }}>
+            Trusted Humans
+          </div>
+          {trustedIds.length > 0 ? (
+            trustedIds.map((trustedId) => {
+              const trustedHuman = getHumanByIdOrName(humans, trustedId);
+              const trustedLabel =
+                trustedHuman?.fullName ||
+                `${trustedHuman?.name || ""} ${trustedHuman?.surname || ""}`.trim() ||
+                trustedId;
+              return (
+                <div
+                  key={trustedId}
+                  onClick={() => {
+                    onClose();
+                    onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
+                  }}
+                  style={{
+                    padding: "8px 0",
+                    borderBottom: `1px solid ${BRAND.greyLight}`,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: BRAND.teal,
+                    cursor: "pointer",
+                  }}
+                >
+                  {trustedLabel}
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ fontSize: 13, color: BRAND.textLight, fontStyle: "italic" }}>
+              None listed
+            </div>
+          )}
+
+          {onUpdateHuman && (
+            <>
+              <button
+                onClick={() => setShowTrustedSearch(!showTrustedSearch)}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  padding: "8px",
+                  borderRadius: 10,
+                  border: `1.5px dashed ${BRAND.teal}`,
+                  background: showTrustedSearch ? BRAND.teal : BRAND.tealLight,
+                  color: showTrustedSearch ? BRAND.white : BRAND.teal,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  transition: "all 0.15s",
+                }}
+              >
+                {showTrustedSearch ? "Cancel" : "+ Add a trusted human"}
+              </button>
+
+              {showTrustedSearch && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
+                      <IconSearch size={14} colour={BRAND.textLight} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search by name or phone..."
+                      value={trustedSearchQuery}
+                      onChange={(e) => setTrustedSearchQuery(e.target.value)}
+                      autoFocus
+                      style={{
+                        ...inputStyle,
+                        paddingLeft: 32,
+                        borderColor: BRAND.teal,
+                      }}
+                    />
+                  </div>
+                  {trustedSearchResults.length > 0 && (
+                    <div style={{ marginTop: 4, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden" }}>
+                      {trustedSearchResults.map((candidate) => {
+                        const fullName = candidate.fullName || `${candidate.name || ""} ${candidate.surname || ""}`.trim();
+                        return (
+                          <div
+                            key={candidate.id}
+                            onClick={() => handleAddTrusted(candidate.id)}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              borderBottom: `1px solid ${BRAND.greyLight}`,
+                              transition: "background 0.1s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.tealLight)}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>{fullName}</div>
+                            {candidate.phone && (
+                              <div style={{ fontSize: 12, color: BRAND.textLight }}>{candidate.phone}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {trustedSearchQuery.trim() && trustedSearchResults.length === 0 && (
+                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 6, textAlign: "center" }}>
+                      No matching humans found
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         <GroomingHistory
           dogId={resolvedDog.id}
           fetchBookingHistoryForDog={fetchBookingHistoryForDog}
+          accentColour={sizeAccent}
         />
 
         <div
@@ -578,15 +975,15 @@ export function DogCardModal({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  background: BRAND.blue,
+                  background: headerColour.from,
                   color: BRAND.white,
                   transition: "background 0.15s",
                 }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = BRAND.blueDark)
+                  (e.currentTarget.style.background = headerColour.to)
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = BRAND.blue)
+                  (e.currentTarget.style.background = headerColour.from)
                 }
               >
                 <IconTick size={16} colour={BRAND.white} /> Save
@@ -632,15 +1029,15 @@ export function DogCardModal({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                background: BRAND.blue,
+                background: headerColour.from,
                 color: BRAND.white,
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.background = BRAND.blueDark)
+                (e.currentTarget.style.background = headerColour.to)
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background = BRAND.blue)
+                (e.currentTarget.style.background = headerColour.from)
               }
             >
               <IconEdit size={16} colour={BRAND.white} /> Edit

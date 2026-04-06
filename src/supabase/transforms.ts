@@ -30,6 +30,7 @@ interface DbDogRow {
   name: string;
   breed: string;
   age: string | null;
+  dob: string | null;
   size: string | null;
   human_id: string | null;
   alerts: string[] | null;
@@ -222,6 +223,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       name: row.name,
       breed: row.breed,
       age: row.age || "",
+      dob: row.dob || null,
       size: (row.size as Dog["size"]) || null,
       humanId: owner ? owner.fullName : (row.human_id || ""),
       _humanId: row.human_id || null,
