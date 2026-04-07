@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from "react";
-import { BRAND, SERVICES, BOOKING_STATUSES, PRICING } from "../../constants/index.js";
+import { BRAND, SERVICES, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,

@@ -1,6 +1,4 @@
-import { useMemo } from "react";
 import { BRAND } from "../../constants/index.js";
-import { computeSlotCapacities } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 
@@ -13,12 +11,6 @@ function formatSlotTime(slot) {
 }
 
 export function SlotGrid({ bookings, activeSlots, onOpenNewBooking, currentDateStr }) {
-  // eslint-disable-next-line no-unused-vars
-  const capacities = useMemo(
-    () => computeSlotCapacities(bookings, activeSlots),
-    [bookings, activeSlots],
-  );
-
   return (
     <div
       style={{

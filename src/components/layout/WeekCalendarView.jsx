@@ -17,8 +17,8 @@ const DatePickerModal = lazy(() =>
   })),
 );
 
-// Arrow colours per view — used by MonthGrid navigation arrows
-const ARROW_COLOURS = { day: "#F5C518", week: "#2D8B7A", month: "#E8567F" };
+// Arrow colour for MonthGrid navigation arrows
+const ARROW_COLOURS = { month: "#E8567F" };
 
 /* ──────────────────────────────────────────────────────────
  * MonthGrid — shows a full calendar month with booking counts
@@ -91,7 +91,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
           {/* View buttons — stacked, right of month box */}
           {setCalendarMode && (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {[{ mode: "day", label: "Day View", colour: "#F5C518" }, { mode: "week", label: "Week View", colour: "#2D8B7A" }, { mode: "month", label: "Month View", colour: "#E8567F" }].map(v => {
+              {[{ mode: "day", label: "Day View", colour: "#F5C518" }, { mode: "month", label: "Month View", colour: "#E8567F" }].map(v => {
                 const active = calendarMode === v.mode;
                 return (
                   <button key={v.mode} onClick={() => setCalendarMode(v.mode)} style={{
@@ -196,9 +196,6 @@ export function WeekCalendarView({
   dates,
   currentDateObj,
   currentDateStr,
-  currentDayConfig,
-  goToNextWeek,
-  goToPrevWeek,
   // Data
   bookingsByDate,
   daySettings,
@@ -209,8 +206,6 @@ export function WeekCalendarView({
   currentSettings,
   // Handlers
   handleAdd,
-  handleRemove,
-  handleOverride,
   handleAddSlot,
   handleRemoveSlot,
   toggleDayOpen,
