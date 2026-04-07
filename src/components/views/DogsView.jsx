@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { BRAND } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
@@ -15,113 +15,42 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
   const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
 
   return (
-    <div style={{ animation: "fadeIn 0.2s ease-in" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-          flexWrap: "wrap",
-          gap: 16,
-        }}
-      >
+    <div className="animate-[fadeIn_0.2s_ease-in]">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h2
-            style={{
-              fontSize: 24,
-              fontWeight: 800,
-              margin: 0,
-              color: BRAND.text,
-            }}
-          >
+          <h2 className="text-2xl font-extrabold m-0 text-slate-800">
             Dogs Directory
           </h2>
-          <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>
+          <div className="text-[13px] text-slate-500 mt-1">
             Search by name, breed, owner, or alerts.
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            width: "100%",
-            maxWidth: 460,
-          }}
-        >
-          <div style={{ position: "relative", flex: 1 }}>
-            <div
-              style={{
-                position: "absolute",
-                left: 14,
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
-              }}
-            >
-              <IconSearch size={16} colour={BRAND.textLight} />
+        <div className="flex gap-2.5 items-center w-full max-w-[460px]">
+          <div className="relative flex-1">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
+              <IconSearch size={16} colour="#6B7280" />
             </div>
             <input
               type="text"
               placeholder="Search dogs..."
               value={searchQuery}
               onChange={(e) => onSearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 14px 10px 38px",
-                borderRadius: 10,
-                border: `1.5px solid ${BRAND.greyLight}`,
-                fontSize: 14,
-                fontFamily: "inherit",
-                boxSizing: "border-box",
-                outline: "none",
-                color: BRAND.text,
-                transition: "border-color 0.15s",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = BRAND.blue;
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = BRAND.greyLight;
-              }}
+              className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit outline-none text-slate-800 transition-colors focus:border-brand-blue"
             />
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            style={{
-              background: BRAND.blue,
-              color: BRAND.white,
-              border: "none",
-              borderRadius: 10,
-              padding: "10px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              whiteSpace: "nowrap",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = BRAND.blueDark;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = BRAND.blue;
-            }}
+            className="bg-brand-blue text-white border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-brand-blue-dark"
           >
             + Add Dog
           </button>
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16,
-        }}
-      >
+      {/* Card grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedDogs.map((dog) => {
           const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
           const ownerName =
@@ -131,65 +60,38 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
               : dog.humanId || "");
           const alertCount = (dog.alerts || []).length;
 
-          const sizeTheme = {
-            small:  { bg: "#FFF8E0", text: "#D4A500", border: "#F5C518", shadow: "rgba(245,197,24,0.15)" },
-            medium: { bg: BRAND.tealLight, text: "#1E6B5C", border: BRAND.teal, shadow: "rgba(45,139,122,0.15)" },
-            large:  { bg: BRAND.coralLight, text: "#C93D63", border: BRAND.coral, shadow: "rgba(232,86,127,0.15)" },
-          }[dog.size] || { bg: BRAND.blueLight, text: BRAND.blueDark, border: BRAND.blue, shadow: "rgba(0,184,224,0.12)" };
+          const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
+          const sizeTheme = { bg: t.light, text: t.primary, border: t.gradient[0], shadow: `${t.gradient[0]}26` };
 
           return (
             <div
               key={dog.id}
               onClick={() => onOpenDog(dog.id || dog.name)}
+              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:shadow-md"
               style={{
-                background: BRAND.white,
-                borderRadius: 12,
-                border: `1px solid ${BRAND.greyLight}`,
-                overflow: "hidden",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                "--hover-border": sizeTheme.border,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = sizeTheme.border;
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow =
-                  `0 6px 16px ${sizeTheme.shadow}`;
+                e.currentTarget.style.boxShadow = `0 6px 16px ${sizeTheme.shadow}`;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = BRAND.greyLight;
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.03)";
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.boxShadow = "";
               }}
             >
               <div
-                style={{
-                  background: sizeTheme.bg,
-                  padding: "14px 16px",
-                  borderBottom: `1px solid ${BRAND.greyLight}`,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                }}
+                className="p-3.5 px-4 border-b border-slate-200 flex justify-between items-start"
+                style={{ background: sizeTheme.bg }}
               >
                 <div>
                   <div
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 800,
-                      color: sizeTheme.text,
-                    }}
+                    className="text-base font-extrabold"
+                    style={{ color: sizeTheme.text }}
                   >
                     {titleCase(dog.name)}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: BRAND.text,
-                      fontWeight: 600,
-                      marginTop: 4,
-                    }}
-                  >
+                  <div className="text-[13px] text-slate-800 font-semibold mt-1">
                     {titleCase(dog.breed)}{(() => {
                       let age = "";
                       if (dog.dob) {
@@ -206,74 +108,31 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                         if (/^\d+$/.test(raw.trim())) age = `${raw.trim()} yrs`;
                         else age = raw;
                       }
-                      return age ? ` · ${age}` : "";
+                      return age ? ` \u00B7 ${age}` : "";
                     })()}
                   </div>
                 </div>
                 {alertCount > 0 && (
-                  <span
-                    style={{
-                      background: BRAND.coralLight,
-                      color: BRAND.coral,
-                      padding: "4px 10px",
-                      borderRadius: 12,
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {"⚠️"} {alertCount} alert{alertCount > 1 ? "s" : ""}
+                  <span className="bg-brand-coral-light text-brand-coral px-2.5 py-1 rounded-xl text-[11px] font-bold">
+                    {"\u26A0\uFE0F"} {alertCount} alert{alertCount > 1 ? "s" : ""}
                   </span>
                 )}
               </div>
 
-              <div style={{ padding: "14px 16px" }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: BRAND.textLight,
-                    marginBottom: 6,
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
+              <div className="p-3.5 px-4">
+                <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
                   Owner
                 </div>
-                <span
-                  style={{
-                    background: BRAND.offWhite,
-                    border: `1px solid ${BRAND.greyLight}`,
-                    padding: "4px 10px",
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: BRAND.text,
-                  }}
-                >
+                <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-800">
                   {titleCase(ownerName)}
                 </span>
 
                 {dog.groomNotes && (
-                  <div style={{ marginTop: 10 }}>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: BRAND.textLight,
-                        marginBottom: 4,
-                        fontWeight: 800,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
+                  <div className="mt-2.5">
+                    <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1">
                       Groom Notes
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: BRAND.text,
-                        lineHeight: 1.4,
-                      }}
-                    >
+                    <div className="text-xs text-slate-800 leading-relaxed">
                       {dog.groomNotes}
                     </div>
                   </div>
@@ -284,20 +143,13 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         })}
 
         {sortedDogs.length === 0 && !isSearching && (
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              textAlign: "center",
-              padding: "60px 20px",
-              color: BRAND.textLight,
-            }}
-          >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>{"🐾"}</div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>
+          <div className="col-span-full text-center py-16 px-5 text-slate-500">
+            <div className="text-[32px] mb-3">{"\uD83D\uDC3E"}</div>
+            <div className="text-[15px] font-semibold">
               {searchQuery ? `No dogs found matching "${searchQuery}"` : "No dogs yet."}
             </div>
             {searchQuery && (
-              <div style={{ fontSize: 13, marginTop: 6 }}>
+              <div className="text-[13px] mt-1.5">
                 Try searching by breed or owner name instead.
               </div>
             )}
@@ -305,19 +157,11 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         )}
       </div>
 
-      <div
-        style={{
-          marginTop: 20,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 10,
-        }}
-      >
-        <div style={{ fontSize: 13, color: BRAND.textLight }}>
+      {/* Footer */}
+      <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
+        <div className="text-[13px] text-slate-500">
           {isSearching ? (
-            <span style={{ fontStyle: "italic" }}>Searching...</span>
+            <span className="italic">Searching...</span>
           ) : (
             <span>Showing {sortedDogs.length} of {totalCount} dogs</span>
           )}
@@ -325,26 +169,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         {hasMore && !isSearching && (
           <button
             onClick={loadMore}
-            style={{
-              border: `1px solid ${BRAND.greyLight}`,
-              borderRadius: 10,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              background: BRAND.white,
-              color: BRAND.text,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = BRAND.blue;
-              e.currentTarget.style.color = BRAND.blue;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = BRAND.greyLight;
-              e.currentTarget.style.color = BRAND.text;
-            }}
+            className="border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold cursor-pointer font-inherit bg-white text-slate-800 transition-all hover:border-brand-blue hover:text-brand-blue"
           >
             Load more
           </button>
@@ -359,13 +184,6 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           humans={humans}
         />
       )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(5px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
