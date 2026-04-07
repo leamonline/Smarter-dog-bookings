@@ -56,7 +56,11 @@ export function BookingCardNew({ booking, onClick }) {
     PRICING[booking.service]?.small ??
     "";
 
-  const pickupTime = booking.pickup_time || booking.slot || "";
+  const pickupText = booking.status === "Completed"
+    ? `Collected${booking.pickup_time ? ` ${booking.pickup_time}` : ""}`
+    : booking.pickup_time
+      ? `Pick-up ${booking.pickup_time}`
+      : "";
 
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
@@ -93,7 +97,7 @@ export function BookingCardNew({ booking, onClick }) {
       }}
     >
       {/* Row 1: size dot + dog name + price */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span
           style={{
             width: 12,
@@ -176,7 +180,7 @@ export function BookingCardNew({ booking, onClick }) {
             color: "#374151",
           }}
         >
-          {service ? `${service.icon} ${service.name}` : booking.service || "—"}
+          {service?.name || booking.service || "—"}
         </span>
 
         {/* Pickup pill */}
@@ -187,7 +191,7 @@ export function BookingCardNew({ booking, onClick }) {
             color: "#7C3AED",
           }}
         >
-          {pickupTime || "—"}
+          {pickupText || "—"}
         </span>
 
         {/* Status pill */}
