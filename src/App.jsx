@@ -316,7 +316,6 @@ export default function App() {
       <AppToolbar
         activeView={activeView}
         setActiveView={setActiveView}
-        onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
         onSignOut={signOut}
         isOnline={isOnline}
         user={user}
@@ -340,7 +339,6 @@ export default function App() {
         <Suspense fallback={<LoadingSpinner />}>
           {activeView === "settings" ? (
             <SettingsView
-              onBack={() => setActiveView("dashboard")}
               config={salonConfig}
               onUpdateConfig={updateConfig}
               isOwner={isOwner}
@@ -420,6 +418,7 @@ export default function App() {
               humans={humans}
               dogs={dogs}
               onUpdateHuman={updateHuman}
+              onAddHuman={addHuman}
               bookingsByDate={bookingsByDate}
             />
           </Suspense>
