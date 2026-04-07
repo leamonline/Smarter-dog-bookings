@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { BRAND, SERVICES, BOOKING_STATUSES, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
+
+const BookingDetailModal = lazy(() =>
+  import("../modals/BookingDetailModal.jsx").then((module) => ({
+    default: module.BookingDetailModal,
+  })),
+);
 
 function titleCase(str) {
   if (!str) return "";
@@ -42,9 +48,24 @@ const PILL_BASE = {
 };
 
 export function BookingCardNew({ booking, onClick }) {
-  const { dogs, humans } = useSalon();
+  const {
+    dogs,
+    humans,
+    currentDateStr,
+    currentDateObj,
+    bookingsByDate,
+    dayOpenState,
+    daySettings,
+    onRemove,
+    onUpdate,
+    onUpdateDog,
+    onOpenHuman,
+    onOpenDog,
+    onRebook,
+  } = useSalon();
 
   const [hovered, setHovered] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
@@ -75,9 +96,12 @@ export function BookingCardNew({ booking, onClick }) {
     humanRecord?.name || booking.owner || booking.ownerName || ""
   );
 
+  const handleCardClick = onClick || (() => setShowDetail(true));
+
   return (
+    <>
     <div
-      onClick={onClick}
+      onClick={handleCardClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -206,5 +230,28 @@ export function BookingCardNew({ booking, onClick }) {
         </span>
       </div>
     </div>
+
+    {showDetail && (
+      <Suspense fallback={null}>
+        <BookingDetailModal
+          booking={booking}
+          onClose={() => setShowDetail(false)}
+          onRemove={onRemove}
+          onOpenHuman={onOpenHuman}
+          onOpenDog={onOpenDog}
+          onUpdate={onUpdate}
+          currentDateStr={currentDateStr}
+          currentDateObj={currentDateObj}
+          bookingsByDate={bookingsByDate}
+          dayOpenState={dayOpenState}
+          dogs={dogs}
+          humans={humans}
+          onUpdateDog={onUpdateDog}
+          onRebook={onRebook}
+          daySettings={daySettings}
+        />
+      </Suspense>
+    )}
+    </>
   );
 }
