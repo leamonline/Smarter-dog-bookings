@@ -108,7 +108,8 @@ export function StatsView() {
       const avg = dayCounts[i] > 0 ? dayTotals[i] / dayCounts[i] : 0;
       if (avg > bestAvg) { bestAvg = avg; bestIdx = i; }
     }
-    return { day: DAY_LABELS[bestIdx] + "s", avg: bestAvg.toFixed(1) };
+    const FULL_DAYS = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
+    return { day: FULL_DAYS[bestIdx], avg: bestAvg.toFixed(1) };
   }, [bookingsByDate]);
 
   // Service breakdown
@@ -240,7 +241,7 @@ export function StatsView() {
             {busiestDay.day} are your busiest day
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>
-            avg {busiestDay.avg} bookings per {busiestDay.day.slice(0, -1).toLowerCase()}
+            avg {busiestDay.avg} bookings per {busiestDay.day.replace(/s$/, "").toLowerCase()}
           </div>
         </div>
 
