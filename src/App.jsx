@@ -268,15 +268,7 @@ export default function App() {
     return (
       <Suspense
         fallback={
-          <div
-            style={{
-              maxWidth: 900,
-              margin: "0 auto",
-              padding: "20px 16px",
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            }}
-          >
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans">
             <LoadingSpinner />
           </div>
         }
@@ -288,15 +280,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          padding: "20px 16px",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans">
         <LoadingSpinner />
       </div>
     );
@@ -304,16 +288,7 @@ export default function App() {
 
   // --- Render ---
   return (
-    <div
-      style={{
-        maxWidth: 900,
-        margin: "0 auto",
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        color: BRAND.text,
-        padding: "20px 16px",
-      }}
-    >
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
       {dataError && <ErrorBanner message={dataError} />}
 
       <AppToolbar
