@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand accent colours */
+  --color-brand-blue: #0EA5E9;
+  --color-brand-blue-dark: #0284C7;
+  --color-brand-coral: #E8567F;
+  --color-brand-coral-light: #FDE2E8;
+  --color-brand-teal: #2D8B7A;
+  --color-brand-green: #16A34A;
+  --color-brand-red: #DC2626;
+
+  /* Size dot colours */
+  --color-size-small: #F5C518;
+  --color-size-medium: #2D8B7A;
+  --color-size-large: #E8567F;
+}
+
+/* Body reset */
+body {
+  margin: 0;
+  background-color: theme(--color-slate-50);
+}
