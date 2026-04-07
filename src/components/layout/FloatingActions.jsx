@@ -1,3 +1,4 @@
+// src/components/layout/FloatingActions.jsx
 import { useState } from "react";
 import { PRICING } from "../../constants/index.js";
 
@@ -17,130 +18,42 @@ export default function FloatingActions({ bookings, onNewBooking }) {
 
   const revenue = computeRevenue(bookings || []);
 
-  const transition = "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
-
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 28,
-        zIndex: 200,
-        display: "flex",
-        alignItems: "flex-end",
-      }}
-    >
+    <div className="fixed z-[200] flex items-end bottom-20 right-4 md:bottom-6 md:right-7">
       {/* Money Note */}
       <div
         onMouseEnter={() => setNoteHover(true)}
         onMouseLeave={() => setNoteHover(false)}
+        className="transform -rotate-[4deg] -mr-[18px] mb-1 transition-all cursor-default"
         style={{
           transform: `rotate(-4deg) translateY(${noteHover ? "-6px" : "0"}) scale(${noteHover ? "1.04" : "1"})`,
-          marginRight: -18,
-          marginBottom: 4,
           zIndex: noteHover ? 210 : 201,
-          transition,
-          cursor: "default",
         }}
       >
         <div
+          className="border-2 border-white/20 rounded-lg px-5 md:px-6 py-2.5 min-w-[120px] text-center text-white relative"
           style={{
             background: "linear-gradient(135deg, #16A34A, #15803D)",
-            border: "2px solid rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            padding: "10px 24px 10px 20px",
-            minWidth: 120,
-            textAlign: "center",
-            color: "white",
-            boxShadow:
-              "0 4px 16px rgba(22,163,74,0.35), 0 2px 6px rgba(0,0,0,0.1)",
-            position: "relative",
+            boxShadow: "0 4px 16px rgba(22,163,74,0.35), 0 2px 6px rgba(0,0,0,0.1)",
           }}
         >
           {/* Dashed inner border */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 5,
-              border: "1.5px dashed rgba(255,255,255,0.15)",
-              borderRadius: 4,
-              pointerEvents: "none",
-            }}
-          />
+          <div className="absolute inset-[5px] border-[1.5px] border-dashed border-white/15 rounded pointer-events-none" />
 
-          {/* Corner £ symbols */}
-          <span
-            style={{
-              position: "absolute",
-              top: 7,
-              left: 8,
-              fontSize: 7,
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            £
-          </span>
-          <span
-            style={{
-              position: "absolute",
-              top: 7,
-              right: 8,
-              fontSize: 7,
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            £
-          </span>
-          <span
-            style={{
-              position: "absolute",
-              bottom: 7,
-              left: 8,
-              fontSize: 7,
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            £
-          </span>
-          <span
-            style={{
-              position: "absolute",
-              bottom: 7,
-              right: 8,
-              fontSize: 7,
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            £
-          </span>
+          {/* Corner pound symbols */}
+          <span className="absolute top-[7px] left-2 text-[7px] font-black text-white/20">&pound;</span>
+          <span className="absolute top-[7px] right-2 text-[7px] font-black text-white/20">&pound;</span>
+          <span className="absolute bottom-[7px] left-2 text-[7px] font-black text-white/20">&pound;</span>
+          <span className="absolute bottom-[7px] right-2 text-[7px] font-black text-white/20">&pound;</span>
 
           {/* Label */}
-          <div
-            style={{
-              fontSize: 8,
-              fontWeight: 800,
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              color: "rgba(255,255,255,0.55)",
-            }}
-          >
+          <div className="text-[8px] font-extrabold uppercase tracking-[1px] text-white/55">
             Today&apos;s Revenue
           </div>
 
           {/* Amount */}
-          <div
-            style={{
-              fontSize: 24,
-              fontWeight: 900,
-              lineHeight: 1.1,
-              textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-            }}
-          >
-            £{revenue}
+          <div className="text-2xl font-black leading-tight" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.15)" }}>
+            &pound;{revenue}
           </div>
         </div>
       </div>
@@ -150,75 +63,34 @@ export default function FloatingActions({ bookings, onNewBooking }) {
         onMouseEnter={() => setCardHover(true)}
         onMouseLeave={() => setCardHover(false)}
         onClick={onNewBooking}
+        className="transform rotate-[3deg] transition-all cursor-pointer"
         style={{
           transform: `rotate(3deg) translateY(${cardHover ? "-6px" : "0"}) scale(${cardHover ? "1.04" : "1"})`,
           zIndex: cardHover ? 210 : 202,
-          transition,
-          cursor: "pointer",
         }}
       >
         <div
-          style={{
-            background: "white",
-            borderRadius: 10,
-            padding: "14px 30px",
-            textAlign: "center",
-            minWidth: 150,
-            border: "1.5px solid #E5E7EB",
-            boxShadow:
-              "0 4px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)",
-            position: "relative",
-            overflow: "hidden",
-          }}
+          className="bg-white rounded-[10px] p-[14px_30px] text-center min-w-[150px] border-[1.5px] border-slate-200 shadow-lg relative overflow-hidden"
         >
           {/* Top accent */}
           <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 3,
-              background: "linear-gradient(90deg, #00B8E0, #0099BD)",
-            }}
+            className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: "linear-gradient(90deg, #00B8E0, #0099BD)" }}
           />
 
           {/* Bottom accent */}
           <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 2,
-              background: "linear-gradient(90deg, #00B8E0, #0099BD)",
-              opacity: 0.3,
-            }}
+            className="absolute bottom-0 left-0 right-0 h-[2px] opacity-30"
+            style={{ background: "linear-gradient(90deg, #00B8E0, #0099BD)" }}
           />
 
           {/* Brand name */}
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: "#0099BD",
-              textTransform: "uppercase",
-              letterSpacing: 1.5,
-              marginBottom: 3,
-            }}
-          >
+          <div className="text-[9px] font-extrabold text-[#0099BD] uppercase tracking-[1.5px] mb-[3px]">
             Smarter Dog
           </div>
 
           {/* CTA */}
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 900,
-              color: "#1F2937",
-              lineHeight: 1,
-            }}
-          >
+          <div className="text-lg font-black text-slate-800 leading-none">
             Book Now
           </div>
         </div>
