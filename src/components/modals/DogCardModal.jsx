@@ -190,6 +190,11 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   );
 }
 
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function DogCardModal({
   dogId,
   onClose,
@@ -198,6 +203,7 @@ export function DogCardModal({
   humans = {},
   onUpdateDog,
   onUpdateHuman,
+  onAddHuman,
   bookingsByDate,
   fetchBookingHistoryForDog,
 }) {
@@ -274,6 +280,10 @@ export function DogCardModal({
   // Trusted humans (from owner's trusted contacts)
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);
   const [trustedSearchQuery, setTrustedSearchQuery] = useState("");
+  const [showNewTrustedForm, setShowNewTrustedForm] = useState(false);
+  const [newTrustedName, setNewTrustedName] = useState("");
+  const [newTrustedSurname, setNewTrustedSurname] = useState("");
+  const [newTrustedPhone, setNewTrustedPhone] = useState("");
 
   const trustedIds = owner?.trustedIds || [];
 
@@ -315,6 +325,36 @@ export function DogCardModal({
     }
 
     setTrustedSearchQuery("");
+    setShowTrustedSearch(false);
+  };
+
+  const handleAddNewTrusted = async () => {
+    if (!owner || !onAddHuman || !onUpdateHuman) return;
+    const name = newTrustedName.trim();
+    const surname = newTrustedSurname.trim();
+    const phone = newTrustedPhone.trim();
+    if (!name || !surname || !phone) return;
+
+    const newHuman = await onAddHuman({ name, surname, phone });
+    if (!newHuman) return;
+
+    // Add to owner's trusted list
+    const currentTrusted = owner.trustedIds || [];
+    const ownerKey = owner.fullName || owner.id;
+    await onUpdateHuman(ownerKey, {
+      trustedIds: [...currentTrusted, newHuman.id],
+    });
+
+    // Bidirectional: add owner to new human's trusted list
+    const newKey = newHuman.fullName || `${name} ${surname}`;
+    await onUpdateHuman(newKey, {
+      trustedIds: [owner.id || ownerKey],
+    });
+
+    setNewTrustedName("");
+    setNewTrustedSurname("");
+    setNewTrustedPhone("");
+    setShowNewTrustedForm(false);
     setShowTrustedSearch(false);
   };
 
@@ -381,11 +421,13 @@ export function DogCardModal({
   };
 
   const sizeColourMap = {
-    small: { from: "#F5C518", to: "#D4A500" },
-    medium: { from: "#2D8B7A", to: "#1E6B5C" },
-    large: { from: "#E8567F", to: "#C93D63" },
+    small: { from: "#F5C518", to: "#D4A500", text: "#5C4600", textSub: "rgba(60,40,0,0.65)" },
+    medium: { from: "#2D8B7A", to: "#1E6B5C", text: BRAND.white, textSub: "rgba(255,255,255,0.8)" },
+    large: { from: "#E8567F", to: "#C93D63", text: BRAND.white, textSub: "rgba(255,255,255,0.8)" },
   };
   const sizeAccent = sizeColourMap[resolvedDog.size]?.to || BRAND.blueDark;
+  const headerTextColour = sizeColourMap[resolvedDog.size]?.text || BRAND.white;
+  const headerSubTextColour = sizeColourMap[resolvedDog.size]?.textSub || "rgba(255,255,255,0.8)";
 
   const sectionLabel = {
     fontWeight: 800,
@@ -479,7 +521,7 @@ export function DogCardModal({
                   style={{
                     fontSize: 20,
                     fontWeight: 800,
-                    color: BRAND.white,
+                    color: headerTextColour,
                     background: "rgba(255,255,255,0.15)",
                     border: "1px solid rgba(255,255,255,0.3)",
                     borderRadius: 8,
@@ -497,7 +539,7 @@ export function DogCardModal({
                     placeholder="Breed"
                     style={{
                       fontSize: 13,
-                      color: BRAND.white,
+                      color: headerTextColour,
                       background: "rgba(255,255,255,0.15)",
                       border: "1px solid rgba(255,255,255,0.3)",
                       borderRadius: 6,
@@ -507,13 +549,13 @@ export function DogCardModal({
                       fontFamily: "inherit",
                     }}
                   />
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Born</span>
+                  <span style={{ fontSize: 12, color: headerSubTextColour }}>Born</span>
                   <select
                     value={editDobMonth}
                     onChange={(e) => setEditDobMonth(e.target.value)}
                     style={{
                       fontSize: 12,
-                      color: BRAND.white,
+                      color: headerTextColour,
                       background: "rgba(255,255,255,0.15)",
                       border: "1px solid rgba(255,255,255,0.3)",
                       borderRadius: 6,
@@ -533,7 +575,7 @@ export function DogCardModal({
                     onChange={(e) => setEditDobYear(e.target.value)}
                     style={{
                       fontSize: 12,
-                      color: BRAND.white,
+                      color: headerTextColour,
                       background: "rgba(255,255,255,0.15)",
                       border: "1px solid rgba(255,255,255,0.3)",
                       borderRadius: 6,
@@ -552,17 +594,17 @@ export function DogCardModal({
               </>
             ) : (
               <>
-                <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.white }}>
-                  {resolvedDog.name}
+                <div style={{ fontSize: 20, fontWeight: 800, color: headerTextColour }}>
+                  {titleCase(resolvedDog.name)}
                 </div>
                 <div
                   style={{
                     fontSize: 13,
-                    color: "rgba(255,255,255,0.8)",
+                    color: headerSubTextColour,
                     marginTop: 4,
                   }}
                 >
-                  {resolvedDog.breed} {"·"} {displayAge}
+                  {titleCase(resolvedDog.breed)} {"·"} {displayAge}
                 </div>
               </>
             )}
@@ -580,7 +622,7 @@ export function DogCardModal({
               justifyContent: "center",
               cursor: "pointer",
               fontSize: 14,
-              color: BRAND.white,
+              color: headerTextColour,
               fontWeight: 700,
               flexShrink: 0,
             }}
@@ -669,22 +711,34 @@ export function DogCardModal({
           ) : (
             <div style={{ padding: "8px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
               <div style={sectionLabel}>Owner</div>
-              <div
-                onClick={() => {
-                  if (ownerOpenValue) {
-                    onClose();
-                    onOpenHuman && onOpenHuman(ownerOpenValue);
-                  }
-                }}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: BRAND.teal,
-                  marginTop: 4,
-                  cursor: ownerOpenValue ? "pointer" : "default",
-                }}
-              >
-                {ownerLabel || "—"}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+                <div
+                  onClick={() => {
+                    if (ownerOpenValue) {
+                      onClose();
+                      onOpenHuman && onOpenHuman(ownerOpenValue);
+                    }
+                  }}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: BRAND.teal,
+                    cursor: ownerOpenValue ? "pointer" : "default",
+                  }}
+                >
+                  {ownerLabel || "—"}
+                </div>
+                {owner?.phone && (
+                  <a
+                    href={`tel:${owner.phone}`}
+                    style={{ fontSize: 12, color: BRAND.textLight, textDecoration: "none" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.teal; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {owner.phone}
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -870,7 +924,7 @@ export function DogCardModal({
             </div>
           )}
 
-          {onUpdateHuman && (
+          {isEditing && onUpdateHuman && (
             <>
               <button
                 onClick={() => setShowTrustedSearch(!showTrustedSearch)}
@@ -937,9 +991,101 @@ export function DogCardModal({
                       })}
                     </div>
                   )}
-                  {trustedSearchQuery.trim() && trustedSearchResults.length === 0 && (
+                  {trustedSearchQuery.trim() && trustedSearchResults.length === 0 && !showNewTrustedForm && (
                     <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 6, textAlign: "center" }}>
                       No matching humans found
+                    </div>
+                  )}
+                  {onAddHuman && !showNewTrustedForm && (
+                    <button
+                      onClick={() => setShowNewTrustedForm(true)}
+                      style={{
+                        width: "100%",
+                        marginTop: 8,
+                        padding: "8px",
+                        borderRadius: 8,
+                        border: `1.5px solid ${BRAND.teal}`,
+                        background: BRAND.white,
+                        color: BRAND.teal,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      + Add new human
+                    </button>
+                  )}
+                  {showNewTrustedForm && (
+                    <div style={{ marginTop: 8, padding: 12, background: BRAND.offWhite, borderRadius: 8, border: `1px solid ${BRAND.greyLight}` }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.text, marginBottom: 8 }}>New human</div>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          placeholder="First name"
+                          value={newTrustedName}
+                          onChange={(e) => setNewTrustedName(e.target.value)}
+                          autoFocus
+                          style={{ ...inputStyle, flex: 1 }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Surname"
+                          value={newTrustedSurname}
+                          onChange={(e) => setNewTrustedSurname(e.target.value)}
+                          style={{ ...inputStyle, flex: 1 }}
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder="Phone number"
+                        value={newTrustedPhone}
+                        onChange={(e) => setNewTrustedPhone(e.target.value)}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 8 }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={handleAddNewTrusted}
+                          disabled={!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()}
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            borderRadius: 8,
+                            border: "none",
+                            background: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? BRAND.greyLight : BRAND.teal,
+                            color: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? BRAND.textLight : BRAND.white,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? "not-allowed" : "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Add
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowNewTrustedForm(false);
+                            setNewTrustedName("");
+                            setNewTrustedSurname("");
+                            setNewTrustedPhone("");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            borderRadius: 8,
+                            border: `1px solid ${BRAND.greyLight}`,
+                            background: BRAND.white,
+                            color: BRAND.text,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -4,6 +4,11 @@ import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
 
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -175,7 +180,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                       color: sizeTheme.text,
                     }}
                   >
-                    {dog.name}
+                    {titleCase(dog.name)}
                   </div>
                   <div
                     style={{
@@ -185,7 +190,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                       marginTop: 4,
                     }}
                   >
-                    {dog.breed} {"·"} {(() => {
+                    {titleCase(dog.breed)} {"·"} {(() => {
                       if (dog.dob) {
                         const [y, m] = dog.dob.split("-").map(Number);
                         if (y && m) {
