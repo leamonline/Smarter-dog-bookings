@@ -206,6 +206,7 @@ export function WeekCalendarView({
   currentSettings,
   // Handlers
   handleAdd,
+  handleOverride,
   handleAddSlot,
   handleRemoveSlot,
   toggleDayOpen,
@@ -310,6 +311,8 @@ export function WeekCalendarView({
                 activeSlots={activeSlots}
                 onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
                 currentDateStr={currentDateStr}
+                overrides={currentSettings.overrides || {}}
+                onOverride={handleOverride}
               />
               {/* Add/Remove extra slot buttons */}
               <div
