@@ -1,4 +1,4 @@
-import { BRAND } from "../../constants/index.js";
+// src/components/booking/SlotGrid.jsx
 import { getSeatStatesForSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
@@ -21,14 +21,7 @@ export function SlotGrid({
   onOverride,
 }) {
   return (
-    <div
-      style={{
-        background: BRAND.white,
-        border: `1px solid ${BRAND.greyLight}`,
-        borderTop: "none",
-        borderRadius: "0 0 14px 14px",
-      }}
-    >
+    <div className="bg-white border border-slate-200 border-t-0 rounded-b-[14px]">
       {activeSlots.map((slot, i) => {
         const slotOverrides = overrides?.[slot] || {};
         const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
@@ -37,36 +30,18 @@ export function SlotGrid({
         const allAvailable = seatStates.every((s) => s.type === "available");
         const allBlockedByStaff = seatStates.every((s) => s.type === "blocked" && s.staffBlocked);
 
+        const isLast = i === activeSlots.length - 1;
+
         return (
           <div
             key={slot}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "72px 1fr 1fr",
-              gap: 10,
-              padding: "10px 14px",
-              minHeight: 100,
-              alignItems: "center",
-              borderBottom: i < activeSlots.length - 1
-                ? "1px solid #F1F3F5"
-                : "none",
-            }}
+            className={[
+              "grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] min-h-[80px] md:min-h-[100px] items-center",
+              isLast ? "" : "border-b border-[#F1F3F5]",
+            ].join(" ")}
           >
             {/* Time label */}
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                color: BRAND.text,
-                textAlign: "center",
-                borderRight: `2px solid ${BRAND.greyLight}`,
-                paddingRight: 10,
-                alignSelf: "stretch",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+            <div className="text-sm font-extrabold text-slate-800 text-center border-r-2 border-slate-200 pr-2 md:pr-2.5 self-stretch flex items-center justify-center">
               {formatSlotTime(slot)}
             </div>
 
@@ -100,19 +75,7 @@ export function SlotGrid({
                     return (
                       <div
                         key={seat.seatIndex}
-                        style={{
-                          border: `1.5px solid ${BRAND.greyLight}`,
-                          borderRadius: 12,
-                          minHeight: 80,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "#F9FAFB",
-                          color: BRAND.textLight,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          fontStyle: "italic",
-                        }}
+                        className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-400 text-[11px] font-semibold italic"
                       >
                         (large dog)
                       </div>
@@ -132,16 +95,7 @@ export function SlotGrid({
                     return (
                       <div
                         key={seat.seatIndex}
-                        style={{
-                          border: `1.5px solid ${BRAND.greyLight}`,
-                          borderRadius: 12,
-                          minHeight: 80,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "#F9FAFB",
-                          color: "#D1D5DB",
-                        }}
+                        className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-300"
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="9" stroke="#D1D5DB" strokeWidth="2" />
