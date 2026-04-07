@@ -9,7 +9,7 @@ function titleCase(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
@@ -355,6 +355,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
         <AddDogModal
           onClose={() => setShowAddModal(false)}
           onAdd={onAddDog}
+          onAddHuman={onAddHuman}
           humans={humans}
         />
       )}

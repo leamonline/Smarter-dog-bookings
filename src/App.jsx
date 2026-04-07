@@ -366,6 +366,7 @@ export default function App() {
               humans={humans}
               onOpenDog={setSelectedDogId}
               onAddDog={addDog}
+              onAddHuman={addHuman}
               hasMore={dogsHasMore}
               totalCount={dogsTotalCount}
               loadMore={dogsLoadMore}
