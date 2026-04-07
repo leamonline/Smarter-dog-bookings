@@ -442,6 +442,7 @@ export default function App() {
               onAddHuman={addHuman}
               bookingsByDate={bookingsByDate}
               fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
+              handleAdd={handleAdd}
             />
           </Suspense>
         )}

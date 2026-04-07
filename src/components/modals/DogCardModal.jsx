@@ -1,10 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
-import { BRAND, ALERT_OPTIONS, SERVICES } from "../../constants/index.js";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { BRAND, ALERT_OPTIONS, SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
 import { IconEdit, IconTick, IconSearch } from "../icons/index.jsx";
+
+const ChainBookingModal = lazy(() =>
+  import("./ChainBookingModal.jsx").then((m) => ({ default: m.ChainBookingModal })),
+);
 
 function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   const [history, setHistory] = useState([]);
@@ -213,6 +217,7 @@ export function DogCardModal({
   onAddHuman,
   bookingsByDate,
   fetchBookingHistoryForDog,
+  handleAdd,
 }) {
   const resolvedDog = getDogByIdOrName(dogs, dogId) || {
     id: dogId,
@@ -234,6 +239,18 @@ export function DogCardModal({
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showChainBooking, setShowChainBooking] = useState(false);
+
+  const lastBooking = useMemo(() => {
+    if (!resolvedDog?.id && !resolvedDog?.name) return null;
+    const allBookings = Object.values(bookingsByDate || {}).flat();
+    const dogBookings = allBookings.filter(
+      (b) => b.dog_id === resolvedDog.id || b.dogName === resolvedDog.name,
+    );
+    if (dogBookings.length === 0) return null;
+    return dogBookings.sort((a, b) => (b.booking_date || "").localeCompare(a.booking_date || ""))[0] || null;
+  }, [resolvedDog, bookingsByDate]);
+
   const [editName, setEditName] = useState(resolvedDog.name || "");
   const [editBreed, setEditBreed] = useState(resolvedDog.breed || "");
 
@@ -451,14 +468,10 @@ export function DogCardModal({
     setIsEditing(false);
   };
 
-  const sizeColourMap = {
-    small: { from: "#F5C518", to: "#D4A500", text: "#5C4600", textSub: "rgba(60,40,0,0.65)" },
-    medium: { from: "#2D8B7A", to: "#1E6B5C", text: BRAND.white, textSub: "rgba(255,255,255,0.8)" },
-    large: { from: "#E8567F", to: "#C93D63", text: BRAND.white, textSub: "rgba(255,255,255,0.8)" },
-  };
-  const sizeAccent = sizeColourMap[resolvedDog.size]?.to || BRAND.blueDark;
-  const headerTextColour = sizeColourMap[resolvedDog.size]?.text || BRAND.white;
-  const headerSubTextColour = sizeColourMap[resolvedDog.size]?.textSub || "rgba(255,255,255,0.8)";
+  const sizeTheme = SIZE_THEME[resolvedDog.size] || SIZE_FALLBACK;
+  const sizeAccent = sizeTheme.primary;
+  const headerTextColour = sizeTheme.headerText;
+  const headerSubTextColour = sizeTheme.headerTextSub;
 
   const sectionLabel = {
     fontWeight: 800,
@@ -501,11 +514,10 @@ export function DogCardModal({
     color: BRAND.text,
   };
 
-  const headerColour = sizeColourMap[resolvedDog.size] || { from: BRAND.blue, to: BRAND.blueDark };
-
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
   return (
+    <>
     <div
       onClick={onClose}
       style={{
@@ -534,7 +546,7 @@ export function DogCardModal({
       >
         <div
           style={{
-            background: `linear-gradient(135deg, ${headerColour.from}, ${headerColour.to})`,
+            background: `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`,
             padding: "20px 24px",
             borderRadius: "16px 16px 0 0",
             display: "flex",
@@ -1079,7 +1091,7 @@ export function DogCardModal({
                   )}
                   {showNewTrustedForm && (
                     <div style={{ marginTop: 8, padding: 12, background: BRAND.offWhite, borderRadius: 8, border: `1px solid ${BRAND.greyLight}` }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.text, marginBottom: 8 }}>New human</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>New Trusted Human</div>
                       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                         <input
                           type="text"
@@ -1160,6 +1172,24 @@ export function DogCardModal({
           accentColour={sizeAccent}
         />
 
+        {lastBooking && (
+          <div style={{ padding: "0 24px" }}>
+            <button
+              onClick={() => setShowChainBooking(true)}
+              style={{
+                width: "100%", padding: "10px", borderRadius: 10, border: "none",
+                background: BRAND.teal, color: BRAND.white,
+                fontSize: 13, fontWeight: 700, cursor: "pointer",
+                fontFamily: "inherit", transition: "all 0.15s", marginTop: 8,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#1E6B5C"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.teal; }}
+            >
+              Recurring Bookings
+            </button>
+          </div>
+        )}
+
         <div
           style={{
             padding: "16px 24px 20px",
@@ -1187,18 +1217,18 @@ export function DogCardModal({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  background: headerColour.from,
-                  color: BRAND.white,
+                  background: sizeTheme.gradient[0],
+                  color: headerTextColour,
                   transition: "background 0.15s",
                 }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = headerColour.to)
+                  (e.currentTarget.style.background = sizeTheme.primary)
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = headerColour.from)
+                  (e.currentTarget.style.background = sizeTheme.gradient[0])
                 }
               >
-                <IconTick size={16} colour={BRAND.white} /> Save
+                <IconTick size={16} colour={headerTextColour} /> Save
               </button>
               <button
                 onClick={handleCancel}
@@ -1241,22 +1271,52 @@ export function DogCardModal({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                background: headerColour.from,
-                color: BRAND.white,
+                background: sizeTheme.gradient[0],
+                color: headerTextColour,
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.background = headerColour.to)
+                (e.currentTarget.style.background = sizeTheme.primary)
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background = headerColour.from)
+                (e.currentTarget.style.background = sizeTheme.gradient[0])
               }
             >
-              <IconEdit size={16} colour={BRAND.white} /> Edit
+              <IconEdit size={16} colour={headerTextColour} /> Edit
             </button>
           )}
         </div>
       </div>
     </div>
+
+    {showChainBooking && lastBooking && (
+      <Suspense fallback={null}>
+        <ChainBookingModal
+          dog={resolvedDog}
+          lastBooking={lastBooking}
+          onClose={() => setShowChainBooking(false)}
+          onCreateChain={async (chain) => {
+            const chainId = crypto.randomUUID();
+            for (const link of chain) {
+              await handleAdd({
+                dogName: resolvedDog.name,
+                dog_id: resolvedDog.id,
+                breed: resolvedDog.breed,
+                size: link.size,
+                service: link.service,
+                slot: link.slot,
+                owner: owner?.id || resolvedDog.human_id || "",
+                ownerName: owner
+                  ? `${owner.first_name || owner.name || ""} ${owner.last_name || owner.surname || ""}`.trim()
+                  : "",
+                status: "Not Arrived",
+                chain_id: chainId,
+              }, link.dateStr);
+            }
+          }}
+        />
+      </Suspense>
+    )}
+    </>
   );
 }
