@@ -358,6 +358,30 @@ export function DogCardModal({
     setShowTrustedSearch(false);
   };
 
+  const handleRemoveTrusted = async (trustedIdToRemove) => {
+    if (!owner || !onUpdateHuman) return;
+    const currentTrusted = owner.trustedIds || [];
+    const ownerKey = owner.fullName || owner.id;
+
+    // Remove from owner's trusted list
+    await onUpdateHuman(ownerKey, {
+      trustedIds: currentTrusted.filter((id) => id !== trustedIdToRemove),
+    });
+
+    // Bidirectional: remove owner from their trusted list
+    const removedHuman = getHumanByIdOrName(humans, trustedIdToRemove);
+    if (removedHuman) {
+      const theirTrusted = removedHuman.trustedIds || [];
+      const myId = owner.id || ownerKey;
+      if (theirTrusted.includes(myId)) {
+        const theirKey = removedHuman.fullName || removedHuman.id;
+        await onUpdateHuman(theirKey, {
+          trustedIds: theirTrusted.filter((id) => id !== myId),
+        });
+      }
+    }
+  };
+
   // Owner search results
   const ownerSearchResults = useMemo(() => {
     if (!ownerSearchQuery.trim()) return [];
@@ -604,7 +628,7 @@ export function DogCardModal({
                     marginTop: 4,
                   }}
                 >
-                  {titleCase(resolvedDog.breed)} {"·"} {displayAge}
+                  {titleCase(resolvedDog.breed)}{displayAge ? ` · ${displayAge}` : ""}
                 </div>
               </>
             )}
@@ -726,7 +750,7 @@ export function DogCardModal({
                     cursor: ownerOpenValue ? "pointer" : "default",
                   }}
                 >
-                  {ownerLabel || "—"}
+                  {titleCase(ownerLabel) || "—"}
                 </div>
                 {owner?.phone && (
                   <a
@@ -901,20 +925,47 @@ export function DogCardModal({
               return (
                 <div
                   key={trustedId}
-                  onClick={() => {
-                    onClose();
-                    onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
-                  }}
                   style={{
                     padding: "8px 0",
                     borderBottom: `1px solid ${BRAND.greyLight}`,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: BRAND.teal,
-                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  {trustedLabel}
+                  <span
+                    onClick={() => {
+                      onClose();
+                      onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
+                    }}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: BRAND.teal,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {titleCase(trustedLabel)}
+                  </span>
+                  {isEditing && onUpdateHuman && (
+                    <button
+                      onClick={() => handleRemoveTrusted(trustedId)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: BRAND.coral,
+                        fontSize: 16,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        padding: "0 4px",
+                        lineHeight: 1,
+                        fontFamily: "inherit",
+                      }}
+                      title="Remove trusted human"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               );
             })

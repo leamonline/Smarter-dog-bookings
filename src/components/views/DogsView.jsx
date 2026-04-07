@@ -190,7 +190,8 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                       marginTop: 4,
                     }}
                   >
-                    {titleCase(dog.breed)} {"·"} {(() => {
+                    {titleCase(dog.breed)}{(() => {
+                      let age = "";
                       if (dog.dob) {
                         const [y, m] = dog.dob.split("-").map(Number);
                         if (y && m) {
@@ -198,13 +199,14 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                           let yrs = now.getFullYear() - y;
                           let mos = now.getMonth() + 1 - m;
                           if (mos < 0) { yrs--; mos += 12; }
-                          if (yrs >= 1) return `${yrs} ${yrs === 1 ? "yr" : "yrs"}`;
-                          return `${mos} ${mos === 1 ? "month" : "months"}`;
+                          age = yrs >= 1 ? `${yrs} ${yrs === 1 ? "yr" : "yrs"}` : `${mos} ${mos === 1 ? "month" : "months"}`;
                         }
+                      } else {
+                        const raw = dog.age || "";
+                        if (/^\d+$/.test(raw.trim())) age = `${raw.trim()} yrs`;
+                        else age = raw;
                       }
-                      const raw = dog.age || "";
-                      if (/^\d+$/.test(raw.trim())) return `${raw.trim()} yrs`;
-                      return raw;
+                      return age ? ` · ${age}` : "";
                     })()}
                   </div>
                 </div>
@@ -248,7 +250,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, hasMore, totalCoun
                     color: BRAND.text,
                   }}
                 >
-                  {ownerName}
+                  {titleCase(ownerName)}
                 </span>
 
                 {dog.groomNotes && (
