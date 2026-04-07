@@ -1,8 +1,12 @@
-# Settings Page Redesign
+# Settings Page Redesign & Toolbar Grouping
 
 ## Overview
 
-Redesign the Settings page (`SettingsView.jsx`) from 4 sparse cards into 8 well-grouped, visually polished cards on a single scrollable page. Add jump links for quick navigation, new settings sections (business info, hours, booking rules, customer portal, notifications), and bring the visual treatment in line with the rest of the app.
+Two related UI improvements:
+
+1. **Settings page**: Redesign from 4 sparse cards into 8 well-grouped, visually polished cards on a single scrollable page. Add jump links for quick navigation, new settings sections (business info, hours, booking rules, customer portal, notifications), and bring the visual treatment in line with the rest of the app.
+
+2. **App toolbar** (`AppToolbar.jsx`): Regroup the flat button row into two distinct zones — navigation tabs in a pill-shaped container on the left, action buttons (+ New Booking, Log out) on the right.
 
 ## Current State
 
@@ -18,7 +22,9 @@ Problems: sparse sections, no visual hierarchy between cards, missing settings t
 
 ### Jump Links Bar
 
-A horizontal bar of pill-shaped links at the top of the page, one per card section. Each link scrolls to the corresponding card. Each link has an emoji icon prefix for scannability. Styled as small rounded pills with hover state (teal highlight).
+A horizontal bar of pill-shaped links at the top of the page, one per card section. Each link scrolls to the corresponding card. Text-only labels (no emojis). Styled as small rounded pills with hover state (teal highlight).
+
+Links: Your Business | Hours & Closures | Your Account | Services & Pricing | Booking Rules | Capacity Engine | Customer Portal | Notifications
 
 ### Card 1: Your Business
 
@@ -159,8 +165,56 @@ Consistent pattern: left side has label (14px, 600 weight) + sublabel (12px, gre
 - Actual enforcement of customer portal toggles (same — separate feature)
 - Mobile responsiveness overhaul (the app is primarily desktop; basic responsive behaviour via existing patterns is fine)
 
+## Toolbar Redesign
+
+Restructure `AppToolbar.jsx` from a flat row of mixed buttons into two grouped zones.
+
+### Current Layout
+
+```
+[Logo + subtitle]     [Bookings] [+ New Booking] [Dogs] [Humans] [Settings] [Reports] [Log out]
+```
+
+All buttons in one flex row. No visual distinction between navigation and actions.
+
+### Proposed Layout
+
+```
+[Logo]  [ Bookings | Dogs | Humans | Reports | Settings ]          [+ New Booking] [Log out]
+```
+
+**Left zone:**
+- Logo (remove "Salon Bookings" subtitle — the nav tabs make context obvious)
+- Navigation group: a pill-shaped container (`background: #F1F3F5`, `border-radius: 10px`, `padding: 4px`) containing 5 nav buttons
+- Active tab: white background with subtle shadow, raised look inside the pill
+- Inactive tabs: transparent background, grey text, hover shows slight white fill
+
+**Right zone:**
+- "+ New Booking" button: solid blue (`BRAND.blue`), same as current
+- "Log out" button: coral light background, same as current
+
+**Spacing:** `gap: 20px` between logo and nav group. Nav group and actions separated by flexbox `justify-content: space-between`.
+
+## Scope Boundaries
+
+**In scope:**
+- Restructure SettingsView.jsx into 8 card sections
+- Restructure AppToolbar.jsx into grouped layout
+- Add jump links navigation (text-only, no emojis)
+- Add all new form fields and toggles
+- Store new settings in config (same `onUpdateConfig` pattern)
+- Visual polish: card headers with icons, size dots on pricing, better slot chip layout
+
+**Out of scope:**
+- Notification sending infrastructure (WhatsApp API, email service, SMS gateway)
+- Logo upload for business info
+- Staff management
+- Actual enforcement of booking rules in the customer booking flow (that's a separate feature — this just stores the settings)
+- Actual enforcement of customer portal toggles (same — separate feature)
+- Mobile responsiveness overhaul (the app is primarily desktop; basic responsive behaviour via existing patterns is fine)
+
 ## File Changes
 
 - `src/components/views/SettingsView.jsx` — major rewrite, restructured into 8 sections
+- `src/components/layout/AppToolbar.jsx` — restructured into grouped nav + actions layout
 - `src/constants/index.js` — may need new default config values for new settings fields
-- No new files needed — this is a single-view redesign
