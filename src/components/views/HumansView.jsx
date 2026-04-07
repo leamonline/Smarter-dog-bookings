@@ -3,6 +3,18 @@ import { BRAND } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const SIZE_PILL = {
+  small:  { bg: "#FFF8E0", text: "#D4A500", border: "#F5C518" },
+  medium: { bg: BRAND.tealLight, text: "#1E6B5C", border: BRAND.teal },
+  large:  { bg: BRAND.coralLight, text: "#C93D63", border: BRAND.coral },
+};
+const DEFAULT_PILL = { bg: BRAND.offWhite, text: BRAND.text, border: BRAND.greyLight };
+
 export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -161,18 +173,30 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
                   <div
                     style={{ fontSize: 16, fontWeight: 800, color: "#1F6659" }}
                   >
-                    {fullName}
+                    {titleCase(fullName)}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: BRAND.text,
-                      fontWeight: 600,
-                      marginTop: 4,
-                    }}
-                  >
-                    {human.phone || "No phone"}
-                  </div>
+                  {human.phone ? (
+                    <a
+                      href={`tel:${human.phone}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: 13,
+                        color: BRAND.text,
+                        fontWeight: 600,
+                        marginTop: 4,
+                        display: "block",
+                        textDecoration: "none",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.teal; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.text; }}
+                    >
+                      {human.phone}
+                    </a>
+                  ) : (
+                    <div style={{ fontSize: 13, color: BRAND.textLight, fontWeight: 600, marginTop: 4, fontStyle: "italic" }}>
+                      No phone
+                    </div>
+                  )}
                 </div>
                 {human.historyFlag && (
                   <span title={human.historyFlag} style={{ fontSize: 16 }}>
@@ -184,7 +208,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
                 <div
                   style={{
                     fontSize: 11,
-                    color: BRAND.textLight,
+                    color: "#1E6B5C",
                     marginBottom: 8,
                     fontWeight: 800,
                     textTransform: "uppercase",
@@ -195,27 +219,28 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {humanDogs.length > 0 ? (
-                    humanDogs.map((dog) => (
-                      <span
-                        key={dog.id}
-                        style={{
-                          background: BRAND.offWhite,
-                          border: `1px solid ${BRAND.greyLight}`,
-                          padding: "4px 10px",
-                          borderRadius: 12,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: BRAND.text,
-                        }}
-                      >
-                        {dog.name}{" "}
+                    humanDogs.map((dog) => {
+                      const pill = SIZE_PILL[dog.size] || DEFAULT_PILL;
+                      return (
                         <span
-                          style={{ color: BRAND.textLight, fontWeight: 500 }}
+                          key={dog.id}
+                          style={{
+                            background: pill.bg,
+                            border: `1px solid ${pill.border}`,
+                            padding: "4px 10px",
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: pill.text,
+                          }}
                         >
-                          ({dog.breed})
+                          {titleCase(dog.name)}{" "}
+                          <span style={{ fontWeight: 500, opacity: 0.75 }}>
+                            ({titleCase(dog.breed)})
+                          </span>
                         </span>
-                      </span>
-                    ))
+                      );
+                    })
                   ) : (
                     <span
                       style={{
