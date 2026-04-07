@@ -284,23 +284,11 @@ export function WeekCalendarView({
       {calendarMode === "day" && (
         <>
           {/* Slim header bar with ShopSign */}
-          <div style={{
-            background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-            borderRadius: 0,
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 56,
-            position: "relative",
-            overflow: "hidden",
-          }}>
+          <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-3 px-5 flex items-center justify-center min-h-[56px] relative overflow-hidden">
             {/* Paw watermark */}
-            <div style={{
-              position: "absolute", right: 40, top: -14,
-              fontSize: 100, opacity: 0.04,
-              transform: "rotate(-15deg)", pointerEvents: "none",
-            }}>🐾</div>
+            <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none">
+              🐾
+            </div>
             <ShopSign isOpen={isOpen} />
           </div>
 
@@ -315,63 +303,18 @@ export function WeekCalendarView({
                 onOverride={handleOverride}
               />
               {/* Add/Remove extra slot buttons */}
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderTop: `1px solid ${BRAND.greyLight}`,
-                  background: BRAND.white,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
+              <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
                 {(currentSettings.extraSlots || []).length > 0 && (
                   <button
                     onClick={handleRemoveSlot}
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      borderRadius: 10,
-                      border: "none",
-                      background: BRAND.blue,
-                      color: BRAND.white,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = BRAND.blueDark;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = BRAND.blue;
-                    }}
+                    className="w-full py-2.5 rounded-[10px] border-none bg-brand-blue text-white text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:bg-brand-blue-dark"
                   >
                     Remove added timeslot
                   </button>
                 )}
                 <button
                   onClick={handleAddSlot}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    borderRadius: 10,
-                    border: "none",
-                    background: BRAND.coral,
-                    color: BRAND.white,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#D9466F";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = BRAND.coral;
-                  }}
+                  className="w-full py-2.5 rounded-[10px] border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:bg-[#D9466F]"
                 >
                   Add another timeslot
                 </button>
