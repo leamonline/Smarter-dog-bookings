@@ -1,53 +1,60 @@
 import { useState, useRef, useEffect } from "react";
-import { BRAND } from "../../constants/index.js";
 
-// ── Nav items (main bar) ─────────────────────────────────────────
+// ── Nav items ───────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { key: "dashboard", label: "Bookings" },
-  { key: "dogs", label: "Dogs" },
-  { key: "humans", label: "Humans" },
-  { key: "stats", label: "Stats" },
+  {
+    key: "dashboard",
+    label: "Bookings",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <line x1="9" y1="4" x2="9" y2="10" />
+        <line x1="15" y1="4" x2="15" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    key: "dogs",
+    label: "Dogs",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="7.5" cy="5.5" r="2" />
+        <circle cx="16.5" cy="5.5" r="2" />
+        <circle cx="5" cy="11" r="1.8" />
+        <circle cx="19" cy="11" r="1.8" />
+        <ellipse cx="12" cy="14" rx="5" ry="4.5" />
+      </svg>
+    ),
+  },
+  {
+    key: "humans",
+    label: "Humans",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+      </svg>
+    ),
+  },
+  {
+    key: "stats",
+    label: "Stats",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="14" width="4" height="7" rx="1" />
+        <rect x="10" y="9" width="4" height="12" rx="1" />
+        <rect x="16" y="4" width="4" height="17" rx="1" />
+      </svg>
+    ),
+  },
 ];
 
-// ── Menu items (hamburger dropdown) ──────────────────────────────
+// ── Menu items (hamburger dropdown) ─────────────────────────────
 const MENU_ITEMS = [
-  { key: "reports", label: "Reports", icon: "\uD83D\uDCCA" },
-  { key: "settings", label: "Settings", icon: "\u2699\uFE0F" },
+  { key: "reports", label: "Reports", icon: "📊" },
+  { key: "settings", label: "Settings", icon: "⚙️" },
 ];
-
-// ── Styles ───────────────────────────────────────────────────────
-
-const navGroupStyle = {
-  display: "flex",
-  gap: 2,
-  background: "#F1F3F5",
-  padding: 4,
-  borderRadius: 10,
-  flexShrink: 1,
-  minWidth: 0,
-};
-
-const navBtnBase = {
-  borderRadius: 7,
-  padding: "7px 14px",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-  fontFamily: "inherit",
-  transition: "all 0.15s",
-  border: "none",
-  background: "transparent",
-  color: BRAND.grey,
-  whiteSpace: "nowrap",
-};
-
-const navBtnActive = {
-  ...navBtnBase,
-  background: BRAND.white,
-  color: BRAND.blueDark,
-  fontWeight: 700,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-};
 
 export function AppToolbar({
   activeView,
@@ -75,104 +82,70 @@ export function AppToolbar({
 
   return (
     <>
-      <div style={{
-        marginBottom: 16,
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-      }}>
-        {/* Left: Logo + Nav group */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 0 }}>
-          <div
-            style={{ cursor: "pointer", flexShrink: 0 }}
-            onClick={() => setActiveView("dashboard")}
-          >
-            <div style={{ fontSize: 24, fontWeight: 800, color: BRAND.text }}>
-              Smarter<span style={{ color: BRAND.blue }}>Dog</span>
-            </div>
-          </div>
-
-          <div style={navGroupStyle}>
-            {NAV_ITEMS.map((item) => {
-              const isActive = activeView === item.key;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => setActiveView(item.key)}
-                  style={isActive ? navBtnActive : navBtnBase}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = BRAND.text;
-                      e.currentTarget.style.background = "rgba(255,255,255,0.6)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = BRAND.grey;
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+      {/* ── Desktop top bar (md+) + Mobile slim top bar ── */}
+      <div className="mb-4 flex items-center gap-4">
+        {/* Logo */}
+        <div
+          className="shrink-0 cursor-pointer"
+          onClick={() => setActiveView("dashboard")}
+        >
+          <div className="text-2xl font-extrabold text-slate-800">
+            Smarter<span className="text-brand-blue">Dog</span>
           </div>
         </div>
 
-        {/* Right: Hamburger menu */}
-        <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+        {/* Desktop nav tabs — hidden on mobile */}
+        <div className="hidden md:flex gap-0.5 bg-slate-100 p-1 rounded-lg shrink min-w-0">
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeView === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setActiveView(item.key)}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition-all border-none cursor-pointer whitespace-nowrap font-[inherit] ${
+                  isActive
+                    ? "bg-white text-brand-blue shadow-sm"
+                    : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Hamburger menu */}
+        <div ref={menuRef} className="relative shrink-0">
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            style={{
-              width: 36, height: 36, borderRadius: 10,
-              border: `1.5px solid ${menuOpen || isMenuViewActive ? BRAND.blueDark : BRAND.greyLight}`,
-              background: menuOpen || isMenuViewActive ? BRAND.blueLight : BRAND.white,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", transition: "all 0.15s", fontSize: 18,
-              color: menuOpen || isMenuViewActive ? BRAND.blueDark : BRAND.grey,
-            }}
-            onMouseEnter={(e) => {
-              if (!menuOpen && !isMenuViewActive) {
-                e.currentTarget.style.borderColor = BRAND.blueDark;
-                e.currentTarget.style.color = BRAND.blueDark;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!menuOpen && !isMenuViewActive) {
-                e.currentTarget.style.borderColor = BRAND.greyLight;
-                e.currentTarget.style.color = BRAND.grey;
-              }
-            }}
+            className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all text-lg font-[inherit] ${
+              menuOpen || isMenuViewActive
+                ? "border-brand-blue-dark bg-sky-50 text-brand-blue-dark"
+                : "border-slate-200 bg-white text-slate-500 hover:border-brand-blue-dark hover:text-brand-blue-dark"
+            }`}
           >
-            {"\u2630"}
+            ☰
           </button>
 
           {/* Dropdown */}
           {menuOpen && (
-            <div style={{
-              position: "absolute", top: 42, right: 0, zIndex: 100,
-              background: BRAND.white, border: `1px solid ${BRAND.greyLight}`,
-              borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-              minWidth: 180, overflow: "hidden",
-              animation: "fadeIn 0.12s ease-out",
-            }}>
+            <div className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg min-w-[180px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               {MENU_ITEMS.map((item) => {
                 const isActive = activeView === item.key;
                 return (
-                  <button key={item.key} onClick={() => { setActiveView(item.key); setMenuOpen(false); }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10, width: "100%",
-                      padding: "12px 16px", border: "none", cursor: "pointer",
-                      fontFamily: "inherit", fontSize: 14, fontWeight: isActive ? 700 : 600,
-                      color: isActive ? BRAND.blueDark : BRAND.text,
-                      background: isActive ? BRAND.blueLight : "transparent",
-                      transition: "background 0.1s", textAlign: "left",
-                    }}
-                    onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#F8FAFB"; }}
-                    onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  <button
+                    key={item.key}
+                    onClick={() => { setActiveView(item.key); setMenuOpen(false); }}
+                    className={`flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm text-left transition-colors font-[inherit] ${
+                      isActive
+                        ? "font-bold text-brand-blue-dark bg-sky-50"
+                        : "font-semibold text-slate-800 bg-transparent hover:bg-slate-50"
+                    }`}
                   >
-                    <span style={{ fontSize: 16 }}>{item.icon}</span>
+                    <span className="text-base">{item.icon}</span>
                     {item.label}
                   </button>
                 );
@@ -180,19 +153,12 @@ export function AppToolbar({
 
               {isOnline && user && (
                 <>
-                  <div style={{ height: 1, background: BRAND.greyLight, margin: "0 12px" }} />
-                  <button onClick={() => { onSignOut(); setMenuOpen(false); }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10, width: "100%",
-                      padding: "12px 16px", border: "none", cursor: "pointer",
-                      fontFamily: "inherit", fontSize: 14, fontWeight: 600,
-                      color: BRAND.coral, background: "transparent",
-                      transition: "background 0.1s", textAlign: "left",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.coralLight; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  <div className="h-px bg-slate-200 mx-3" />
+                  <button
+                    onClick={() => { onSignOut(); setMenuOpen(false); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-coral bg-transparent hover:bg-brand-coral-light transition-colors text-left font-[inherit]"
                   >
-                    <span style={{ fontSize: 16 }}>{"\uD83D\uDEAA"}</span>
+                    <span className="text-base">🚪</span>
                     Log out
                   </button>
                 </>
@@ -202,6 +168,26 @@ export function AppToolbar({
         </div>
       </div>
 
+      {/* ── Mobile bottom tab bar (below md) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex">
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeView === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setActiveView(item.key)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 border-none cursor-pointer bg-transparent font-[inherit] transition-colors ${
+                  isActive ? "text-brand-blue" : "text-slate-400"
+                }`}
+              >
+                {item.icon}
+                <span className="text-[10px] font-bold">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 }
