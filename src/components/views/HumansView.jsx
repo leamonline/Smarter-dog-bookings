@@ -1,11 +1,19 @@
 import { useState, useMemo } from "react";
-import { BRAND } from "../../constants/index.js";
+import { BRAND, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 
 function titleCase(str) {
   if (!str) return "";
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function waLink(phone) {
+  if (!phone) return "#";
+  // Strip spaces/dashes, convert UK 07xxx to 447xxx
+  const digits = phone.replace(/[\s\-()]/g, "");
+  const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
+  return `https://wa.me/${intl}`;
 }
 
 const SIZE_PILL = {
@@ -177,7 +185,9 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
                   </div>
                   {human.phone ? (
                     <a
-                      href={`tel:${human.phone}`}
+                      href={waLink(human.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         fontSize: 13,
@@ -220,7 +230,8 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {humanDogs.length > 0 ? (
                     humanDogs.map((dog) => {
-                      const pill = SIZE_PILL[dog.size] || DEFAULT_PILL;
+                      const dogSize = dog.size || getSizeForBreed(dog.breed);
+                      const pill = SIZE_PILL[dogSize] || DEFAULT_PILL;
                       return (
                         <span
                           key={dog.id}

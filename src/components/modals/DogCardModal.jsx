@@ -195,6 +195,13 @@ function titleCase(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function waLink(phone) {
+  if (!phone) return "#";
+  const digits = phone.replace(/[\s\-()]/g, "");
+  const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
+  return `https://wa.me/${intl}`;
+}
+
 export function DogCardModal({
   dogId,
   onClose,
@@ -754,7 +761,9 @@ export function DogCardModal({
                 </div>
                 {owner?.phone && (
                   <a
-                    href={`tel:${owner.phone}`}
+                    href={waLink(owner.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{ fontSize: 12, color: BRAND.textLight, textDecoration: "none" }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.teal; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; }}
