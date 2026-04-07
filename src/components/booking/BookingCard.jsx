@@ -9,6 +9,17 @@ import { SizeTag } from "../ui/SizeTag.jsx";
 import { StaffIconBtn } from "../ui/StaffIconBtn.jsx";
 import { IconEdit, IconMessage } from "../icons/index.jsx";
 
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const SIZE_COLOURS = {
+  small: { dark: "#D4A500", light: "#FFF8E0" },
+  medium: { dark: "#1E6B5C", light: BRAND.tealLight },
+  large: { dark: "#C93D63", light: BRAND.coralLight },
+};
+
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({
     default: module.BookingDetailModal,
@@ -78,6 +89,8 @@ export function BookingCard({ booking }) {
     );
   };
 
+  const sizeTheme = SIZE_COLOURS[booking.size] || { dark: BRAND.blueDark, light: BRAND.blueLight };
+
   const handleOpenDog = (e) => {
     e.stopPropagation();
     onOpenDog?.(dogRecord?.id || booking._dogId || booking.dogName);
@@ -113,9 +126,9 @@ export function BookingCard({ booking }) {
           borderLeft: `3px solid ${statusObj.color}`,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = BRAND.blue;
+          e.currentTarget.style.borderColor = sizeTheme.dark;
           e.currentTarget.style.borderLeftColor = statusObj.color;
-          e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,184,224,0.15)";
+          e.currentTarget.style.boxShadow = `0 1px 6px ${sizeTheme.light}`;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.borderColor = BRAND.greyLight;
@@ -148,12 +161,12 @@ export function BookingCard({ booking }) {
             <span
               style={{
                 cursor: "pointer",
-                borderBottom: `1px dashed ${BRAND.blue}`,
-                color: BRAND.blueDark,
+                borderBottom: `1px dashed ${sizeTheme.dark}`,
+                color: sizeTheme.dark,
               }}
               onClick={handleOpenDog}
             >
-              {booking.dogName}
+              {titleCase(booking.dogName)}
             </span>
             <span
               style={{
@@ -163,7 +176,7 @@ export function BookingCard({ booking }) {
                 fontSize: 12,
               }}
             >
-              ({booking.breed})
+              ({titleCase(booking.breed)})
             </span>
           </div>
 
@@ -172,12 +185,12 @@ export function BookingCard({ booking }) {
             <span
               style={{
                 cursor: "pointer",
-                borderBottom: `1px dashed ${BRAND.blue}`,
-                color: BRAND.blueDark,
+                borderBottom: `1px dashed ${BRAND.teal}`,
+                color: BRAND.teal,
               }}
               onClick={handleOpenHuman}
             >
-              {booking.owner}
+              {titleCase(booking.owner)}
             </span>
           </div>
         </div>
