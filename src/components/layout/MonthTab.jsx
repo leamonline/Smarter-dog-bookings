@@ -1,10 +1,8 @@
-import { useState, useMemo } from "react";
-import { BRAND } from "../../constants/index.js";
+// src/components/layout/MonthTab.jsx
+import { useMemo } from "react";
 import { toDateStr } from "../../supabase/transforms.js";
 
 export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) {
-  const [hovered, setHovered] = useState(false);
-
   const monthLabel = currentDateObj.toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
@@ -20,8 +18,8 @@ export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    // Mon=0 … Sun=6 alignment
-    const startPad = (firstDay.getDay() + 6) % 7; // 0=Mon offset
+    // Mon=0 ... Sun=6 alignment
+    const startPad = (firstDay.getDay() + 6) % 7;
     const daysInMonth = lastDay.getDate();
 
     const result = [];
@@ -40,61 +38,26 @@ export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) 
     return result;
   }, [currentDateObj]);
 
-  const wrapperStyle = {
-    flex: "1.1",
-    minWidth: 80,
-    borderRadius: "10px 10px 0 0",
-    background: BRAND.white,
-    textAlign: "center",
-    border: `1.5px solid ${isActive ? BRAND.blue : BRAND.greyLight}`,
-    borderBottom: "none",
-    userSelect: "none",
-    paddingBottom: 6,
-    cursor: "pointer",
-    transition: "all 0.2s",
-    opacity: isActive ? 1 : hovered ? 0.9 : 0.7,
-    transform: isActive ? "translateY(-3px)" : hovered ? "translateY(-2px)" : "translateY(0)",
-    zIndex: isActive ? 2 : 1,
-    boxShadow: isActive
-      ? "0 -4px 14px rgba(0,184,224,0.12)"
-      : "0 -2px 8px rgba(0,0,0,0.04)",
-  };
-
   return (
     <div
-      style={wrapperStyle}
+      className={[
+        "flex-[1.1] min-w-[64px] md:min-w-[80px] rounded-t-[10px] bg-white text-center border-[1.5px] border-b-0 select-none pb-1.5 cursor-pointer transition-all snap-center shrink-0",
+        isActive
+          ? "border-brand-blue opacity-100 -translate-y-[3px] z-[2] shadow-[0_-4px_14px_rgba(0,184,224,0.12)]"
+          : "opacity-70 hover:opacity-90 hover:-translate-y-0.5 z-[1] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] border-slate-200",
+      ].join(" ")}
       onClick={onClick}
-      onMouseEnter={() => { if (!isActive) setHovered(true); }}
-      onMouseLeave={() => setHovered(false)}
     >
       {/* Blue strip */}
-      <div style={{
-        background: BRAND.blueDark,
-        padding: "3px 4px",
-        fontSize: 8,
-        fontWeight: 800,
-        color: BRAND.white,
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-        borderRadius: "8px 8px 0 0",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}>
+      <div className="bg-brand-blue-dark py-[3px] px-1 text-[8px] font-extrabold text-white uppercase tracking-[0.8px] rounded-t-lg whitespace-nowrap overflow-hidden text-ellipsis">
         {monthLabel}
       </div>
 
       {/* Mini calendar grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(7, 1fr)",
-        gap: 0,
-        padding: "3px 4px",
-        marginTop: 2,
-      }}>
+      <div className="grid grid-cols-7 gap-0 p-[3px_4px] mt-0.5">
         {cells.map((dateStr, i) => {
           if (!dateStr) {
-            return <div key={`empty-${i}`} style={{ width: 5, height: 5, margin: "1px auto" }} />;
+            return <div key={`empty-${i}`} className="w-[5px] h-[5px] mx-auto my-[1px]" />;
           }
 
           const isToday = dateStr === today;
@@ -112,13 +75,8 @@ export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) 
           return (
             <div
               key={dateStr}
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: dotColour,
-                margin: "1px auto",
-              }}
+              className="w-[5px] h-[5px] rounded-sm mx-auto my-[1px]"
+              style={{ background: dotColour }}
             />
           );
         })}
