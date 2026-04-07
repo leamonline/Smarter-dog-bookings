@@ -1,6 +1,6 @@
 // src/components/views/StatsView.jsx
 import { useMemo } from "react";
-import { BRAND, PRICING, SERVICES, SALON_SLOTS } from "../../constants/index.js";
+import { PRICING, SERVICES, SALON_SLOTS } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import { getDogByIdOrName, getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -14,7 +14,7 @@ function parsePrice(service, size) {
 function getWeekDates(refDate) {
   const d = new Date(refDate);
   const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday start
+  const diff = day === 0 ? -6 : 1 - day;
   const monday = new Date(d);
   monday.setDate(d.getDate() + diff);
   const dates = [];
@@ -38,17 +38,14 @@ export function StatsView() {
   const today = new Date();
   const todayStr = toDateStr(today);
 
-  // This week's dates (Mon-Sun)
   const thisWeekDates = useMemo(() => getWeekDates(today), [todayStr]);
 
-  // Last week's dates
   const lastWeekDates = useMemo(() => {
     const lastMon = new Date(thisWeekDates[0]);
     lastMon.setDate(lastMon.getDate() - 7);
     return getWeekDates(lastMon);
   }, [thisWeekDates]);
 
-  // Weekly revenue data
   const thisWeekData = useMemo(() => {
     return thisWeekDates.map((date, i) => {
       const dateStr = toDateStr(date);
@@ -76,7 +73,6 @@ export function StatsView() {
   const lastWeekTotal = lastWeekData.reduce((s, v) => s + v, 0);
   const maxDayRevenue = Math.max(...thisWeekData.map((d) => d.revenue), 1);
 
-  // Monthly total (all loaded data for this month)
   const monthlyTotal = useMemo(() => {
     const month = today.getMonth();
     const year = today.getFullYear();
@@ -90,15 +86,12 @@ export function StatsView() {
     return total;
   }, [bookingsByDate, todayStr]);
 
-  // --- Operations ---
-
-  // Busiest day of week (from loaded data)
   const busiestDay = useMemo(() => {
-    const dayCounts = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
     const dayTotals = [0, 0, 0, 0, 0, 0, 0];
     for (const [dateStr, dayBookings] of Object.entries(bookingsByDate)) {
       const d = new Date(dateStr + "T00:00:00");
-      const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1; // Mon=0
+      const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
       dayCounts[dayIdx]++;
       dayTotals[dayIdx] += dayBookings.length;
     }
@@ -112,7 +105,6 @@ export function StatsView() {
     return { day: FULL_DAYS[bestIdx], avg: bestAvg.toFixed(1) };
   }, [bookingsByDate]);
 
-  // Service breakdown
   const serviceBreakdown = useMemo(() => {
     const counts = {};
     for (const dayBookings of Object.values(bookingsByDate)) {
@@ -125,7 +117,6 @@ export function StatsView() {
       .sort((a, b) => b.count - a.count);
   }, [bookingsByDate]);
 
-  // Top 5 customers
   const topCustomers = useMemo(() => {
     const ownerCounts = {};
     for (const dayBookings of Object.values(bookingsByDate)) {
@@ -148,7 +139,6 @@ export function StatsView() {
       .map(([name, count]) => ({ name, count }));
   }, [bookingsByDate, dogs, humans]);
 
-  // Daily averages
   const thisWeekAvg = (thisWeekData.reduce((s, d) => s + d.count, 0) / 7).toFixed(1);
   const lastWeekAvg = useMemo(() => {
     const total = lastWeekDates.reduce((sum, date) => {
@@ -158,60 +148,36 @@ export function StatsView() {
     return (total / 7).toFixed(1);
   }, [lastWeekDates, bookingsByDate]);
 
-  // --- Render ---
-
-  const cardStyle = {
-    background: BRAND.white,
-    border: `1px solid ${BRAND.greyLight}`,
-    borderRadius: 14,
-    padding: "20px 24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-  };
-
-  const sectionTitle = {
-    fontSize: 13,
-    fontWeight: 800,
-    color: BRAND.textLight,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 16,
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {/* Revenue card */}
-      <div style={cardStyle}>
-        <div style={sectionTitle}>Revenue</div>
+      <div className="bg-white border border-slate-200 rounded-[14px] p-5 px-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="text-[13px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">Revenue</div>
 
         {/* Hero total */}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 20 }}>
-          <span style={{ fontSize: 32, fontWeight: 900, color: BRAND.text }}>
+        <div className="flex items-baseline gap-2 mb-5">
+          <span className="text-[32px] font-black text-slate-800">
             £{thisWeekTotal}
           </span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.textLight }}>
+          <span className="text-sm font-semibold text-slate-500">
             this week
           </span>
         </div>
 
         {/* Bar chart */}
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 120, marginBottom: 16 }}>
+        <div className="flex gap-2 items-end h-[120px] mb-4">
           {thisWeekData.map((day) => (
-            <div key={day.label} style={{ flex: 1, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+            <div key={day.label} className="flex-1 text-center flex flex-col items-center justify-end h-full">
               <div
+                className={`w-full max-w-[40px] rounded-t-md min-h-[4px] transition-[height] duration-300 ${day.isToday ? "bg-brand-teal" : "bg-brand-blue"}`}
                 style={{
-                  width: "100%",
-                  maxWidth: 40,
                   height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%`,
-                  background: day.isToday ? BRAND.teal : BRAND.blue,
-                  borderRadius: "6px 6px 0 0",
-                  transition: "height 0.3s",
-                  minHeight: 4,
                 }}
               />
-              <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.text, marginTop: 6 }}>
+              <div className="text-[11px] font-bold text-slate-800 mt-1.5">
                 {day.label}
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: BRAND.textLight }}>
+              <div className="text-[11px] font-semibold text-slate-500">
                 £{day.revenue}
               </div>
             </div>
@@ -219,35 +185,35 @@ export function StatsView() {
         </div>
 
         {/* Comparisons */}
-        <div style={{ display: "flex", gap: 24 }}>
+        <div className="flex gap-6">
           <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>Last week: </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: BRAND.text }}>£{lastWeekTotal}</span>
+            <span className="text-xs font-semibold text-slate-500">Last week: </span>
+            <span className="text-sm font-extrabold text-slate-800">£{lastWeekTotal}</span>
           </div>
           <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>This month: </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: BRAND.text }}>£{monthlyTotal}</span>
+            <span className="text-xs font-semibold text-slate-500">This month: </span>
+            <span className="text-sm font-extrabold text-slate-800">£{monthlyTotal}</span>
           </div>
         </div>
       </div>
 
       {/* Operations card */}
-      <div style={cardStyle}>
-        <div style={sectionTitle}>Operations</div>
+      <div className="bg-white border border-slate-200 rounded-[14px] p-5 px-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="text-[13px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">Operations</div>
 
         {/* Busiest day */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.text }}>
+        <div className="mb-5">
+          <div className="text-sm font-bold text-slate-800">
             {busiestDay.day} are your busiest day
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>
+          <div className="text-xs font-semibold text-slate-500">
             avg {busiestDay.avg} bookings per {busiestDay.day.replace(/s$/, "").toLowerCase()}
           </div>
         </div>
 
         {/* Service breakdown */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, marginBottom: 8 }}>
+        <div className="mb-5">
+          <div className="text-xs font-bold text-slate-500 mb-2">
             Services
           </div>
           {serviceBreakdown.map((svc) => {
@@ -255,14 +221,17 @@ export function StatsView() {
               ? (svc.count / serviceBreakdown[0].count) * 100
               : 0;
             return (
-              <div key={svc.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: BRAND.text, width: 110, flexShrink: 0 }}>
+              <div key={svc.name} className="flex items-center gap-2.5 mb-1.5">
+                <span className="text-[13px] font-semibold text-slate-800 w-[110px] shrink-0">
                   {svc.name}
                 </span>
-                <div style={{ flex: 1, height: 8, background: "#F1F3F5", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ width: `${pct}%`, height: "100%", background: BRAND.blue, borderRadius: 4 }} />
+                <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden">
+                  <div
+                    className="h-full bg-brand-blue rounded"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.text, width: 30, textAlign: "right" }}>
+                <span className="text-xs font-extrabold text-slate-800 w-[30px] text-right">
                   {svc.count}
                 </span>
               </div>
@@ -271,34 +240,34 @@ export function StatsView() {
         </div>
 
         {/* Top customers */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, marginBottom: 8 }}>
+        <div className="mb-5">
+          <div className="text-xs font-bold text-slate-500 mb-2">
             Top Customers
           </div>
           {topCustomers.map((c, i) => (
-            <div key={c.name} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>
+            <div key={c.name} className="flex justify-between py-1">
+              <span className="text-[13px] font-semibold text-slate-800">
                 {i + 1}. {c.name}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blue }}>
+              <span className="text-xs font-extrabold text-brand-blue">
                 {c.count} booking{c.count !== 1 ? "s" : ""}
               </span>
             </div>
           ))}
           {topCustomers.length === 0 && (
-            <div style={{ fontSize: 12, color: BRAND.textLight }}>No booking data yet</div>
+            <div className="text-xs text-slate-500">No booking data yet</div>
           )}
         </div>
 
         {/* Daily averages */}
-        <div style={{ display: "flex", gap: 24 }}>
+        <div className="flex gap-6">
           <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>This week: </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: BRAND.text }}>{thisWeekAvg}/day</span>
+            <span className="text-xs font-semibold text-slate-500">This week: </span>
+            <span className="text-sm font-extrabold text-slate-800">{thisWeekAvg}/day</span>
           </div>
           <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight }}>Last week: </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: BRAND.text }}>{lastWeekAvg}/day</span>
+            <span className="text-xs font-semibold text-slate-500">Last week: </span>
+            <span className="text-sm font-extrabold text-slate-800">{lastWeekAvg}/day</span>
           </div>
         </div>
       </div>
