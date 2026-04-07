@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { key: "dashboard", label: "Bookings" },
   { key: "dogs", label: "Dogs" },
   { key: "humans", label: "Humans" },
+  { key: "stats", label: "Stats" },
 ];
 
 // ── Menu items (hamburger dropdown) ──────────────────────────────

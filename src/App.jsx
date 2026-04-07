@@ -24,6 +24,9 @@ import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
 import { ReportsView } from "./components/views/ReportsView.jsx";
+const StatsView = lazy(() =>
+  import("./components/views/StatsView.jsx").then((m) => ({ default: m.StatsView })),
+);
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -374,6 +377,8 @@ export default function App() {
             />
           ) : activeView === "reports" ? (
             <ReportsView />
+          ) : activeView === "stats" ? (
+            <StatsView />
           ) : (
             <WeekCalendarView
               selectedDay={selectedDay}
