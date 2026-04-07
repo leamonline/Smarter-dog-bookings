@@ -144,6 +144,12 @@ export function BookingCardNew({ booking, onClick }) {
         >
           {displayDogName}
         </span>
+        {dogRecord?.alerts?.length > 0 && (
+          <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <path d="M12 2L1 21h22L12 2z" fill={BRAND.coral} />
+            <text x="12" y="18" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontFamily="inherit">!</text>
+          </svg>
+        )}
         {price && (
           <span
             style={{
