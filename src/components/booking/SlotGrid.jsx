@@ -1,6 +1,8 @@
 import { BRAND } from "../../constants/index.js";
+import { getSeatStatesForSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
+import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
 
 function formatSlotTime(slot) {
   const [hourStr, minStr] = slot.split(":");
@@ -10,7 +12,14 @@ function formatSlotTime(slot) {
   return `${displayHour}:${minStr}${suffix}`;
 }
 
-export function SlotGrid({ bookings, activeSlots, onOpenNewBooking, currentDateStr }) {
+export function SlotGrid({
+  bookings,
+  activeSlots,
+  onOpenNewBooking,
+  currentDateStr,
+  overrides,
+  onOverride,
+}) {
   return (
     <div
       style={{
@@ -21,12 +30,12 @@ export function SlotGrid({ bookings, activeSlots, onOpenNewBooking, currentDateS
       }}
     >
       {activeSlots.map((slot, i) => {
-        const slotBookings = bookings.filter((b) => b.slot === slot);
-        const seats = [
-          slotBookings[0] || null,
-          slotBookings[1] || null,
-        ];
-        const isEmpty = slotBookings.length === 0;
+        const slotOverrides = overrides?.[slot] || {};
+        const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
+
+        // Determine layout patterns for spanning
+        const allAvailable = seatStates.every((s) => s.type === "available");
+        const allBlockedByStaff = seatStates.every((s) => s.type === "blocked" && s.staffBlocked);
 
         return (
           <div
@@ -39,7 +48,7 @@ export function SlotGrid({ bookings, activeSlots, onOpenNewBooking, currentDateS
               minHeight: 100,
               alignItems: "center",
               borderBottom: i < activeSlots.length - 1
-                ? `1px solid #F1F3F5`
+                ? "1px solid #F1F3F5"
                 : "none",
             }}
           >
@@ -62,23 +71,94 @@ export function SlotGrid({ bookings, activeSlots, onOpenNewBooking, currentDateS
             </div>
 
             {/* Seats */}
-            {isEmpty ? (
+            {allAvailable ? (
+              /* Both empty — spanning ghost seat */
               <GhostSeat
                 span
                 onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                onBlock={onOverride ? (seatIdx) => onOverride(currentDateStr, slot, seatIdx, "blocked") : undefined}
+              />
+            ) : allBlockedByStaff ? (
+              /* Both staff-blocked — spanning blocked bar */
+              <BlockedSeatCell
+                span
+                onClick={() => {
+                  if (onOverride) {
+                    onOverride(currentDateStr, slot, 0, "blocked");
+                    onOverride(currentDateStr, slot, 1, "blocked");
+                  }
+                }}
               />
             ) : (
+              /* Mixed — render each seat individually */
               <>
-                {seats[0] ? (
-                  <BookingCardNew booking={seats[0]} />
-                ) : (
-                  <GhostSeat onClick={() => onOpenNewBooking(currentDateStr, slot)} />
-                )}
-                {seats[1] ? (
-                  <BookingCardNew booking={seats[1]} />
-                ) : (
-                  <GhostSeat onClick={() => onOpenNewBooking(currentDateStr, slot)} />
-                )}
+                {seatStates.map((seat) => {
+                  if (seat.type === "booking") {
+                    return <BookingCardNew key={seat.seatIndex} booking={seat.booking} />;
+                  }
+                  if (seat.type === "reserved") {
+                    return (
+                      <div
+                        key={seat.seatIndex}
+                        style={{
+                          border: `1.5px solid ${BRAND.greyLight}`,
+                          borderRadius: 12,
+                          minHeight: 80,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#F9FAFB",
+                          color: BRAND.textLight,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        (large dog)
+                      </div>
+                    );
+                  }
+                  if (seat.type === "blocked" && seat.staffBlocked) {
+                    return (
+                      <BlockedSeatCell
+                        key={seat.seatIndex}
+                        onClick={() => {
+                          if (onOverride) onOverride(currentDateStr, slot, seat.seatIndex, "blocked");
+                        }}
+                      />
+                    );
+                  }
+                  if (seat.type === "blocked") {
+                    return (
+                      <div
+                        key={seat.seatIndex}
+                        style={{
+                          border: `1.5px solid ${BRAND.greyLight}`,
+                          borderRadius: 12,
+                          minHeight: 80,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#F9FAFB",
+                          color: "#D1D5DB",
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="9" stroke="#D1D5DB" strokeWidth="2" />
+                          <line x1="6" y1="6" x2="18" y2="18" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    );
+                  }
+                  // Available seat
+                  return (
+                    <GhostSeat
+                      key={seat.seatIndex}
+                      onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                      onBlock={onOverride ? () => onOverride(currentDateStr, slot, seat.seatIndex, "blocked") : undefined}
+                    />
+                  );
+                })}
               </>
             )}
           </div>
