@@ -1,5 +1,6 @@
+// src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
-import { BRAND, SERVICES, PRICING } from "../../constants/index.js";
+import { SERVICES, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
@@ -33,20 +34,6 @@ const STATUS_DISPLAY = {
   "Completed":         { bg: "#F3F4F6", color: "#374151", label: "Completed" },
 };
 
-const PILL_BASE = {
-  flex: 1,
-  borderRadius: 6,
-  padding: "5px 0",
-  fontSize: 10,
-  fontWeight: 700,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
 export function BookingCardNew({ booking, onClick }) {
   const {
     dogs,
@@ -64,7 +51,6 @@ export function BookingCardNew({ booking, onClick }) {
     onRebook,
   } = useSalon();
 
-  const [hovered, setHovered] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
@@ -100,164 +86,90 @@ export function BookingCardNew({ booking, onClick }) {
 
   return (
     <>
-    <div
-      onClick={handleCardClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: BRAND.white,
-        border: `1.5px solid ${hovered ? BRAND.blue : BRAND.greyLight}`,
-        borderLeft: `4px solid ${sizeTheme.border}`,
-        borderRadius: 12,
-        padding: "14px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        cursor: "pointer",
-        boxShadow: hovered ? "0 2px 8px rgba(0,184,224,0.15)" : "none",
-        transform: hovered ? "translateY(-1px)" : "none",
-        transition: "all 0.15s",
-        boxSizing: "border-box",
-      }}
-    >
-      {/* Row 1: size dot + dog name + price */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            background: sizeTheme.dot,
-            flexShrink: 0,
-            display: "inline-block",
-          }}
-        />
-        <span
-          style={{
-            fontSize: 17,
-            fontWeight: 800,
-            color: BRAND.text,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {displayDogName}
-        </span>
-        {dogRecord?.alerts?.length > 0 && (
-          <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-            <path d="M12 2L1 21h22L12 2z" fill={BRAND.coral} />
-            <text x="12" y="18" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontFamily="inherit">!</text>
-          </svg>
-        )}
-        {price && (
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 900,
-              color: "#1E6B5C",
-              marginLeft: "auto",
-              flexShrink: 0,
-            }}
-          >
-            {price}
-          </span>
-        )}
-      </div>
-
-      {/* Row 2: breed */}
-      {displayBreed && (
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: BRAND.grey,
-            paddingLeft: 20,
-          }}
-        >
-          {displayBreed}
-        </div>
-      )}
-
-      {/* Row 3: owner */}
-      {displayOwner && (
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: BRAND.teal,
-            paddingLeft: 20,
-          }}
-        >
-          {displayOwner}
-        </div>
-      )}
-
-      {/* Row 4: pill row */}
       <div
-        style={{
-          display: "flex",
-          gap: 5,
-          paddingLeft: 20,
-          marginTop: 6,
-        }}
+        onClick={handleCardClick}
+        className="bg-white border-[1.5px] border-slate-200 border-l-4 rounded-xl p-2.5 md:p-3.5 flex flex-col gap-1 cursor-pointer transition-all hover:border-brand-blue hover:shadow-md hover:-translate-y-px box-border"
+        style={{ borderLeftColor: sizeTheme.border }}
       >
-        {/* Service pill */}
-        <span
-          style={{
-            ...PILL_BASE,
-            background: "#F1F3F5",
-            color: "#374151",
-          }}
-        >
-          {service?.name || booking.service || "—"}
-        </span>
+        {/* Row 1: size dot + dog name + price */}
+        <div className="flex items-center gap-2">
+          <span
+            className="w-3 h-3 rounded-full shrink-0 inline-block"
+            style={{ background: sizeTheme.dot }}
+          />
+          <span className="text-sm md:text-[17px] font-extrabold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">
+            {displayDogName}
+          </span>
+          {dogRecord?.alerts?.length > 0 && (
+            <svg width="14" height="14" viewBox="0 0 24 24" className="shrink-0">
+              <path d="M12 2L1 21h22L12 2z" fill="#E8567F" />
+              <text x="12" y="18" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontFamily="inherit">!</text>
+            </svg>
+          )}
+          {price && (
+            <span className="text-sm md:text-[17px] font-black text-[#1E6B5C] ml-auto shrink-0">
+              {price}
+            </span>
+          )}
+        </div>
 
-        {/* Pickup pill */}
-        <span
-          style={{
-            ...PILL_BASE,
-            background: "#F3EEFF",
-            color: "#7C3AED",
-          }}
-        >
-          {pickupText || "—"}
-        </span>
+        {/* Row 2: breed */}
+        {displayBreed && (
+          <div className="text-xs md:text-sm font-semibold text-slate-500 pl-4 md:pl-5">
+            {displayBreed}
+          </div>
+        )}
 
-        {/* Status pill */}
-        <span
-          style={{
-            ...PILL_BASE,
-            background: statusObj.bg,
-            color: statusObj.color,
-          }}
-        >
-          {statusObj.label}
-        </span>
+        {/* Row 3: owner */}
+        {displayOwner && (
+          <div className="text-xs md:text-sm font-bold text-brand-teal pl-4 md:pl-5">
+            {displayOwner}
+          </div>
+        )}
+
+        {/* Row 4: pill row */}
+        <div className="flex gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
+          {/* Service pill */}
+          <span className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-700">
+            {service?.name || booking.service || "\u2014"}
+          </span>
+
+          {/* Pickup pill */}
+          <span className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis bg-[#F3EEFF] text-[#7C3AED]">
+            {pickupText || "\u2014"}
+          </span>
+
+          {/* Status pill */}
+          <span
+            className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis"
+            style={{ background: statusObj.bg, color: statusObj.color }}
+          >
+            {statusObj.label}
+          </span>
+        </div>
       </div>
-    </div>
 
-    {showDetail && (
-      <Suspense fallback={null}>
-        <BookingDetailModal
-          booking={booking}
-          onClose={() => setShowDetail(false)}
-          onRemove={onRemove}
-          onOpenHuman={onOpenHuman}
-          onOpenDog={onOpenDog}
-          onUpdate={onUpdate}
-          currentDateStr={currentDateStr}
-          currentDateObj={currentDateObj}
-          bookingsByDate={bookingsByDate}
-          dayOpenState={dayOpenState}
-          dogs={dogs}
-          humans={humans}
-          onUpdateDog={onUpdateDog}
-          onRebook={onRebook}
-          daySettings={daySettings}
-        />
-      </Suspense>
-    )}
+      {showDetail && (
+        <Suspense fallback={null}>
+          <BookingDetailModal
+            booking={booking}
+            onClose={() => setShowDetail(false)}
+            onRemove={onRemove}
+            onOpenHuman={onOpenHuman}
+            onOpenDog={onOpenDog}
+            onUpdate={onUpdate}
+            currentDateStr={currentDateStr}
+            currentDateObj={currentDateObj}
+            bookingsByDate={bookingsByDate}
+            dayOpenState={dayOpenState}
+            dogs={dogs}
+            humans={humans}
+            onUpdateDog={onUpdateDog}
+            onRebook={onRebook}
+            daySettings={daySettings}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
