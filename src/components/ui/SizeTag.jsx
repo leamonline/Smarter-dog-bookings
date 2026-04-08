@@ -1,15 +1,21 @@
+import { SIZE_THEME } from "../../constants/index.js";
+
+const DOT_SIZES = {
+  small:  { normal: 14, legend: 12, header: 24 },
+  medium: { normal: 20, legend: 18, header: 30 },
+  large:  { normal: 26, legend: 24, header: 36 },
+};
+
 export function SizeTag({ size, legendMode, headerMode }) {
-  const config = {
-    small: { colour: "#F5C518", dotSize: headerMode ? 24 : (legendMode ? 12 : 14) },
-    medium: { colour: "#2D8B7A", dotSize: headerMode ? 30 : (legendMode ? 18 : 20) },
-    large: { colour: "#E8567F", dotSize: headerMode ? 36 : (legendMode ? 24 : 26) },
-  };
-  const c = config[size];
+  const theme = SIZE_THEME[size];
+  const dots = DOT_SIZES[size];
+  if (!theme || !dots) return null;
+  const dotSize = headerMode ? dots.header : legendMode ? dots.legend : dots.normal;
+
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center",
-      width: c.dotSize, height: c.dotSize, borderRadius: "50%",
-      background: c.colour, flexShrink: 0,
-    }} />
+    <span
+      className="inline-flex items-center justify-center rounded-full shrink-0"
+      style={{ width: dotSize, height: dotSize, background: theme.gradient[0] }}
+    />
   );
 }

@@ -5,7 +5,7 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { BRAND } from "./constants/index.js";
+
 import { supabase } from "./supabase/client.js";
 import { getDefaultOpenForDate } from "./engine/utils.js";
 import { useAuth } from "./supabase/hooks/useAuth.js";

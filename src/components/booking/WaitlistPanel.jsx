@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { BRAND } from "../../constants/index.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 
 export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
   const { waitlist, loading, error, joinWaitlist, leaveWaitlist } = useWaitlist(currentDateObj);
   const [showAdd, setShowAdd] = useState(false);
   const [addingId, setAddingId] = useState(null);
-  
+
   // Sorted humans for dropdown
   const humanList = Object.values(humans || {}).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -27,28 +26,16 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
   if (loading && waitlist.length === 0) return null;
 
   return (
-    <div style={{
-      borderTop: `1px solid ${BRAND.greyLight}`,
-      background: "#FFFBF2",
-      padding: "16px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: BRAND.text, textTransform: "uppercase", letterSpacing: 0.5 }}>
+    <div className="border-t border-slate-200 bg-[#FFFBF2] p-4 flex flex-col gap-3">
+      <div className="flex justify-between items-center">
+        <div className="text-[13px] font-extrabold text-slate-800 uppercase tracking-wide">
           Waitlist ({waitlist.length})
         </div>
         {!showAdd && (
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setShowAdd(true)}
-            style={{
-              padding: "4px 8px", borderRadius: 6, border: `1.5px solid ${BRAND.greyLight}`, background: BRAND.white,
-              color: BRAND.textLight, fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.15s"
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.blue; e.currentTarget.style.borderColor = BRAND.blue; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; e.currentTarget.style.borderColor = BRAND.greyLight; }}
+            className="py-1 px-2 rounded-md border-[1.5px] border-slate-200 bg-white text-slate-500 text-[11px] font-bold cursor-pointer transition-all hover:text-brand-blue hover:border-brand-blue"
           >
             + Add Person
           </button>
@@ -56,56 +43,47 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
       </div>
 
       {showAdd && (
-        <div style={{ display: "flex", gap: 8, background: BRAND.white, padding: "8px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}` }}>
-          <select 
+        <div className="flex gap-2 bg-white p-2 rounded-lg border border-slate-200">
+          <select
             onChange={(e) => handleJoin(e.target.value)}
             disabled={addingId !== null}
             defaultValue=""
-            style={{
-              flex: 1, padding: "6px", borderRadius: 6, border: `1px solid ${BRAND.greyLight}`, fontSize: 12
-            }}
+            className="flex-1 p-1.5 rounded-md border border-slate-200 text-xs"
           >
             <option value="" disabled>Select a customer...</option>
             {humanList.map(h => (
               <option key={h.id} value={h.id}>{h.name} {h.surname} - {h.phone}</option>
             ))}
           </select>
-          <button 
+          <button
             onClick={() => setShowAdd(false)}
-            style={{
-              padding: "6px 10px", borderRadius: 6, border: "none", background: BRAND.coralLight, color: BRAND.coral, fontSize: 11, fontWeight: 700, cursor: "pointer"
-            }}
+            className="py-1.5 px-2.5 rounded-md border-none bg-brand-coral-light text-brand-coral text-[11px] font-bold cursor-pointer"
           >
             Cancel
           </button>
         </div>
       )}
 
-      {error && <div style={{ fontSize: 12, color: BRAND.coral }}>{error}</div>}
+      {error && <div className="text-xs text-brand-coral">{error}</div>}
 
       {waitlist.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {waitlist.map(entry => {
             const h = entry.humans;
             const theirDogs = Object.values(dogs || {}).filter(d => d.humanId === h.id);
             const dogNames = theirDogs.map(d => d.name).join(", ") || "No dogs";
 
             return (
-              <div key={entry.id} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: BRAND.white, padding: "8px 12px", borderRadius: 8, border: `1px solid ${BRAND.greyLight}`
-              }}>
-                <div style={{ minWidth: 0, flex: 1, cursor: "pointer" }} onClick={() => onOpenHuman && onOpenHuman(h.id)}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.text }}>{h.name} {h.surname}</div>
-                  <div style={{ fontSize: 11, color: BRAND.textLight, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div key={entry.id} className="flex items-center justify-between bg-white py-2 px-3 rounded-lg border border-slate-200">
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onOpenHuman && onOpenHuman(h.id)}>
+                  <div className="text-[13px] font-bold text-slate-800">{h.name} {h.surname}</div>
+                  <div className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                     {h.phone} · {dogNames}
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => leaveWaitlist(entry.id)}
-                  style={{
-                    background: "none", border: "none", color: BRAND.coral, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px"
-                  }}
+                  className="bg-transparent border-none text-brand-coral text-xs font-bold cursor-pointer py-1 px-2"
                 >
                   Remove
                 </button>
@@ -114,7 +92,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
           })}
         </div>
       ) : (
-        <div style={{ fontSize: 12, fontStyle: "italic", color: BRAND.textLight }}>No one is waiting for this date.</div>
+        <div className="text-xs italic text-slate-500">No one is waiting for this date.</div>
       )}
     </div>
   );

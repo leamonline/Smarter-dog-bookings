@@ -1,5 +1,4 @@
 // src/components/layout/DayTab.jsx
-import { BRAND } from "../../constants/index.js";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -8,18 +7,16 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick }) {
   const dateNum = dateObj.getDate();
   const monthName = dateObj.toLocaleDateString("en-GB", { month: "long" });
 
-  const stripBg = isOpen ? BRAND.openGreen : BRAND.closedRed;
+  const stripBg = isOpen ? "bg-brand-green" : "bg-brand-red";
+  const textCls = isOpen ? "text-slate-800" : "text-slate-400";
 
-  const dateNumColour = isOpen ? BRAND.text : "#9CA3AF";
-  const monthColour = isOpen ? BRAND.text : "#9CA3AF";
-
-  let dogCountColour;
+  let dogCountCls;
   if (!isOpen) {
-    dogCountColour = BRAND.closedRed;
+    dogCountCls = "text-brand-red";
   } else if (isActive) {
-    dogCountColour = BRAND.blueDark;
+    dogCountCls = "text-brand-blue-dark";
   } else {
-    dogCountColour = BRAND.blue;
+    dogCountCls = "text-brand-blue";
   }
 
   let dogCountText;
@@ -42,34 +39,22 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick }) {
       onClick={onClick}
     >
       {/* Coloured strip */}
-      <div
-        className="py-[3px] text-[8px] font-extrabold text-white uppercase tracking-[0.8px] rounded-t-lg"
-        style={{ background: stripBg }}
-      >
+      <div className={`py-[3px] text-[8px] font-extrabold text-white uppercase tracking-[0.8px] rounded-t-lg ${stripBg}`}>
         {dayName}
       </div>
 
       {/* Date number */}
-      <div
-        className="text-lg md:text-2xl font-black leading-none mt-0.5"
-        style={{ color: dateNumColour }}
-      >
+      <div className={`text-lg md:text-2xl font-black leading-none mt-0.5 ${textCls}`}>
         {dateNum}
       </div>
 
       {/* Month name */}
-      <div
-        className="text-[10px] md:text-[13px] font-extrabold leading-none mt-px"
-        style={{ color: monthColour }}
-      >
+      <div className={`text-[10px] md:text-[13px] font-extrabold leading-none mt-px ${textCls}`}>
         {monthName}
       </div>
 
       {/* Dog count */}
-      <div
-        className="text-[9px] font-extrabold mt-[3px] leading-none"
-        style={{ color: dogCountColour }}
-      >
+      <div className={`text-[9px] font-extrabold mt-[3px] leading-none ${dogCountCls}`}>
         {dogCountText}
       </div>
     </div>

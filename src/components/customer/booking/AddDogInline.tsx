@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { BRAND } from "../../../constants/index.js";
 import { getSizeForBreed } from "../../../constants/breeds.js";
 import type { DogSize } from "../../../types/index.js";
 
@@ -32,7 +31,6 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
 
       const dogSize = size || getSizeForBreed(breed) as DogSize || null;
 
-      // Try direct insert first (works for authenticated customers)
       const { data, error: err } = await supabase
         .from("dogs")
         .insert({
@@ -45,7 +43,6 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         .single();
 
       if (err) {
-        // RLS failure (e.g. demo mode) — fall back to RPC
         if (err.message?.includes("row-level security")) {
           const { data: rpcData, error: rpcErr } = await supabase.rpc("demo_add_dog", {
             p_name: name.trim(),
@@ -75,101 +72,61 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
   };
 
   return (
-    <div
-      style={{
-        border: `2px solid ${BRAND.teal}`,
-        borderRadius: 10,
-        padding: 16,
-        background: BRAND.tealLight,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      <div style={{ fontWeight: 600, color: BRAND.teal, fontSize: 14 }}>Add a new dog</div>
+    <div className="border-2 border-brand-teal rounded-[10px] p-4 bg-emerald-50 flex flex-col gap-3">
+      <div className="font-semibold text-brand-teal text-sm">Add a new dog</div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: 13, color: BRAND.text, fontWeight: 600 }}>Name *</label>
+      <div className="flex flex-col gap-1">
+        <label className="text-[13px] text-slate-800 font-semibold">Name *</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Biscuit"
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: `1px solid ${BRAND.greyLight}`,
-            fontSize: 14,
-            background: BRAND.white,
-            color: BRAND.text,
-          }}
+          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
         />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: 13, color: BRAND.text, fontWeight: 600 }}>Breed</label>
+      <div className="flex flex-col gap-1">
+        <label className="text-[13px] text-slate-800 font-semibold">Breed</label>
         <input
           type="text"
           value={breed}
           onChange={(e) => handleBreedChange(e.target.value)}
           placeholder="e.g. Cockapoo"
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: `1px solid ${BRAND.greyLight}`,
-            fontSize: 14,
-            background: BRAND.white,
-            color: BRAND.text,
-          }}
+          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
         />
         {breed && getSizeForBreed(breed) && (
-          <span style={{ fontSize: 12, color: BRAND.teal }}>
+          <span className="text-xs text-brand-teal">
             Auto-detected size: {getSizeForBreed(breed)}
           </span>
         )}
       </div>
 
-      {/* Size is auto-detected from breed — no manual selector for customers */}
       {!getSizeForBreed(breed) && breed.trim() && (
-        <div style={{ fontSize: 12, color: BRAND.textLight }}>
+        <div className="text-xs text-slate-500">
           We'll confirm {name.trim() || "your dog"}'s size when you visit — just enter the breed and we'll sort it.
         </div>
       )}
 
       {error && (
-        <div style={{ color: BRAND.coral, fontSize: 13 }}>{error}</div>
+        <div className="text-brand-coral text-[13px]">{error}</div>
       )}
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <button
           onClick={handleSave}
           disabled={saving || !name.trim()}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            borderRadius: 8,
-            border: "none",
-            background: !name.trim() ? BRAND.greyLight : BRAND.teal,
-            color: !name.trim() ? BRAND.grey : BRAND.white,
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: saving || !name.trim() ? "not-allowed" : "pointer",
-          }}
+          className={`flex-1 py-2.5 px-4 rounded-lg border-none font-bold text-sm ${
+            !name.trim()
+              ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+              : "bg-brand-teal text-white cursor-pointer"
+          }`}
         >
-          {saving ? "Saving…" : "Save dog"}
+          {saving ? "Saving\u2026" : "Save dog"}
         </button>
         <button
           onClick={onCancel}
-          style={{
-            padding: "10px 16px",
-            borderRadius: 8,
-            border: `1px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.grey,
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-          }}
+          className="py-2.5 px-4 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
         >
           Cancel
         </button>

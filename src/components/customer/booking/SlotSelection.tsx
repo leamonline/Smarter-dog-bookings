@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { BRAND, SALON_SLOTS } from "../../../constants/index.js";
+import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import type { WizardDog, SlotAllocation, Booking } from "../../../types/index.js";
 
@@ -84,44 +84,21 @@ export function SlotSelection({
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={{ margin: 0, color: BRAND.textLight, fontSize: 14 }}>
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-slate-500 text-sm">
         Choose a drop-off time.
       </p>
 
       {loading && (
-        <p style={{ color: BRAND.textLight, fontSize: 14 }}>Checking availability…</p>
+        <p className="text-slate-500 text-sm">Checking availability\u2026</p>
       )}
 
       {!loading && availableSlots.length === 0 && (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: 8,
-            background: BRAND.coralLight,
-            color: BRAND.coral,
-            fontSize: 14,
-            fontWeight: 600,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <div className="p-4 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold flex flex-col gap-3">
           <div>No availability on this date. Please try another day.</div>
-          
           <button
-             onClick={onJoinWaitlist}
-             style={{
-               alignSelf: "flex-start",
-               padding: "10px 16px",
-               borderRadius: 8,
-               border: "none",
-               background: BRAND.coral,
-               color: BRAND.white,
-               fontWeight: 700,
-               fontSize: 13,
-               cursor: "pointer",
-             }}
+            onClick={onJoinWaitlist}
+            className="self-start py-2.5 px-4 rounded-lg border-none bg-brand-coral text-white font-bold text-[13px] cursor-pointer"
           >
             Join Waitlist for this date
           </button>
@@ -129,40 +106,31 @@ export function SlotSelection({
       )}
 
       {!loading && availableSlots.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {availableSlots.map((allocation) => {
             const selected = selectedDropOff === allocation.dropOffTime;
             return (
               <button
                 key={allocation.dropOffTime}
                 onClick={() => onSelect(allocation)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  borderRadius: 8,
-                  border: selected
-                    ? `2px solid ${BRAND.teal}`
-                    : `2px solid ${BRAND.greyLight}`,
-                  background: selected ? BRAND.tealLight : BRAND.white,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  width: "100%",
-                }}
+                className={`flex items-center justify-between py-3 px-4 rounded-lg border-2 cursor-pointer text-left w-full ${
+                  selected
+                    ? "border-brand-teal bg-emerald-50"
+                    : "border-slate-200 bg-white"
+                }`}
               >
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: BRAND.text }}>
+                  <div className="font-bold text-base text-slate-800">
                     {formatSlot(allocation.dropOffTime)}
                   </div>
                   {selectedDogs.length > 1 && (
-                    <div style={{ fontSize: 13, color: BRAND.textLight }}>
+                    <div className="text-[13px] text-slate-500">
                       Drop off all dogs at this time
                     </div>
                   )}
                 </div>
                 {selected && (
-                  <span style={{ color: BRAND.teal, fontSize: 20, fontWeight: 700 }}>✓</span>
+                  <span className="text-brand-teal text-xl font-bold">{"\u2713"}</span>
                 )}
               </button>
             );
@@ -170,38 +138,23 @@ export function SlotSelection({
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+      <div className="flex gap-2.5 mt-2">
         <button
           onClick={onBack}
-          style={{
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: `1px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.grey,
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-          }}
+          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
         >
-          ← Back
+          {"\u2190"} Back
         </button>
         <button
           onClick={onNext}
           disabled={!selectedDropOff}
-          style={{
-            flex: 1,
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: "none",
-            background: selectedDropOff ? BRAND.teal : BRAND.greyLight,
-            color: selectedDropOff ? BRAND.white : BRAND.grey,
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: selectedDropOff ? "pointer" : "not-allowed",
-          }}
+          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
+            selectedDropOff
+              ? "bg-brand-teal text-white cursor-pointer"
+              : "bg-slate-200 text-slate-500 cursor-not-allowed"
+          }`}
         >
-          Next →
+          Next {"\u2192"}
         </button>
       </div>
     </div>

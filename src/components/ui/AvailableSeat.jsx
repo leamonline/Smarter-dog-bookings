@@ -1,20 +1,14 @@
-import { BRAND } from "../../constants/index.js";
 import { IconTick, IconPlus, IconBlock } from "../icons/index.jsx";
 import { StaffIconBtn } from "./StaffIconBtn.jsx";
 
-const SEAT_ROW_STYLE = {
-  display: "flex", alignItems: "center", justifyContent: "space-between",
-  borderRadius: 10, padding: "6px 10px", minHeight: 42, boxSizing: "border-box",
-};
-
 export function AvailableSeat({ onAddBooking, onBlock }) {
   return (
-    <div style={{ ...SEAT_ROW_STYLE, background: BRAND.blueLight, border: `1.5px solid #8AD8EE` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 28, minWidth: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconTick size={16} /></div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.blueDark }}>Available</span>
+    <div className="flex items-center justify-between rounded-[10px] py-1.5 px-2.5 min-h-[42px] box-border bg-sky-50 border-[1.5px] border-[#8AD8EE]">
+      <div className="flex items-center gap-2">
+        <div className="w-7 min-w-[28px] flex items-center justify-center shrink-0"><IconTick size={16} /></div>
+        <span className="text-xs font-semibold text-brand-blue-dark">Available</span>
       </div>
-      <div style={{ display: "flex", gap: 4 }}>
+      <div className="flex gap-1">
         <StaffIconBtn icon={<IconPlus />} title="Add appointment" onClick={onAddBooking} />
         <StaffIconBtn icon={<IconBlock />} title="Block appointment" onClick={onBlock} />
       </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo, lazy, Suspense } from "react";
-import { BRAND, SALON_SLOTS } from "../../constants/index.js";
+import { SALON_SLOTS } from "../../constants/index.js";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { getDefaultOpenForDate } from "../../engine/utils.js";
@@ -17,9 +17,6 @@ const DatePickerModal = lazy(() =>
   })),
 );
 
-// Arrow colour for MonthGrid navigation arrows
-const ARROW_COLOURS = { month: "#E8567F" };
-
 /* ──────────────────────────────────────────────────────────
  * MonthGrid — shows a full calendar month with booking counts
  * ────────────────────────────────────────────────────────── */
@@ -27,11 +24,10 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
   const year = currentDateObj.getFullYear();
   const month = currentDateObj.getMonth();
 
-  const { weeks, monthLabel, monthName, yearStr } = useMemo(() => {
+  const { weeks, monthName, yearStr } = useMemo(() => {
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
     const startDay = first.getDay() === 0 ? 6 : first.getDay() - 1; // Mon=0
-    const label = first.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
     const mName = first.toLocaleDateString("en-GB", { month: "long" });
     const yr = String(first.getFullYear());
 
@@ -46,7 +42,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
       while (week.length < 7) week.push(null);
       rows.push(week);
     }
-    return { weeks: rows, monthLabel: label, monthName: mName, yearStr: yr };
+    return { weeks: rows, monthName: mName, yearStr: yr };
   }, [year, month]);
 
   const todayStr = toDateStr(new Date());
@@ -57,80 +53,62 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
   };
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      {/* Month header — blue banner matching day/week view */}
-      <div style={{
-        display: "flex", alignItems: "center",
-        marginBottom: 12, padding: "14px 16px",
-        background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-        borderRadius: 14,
-      }}>
-        {/* Prev arrow — far left */}
-        <button onClick={() => goMonth(-1)} style={{
-          width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
-          background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        }}>
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <div className="mb-4">
+      {/* Month header — blue banner */}
+      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-[14px]">
+        {/* Prev arrow */}
+        <button onClick={() => goMonth(-1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3l-5 5 5 5" />
           </svg>
         </button>
 
-        {/* Centre group: month box + view buttons */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          {/* Month & year in a wider white box */}
-          <div style={{
-            background: BRAND.white, borderRadius: 10, padding: "8px 48px",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            minHeight: 58, minWidth: 200,
-          }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: BRAND.text, lineHeight: 1.1 }}>{monthName}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.textLight, marginTop: 2 }}>{yearStr}</div>
+        {/* Centre group */}
+        <div className="flex-1 flex items-center justify-center gap-3">
+          {/* Month & year box */}
+          <div className="bg-white rounded-[10px] py-2 px-12 flex flex-col items-center justify-center min-h-[58px] min-w-[200px]">
+            <div className="text-[26px] font-extrabold text-slate-800 leading-none">{monthName}</div>
+            <div className="text-sm font-bold text-slate-500 mt-0.5">{yearStr}</div>
           </div>
 
-          {/* View buttons — stacked, right of month box */}
+          {/* View buttons */}
           {setCalendarMode && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {[{ mode: "day", label: "Day View", colour: "#F5C518" }, { mode: "month", label: "Month View", colour: "#E8567F" }].map(v => {
+            <div className="flex flex-col gap-[3px]">
+              {[{ mode: "day", label: "Day View", colour: "text-amber-500" }, { mode: "month", label: "Month View", colour: "text-brand-coral" }].map(v => {
                 const active = calendarMode === v.mode;
                 return (
-                  <button key={v.mode} onClick={() => setCalendarMode(v.mode)} style={{
-                    padding: "4px 8px", borderRadius: 6, border: "none",
-                    background: active ? BRAND.white : "rgba(255,255,255,0.15)",
-                    color: active ? v.colour : "rgba(255,255,255,0.85)",
-                    fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                    transition: "all 0.15s", whiteSpace: "nowrap",
-                  }}>{v.label}</button>
+                  <button
+                    key={v.mode}
+                    onClick={() => setCalendarMode(v.mode)}
+                    className={`py-1 px-2 rounded-md border-none text-[10px] font-bold cursor-pointer font-[inherit] transition-all whitespace-nowrap ${
+                      active ? `bg-white ${v.colour}` : "bg-white/15 text-white/85"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Next arrow — far right */}
-        <button onClick={() => goMonth(1)} style={{
-          width: 28, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
-          background: BRAND.white, border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        }}>
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke={ARROW_COLOURS.month} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        {/* Next arrow */}
+        <button onClick={() => goMonth(1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 3l5 5-5 5" />
           </svg>
         </button>
       </div>
 
       {/* Day-of-week headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+      <div className="grid grid-cols-7 gap-1 mb-1">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
-          <div key={d} style={{
-            textAlign: "center", fontSize: 11, fontWeight: 700,
-            color: BRAND.textLight, textTransform: "uppercase", padding: "4px 0",
-          }}>{d}</div>
+          <div key={d} className="text-center text-[11px] font-bold text-slate-500 uppercase py-1">{d}</div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+      <div className="grid grid-cols-7 gap-1">
         {weeks.flat().map((date, i) => {
           if (!date) return <div key={`empty-${i}`} />;
 
@@ -140,44 +118,38 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === toDateStr(currentDateObj);
 
-          let bg = BRAND.white;
-          let border = `1px solid ${BRAND.greyLight}`;
-          let textColour = BRAND.text;
+          let bgCls = "bg-white";
+          let borderCls = "border border-slate-200";
+          let textCls = "text-slate-800";
 
           if (!isOpen) {
-            bg = "#F3F4F6";
-            textColour = BRAND.textLight;
+            bgCls = "bg-slate-100";
+            textCls = "text-slate-500";
           }
           if (isSelected) {
-            bg = BRAND.blue;
-            textColour = BRAND.white;
-            border = `1px solid ${BRAND.blue}`;
+            bgCls = "bg-brand-blue";
+            textCls = "text-white";
+            borderCls = "border border-brand-blue";
           }
           if (isToday && !isSelected) {
-            border = `2px solid ${BRAND.blue}`;
+            borderCls = "border-2 border-brand-blue";
           }
 
           return (
             <button
               key={dateStr}
               onClick={() => onSelectDate(date)}
-              style={{
-                padding: "8px 4px", borderRadius: 10, border, background: bg,
-                cursor: "pointer", fontFamily: "inherit", transition: "all 0.1s",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                minHeight: 56,
-              }}
+              className={`py-2 px-1 rounded-[10px] ${borderCls} ${bgCls} cursor-pointer font-[inherit] transition-all flex flex-col items-center gap-0.5 min-h-[56px]`}
             >
-              <span style={{ fontSize: 14, fontWeight: 700, color: textColour }}>{date.getDate()}</span>
+              <span className={`text-sm font-bold ${textCls}`}>{date.getDate()}</span>
               {isOpen ? (
-                <span style={{
-                  fontSize: 11, fontWeight: 800,
-                  color: isSelected ? "rgba(255,255,255,0.85)" : count > 0 ? BRAND.blue : BRAND.textLight,
-                }}>
-                  {count > 0 ? count : "—"}
+                <span className={`text-[11px] font-extrabold ${
+                  isSelected ? "text-white/85" : count > 0 ? "text-brand-blue" : "text-slate-500"
+                }`}>
+                  {count > 0 ? count : "\u2014"}
                 </span>
               ) : (
-                <span style={{ fontSize: 10, fontWeight: 600, color: isSelected ? "rgba(255,255,255,0.7)" : BRAND.closedRed }}>
+                <span className={`text-[10px] font-semibold ${isSelected ? "text-white/70" : "text-brand-red"}`}>
                   Closed
                 </span>
               )}
@@ -268,7 +240,7 @@ export function WeekCalendarView({
 
   return (
     <>
-      {/* ── Calendar tabs — replaces WeekNav ── */}
+      {/* Calendar tabs */}
       <CalendarTabs
         dates={dates}
         selectedDay={selectedDay}
@@ -280,14 +252,13 @@ export function WeekCalendarView({
         onSelectMonth={() => setCalendarMode("month")}
       />
 
-      {/* ── Day view ── */}
+      {/* Day view */}
       {calendarMode === "day" && (
         <>
           {/* Slim header bar with ShopSign */}
           <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-3 px-5 flex items-center justify-center min-h-[56px] relative overflow-hidden">
-            {/* Paw watermark */}
             <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none">
-              🐾
+              {"🐾"}
             </div>
             <ShopSign isOpen={isOpen} />
           </div>
@@ -331,7 +302,7 @@ export function WeekCalendarView({
         </>
       )}
 
-      {/* ── Month view ── */}
+      {/* Month view */}
       {calendarMode === "month" && (
         <MonthGrid
           currentDateObj={currentDateObj}
@@ -344,13 +315,13 @@ export function WeekCalendarView({
         />
       )}
 
-      {/* ── Floating actions ── */}
+      {/* Floating actions */}
       <FloatingActions
         bookings={dayBookings}
         onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
       />
 
-      {/* ── Date picker modal ── */}
+      {/* Date picker modal */}
       {showDatePicker && (
         <Suspense fallback={<LoadingSpinner />}>
           <DatePickerModal
@@ -362,76 +333,30 @@ export function WeekCalendarView({
         </Suspense>
       )}
 
-      {/* ── Rebook modal ── */}
+      {/* Rebook modal */}
       {rebookData && (
         <div
           onClick={() => {
             setRebookData(null);
             setShowRebookDatePicker(false);
           }}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: BRAND.white,
-              borderRadius: 16,
-              width: 420,
-              padding: "20px 24px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-            }}
+            className="bg-white rounded-2xl w-[420px] py-5 px-6 shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
           >
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: BRAND.text,
-                marginBottom: 4,
-              }}
-            >
+            <div className="text-base font-extrabold text-slate-800 mb-1">
               Rebook {rebookData.dogName}
             </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.textLight,
-                marginBottom: 12,
-              }}
-            >
-              Pre-filled from previous appointment. Choose a date and slot, then
-              confirm.
+            <div className="text-[13px] text-slate-500 mb-3">
+              Pre-filled from previous appointment. Choose a date and slot, then confirm.
             </div>
 
             <button
               type="button"
               onClick={() => setShowRebookDatePicker(true)}
-              style={{
-                width: "100%",
-                marginBottom: 10,
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: `1.5px solid ${BRAND.greyLight}`,
-                background: BRAND.white,
-                color: BRAND.text,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="w-full mb-2.5 py-2.5 px-3 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-semibold cursor-pointer font-[inherit] flex justify-between items-center"
             >
               <span>
                 {rebookData.date
@@ -447,29 +372,12 @@ export function WeekCalendarView({
             </button>
 
             {!rebookDayOpen && (
-              <div
-                style={{
-                  marginBottom: 10,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  background: BRAND.coralLight,
-                  color: BRAND.coral,
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
+              <div className="mb-2.5 py-2.5 px-3 rounded-lg bg-brand-coral-light text-brand-coral text-xs font-bold">
                 This day is currently closed. Choose another date.
               </div>
             )}
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
-                gap: 6,
-                marginBottom: 12,
-              }}
-            >
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5 mb-3">
               {rebookSlots.map((slot) => {
                 const allowed = canBookSlot(
                   rebookBookings,
@@ -481,6 +389,8 @@ export function WeekCalendarView({
                   },
                 ).allowed;
 
+                const isActive = rebookData.slot === slot;
+
                 return (
                   <button
                     key={slot}
@@ -489,24 +399,19 @@ export function WeekCalendarView({
                     onClick={() =>
                       setRebookData((prev) => ({ ...prev, slot }))
                     }
-                    style={{
-                      padding: "8px 0",
-                      borderRadius: 8,
-                      border: `1.5px solid ${rebookData.slot === slot ? BRAND.blue : BRAND.greyLight}`,
-                      background:
-                        rebookData.slot === slot ? BRAND.blue : BRAND.white,
-                      color:
-                        rebookData.slot === slot
-                          ? BRAND.white
-                          : allowed
-                            ? BRAND.text
-                            : BRAND.textLight,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: allowed ? "pointer" : "not-allowed",
-                      opacity: allowed ? 1 : 0.5,
-                      fontFamily: "inherit",
-                    }}
+                    className={`py-2 rounded-lg border-[1.5px] text-[13px] font-semibold font-[inherit] transition-all ${
+                      isActive
+                        ? "border-brand-blue bg-brand-blue text-white"
+                        : "border-slate-200 bg-white"
+                    } ${
+                      allowed
+                        ? "cursor-pointer opacity-100"
+                        : "cursor-not-allowed opacity-50"
+                    } ${
+                      !isActive && allowed ? "text-slate-800" : ""
+                    } ${
+                      !isActive && !allowed ? "text-slate-500" : ""
+                    }`}
                   >
                     {slot}
                   </button>
@@ -515,16 +420,8 @@ export function WeekCalendarView({
             </div>
 
             {rebookAvailableSlots.length === 0 && (
-              <div
-                style={{
-                  marginBottom: 12,
-                  fontSize: 12,
-                  color: BRAND.coral,
-                  fontWeight: 700,
-                }}
-              >
-                No bookable slots are available for this dog on the selected
-                date.
+              <div className="mb-3 text-xs text-brand-coral font-bold">
+                No bookable slots are available for this dog on the selected date.
               </div>
             )}
 
@@ -555,7 +452,7 @@ export function WeekCalendarView({
         </div>
       )}
 
-      {/* ── Rebook date picker ── */}
+      {/* Rebook date picker */}
       {showRebookDatePicker && rebookData && (
         <Suspense fallback={<LoadingSpinner />}>
           <DatePickerModal

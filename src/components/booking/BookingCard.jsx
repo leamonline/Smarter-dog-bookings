@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { BRAND, SERVICES, BOOKING_STATUSES } from "../../constants/index.js";
+import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
@@ -14,11 +14,6 @@ function titleCase(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const SIZE_COLOURS = {
-  small: { dark: "#D4A500", light: "#FFF8E0" },
-  medium: { dark: "#1E6B5C", light: BRAND.tealLight },
-  large: { dark: "#C93D63", light: BRAND.coralLight },
-};
 
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({
@@ -31,15 +26,6 @@ const ContactPopup = lazy(() =>
     default: module.ContactPopup,
   })),
 );
-
-const ICON_COL_STYLE = {
-  width: 28,
-  minWidth: 28,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-};
 
 export function BookingCard({ booking }) {
   // All shared data now comes from SalonContext
@@ -89,7 +75,8 @@ export function BookingCard({ booking }) {
     );
   };
 
-  const sizeTheme = SIZE_COLOURS[booking.size] || { dark: BRAND.blueDark, light: BRAND.blueLight };
+  const rawTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
+  const sizeTheme = { dark: rawTheme.primary, light: rawTheme.light };
 
   const handleOpenDog = (e) => {
     e.stopPropagation();
@@ -110,57 +97,26 @@ export function BookingCard({ booking }) {
     <>
       <div
         onClick={() => setShowDetail(true)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: BRAND.white,
-          border: `1px solid ${BRAND.greyLight}`,
-          borderRadius: 10,
-          padding: "6px 10px",
-          fontSize: 13,
-          cursor: "pointer",
-          minHeight: 42,
-          boxSizing: "border-box",
-          transition: "all 0.15s",
-          borderLeft: `3px solid ${statusObj.color}`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = sizeTheme.dark;
-          e.currentTarget.style.borderLeftColor = statusObj.color;
-          e.currentTarget.style.boxShadow = `0 1px 6px ${sizeTheme.light}`;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = BRAND.greyLight;
-          e.currentTarget.style.borderLeftColor = statusObj.color;
-          e.currentTarget.style.boxShadow = "none";
-        }}
+        className="flex items-center gap-2 bg-white border border-slate-200 rounded-[10px] py-1.5 px-2.5 text-[13px] cursor-pointer min-h-[42px] box-border transition-all hover:shadow-md"
+        style={{ borderLeft: `3px solid ${statusObj.color}` }}
       >
-        <div style={ICON_COL_STYLE}>
+        <div className="w-7 min-w-[28px] flex items-center justify-center shrink-0">
           <SizeTag size={booking.size} />
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontWeight: 600,
-              color: BRAND.text,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">
             {booking.confirmed && (
               <span
                 title="Confirmed"
-                style={{ color: BRAND.openGreen, marginRight: 3, fontSize: 11 }}
+                className="text-brand-green mr-[3px] text-[11px]"
               >
-                {"✓"}
+                {"\u2713"}
               </span>
             )}
             <span
+              className="cursor-pointer"
               style={{
-                cursor: "pointer",
                 borderBottom: `1px dashed ${sizeTheme.dark}`,
                 color: sizeTheme.dark,
               }}
@@ -168,26 +124,15 @@ export function BookingCard({ booking }) {
             >
               {titleCase(booking.dogName)}
             </span>
-            <span
-              style={{
-                fontWeight: 400,
-                color: BRAND.textLight,
-                marginLeft: 4,
-                fontSize: 12,
-              }}
-            >
+            <span className="font-normal text-slate-500 ml-1 text-xs">
               ({titleCase(booking.breed)})
             </span>
           </div>
 
-          <div style={{ fontSize: 11, color: BRAND.textLight }}>
+          <div className="text-[11px] text-slate-500">
             {service?.icon} {service?.name} {"·"}{" "}
             <span
-              style={{
-                cursor: "pointer",
-                borderBottom: `1px dashed ${BRAND.teal}`,
-                color: BRAND.teal,
-              }}
+              className="cursor-pointer border-b border-dashed border-brand-teal text-brand-teal"
               onClick={handleOpenHuman}
             >
               {titleCase(booking.owner)}
@@ -195,49 +140,31 @@ export function BookingCard({ booking }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+        <div className="flex gap-[3px] items-center">
           {nextStatus && (
             <button
               onClick={handleAdvanceStatus}
               title={`Advance to: ${nextStatus.label}`}
+              className="rounded-md py-[3px] px-2 text-[10px] font-bold cursor-pointer font-[inherit] whitespace-nowrap transition-all hover:brightness-110"
               style={{
                 background: nextStatus.bg,
                 color: nextStatus.color,
                 border: `1px solid ${nextStatus.color}`,
-                borderRadius: 6,
-                padding: "3px 8px",
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = nextStatus.color;
-                e.currentTarget.style.color = BRAND.white;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = nextStatus.bg;
-                e.currentTarget.style.color = nextStatus.color;
               }}
             >
-              {"▶"} {nextStatus.label}
+              {"\u25B6"} {nextStatus.label}
             </button>
           )}
 
           {!nextStatus && (
             <span
+              className="text-[10px] font-bold py-[3px] px-2 rounded-md"
               style={{
-                fontSize: 10,
-                fontWeight: 700,
                 color: statusObj.color,
-                padding: "3px 8px",
                 background: statusObj.bg,
-                borderRadius: 6,
               }}
             >
-              {"✓"} Done
+              {"\u2713"} Done
             </span>
           )}
 

@@ -1,18 +1,8 @@
-import { BRAND } from "../../constants/index.js";
-
 export function LoadingSpinner() {
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      minHeight: 300, gap: 16,
-    }}>
-      <div style={{
-        width: 40, height: 40, border: `4px solid ${BRAND.greyLight}`,
-        borderTopColor: BRAND.blue, borderRadius: "50%",
-        animation: "spin 0.8s linear infinite",
-      }} />
-      <div style={{ fontSize: 14, color: BRAND.textLight, fontWeight: 600 }}>Loading...</div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4">
+      <div className="w-10 h-10 border-4 border-slate-200 border-t-brand-blue rounded-full animate-spin" />
+      <div className="text-sm text-slate-500 font-semibold">Loading...</div>
     </div>
   );
 }

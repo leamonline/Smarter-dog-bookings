@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { BRAND } from "../../constants/index.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
 const SERVICE_LABELS = {
@@ -21,13 +20,13 @@ const SERVICE_ICONS = {
 };
 
 const STATUS_COLOURS = {
-  "Not Arrived": { bg: "#FEF3C7", text: "#92400E" },
-  "Checked In": { bg: "#D1FAE5", text: "#065F46" },
-  "In the Bath": { bg: "#DBEAFE", text: "#1E40AF" },
-  "Drying": { bg: "#E0E7FF", text: "#3730A3" },
-  "On the Table": { bg: "#EDE9FE", text: "#5B21B6" },
-  "Finished": { bg: "#D1FAE5", text: "#065F46" },
-  "Completed": { bg: "#F3F4F6", text: "#374151" },
+  "Not Arrived": { bg: "bg-amber-100", text: "text-amber-800" },
+  "Checked In": { bg: "bg-emerald-100", text: "text-emerald-800" },
+  "In the Bath": { bg: "bg-blue-100", text: "text-blue-800" },
+  "Drying": { bg: "bg-indigo-100", text: "text-indigo-800" },
+  "On the Table": { bg: "bg-violet-100", text: "text-violet-800" },
+  "Finished": { bg: "bg-emerald-100", text: "text-emerald-800" },
+  "Completed": { bg: "bg-slate-100", text: "text-slate-700" },
 };
 
 function formatSlot(slot) {
@@ -68,7 +67,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (!supabase || !humanRecord?.id) { setLoading(false); return; }
 
     async function fetchData() {
-      // Dogs
       const { data: dogRows } = await supabase
         .from("dogs")
         .select("*")
@@ -76,7 +74,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         .order("name");
       setDogs(dogRows || []);
 
-      // Bookings (last 60 days + future)
       const dogIds = (dogRows || []).map(d => d.id);
       if (dogIds.length > 0) {
         const pastDate = new Date();
@@ -93,7 +90,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         setBookings(bookingRows || []);
       }
 
-      // Trusted humans from the dedicated junction table
       const { data: trustedLinks } = await supabase
         .from("human_trusted_contacts")
         .select("trusted_id, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
@@ -112,7 +108,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     fetchData();
   }, [humanRecord]);
 
-  // Save details
   const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
     setSaving(true);
@@ -133,7 +128,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (!err) setEditing(false);
   }, [humanRecord, details]);
 
-  // Cancel editing — reset to original values
   const handleCancel = useCallback(() => {
     setDetails({
       name: humanRecord?.name || "",
@@ -148,16 +142,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord]);
 
-  // Cancel a booking — with client-side ownership guard and group booking support
   const handleCancelBooking = useCallback(async (bookingId) => {
     if (!supabase) return;
 
-    // Verify this booking belongs to one of the user's dogs
     const dogIds = dogs.map(d => d.id);
     const booking = bookings.find(b => b.id === bookingId);
     if (!booking || !dogIds.includes(booking.dog_id)) return;
 
-    // Check if this booking is part of a group
     if (booking.group_id) {
       const { data: groupBookings } = await supabase
         .from("bookings")
@@ -174,7 +165,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         );
 
         if (cancelAll) {
-          // Delete all bookings with this group_id
           const { error: err } = await supabase
             .from("bookings")
             .delete()
@@ -185,11 +175,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           }
           return;
         }
-        // If they clicked Cancel in the dialog, fall through to single deletion below
       }
     }
 
-    // Single booking cancellation (no group, or user chose "just this one")
     if (!booking.group_id) {
       if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
     }
@@ -203,208 +191,163 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#F8FFFE", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>
-        <div style={{ textAlign: "center", color: BRAND.textLight }}>Loading your dashboard...</div>
+      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[inherit]">
+        <div className="text-center text-slate-500">Loading your dashboard...</div>
       </div>
     );
   }
 
-  // Shared styles
-  const cardStyle = {
-    background: BRAND.white, borderRadius: 14, padding: "20px 24px",
-    border: `1px solid ${BRAND.greyLight}`, marginBottom: 16,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-  };
-
-  const sectionTitle = (text) => (
-    <div style={{ fontWeight: 800, fontSize: 12, color: BRAND.teal, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>{text}</div>
-  );
-
   const detailRow = (label, value, isEditing, editComponent) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-      <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>{label}</span>
+    <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+      <span className="text-sm text-slate-500 min-w-[100px]">{label}</span>
       {isEditing ? editComponent : (
-        <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text, textAlign: "right", flex: 1, marginLeft: 12 }}>{value || "\u2014"}</span>
+        <span className="text-sm font-semibold text-slate-800 text-right flex-1 ml-3">{value || "\u2014"}</span>
       )}
     </div>
   );
 
-  const inputStyle = {
-    flex: 1, marginLeft: 12, padding: "8px 12px", borderRadius: 8,
-    border: `1.5px solid ${BRAND.teal}`, fontSize: 14, fontFamily: "inherit",
-    boxSizing: "border-box", outline: "none", color: BRAND.text,
-    textAlign: "right",
-  };
+  const inputCls = "flex-1 ml-3 py-2 px-3 rounded-lg border-[1.5px] border-brand-teal text-sm font-[inherit] box-border outline-none text-slate-800 text-right";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FFFE", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FFFE] font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
 
       {/* Header bar */}
-      <div style={{
-        background: `linear-gradient(135deg, ${BRAND.teal}, #236b5d)`,
-        padding: "20px 20px 28px", position: "relative",
-      }}>
-        <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div className="bg-gradient-to-br from-brand-teal to-[#236b5d] px-5 pt-5 pb-7 relative">
+        <div className="max-w-[600px] mx-auto flex justify-between items-start">
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
-              Smarter<span style={{ color: BRAND.white }}>Dog</span> Customer Portal
+            <div className="text-sm font-semibold text-white/70 mb-1">
+              Smarter<span className="text-white">Dog</span> Customer Portal
             </div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: BRAND.white }}>{humanName}</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>{humanRecord?.phone || ""}</div>
+            <div className="text-[26px] font-extrabold text-white">{humanName}</div>
+            <div className="text-sm text-white/80 mt-1">{humanRecord?.phone || ""}</div>
           </div>
           <button onClick={() => {
             if (editing && !window.confirm("You have unsaved changes. Sign out anyway?")) return;
             onSignOut();
-          }} style={{
-            background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
-            borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
-            color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
-            backdropFilter: "blur(4px)",
-          }}>Log out</button>
+          }} className="bg-white/15 border border-white/30 rounded-lg py-2 px-3.5 text-[13px] font-bold text-white cursor-pointer font-[inherit] backdrop-blur-[4px]">
+            Log out
+          </button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 600, margin: "-12px auto 0", padding: "0 16px 32px", position: "relative", zIndex: 1 }}>
+      <div className="max-w-[600px] mx-auto -mt-3 px-4 pb-8 relative z-[1]">
 
         <button
           onClick={() => navigate("/customer/book")}
-          style={{
-            width: "100%", padding: "16px", borderRadius: 12, border: "none",
-            background: BRAND.teal, color: BRAND.white, fontSize: 16, fontWeight: 700,
-            cursor: "pointer", fontFamily: "inherit", marginBottom: 20,
-          }}
+          className="w-full py-4 rounded-xl border-none bg-brand-teal text-white text-base font-bold cursor-pointer font-[inherit] mb-5"
         >
           Book a Groom
         </button>
 
-        {/* ==================== MY DETAILS ==================== */}
-        <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-            {sectionTitle("My Details")}
+        {/* MY DETAILS */}
+        <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <div className="flex justify-between items-center mb-1">
+            <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">My Details</div>
             {!editing ? (
-              <button onClick={() => setEditing(true)} style={{
-                background: BRAND.teal, border: "none", borderRadius: 8, padding: "6px 16px",
-                fontSize: 13, fontWeight: 700, color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
-              }}>Edit</button>
+              <button onClick={() => setEditing(true)} className="bg-brand-teal border-none rounded-lg py-1.5 px-4 text-[13px] font-bold text-white cursor-pointer font-[inherit]">
+                Edit
+              </button>
             ) : (
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={handleSave} disabled={saving} style={{
-                  background: BRAND.teal, border: "none", borderRadius: 8, padding: "6px 16px",
-                  fontSize: 13, fontWeight: 700, color: BRAND.white, cursor: "pointer", fontFamily: "inherit",
-                  opacity: saving ? 0.6 : 1,
-                }}>{saving ? "Saving..." : "Save"}</button>
-                <button onClick={handleCancel} style={{
-                  background: BRAND.white, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8,
-                  padding: "6px 14px", fontSize: 13, fontWeight: 600, color: BRAND.textLight,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}>Cancel</button>
+              <div className="flex gap-1.5">
+                <button onClick={handleSave} disabled={saving} className={`bg-brand-teal border-none rounded-lg py-1.5 px-4 text-[13px] font-bold text-white cursor-pointer font-[inherit] ${saving ? "opacity-60" : ""}`}>
+                  {saving ? "Saving..." : "Save"}
+                </button>
+                <button onClick={handleCancel} className="bg-white border border-slate-200 rounded-lg py-1.5 px-3.5 text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit]">
+                  Cancel
+                </button>
               </div>
             )}
           </div>
 
           {/* First Name + Surname */}
           {editing ? (
-            <div style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", marginBottom: 4 }}>First Name</div>
+            <div className="flex gap-2.5 py-2.5 border-b border-slate-200">
+              <div className="flex-1">
+                <div className="text-[11px] font-extrabold text-[#1E6B5C] uppercase tracking-wide mb-1">First Name</div>
                 <input value={details.name} onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
-                  style={{ ...inputStyle, flex: undefined, width: "100%", marginLeft: 0, textAlign: "left" }} />
+                  className="w-full py-2 px-3 rounded-lg border-[1.5px] border-brand-teal text-sm font-[inherit] box-border outline-none text-slate-800 text-left" />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", marginBottom: 4 }}>Surname</div>
+              <div className="flex-1">
+                <div className="text-[11px] font-extrabold text-[#1E6B5C] uppercase tracking-wide mb-1">Surname</div>
                 <input value={details.surname} onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
-                  style={{ ...inputStyle, flex: undefined, width: "100%", marginLeft: 0, textAlign: "left" }} />
+                  className="w-full py-2 px-3 rounded-lg border-[1.5px] border-brand-teal text-sm font-[inherit] box-border outline-none text-slate-800 text-left" />
               </div>
             </div>
           ) : (
             detailRow("Name", `${details.name} ${details.surname}`.trim(), false, null)
           )}
 
-          {/* Address */}
           {detailRow("Address", details.address, editing,
-            <input value={details.address} onChange={e => setDetails(d => ({ ...d, address: e.target.value }))} style={inputStyle} />
+            <input value={details.address} onChange={e => setDetails(d => ({ ...d, address: e.target.value }))} className={inputCls} />
           )}
 
-          {/* Email */}
           {detailRow("Email", details.email, editing,
-            <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} style={inputStyle} />
+            <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} className={inputCls} />
           )}
 
-          {/* Mobile — read-only (login number) */}
           {detailRow("Mobile", humanRecord?.phone || "", false, null)}
 
-          {/* WhatsApp toggle — edit mode only */}
+          {/* WhatsApp toggle */}
           {editing && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <span style={{ fontSize: 14, color: BRAND.textLight }}>WhatsApp</span>
-              <button onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))} style={{
-                background: details.whatsapp ? BRAND.teal : BRAND.greyLight,
-                border: "none", borderRadius: 20, width: 48, height: 26, cursor: "pointer",
-                position: "relative", transition: "background 0.2s",
-              }}>
-                <div style={{
-                  position: "absolute", top: 3, left: details.whatsapp ? 25 : 3,
-                  width: 20, height: 20, borderRadius: "50%", background: BRAND.white,
-                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }} />
+            <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+              <span className="text-sm text-slate-500">WhatsApp</span>
+              <button onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))} className={`border-none rounded-[20px] w-12 h-[26px] cursor-pointer relative transition-colors ${details.whatsapp ? "bg-brand-teal" : "bg-slate-200"}`}>
+                <div className={`absolute top-[3px] w-5 h-5 rounded-full bg-white transition-[left] shadow-[0_1px_3px_rgba(0,0,0,0.2)] ${details.whatsapp ? "left-[25px]" : "left-[3px]"}`} />
               </button>
             </div>
           )}
 
-          {/* Facebook — edit mode only */}
           {editing && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>Facebook</span>
-              <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..." style={inputStyle} />
+            <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+              <span className="text-sm text-slate-500 min-w-[100px]">Facebook</span>
+              <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..." className={inputCls} />
             </div>
           )}
 
-          {/* Instagram — edit mode only */}
           {editing && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>Instagram</span>
-              <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle" style={inputStyle} />
+            <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+              <span className="text-sm text-slate-500 min-w-[100px]">Instagram</span>
+              <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle" className={inputCls} />
             </div>
           )}
 
-          {/* TikTok — edit mode only */}
           {editing && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <span style={{ fontSize: 14, color: BRAND.textLight, minWidth: 100 }}>TikTok</span>
-              <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle" style={inputStyle} />
+            <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+              <span className="text-sm text-slate-500 min-w-[100px]">TikTok</span>
+              <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle" className={inputCls} />
             </div>
           )}
         </div>
 
-        {/* ==================== DOGS ==================== */}
-        <div style={cardStyle}>
-          {sectionTitle("Dogs")}
+        {/* DOGS */}
+        <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">Dogs</div>
           {dogs.length === 0 ? (
-            <div style={{ fontSize: 14, color: BRAND.textLight, fontStyle: "italic", padding: "8px 0" }}>No dogs on file</div>
+            <div className="text-sm text-slate-500 italic py-2">No dogs on file</div>
           ) : (
             dogs.map(dog => (
-              <div key={dog.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
+              <div key={dog.id} className="flex justify-between items-center py-3 border-b border-slate-200">
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.text }}>{dog.name}</div>
-                  <div style={{ fontSize: 13, color: BRAND.textLight }}>
+                  <div className="text-base font-bold text-slate-800">{dog.name}</div>
+                  <div className="text-[13px] text-slate-500">
                     {dog.breed}{dog.size ? ` \u00B7 ${dog.size}` : ""}
                   </div>
                   {dog.groom_notes && (
-                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 4, padding: "4px 8px", background: "#F9FAFB", borderRadius: 4 }}>
+                    <div className="text-xs text-slate-500 mt-1 py-1 px-2 bg-slate-50 rounded">
                       {dog.groom_notes}
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                <div className="flex flex-col items-end gap-1">
                   {dog.size && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-                      background: dog.size === "large" ? "#FDE2E8" : dog.size === "medium" ? "#D6F5EE" : "#FEF3C7",
-                      color: dog.size === "large" ? BRAND.coral : dog.size === "medium" ? "#065F46" : "#92400E",
-                    }}>{dog.size}</span>
+                    <span className={`text-[11px] font-bold py-[3px] px-2.5 rounded-[20px] ${
+                      dog.size === "large" ? "bg-brand-coral-light text-brand-coral" :
+                      dog.size === "medium" ? "bg-emerald-100 text-emerald-800" :
+                      "bg-amber-100 text-amber-800"
+                    }`}>{dog.size}</span>
                   )}
                   {dog.alerts && dog.alerts.length > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: BRAND.coral }}>{"\u26A0\uFE0F"} {dog.alerts.length} alert{dog.alerts.length > 1 ? "s" : ""}</span>
+                    <span className="text-[11px] font-semibold text-brand-coral">{"\u26A0\uFE0F"} {dog.alerts.length} alert{dog.alerts.length > 1 ? "s" : ""}</span>
                   )}
                 </div>
               </div>
@@ -412,36 +355,32 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           )}
         </div>
 
-        {/* ==================== TRUSTED HUMANS ==================== */}
-        <div style={cardStyle}>
-          {sectionTitle("Trusted Humans")}
+        {/* TRUSTED HUMANS */}
+        <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">Trusted Humans</div>
           {trustedHumans.length === 0 ? (
-            <div style={{ fontSize: 14, color: BRAND.textLight, fontStyle: "italic", padding: "8px 0" }}>None listed</div>
+            <div className="text-sm text-slate-500 italic py-2">None listed</div>
           ) : (
             trustedHumans.map(th => (
-              <div key={th.id} style={{ padding: "10px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>{th.name} {th.surname}</div>
-                <div style={{ fontSize: 12, color: BRAND.textLight }}>{th.phone}</div>
+              <div key={th.id} className="py-2.5 border-b border-slate-200">
+                <div className="text-sm font-semibold text-slate-800">{th.name} {th.surname}</div>
+                <div className="text-xs text-slate-500">{th.phone}</div>
               </div>
             ))
           )}
-          <div style={{
-            marginTop: 12, padding: "10px", borderRadius: 10, border: `1.5px dashed ${BRAND.teal}`,
-            background: BRAND.tealLight, color: BRAND.teal, fontSize: 13, fontWeight: 700,
-            textAlign: "center",
-          }}>
+          <div className="mt-3 p-2.5 rounded-[10px] border-[1.5px] border-dashed border-brand-teal bg-emerald-50 text-brand-teal text-[13px] font-bold text-center">
             Contact the salon to add a trusted human
           </div>
         </div>
 
-        {/* ==================== RECENT BOOKINGS ==================== */}
-        <div style={cardStyle}>
-          {sectionTitle("Recent Bookings")}
+        {/* RECENT BOOKINGS */}
+        <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">Recent Bookings</div>
           {bookings.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>{"\uD83D\uDC3E"}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.text, marginBottom: 2 }}>No bookings yet</div>
-              <div style={{ fontSize: 13, color: BRAND.textLight }}>Give the salon a call to book your first appointment!</div>
+            <div className="text-center py-4">
+              <div className="text-[28px] mb-1.5">{"\uD83D\uDC3E"}</div>
+              <div className="text-sm font-bold text-slate-800 mb-0.5">No bookings yet</div>
+              <div className="text-[13px] text-slate-500">Give the salon a call to book your first appointment!</div>
             </div>
           ) : (
             bookings.slice(0, 10).map(b => {
@@ -450,42 +389,33 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               const canCancel = isFuture && b.status === "Not Arrived";
 
               return (
-                <div key={b.id} style={{
-                  padding: "12px 0", borderBottom: `1px solid ${BRAND.greyLight}`,
-                  opacity: isFuture ? 1 : 0.7,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>
+                <div key={b.id} className={`py-3 border-b border-slate-200 ${isFuture ? "opacity-100" : "opacity-70"}`}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-semibold text-slate-800">
                           {formatDate(b.booking_date)}
                         </span>
                         {isFuture && (
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: BRAND.tealLight, color: BRAND.teal }}>UPCOMING</span>
+                          <span className="text-[10px] font-bold py-0.5 px-1.5 rounded bg-emerald-50 text-brand-teal">UPCOMING</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 14, color: BRAND.text, marginTop: 2 }}>
+                      <div className="text-sm text-slate-800 mt-0.5">
                         {b.dogs?.name || "Unknown"}{" "}
-                        <span style={{ color: BRAND.textLight }}>{SERVICE_ICONS[b.service] || ""} {SERVICE_LABELS[b.service] || b.service}</span>
+                        <span className="text-slate-500">{SERVICE_ICONS[b.service] || ""} {SERVICE_LABELS[b.service] || b.service}</span>
                       </div>
                       {b.slot && (
-                        <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 2 }}>
+                        <div className="text-xs text-slate-500 mt-0.5">
                           {formatSlot(b.slot)}
                         </div>
                       )}
                     </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 6,
-                      background: sc.bg, color: sc.text, whiteSpace: "nowrap",
-                    }}>{b.status}</span>
+                    <span className={`text-[11px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap ${sc.bg} ${sc.text}`}>{b.status}</span>
                   </div>
                   {canCancel && (
-                    <button onClick={() => handleCancelBooking(b.id)} style={{
-                      marginTop: 8, width: "100%", padding: "8px", borderRadius: 8,
-                      border: `1px solid ${BRAND.coral}`, background: "transparent",
-                      fontSize: 13, fontWeight: 600, color: BRAND.coral,
-                      cursor: "pointer", fontFamily: "inherit",
-                    }}>Cancel appointment</button>
+                    <button onClick={() => handleCancelBooking(b.id)} className="mt-2 w-full py-2 rounded-lg border border-brand-coral bg-transparent text-[13px] font-semibold text-brand-coral cursor-pointer font-[inherit]">
+                      Cancel appointment
+                    </button>
                   )}
                 </div>
               );

@@ -1,4 +1,4 @@
-export { BRAND } from "./brand.js";
+export { SIZE_THEME, SIZE_FALLBACK } from "./brand.js";
 export {
   SALON_SLOTS,
   MAX_DOGS_PER_SLOT,
@@ -9,13 +9,8 @@ export {
   ALERT_OPTIONS,
   BOOKING_STATUSES,
 } from "./salon.js";
-export {
-  inputStyle,
-  labelStyle,
-  closeBtnStyle,
-  onInputFocus,
-  onInputBlur,
-} from "./styles.js";
+// styles.js exports (inputStyle, labelStyle, closeBtnStyle, onInputFocus, onInputBlur)
+// are no longer imported by any component — all forms now use Tailwind classes directly.
 export {
   BREED_SIZE_MAP,
   BREED_LIST,

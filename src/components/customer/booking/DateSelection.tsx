@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { BRAND } from "../../../constants/index.js";
 import { getDefaultOpenForDate } from "../../../engine/utils.js";
 
 interface DateSelectionProps {
@@ -23,7 +22,6 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
   const [daySettings, setDaySettings] = useState<Record<string, { is_open: boolean }>>({});
   const [loading, setLoading] = useState(true);
 
-  // Build the 28-day range starting from tomorrow
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -69,29 +67,27 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
     return getDefaultOpenForDate(date);
   };
 
-  // Figure out the first day-of-week offset so we can pad the grid
   const firstDay = days[0];
-  const jsDay = firstDay.getDay(); // 0=Sun...6=Sat
-  const offset = jsDay === 0 ? 6 : jsDay - 1; // Mon-first offset
+  const jsDay = firstDay.getDay();
+  const offset = jsDay === 0 ? 6 : jsDay - 1;
 
   const gridCells: (Date | null)[] = [
     ...Array(offset).fill(null),
     ...days,
   ];
 
-  // Pad the end to complete the last row
   while (gridCells.length % 7 !== 0) gridCells.push(null);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={{ margin: 0, color: BRAND.textLight, fontSize: 14 }}>
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-slate-500 text-sm">
         Pick a date for your visit (next 28 days).
       </p>
 
       {/* Day headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, textAlign: "center" }}>
+      <div className="grid grid-cols-7 gap-1 text-center">
         {DAY_HEADERS.map((h, i) => (
-          <div key={i} style={{ fontSize: 12, fontWeight: 600, color: BRAND.textLight, padding: "4px 0" }}>
+          <div key={i} className="text-xs font-semibold text-slate-500 py-1">
             {h}
           </div>
         ))}
@@ -99,9 +95,9 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
 
       {/* Calendar grid */}
       {loading ? (
-        <p style={{ color: BRAND.textLight, fontSize: 14 }}>Loading availability…</p>
+        <p className="text-slate-500 text-sm">Loading availability\u2026</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        <div className="grid grid-cols-7 gap-1">
           {gridCells.map((d, i) => {
             if (!d) {
               return <div key={`empty-${i}`} />;
@@ -115,17 +111,15 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
                 key={dateStr}
                 disabled={!open}
                 onClick={() => open && onSelect(dateStr)}
-                style={{
-                  padding: "8px 4px",
-                  borderRadius: 6,
-                  border: selected ? `2px solid ${BRAND.teal}` : `1px solid ${open ? BRAND.greyLight : "transparent"}`,
-                  background: selected ? BRAND.tealLight : open ? BRAND.white : BRAND.offWhite,
-                  color: open ? BRAND.text : BRAND.greyLight,
-                  fontWeight: selected ? 700 : 400,
-                  fontSize: 13,
-                  cursor: open ? "pointer" : "default",
-                  textAlign: "center",
-                }}
+                className={`py-2 px-1 rounded-md text-[13px] text-center ${
+                  selected
+                    ? "border-2 border-brand-teal bg-emerald-50 font-bold"
+                    : open
+                      ? "border border-slate-200 bg-white font-normal"
+                      : "border border-transparent bg-slate-50 font-normal"
+                } ${
+                  open ? "text-slate-800 cursor-pointer" : "text-slate-200 cursor-default"
+                }`}
               >
                 {d.getDate()}
               </button>
@@ -134,38 +128,23 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+      <div className="flex gap-2.5 mt-2">
         <button
           onClick={onBack}
-          style={{
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: `1px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.grey,
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-          }}
+          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
         >
-          ← Back
+          {"\u2190"} Back
         </button>
         <button
           onClick={onNext}
           disabled={!selectedDate}
-          style={{
-            flex: 1,
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: "none",
-            background: selectedDate ? BRAND.teal : BRAND.greyLight,
-            color: selectedDate ? BRAND.white : BRAND.grey,
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: selectedDate ? "pointer" : "not-allowed",
-          }}
+          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
+            selectedDate
+              ? "bg-brand-teal text-white cursor-pointer"
+              : "bg-slate-200 text-slate-500 cursor-not-allowed"
+          }`}
         >
-          Next →
+          Next {"\u2192"}
         </button>
       </div>
     </div>

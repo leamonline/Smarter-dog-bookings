@@ -1,4 +1,4 @@
-import { BRAND, SERVICES, PRICING } from "../../../constants/index.js";
+import { SERVICES, PRICING } from "../../../constants/index.js";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index.js";
 
 interface RawDog {
@@ -59,32 +59,23 @@ export function BookingConfirmation({
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <p style={{ margin: 0, color: BRAND.textLight, fontSize: 14 }}>
+    <div className="flex flex-col gap-5">
+      <p className="m-0 text-slate-500 text-sm">
         Please check the details below before confirming.
       </p>
 
       {/* Date & time summary */}
-      <div
-        style={{
-          background: BRAND.tealLight,
-          borderRadius: 10,
-          padding: "14px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        <div style={{ fontWeight: 700, color: BRAND.teal, fontSize: 15 }}>
-          📅 {selectedDate ? formatDate(selectedDate) : "—"}
+      <div className="bg-emerald-50 rounded-[10px] py-3.5 px-4 flex flex-col gap-1">
+        <div className="font-bold text-brand-teal text-[15px]">
+          {"\uD83D\uDCC5"} {selectedDate ? formatDate(selectedDate) : "\u2014"}
         </div>
-        <div style={{ color: BRAND.text, fontSize: 14 }}>
-          Drop-off: <strong>{slotAllocation ? formatSlot(slotAllocation.dropOffTime) : "—"}</strong>
+        <div className="text-slate-800 text-sm">
+          Drop-off: <strong>{slotAllocation ? formatSlot(slotAllocation.dropOffTime) : "\u2014"}</strong>
         </div>
       </div>
 
       {/* Per-dog summary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {selectedDogs.map((dog) => {
           const serviceId = services[dog.dogId];
           const rawDog = dogMap[dog.dogId];
@@ -94,31 +85,26 @@ export function BookingConfirmation({
           return (
             <div
               key={dog.dogId}
-              style={{
-                border: `1px solid ${BRAND.greyLight}`,
-                borderRadius: 8,
-                padding: "12px 14px",
-                background: BRAND.white,
-              }}
+              className="border border-slate-200 rounded-lg py-3 px-3.5 bg-white"
             >
-              <div style={{ fontWeight: 600, color: BRAND.text, fontSize: 15, marginBottom: 4 }}>
+              <div className="font-semibold text-slate-800 text-[15px] mb-1">
                 {dog.name}
               </div>
-              <div style={{ fontSize: 13, color: BRAND.textLight }}>
-                {rawDog?.breed || "—"} · {size ? size.charAt(0).toUpperCase() + size.slice(1) : "—"}
+              <div className="text-[13px] text-slate-500">
+                {rawDog?.breed || "\u2014"} · {size ? size.charAt(0).toUpperCase() + size.slice(1) : "\u2014"}
               </div>
               {serviceId && (
-                <div style={{ marginTop: 6, fontSize: 14, color: BRAND.text }}>
+                <div className="mt-1.5 text-sm text-slate-800">
                   {getServiceIcon(serviceId)} {getServiceLabel(serviceId)}
                   {size && (
-                    <span style={{ marginLeft: 8, color: BRAND.teal, fontWeight: 600 }}>
+                    <span className="ml-2 text-brand-teal font-semibold">
                       {getPriceLabel(serviceId, size)}
                     </span>
                   )}
                 </div>
               )}
               {slotForDog && slotAllocation && slotForDog !== slotAllocation.dropOffTime && (
-                <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 4 }}>
+                <div className="text-xs text-slate-500 mt-1">
                   Slot: {formatSlot(slotForDog)}
                 </div>
               )}
@@ -127,39 +113,26 @@ export function BookingConfirmation({
         })}
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
+      <div className="flex gap-2.5">
         <button
           onClick={onBack}
           disabled={submitting}
-          style={{
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: `1px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.grey,
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
+          className={`py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm ${
+            submitting ? "cursor-not-allowed" : "cursor-pointer"
+          }`}
         >
-          ← Back
+          {"\u2190"} Back
         </button>
         <button
           onClick={onConfirm}
           disabled={submitting}
-          style={{
-            flex: 1,
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: "none",
-            background: submitting ? BRAND.greyLight : BRAND.teal,
-            color: submitting ? BRAND.grey : BRAND.white,
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
+          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
+            submitting
+              ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+              : "bg-brand-teal text-white cursor-pointer"
+          }`}
         >
-          {submitting ? "Booking…" : `Confirm Booking${selectedDogs.length > 1 ? "s" : ""}`}
+          {submitting ? "Booking\u2026" : `Confirm Booking${selectedDogs.length > 1 ? "s" : ""}`}
         </button>
       </div>
     </div>

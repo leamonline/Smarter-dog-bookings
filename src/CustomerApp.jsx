@@ -4,7 +4,6 @@ import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
-import { BRAND } from "./constants/index.js";
 import { customerSupabase as supabase } from "./supabase/customerClient.js";
 
 export default function CustomerApp() {
@@ -77,114 +76,40 @@ export default function CustomerApp() {
   // If in demo mode, show customer picker
   if (demoMode) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#F8FFFE",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 400,
-            background: BRAND.white,
-            borderRadius: 16,
-            padding: 28,
-            border: `1px solid ${BRAND.greyLight}`,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: BRAND.text,
-              marginBottom: 4,
-              textAlign: "center",
-            }}
-          >
+      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] p-5">
+        <div className="w-full max-w-[400px] bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+          <div className="text-xl font-extrabold text-slate-800 mb-1 text-center">
             Demo Mode
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: BRAND.textLight,
-              marginBottom: 20,
-              textAlign: "center",
-            }}
-          >
+          <div className="text-[13px] text-slate-500 mb-5 text-center">
             Pick a customer to view their dashboard
           </div>
 
           {demoLoading ? (
-            <div
-              style={{
-                textAlign: "center",
-                color: BRAND.textLight,
-                padding: 20,
-              }}
-            >
+            <div className="text-center text-slate-500 py-5">
               Loading...
             </div>
           ) : demoList.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                color: BRAND.textLight,
-                padding: 20,
-              }}
-            >
+            <div className="text-center text-slate-500 py-5">
               No customers found
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {demoList.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => handleDemoSelect(h.id)}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "12px 14px",
-                    borderRadius: 10,
-                    border: `1px solid ${BRAND.greyLight}`,
-                    background: BRAND.white,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = BRAND.teal;
-                    e.currentTarget.style.background = BRAND.tealLight;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = BRAND.greyLight;
-                    e.currentTarget.style.background = BRAND.white;
-                  }}
+                  className="flex justify-between items-center py-3 px-3.5 rounded-[10px] border border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-teal hover:bg-emerald-50"
                 >
                   <div>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: BRAND.text,
-                      }}
-                    >
+                    <div className="text-sm font-bold text-slate-800">
                       {h.name} {h.surname}
                     </div>
-                    <div style={{ fontSize: 12, color: BRAND.textLight }}>
+                    <div className="text-xs text-slate-500">
                       {h.phone}
                     </div>
                   </div>
-                  <span style={{ fontSize: 18, color: BRAND.teal }}>→</span>
+                  <span className="text-lg text-brand-teal">{"\u2192"}</span>
                 </button>
               ))}
             </div>
@@ -192,19 +117,7 @@ export default function CustomerApp() {
 
           <button
             onClick={exitDemo}
-            style={{
-              width: "100%",
-              marginTop: 16,
-              padding: "10px",
-              borderRadius: 10,
-              border: `1px solid ${BRAND.greyLight}`,
-              background: BRAND.white,
-              color: BRAND.textLight,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
+            className="w-full mt-4 py-2.5 rounded-[10px] border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit]"
           >
             Back to login
           </button>
@@ -216,18 +129,8 @@ export default function CustomerApp() {
   // Loading state
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#F8FFFE",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
-        <div style={{ textAlign: "center", color: BRAND.textLight }}>
+      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+        <div className="text-center text-slate-500">
           Loading...
         </div>
       </div>
@@ -244,7 +147,6 @@ export default function CustomerApp() {
         otpSent={otpSent}
         phone={phone}
         error={error}
-        // Demo mode is dev-only: undefined in production so the button never renders.
         onDemoMode={
           import.meta.env.DEV
             ? () => {
@@ -260,60 +162,19 @@ export default function CustomerApp() {
   // Authenticated but no matching human record
   if (!humanRecord) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#F8FFFE",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 400,
-            textAlign: "center",
-            background: BRAND.white,
-            borderRadius: 16,
-            padding: 28,
-            border: `1px solid ${BRAND.greyLight}`,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>{"\uD83D\uDC3E"}</div>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 800,
-              color: BRAND.text,
-              marginBottom: 8,
-            }}
-          >
+      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] p-5">
+        <div className="max-w-[400px] text-center bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+          <div className="text-[32px] mb-3">{"\uD83D\uDC3E"}</div>
+          <div className="text-lg font-extrabold text-slate-800 mb-2">
             Phone not recognised
           </div>
-          <div
-            style={{ fontSize: 14, color: BRAND.textLight, marginBottom: 20 }}
-          >
+          <div className="text-sm text-slate-500 mb-5">
             Your number isn't linked to a customer account yet. Please contact
             the salon so they can add your details.
           </div>
           <button
             onClick={signOut}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: 10,
-              border: "none",
-              background: BRAND.teal,
-              color: BRAND.white,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
+            className="w-full py-3 rounded-[10px] border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-[inherit]"
           >
             Sign Out
           </button>

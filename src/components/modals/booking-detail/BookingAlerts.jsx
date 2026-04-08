@@ -1,4 +1,4 @@
-import { BRAND, ALERT_OPTIONS } from "../../../constants/index.js";
+import { ALERT_OPTIONS } from "../../../constants/index.js";
 import { MODAL_INPUT_CLS } from "./shared.jsx";
 
 export function BookingAlerts({
@@ -13,28 +13,11 @@ export function BookingAlerts({
 }) {
   if (isEditing) {
     return (
-      <div style={{ marginTop: 20, marginBottom: 16 }}>
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: 12,
-            color: BRAND.coral,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-            marginBottom: 12,
-            textAlign: "center",
-          }}
-        >
+      <div className="mt-5 mb-4">
+        <div className="font-extrabold text-xs text-brand-coral uppercase tracking-wide mb-3 text-center">
           Alerts
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            justifyContent: "center",
-          }}
-        >
+        <div className="flex flex-wrap gap-2.5 justify-center">
           {ALERT_OPTIONS.map((opt) => {
             const active = editData.alerts.includes(opt.label);
             return (
@@ -54,16 +37,11 @@ export function BookingAlerts({
                     }));
                   }
                 }}
+                className="py-2 px-3.5 rounded-[20px] text-[13px] font-bold cursor-pointer transition-all border-2"
                 style={{
-                  background: active ? opt.color : BRAND.white,
-                  color: active ? BRAND.white : opt.color,
-                  border: `2px solid ${opt.color}`,
-                  padding: "8px 14px",
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
+                  background: active ? opt.color : "white",
+                  color: active ? "white" : opt.color,
+                  borderColor: opt.color,
                 }}
               >
                 {opt.label}
@@ -73,47 +51,22 @@ export function BookingAlerts({
           <button
             type="button"
             onClick={() => setHasAllergy(!hasAllergy)}
-            style={{
-              background: hasAllergy ? BRAND.coral : BRAND.white,
-              color: hasAllergy ? BRAND.white : BRAND.coral,
-              border: `2px solid ${BRAND.coral}`,
-              padding: "10px 18px",
-              borderRadius: 24,
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: "pointer",
-              transition: "all 0.15s",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-            }}
+            className={`py-2.5 px-[18px] rounded-3xl text-sm font-extrabold cursor-pointer transition-all border-2 border-brand-coral flex items-center justify-center text-center ${
+              hasAllergy ? "bg-brand-coral text-white" : "bg-white text-brand-coral"
+            }`}
           >
             {"\u26A0\uFE0F"} Allergy {"\u26A0\uFE0F"}
           </button>
         </div>
 
         {hasAllergy && (
-          <div
-            style={{
-              marginTop: 12,
-              width: "100%",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
+          <div className="mt-3 w-full flex justify-center">
             <input
               type="text"
               placeholder="What is the dog allergic to?"
               value={allergyInput}
               onChange={(e) => setAllergyInput(e.target.value)}
-              className={MODAL_INPUT_CLS}
-              style={{
-                textAlign: "center",
-                borderColor: BRAND.coral,
-                borderWidth: 2,
-                padding: "10px",
-              }}
+              className={`${MODAL_INPUT_CLS} text-center !border-brand-coral !border-2 !p-2.5`}
             />
           </div>
         )}
@@ -128,57 +81,19 @@ export function BookingAlerts({
   if (!hasAlerts) return null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 10,
-        marginBottom: 16,
-        marginTop: 28,
-        justifyContent: "center",
-        width: "100%",
-      }}
-    >
+    <div className="flex flex-wrap gap-2.5 mb-4 mt-7 justify-center w-full">
       {(dogData.alerts || [])
         .filter((a) => !a.startsWith("Allergic to "))
         .map((alertLabel) => (
           <div
             key={alertLabel}
-            style={{
-              background: BRAND.coral,
-              color: BRAND.white,
-              padding: "10px 18px",
-              borderRadius: 24,
-              fontSize: 14,
-              fontWeight: 800,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              boxShadow: "0 4px 12px rgba(232,86,127,0.25)",
-              textAlign: "center",
-            }}
+            className="bg-brand-coral text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(232,86,127,0.25)] text-center"
           >
             {"\u26A0\uFE0F"} {alertLabel} {"\u26A0\uFE0F"}
           </div>
         ))}
       {hasAllergy && allergyInput && (
-        <div
-          style={{
-            background: BRAND.coral,
-            color: BRAND.white,
-            padding: "10px 18px",
-            borderRadius: 24,
-            fontSize: 14,
-            fontWeight: 800,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            boxShadow: "0 4px 12px rgba(232,86,127,0.25)",
-            textAlign: "center",
-          }}
-        >
+        <div className="bg-brand-coral text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(232,86,127,0.25)] text-center">
           {"\u26A0\uFE0F"} Allergic to {allergyInput} {"\u26A0\uFE0F"}
         </div>
       )}

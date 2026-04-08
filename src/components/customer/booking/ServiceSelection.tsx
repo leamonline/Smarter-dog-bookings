@@ -1,4 +1,4 @@
-import { BRAND, SERVICES, PRICING } from "../../../constants/index.js";
+import { SERVICES, PRICING } from "../../../constants/index.js";
 import { getAllowedServicesForSize } from "../../../engine/bookingRules.js";
 import type { WizardDog, ServiceId } from "../../../types/index.js";
 
@@ -24,7 +24,6 @@ export function ServiceSelection({
 }: ServiceSelectionProps) {
   const allServiced = selectedDogs.every((d) => !!services[d.dogId]);
 
-  // Check if all dogs are the same size for shortcut buttons
   const sizes = [...new Set(selectedDogs.map((d) => d.size))];
   const allSameSize = sizes.length === 1 && selectedDogs.length > 1;
   const commonSize = allSameSize ? sizes[0] : null;
@@ -35,40 +34,22 @@ export function ServiceSelection({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <p style={{ margin: 0, color: BRAND.textLight, fontSize: 14 }}>
+    <div className="flex flex-col gap-5">
+      <p className="m-0 text-slate-500 text-sm">
         Choose a service for each dog.
       </p>
 
       {allSameSize && allowedForCommon.length > 0 && (
-        <div
-          style={{
-            background: BRAND.tealLight,
-            borderRadius: 8,
-            padding: "12px 14px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.teal }}>
+        <div className="bg-emerald-50 rounded-lg py-3 px-3.5 flex flex-col gap-2">
+          <div className="text-[13px] font-semibold text-brand-teal">
             Same service for all dogs:
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="flex gap-2 flex-wrap">
             {allowedForCommon.map((svc) => (
               <button
                 key={svc.id}
                 onClick={() => applyToAll(svc.id as ServiceId)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 6,
-                  border: `2px solid ${BRAND.teal}`,
-                  background: BRAND.white,
-                  color: BRAND.teal,
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
+                className="py-1.5 px-3 rounded-md border-2 border-brand-teal bg-white text-brand-teal font-semibold text-[13px] cursor-pointer"
               >
                 {svc.icon} {svc.name}
               </button>
@@ -80,34 +61,25 @@ export function ServiceSelection({
       {selectedDogs.map((dog) => {
         const allowed = getAllowedServicesForSize(dog.size);
         return (
-          <div key={dog.dogId} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontWeight: 600, color: BRAND.text, fontSize: 15 }}>{dog.name}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div key={dog.dogId} className="flex flex-col gap-2">
+            <div className="font-semibold text-slate-800 text-[15px]">{dog.name}</div>
+            <div className="flex flex-col gap-1.5">
               {allowed.map((svc) => {
                 const selected = services[dog.dogId] === svc.id;
                 return (
                   <button
                     key={svc.id}
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      border: selected
-                        ? `2px solid ${BRAND.teal}`
-                        : `2px solid ${BRAND.greyLight}`,
-                      background: selected ? BRAND.tealLight : BRAND.white,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      width: "100%",
-                    }}
+                    className={`flex items-center justify-between py-2.5 px-3.5 rounded-lg border-2 cursor-pointer text-left w-full ${
+                      selected
+                        ? "border-brand-teal bg-emerald-50"
+                        : "border-slate-200 bg-white"
+                    }`}
                   >
-                    <span style={{ fontSize: 14, color: BRAND.text }}>
+                    <span className="text-sm text-slate-800">
                       {svc.icon} {svc.name}
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: selected ? BRAND.teal : BRAND.textLight }}>
+                    <span className={`text-sm font-semibold ${selected ? "text-brand-teal" : "text-slate-500"}`}>
                       {getPriceLabel(svc.id, dog.size)}
                     </span>
                   </button>
@@ -118,38 +90,23 @@ export function ServiceSelection({
         );
       })}
 
-      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+      <div className="flex gap-2.5 mt-2">
         <button
           onClick={onBack}
-          style={{
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: `1px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.grey,
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-          }}
+          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
         >
-          ← Back
+          {"\u2190"} Back
         </button>
         <button
           onClick={onNext}
           disabled={!allServiced}
-          style={{
-            flex: 1,
-            padding: "11px 20px",
-            borderRadius: 8,
-            border: "none",
-            background: allServiced ? BRAND.teal : BRAND.greyLight,
-            color: allServiced ? BRAND.white : BRAND.grey,
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: allServiced ? "pointer" : "not-allowed",
-          }}
+          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
+            allServiced
+              ? "bg-brand-teal text-white cursor-pointer"
+              : "bg-slate-200 text-slate-500 cursor-not-allowed"
+          }`}
         >
-          Next →
+          Next {"\u2192"}
         </button>
       </div>
     </div>

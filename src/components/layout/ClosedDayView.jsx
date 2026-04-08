@@ -1,24 +1,15 @@
-import { BRAND } from "../../constants/index.js";
-
 export function ClosedDayView({ onOpen }) {
   return (
-    <div style={{
-      padding: "48px 16px", textAlign: "center",
-      background: BRAND.offWhite, borderRadius: "0 0 14px 14px",
-      border: `1px solid ${BRAND.greyLight}`, borderTop: "none",
-    }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDC3E"}</div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.text, marginBottom: 4 }}>Salon closed</div>
-      <div style={{ fontSize: 13, color: BRAND.textLight, lineHeight: 1.5, marginBottom: 16 }}>
+    <div className="py-12 px-4 text-center bg-slate-50 rounded-b-[14px] border border-slate-200 border-t-0">
+      <div className="text-[40px] mb-3">{"\uD83D\uDC3E"}</div>
+      <div className="text-base font-semibold text-slate-800 mb-1">Salon closed</div>
+      <div className="text-[13px] text-slate-500 leading-relaxed mb-4">
         No appointments on this day.
       </div>
-      <button onClick={onOpen} style={{
-        background: BRAND.blue, color: BRAND.white, border: "none", borderRadius: 10,
-        padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-        fontFamily: "inherit", transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueDark; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.blue; }}>
+      <button
+        onClick={onOpen}
+        className="bg-brand-blue text-white border-none rounded-[10px] py-2.5 px-6 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:bg-brand-blue-dark"
+      >
         Open this day
       </button>
     </div>

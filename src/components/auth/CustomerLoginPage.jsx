@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { BRAND } from "../../constants/index.js";
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
@@ -7,7 +6,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
 
-  // Format phone for display: 07xxx → +44 7xxx
+  // Format phone for display: 07xxx -> +44 7xxx
   const normalisePhone = (raw) => {
     let p = raw.replace(/\s+/g, "").replace(/[^0-9+]/g, "");
     if (p.startsWith("07")) p = "+44" + p.slice(1);
@@ -41,83 +40,65 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     setSubmitting(false);
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: 10,
-    border: `1.5px solid ${BRAND.greyLight}`,
-    fontSize: 16,
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    outline: "none",
-    color: BRAND.text,
-    transition: "border-color 0.15s",
-  };
-
-  const btnStyle = {
-    width: "100%", padding: "14px", borderRadius: 10, border: "none",
-    background: submitting ? BRAND.greyLight : BRAND.teal,
-    color: submitting ? BRAND.textLight : BRAND.white,
-    fontSize: 15, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
-    fontFamily: "inherit", transition: "all 0.15s", marginTop: 8,
-  };
-
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FFFE", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+    <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center p-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+      <div className="w-full max-w-[400px]">
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: BRAND.text }}>
-            Smarter<span style={{ color: BRAND.teal }}>Dog</span>
+        <div className="text-center mb-8">
+          <div className="text-[32px] font-extrabold text-slate-800">
+            Smarter<span className="text-brand-teal">Dog</span>
           </div>
-          <div style={{ fontSize: 14, color: BRAND.textLight, marginTop: 4 }}>Customer Portal</div>
+          <div className="text-sm text-slate-500 mt-1">Customer Portal</div>
         </div>
 
-        <div style={{
-          background: BRAND.white, borderRadius: 16, padding: 28,
-          border: `1px solid ${BRAND.greyLight}`, boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-        }}>
+        <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
           {!otpSent ? (
             <>
-              <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.text, marginBottom: 4 }}>
+              <div className="text-lg font-extrabold text-slate-800 mb-1">
                 Welcome
               </div>
-              <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 20 }}>
+              <div className="text-[13px] text-slate-500 mb-5">
                 Enter your mobile number and we'll text you a login code.
               </div>
               <form onSubmit={handleRequestOtp}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 }}>Mobile Number</label>
+                <label className="text-xs font-extrabold text-[#1E6B5C] uppercase tracking-wide block mb-1.5">Mobile Number</label>
                 <input
                   type="tel"
                   value={phoneInput}
                   onChange={e => { setPhoneInput(e.target.value); setLocalError(""); }}
                   placeholder="07700 900000"
-                  style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = BRAND.teal}
-                  onBlur={e => e.target.style.borderColor = BRAND.greyLight}
+                  className="w-full py-3.5 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-base font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   autoFocus
                   autoComplete="tel"
                 />
                 {(localError || error) && (
-                  <div style={{ fontSize: 13, color: BRAND.coral, fontWeight: 600, background: BRAND.coralLight, padding: "8px 12px", borderRadius: 8, marginTop: 8 }}>
+                  <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg mt-2">
                     {localError || error}
                   </div>
                 )}
-                <button type="submit" disabled={submitting} style={btnStyle}>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`w-full py-3.5 rounded-[10px] border-none text-[15px] font-bold font-[inherit] transition-all mt-2 ${
+                    submitting
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : "bg-brand-teal text-white cursor-pointer"
+                  }`}
+                >
                   {submitting ? "Sending..." : "Send Login Code"}
                 </button>
               </form>
             </>
           ) : (
             <>
-              <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.text, marginBottom: 4 }}>
+              <div className="text-lg font-extrabold text-slate-800 mb-1">
                 Check your phone
               </div>
-              <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 20 }}>
+              <div className="text-[13px] text-slate-500 mb-5">
                 We sent a 6-digit code to <strong>{phone}</strong>
               </div>
               <form onSubmit={handleVerifyOtp}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 }}>Verification Code</label>
+                <label className="text-xs font-extrabold text-[#1E6B5C] uppercase tracking-wide block mb-1.5">Verification Code</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -125,41 +106,43 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   value={code}
                   onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setLocalError(""); }}
                   placeholder="000000"
-                  style={{ ...inputStyle, textAlign: "center", fontSize: 24, letterSpacing: 8, fontWeight: 700 }}
-                  onFocus={e => e.target.style.borderColor = BRAND.teal}
-                  onBlur={e => e.target.style.borderColor = BRAND.greyLight}
+                  className="w-full py-3.5 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-2xl font-[inherit] box-border outline-none text-slate-800 transition-colors text-center tracking-[8px] font-bold focus:border-brand-teal"
                   autoFocus
                   autoComplete="one-time-code"
                 />
                 {(localError || error) && (
-                  <div style={{ fontSize: 13, color: BRAND.coral, fontWeight: 600, background: BRAND.coralLight, padding: "8px 12px", borderRadius: 8, marginTop: 8 }}>
+                  <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg mt-2">
                     {localError || error}
                   </div>
                 )}
-                <button type="submit" disabled={submitting} style={btnStyle}>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`w-full py-3.5 rounded-[10px] border-none text-[15px] font-bold font-[inherit] transition-all mt-2 ${
+                    submitting
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : "bg-brand-teal text-white cursor-pointer"
+                  }`}
+                >
                   {submitting ? "Verifying..." : "Verify & Sign In"}
                 </button>
               </form>
-              <button onClick={onResetOtp} style={{
-                width: "100%", marginTop: 12, padding: "10px", borderRadius: 10,
-                border: `1px solid ${BRAND.greyLight}`, background: BRAND.white,
-                fontSize: 13, fontWeight: 600, color: BRAND.textLight,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>Use a different number</button>
+              <button
+                onClick={onResetOtp}
+                className="w-full mt-3 py-2.5 rounded-[10px] border border-slate-200 bg-white text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit]"
+              >
+                Use a different number
+              </button>
             </>
           )}
         </div>
 
-        {/* Demo mode button — for testing before Twilio is configured */}
+        {/* Demo mode button */}
         {onDemoMode && (
-          <button onClick={onDemoMode} style={{
-            width: "100%", marginTop: 16, padding: "12px", borderRadius: 10,
-            border: `1.5px dashed ${BRAND.textLight}`, background: "transparent",
-            fontSize: 13, fontWeight: 600, color: BRAND.textLight,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND.teal; e.currentTarget.style.color = BRAND.teal; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = BRAND.textLight; e.currentTarget.style.color = BRAND.textLight; }}>
+          <button
+            onClick={onDemoMode}
+            className="w-full mt-4 py-3 rounded-[10px] border-[1.5px] border-dashed border-slate-500 bg-transparent text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit] transition-all hover:border-brand-teal hover:text-brand-teal"
+          >
             Demo Mode — Preview as a customer
           </button>
         )}

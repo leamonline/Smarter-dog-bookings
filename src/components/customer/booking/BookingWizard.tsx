@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { BRAND, SALON_SLOTS } from "../../../constants/index.js";
+import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import type { WizardDog, WizardState, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
 import { DogSelection } from "./DogSelection.js";
@@ -102,7 +102,6 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     try {
       if (!supabase) throw new Error("Not connected");
 
-      // Re-validate slot availability before inserting (guards against race conditions)
       const { data: currentBookings } = await supabase
         .from("bookings")
         .select("id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date")
@@ -185,25 +184,21 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     const fmtTime = (s: string) => { const [h, m] = s.split(":").map(Number); return `${h > 12 ? h - 12 : h}:${String(m).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "48px 16px", textAlign: "center", fontFamily: "inherit" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.text, marginBottom: 8 }}>
+      <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
+        <div className="text-5xl mb-4">{"\u2705"}</div>
+        <div className="text-xl font-extrabold text-slate-800 mb-2">
           Booking confirmed!
         </div>
-        <div style={{ fontSize: 14, color: BRAND.textLight, marginBottom: 24, lineHeight: 1.5 }}>
+        <div className="text-sm text-slate-500 mb-6 leading-relaxed">
           {selectedDogs.map((d) => d.name).join(" & ")} — {dateLabel} at {fmtTime(dropOff)}
         </div>
-        <div style={{
-          padding: "12px 16px", borderRadius: 10, background: BRAND.tealLight,
-          color: BRAND.teal, fontSize: 13, fontWeight: 600, marginBottom: 24,
-        }}>
+        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-teal text-[13px] font-semibold mb-6">
           You'll receive a confirmation message shortly.
         </div>
-        <button onClick={onComplete} style={{
-          padding: "12px 32px", borderRadius: 8, border: "none",
-          background: BRAND.teal, color: BRAND.white, fontWeight: 700,
-          fontSize: 15, cursor: "pointer", fontFamily: "inherit",
-        }}>
+        <button
+          onClick={onComplete}
+          className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+        >
           Back to dashboard
         </button>
       </div>
@@ -211,89 +206,52 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 480,
-        margin: "0 auto",
-        fontFamily: "inherit",
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-        padding: "24px 16px",
-      }}
-    >
+    <div className="max-w-[480px] mx-auto font-[inherit] flex flex-col gap-6 py-6 px-4">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 700, color: BRAND.teal, fontSize: 18 }}>
+      <div className="flex items-center justify-between">
+        <div className="font-bold text-brand-teal text-lg">
           Book an appointment
         </div>
         <button
           onClick={onCancel}
-          style={{
-            background: "none",
-            border: "none",
-            color: BRAND.grey,
-            fontSize: 14,
-            cursor: "pointer",
-            padding: "4px 8px",
-            fontWeight: 600,
-          }}
+          className="bg-transparent border-none text-slate-500 text-sm cursor-pointer py-1 px-2 font-semibold"
         >
           Cancel
         </button>
       </div>
 
       {/* Progress bar */}
-      <div style={{ display: "flex", gap: 4 }}>
+      <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((s) => (
           <div
             key={s}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: 4,
-              background: s <= step ? BRAND.teal : BRAND.greyLight,
-              transition: "background 0.2s",
-            }}
+            className={`flex-1 h-1 rounded transition-colors ${s <= step ? "bg-brand-teal" : "bg-slate-200"}`}
           />
         ))}
       </div>
 
       {/* Step title */}
-      <div style={{ fontWeight: 600, color: BRAND.text, fontSize: 16 }}>
+      <div className="font-semibold text-slate-800 text-base">
         Step {step} of 5 — {STEP_TITLES[step - 1]}
       </div>
 
       {/* Error banner */}
       {error && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: BRAND.coralLight,
-            color: BRAND.coral,
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+        <div className="py-2.5 px-3.5 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold">
           {error}
         </div>
       )}
 
       {/* Dogs fetch error */}
       {dogsError && step === 1 && (
-        <div style={{
-          padding: "14px 16px", borderRadius: 10, background: BRAND.coralLight,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <span style={{ color: BRAND.coral, fontSize: 13, fontWeight: 600 }}>
+        <div className="py-3.5 px-4 rounded-[10px] bg-brand-coral-light flex items-center justify-between">
+          <span className="text-brand-coral text-[13px] font-semibold">
             {dogsError}
           </span>
-          <button onClick={fetchDogs} style={{
-            padding: "6px 14px", borderRadius: 6, border: "none",
-            background: BRAND.coral, color: BRAND.white, fontSize: 12,
-            fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          }}>
+          <button
+            onClick={fetchDogs}
+            className="py-1.5 px-3.5 rounded-md border-none bg-brand-coral text-white text-xs font-bold cursor-pointer font-[inherit]"
+          >
             Retry
           </button>
         </div>

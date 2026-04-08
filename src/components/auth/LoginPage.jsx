@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { BRAND } from "../../constants/index.js";
 import { supabase } from "../../supabase/client.js";
 
 /**
@@ -54,60 +53,19 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     }
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 16px",
-    borderRadius: 10,
-    border: `1.5px solid ${BRAND.greyLight}`,
-    fontSize: 14,
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    outline: "none",
-    color: BRAND.text,
-    transition: "border-color 0.15s",
-  };
-
   if (isOffline) {
     return (
-      <div
-        style={{
-          maxWidth: 400,
-          margin: "80px auto",
-          padding: "0 20px",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: BRAND.text }}>
-            Smarter<span style={{ color: BRAND.blue }}>Dog</span>
+      <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+        <div className="text-center mb-8">
+          <div className="text-[28px] font-extrabold text-slate-800">
+            Smarter<span className="text-brand-blue">Dog</span>
           </div>
-          <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>
-            Salon Bookings
-          </div>
+          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
         </div>
-        <div
-          style={{
-            background: BRAND.yellowLight,
-            border: `1px solid ${BRAND.yellow}`,
-            borderRadius: 12,
-            padding: 20,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 700,
-              color: "#92400E",
-              marginBottom: 8,
-            }}
-          >
-            Offline Mode
-          </div>
-          <div style={{ fontSize: 13, color: "#92400E" }}>
-            Supabase is not configured. The app will run with sample data and no
-            authentication.
+        <div className="bg-amber-50 border border-amber-400 rounded-xl p-5 text-center">
+          <div className="text-[15px] font-bold text-amber-800 mb-2">Offline Mode</div>
+          <div className="text-[13px] text-amber-800">
+            Supabase is not configured. The app will run with sample data and no authentication.
           </div>
         </div>
       </div>
@@ -115,68 +73,39 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 400,
-        margin: "80px auto",
-        padding: "0 20px",
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <div style={{ fontSize: 28, fontWeight: 800, color: BRAND.text }}>
-          Smarter<span style={{ color: BRAND.blue }}>Dog</span>
+    <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+      <div className="text-center mb-8">
+        <div className="text-[28px] font-extrabold text-slate-800">
+          Smarter<span className="text-brand-blue">Dog</span>
         </div>
-        <div style={{ fontSize: 13, color: BRAND.textLight, marginTop: 4 }}>
-          Salon Bookings
-        </div>
+        <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
       </div>
 
-      <div
-        style={{
-          background: BRAND.white,
-          borderRadius: 16,
-          padding: 28,
-          border: `1px solid ${BRAND.greyLight}`,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 800,
-            color: BRAND.text,
-            marginBottom: 4,
-          }}
-        >
-          Welcome back
-        </div>
-        <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 20 }}>
-          Sign in to manage the salon.
-        </div>
+      <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+        <div className="text-lg font-extrabold text-slate-800 mb-1">Welcome back</div>
+        <div className="text-[13px] text-slate-500 mb-5">Sign in to manage the salon.</div>
 
-        {/* ── Forgot password mode ── */}
+        {/* Forgot password mode */}
         {forgotMode && (
-          <div style={{ marginBottom: 20 }}>
+          <div className="mb-5">
             {resetSent ? (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>📧</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: BRAND.text, marginBottom: 6 }}>Check your inbox</div>
-                <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 16 }}>
+              <div className="text-center">
+                <div className="text-[32px] mb-2.5">{"\uD83D\uDCE7"}</div>
+                <div className="text-[15px] font-bold text-slate-800 mb-1.5">Check your inbox</div>
+                <div className="text-[13px] text-slate-500 mb-4">
                   We've sent a password reset link to <strong>{resetEmail}</strong>.
                 </div>
                 <button
                   onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
-                  style={{ fontSize: 13, color: BRAND.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                  className="text-[13px] text-brand-blue bg-transparent border-none cursor-pointer font-semibold"
                 >
-                  ← Back to sign in
+                  {"\u2190"} Back to sign in
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: BRAND.text, marginBottom: 2 }}>Reset your password</div>
-                <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 4 }}>
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+                <div className="text-[15px] font-bold text-slate-800 mb-0.5">Reset your password</div>
+                <div className="text-[13px] text-slate-500 mb-1">
                   Enter your email and we'll send you a reset link.
                 </div>
                 <input
@@ -184,113 +113,70 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                   value={resetEmail}
                   onChange={e => { setResetEmail(e.target.value); setResetError(""); }}
                   placeholder="you@smarterdog.co.uk"
-                  style={inputStyle}
-                  onFocus={e => (e.target.style.borderColor = BRAND.blue)}
-                  onBlur={e => (e.target.style.borderColor = BRAND.greyLight)}
+                  className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
                   autoFocus
                 />
                 {resetError && (
-                  <div style={{ fontSize: 13, color: BRAND.coral, fontWeight: 600, background: BRAND.coralLight, padding: "8px 12px", borderRadius: 8 }}>
+                  <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
                     {resetError}
                   </div>
                 )}
                 <button
                   type="submit"
                   disabled={resetSending}
-                  style={{
-                    width: "100%", padding: "12px", borderRadius: 10, border: "none",
-                    background: resetSending ? BRAND.greyLight : BRAND.blue,
-                    color: resetSending ? BRAND.textLight : BRAND.white,
-                    fontSize: 14, fontWeight: 700, cursor: resetSending ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                  }}
+                  className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] ${
+                    resetSending
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : "bg-brand-blue text-white cursor-pointer"
+                  }`}
                 >
-                  {resetSending ? "Sending…" : "Send reset link"}
+                  {resetSending ? "Sending..." : "Send reset link"}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setForgotMode(false); setResetError(""); setResetEmail(""); }}
-                  style={{ fontSize: 13, color: BRAND.textLight, background: "none", border: "none", cursor: "pointer", textAlign: "center" }}
+                  className="text-[13px] text-slate-500 bg-transparent border-none cursor-pointer text-center"
                 >
-                  ← Back to sign in
+                  {"\u2190"} Back to sign in
                 </button>
               </form>
             )}
           </div>
         )}
 
-        {/* ── Sign in form ── */}
+        {/* Sign in form */}
         {!forgotMode && <form
           onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          className="flex flex-col gap-3"
         >
           <div>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: BRAND.textLight,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
               Email
             </label>
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setLocalError("");
-              }}
+              onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
               placeholder="you@smarterdog.co.uk"
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = BRAND.blue)}
-              onBlur={(e) => (e.target.style.borderColor = BRAND.greyLight)}
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
               autoFocus
             />
           </div>
           <div>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: BRAND.textLight,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
               Password
             </label>
             <input
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setLocalError("");
-              }}
+              onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
               placeholder="Min. 6 characters"
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = BRAND.blue)}
-              onBlur={(e) => (e.target.style.borderColor = BRAND.greyLight)}
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
             />
           </div>
 
           {(localError || error) && (
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.coral,
-                fontWeight: 600,
-                background: BRAND.coralLight,
-                padding: "8px 12px",
-                borderRadius: 8,
-              }}
-            >
+            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
               {localError || error}
             </div>
           )}
@@ -298,27 +184,11 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           <button
             type="submit"
             disabled={submitting}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: 10,
-              border: "none",
-              background: submitting ? BRAND.greyLight : BRAND.blue,
-              color: submitting ? BRAND.textLight : BRAND.white,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: submitting ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-              marginTop: 4,
-            }}
-            onMouseEnter={(e) => {
-              if (!submitting)
-                e.currentTarget.style.background = BRAND.blueDark;
-            }}
-            onMouseLeave={(e) => {
-              if (!submitting) e.currentTarget.style.background = BRAND.blue;
-            }}
+            className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] transition-all mt-1 ${
+              submitting
+                ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                : "bg-brand-blue text-white cursor-pointer hover:bg-brand-blue-dark"
+            }`}
           >
             {submitting ? "Signing in..." : "Sign In"}
           </button>
@@ -326,30 +196,15 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           <button
             type="button"
             onClick={() => { setForgotMode(true); setLocalError(""); setResetEmail(email); }}
-            style={{
-              background: "none", border: "none", color: BRAND.textLight,
-              fontSize: 13, cursor: "pointer", textAlign: "center",
-              padding: "4px 0", fontFamily: "inherit",
-            }}
+            className="bg-transparent border-none text-slate-500 text-[13px] cursor-pointer text-center py-1 font-[inherit]"
           >
             Forgot password?
           </button>
         </form>}
 
-        <div
-          style={{
-            marginTop: 20,
-            padding: "12px 14px",
-            background: BRAND.greyLight,
-            borderRadius: 8,
-          }}
-        >
-          <div
-            style={{ fontSize: 12, color: BRAND.textLight, lineHeight: 1.5 }}
-          >
-            <strong style={{ color: BRAND.text }}>Need an account?</strong> Ask
-            the salon owner to add your email in Supabase Auth, then use the
-            password reset link to set your password.
+        <div className="mt-5 py-3 px-3.5 bg-slate-200 rounded-lg">
+          <div className="text-xs text-slate-500 leading-relaxed">
+            <strong className="text-slate-800">Need an account?</strong> Ask the salon owner to add your email in Supabase Auth, then use the password reset link to set your password.
           </div>
         </div>
       </div>
