@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { BRAND, ALERT_OPTIONS, SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { ALERT_OPTIONS, SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
@@ -83,23 +83,16 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   };
 
   return (
-    <div style={{ padding: "0 24px", marginTop: 8 }}>
+    <div className="px-6 mt-2">
       <div
-        style={{
-          marginTop: 16,
-          fontWeight: 800,
-          fontSize: 12,
-          color: accentColour || BRAND.blueDark,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 8,
-        }}
+        className="mt-4 font-extrabold text-xs uppercase tracking-wide mb-2"
+        style={{ color: accentColour || "#0099BD" }}
       >
         Grooming History
       </div>
 
       {loading && (
-        <div style={{ fontSize: 12, color: BRAND.textLight, paddingBottom: 8 }}>
+        <div className="text-xs text-slate-500 pb-2">
           Loading...
         </div>
       )}
@@ -107,12 +100,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
       {!loading && error && (
         <div
           onClick={handleRetry}
-          style={{
-            fontSize: 12,
-            color: BRAND.coral,
-            cursor: "pointer",
-            paddingBottom: 8,
-          }}
+          className="text-xs text-brand-coral cursor-pointer pb-2"
         >
           Couldn't load history. Tap to retry.
         </div>
@@ -121,15 +109,15 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
       {!loading && !error && (
         <>
           {lastVisitWeeksAgo !== null && (
-            <div style={{ fontSize: 12, color: BRAND.textLight, marginBottom: 4 }}>
+            <div className="text-xs text-slate-500 mb-1">
               {isOverdue ? (
-                <span style={{ color: BRAND.coral, fontWeight: 700 }}>
+                <span className="text-brand-coral font-bold">
                   Overdue — last visit was {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
                 </span>
               ) : (
                 <span>
                   Last visit:{" "}
-                  <span style={{ fontWeight: 600, color: BRAND.text }}>
+                  <span className="font-semibold text-slate-800">
                     {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
                   </span>
                 </span>
@@ -138,9 +126,9 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
           )}
 
           {frequencyRange && (
-            <div style={{ fontSize: 12, color: BRAND.textLight, marginBottom: 8 }}>
+            <div className="text-xs text-slate-500 mb-2">
               Usually every{" "}
-              <span style={{ fontWeight: 600, color: BRAND.text }}>
+              <span className="font-semibold text-slate-800">
                 {frequencyRange.min === frequencyRange.max
                   ? `${frequencyRange.min} week${frequencyRange.min !== 1 ? "s" : ""}`
                   : `${frequencyRange.min}–${frequencyRange.max} weeks`}
@@ -149,7 +137,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
           )}
 
           {history.length === 0 ? (
-            <div style={{ fontSize: 12, color: BRAND.textLight, paddingBottom: 8 }}>
+            <div className="text-xs text-slate-500 pb-2">
               No previous visits recorded.
             </div>
           ) : (
@@ -158,28 +146,20 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
               return (
                 <div
                   key={`${b.date}-${b.id || b.slot}-${i}`}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "6px 0",
-                    borderBottom: `1px solid ${BRAND.greyLight}`,
-                    fontSize: 12,
-                  }}
+                  className="flex justify-between items-center py-1.5 border-b border-slate-200 text-xs"
                 >
                   <div>
-                    <span style={{ fontWeight: 600, color: BRAND.text }}>
+                    <span className="font-semibold text-slate-800">
                       {b.date?.split("-").reverse().join("-")}
                     </span>
-                    <span style={{ color: BRAND.textLight, marginLeft: 6 }}>
+                    <span className="text-slate-500 ml-1.5">
                       {svc?.icon} {svc?.name || b.service}
                     </span>
                   </div>
                   <span
+                    className="font-semibold text-[11px]"
                     style={{
-                      fontWeight: 600,
-                      color: b.status === "Completed" ? BRAND.openGreen : BRAND.textLight,
-                      fontSize: 11,
+                      color: b.status === "Completed" ? "#16A34A" : undefined,
                     }}
                   >
                     {b.status}
@@ -297,6 +277,7 @@ export function DogCardModal({
     );
     return allergy ? allergy.replace("Allergic to ", "") : "";
   });
+
   const [hasAllergy, setHasAllergy] = useState(() =>
     (resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")),
   );
@@ -473,46 +454,18 @@ export function DogCardModal({
   const headerTextColour = sizeTheme.headerText;
   const headerSubTextColour = sizeTheme.headerTextSub;
 
-  const sectionLabel = {
-    fontWeight: 800,
-    fontSize: 12,
-    color: sizeAccent,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  };
+  const sectionLabelCls = "font-extrabold text-xs uppercase tracking-wide";
 
   const detailRow = (label, value) => (
-    <div
-      style={{
-        padding: "8px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
-      <span style={sectionLabel}>{label}</span>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: BRAND.text,
-          marginTop: 4,
-        }}
-      >
-        {value || "—"}
+    <div className="py-2 border-b border-slate-200">
+      <span className={sectionLabelCls} style={{ color: sizeAccent }}>{label}</span>
+      <div className="text-[13px] font-semibold text-slate-800 mt-1">
+        {value || "\u2014"}
       </div>
     </div>
   );
 
-  const inputStyle = {
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: `1px solid ${BRAND.greyLight}`,
-    fontSize: 13,
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-    color: BRAND.text,
-  };
+  const inputCls = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
@@ -520,185 +473,102 @@ export function DogCardModal({
     <>
     <div
       onClick={onClose}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: BRAND.white,
-          borderRadius: 16,
-          width: 360,
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
+        className="bg-white rounded-2xl w-[min(360px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
       >
         <div
+          className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
           style={{
             background: `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`,
-            padding: "20px 24px",
-            borderRadius: "16px 16px 0 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
           }}
         >
-          <div style={{ flex: 1, marginRight: 12 }}>
+          <div className="flex-1 mr-3">
             {isEditing ? (
               <>
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="Dog name"
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 800,
-                    color: headerTextColour,
-                    background: "rgba(255,255,255,0.15)",
-                    border: "1px solid rgba(255,255,255,0.3)",
-                    borderRadius: 8,
-                    padding: "4px 10px",
-                    width: "100%",
-                    boxSizing: "border-box",
-                    outline: "none",
-                    fontFamily: "inherit",
-                  }}
+                  className="text-xl font-extrabold bg-white/15 border border-white/30 rounded-lg px-2.5 py-1 w-full box-border outline-none font-inherit"
+                  style={{ color: headerTextColour }}
                 />
-                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <div className="flex gap-2 mt-1.5">
                   <input
                     value={editBreed}
                     onChange={(e) => setEditBreed(e.target.value)}
                     placeholder="Breed"
-                    style={{
-                      fontSize: 13,
-                      color: headerTextColour,
-                      background: "rgba(255,255,255,0.15)",
-                      border: "1px solid rgba(255,255,255,0.3)",
-                      borderRadius: 6,
-                      padding: "3px 8px",
-                      flex: 1,
-                      outline: "none",
-                      fontFamily: "inherit",
-                    }}
+                    className="text-[13px] bg-white/15 border border-white/30 rounded-md px-2 py-[3px] flex-1 outline-none font-inherit"
+                    style={{ color: headerTextColour }}
                   />
-                  <span style={{ fontSize: 12, color: headerSubTextColour }}>Born</span>
+                  <span className="text-xs" style={{ color: headerSubTextColour }}>Born</span>
                   <select
                     value={editDobMonth}
                     onChange={(e) => setEditDobMonth(e.target.value)}
-                    style={{
-                      fontSize: 12,
-                      color: headerTextColour,
-                      background: "rgba(255,255,255,0.15)",
-                      border: "1px solid rgba(255,255,255,0.3)",
-                      borderRadius: 6,
-                      padding: "3px 4px",
-                      outline: "none",
-                      fontFamily: "inherit",
-                      cursor: "pointer",
-                    }}
+                    className="text-xs bg-white/15 border border-white/30 rounded-md px-1 py-[3px] outline-none font-inherit cursor-pointer"
+                    style={{ color: headerTextColour }}
                   >
-                    <option value="" style={{ color: BRAND.text }}>Month</option>
+                    <option value="" className="text-slate-800">Month</option>
                     {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-                      <option key={m} value={String(i + 1).padStart(2, "0")} style={{ color: BRAND.text }}>{m}</option>
+                      <option key={m} value={String(i + 1).padStart(2, "0")} className="text-slate-800">{m}</option>
                     ))}
                   </select>
                   <select
                     value={editDobYear}
                     onChange={(e) => setEditDobYear(e.target.value)}
-                    style={{
-                      fontSize: 12,
-                      color: headerTextColour,
-                      background: "rgba(255,255,255,0.15)",
-                      border: "1px solid rgba(255,255,255,0.3)",
-                      borderRadius: 6,
-                      padding: "3px 4px",
-                      outline: "none",
-                      fontFamily: "inherit",
-                      cursor: "pointer",
-                    }}
+                    className="text-xs bg-white/15 border border-white/30 rounded-md px-1 py-[3px] outline-none font-inherit cursor-pointer"
+                    style={{ color: headerTextColour }}
                   >
-                    <option value="" style={{ color: BRAND.text }}>Year</option>
+                    <option value="" className="text-slate-800">Year</option>
                     {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                      <option key={y} value={String(y)} style={{ color: BRAND.text }}>{y}</option>
+                      <option key={y} value={String(y)} className="text-slate-800">{y}</option>
                     ))}
                   </select>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 20, fontWeight: 800, color: headerTextColour }}>
+                <div className="text-xl font-extrabold" style={{ color: headerTextColour }}>
                   {titleCase(resolvedDog.name)}
                 </div>
                 <div
-                  style={{
-                    fontSize: 13,
-                    color: headerSubTextColour,
-                    marginTop: 4,
-                  }}
+                  className="text-[13px] mt-1"
+                  style={{ color: headerSubTextColour }}
                 >
-                  {titleCase(resolvedDog.breed)}{displayAge ? ` · ${displayAge}` : ""}
+                  {titleCase(resolvedDog.breed)}{displayAge ? ` \u00b7 ${displayAge}` : ""}
                 </div>
               </>
             )}
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              borderRadius: 8,
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: 14,
-              color: headerTextColour,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
+            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
+            style={{ color: headerTextColour }}
           >
-            {"×"}
+            {"\u00d7"}
           </button>
         </div>
 
-        <div style={{ padding: "16px 24px 0" }}>
+        <div className="px-6 pt-4">
           {isEditing ? (
-            <div style={{ padding: "8px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <div style={{ ...sectionLabel, marginBottom: 6 }}>Owner</div>
+            <div className="py-2 border-b border-slate-200">
+              <div className={`${sectionLabelCls} mb-1.5`} style={{ color: sizeAccent }}>Owner</div>
               <div
                 onClick={() => setShowOwnerSearch(!showOwnerSearch)}
-                style={{
-                  ...inputStyle,
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: showOwnerSearch ? BRAND.blueLight : BRAND.white,
-                }}
+                className={`${inputCls} cursor-pointer flex justify-between items-center ${showOwnerSearch ? "bg-blue-50" : "bg-white"}`}
               >
-                <span style={{ fontWeight: 600 }}>{editOwnerLabel || "Select owner..."}</span>
-                <span style={{ fontSize: 11, color: BRAND.textLight }}>
-                  {showOwnerSearch ? "▲" : "▼"}
+                <span className="font-semibold">{editOwnerLabel || "Select owner..."}</span>
+                <span className="text-[11px] text-slate-500">
+                  {showOwnerSearch ? "\u25b2" : "\u25bc"}
                 </span>
               </div>
               {showOwnerSearch && (
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-                      <IconSearch size={14} colour={BRAND.textLight} />
+                <div className="mt-1.5">
+                  <div className="relative">
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex">
+                      <IconSearch size={14} colour="#6B7280" />
                     </div>
                     <input
                       type="text"
@@ -706,15 +576,11 @@ export function DogCardModal({
                       value={ownerSearchQuery}
                       onChange={(e) => setOwnerSearchQuery(e.target.value)}
                       autoFocus
-                      style={{
-                        ...inputStyle,
-                        paddingLeft: 32,
-                        borderColor: BRAND.blue,
-                      }}
+                      className={`${inputCls} pl-8 border-brand-blue`}
                     />
                   </div>
                   {ownerSearchResults.length > 0 && (
-                    <div style={{ marginTop: 4, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden" }}>
+                    <div className="mt-1 border border-slate-200 rounded-lg overflow-hidden">
                       {ownerSearchResults.map((candidate) => {
                         const fullName = candidate.fullName || `${candidate.name || ""} ${candidate.surname || ""}`.trim();
                         return (
@@ -725,18 +591,11 @@ export function DogCardModal({
                               setOwnerSearchQuery("");
                               setShowOwnerSearch(false);
                             }}
-                            style={{
-                              padding: "8px 12px",
-                              cursor: "pointer",
-                              borderBottom: `1px solid ${BRAND.greyLight}`,
-                              transition: "background 0.1s",
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                            className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-blue-50"
                           >
-                            <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>{fullName}</div>
+                            <div className="text-[13px] font-semibold text-slate-800">{fullName}</div>
                             {candidate.phone && (
-                              <div style={{ fontSize: 12, color: BRAND.textLight }}>{candidate.phone}</div>
+                              <div className="text-xs text-slate-500">{candidate.phone}</div>
                             )}
                           </div>
                         );
@@ -744,7 +603,7 @@ export function DogCardModal({
                     </div>
                   )}
                   {ownerSearchQuery.trim() && ownerSearchResults.length === 0 && (
-                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 6, textAlign: "center" }}>
+                    <div className="text-xs text-slate-500 mt-1.5 text-center">
                       No matching humans found
                     </div>
                   )}
@@ -752,9 +611,9 @@ export function DogCardModal({
               )}
             </div>
           ) : (
-            <div style={{ padding: "8px 0", borderBottom: `1px solid ${BRAND.greyLight}` }}>
-              <div style={sectionLabel}>Owner</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+            <div className="py-2 border-b border-slate-200">
+              <div className={sectionLabelCls} style={{ color: sizeAccent }}>Owner</div>
+              <div className="flex items-baseline gap-2 mt-1">
                 <div
                   onClick={() => {
                     if (ownerOpenValue) {
@@ -762,23 +621,17 @@ export function DogCardModal({
                       onOpenHuman && onOpenHuman(ownerOpenValue);
                     }
                   }}
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: BRAND.teal,
-                    cursor: ownerOpenValue ? "pointer" : "default",
-                  }}
+                  className="text-[13px] font-semibold text-brand-teal"
+                  style={{ cursor: ownerOpenValue ? "pointer" : "default" }}
                 >
-                  {titleCase(ownerLabel) || "—"}
+                  {titleCase(ownerLabel) || "\u2014"}
                 </div>
                 {owner?.phone && (
                   <a
                     href={waLink(owner.phone)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: BRAND.textLight, textDecoration: "none" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.teal; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; }}
+                    className="text-xs text-slate-500 no-underline hover:text-brand-teal"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {owner.phone}
@@ -789,19 +642,14 @@ export function DogCardModal({
           )}
 
           {isEditing ? (
-            <div
-              style={{
-                padding: "8px 0",
-                borderBottom: `1px solid ${BRAND.greyLight}`,
-              }}
-            >
-              <div style={{ ...sectionLabel, marginBottom: 6 }}>
+            <div className="py-2 border-b border-slate-200">
+              <div className={`${sectionLabelCls} mb-1.5`} style={{ color: sizeAccent }}>
                 Groom Notes
               </div>
               <textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+                className={`${inputCls} resize-y min-h-[60px]`}
               />
             </div>
           ) : (
@@ -809,24 +657,14 @@ export function DogCardModal({
           )}
 
           {isEditing ? (
-            <div style={{ marginTop: 16 }}>
+            <div className="mt-4">
               <div
-                style={{
-                  ...sectionLabel,
-                  marginBottom: 10,
-                  textAlign: "center",
-                }}
+                className={`${sectionLabelCls} mb-2.5 text-center`}
+                style={{ color: sizeAccent }}
               >
                 Alerts
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  justifyContent: "center",
-                }}
-              >
+              <div className="flex flex-wrap gap-2 justify-center">
                 {ALERT_OPTIONS.map((opt) => {
                   const active = editAlerts.includes(opt.label);
                   return (
@@ -840,16 +678,11 @@ export function DogCardModal({
                           );
                         else setEditAlerts([...editAlerts, opt.label]);
                       }}
+                      className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
                       style={{
-                        background: active ? opt.color : BRAND.white,
-                        color: active ? BRAND.white : opt.color,
+                        background: active ? opt.color : "#FFFFFF",
+                        color: active ? "#FFFFFF" : opt.color,
                         border: `2px solid ${opt.color}`,
-                        padding: "6px 12px",
-                        borderRadius: 16,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
                       }}
                     >
                       {opt.label}
@@ -859,40 +692,24 @@ export function DogCardModal({
                 <button
                   type="button"
                   onClick={() => setHasAllergy(!hasAllergy)}
+                  className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
                   style={{
-                    background: hasAllergy ? BRAND.coral : BRAND.white,
-                    color: hasAllergy ? BRAND.white : BRAND.coral,
-                    border: `2px solid ${BRAND.coral}`,
-                    padding: "6px 12px",
-                    borderRadius: 16,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
+                    background: hasAllergy ? "#E8567F" : "#FFFFFF",
+                    color: hasAllergy ? "#FFFFFF" : "#E8567F",
+                    border: "2px solid #E8567F",
                   }}
                 >
                   Allergy
                 </button>
               </div>
               {hasAllergy && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
+                <div className="mt-2.5 flex justify-center">
                   <input
                     type="text"
                     placeholder="Allergic to..."
                     value={allergyInput}
                     onChange={(e) => setAllergyInput(e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      textAlign: "center",
-                      borderColor: BRAND.coral,
-                      borderWidth: 2,
-                    }}
+                    className={`${inputCls} text-center border-2 border-brand-coral`}
                   />
                 </div>
               )}
@@ -901,26 +718,16 @@ export function DogCardModal({
             displayAlerts.length > 0 && (
               <>
                 <div
-                  style={{
-                    ...sectionLabel,
-                    marginTop: 16,
-                    marginBottom: 8,
-                  }}
+                  className={`${sectionLabelCls} mt-4 mb-2`}
+                  style={{ color: sizeAccent }}
                 >
                   Alerts
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div className="flex flex-wrap gap-1.5">
                   {displayAlerts.map((alert) => (
                     <span
                       key={alert}
-                      style={{
-                        background: BRAND.coralLight,
-                        color: BRAND.coral,
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
+                      className="bg-brand-coral-light text-brand-coral px-3 py-1.5 rounded-lg text-xs font-bold"
                     >
                       {alert}
                     </span>
@@ -932,8 +739,8 @@ export function DogCardModal({
         </div>
 
         {/* Trusted Humans */}
-        <div style={{ padding: "0 24px", marginTop: 12 }}>
-          <div style={{ ...sectionLabel, marginBottom: 8 }}>
+        <div className="px-6 mt-3">
+          <div className={`${sectionLabelCls} mb-2`} style={{ color: sizeAccent }}>
             Trusted Humans
           </div>
           {trustedIds.length > 0 ? (
@@ -946,42 +753,21 @@ export function DogCardModal({
               return (
                 <div
                   key={trustedId}
-                  style={{
-                    padding: "8px 0",
-                    borderBottom: `1px solid ${BRAND.greyLight}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
+                  className="py-2 border-b border-slate-200 flex items-center justify-between"
                 >
                   <span
                     onClick={() => {
                       onClose();
                       onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
                     }}
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: BRAND.teal,
-                      cursor: "pointer",
-                    }}
+                    className="text-[13px] font-semibold text-brand-teal cursor-pointer"
                   >
                     {titleCase(trustedLabel)}
                   </span>
                   {isEditing && onUpdateHuman && (
                     <button
                       onClick={() => handleRemoveTrusted(trustedId)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: BRAND.coral,
-                        fontSize: 16,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        padding: "0 4px",
-                        lineHeight: 1,
-                        fontFamily: "inherit",
-                      }}
+                      className="bg-transparent border-none text-brand-coral text-base font-bold cursor-pointer px-1 leading-none font-inherit"
                       title="Remove trusted human"
                     >
                       ×
@@ -991,7 +777,7 @@ export function DogCardModal({
               );
             })
           ) : (
-            <div style={{ fontSize: 13, color: BRAND.textLight, fontStyle: "italic" }}>
+            <div className="text-[13px] text-slate-500 italic">
               None listed
             </div>
           )}
@@ -1000,29 +786,20 @@ export function DogCardModal({
             <>
               <button
                 onClick={() => setShowTrustedSearch(!showTrustedSearch)}
+                className="w-full mt-2.5 py-2 rounded-[10px] border-[1.5px] border-dashed border-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all"
                 style={{
-                  width: "100%",
-                  marginTop: 10,
-                  padding: "8px",
-                  borderRadius: 10,
-                  border: `1.5px dashed ${BRAND.teal}`,
-                  background: showTrustedSearch ? BRAND.teal : BRAND.tealLight,
-                  color: showTrustedSearch ? BRAND.white : BRAND.teal,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.15s",
+                  background: showTrustedSearch ? "#2D8B7A" : "#E6F5F2",
+                  color: showTrustedSearch ? "#FFFFFF" : "#2D8B7A",
                 }}
               >
                 {showTrustedSearch ? "Cancel" : "+ Add a trusted human"}
               </button>
 
               {showTrustedSearch && (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-                      <IconSearch size={14} colour={BRAND.textLight} />
+                <div className="mt-2">
+                  <div className="relative">
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex">
+                      <IconSearch size={14} colour="#6B7280" />
                     </div>
                     <input
                       type="text"
@@ -1030,33 +807,22 @@ export function DogCardModal({
                       value={trustedSearchQuery}
                       onChange={(e) => setTrustedSearchQuery(e.target.value)}
                       autoFocus
-                      style={{
-                        ...inputStyle,
-                        paddingLeft: 32,
-                        borderColor: BRAND.teal,
-                      }}
+                      className={`${inputCls} pl-8 border-brand-teal`}
                     />
                   </div>
                   {trustedSearchResults.length > 0 && (
-                    <div style={{ marginTop: 4, border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden" }}>
+                    <div className="mt-1 border border-slate-200 rounded-lg overflow-hidden">
                       {trustedSearchResults.map((candidate) => {
                         const fullName = candidate.fullName || `${candidate.name || ""} ${candidate.surname || ""}`.trim();
                         return (
                           <div
                             key={candidate.id}
                             onClick={() => handleAddTrusted(candidate.id)}
-                            style={{
-                              padding: "8px 12px",
-                              cursor: "pointer",
-                              borderBottom: `1px solid ${BRAND.greyLight}`,
-                              transition: "background 0.1s",
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.tealLight)}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                            className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]"
                           >
-                            <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>{fullName}</div>
+                            <div className="text-[13px] font-semibold text-slate-800">{fullName}</div>
                             {candidate.phone && (
-                              <div style={{ fontSize: 12, color: BRAND.textLight }}>{candidate.phone}</div>
+                              <div className="text-xs text-slate-500">{candidate.phone}</div>
                             )}
                           </div>
                         );
@@ -1064,49 +830,36 @@ export function DogCardModal({
                     </div>
                   )}
                   {trustedSearchQuery.trim() && trustedSearchResults.length === 0 && !showNewTrustedForm && (
-                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 6, textAlign: "center" }}>
+                    <div className="text-xs text-slate-500 mt-1.5 text-center">
                       No matching humans found
                     </div>
                   )}
                   {onAddHuman && !showNewTrustedForm && (
                     <button
                       onClick={() => setShowNewTrustedForm(true)}
-                      style={{
-                        width: "100%",
-                        marginTop: 8,
-                        padding: "8px",
-                        borderRadius: 8,
-                        border: `1.5px solid ${BRAND.teal}`,
-                        background: BRAND.white,
-                        color: BRAND.teal,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        transition: "all 0.15s",
-                      }}
+                      className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-brand-teal bg-white text-brand-teal text-xs font-bold cursor-pointer font-inherit transition-all"
                     >
                       + Add new human
                     </button>
                   )}
                   {showNewTrustedForm && (
-                    <div style={{ marginTop: 8, padding: 12, background: BRAND.offWhite, borderRadius: 8, border: `1px solid ${BRAND.greyLight}` }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>New Trusted Human</div>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2">New Trusted Human</div>
+                      <div className="flex gap-2 mb-2">
                         <input
                           type="text"
                           placeholder="First name"
                           value={newTrustedName}
                           onChange={(e) => setNewTrustedName(e.target.value)}
                           autoFocus
-                          style={{ ...inputStyle, flex: 1 }}
+                          className={`${inputCls} flex-1`}
                         />
                         <input
                           type="text"
                           placeholder="Surname"
                           value={newTrustedSurname}
                           onChange={(e) => setNewTrustedSurname(e.target.value)}
-                          style={{ ...inputStyle, flex: 1 }}
+                          className={`${inputCls} flex-1`}
                         />
                       </div>
                       <input
@@ -1114,24 +867,13 @@ export function DogCardModal({
                         placeholder="Phone number"
                         value={newTrustedPhone}
                         onChange={(e) => setNewTrustedPhone(e.target.value)}
-                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 8 }}
+                        className={`${inputCls} w-full mb-2`}
                       />
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className="flex gap-2">
                         <button
                           onClick={handleAddNewTrusted}
                           disabled={!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()}
-                          style={{
-                            flex: 1,
-                            padding: "8px",
-                            borderRadius: 8,
-                            border: "none",
-                            background: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? BRAND.greyLight : BRAND.teal,
-                            color: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? BRAND.textLight : BRAND.white,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: (!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()) ? "not-allowed" : "pointer",
-                            fontFamily: "inherit",
-                          }}
+                          className="flex-1 py-2 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
                         >
                           Add
                         </button>
@@ -1142,18 +884,7 @@ export function DogCardModal({
                             setNewTrustedSurname("");
                             setNewTrustedPhone("");
                           }}
-                          style={{
-                            flex: 1,
-                            padding: "8px",
-                            borderRadius: 8,
-                            border: `1px solid ${BRAND.greyLight}`,
-                            background: BRAND.white,
-                            color: BRAND.text,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
+                          className="flex-1 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer font-inherit"
                         >
                           Cancel
                         </button>
@@ -1173,53 +904,25 @@ export function DogCardModal({
         />
 
         {lastBooking && (
-          <div style={{ padding: "0 24px" }}>
+          <div className="px-6">
             <button
               onClick={() => setShowChainBooking(true)}
-              style={{
-                width: "100%", padding: "10px", borderRadius: 10, border: "none",
-                background: BRAND.teal, color: BRAND.white,
-                fontSize: 13, fontWeight: 700, cursor: "pointer",
-                fontFamily: "inherit", transition: "all 0.15s", marginTop: 8,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#1E6B5C"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.teal; }}
+              className="w-full py-2.5 rounded-[10px] border-none bg-brand-teal text-white text-[13px] font-bold cursor-pointer font-inherit transition-all hover:bg-[#1E6B5C] mt-2"
             >
               Recurring Bookings
             </button>
           </div>
         )}
 
-        <div
-          style={{
-            padding: "16px 24px 20px",
-            display: "flex",
-            gap: 10,
-            background: BRAND.offWhite,
-            borderTop: `1px solid ${BRAND.greyLight}`,
-            marginTop: 16,
-          }}
-        >
+        <div className="px-6 py-4 pb-5 flex gap-2.5 bg-slate-50 border-t border-slate-200 mt-4">
           {isEditing ? (
             <>
               <button
                 onClick={handleSave}
+                className="flex-1 py-2.5 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
                 style={{
-                  flex: 1,
-                  padding: "10px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
                   background: sizeTheme.gradient[0],
                   color: headerTextColour,
-                  transition: "background 0.15s",
                 }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.background = sizeTheme.primary)
@@ -1232,25 +935,7 @@ export function DogCardModal({
               </button>
               <button
                 onClick={handleCancel}
-                style={{
-                  flex: 1,
-                  padding: "10px 0",
-                  borderRadius: 10,
-                  border: `1.5px solid ${BRAND.greyLight}`,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  background: BRAND.white,
-                  color: BRAND.textLight,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = BRAND.offWhite)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = BRAND.white)
-                }
+                className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -1258,22 +943,10 @@ export function DogCardModal({
           ) : (
             <button
               onClick={() => setIsEditing(true)}
+              className="flex-1 py-2.5 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
               style={{
-                flex: 1,
-                padding: "10px 0",
-                borderRadius: 10,
-                border: "none",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
                 background: sizeTheme.gradient[0],
                 color: headerTextColour,
-                transition: "background 0.15s",
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = sizeTheme.primary)
