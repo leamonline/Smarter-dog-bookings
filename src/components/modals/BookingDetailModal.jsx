@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
+import { useBookingSave } from "../../hooks/useBookingSave.ts";
 import {
   SERVICES,
   SIZE_THEME,
@@ -208,103 +209,25 @@ export function BookingDetailModal({
     setShowDatePicker(false);
   };
 
-  const handleSave = async () => {
-    if (!editData.slot) {
-      setSaveError("Select a drop-off time");
-      return;
-    }
-
-    if (!editDayOpen) {
-      setSaveError("This day is currently closed");
-      return;
-    }
-
-    const normalizedService = normalizeServiceForSize(
-      editData.service,
-      booking.size,
-    );
-    if (!allowedServices.some((service) => service.id === normalizedService)) {
-      setSaveError("Select a valid service for this dog size");
-      return;
-    }
-
-    const slotCheck = canBookSlot(
-      otherBookings,
-      editData.slot,
-      booking.size,
-      editActiveSlots,
-      {
-        overrides: editSettings.overrides?.[editData.slot] || {},
-      },
-    );
-
-    if (!slotCheck.allowed) {
-      setSaveError(slotCheck.reason);
-      return;
-    }
-
-    setSaving(true);
-    setSaveError("");
-
-    let finalNotes = editData.groomNotes || "";
-    const originalDateDisplay = formatFullDate(currentDateObj);
-    const newDateDisplay = formatFullDate(editData.date);
-
-    if (
-      originalDateDisplay !== newDateDisplay ||
-      booking.slot !== editData.slot
-    ) {
-      const stamp = `\n\n[Booking moved by Staff from ${originalDateDisplay} at ${booking.slot} to ${newDateDisplay} at ${editData.slot}]`;
-      finalNotes += stamp;
-    }
-
-    const finalAlerts = editData.alerts.filter(
-      (a) => !a.startsWith("Allergic to "),
-    );
-    if (hasAllergy && allergyInput.trim()) {
-      finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
-    }
-
-    const dogUpdateResult = await onUpdateDog(
-      booking._dogId || booking.dogName,
-      {
-        alerts: finalAlerts,
-        groomNotes: finalNotes,
-        customPrice: Number(editData.customPrice || 0),
-      },
-    );
-
-    if (dogUpdateResult === null) {
-      setSaving(false);
-      setSaveError("Could not update dog details");
-      return;
-    }
-
-    const newDateStr = toDateStr(editData.date);
-    const updateResult = await onUpdate(
-      {
-        ...booking,
-        service: normalizedService,
-        addons: editData.addons,
-        pickupBy:
-          getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
-          editData.pickupBy,
-        payment: editData.payment,
-        slot: editData.slot,
-      },
-      currentDateStr,
-      newDateStr,
-    );
-
-    if (!updateResult) {
-      setSaving(false);
-      setSaveError("Could not save booking changes");
-      return;
-    }
-
-    setSaving(false);
-    setIsEditing(false);
-  };
+  const { save: handleSave } = useBookingSave({
+    editData,
+    setSaving,
+    setSaveError,
+    setIsEditing,
+    hasAllergy,
+    allergyInput,
+    booking,
+    humans,
+    currentDateObj,
+    currentDateStr,
+    editDayOpen,
+    editSettings,
+    editActiveSlots,
+    otherBookings,
+    allowedServices,
+    onUpdate,
+    onUpdateDog,
+  });
 
   const pickupOptions = trustedHumans.map((value) => {
     const human = getHumanByIdOrName(humans, value);
