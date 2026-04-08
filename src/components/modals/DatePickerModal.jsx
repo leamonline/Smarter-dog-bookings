@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { BRAND, ALL_DAYS } from "../../constants/index.js";
+import { ALL_DAYS } from "../../constants/index.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
 function getDefaultOpenForDate(date) {
-  const dayOfWeek = date.getDay(); // 0 = Sun
+  const dayOfWeek = date.getDay();
   const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   return ALL_DAYS[dayIndex]?.defaultOpen ?? false;
 }
@@ -18,45 +18,29 @@ export function DatePickerModal({
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // Mon=0
+  const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
   const monthName = new Date(viewYear, viewMonth).toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
   });
 
   const prevMonth = () => {
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
-    }
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
+    else setViewMonth(viewMonth - 1);
   };
 
   const nextMonth = () => {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
-    }
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
+    else setViewMonth(viewMonth + 1);
   };
 
   const isToday = (d) => {
     const t = new Date();
-    return (
-      d === t.getDate() &&
-      viewMonth === t.getMonth() &&
-      viewYear === t.getFullYear()
-    );
+    return d === t.getDate() && viewMonth === t.getMonth() && viewYear === t.getFullYear();
   };
 
   const isSelected = (d) => {
-    return (
-      d === currentDate.getDate() &&
-      viewMonth === currentDate.getMonth() &&
-      viewYear === currentDate.getFullYear()
-    );
+    return d === currentDate.getDate() && viewMonth === currentDate.getMonth() && viewYear === currentDate.getFullYear();
   };
 
   const cells = [];
@@ -64,186 +48,56 @@ export function DatePickerModal({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1200,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: BRAND.white,
-          borderRadius: 16,
-          width: 320,
-          overflow: "hidden",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
-      >
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-            padding: "14px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <button
-            onClick={prevMonth}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              borderRadius: 6,
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg
-              width={14}
-              height={14}
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke={BRAND.white}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+    <div onClick={onClose} className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1200]">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark px-4 py-3.5 flex items-center justify-between">
+          <button onClick={prevMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
+            <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 3l-5 5 5 5" />
             </svg>
           </button>
-
-          <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.white }}>
-            {monthName}
-          </div>
-
-          <button
-            onClick={nextMonth}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              borderRadius: 6,
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg
-              width={14}
-              height={14}
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke={BRAND.white}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+          <div className="text-base font-bold text-white">{monthName}</div>
+          <button onClick={nextMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
+            <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 3l5 5-5 5" />
             </svg>
           </button>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            padding: "10px 12px 4px",
-          }}
-        >
+        {/* Day headers */}
+        <div className="grid grid-cols-7 px-3 pt-2.5 pb-1">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div
-              key={d}
-              style={{
-                textAlign: "center",
-                fontSize: 11,
-                fontWeight: 700,
-                color: BRAND.textLight,
-                padding: "4px 0",
-              }}
-            >
-              {d}
-            </div>
+            <div key={d} className="text-center text-[11px] font-bold text-slate-500 py-1">{d}</div>
           ))}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            padding: "0 12px 14px",
-            gap: 2,
-          }}
-        >
+        {/* Day cells */}
+        <div className="grid grid-cols-7 px-3 pb-3.5 gap-0.5">
           {cells.map((d, i) => {
             if (d === null) return <div key={`e${i}`} />;
 
             const cellDate = new Date(viewYear, viewMonth, d);
             const dateStr = toDateStr(cellDate);
-            const isOpen =
-              dayOpenState && dayOpenState[dateStr] !== undefined
-                ? dayOpenState[dateStr]
-                : getDefaultOpenForDate(cellDate);
+            const isOpen = dayOpenState?.[dateStr] !== undefined
+              ? dayOpenState[dateStr]
+              : getDefaultOpenForDate(cellDate);
             const disabled = !isOpen;
+            const selected = isSelected(d);
+            const today = isToday(d);
+
+            let bgCls = "bg-transparent hover:bg-slate-50";
+            let textCls = "text-slate-800";
+            if (selected) { bgCls = "bg-brand-blue"; textCls = "text-white"; }
+            else if (today) { bgCls = "bg-sky-50 hover:bg-sky-100"; textCls = "text-brand-blue"; }
+            if (disabled) { textCls = "text-slate-300"; bgCls = "bg-transparent"; }
 
             return (
               <button
                 key={d}
-                onClick={() => {
-                  if (!disabled) onSelectDate(new Date(viewYear, viewMonth, d));
-                }}
+                onClick={() => { if (!disabled) onSelectDate(new Date(viewYear, viewMonth, d)); }}
                 disabled={disabled}
-                style={{
-                  width: "100%",
-                  aspectRatio: "1",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: isSelected(d) ? 800 : 600,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  fontFamily: "inherit",
-                  background: isSelected(d)
-                    ? BRAND.blue
-                    : isToday(d)
-                      ? BRAND.blueLight
-                      : "transparent",
-                  color: disabled
-                    ? BRAND.greyLight
-                    : isSelected(d)
-                      ? BRAND.white
-                      : isToday(d)
-                        ? BRAND.blue
-                        : BRAND.text,
-                  transition: "all 0.1s",
-                  opacity: disabled ? 0.5 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected(d) && !disabled) {
-                    e.currentTarget.style.background = BRAND.offWhite;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected(d) && !disabled) {
-                    e.currentTarget.style.background = isToday(d)
-                      ? BRAND.blueLight
-                      : "transparent";
-                  }
-                }}
+                className={`w-full aspect-square border-none rounded-lg text-sm cursor-pointer font-[inherit] transition-all ${bgCls} ${textCls} ${selected ? "font-extrabold" : "font-semibold"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {d}
               </button>
@@ -251,29 +105,18 @@ export function DatePickerModal({
           })}
         </div>
 
-        <div style={{ padding: "0 12px 14px", textAlign: "center" }}>
+        {/* Today button */}
+        <div className="px-3 pb-3.5 text-center">
           <button
             onClick={() => {
               const today = new Date();
               const todayStr = toDateStr(today);
-              const isOpen =
-                dayOpenState && dayOpenState[todayStr] !== undefined
-                  ? dayOpenState[todayStr]
-                  : getDefaultOpenForDate(today);
-
+              const isOpen = dayOpenState?.[todayStr] !== undefined
+                ? dayOpenState[todayStr]
+                : getDefaultOpenForDate(today);
               if (isOpen) onSelectDate(today);
             }}
-            style={{
-              background: "none",
-              border: `1.5px solid ${BRAND.blue}`,
-              borderRadius: 8,
-              padding: "8px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: BRAND.blue,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
+            className="bg-transparent border-[1.5px] border-brand-blue rounded-lg px-5 py-2 text-[13px] font-semibold text-brand-blue cursor-pointer font-[inherit] hover:bg-sky-50"
           >
             Today
           </button>
