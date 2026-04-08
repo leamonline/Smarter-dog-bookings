@@ -1,10 +1,22 @@
 import { useState, useMemo } from "react";
-import { BRAND, SERVICES } from "../../constants/index.js";
+import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
+
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function waLink(phone) {
+  if (!phone) return "#";
+  const digits = phone.replace(/[\s\-()]/g, "");
+  const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
+  return `https://wa.me/${intl}`;
+}
 
 function HumanBookingHistory({ human, dogs, bookingsByDate }) {
   const history = useMemo(() => {
@@ -40,17 +52,7 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
 
   return (
     <>
-      <div
-        style={{
-          marginTop: 20,
-          fontWeight: 800,
-          fontSize: 12,
-          color: BRAND.blueDark,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 8,
-        }}
-      >
+      <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
         Recent Bookings
       </div>
       {history.slice(0, 5).map((booking, i) => {
@@ -58,34 +60,26 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
         return (
           <div
             key={`${booking.id || booking.date}-${i}`}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "6px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-              fontSize: 12,
-            }}
+            className="flex justify-between items-center py-1.5 border-b border-slate-200 text-xs"
           >
             <div>
-              <span style={{ fontWeight: 600, color: BRAND.text }}>
+              <span className="font-semibold text-slate-800">
                 {booking.date}
               </span>
-              <span style={{ color: BRAND.textLight, marginLeft: 6 }}>
-                {booking.dogName}
+              <span className="text-slate-500 ml-1.5">
+                {titleCase(booking.dogName)}
               </span>
-              <span style={{ color: BRAND.textLight, marginLeft: 4 }}>
+              <span className="text-slate-500 ml-1">
                 {service?.icon} {service?.name}
               </span>
             </div>
             <span
+              className="font-semibold text-[11px]"
               style={{
-                fontWeight: 600,
                 color:
                   booking.status === "Completed"
-                    ? BRAND.openGreen
-                    : BRAND.textLight,
-                fontSize: 11,
+                    ? "#16A34A"
+                    : "#6B7280",
               }}
             >
               {booking.status}
@@ -105,6 +99,7 @@ export function HumanCardModal({
   humans,
   dogs,
   onUpdateHuman,
+  onAddHuman,
   bookingsByDate,
 }) {
   const human = getHumanByIdOrName(humans, humanId) || {
@@ -157,6 +152,10 @@ export function HumanCardModal({
 
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);
   const [trustedSearchQuery, setTrustedSearchQuery] = useState("");
+  const [showNewTrustedForm, setShowNewTrustedForm] = useState(false);
+  const [newTrustedName, setNewTrustedName] = useState("");
+  const [newTrustedSurname, setNewTrustedSurname] = useState("");
+  const [newTrustedPhone, setNewTrustedPhone] = useState("");
 
   const trustedSearchResults = useMemo(() => {
     if (!trustedSearchQuery.trim()) return [];
@@ -218,124 +217,121 @@ export function HumanCardModal({
     setShowTrustedSearch(false);
   };
 
+  const handleAddNewTrusted = async () => {
+    if (!newTrustedName.trim() || !onAddHuman) return;
+    try {
+      const result = await onAddHuman({
+        name: newTrustedName.trim(),
+        surname: newTrustedSurname.trim(),
+        phone: newTrustedPhone.trim(),
+      });
+      const newId = result?.id || result?.[0]?.id;
+      if (newId) {
+        const myId = human.id || humanId;
+        const currentTrusted = human.trustedIds || [];
+        await onUpdateHuman(myId, {
+          trustedIds: [...currentTrusted, newId],
+        });
+        try {
+          await onUpdateHuman(newId, {
+            trustedIds: [myId],
+          });
+        } catch {
+          console.error("Failed to add bidirectional trust for new human");
+        }
+      }
+      setShowNewTrustedForm(false);
+      setNewTrustedName("");
+      setNewTrustedSurname("");
+      setNewTrustedPhone("");
+      setShowTrustedSearch(false);
+    } catch (err) {
+      console.error("Failed to create new trusted human:", err);
+    }
+  };
+
   const detailRow = (label, value) => (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "8px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
-      <span style={{ fontSize: 13, color: BRAND.textLight }}>{label}</span>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: BRAND.text,
-          textAlign: "right",
-        }}
-      >
-        {value || "—"}
+    <div className="flex justify-between py-2 border-b border-slate-200">
+      <span className="text-[13px] text-slate-500">{label}</span>
+      <span className="text-[13px] font-semibold text-slate-800 text-right">
+        {value || "\u2014"}
       </span>
     </div>
   );
 
   const contactRow = (label, active) => (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "8px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
-      <span style={{ fontSize: 13, color: BRAND.textLight }}>{label}</span>
+    <div className="flex justify-between py-2 border-b border-slate-200">
+      <span className="text-[13px] text-slate-500">{label}</span>
       <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: active ? BRAND.teal : BRAND.coral,
-        }}
+        className="text-[13px] font-semibold"
+        style={{ color: active ? "#2D8B7A" : "#E8567F" }}
       >
-        {active ? "✅ Active" : "❌ Off"}
+        {active ? "\u2705 Active" : "\u274C Off"}
       </span>
     </div>
   );
 
+  const PILL_FALLBACK = { light: "#E5E7EB", primary: "#6B7280" };
+
+  const DogPill = ({ dog }) => {
+    const dogSize = dog.size || getSizeForBreed(dog.breed);
+    const theme = SIZE_THEME[dogSize] || PILL_FALLBACK;
+    const colours = { bg: theme.light, text: theme.primary };
+    const hasAlerts = dog.alerts && dog.alerts.length > 0;
+    return (
+      <span
+        onClick={() => { onClose(); onOpenDog && onOpenDog(dog.id || dog.name); }}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold transition-opacity hover:opacity-80"
+        style={{ background: colours.bg, color: colours.text }}
+      >
+        {hasAlerts && "\u26A0\uFE0F "}{titleCase(dog.name)} · {titleCase(dog.breed)}
+      </span>
+    );
+  };
+
   return (
     <div
       onClick={onClose}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: BRAND.white,
-          borderRadius: 16,
-          width: 380,
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
+        className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
       >
         <div
-          style={{
-            background: `linear-gradient(135deg, ${BRAND.teal}, #236b5d)`,
-            padding: "20px 24px",
-            borderRadius: "16px 16px 0 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
+          className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
+          style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
         >
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: BRAND.white }}>
-              {humanFullName}
+            <div className="text-xl font-extrabold text-white">
+              {titleCase(humanFullName)}
             </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.8)",
-                marginTop: 4,
-              }}
-            >
-              {human.phone}
-            </div>
+            {human.phone ? (
+              <a
+                href={waLink(human.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[13px] block mt-1 no-underline transition-colors hover:text-white"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+              >
+                {human.phone}
+              </a>
+            ) : (
+              <div className="text-[13px] text-white/50 mt-1 italic">
+                No phone
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              borderRadius: 8,
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: 14,
-              color: BRAND.white,
-              fontWeight: 700,
-            }}
+            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm text-white font-bold shrink-0"
           >
-            {"×"}
+            {"\u00D7"}
           </button>
         </div>
 
-        <div style={{ padding: "16px 24px 20px" }}>
+        <div className="px-6 pt-4 pb-5">
           {detailRow("Address", human.address)}
           {detailRow("Email", human.email)}
           {contactRow("SMS", human.sms)}
@@ -346,114 +342,48 @@ export function HumanCardModal({
           {detailRow("Notes", human.notes)}
 
           {human.historyFlag && (
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.coral,
-                marginTop: 12,
-                fontWeight: 700,
-                background: BRAND.coralLight,
-                padding: "8px 12px",
-                borderRadius: 8,
-              }}
-            >
-              {"⚠️"} {human.historyFlag}
+            <div className="text-[13px] text-brand-coral font-bold bg-brand-coral-light px-3 py-2 rounded-lg mt-3">
+              {"\u26A0\uFE0F"} {human.historyFlag}
             </div>
           )}
 
-          {/* ── Dog pill helper ── */}
-          {(() => {
-            const SIZE_COLOURS = {
-              small:  { bg: "#FEF3C7", text: "#92400E" },
-              medium: { bg: "#D6F5EE", text: "#065F46" },
-              large:  { bg: "#FDE2E8", text: BRAND.coral },
-            };
-            const defaultColour = { bg: BRAND.greyLight, text: BRAND.textLight };
+          {/* DOGS (own dogs) */}
+          {humanDogs.length > 0 && (
+            <>
+              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+                Dogs
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {humanDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
+              </div>
+            </>
+          )}
 
-            const DogPill = ({ dog }) => {
-              const colours = SIZE_COLOURS[dog.size] || defaultColour;
-              const hasAlerts = dog.alerts && dog.alerts.length > 0;
-              return (
-                <span
-                  onClick={() => { onClose(); onOpenDog && onOpenDog(dog.id || dog.name); }}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    padding: "6px 12px", borderRadius: 20, cursor: "pointer",
-                    background: colours.bg, color: colours.text,
-                    fontSize: 12, fontWeight: 700, transition: "opacity 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = "0.8"; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-                >
-                  {hasAlerts && "⚠️ "}{dog.name} · {dog.breed}
-                </span>
-              );
-            };
+          {/* DOGS TRUSTED WITH */}
+          {trustedDogs.length > 0 && (
+            <>
+              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+                Dogs Trusted With
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {trustedDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
+              </div>
+            </>
+          )}
 
-            return (
-              <>
-                {/* DOGS (own dogs) — only show if they have some */}
-                {humanDogs.length > 0 && (
-                  <>
-                    <div style={{
-                      marginTop: 20, fontWeight: 800, fontSize: 12,
-                      color: BRAND.blueDark, textTransform: "uppercase",
-                      letterSpacing: 0.5, marginBottom: 8,
-                    }}>
-                      Dogs
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {humanDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
-                    </div>
-                  </>
-                )}
+          {/* If neither section has dogs */}
+          {humanDogs.length === 0 && trustedDogs.length === 0 && (
+            <>
+              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+                Dogs
+              </div>
+              <div className="text-[13px] text-slate-500 italic">
+                No dogs linked
+              </div>
+            </>
+          )}
 
-                {/* DOGS TRUSTED WITH — only show if they're trusted with others' dogs */}
-                {trustedDogs.length > 0 && (
-                  <>
-                    <div style={{
-                      marginTop: 20, fontWeight: 800, fontSize: 12,
-                      color: BRAND.blueDark, textTransform: "uppercase",
-                      letterSpacing: 0.5, marginBottom: 8,
-                    }}>
-                      Dogs Trusted With
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {trustedDogs.map(dog => <DogPill key={dog.id} dog={dog} />)}
-                    </div>
-                  </>
-                )}
-
-                {/* If neither section has dogs */}
-                {humanDogs.length === 0 && trustedDogs.length === 0 && (
-                  <>
-                    <div style={{
-                      marginTop: 20, fontWeight: 800, fontSize: 12,
-                      color: BRAND.blueDark, textTransform: "uppercase",
-                      letterSpacing: 0.5, marginBottom: 8,
-                    }}>
-                      Dogs
-                    </div>
-                    <div style={{ fontSize: 13, color: BRAND.textLight, fontStyle: "italic" }}>
-                      No dogs linked
-                    </div>
-                  </>
-                )}
-              </>
-            );
-          })()}
-
-          <div
-            style={{
-              marginTop: 20,
-              fontWeight: 800,
-              fontSize: 12,
-              color: BRAND.blueDark,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              marginBottom: 8,
-            }}
-          >
+          <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
             Trusted Humans
           </div>
           {human.trustedIds && human.trustedIds.length > 0 ? (
@@ -471,46 +401,24 @@ export function HumanCardModal({
                     onClose();
                     onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
                   }}
-                  style={{
-                    padding: "8px 0",
-                    borderBottom: `1px solid ${BRAND.greyLight}`,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: BRAND.teal,
-                    cursor: "pointer",
-                  }}
+                  className="py-2 border-b border-slate-200 text-[13px] font-semibold text-brand-teal cursor-pointer"
                 >
-                  {trustedLabel}
+                  {titleCase(trustedLabel)}
                 </div>
               );
             })
           ) : (
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.textLight,
-                fontStyle: "italic",
-              }}
-            >
+            <div className="text-[13px] text-slate-500 italic">
               None listed
             </div>
           )}
 
           <button
             onClick={() => setShowTrustedSearch(!showTrustedSearch)}
+            className="w-full mt-3 py-2.5 rounded-[10px] border-[1.5px] border-dashed border-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all"
             style={{
-              width: "100%",
-              marginTop: 12,
-              padding: "10px",
-              borderRadius: 10,
-              border: `1.5px dashed ${BRAND.teal}`,
-              background: showTrustedSearch ? BRAND.teal : BRAND.tealLight,
-              color: showTrustedSearch ? BRAND.white : BRAND.teal,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
+              background: showTrustedSearch ? "#2D8B7A" : "#E6F5F2",
+              color: showTrustedSearch ? "#FFFFFF" : "#2D8B7A",
             }}
           >
             {showTrustedSearch ? "Cancel" : "+ Add a trusted Human"}
@@ -523,18 +431,10 @@ export function HumanCardModal({
           />
 
           {showTrustedSearch && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    display: "flex",
-                  }}
-                >
-                  <IconSearch size={14} colour={BRAND.textLight} />
+            <div className="mt-2.5">
+              <div className="relative">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex pointer-events-none">
+                  <IconSearch size={14} colour="#6B7280" />
                 </div>
                 <input
                   type="text"
@@ -542,29 +442,12 @@ export function HumanCardModal({
                   value={trustedSearchQuery}
                   onChange={(e) => setTrustedSearchQuery(e.target.value)}
                   autoFocus
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px 8px 32px",
-                    borderRadius: 8,
-                    border: `1.5px solid ${BRAND.teal}`,
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                    outline: "none",
-                    color: BRAND.text,
-                  }}
+                  className="w-full py-2 px-2.5 pl-8 rounded-lg border-[1.5px] border-brand-teal text-[13px] font-inherit box-border outline-none text-slate-800"
                 />
               </div>
 
               {trustedSearchResults.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 6,
-                    border: `1px solid ${BRAND.greyLight}`,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="mt-1.5 border border-slate-200 rounded-lg overflow-hidden">
                   {trustedSearchResults.map((candidate) => {
                     const fullName =
                       candidate.fullName ||
@@ -574,29 +457,12 @@ export function HumanCardModal({
                       <div
                         key={candidate.id}
                         onClick={() => handleAddTrusted(candidate.id)}
-                        style={{
-                          padding: "10px 12px",
-                          cursor: "pointer",
-                          borderBottom: `1px solid ${BRAND.greyLight}`,
-                          transition: "background 0.1s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = BRAND.tealLight;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = BRAND.white;
-                        }}
+                        className="px-3 py-2.5 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]"
                       >
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: BRAND.text,
-                          }}
-                        >
-                          {fullName}
+                        <div className="text-[13px] font-semibold text-slate-800">
+                          {titleCase(fullName)}
                         </div>
-                        <div style={{ fontSize: 12, color: BRAND.textLight }}>
+                        <div className="text-xs text-slate-500">
                           {candidate.phone}
                         </div>
                       </div>
@@ -607,17 +473,71 @@ export function HumanCardModal({
 
               {trustedSearchQuery.trim() &&
                 trustedSearchResults.length === 0 && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: BRAND.textLight,
-                      marginTop: 8,
-                      textAlign: "center",
-                    }}
-                  >
+                  <div className="text-xs text-slate-500 mt-2 text-center">
                     No matching humans found
                   </div>
                 )}
+
+              {onAddHuman && !showNewTrustedForm && (
+                <button
+                  onClick={() => setShowNewTrustedForm(true)}
+                  className="w-full mt-2.5 py-2.5 rounded-[10px] border-[1.5px] border-dashed border-brand-teal bg-[#E6F5F2] text-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal hover:text-white"
+                >
+                  + Create new human
+                </button>
+              )}
+
+              {showNewTrustedForm && (
+                <div className="mt-2.5 p-3.5 bg-slate-50 rounded-[10px] border border-slate-200">
+                  <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2.5">
+                    New Trusted Human
+                  </div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="First name"
+                      value={newTrustedName}
+                      onChange={(e) => setNewTrustedName(e.target.value)}
+                      autoFocus
+                      className="flex-1 py-2 px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Surname"
+                      value={newTrustedSurname}
+                      onChange={(e) => setNewTrustedSurname(e.target.value)}
+                      className="flex-1 py-2 px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                    />
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={newTrustedPhone}
+                    onChange={(e) => setNewTrustedPhone(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none box-border text-slate-800 mb-2.5 transition-colors focus:border-brand-teal"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddNewTrusted}
+                      disabled={!newTrustedName.trim()}
+                      className="flex-1 py-2.5 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed bg-brand-teal text-white"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowNewTrustedForm(false);
+                        setNewTrustedName("");
+                        setNewTrustedSurname("");
+                        setNewTrustedPhone("");
+                      }}
+                      className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit bg-white text-slate-500 transition-colors hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
