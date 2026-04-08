@@ -284,6 +284,30 @@
     font-size: 11px; font-weight: 800; color: #1E6B5C;
     text-transform: uppercase; letter-spacing: 0.5px;
   }
+
+  /* ── Alert dot colours ─────────────── */
+  .dot.red { background: #DC2626; }
+  .dot.violet { background: #7C3AED; }
+  .dot.cyan { background: #00B8E0; }
+
+  /* ── FAB button ─────────────────────── */
+  .fab {
+    position: fixed; bottom: 28px; right: 28px;
+    background: linear-gradient(135deg, #00B8E0, #0099BD);
+    border: none; border-radius: 16px; padding: 14px 24px;
+    font-size: 14px; font-weight: 700; color: #FFF;
+    box-shadow: 0 4px 16px rgba(0,184,224,0.35), 0 2px 6px rgba(0,0,0,0.1);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer;
+  }
+  .fab .plus-icon {
+    font-size: 18px; line-height: 1;
+  }
+
+  /* ── Bottom spacer ─────────────────── */
+  .bottom-spacer {
+    height: 80px;
+  }
 </style>
 </head>
 <body>
@@ -381,9 +405,9 @@
   <span class="stat-badge purple">&#x2191; 1 Ready for Pick-up</span>
   <span class="stat-badge yellow">&#x25CB; 2 Not Arrived</span>
   <span class="stat-divider"></span>
-  <span class="stat-alert"><span class="dot" style="background:#DC2626;"></span> 2 not yet arrived</span>
-  <span class="stat-alert"><span class="dot" style="background:#7C3AED;"></span> Bella pick-up due</span>
-  <span class="stat-alert"><span class="dot" style="background:#00B8E0;"></span> Next: Coco at 10:00</span>
+  <span class="stat-alert"><span class="dot red"></span> 2 not yet arrived</span>
+  <span class="stat-alert"><span class="dot violet"></span> Bella pick-up due</span>
+  <span class="stat-alert"><span class="dot cyan"></span> Next: Coco at 10:00</span>
   <span class="stat-revenue">Est. &pound;246</span>
 </div>
 
@@ -544,19 +568,11 @@
 </div>
 
 <!-- ═══════ FAB ═══════ -->
-<div style="
-  position: fixed; bottom: 28px; right: 28px;
-  background: linear-gradient(135deg, #00B8E0, #0099BD);
-  border: none; border-radius: 16px; padding: 14px 24px;
-  font-size: 14px; font-weight: 700; color: #FFF;
-  box-shadow: 0 4px 16px rgba(0,184,224,0.35), 0 2px 6px rgba(0,0,0,0.1);
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer;
-">
-  <span style="font-size: 18px; line-height: 1;">+</span> New Booking
+<div class="fab">
+  <span class="plus-icon">+</span> New Booking
 </div>
 
-<div style="height: 80px;"></div>
+<div class="bottom-spacer"></div>
 
 </body>
 </html>
