@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
+import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import {
   SERVICES,
-  SALON_SLOTS,
   SIZE_THEME,
   SIZE_FALLBACK,
 } from "../../constants/index.js";
@@ -124,50 +124,24 @@ export function BookingDetailModal({
     dayOpenState?.[editDateStr] !== undefined
       ? dayOpenState[editDateStr]
       : editSettings.isOpen;
-  const editActiveSlots = [...SALON_SLOTS, ...(editSettings.extraSlots || [])];
-
   const editDayBookings = bookingsByDate[editDateStr] || [];
   const otherBookings = editDayBookings.filter((b) => b.id !== booking.id);
+
+  const { editActiveSlots, availableSlots, currentSlotStillValid } =
+    useSlotAvailability({
+      editDateStr,
+      editSettings,
+      editDayOpen,
+      otherBookings,
+      bookingSize: booking.size,
+      bookingSlot: editData.slot,
+      isEditing,
+    });
 
   const allowedServices = useMemo(
     () => getAllowedServicesForSize(booking.size || dogData?.size || "small"),
     [booking.size, dogData?.size],
   );
-
-  const availableSlots = useMemo(() => {
-    return editActiveSlots.filter((slot) => {
-      const check = canBookSlot(
-        otherBookings,
-        slot,
-        booking.size,
-        editActiveSlots,
-        {
-          overrides: editSettings.overrides?.[slot] || {},
-        },
-      );
-      return check.allowed;
-    });
-  }, [otherBookings, booking.size, editActiveSlots, editSettings.overrides]);
-
-  const currentSlotStillValid = useMemo(() => {
-    if (!editData.slot) return false;
-    const check = canBookSlot(
-      otherBookings,
-      editData.slot,
-      booking.size,
-      editActiveSlots,
-      {
-        overrides: editSettings.overrides?.[editData.slot] || {},
-      },
-    );
-    return check.allowed;
-  }, [
-    otherBookings,
-    booking.size,
-    editActiveSlots,
-    editSettings.overrides,
-    editData.slot,
-  ]);
 
   const activePrice = isEditing
     ? editData.customPrice
