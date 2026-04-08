@@ -1,6 +1,6 @@
 // src/components/modals/ChainBookingModal.jsx
 import { useState, useMemo, useCallback } from "react";
-import { BRAND, SERVICES, SALON_SLOTS, PRICING } from "../../constants/index.js";
+import { SERVICES, SALON_SLOTS, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -92,61 +92,39 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
 
   const price = PRICING[linkService]?.[linkSize] || "";
 
-  // -- Styles --
-  const overlayStyle = {
-    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-    background: "rgba(0,0,0,0.35)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    zIndex: 1000,
-  };
-  const modalStyle = {
-    background: BRAND.white, borderRadius: 16, width: 460,
-    maxHeight: "85vh", overflow: "auto",
-    padding: "24px 28px", boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-  };
-  const selectStyle = {
-    padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${BRAND.greyLight}`,
-    fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: BRAND.white,
-    color: BRAND.text, cursor: "pointer",
-  };
-  const inputStyle = {
-    ...selectStyle, width: 60, textAlign: "center",
-  };
+  const selectCls = "px-2.5 py-2 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-semibold font-inherit bg-white text-slate-800 cursor-pointer";
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-[min(460px,95vw)] max-h-[85vh] overflow-auto px-7 py-6 shadow-[0_8px_32px_rgba(0,0,0,0.18)]" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.text, marginBottom: 4 }}>
+        <div className="text-lg font-extrabold text-slate-800 mb-1">
           Recurring Bookings — {dog?.name || "Dog"}
         </div>
-        <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 20 }}>
+        <div className="text-[13px] text-slate-500 mb-5">
           Build a chain of future appointments. Each one counts from the last.
         </div>
 
         {/* Template row */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={linkService} onChange={(e) => setLinkService(e.target.value)} style={selectStyle}>
+        <div className="flex gap-2 mb-4 flex-wrap items-center">
+          <select value={linkService} onChange={(e) => setLinkService(e.target.value)} className={selectCls}>
             {SERVICES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={linkSlot} onChange={(e) => setLinkSlot(e.target.value)} style={selectStyle}>
+          <select value={linkSlot} onChange={(e) => setLinkSlot(e.target.value)} className={selectCls}>
             {SALON_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={linkSize} onChange={(e) => setLinkSize(e.target.value)} style={selectStyle}>
+          <select value={linkSize} onChange={(e) => setLinkSize(e.target.value)} className={selectCls}>
             {SIZES.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
           </select>
           {price && (
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#1E6B5C" }}>{price}</span>
+            <span className="text-sm font-extrabold text-brand-teal">{price}</span>
           )}
         </div>
 
         {/* Weeks input */}
         {chain.length < MAX_CHAIN && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            marginBottom: 8, flexWrap: "wrap",
-          }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>Book in</span>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="text-sm font-semibold text-slate-800">Book in</span>
             <input
               type="number"
               min="1"
@@ -154,11 +132,11 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
               value={weeksGap}
               onChange={(e) => setWeeksGap(e.target.value)}
               placeholder="—"
-              style={inputStyle}
+              className={`${selectCls} w-[60px] text-center`}
             />
-            <span style={{ fontSize: 14, fontWeight: 600, color: BRAND.text }}>weeks' time</span>
+            <span className="text-sm font-semibold text-slate-800">weeks' time</span>
             {calculatedDate && (
-              <span style={{ fontSize: 13, fontWeight: 700, color: BRAND.blue }}>
+              <span className="text-[13px] font-bold text-brand-blue">
                 → {formatDate(calculatedDate)}
               </span>
             )}
@@ -167,13 +145,8 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
 
         {/* Availability warning */}
         {availabilityWarning && (
-          <div style={{
-            padding: "8px 12px", borderRadius: 8, marginBottom: 8,
-            background: "#FFF8E0", color: "#92400E",
-            fontSize: 12, fontWeight: 700,
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <span style={{ fontSize: 16 }}>⚠</span> {availabilityWarning}
+          <div className="px-3 py-2 rounded-lg mb-2 bg-amber-50 text-amber-800 text-xs font-bold flex items-center gap-1.5">
+            <span className="text-base">⚠</span> {availabilityWarning}
           </div>
         )}
 
@@ -181,12 +154,7 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
         {calculatedDate && chain.length < MAX_CHAIN && (
           <button
             onClick={addLink}
-            style={{
-              padding: "8px 16px", borderRadius: 8, border: "none",
-              background: BRAND.blue, color: BRAND.white,
-              fontSize: 13, fontWeight: 700, cursor: "pointer",
-              fontFamily: "inherit", marginBottom: 16,
-            }}
+            className="px-4 py-2 rounded-lg border-none bg-brand-blue text-white text-[13px] font-bold cursor-pointer font-inherit mb-4"
           >
             Add to chain
           </button>
@@ -194,8 +162,8 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
 
         {/* Chain list */}
         {chain.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight, marginBottom: 8 }}>
+          <div className="mb-4">
+            <div className="text-xs font-bold text-slate-500 mb-2">
               Chain ({chain.length}/{MAX_CHAIN})
             </div>
             {chain.map((link, idx) => {
@@ -203,31 +171,20 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
               return (
                 <div
                   key={idx}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 10px", borderRadius: 8, marginBottom: 4,
-                    background: "#F8FAFB",
-                    border: `1px solid ${BRAND.greyLight}`,
-                  }}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg mb-1 bg-slate-50 border border-slate-200"
                 >
-                  <span style={{ fontSize: 13, fontWeight: 800, color: BRAND.text, width: 20 }}>
+                  <span className="text-[13px] font-extrabold text-slate-800 w-5">
                     {idx + 1}.
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: BRAND.text, flex: 1 }}>
+                  <span className="text-[13px] font-semibold text-slate-800 flex-1">
                     {formatDate(link.date)} — {link.slot} — {svc?.name || link.service}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: BRAND.textLight }}>
+                  <span className="text-xs font-bold text-slate-500">
                     {link.size}
                   </span>
                   <button
                     onClick={() => removeLink(idx)}
-                    style={{
-                      width: 24, height: 24, borderRadius: 6, border: "none",
-                      background: "#FDE2E8", color: BRAND.coral,
-                      fontSize: 14, fontWeight: 700, cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontFamily: "inherit",
-                    }}
+                    className="w-6 h-6 rounded-md border-none bg-brand-coral-light text-brand-coral text-sm font-bold cursor-pointer flex items-center justify-center font-inherit"
                   >
                     ✕
                   </button>
@@ -238,14 +195,10 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
         )}
 
         {/* Actions */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            style={{
-              padding: "10px 20px", borderRadius: 10, border: `1.5px solid ${BRAND.greyLight}`,
-              background: BRAND.white, color: BRAND.text,
-              fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-            }}
+            className="px-5 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
           >
             Cancel
           </button>
@@ -253,13 +206,7 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
             <button
               onClick={handleConfirmAll}
               disabled={creating}
-              style={{
-                padding: "10px 20px", borderRadius: 10, border: "none",
-                background: creating ? BRAND.textLight : BRAND.blue,
-                color: BRAND.white,
-                fontSize: 13, fontWeight: 700, cursor: creating ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              className={`px-5 py-2.5 rounded-[10px] border-none text-white text-[13px] font-bold cursor-pointer font-inherit disabled:cursor-not-allowed ${creating ? "bg-slate-500" : "bg-brand-blue"}`}
             >
               {creating ? "Creating..." : `Confirm All (${chain.length})`}
             </button>
