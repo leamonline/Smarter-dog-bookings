@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { BRAND } from "../../constants/index.js";
 import { canBookSlot } from "../../engine/capacity.js";
 import {
   getAllowedServicesForSize,
@@ -150,78 +149,33 @@ export function AddBookingForm({
     }
   };
 
-  const inputStyle = {
-    padding: "7px 10px",
-    borderRadius: 8,
-    border: `1.5px solid ${BRAND.greyLight}`,
-    fontSize: 13,
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  };
-
   return (
     <form
       onSubmit={handleSubmit}
-      style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}
+      className="flex flex-col gap-1.5 mt-1.5"
     >
       {selectedDog ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            background: BRAND.blueLight,
-            borderRadius: 8,
-            padding: "6px 10px",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: BRAND.blueDark,
-              }}
-            >
+        <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2.5 py-1.5">
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-bold text-brand-blue-dark">
               {selectedDog.name}
             </div>
-            <div style={{ fontSize: 11, color: BRAND.text }}>
+            <div className="text-[11px] text-slate-800">
               {selectedDog.breed} · {ownerName || "Unknown owner"}
             </div>
           </div>
           <button
             type="button"
             onClick={handleClearDog}
-            style={{
-              background: BRAND.white,
-              border: `1px solid ${BRAND.greyLight}`,
-              borderRadius: 6,
-              padding: "3px 8px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              color: BRAND.textLight,
-              fontFamily: "inherit",
-            }}
+            className="bg-white border border-slate-200 rounded-md px-2 py-[3px] text-[11px] font-semibold cursor-pointer text-slate-500 font-inherit"
           >
             Change
           </button>
         </div>
       ) : (
-        <div style={{ position: "relative" }}>
-          <div
-            style={{
-              position: "absolute",
-              left: 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-              pointerEvents: "none",
-            }}
-          >
-            <IconSearch size={13} colour={BRAND.textLight} />
+        <div className="relative">
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 flex pointer-events-none">
+            <IconSearch size={13} colour="#6B7280" />
           </div>
           <input
             placeholder="Search dog by name, breed, or owner..."
@@ -230,67 +184,24 @@ export function AddBookingForm({
               setDogQuery(e.target.value);
               setError("");
             }}
-            style={{ ...inputStyle, paddingLeft: 26 }}
+            className="w-full py-[7px] pl-[26px] pr-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border transition-colors focus:border-brand-blue"
             autoFocus
-            onFocus={(e) => {
-              e.target.style.borderColor = BRAND.blue;
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = BRAND.greyLight;
-            }}
           />
           {dogResults.length > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                marginTop: 2,
-                zIndex: 20,
-                background: BRAND.white,
-                border: `1px solid ${BRAND.greyLight}`,
-                borderRadius: 8,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                maxHeight: 200,
-                overflow: "auto",
-              }}
-            >
+            <div className="absolute top-full left-0 right-0 mt-0.5 z-20 bg-white border border-slate-200 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.1)] max-h-[200px] overflow-auto">
               {dogResults.map((dog) => (
                 <div
                   key={dog.id}
                   onMouseDown={() => handleSelectDog(dog)}
-                  style={{
-                    padding: "8px 10px",
-                    cursor: "pointer",
-                    borderBottom: `1px solid ${BRAND.greyLight}`,
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = BRAND.blueLight;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = BRAND.white;
-                  }}
+                  className="px-2.5 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-blue-50"
                 >
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: BRAND.text,
-                    }}
-                  >
+                  <div className="text-[13px] font-semibold text-slate-800">
                     {dog.name}{" "}
-                    <span
-                      style={{
-                        fontWeight: 400,
-                        color: BRAND.textLight,
-                      }}
-                    >
+                    <span className="font-normal text-slate-500">
                       ({dog.breed})
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: BRAND.textLight }}>
+                  <div className="text-[11px] text-slate-500">
                     {dog.humanId}
                     {dog.size ? ` · ${dog.size}` : ""}
                   </div>
@@ -301,27 +212,14 @@ export function AddBookingForm({
           {dogQuery.trim().length >= 2 &&
             dogResults.length === 0 &&
             !selectedDog && (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: BRAND.textLight,
-                  marginTop: 2,
-                  paddingLeft: 2,
-                }}
-              >
+              <div className="text-[11px] text-slate-500 mt-0.5 pl-0.5">
                 No dogs found. Add a dog from the Dogs directory first.
               </div>
             )}
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 6,
-        }}
-      >
+      <div className="grid grid-cols-2 gap-1.5">
         <select
           value={size}
           onChange={(e) => {
@@ -329,7 +227,7 @@ export function AddBookingForm({
             setSize(nextSize);
             setError("");
           }}
-          style={{ ...inputStyle, cursor: "pointer" }}
+          className="py-[7px] px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none w-full box-border font-inherit cursor-pointer"
         >
           <option value="small">Small</option>
           <option value="medium">Medium</option>
@@ -342,7 +240,7 @@ export function AddBookingForm({
             setService(e.target.value);
             setError("");
           }}
-          style={{ ...inputStyle, cursor: "pointer" }}
+          className="py-[7px] px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none w-full box-border font-inherit cursor-pointer"
         >
           {allowedServices.map((s) => (
             <option key={s.id} value={s.id}>
@@ -353,82 +251,29 @@ export function AddBookingForm({
       </div>
 
       {allowedServices.length === 0 && (
-        <div
-          style={{
-            fontSize: 12,
-            color: BRAND.coral,
-            fontWeight: 500,
-            padding: "2px 0",
-          }}
-        >
+        <div className="text-xs text-brand-coral font-medium py-0.5">
           No valid services are available for this dog size.
         </div>
       )}
 
       {error && (
-        <div
-          style={{
-            fontSize: 12,
-            color: BRAND.coral,
-            fontWeight: 500,
-            padding: "2px 0",
-          }}
-        >
+        <div className="text-xs text-brand-coral font-medium py-0.5">
           {error}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex gap-1.5">
         <button
           type="submit"
           disabled={submitting || allowedServices.length === 0}
-          style={{
-            flex: 1,
-            padding: "7px 0",
-            borderRadius: 8,
-            border: "none",
-            background:
-              submitting || allowedServices.length === 0
-                ? BRAND.greyLight
-                : BRAND.blue,
-            color:
-              submitting || allowedServices.length === 0
-                ? BRAND.textLight
-                : BRAND.white,
-            fontWeight: 600,
-            fontSize: 13,
-            cursor:
-              submitting || allowedServices.length === 0
-                ? "not-allowed"
-                : "pointer",
-            fontFamily: "inherit",
-          }}
-          onMouseEnter={(e) => {
-            if (!submitting && allowedServices.length > 0) {
-              e.target.style.background = BRAND.blueDark;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!submitting && allowedServices.length > 0) {
-              e.target.style.background = BRAND.blue;
-            }
-          }}
+          className="flex-1 py-[7px] rounded-lg border-none bg-brand-blue text-white font-semibold text-[13px] cursor-pointer font-inherit transition-colors hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
         >
           {submitting ? "Saving..." : "Confirm"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          style={{
-            padding: "7px 14px",
-            borderRadius: 8,
-            border: `1.5px solid ${BRAND.greyLight}`,
-            background: BRAND.white,
-            color: BRAND.textLight,
-            fontSize: 13,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
+          className="py-[7px] px-3.5 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] cursor-pointer font-inherit"
         >
           Cancel
         </button>

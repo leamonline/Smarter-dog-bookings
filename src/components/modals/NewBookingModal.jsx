@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { BRAND, SERVICES, PRICING, SALON_SLOTS, ALL_DAYS } from "../../constants/index.js";
+import { SERVICES, PRICING, SALON_SLOTS, ALL_DAYS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { computeSlotCapacities, canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { IconSearch } from "../icons/index.jsx";
@@ -48,9 +48,15 @@ function buildSearchEntries(dogs, humans) {
   return entries;
 }
 
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+
 // ─── sub-components ─────────────────────────────────────────────────────────
 
-function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSelectDate, selectedDateStr }) {
+function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSelectDate, selectedDateStr, sizeTheme }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -118,34 +124,25 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
   return (
     <div>
       {/* Month nav */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 10,
-      }}>
-        <button onClick={prevMonth} style={{
-          background: BRAND.offWhite, border: `1px solid ${BRAND.greyLight}`, borderRadius: 6,
-          width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke={BRAND.text} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M10 3l-5 5 5 5" /></svg>
+      <div className="flex items-center justify-between mb-2.5">
+        <button onClick={prevMonth} className="bg-slate-50 border border-slate-200 rounded-md w-[30px] h-[30px] cursor-pointer flex items-center justify-center">
+          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-slate-800"><path d="M10 3l-5 5 5 5" /></svg>
         </button>
-        <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.text }}>{monthName}</div>
-        <button onClick={nextMonth} style={{
-          background: BRAND.offWhite, border: `1px solid ${BRAND.greyLight}`, borderRadius: 6,
-          width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke={BRAND.text} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 3l5 5-5 5" /></svg>
+        <div className="text-sm font-bold text-slate-800">{monthName}</div>
+        <button onClick={nextMonth} className="bg-slate-50 border border-slate-200 rounded-md w-[30px] h-[30px] cursor-pointer flex items-center justify-center">
+          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-slate-800"><path d="M6 3l5 5-5 5" /></svg>
         </button>
       </div>
 
       {/* Day headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
-          <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: BRAND.textLight, padding: "2px 0" }}>{d}</div>
+          <div key={d} className="text-center text-[10px] font-bold text-slate-500 py-0.5">{d}</div>
         ))}
       </div>
 
       {/* Day grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+      <div className="grid grid-cols-7 gap-[3px]">
         {cells.map((d, i) => {
           if (d === null) return <div key={`e${i}`} />;
 
@@ -155,44 +152,44 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
           const isClickable = status === "available";
 
           let bg = "transparent";
-          let color = BRAND.greyLight;
+          let color = "#E5E7EB";
           let border = "2px solid transparent";
           let cursor = "not-allowed";
           let opacity = 0.4;
           let fontWeight = 500;
 
           if (status === "available") {
-            bg = BRAND.openGreenBg;
-            color = BRAND.openGreen;
-            border = `2px solid ${BRAND.openGreen}`;
+            bg = "#DCFCE7";
+            color = "#16A34A";
+            border = "2px solid #16A34A";
             cursor = "pointer";
             opacity = 1;
             fontWeight = 700;
           }
           if (status === "closed") {
-            bg = BRAND.coralLight;
-            color = BRAND.coral;
-            border = `2px solid ${BRAND.coralLight}`;
+            bg = "#FDE8EE";
+            color = "#E8567F";
+            border = "2px solid #FDE8EE";
             cursor = "not-allowed";
             opacity = 0.7;
             fontWeight = 600;
           }
           if (status === "full") {
-            bg = BRAND.coralLight;
-            color = BRAND.coral;
-            border = `2px solid ${BRAND.coralLight}`;
+            bg = "#FDE8EE";
+            color = "#E8567F";
+            border = "2px solid #FDE8EE";
             cursor = "not-allowed";
             opacity = 0.6;
             fontWeight = 600;
           }
           if (isSelected) {
-            bg = BRAND.blue;
-            color = BRAND.white;
-            border = `2px solid ${BRAND.blue}`;
+            bg = sizeTheme.gradient[0];
+            color = sizeTheme.headerText;
+            border = `2px solid ${sizeTheme.gradient[0]}`;
             opacity = 1;
           }
           if (isToday(d) && !isSelected) {
-            border = `2px solid ${BRAND.blue}`;
+            border = `2px solid ${sizeTheme.gradient[0]}`;
           }
 
           return (
@@ -200,14 +197,10 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
               key={d}
               onClick={() => { if (isClickable) onSelectDate(new Date(viewYear, viewMonth, d)); }}
               disabled={!isClickable}
-              style={{
-                width: "100%", aspectRatio: "1", border, borderRadius: 8,
-                fontSize: 13, fontWeight, cursor, fontFamily: "inherit",
-                background: bg, color, opacity, transition: "all 0.15s",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-              onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = BRAND.blueLight; e.currentTarget.style.color = BRAND.blue; } }}
-              onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = BRAND.openGreenBg; e.currentTarget.style.color = BRAND.openGreen; } }}
+              className="w-full aspect-square rounded-lg text-[13px] font-inherit transition-all flex items-center justify-center"
+              style={{ background: bg, color, border, cursor, opacity, fontWeight }}
+              onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = sizeTheme.light; e.currentTarget.style.color = sizeTheme.gradient[0]; } }}
+              onMouseLeave={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = "#DCFCE7"; e.currentTarget.style.color = "#16A34A"; } }}
             >
               {d}
             </button>
@@ -218,7 +211,7 @@ function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSel
   );
 }
 
-function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, onSelectSlot, selectedSlot }) {
+function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, onSelectSlot, selectedSlot, sizeTheme }) {
   const dayBookings = bookingsByDate?.[dateStr] || [];
   const settings = daySettings?.[dateStr];
   const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
@@ -239,14 +232,14 @@ function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, o
 
   if (availableSlots.length === 0) {
     return (
-      <div style={{ fontSize: 13, color: BRAND.textLight, textAlign: "center", padding: "12px 0" }}>
+      <div className="text-[13px] text-slate-500 text-center py-3">
         No available slots for this size on this date.
       </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
       {availableSlots.map(slot => {
         const hour = parseInt(slot.split(":")[0]);
         const min = parseInt(slot.split(":")[1]);
@@ -257,16 +250,14 @@ function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, o
           <button
             key={slot}
             onClick={() => onSelectSlot(slot)}
+            className="py-2.5 rounded-[10px] border-2 text-sm font-bold cursor-pointer font-inherit transition-all text-center"
             style={{
-              padding: "10px 0", borderRadius: 10,
-              border: isSelected ? `2px solid ${BRAND.blue}` : `2px solid ${BRAND.greyLight}`,
-              background: isSelected ? BRAND.blue : BRAND.white,
-              color: isSelected ? BRAND.white : BRAND.text,
-              fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              transition: "all 0.15s", textAlign: "center",
+              borderColor: isSelected ? sizeTheme.gradient[0] : "#E5E7EB",
+              background: isSelected ? sizeTheme.gradient[0] : "#FFFFFF",
+              color: isSelected ? sizeTheme.headerText : "#1F2937",
             }}
-            onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = BRAND.blue; e.currentTarget.style.background = BRAND.blueLight; } }}
-            onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.background = BRAND.white; } }}
+            onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = sizeTheme.gradient[0]; e.currentTarget.style.background = sizeTheme.light; } }}
+            onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#FFFFFF"; } }}
           >
             {displayTime}
           </button>
@@ -303,6 +294,7 @@ export function NewBookingModal({
   const searchRef = useRef(null);
 
   const hasDogs = dogEntries.length > 0;
+  const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
 
   // Auto-focus the search field
   useEffect(() => {
@@ -395,12 +387,12 @@ export function NewBookingModal({
       const targetDate = new Date(baseDate);
       targetDate.setDate(baseDate.getDate() + (i * recurringWeeks * 7));
       const targetDateStr = toDateStr(targetDate);
-      
+
       const dayBookings = bookingsByDate?.[targetDateStr] || [];
       const settings = daySettings?.[targetDateStr];
       const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
       let simulated = [...dayBookings];
-      
+
       let allFit = true;
       let failureReason = "";
 
@@ -439,19 +431,6 @@ export function NewBookingModal({
     onAdd(bookings, selectedDateStr);
   };
 
-  const inputStyle = {
-    width: "100%", padding: "12px 14px", borderRadius: 10,
-    border: `1.5px solid ${BRAND.greyLight}`, fontSize: 14,
-    fontFamily: "inherit", boxSizing: "border-box", outline: "none",
-    color: BRAND.text, transition: "border-color 0.15s",
-  };
-
-  const labelStyle = {
-    fontSize: 11, fontWeight: 700, color: BRAND.textLight,
-    textTransform: "uppercase", letterSpacing: 0.5,
-    display: "block", marginBottom: 6,
-  };
-
   // Format the selected date nicely
   const selectedDateDisplay = selectedDateStr
     ? (() => {
@@ -462,72 +441,64 @@ export function NewBookingModal({
     : "";
 
   return (
-    <div onClick={onClose} style={{
-      position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-    }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
-        background: BRAND.white, borderRadius: 20, width: 440, maxHeight: "92vh",
-        display: "flex", flexDirection: "column", boxShadow: "0 12px 48px rgba(0,0,0,0.2)",
-      }}>
+    <div onClick={onClose} className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000]">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col shadow-[0_12px_48px_rgba(0,0,0,0.2)]">
         {/* Header */}
-        <div style={{
-          background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-          padding: "18px 24px", borderRadius: "20px 20px 0 0",
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          flexShrink: 0,
-        }}>
+        <div
+          className="px-6 py-[18px] rounded-t-[20px] flex justify-between items-center shrink-0"
+          style={{ background: `linear-gradient(135deg, ${primaryTheme.gradient[0]}, ${primaryTheme.gradient[1]})` }}
+        >
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.white }}>New Booking</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
-              {hasDogs ? dogEntries.map(e => e.dog.name).join(", ") : "Search for a dog to get started"}
+            <div className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
+            <div className="text-xs mt-0.5" style={{ color: primaryTheme.headerTextSub }}>
+              {hasDogs ? dogEntries.map(e => titleCase(e.dog.name)).join(", ") : "Search for a dog to get started"}
             </div>
           </div>
-          <button onClick={onClose} style={{
-            background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8,
-            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", fontSize: 16, color: BRAND.white, fontWeight: 700,
-          }}>{"\u00D7"}</button>
+          <button
+            onClick={onClose}
+            className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
+            style={{ color: primaryTheme.headerText }}
+          >{"\u00D7"}</button>
         </div>
 
         {/* ─── Search section (overflow visible so dropdown isn't clipped) ─── */}
-        <div style={{ padding: "20px 24px 0 24px", overflow: "visible", flexShrink: 0, position: "relative", zIndex: 10 }}>
+        <div className="px-6 pt-5 overflow-visible shrink-0 relative z-10">
 
           {/* ─── STEP 1: Dog Search / Dog Cards ─── */}
           {hasDogs ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {dogEntries.map((entry, idx) => (
-                <div key={entry.dog.id} style={{
-                  background: BRAND.blueLight, borderRadius: 12, padding: "10px 14px",
-                  border: `1.5px solid ${BRAND.blue}`,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 8, background: BRAND.blue,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 18, flexShrink: 0,
-                    }}>🐕</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: BRAND.blueDark }}>
-                        {entry.dog.name}
-                        {entry.dog.alerts?.length > 0 && <span style={{ marginLeft: 6 }}>⚠️</span>}
+            <div className="flex flex-col gap-2">
+              {dogEntries.map((entry, idx) => {
+                const dogTheme = SIZE_THEME[entry.dog.size || "small"] || SIZE_FALLBACK;
+                return (
+                <div
+                  key={entry.dog.id}
+                  className="rounded-xl p-2.5 px-3.5 border-[1.5px]"
+                  style={{ background: dogTheme.light, borderColor: dogTheme.gradient[0] }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
+                      style={{ background: dogTheme.gradient[0] }}
+                    >🐕</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-extrabold" style={{ color: dogTheme.primary }}>
+                        {titleCase(entry.dog.name)}
+                        {entry.dog.alerts?.length > 0 && <span className="ml-1.5">⚠️</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: BRAND.text }}>
-                        {entry.dog.breed} · {entry.dog.size || "small"} · {entry.humanKey}
+                      <div className="text-[11px] text-slate-800">
+                        {titleCase(entry.dog.breed)} · {entry.dog.size || "small"} · {titleCase(entry.humanKey)}
                       </div>
                       {entry.dog.alerts?.length > 0 && (
-                        <div style={{ fontSize: 10, color: BRAND.coral, fontWeight: 600, marginTop: 1 }}>
+                        <div className="text-[10px] text-brand-coral font-semibold mt-px">
                           {entry.dog.alerts.join(", ")}
                         </div>
                       )}
                     </div>
-                    <button type="button" onClick={() => handleRemoveDog(entry.dog.id)} style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      fontSize: 18, color: BRAND.textLight, fontWeight: 700, padding: "4px 8px",
-                      borderRadius: 6, transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = BRAND.coral; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textLight; }}>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDog(entry.dog.id)}
+                      className="bg-transparent border-none cursor-pointer text-lg text-slate-500 font-bold py-1 px-2 rounded-md transition-all hover:text-brand-coral"
+                    >
                       ×
                     </button>
                   </div>
@@ -535,12 +506,7 @@ export function NewBookingModal({
                   <select
                     value={entry.service}
                     onChange={(e) => handleServiceChange(entry.dog.id, e.target.value)}
-                    style={{
-                      width: "100%", marginTop: 8, padding: "8px 10px", borderRadius: 8,
-                      border: `1px solid ${BRAND.greyLight}`, fontSize: 12,
-                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
-                      background: BRAND.white, color: BRAND.text, boxSizing: "border-box",
-                    }}
+                    className="w-full mt-2 px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-inherit font-semibold cursor-pointer bg-white text-slate-800 box-border"
                   >
                     {SERVICES.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -549,154 +515,125 @@ export function NewBookingModal({
                     ))}
                   </select>
                 </div>
-              ))}
+              );
+              })}
 
               {/* Add another dog / Start over buttons */}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" onClick={() => setAddingAnotherDog(true)} style={{
-                  flex: 1, padding: "8px 12px", borderRadius: 8,
-                  border: `1.5px dashed ${BRAND.blue}`, background: BRAND.white,
-                  color: BRAND.blue, fontSize: 12, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.blueLight; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.white; }}>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingAnotherDog(true)}
+                  className="flex-1 py-2 px-3 rounded-lg border-[1.5px] border-dashed bg-white text-xs font-bold cursor-pointer font-inherit transition-all"
+                  style={{ borderColor: primaryTheme.gradient[0], color: primaryTheme.gradient[0] }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = primaryTheme.light; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}
+                >
                   + Add another dog
                 </button>
-                <button type="button" onClick={handleClearAll} style={{
-                  padding: "8px 12px", borderRadius: 8,
-                  border: `1.5px solid ${BRAND.greyLight}`, background: BRAND.white,
-                  color: BRAND.textLight, fontSize: 12, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = BRAND.coral; e.currentTarget.style.color = BRAND.coral; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = BRAND.greyLight; e.currentTarget.style.color = BRAND.textLight; }}>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-500 text-xs font-bold cursor-pointer font-inherit transition-all hover:border-brand-coral hover:text-brand-coral"
+                >
                   Start over
                 </button>
               </div>
 
               {/* Same-owner dog picker */}
               {addingAnotherDog && (
-                <div style={{
-                  background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)", overflow: "hidden",
-                }}>
-                  <div style={{ padding: "8px 12px", fontSize: 11, fontWeight: 700, color: BRAND.textLight, borderBottom: `1px solid ${BRAND.greyLight}` }}>
-                    {selectedHumanKey}'s other dogs
+                <div className="bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+                  <div className="px-3 py-2 text-[11px] font-bold text-slate-500 border-b border-slate-200">
+                    {titleCase(selectedHumanKey)}'s other dogs
                   </div>
                   {sameOwnerDogs.length === 0 ? (
-                    <div style={{ padding: "12px", fontSize: 12, color: BRAND.textLight }}>
+                    <div className="p-3 text-xs text-slate-500">
                       No other dogs for this owner.
                     </div>
                   ) : (
                     sameOwnerDogs.map(dog => (
                       <div key={dog.id}
                         onMouseDown={() => handleAddAnotherDog(dog)}
-                        style={{
-                          padding: "10px 12px", cursor: "pointer",
-                          borderBottom: `1px solid ${BRAND.greyLight}`,
-                          transition: "background 0.1s",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                        className="px-3 py-2.5 cursor-pointer border-b border-slate-200 transition-colors"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                       >
-                        <span style={{ fontSize: 13, fontWeight: 700, color: BRAND.text }}>{dog.name}</span>
-                        <span style={{ fontSize: 12, color: BRAND.textLight, marginLeft: 6 }}>{dog.breed} · {dog.size || "small"}</span>
+                        <span className="text-[13px] font-bold text-slate-800">{titleCase(dog.name)}</span>
+                        <span className="text-xs text-slate-500 ml-1.5">{titleCase(dog.breed)} · {dog.size || "small"}</span>
                       </div>
                     ))
                   )}
                   <div
                     onMouseDown={() => { onClose(); onOpenAddDog?.(); }}
-                    style={{
-                      padding: "10px 12px", cursor: "pointer", fontSize: 12,
-                      fontWeight: 700, color: BRAND.blue, transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.blueLight)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                    className="px-3 py-2.5 cursor-pointer text-xs font-bold transition-colors"
+                    style={{ color: primaryTheme.gradient[0] }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                   >
-                    + New dog for {selectedHumanKey}
+                    + New dog for {titleCase(selectedHumanKey)}
                   </div>
-                  <div style={{ padding: "6px 12px", borderTop: `1px solid ${BRAND.greyLight}` }}>
-                    <button type="button" onClick={() => setAddingAnotherDog(false)} style={{
-                      background: "none", border: "none", fontSize: 11, color: BRAND.textLight,
-                      cursor: "pointer", fontFamily: "inherit", padding: 0,
-                    }}>Cancel</button>
+                  <div className="px-3 py-1.5 border-t border-slate-200">
+                    <button type="button" onClick={() => setAddingAnotherDog(false)} className="bg-transparent border-none text-[11px] text-slate-500 cursor-pointer font-inherit p-0">Cancel</button>
                   </div>
                 </div>
               )}
             </div>
           ) : (
             <div>
-              <label style={labelStyle}>Search Dog</label>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", display: "flex", pointerEvents: "none", zIndex: 1 }}>
-                  <IconSearch size={15} colour={BRAND.textLight} />
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Search Dog</label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
+                  <IconSearch size={15} colour="#6B7280" />
                 </div>
                 <input
                   ref={searchRef}
                   placeholder="Start typing a dog's name, breed, or owner..."
                   value={dogQuery}
                   onChange={(e) => { setDogQuery(e.target.value); setError(""); onSearchDogs?.(e.target.value); }}
-                  style={{ ...inputStyle, paddingLeft: 36, fontSize: 15 }}
-                  onFocus={(e) => (e.target.style.borderColor = BRAND.blue)}
-                  onBlur={(e) => (e.target.style.borderColor = BRAND.greyLight)}
+                  className="w-full py-3 pl-9 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
                 />
 
                 {/* Searching indicator */}
                 {isSearchingDogs && dogQuery.trim().length > 0 && (
-                  <div style={{
-                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
-                    background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: "12px 14px",
-                    fontSize: 13, color: BRAND.textLight, fontStyle: "italic",
-                  }}>
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
                     Searching...
                   </div>
                 )}
 
                 {/* Dropdown results */}
                 {!isSearchingDogs && filteredEntries.length > 0 && (
-                  <div style={{
-                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
-                    background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 280, overflow: "auto",
-                  }}>
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[280px] overflow-auto">
                     {filteredEntries.map((entry, idx) => {
                       const isTrusted = entry.isTrusted;
-                      const textColor = isTrusted ? BRAND.teal : BRAND.text;
-                      const subtextColor = isTrusted ? "#2D8B7A" : BRAND.textLight;
-                      const bgHover = isTrusted ? BRAND.tealLight : BRAND.blueLight;
+                      const textColor = isTrusted ? "#2D8B7A" : "#1F2937";
+                      const subtextColor = isTrusted ? "#2D8B7A" : "#6B7280";
+                      const bgHover = isTrusted ? "#E6F5F2" : "#E0F7FC";
                       const label = isTrusted ? "Trusted" : "Owner";
-                      const labelBg = isTrusted ? BRAND.tealLight : BRAND.blueLight;
-                      const labelColor = isTrusted ? BRAND.teal : BRAND.blueDark;
+                      const labelBg = isTrusted ? "#E6F5F2" : "#E0F7FC";
+                      const labelColor = isTrusted ? "#2D8B7A" : "#0099BD";
 
                       return (
                         <div
                           key={`${entry.dog.id}-${entry.humanKey}-${idx}`}
                           onMouseDown={() => handleSelectEntry(entry)}
-                          style={{
-                            padding: "10px 14px", cursor: "pointer",
-                            borderBottom: idx < filteredEntries.length - 1 ? `1px solid ${BRAND.greyLight}` : "none",
-                            transition: "background 0.1s",
-                          }}
+                          className="px-3.5 py-2.5 cursor-pointer transition-colors"
+                          style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid #E5E7EB" : "none" }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = bgHover)}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: textColor }}>{entry.dog.name}</span>
-                              <span style={{ fontSize: 12, color: subtextColor }}>—</span>
-                              <span style={{ fontSize: 12, color: subtextColor }}>{entry.dog.breed}</span>
-                              {entry.hasAlerts && <span style={{ fontSize: 13 }}>⚠️</span>}
+                          <div className="flex items-center gap-1.5 justify-between">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-sm font-bold" style={{ color: textColor }}>{titleCase(entry.dog.name)}</span>
+                              <span className="text-xs" style={{ color: subtextColor }}>—</span>
+                              <span className="text-xs" style={{ color: subtextColor }}>{titleCase(entry.dog.breed)}</span>
+                              {entry.hasAlerts && <span className="text-[13px]">⚠️</span>}
                             </div>
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 6,
-                              background: labelBg, color: labelColor, flexShrink: 0, textTransform: "uppercase",
-                              letterSpacing: 0.5,
-                            }}>{label}</span>
+                            <span
+                              className="text-[10px] font-bold py-0.5 px-[7px] rounded-md shrink-0 uppercase tracking-wide"
+                              style={{ background: labelBg, color: labelColor }}
+                            >{label}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: subtextColor, marginTop: 2 }}>
-                            {entry.humanKey}{entry.humanPhone ? ` · ${entry.humanPhone}` : ""}
+                          <div className="text-xs mt-0.5" style={{ color: subtextColor }}>
+                            {titleCase(entry.humanKey)}{entry.humanPhone ? ` · ${entry.humanPhone}` : ""}
                           </div>
                         </div>
                       );
@@ -706,25 +643,13 @@ export function NewBookingModal({
 
                 {/* No results + add buttons */}
                 {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
-                  <div style={{
-                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 30,
-                    background: BRAND.white, border: `1.5px solid ${BRAND.greyLight}`, borderRadius: 12,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: "14px",
-                  }}>
-                    <div style={{ fontSize: 13, color: BRAND.textLight, marginBottom: 10 }}>
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
+                    <div className="text-[13px] text-slate-500 mb-2.5">
                       No dogs found matching "{dogQuery}"
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button type="button" onClick={() => { onClose(); onOpenAddDog?.(); }} style={{
-                        flex: 1, padding: "9px 12px", borderRadius: 8, border: "none",
-                        background: BRAND.blue, color: BRAND.white, fontSize: 12,
-                        fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                      }}>+ New Dog</button>
-                      <button type="button" onClick={() => { onClose(); onOpenAddHuman?.(); }} style={{
-                        flex: 1, padding: "9px 12px", borderRadius: 8, border: "none",
-                        background: BRAND.teal, color: BRAND.white, fontSize: 12,
-                        fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                      }}>+ New Human</button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => { onClose(); onOpenAddDog?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-blue text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
+                      <button type="button" onClick={() => { onClose(); onOpenAddHuman?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit">+ New Human</button>
                     </div>
                   </div>
                 )}
@@ -734,18 +659,19 @@ export function NewBookingModal({
         </div>
 
         {/* ─── Rest of form (scrollable) ─── */}
-        <div style={{ padding: "16px 24px 20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
+        <div className="px-6 py-4 pb-5 flex flex-col gap-4 overflow-y-auto flex-1">
 
           {/* ─── STEP 2: Date Selection ─── */}
           {hasDogs && (
             <div>
-              <label style={labelStyle}>Choose a Date</label>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Choose a Date</label>
               <AvailabilityCalendar
                 bookingsByDate={bookingsByDate}
                 dayOpenState={dayOpenState}
                 daySettings={daySettings}
                 onSelectDate={handleSelectDate}
                 selectedDateStr={selectedDateStr}
+                sizeTheme={primaryTheme}
               />
             </div>
           )}
@@ -753,7 +679,7 @@ export function NewBookingModal({
           {/* ─── STEP 3: Time Slot Selection ─── */}
           {selectedDateStr && hasDogs && (
             <div>
-              <label style={labelStyle}>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">
                 Available Times — {selectedDateDisplay}
               </label>
               <TimeSlotPicker
@@ -763,29 +689,26 @@ export function NewBookingModal({
                 selectedSizes={selectedSizes}
                 onSelectSlot={handleSelectSlot}
                 selectedSlot={selectedSlot}
+                sizeTheme={primaryTheme}
               />
             </div>
           )}
 
           {/* ─── Error ─── */}
           {error && (
-            <div style={{
-              fontSize: 13, color: BRAND.coral, fontWeight: 600,
-              background: BRAND.coralLight, padding: "10px 14px", borderRadius: 10,
-              marginBottom: 16,
-            }}>
+            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-[10px] mb-4">
               {error}
             </div>
           )}
 
           {/* ─── STEP 4: Recurring (Optional) ─── */}
           {hasDogs && selectedDateStr && selectedSlot && (
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Repeat Booking (Optional)</label>
+            <div className="mb-4">
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
               <select
                 value={recurringWeeks}
                 onChange={(e) => setRecurringWeeks(Number(e.target.value))}
-                style={{ ...inputStyle, cursor: "pointer", background: BRAND.white }}
+                className="w-full py-3 px-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-blue"
               >
                 <option value={0}>None (Once off)</option>
                 <option value={4}>Every 4 weeks</option>
@@ -793,7 +716,7 @@ export function NewBookingModal({
                 <option value={8}>Every 8 weeks</option>
               </select>
               {recurringWeeks > 0 && (
-                <div style={{ marginTop: 8, fontSize: 13, color: BRAND.teal, fontWeight: 600 }}>
+                <div className="mt-2 text-[13px] text-brand-teal font-semibold">
                   This will generate bookings for the rest of the year. If a day is full, that slot will be skipped.
                 </div>
               )}
@@ -801,7 +724,7 @@ export function NewBookingModal({
           )}
 
           {/* ─── Actions ─── */}
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="flex gap-2.5">
             {(() => {
               const ready = hasDogs && selectedDateStr && selectedSlot;
               const label = dogEntries.length > 1
@@ -811,25 +734,19 @@ export function NewBookingModal({
                 <button
                   onClick={handleConfirm}
                   disabled={!ready}
+                  className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
                   style={{
-                    flex: 1, padding: "13px 0", borderRadius: 12, border: "none",
-                    background: ready ? BRAND.blue : BRAND.greyLight,
-                    color: ready ? BRAND.white : BRAND.textLight,
-                    fontWeight: 700, fontSize: 14, cursor: ready ? "pointer" : "not-allowed",
-                    fontFamily: "inherit", transition: "all 0.15s",
+                    background: ready ? primaryTheme.gradient[0] : undefined,
+                    color: ready ? primaryTheme.headerText : undefined,
                   }}
-                  onMouseEnter={(e) => { if (ready) e.currentTarget.style.background = BRAND.blueDark; }}
-                  onMouseLeave={(e) => { if (ready) e.currentTarget.style.background = BRAND.blue; }}
+                  onMouseEnter={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.primary; }}
+                  onMouseLeave={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.gradient[0]; }}
                 >
                   {label}
                 </button>
               );
             })()}
-            <button onClick={onClose} style={{
-              padding: "13px 20px", borderRadius: 12, border: `1.5px solid ${BRAND.greyLight}`,
-              background: BRAND.white, color: BRAND.textLight, fontSize: 14, fontWeight: 600,
-              cursor: "pointer", fontFamily: "inherit",
-            }}>Cancel</button>
+            <button onClick={onClose} className="py-[13px] px-5 rounded-xl border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">Cancel</button>
           </div>
         </div>
       </div>
