@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { BRAND, getSizeForBreed } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 
 function titleCase(str) {
@@ -27,13 +27,8 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [newOwnerSurname, setNewOwnerSurname] = useState("");
   const [newOwnerPhone, setNewOwnerPhone] = useState("");
 
-  const sizeColourMap = {
-    small: { from: "#F5C518", to: "#D4A500", text: "#5C4600", sub: "rgba(60,40,0,0.65)" },
-    medium: { from: "#2D8B7A", to: "#1E6B5C", text: BRAND.white, sub: "rgba(255,255,255,0.8)" },
-    large: { from: "#E8567F", to: "#C93D63", text: BRAND.white, sub: "rgba(255,255,255,0.8)" },
-  };
-  const headerTheme = sizeColourMap[size] || { from: BRAND.blue, to: BRAND.blueDark, text: BRAND.white, sub: "rgba(255,255,255,0.8)" };
-  const accent = sizeColourMap[size]?.to || BRAND.blueDark;
+  const sizeTheme = SIZE_THEME[size] || SIZE_FALLBACK;
+  const headerTheme = { from: sizeTheme.gradient[0], to: sizeTheme.gradient[1], text: sizeTheme.headerText };
 
   const ownerResults = useMemo(() => {
     if (!ownerQuery.trim() || selectedOwner) return [];
@@ -112,56 +107,34 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     }
   };
 
-  const labelStyle = {
-    fontSize: 11, fontWeight: 700, color: BRAND.textLight,
-    textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4,
-  };
-
-  const inputStyle = {
-    width: "100%", padding: "10px 14px", borderRadius: 8,
-    border: `1.5px solid ${BRAND.greyLight}`, fontSize: 13,
-    fontFamily: "inherit", boxSizing: "border-box", outline: "none",
-    color: BRAND.text, transition: "border-color 0.15s",
-  };
-
-  const focusHandlers = {
-    onFocus: (e) => (e.target.style.borderColor = accent),
-    onBlur: (e) => (e.target.style.borderColor = BRAND.greyLight),
-  };
-
   return (
-    <div onClick={onClose} style={{
-      position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-    }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
-        background: BRAND.white, borderRadius: 16, width: 400, maxHeight: "90vh", overflow: "auto",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-      }}>
+    <div onClick={onClose} className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
         {/* Header */}
-        <div style={{
-          background: `linear-gradient(135deg, ${headerTheme.from}, ${headerTheme.to})`,
-          padding: "20px 24px", borderRadius: "16px 16px 0 0",
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: headerTheme.text }}>Add New Dog</div>
-          <button onClick={onClose} style={{
-            background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8,
-            width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", fontSize: 14, color: headerTheme.text, fontWeight: 700,
-          }}>{"\u00D7"}</button>
+        <div
+          className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
+          style={{ background: `linear-gradient(135deg, ${headerTheme.from}, ${headerTheme.to})` }}
+        >
+          <div className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
+          <button
+            onClick={onClose}
+            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
+            style={{ color: headerTheme.text }}
+          >{"\u00D7"}</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
           {/* Name & Breed */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label style={labelStyle}>Dog Name *</label>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Dog Name *</label>
               <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
-                placeholder="Bella" style={inputStyle} autoFocus {...focusHandlers} />
+                placeholder="Bella"
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                autoFocus />
             </div>
             <div>
-              <label style={labelStyle}>Breed *</label>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Breed *</label>
               <input value={breed} onChange={(e) => {
                 const val = e.target.value;
                 setBreed(val);
@@ -176,24 +149,25 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                     setSizeAutoSet(false);
                   }
                 }
-              }} placeholder="Cockapoo" style={inputStyle} {...focusHandlers} />
+              }} placeholder="Cockapoo"
+              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
           </div>
 
           {/* DOB & Size */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label style={labelStyle}>Date of Birth</label>
-              <div style={{ display: "flex", gap: 6 }}>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Date of Birth</label>
+              <div className="flex gap-1.5">
                 <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
-                  style={{ ...inputStyle, flex: 1, cursor: "pointer" }} {...focusHandlers}>
+                  className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                   <option value="">Month</option>
                   {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
                     <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
                   ))}
                 </select>
                 <select value={dobYear} onChange={(e) => setDobYear(e.target.value)}
-                  style={{ ...inputStyle, flex: 1, cursor: "pointer" }} {...focusHandlers}>
+                  className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                   <option value="">Year</option>
                   {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                     <option key={y} value={String(y)}>{y}</option>
@@ -202,22 +176,23 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
               </div>
             </div>
             <div>
-              <label style={labelStyle}>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">
                 Size *
                 {sizeAutoSet && !sizeOverridden && (
-                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: BRAND.openGreen, marginLeft: 6 }}>auto</span>
+                  <span className="font-medium normal-case tracking-normal text-brand-green ml-1.5">auto</span>
                 )}
                 {!size && breed.trim() && (
-                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: BRAND.coral, marginLeft: 6 }}>unknown breed</span>
+                  <span className="font-medium normal-case tracking-normal text-brand-coral ml-1.5">unknown breed</span>
                 )}
               </label>
               <select value={size} onChange={(e) => {
                 setSize(e.target.value);
                 setSizeOverridden(true);
                 setSizeAutoSet(false);
-              }} style={{
-                ...inputStyle, cursor: "pointer",
-                borderColor: sizeAutoSet && !sizeOverridden ? BRAND.openGreen : !size && breed.trim() ? BRAND.coral : BRAND.greyLight,
+              }}
+              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
+              style={{
+                borderColor: sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E8567F" : undefined,
               }}>
                 <option value="">Select size</option>
                 <option value="small">Small</option>
@@ -229,53 +204,44 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
           {/* Owner */}
           <div>
-            <label style={labelStyle}>Owner *</label>
+            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Owner *</label>
             {selectedOwner && !showNewOwner ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, background: BRAND.tealLight, padding: "10px 14px", borderRadius: 8 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: BRAND.teal }}>{titleCase(selectedOwner.label)}</div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-[#E6F5F2] px-3.5 py-2.5 rounded-lg">
+                  <div className="text-sm font-bold text-brand-teal">{titleCase(selectedOwner.label)}</div>
                   {selectedOwner.phone && (
-                    <div style={{ fontSize: 12, color: BRAND.textLight, marginTop: 2 }}>{selectedOwner.phone}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{selectedOwner.phone}</div>
                   )}
                 </div>
-                <button type="button" onClick={() => { setSelectedOwner(null); setOwnerQuery(""); }} style={{
-                  background: BRAND.coralLight, border: "none", borderRadius: 8, padding: "8px 12px",
-                  color: BRAND.coral, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                }}>Change</button>
+                <button type="button" onClick={() => { setSelectedOwner(null); setOwnerQuery(""); }}
+                  className="bg-brand-coral-light border-none rounded-lg px-3 py-2 text-brand-coral text-xs font-bold cursor-pointer font-inherit">
+                  Change
+                </button>
               </div>
             ) : !showNewOwner ? (
               <div>
-                <div style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-                    <IconSearch size={14} colour={BRAND.textLight} />
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
+                    <IconSearch size={14} colour="#6B7280" />
                   </div>
                   <input
                     value={ownerQuery}
                     onChange={(e) => { setOwnerQuery(e.target.value); setError(""); }}
                     placeholder="Search by name or phone..."
-                    style={{ ...inputStyle, paddingLeft: 34 }}
-                    {...focusHandlers}
+                    className="w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   />
                   {ownerResults.length > 0 && (
-                    <div style={{
-                      position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
-                      border: `1px solid ${BRAND.greyLight}`, borderRadius: 8, overflow: "hidden",
-                      background: BRAND.white, zIndex: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}>
+                    <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                       {ownerResults.map((h) => {
                         const fullName = h.fullName || `${h.name || ""} ${h.surname || ""}`.trim();
                         return (
                           <div key={h.id || fullName} onMouseDown={() => {
                             setSelectedOwner({ id: h.id || fullName, label: fullName, phone: h.phone || "" });
                             setOwnerQuery(fullName);
-                          }} style={{
-                            padding: "10px 14px", cursor: "pointer",
-                            borderBottom: `1px solid ${BRAND.greyLight}`, transition: "background 0.1s",
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = BRAND.tealLight)}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = BRAND.white)}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: BRAND.text }}>{titleCase(fullName)}</div>
-                            {h.phone && <div style={{ fontSize: 12, color: BRAND.textLight }}>{h.phone}</div>}
+                          className="px-3.5 py-2.5 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]">
+                            <div className="text-[13px] font-semibold text-slate-800">{titleCase(fullName)}</div>
+                            {h.phone && <div className="text-xs text-slate-500">{h.phone}</div>}
                           </div>
                         );
                       })}
@@ -283,43 +249,37 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                   )}
                 </div>
                 {onAddHuman && (
-                  <button type="button" onClick={() => { setShowNewOwner(true); setOwnerQuery(""); setSelectedOwner(null); }} style={{
-                    width: "100%", marginTop: 8, padding: "8px", borderRadius: 8,
-                    border: `1.5px solid ${BRAND.teal}`, background: BRAND.white,
-                    color: BRAND.teal, fontSize: 12, fontWeight: 700,
-                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                  }}>
+                  <button type="button" onClick={() => { setShowNewOwner(true); setOwnerQuery(""); setSelectedOwner(null); }}
+                    className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-brand-teal bg-white text-brand-teal text-xs font-bold cursor-pointer font-inherit transition-all">
                     + Add new owner
                   </button>
                 )}
               </div>
             ) : (
-              <div style={{ padding: 12, background: BRAND.offWhite, borderRadius: 8, border: `1px solid ${BRAND.greyLight}` }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.text, marginBottom: 8 }}>New owner</div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2">New Owner</div>
+                <div className="flex gap-2 mb-2">
                   <input
                     type="text" placeholder="First name" value={newOwnerName}
                     onChange={(e) => setNewOwnerName(e.target.value)} autoFocus
-                    style={{ ...inputStyle, flex: 1 }} {...focusHandlers}
+                    className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   />
                   <input
                     type="text" placeholder="Surname" value={newOwnerSurname}
                     onChange={(e) => setNewOwnerSurname(e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }} {...focusHandlers}
+                    className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   />
                 </div>
                 <input
                   type="tel" placeholder="Phone number" value={newOwnerPhone}
                   onChange={(e) => setNewOwnerPhone(e.target.value)}
-                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 8 }} {...focusHandlers}
+                  className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal mb-2"
                 />
                 <button type="button" onClick={() => {
                   setShowNewOwner(false);
                   setNewOwnerName(""); setNewOwnerSurname(""); setNewOwnerPhone("");
-                }} style={{
-                  background: "none", border: "none", color: BRAND.textLight,
-                  fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: 0,
-                }}>
+                }}
+                className="bg-transparent border-none text-slate-500 text-xs font-semibold cursor-pointer font-inherit p-0">
                   Cancel — search existing instead
                 </button>
               </div>
@@ -328,35 +288,33 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
           {/* Groom Notes */}
           <div>
-            <label style={labelStyle}>Groom Notes</label>
+            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Groom Notes</label>
             <textarea value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
               placeholder="Teddy bear cut, short on ears..." rows={2}
-              style={{ ...inputStyle, resize: "vertical" }} {...focusHandlers} />
+              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
           </div>
 
           {error && (
-            <div style={{ fontSize: 13, color: BRAND.coral, fontWeight: 600, background: BRAND.coralLight, padding: "8px 12px", borderRadius: 8 }}>
+            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
               {error}
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button type="submit" disabled={submitting} style={{
-              flex: 1, padding: "12px", borderRadius: 10, border: "none",
-              background: submitting ? BRAND.greyLight : headerTheme.from,
-              color: submitting ? BRAND.textLight : headerTheme.text,
-              fontSize: 14, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
-              fontFamily: "inherit", transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.to; }}
-            onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.from; }}>
+          <div className="flex gap-2.5 mt-1">
+            <button type="submit" disabled={submitting}
+              className="flex-1 py-3 rounded-[10px] border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+              style={{
+                background: submitting ? undefined : headerTheme.from,
+                color: submitting ? undefined : headerTheme.text,
+              }}
+              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.to; }}
+              onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.from; }}>
               {submitting ? "Adding..." : "Add Dog"}
             </button>
-            <button type="button" onClick={onClose} style={{
-              padding: "12px 20px", borderRadius: 10, border: `1.5px solid ${BRAND.greyLight}`,
-              background: BRAND.white, color: BRAND.textLight, fontSize: 14, fontWeight: 600,
-              cursor: "pointer", fontFamily: "inherit",
-            }}>Cancel</button>
+            <button type="button" onClick={onClose}
+              className="py-3 px-5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
+              Cancel
+            </button>
           </div>
         </form>
       </div>
