@@ -20,15 +20,13 @@ const SERVICE_ICONS = {
 };
 
 const STATUS_COLOURS = {
-  "Not Arrived": { bg: "bg-amber-100", text: "text-amber-800" },
-  "Checked In": { bg: "bg-emerald-100", text: "text-emerald-800" },
-  "In the Bath": { bg: "bg-blue-100", text: "text-blue-800" },
+  "No-show": { bg: "bg-amber-100", text: "text-amber-800" },
+  "Checked in": { bg: "bg-emerald-100", text: "text-emerald-800" },
   "Drying": { bg: "bg-indigo-100", text: "text-indigo-800" },
   "On the Table": { bg: "bg-violet-100", text: "text-violet-800" },
   "Finished": { bg: "bg-emerald-100", text: "text-emerald-800" },
-  "Completed": { bg: "bg-slate-100", text: "text-slate-700" },
+  "Ready for pick-up": { bg: "bg-slate-100", text: "text-slate-700" },
   "Cancelled": { bg: "bg-red-100", text: "text-red-800" },
-  "No Show": { bg: "bg-orange-100", text: "text-orange-800" },
 };
 
 function formatSlot(slot) {
@@ -438,8 +436,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             </div>
           ) : (
             upcomingBookings.map(b => {
-              const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Not Arrived"];
-              const canCancel = b.status === "Not Arrived";
+              const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["No-show"];
+              const canCancel = b.status === "No-show";
 
               return (
                 <div key={b.id} className="py-3 border-b border-slate-200">
@@ -515,13 +513,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         </div>
 
         {/* REBOOK PROMPT — shown when no upcoming bookings but has past completed ones */}
-        {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Completed" || b.status === "Finished") && (
+        {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Ready for pick-up" || b.status === "Finished") && (
           <div className="bg-gradient-to-br from-emerald-50 to-white rounded-[14px] py-5 px-6 border border-brand-teal/30 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-center">
             <div className="text-[28px] mb-2">{"\u2702\uFE0F"}</div>
             <div className="text-sm font-bold text-slate-800 mb-1">Time for another groom?</div>
             <div className="text-[13px] text-slate-500 mb-3">
               Your last visit was {(() => {
-                const lastCompleted = pastBookings.find(b => b.status === "Completed" || b.status === "Finished");
+                const lastCompleted = pastBookings.find(b => b.status === "Ready for pick-up" || b.status === "Finished");
                 if (!lastCompleted) return "a while ago";
                 const diff = Math.round((new Date() - new Date(lastCompleted.booking_date + "T00:00:00")) / (7 * 24 * 60 * 60 * 1000));
                 return diff <= 1 ? "last week" : `${diff} weeks ago`;
@@ -552,7 +550,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                 <div className="text-sm text-slate-500 italic py-2">No past appointments yet.</div>
               ) : (
                 pastBookings.map(b => {
-                  const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Completed"];
+                  const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Ready for pick-up"];
                   return (
                     <div key={b.id} className="py-3 border-b border-slate-200 opacity-70">
                       <div className="flex justify-between items-start">

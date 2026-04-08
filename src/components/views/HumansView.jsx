@@ -40,7 +40,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
           </div>
         </div>
 
-        <div className="flex gap-2.5 items-center w-full max-w-[460px]">
+        <div className="flex gap-2.5 items-center flex-1 max-w-[460px]">
           <div className="relative flex-1">
             <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
               <IconSearch size={16} colour="#6B7280" />

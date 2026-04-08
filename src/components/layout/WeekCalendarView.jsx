@@ -6,7 +6,6 @@ import { getDefaultOpenForDate } from "../../engine/utils.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { ClosedDayView } from "./ClosedDayView.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
-import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
@@ -62,33 +61,11 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
           </svg>
         </button>
 
-        {/* Centre group */}
-        <div className="flex-1 flex items-center justify-center gap-3">
-          {/* Month & year box */}
-          <div className="bg-white rounded-[10px] py-2 px-12 flex flex-col items-center justify-center min-h-[58px] min-w-[200px]">
-            <div className="text-[26px] font-extrabold text-slate-800 leading-none">{monthName}</div>
-            <div className="text-sm font-bold text-slate-500 mt-0.5">{yearStr}</div>
+        {/* Month & year */}
+        <div className="flex-1 text-center">
+          <div className="text-2xl md:text-[28px] font-black text-white leading-tight">
+            {monthName} {yearStr}
           </div>
-
-          {/* View buttons */}
-          {setCalendarMode && (
-            <div className="flex flex-col gap-[3px]">
-              {[{ mode: "day", label: "Day View", colour: "text-amber-500" }, { mode: "month", label: "Month View", colour: "text-brand-coral" }].map(v => {
-                const active = calendarMode === v.mode;
-                return (
-                  <button
-                    key={v.mode}
-                    onClick={() => setCalendarMode(v.mode)}
-                    className={`py-1 px-2 rounded-md border-none text-[10px] font-bold cursor-pointer font-[inherit] transition-all whitespace-nowrap ${
-                      active ? `bg-white ${v.colour}` : "bg-white/15 text-white/85"
-                    }`}
-                  >
-                    {v.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Next arrow */}
@@ -120,25 +97,32 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
           let bgCls = "bg-white";
           let borderCls = "border border-slate-200";
           let textCls = "text-slate-800";
+          let shadowCls = "shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+          let hoverCls = isOpen ? "hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:-translate-y-px" : "";
 
           if (!isOpen) {
             bgCls = "bg-slate-100";
             textCls = "text-slate-500";
+            shadowCls = "";
+            hoverCls = "";
           }
           if (isSelected) {
-            bgCls = "bg-brand-blue";
+            bgCls = "bg-gradient-to-b from-brand-blue to-brand-blue-dark";
             textCls = "text-white";
             borderCls = "border border-brand-blue";
+            shadowCls = "shadow-[0_2px_8px_rgba(14,165,233,0.2)]";
+            hoverCls = "";
           }
           if (isToday && !isSelected) {
             borderCls = "border-2 border-brand-blue";
+            shadowCls = "shadow-[0_2px_6px_rgba(14,165,233,0.12)]";
           }
 
           return (
             <button
               key={dateStr}
               onClick={() => onSelectDate(date)}
-              className={`py-2 px-1 rounded-[10px] ${borderCls} ${bgCls} cursor-pointer font-[inherit] transition-all flex flex-col items-center gap-0.5 min-h-[56px]`}
+              className={`py-2 px-1 rounded-[10px] ${borderCls} ${bgCls} ${shadowCls} ${hoverCls} cursor-pointer font-[inherit] transition-all flex flex-col items-center gap-0.5 min-h-[56px]`}
             >
               <span className={`text-sm font-bold ${textCls}`}>{date.getDate()}</span>
               {isOpen ? (
@@ -249,6 +233,8 @@ export function WeekCalendarView({
         currentDateObj={currentDateObj}
         calendarMode={calendarMode}
         onSelectMonth={() => setCalendarMode("month")}
+        humans={humans}
+        dogs={dogs}
       />
 
       {/* Day view */}
@@ -273,14 +259,23 @@ export function WeekCalendarView({
               />
               {/* Add/Remove extra slot buttons */}
               <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
-                {(currentSettings.extraSlots || []).length > 0 && (
-                  <button
-                    onClick={handleRemoveSlot}
-                    className="w-full py-2.5 rounded-[10px] border-none bg-brand-blue text-white text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:bg-brand-blue-dark"
-                  >
-                    Remove added timeslot
-                  </button>
-                )}
+                {(currentSettings.extraSlots || []).length > 0 && (() => {
+                  const lastSlot = currentSettings.extraSlots[currentSettings.extraSlots.length - 1];
+                  const [h, m] = lastSlot.split(":");
+                  const hour = parseInt(h, 10);
+                  const suffix = hour < 12 ? "am" : "pm";
+                  const display = `${hour > 12 ? hour - 12 : hour}:${m}${suffix}`;
+                  return (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Remove the ${display} timeslot?`)) handleRemoveSlot();
+                      }}
+                      className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-600 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
+                    >
+                      Remove {display} slot
+                    </button>
+                  );
+                })()}
                 <button
                   onClick={handleAddSlot}
                   className="w-full py-2.5 rounded-[10px] border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:bg-[#D9466F]"
@@ -288,11 +283,6 @@ export function WeekCalendarView({
                   Add another timeslot
                 </button>
               </div>
-              <WaitlistPanel
-                currentDateObj={currentDateObj}
-                humans={humans}
-                dogs={dogs}
-              />
             </>
           ) : (
             <ClosedDayView onOpen={toggleDayOpen} />

@@ -151,8 +151,10 @@ export function StatsView() {
   return (
     <div className="flex flex-col gap-4">
       {/* Revenue card */}
-      <div className="bg-white border border-slate-200 rounded-[14px] p-5 px-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-        <div className="text-[13px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">Revenue</div>
+      <div className="bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04),0_4px_16px_rgba(45,139,122,0.06)]">
+        <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594]" />
+        <div className="p-5 px-6">
+        <div className="text-[13px] font-extrabold text-brand-teal uppercase tracking-widest mb-4">Revenue</div>
 
         {/* Hero total */}
         <div className="flex items-baseline gap-2 mb-5">
@@ -195,11 +197,14 @@ export function StatsView() {
             <span className="text-sm font-extrabold text-slate-800">£{monthlyTotal}</span>
           </div>
         </div>
+        </div>
       </div>
 
       {/* Operations card */}
-      <div className="bg-white border border-slate-200 rounded-[14px] p-5 px-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-        <div className="text-[13px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">Operations</div>
+      <div className="bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04),0_4px_16px_rgba(14,165,233,0.06)]">
+        <div className="h-[3px] bg-gradient-to-r from-brand-blue to-[#38BDF8]" />
+        <div className="p-5 px-6">
+        <div className="text-[13px] font-extrabold text-brand-blue uppercase tracking-widest mb-4">Operations</div>
 
         {/* Busiest day */}
         <div className="mb-5">
@@ -269,6 +274,7 @@ export function StatsView() {
             <span className="text-xs font-semibold text-slate-500">Last week: </span>
             <span className="text-sm font-extrabold text-slate-800">{lastWeekAvg}/day</span>
           </div>
+        </div>
         </div>
       </div>
     </div>

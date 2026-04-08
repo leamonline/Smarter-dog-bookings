@@ -43,7 +43,7 @@ export function ReportsView() {
     const daysCount = {};
 
     rawBookings.forEach((b) => {
-      if (b.status === "Cancelled" || b.status === "No Show") return;
+      if (b.status === "Cancelled" || b.status === "No-show") return;
 
       revenue += getEstimatedPrice(b.service, b.size || "small");
 

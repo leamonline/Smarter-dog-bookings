@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "./DayTab.jsx";
 import { MonthTab } from "./MonthTab.jsx";
+import { WaitlistNote } from "../booking/WaitlistNote.jsx";
 
 export function CalendarTabs({
   dates,
@@ -11,6 +12,9 @@ export function CalendarTabs({
   currentDateObj,
   calendarMode,
   onSelectMonth,
+  humans,
+  dogs,
+  onOpenHuman,
 }) {
   const activeTabRef = useRef(null);
 
@@ -23,7 +27,7 @@ export function CalendarTabs({
   }, [selectedDay, calendarMode]);
 
   return (
-    <div className="flex gap-1.5 px-1 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none">
+    <div className="flex gap-1.5 px-1 -mb-[2px] relative z-[1] overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none">
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;
         const dogCount = (bookingsByDate[d.dateStr] || []).length;
@@ -57,6 +61,13 @@ export function CalendarTabs({
           onClick={onSelectMonth}
         />
       </div>
+
+      <WaitlistNote
+        currentDateObj={currentDateObj}
+        humans={humans}
+        dogs={dogs}
+        onOpenHuman={onOpenHuman}
+      />
     </div>
   );
 }

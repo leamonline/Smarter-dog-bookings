@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK, NO_SHOW_STATUS } from "../../constants/index.js";
+import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
@@ -55,7 +55,7 @@ export function BookingCard({ booking }) {
     booking._ownerId || booking.owner,
   );
 
-  const currentStatus = booking.status || "Not Arrived";
+  const currentStatus = booking.status || "No-show";
   const statusObj =
     BOOKING_STATUSES.find((s) => s.id === currentStatus) || BOOKING_STATUSES[0];
   const currentIdx = BOOKING_STATUSES.findIndex((s) => s.id === currentStatus);
@@ -77,9 +77,9 @@ export function BookingCard({ booking }) {
 
   const handleNoShow = async (e) => {
     e.stopPropagation();
-    if (!window.confirm(`Mark ${booking.dogName} as a No Show?`)) return;
+    if (!window.confirm(`Mark ${booking.dogName} as a no-show?`)) return;
     await onUpdate(
-      { ...booking, status: NO_SHOW_STATUS.id },
+      { ...booking, status: "No-show" },
       currentDateStr,
       currentDateStr,
     );
@@ -166,22 +166,22 @@ export function BookingCard({ booking }) {
             </button>
           )}
 
-          {currentStatus === "Not Arrived" && (
+          {currentStatus === "No-show" && (
             <button
               onClick={handleNoShow}
-              title="Mark as No Show"
+              title="Mark as no-show"
               className="rounded-md py-[3px] px-2 text-[10px] font-bold cursor-pointer font-[inherit] whitespace-nowrap transition-all hover:opacity-80"
               style={{
-                background: NO_SHOW_STATUS.bg,
-                color: NO_SHOW_STATUS.color,
-                border: `1px solid ${NO_SHOW_STATUS.color}`,
+                background: "#FFF8E0",
+                color: "#92400E",
+                border: `1px solid #92400E`,
               }}
             >
-              ✗ No Show
+              ✗ No-show
             </button>
           )}
 
-          {!nextStatus && currentStatus !== "Not Arrived" && (
+          {!nextStatus && currentStatus !== "No-show" && (
             <span
               className="text-[10px] font-bold py-[3px] px-2 rounded-md"
               style={{

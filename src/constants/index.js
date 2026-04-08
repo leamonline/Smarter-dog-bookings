@@ -8,7 +8,6 @@ export {
   PRICING,
   ALERT_OPTIONS,
   BOOKING_STATUSES,
-  NO_SHOW_STATUS,
 } from "./salon.js";
 // styles.js exports (inputStyle, labelStyle, closeBtnStyle, onInputFocus, onInputBlur)
 // are no longer imported by any component — all forms now use Tailwind classes directly.

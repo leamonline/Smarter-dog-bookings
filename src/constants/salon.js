@@ -44,15 +44,10 @@ export const PRICING = {
 };
 
 export const BOOKING_STATUSES = [
-  { id: "Not Arrived", label: "Not Arrived", color: "#92400E", bg: "#FFF8E0" },
-  { id: "Checked In", label: "Checked In", color: "#16A34A", bg: "#DCFCE7" },
-  { id: "In the Bath", label: "In the Bath", color: "#0099BD", bg: "#E0F7FC" },
-  { id: "Ready for Pick-up", label: "Ready for Pick-up", color: "#7C3AED", bg: "#EDE9FE" },
-  { id: "Completed", label: "Completed", color: "#1F2937", bg: "#F3F4F6" },
+  { id: "No-show", label: "No-show", color: "#92400E", bg: "#FFF8E0" },
+  { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
+  { id: "Ready for pick-up", label: "Ready for pick-up", color: "#7C3AED", bg: "#EDE9FE" },
 ];
-
-/** No-show: a dead-end status that can be set from "Not Arrived" only */
-export const NO_SHOW_STATUS = { id: "No Show", label: "No Show", color: "#6B7280", bg: "#F3F4F6" };
 
 export const ALERT_OPTIONS = [
   { label: "Bites / Nips", color: "#E8567F" },

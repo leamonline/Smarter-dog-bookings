@@ -1,6 +1,6 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
-import { SERVICES, PRICING } from "../../constants/index.js";
+import { SERVICES } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
@@ -19,19 +19,17 @@ function titleCase(str) {
 }
 
 const SIZE_DOT = {
-  small:  { dot: "#F5C518", border: "#D4A500" },
-  medium: { dot: "#2D8B7A", border: "#1E6B5C" },
-  large:  { dot: "#E8567F", border: "#C93D63" },
+  small:  { dot: "#F5C518", border: "#D4A500", gradient: "linear-gradient(90deg, #F5C518, #FACC15)", glow: "rgba(245,197,24," },
+  medium: { dot: "#2D8B7A", border: "#1E6B5C", gradient: "linear-gradient(90deg, #2D8B7A, #3BA594)", glow: "rgba(45,139,122," },
+  large:  { dot: "#E8567F", border: "#C93D63", gradient: "linear-gradient(90deg, #E8567F, #F472B6)", glow: "rgba(232,86,127," },
 };
 
-const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD" };
+const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
 const STATUS_DISPLAY = {
-  "Not Arrived":       { bg: "#FFF8E0", color: "#92400E", label: "Not Arrived" },
-  "Checked In":        { bg: "#DCFCE7", color: "#16A34A", label: "Checked In" },
-  "In the Bath":       { bg: "#E0F7FC", color: "#0099BD", label: "In the Bath" },
-  "Ready for Pick-up": { bg: "#EDE9FE", color: "#7C3AED", label: "Ready" },
-  "Completed":         { bg: "#F3F4F6", color: "#374151", label: "Completed" },
+  "No-show":            { bg: "#FFF8E0", color: "#92400E", label: "No-show" },
+  "Checked in":         { bg: "#DCFCE7", color: "#16A34A", label: "Checked in" },
+  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", label: "Ready" },
 };
 
 export function BookingCardNew({ booking, onClick }) {
@@ -56,14 +54,9 @@ export function BookingCardNew({ booking, onClick }) {
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
   const service = SERVICES.find((s) => s.id === booking.service);
-  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["Not Arrived"];
+  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["No-show"];
 
-  const price =
-    PRICING[booking.service]?.[booking.size] ??
-    PRICING[booking.service]?.small ??
-    "";
-
-  const pickupText = booking.status === "Completed"
+  const pickupText = booking.status === "Ready for pick-up"
     ? `Collected${booking.pickup_time ? ` ${booking.pickup_time}` : ""}`
     : booking.pickup_time
       ? `Pick-up ${booking.pickup_time}`
@@ -71,6 +64,10 @@ export function BookingCardNew({ booking, onClick }) {
 
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
+
+  const price = dogRecord?.customPrice != null
+    ? `£${dogRecord.customPrice}`
+    : "";
 
   const displayDogName = titleCase(
     dogRecord?.name || booking.dogName || "Unknown Dog"
@@ -88,14 +85,20 @@ export function BookingCardNew({ booking, onClick }) {
     <>
       <div
         onClick={handleCardClick}
-        className="bg-white border-[1.5px] border-slate-200 border-l-4 rounded-xl p-2.5 md:p-3.5 flex flex-col gap-1 cursor-pointer transition-all hover:border-brand-blue hover:shadow-md hover:-translate-y-px box-border"
-        style={{ borderLeftColor: sizeTheme.border }}
+        className="bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-blue hover:-translate-y-px box-border"
+        style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
+        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
+        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
       >
+        {/* Gradient top accent bar */}
+        <div className="h-[3px]" style={{ background: sizeTheme.gradient }} />
+
+        <div className="p-2.5 md:p-3.5 flex flex-col gap-1">
         {/* Row 1: size dot + dog name + price */}
         <div className="flex items-center gap-2">
           <span
             className="w-3 h-3 rounded-full shrink-0 inline-block"
-            style={{ background: sizeTheme.dot }}
+            style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
           />
           <span className="text-sm md:text-[17px] font-extrabold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">
             {displayDogName}
@@ -130,22 +133,23 @@ export function BookingCardNew({ booking, onClick }) {
         {/* Row 4: pill row */}
         <div className="flex gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
           {/* Service pill */}
-          <span className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis bg-slate-100 text-slate-700">
+          <span className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-slate-100 text-slate-700">
             {service?.name || booking.service || "\u2014"}
           </span>
 
           {/* Pickup pill */}
-          <span className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis bg-[#F3EEFF] text-[#7C3AED]">
+          <span className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-[#F3EEFF] text-[#7C3AED]">
             {pickupText || "\u2014"}
           </span>
 
           {/* Status pill */}
           <span
-            className="flex-1 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] rounded-md inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis"
+            className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate"
             style={{ background: statusObj.bg, color: statusObj.color }}
           >
             {statusObj.label}
           </span>
+        </div>
         </div>
       </div>
 

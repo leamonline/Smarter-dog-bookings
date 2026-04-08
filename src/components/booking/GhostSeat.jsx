@@ -49,7 +49,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
       {/* Book button */}
       <button
         onClick={onClick}
-        className="w-8 h-8 rounded-lg bg-sky-50 text-brand-blue border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-lg font-bold hover:bg-brand-blue hover:text-white"
+        className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-brand-blue border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-lg font-bold shadow-[0_1px_3px_rgba(14,165,233,0.15)] hover:bg-brand-blue hover:from-brand-blue hover:to-brand-blue hover:text-white"
       >
         +
       </button>
@@ -64,7 +64,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
             onBlock();
           }
         }}
-        className="w-8 h-8 rounded-lg bg-brand-coral-light text-brand-coral border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] hover:bg-brand-coral hover:text-white"
+        className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FFF1F3] to-[#FFE4E9] text-brand-coral border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] shadow-[0_1px_3px_rgba(232,86,127,0.15)] hover:bg-brand-coral hover:from-brand-coral hover:to-brand-coral hover:text-white"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />

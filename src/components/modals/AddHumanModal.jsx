@@ -14,8 +14,8 @@ export function AddHumanModal({ onClose, onAdd }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !surname.trim()) {
-      setError("First name and surname are required.");
+    if (!name.trim() || !surname.trim() || !phone.trim()) {
+      setError("First name, surname, and phone number are required.");
       return;
     }
     setSubmitting(true);
@@ -66,7 +66,7 @@ export function AddHumanModal({ onClose, onAdd }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Phone</label>
+            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Phone *</label>
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>

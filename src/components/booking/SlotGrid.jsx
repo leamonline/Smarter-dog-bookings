@@ -21,7 +21,7 @@ export function SlotGrid({
   onOverride,
 }) {
   return (
-    <div className="bg-white border border-slate-200 border-t-0 rounded-b-[14px]">
+    <div className="bg-white border border-slate-200 border-t-0 rounded-b-[14px] overflow-hidden">
       {activeSlots.map((slot, i) => {
         const slotOverrides = overrides?.[slot] || {};
         const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);

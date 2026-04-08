@@ -20,8 +20,8 @@ export const SAMPLE_DOGS = {
 
 export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
-    { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: "Checked In", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
-    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: "Not Arrived", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: "Checked in", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
+    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: "No-show", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
     { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson" },
     { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker" },
     { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown" },

@@ -393,7 +393,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     breed: "",
     service: "full-groom" as any,
     owner: "",
-    status: "Not Arrived" as any,
+    status: "No-show" as any,
     addons: [],
     pickupBy: "",
     payment: "",

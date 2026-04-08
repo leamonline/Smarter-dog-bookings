@@ -34,7 +34,7 @@ export function useRebookFlow({ currentDateObj, daySettings, dayOpenState, booki
         date: targetDate,
         dateStr: targetDateStr,
         slot: defaultSlot,
-        status: "Not Arrived",
+        status: "No-show",
         payment: "Due at Pick-up",
         confirmed: false,
       });

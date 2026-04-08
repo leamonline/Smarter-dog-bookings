@@ -30,7 +30,7 @@ export function DashboardHeader({ currentDateObj, bookings, onNewBooking }) {
   const { weekday, day, month, year } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-6 px-5 md:px-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-[14px] relative overflow-hidden">
+    <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-6 px-5 md:px-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-b-[14px] relative overflow-hidden">
       {/* Paw watermark */}
       <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">
         {"\uD83D\uDC3E"}

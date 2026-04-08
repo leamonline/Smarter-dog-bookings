@@ -220,7 +220,7 @@ export function useBookings(weekStart, dogsById, humansById) {
         dog_id: dogId,
         size: booking.size,
         service: booking.service,
-        status: booking.status || "Not Arrived",
+        status: booking.status || "No-show",
         addons: booking.addons || [],
         pickup_by_id: pickupHumanId || null,
         payment: booking.payment || "Due at Pick-up",
@@ -321,7 +321,7 @@ export function useBookings(weekStart, dogsById, humansById) {
         addons: updatedBooking.addons || [],
         pickup_by_id: pickupHumanId || null,
         payment: updatedBooking.payment || "Due at Pick-up",
-        status: updatedBooking.status || "Not Arrived",
+        status: updatedBooking.status || "No-show",
         confirmed: updatedBooking.confirmed ?? false,
       };
 

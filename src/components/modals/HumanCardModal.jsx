@@ -77,7 +77,7 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
               className="font-semibold text-[11px]"
               style={{
                 color:
-                  booking.status === "Completed"
+                  booking.status === "Ready for pick-up"
                     ? "#16A34A"
                     : "#6B7280",
               }}

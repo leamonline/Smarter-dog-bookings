@@ -131,7 +131,7 @@ export function AddBookingForm({
       size,
       service,
       owner: ownerName,
-      status: prefill?.status || "Not Arrived",
+      status: prefill?.status || "No-show",
       addons: prefill?.addons || [],
       pickupBy: prefill?.pickupBy || ownerName,
       payment: prefill?.payment || "Due at Pick-up",

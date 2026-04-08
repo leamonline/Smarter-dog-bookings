@@ -1,22 +1,17 @@
-import { BOOKING_STATUSES, NO_SHOW_STATUS } from "../../../constants/index.js";
+import { BOOKING_STATUSES } from "../../../constants/index.js";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
-  const currentStatus = booking.status || "Not Arrived";
-
-  // Build the display list: normal flow + optional No Show entry
-  const statuses = currentStatus === NO_SHOW_STATUS.id
-    ? [...BOOKING_STATUSES, NO_SHOW_STATUS]
-    : BOOKING_STATUSES;
+  const currentStatus = booking.status || "No-show";
 
   return (
     <div className="mb-4">
       <div className="flex gap-1.5 flex-wrap justify-center">
-        {statuses.map((status) => {
+        {BOOKING_STATUSES.map((status) => {
           const isActive = currentStatus === status.id;
-          const currentIdx = statuses.findIndex(
+          const currentIdx = BOOKING_STATUSES.findIndex(
             (st) => st.id === currentStatus,
           );
-          const thisIdx = statuses.findIndex(
+          const thisIdx = BOOKING_STATUSES.findIndex(
             (st) => st.id === status.id,
           );
           const isPast = thisIdx < currentIdx;
@@ -26,9 +21,6 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
               key={status.id}
               onClick={async () => {
                 if (isActive) return;
-                if (status.id === NO_SHOW_STATUS.id) {
-                  if (!window.confirm(`Mark ${booking.dogName || "this booking"} as No Show?`)) return;
-                }
                 await onUpdate(
                   { ...booking, status: status.id },
                   currentDateStr,
@@ -59,29 +51,6 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
             </button>
           );
         })}
-
-        {/* No Show button — only offered when still Not Arrived */}
-        {currentStatus === "Not Arrived" && (
-          <button
-            onClick={async () => {
-              if (!window.confirm(`Mark ${booking.dogName || "this booking"} as No Show?`)) return;
-              await onUpdate(
-                { ...booking, status: NO_SHOW_STATUS.id },
-                currentDateStr,
-                currentDateStr,
-              );
-            }}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold font-inherit transition-all"
-            style={{
-              cursor: "pointer",
-              background: NO_SHOW_STATUS.bg,
-              color: NO_SHOW_STATUS.color,
-              border: `1px dashed ${NO_SHOW_STATUS.color}`,
-            }}
-          >
-            ✗ No Show
-          </button>
-        )}
       </div>
     </div>
   );

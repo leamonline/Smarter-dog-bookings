@@ -83,7 +83,7 @@ export function AppToolbar({
   return (
     <>
       {/* ── Desktop top bar (md+) + Mobile slim top bar ── */}
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex items-center gap-4 pb-3 border-b border-slate-200/60">
         {/* Logo */}
         <div
           className="shrink-0 cursor-pointer"

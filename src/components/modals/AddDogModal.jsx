@@ -1,6 +1,13 @@
 import { useState, useMemo } from "react";
-import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index.js";
+import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
+
+const SORTED_BREEDS = [
+  ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
+  ...BREED_LIST.medium.map(b => ({ name: b, size: "medium" })),
+  ...BREED_LIST.large.map(b => ({ name: b, size: "large" })),
+].sort((a, b) => a.name.localeCompare(b.name));
 
 function titleCase(str) {
   if (!str) return "";
@@ -10,6 +17,8 @@ function titleCase(str) {
 export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
+  const [customBreed, setCustomBreed] = useState("");
+  const isOtherBreed = breed === "__other__";
   const [dobMonth, setDobMonth] = useState("");
   const [dobYear, setDobYear] = useState("");
   const [size, setSize] = useState("");
@@ -17,7 +26,11 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [sizeOverridden, setSizeOverridden] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState("");
   const [selectedOwner, setSelectedOwner] = useState(null); // { id, label, phone }
+  const [gender, setGender] = useState("");
   const [groomNotes, setGroomNotes] = useState("");
+  const [alerts, setAlerts] = useState([]);
+  const [hasAllergy, setHasAllergy] = useState(false);
+  const [allergyInput, setAllergyInput] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,12 +58,13 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !breed.trim()) {
+    const finalBreed = isOtherBreed ? customBreed.trim() : breed.trim();
+    if (!name.trim() || !finalBreed) {
       setError("Dog name and breed are required.");
       return;
     }
     if (!size) {
-      setError("This breed isn't recognised — please select a size manually.");
+      setError("Please select a size.");
       return;
     }
 
@@ -90,14 +104,21 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
     const dob = dobMonth && dobYear ? `${dobYear}-${dobMonth}` : "";
 
+    const finalAlerts = [...alerts];
+    if (hasAllergy && allergyInput.trim()) {
+      finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
+    }
+
     const result = await onAdd({
       name: name.trim(),
-      breed: breed.trim(),
+      breed: finalBreed,
       age: "",
       dob,
       size,
+      gender: gender || undefined,
       humanId: ownerId,
       groomNotes: groomNotes.trim(),
+      alerts: finalAlerts.length > 0 ? finalAlerts : undefined,
     });
     setSubmitting(false);
     if (result) {
@@ -124,7 +145,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
-          {/* Name & Breed */}
+          {/* Name, Gender & Breed */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Dog Name *</label>
@@ -134,46 +155,43 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 autoFocus />
             </div>
             <div>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Gender</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+          </div>
+          {/* Breed & Size */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
               <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Breed *</label>
-              <input value={breed} onChange={(e) => {
+              <select value={breed} onChange={(e) => {
                 const val = e.target.value;
                 setBreed(val);
                 setError("");
-                const detected = getSizeForBreed(val);
-                if (detected && !sizeOverridden) {
-                  setSize(detected);
-                  setSizeAutoSet(true);
-                } else if (!detected) {
-                  if (sizeAutoSet && !sizeOverridden) {
-                    setSize("");
-                    setSizeAutoSet(false);
-                  }
+                if (val === "__other__") {
+                  if (!sizeOverridden) { setSize(""); setSizeAutoSet(false); }
+                } else {
+                  const detected = getSizeForBreed(val);
+                  if (detected && !sizeOverridden) { setSize(detected); setSizeAutoSet(true); }
                 }
-              }} placeholder="Cockapoo"
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
-            </div>
-          </div>
-
-          {/* DOB & Size */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Date of Birth</label>
-              <div className="flex gap-1.5">
-                <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
-                  className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
-                  <option value="">Month</option>
-                  {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-                    <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
-                  ))}
-                </select>
-                <select value={dobYear} onChange={(e) => setDobYear(e.target.value)}
-                  className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
-                  <option value="">Year</option>
-                  {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                    <option key={y} value={String(y)}>{y}</option>
-                  ))}
-                </select>
-              </div>
+              }}
+              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+                <option value="">Select breed</option>
+                {SORTED_BREEDS.map(b => (
+                  <option key={b.name} value={b.name}>{b.name}</option>
+                ))}
+                <option value="__other__">Other</option>
+              </select>
+              {isOtherBreed && (
+                <input value={customBreed} onChange={(e) => { setCustomBreed(e.target.value); setError(""); }}
+                  placeholder="Enter breed..."
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                  autoFocus />
+              )}
             </div>
             <div>
               <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">
@@ -198,6 +216,27 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
+              </select>
+            </div>
+          </div>
+
+          {/* DOB */}
+          <div>
+            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Date of Birth</label>
+            <div className="flex gap-1.5">
+              <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
+                className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+                <option value="">Month</option>
+                {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
+                  <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                ))}
+              </select>
+              <select value={dobYear} onChange={(e) => setDobYear(e.target.value)}
+                className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+                <option value="">Year</option>
+                {Array.from({ length: 26 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -292,6 +331,55 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
             <textarea value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
               placeholder="Teddy bear cut, short on ears..." rows={2}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
+          </div>
+
+          {/* Alerts */}
+          <div>
+            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Alerts</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ALERT_OPTIONS.map((opt) => {
+                const active = alerts.includes(opt.label);
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => {
+                      if (active) setAlerts(alerts.filter((a) => a !== opt.label));
+                      else setAlerts([...alerts, opt.label]);
+                    }}
+                    className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
+                    style={{
+                      background: active ? opt.color : "#FFFFFF",
+                      color: active ? "#FFFFFF" : opt.color,
+                      border: `1.5px solid ${opt.color}`,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setHasAllergy(!hasAllergy)}
+                className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
+                style={{
+                  background: hasAllergy ? "#E8567F" : "#FFFFFF",
+                  color: hasAllergy ? "#FFFFFF" : "#E8567F",
+                  border: "1.5px solid #E8567F",
+                }}
+              >
+                Allergy
+              </button>
+            </div>
+            {hasAllergy && (
+              <input
+                type="text"
+                placeholder="Allergic to..."
+                value={allergyInput}
+                onChange={(e) => setAllergyInput(e.target.value)}
+                className="w-full mt-1.5 px-3.5 py-2.5 rounded-lg border-[1.5px] border-brand-coral text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-coral"
+              />
+            )}
           </div>
 
           {error && (

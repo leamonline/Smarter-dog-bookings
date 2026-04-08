@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { getSizeForBreed } from "../../../constants/breeds.js";
+import { getSizeForBreed, BREED_LIST } from "../../../constants/breeds.js";
 import type { DogSize } from "../../../types/index.js";
+
+const SORTED_BREEDS = [
+  ...BREED_LIST.small.map((b: string) => ({ name: b, size: "small" })),
+  ...BREED_LIST.medium.map((b: string) => ({ name: b, size: "medium" })),
+  ...BREED_LIST.large.map((b: string) => ({ name: b, size: "large" })),
+].sort((a, b) => a.name.localeCompare(b.name));
 
 interface AddDogInlineProps {
   humanId: string;
@@ -12,14 +18,20 @@ interface AddDogInlineProps {
 export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProps) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
+  const [customBreed, setCustomBreed] = useState("");
+  const isOtherBreed = breed === "__other__";
   const [size, setSize] = useState<DogSize | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleBreedChange = (value: string) => {
+  const handleBreedSelect = (value: string) => {
     setBreed(value);
-    const detected = getSizeForBreed(value);
-    if (detected) setSize(detected as DogSize);
+    if (value === "__other__") {
+      setSize(null);
+    } else {
+      const detected = getSizeForBreed(value);
+      if (detected) setSize(detected as DogSize);
+    }
   };
 
   const handleSave = async () => {
@@ -29,13 +41,14 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
     try {
       if (!supabase) throw new Error("Not connected");
 
-      const dogSize = size || getSizeForBreed(breed) as DogSize || null;
+      const finalBreed = isOtherBreed ? customBreed.trim() : breed.trim();
+      const dogSize = size || getSizeForBreed(finalBreed) as DogSize || null;
 
       const { data, error: err } = await supabase
         .from("dogs")
         .insert({
           name: name.trim(),
-          breed: breed.trim() || null,
+          breed: finalBreed || null,
           size: dogSize,
           human_id: humanId,
         })
@@ -46,7 +59,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         if (err.message?.includes("row-level security")) {
           const { data: rpcData, error: rpcErr } = await supabase.rpc("demo_add_dog", {
             p_name: name.trim(),
-            p_breed: breed.trim() || "",
+            p_breed: finalBreed || "",
             p_size: dogSize || "medium",
             p_human_id: humanId,
           });
@@ -88,25 +101,33 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
 
       <div className="flex flex-col gap-1">
         <label className="text-[13px] text-slate-800 font-semibold">Breed</label>
-        <input
-          type="text"
+        <select
           value={breed}
-          onChange={(e) => handleBreedChange(e.target.value)}
-          placeholder="e.g. Cockapoo"
-          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
-        />
-        {breed && getSizeForBreed(breed) && (
+          onChange={(e) => handleBreedSelect(e.target.value)}
+          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800 cursor-pointer"
+        >
+          <option value="">Select breed</option>
+          {SORTED_BREEDS.map(b => (
+            <option key={b.name} value={b.name}>{b.name}</option>
+          ))}
+          <option value="__other__">Other</option>
+        </select>
+        {isOtherBreed && (
+          <input
+            type="text"
+            value={customBreed}
+            onChange={(e) => setCustomBreed(e.target.value)}
+            placeholder="Enter breed..."
+            className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
+            autoFocus
+          />
+        )}
+        {breed && !isOtherBreed && getSizeForBreed(breed) && (
           <span className="text-xs text-brand-teal">
-            Auto-detected size: {getSizeForBreed(breed)}
+            Size auto-set: {getSizeForBreed(breed)}
           </span>
         )}
       </div>
-
-      {!getSizeForBreed(breed) && breed.trim() && (
-        <div className="text-xs text-slate-500">
-          We'll confirm {name.trim() || "your dog"}'s size when you visit — just enter the breed and we'll sort it.
-        </div>
-      )}
 
       {error && (
         <div className="text-brand-coral text-[13px]">{error}</div>

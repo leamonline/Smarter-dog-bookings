@@ -81,7 +81,7 @@ export function BookingActions({
           <IconBlock size={16} colour="#E8567F" /> Cancel
         </button>
       </div>
-      {booking.status === "Completed" && onRebook && (
+      {booking.status === "Ready for pick-up" && onRebook && (
         <button
           onClick={() => {
             onRebook(booking);

@@ -264,7 +264,7 @@ export function dbBookingsToArray(
       size: row.size as Booking["size"],
       service: row.service as Booking["service"],
       owner: ownerHuman?.fullName || "Unknown",
-      status: (row.status || "Not Arrived") as Booking["status"],
+      status: (row.status || "No-show") as Booking["status"],
       addons: row.addons || [],
       pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || "",
       payment: row.payment || "Due at Pick-up",

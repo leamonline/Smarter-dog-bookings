@@ -41,7 +41,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   }, [dogId, fetchBookingHistoryForDog]);
 
   const completed = useMemo(
-    () => history.filter((b) => b.status === "Completed"),
+    () => history.filter((b) => b.status === "Ready for pick-up"),
     [history],
   );
 
@@ -159,7 +159,7 @@ function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
                   <span
                     className="font-semibold text-[11px]"
                     style={{
-                      color: b.status === "Completed" ? "#16A34A" : undefined,
+                      color: b.status === "Ready for pick-up" ? "#16A34A" : undefined,
                     }}
                   >
                     {b.status}
@@ -269,6 +269,7 @@ export function DogCardModal({
   const [ownerSearchQuery, setOwnerSearchQuery] = useState("");
   const [showOwnerSearch, setShowOwnerSearch] = useState(false);
   const [editNotes, setEditNotes] = useState(resolvedDog.groomNotes || "");
+  const [editPrice, setEditPrice] = useState(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
   const [editAlerts, setEditAlerts] = useState([...(resolvedDog.alerts || [])]);
 
   const [allergyInput, setAllergyInput] = useState(() => {
@@ -424,6 +425,8 @@ export function DogCardModal({
       updates.age = calcAge(composedDob) || "";
     }
     if (editOwnerId !== ownerOpenValue) updates.humanId = editOwnerId;
+    const priceNum = editPrice.trim() ? Number(editPrice) : undefined;
+    if (priceNum !== resolvedDog.customPrice) updates.customPrice = priceNum;
 
     await onUpdateDog(resolvedDog.id || resolvedDog.name, updates);
     setIsEditing(false);
@@ -438,6 +441,7 @@ export function DogCardModal({
     setOwnerSearchQuery("");
     setShowOwnerSearch(false);
     setEditNotes(resolvedDog.groomNotes || "");
+    setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
     setEditAlerts([...(resolvedDog.alerts || [])]);
     const allergy = (resolvedDog.alerts || []).find((a) =>
       a.startsWith("Allergic to "),
@@ -736,6 +740,26 @@ export function DogCardModal({
               </>
             )
           )}
+
+          {/* Price */}
+          {isEditing ? (
+            <div className="py-2 border-b border-slate-200">
+              <div className={`${sectionLabelCls} mb-1.5`} style={{ color: sizeAccent }}>
+                Price (£)
+              </div>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+                placeholder="e.g. 42"
+                className={`${inputCls} w-[120px]`}
+              />
+            </div>
+          ) : (
+            detailRow("Price", resolvedDog.customPrice != null ? `£${resolvedDog.customPrice}` : null)
+          )}
         </div>
 
         {/* Trusted Humans */}
@@ -982,7 +1006,7 @@ export function DogCardModal({
                 ownerName: owner
                   ? `${owner.first_name || owner.name || ""} ${owner.last_name || owner.surname || ""}`.trim()
                   : "",
-                status: "Not Arrived",
+                status: "No-show",
                 chain_id: chainId,
               }, link.dateStr);
             }

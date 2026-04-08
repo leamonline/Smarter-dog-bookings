@@ -26,7 +26,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
   if (loading && waitlist.length === 0) return null;
 
   return (
-    <div className="border-t border-slate-200 bg-[#FFFBF2] p-4 flex flex-col gap-3">
+    <div className="mt-3 bg-[#FFFBF2] border border-[#F5E6C8] rounded-[14px] p-4 flex flex-col gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
       <div className="flex justify-between items-center">
         <div className="text-[13px] font-extrabold text-slate-800 uppercase tracking-wide">
           Waitlist ({waitlist.length})

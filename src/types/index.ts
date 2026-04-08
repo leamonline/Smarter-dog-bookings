@@ -13,11 +13,9 @@ export interface Service {
 }
 
 export type BookingStatusId =
-  | "Not Arrived"
-  | "Checked In"
-  | "In the Bath"
-  | "Ready for Pick-up"
-  | "Completed";
+  | "No-show"
+  | "Checked in"
+  | "Ready for pick-up";
 
 export interface BookingStatus {
   id: BookingStatusId;
