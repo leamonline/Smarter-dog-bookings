@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK, NO_SHOW_STATUS } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import {
   getDogByIdOrName,
@@ -70,6 +70,16 @@ export function BookingCard({ booking }) {
 
     await onUpdate(
       { ...booking, status: nextStatus.id },
+      currentDateStr,
+      currentDateStr,
+    );
+  };
+
+  const handleNoShow = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Mark ${booking.dogName} as a No Show?`)) return;
+    await onUpdate(
+      { ...booking, status: NO_SHOW_STATUS.id },
       currentDateStr,
       currentDateStr,
     );
@@ -156,7 +166,22 @@ export function BookingCard({ booking }) {
             </button>
           )}
 
-          {!nextStatus && (
+          {currentStatus === "Not Arrived" && (
+            <button
+              onClick={handleNoShow}
+              title="Mark as No Show"
+              className="rounded-md py-[3px] px-2 text-[10px] font-bold cursor-pointer font-[inherit] whitespace-nowrap transition-all hover:opacity-80"
+              style={{
+                background: NO_SHOW_STATUS.bg,
+                color: NO_SHOW_STATUS.color,
+                border: `1px solid ${NO_SHOW_STATUS.color}`,
+              }}
+            >
+              ✗ No Show
+            </button>
+          )}
+
+          {!nextStatus && currentStatus !== "Not Arrived" && (
             <span
               className="text-[10px] font-bold py-[3px] px-2 rounded-md"
               style={{

@@ -20,6 +20,7 @@ import { useModalState } from "./hooks/useModalState.js";
 import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
@@ -314,6 +315,7 @@ export default function App() {
         onOpenDog={setSelectedDogId}
         onRebook={handleOpenRebook}
       >
+        <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
           {activeView === "settings" ? (
             <SettingsView
@@ -387,8 +389,10 @@ export default function App() {
             />
           )}
         </Suspense>
+        </ErrorBoundary>
 
         {selectedHumanId && (
+          <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner />}>
             <HumanCardModal
               humanId={selectedHumanId}
@@ -402,9 +406,11 @@ export default function App() {
               bookingsByDate={bookingsByDate}
             />
           </Suspense>
+          </ErrorBoundary>
         )}
 
         {selectedDogId && (
+          <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner />}>
             <DogCardModal
               dogId={selectedDogId}
@@ -420,6 +426,7 @@ export default function App() {
               handleAdd={handleAdd}
             />
           </Suspense>
+          </ErrorBoundary>
         )}
 
         {showNewBooking && (

@@ -12,6 +12,10 @@ const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
+// The salon's own alert destination — set to owner's email or WhatsApp
+const SALON_ALERT_EMAIL = Deno.env.get("SALON_ALERT_EMAIL");
+const SALON_ALERT_WHATSAPP = Deno.env.get("SALON_ALERT_WHATSAPP");
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
@@ -68,96 +72,93 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    const booking = payload.old_record;
+    const entry = payload.record;
 
-    if (!booking) {
-      return new Response("No old_record in payload", { status: 400 });
+    if (!entry) {
+      return new Response("No record in payload", { status: 400 });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Look up the dog
-    const { data: dog, error: dogError } = await supabase
-      .from("dogs")
-      .select("id, name, human_id")
-      .eq("id", booking.dog_id)
-      .single();
-
-    if (dogError || !dog) {
-      return new Response(`Dog lookup failed: ${dogError?.message}`, { status: 500 });
-    }
-
-    // 2. Look up the customer
+    // 1. Look up the human who joined the waitlist
     const { data: human, error: humanError } = await supabase
       .from("humans")
-      .select("id, name, phone, whatsapp, sms, email")
-      .eq("id", dog.human_id)
+      .select("id, name, surname, phone")
+      .eq("id", entry.human_id)
       .single();
 
     if (humanError || !human) {
       return new Response(`Human lookup failed: ${humanError?.message}`, { status: 500 });
     }
 
-    // 3. Build the cancellation message
-    //    We can't tell from the webhook payload whether this was customer- or
-    //    staff-initiated, so we use the default customer-initiated tone.
-    const firstName = human.name.split(" ")[0];
-    const dogName = dog.name;
-    const dateFormatted = formatDate(booking.booking_date);
+    // 2. Look up their dogs
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("name")
+      .eq("human_id", human.id)
+      .order("name");
 
-    const message = [
-      `Hi ${firstName},`,
-      "",
-      `We've cancelled your appointment for ${dogName} on ${dateFormatted}. You can rebook anytime through your account.`,
-      "",
-      "If you have any questions, don't hesitate to get in touch — we're always happy to help. 🐾",
-      "",
-      "Smarter Dog Grooming",
+    const dogNames = dogs && dogs.length > 0
+      ? dogs.map((d: { name: string }) => d.name).join(", ")
+      : "no dogs on file";
+
+    const humanName = `${human.name} ${human.surname || ""}`.trim();
+    const dateFormatted = formatDate(entry.target_date);
+
+    // 3. Build staff alert message
+    const alertMessage = [
+      `📋 Waitlist Alert — Smarter Dog`,
+      ``,
+      `${humanName} (${human.phone || "no phone"}) has joined the waitlist for ${dateFormatted}.`,
+      ``,
+      `Dogs: ${dogNames}`,
+      ``,
+      `Log in to the dashboard to manage the waitlist.`,
     ].join("\n");
 
-    // 4. Send via preferred channel
-    let channel: "whatsapp" | "sms" | "email";
+    // 4. Send staff alert via WhatsApp or email
+    let channel: "whatsapp" | "email" | "none" = "none";
     let sent = false;
 
-    if (human.whatsapp && human.phone) {
-      channel = "whatsapp";
-      const to = `whatsapp:${human.phone}`;
+    if (SALON_ALERT_WHATSAPP) {
+      const to = `whatsapp:${SALON_ALERT_WHATSAPP}`;
       const from = `whatsapp:${TWILIO_WHATSAPP_FROM}`;
-      sent = await sendTwilio(to, from, message);
-    } else if (human.sms && human.phone) {
-      channel = "sms";
-      sent = await sendTwilio(human.phone, TWILIO_SMS_FROM, message);
-    } else if (human.email) {
+      sent = await sendTwilio(to, from, alertMessage);
+      channel = "whatsapp";
+    } else if (SALON_ALERT_EMAIL) {
+      const subject = `Waitlist joined — ${humanName} for ${dateFormatted}`;
+      sent = await sendEmail(SALON_ALERT_EMAIL, subject, alertMessage);
       channel = "email";
-      const subject = `Your ${dogName} appointment has been cancelled`;
-      sent = await sendEmail(human.email, subject, message);
     } else {
-      return new Response("No contact method available for this customer", { status: 200 });
+      // No alert destination configured — log a warning but don't fail
+      console.warn("notify-waitlist-joined: No SALON_ALERT_EMAIL or SALON_ALERT_WHATSAPP configured. Skipping alert.");
+      return new Response(
+        JSON.stringify({ skipped: true, reason: "No salon alert destination configured" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }
 
-    // 5. Log to notification_log
-    //    booking_id will be null because the row has been deleted — that's fine,
-    //    the column is nullable (ON DELETE SET NULL).
+    // 5. Log the result in notification_log
     await supabase.from("notification_log").insert({
       booking_id: null,
-      group_id: booking.group_id ?? null,
+      group_id: null,
       human_id: human.id,
       channel,
-      trigger_type: "cancelled",
+      trigger_type: "waitlist_joined",
       status: sent ? "sent" : "failed",
-      error_message: sent ? null : "Delivery failed — check provider logs",
+      error_message: sent ? null : "Staff alert delivery failed — check provider logs",
       sent_at: sent ? new Date().toISOString() : null,
     });
 
     return new Response(
-      JSON.stringify({ success: sent, channel, dogName }),
+      JSON.stringify({ success: sent, channel, humanName, targetDate: entry.target_date }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
       },
     );
   } catch (err) {
-    console.error("notify-booking-cancelled error:", err);
+    console.error("notify-waitlist-joined error:", err);
     return new Response(
       JSON.stringify({ error: String(err) }),
       { status: 500, headers: { "Content-Type": "application/json" } },

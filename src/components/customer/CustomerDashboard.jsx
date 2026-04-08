@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -49,6 +49,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pastExpanded, setPastExpanded] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [olderBookings, setOlderBookings] = useState([]);
+  const [hasMorePast, setHasMorePast] = useState(false);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -77,7 +81,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       const dogIds = (dogRows || []).map(d => d.id);
       if (dogIds.length > 0) {
         const pastDate = new Date();
-        pastDate.setDate(pastDate.getDate() - 60);
+        pastDate.setDate(pastDate.getDate() - 180); // 6 months
         const pastStr = toDateStr(pastDate);
 
         const { data: bookingRows } = await supabase
@@ -88,6 +92,14 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           .order("booking_date", { ascending: false })
           .order("slot", { ascending: false });
         setBookings(bookingRows || []);
+
+        // Check if there's anything older (beyond 6 months)
+        const { count } = await supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .in("dog_id", dogIds)
+          .lt("booking_date", pastStr);
+        setHasMorePast((count || 0) > 0);
       }
 
       const { data: trustedLinks } = await supabase
@@ -187,7 +199,38 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     }
   }, [dogs, bookings]);
 
+  const handleLoadMore = useCallback(async () => {
+    if (!supabase) return;
+    const dogIds = dogs.map(d => d.id);
+    if (dogIds.length === 0) return;
+    setLoadingMore(true);
+    const alreadyLoaded = [...bookings, ...olderBookings];
+    const oldestDate = alreadyLoaded.reduce((min, b) => b.booking_date < min ? b.booking_date : min, alreadyLoaded[0]?.booking_date || toDateStr(new Date()));
+    const { data: moreRows } = await supabase
+      .from("bookings")
+      .select("*, dogs(name, breed, size)")
+      .in("dog_id", dogIds)
+      .lt("booking_date", oldestDate)
+      .order("booking_date", { ascending: false })
+      .order("slot", { ascending: false })
+      .limit(20);
+    setOlderBookings(prev => [...prev, ...(moreRows || [])]);
+    if (!moreRows || moreRows.length < 20) setHasMorePast(false);
+    setLoadingMore(false);
+  }, [dogs, bookings, olderBookings]);
+
   const today = toDateStr(new Date());
+
+  const upcomingBookings = useMemo(() =>
+    bookings.filter(b => b.booking_date >= today).sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.slot.localeCompare(b.slot)),
+    [bookings, today]
+  );
+
+  const pastBookings = useMemo(() =>
+    [...bookings.filter(b => b.booking_date < today), ...olderBookings]
+      .sort((a, b) => b.booking_date.localeCompare(a.booking_date) || b.slot.localeCompare(a.slot)),
+    [bookings, olderBookings, today]
+  );
 
   if (loading) {
     return (
@@ -373,32 +416,29 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           </div>
         </div>
 
-        {/* RECENT BOOKINGS */}
+        {/* UPCOMING BOOKINGS */}
         <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">Recent Bookings</div>
-          {bookings.length === 0 ? (
+          <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2.5">Upcoming Appointments</div>
+          {upcomingBookings.length === 0 ? (
             <div className="text-center py-4">
               <div className="text-[28px] mb-1.5">{"\uD83D\uDC3E"}</div>
-              <div className="text-sm font-bold text-slate-800 mb-0.5">No bookings yet</div>
-              <div className="text-[13px] text-slate-500">Give the salon a call to book your first appointment!</div>
+              <div className="text-sm font-bold text-slate-800 mb-0.5">No upcoming appointments</div>
+              <div className="text-[13px] text-slate-500">Book your next groom using the button above!</div>
             </div>
           ) : (
-            bookings.slice(0, 10).map(b => {
+            upcomingBookings.map(b => {
               const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Not Arrived"];
-              const isFuture = b.booking_date >= today;
-              const canCancel = isFuture && b.status === "Not Arrived";
+              const canCancel = b.status === "Not Arrived";
 
               return (
-                <div key={b.id} className={`py-3 border-b border-slate-200 ${isFuture ? "opacity-100" : "opacity-70"}`}>
+                <div key={b.id} className="py-3 border-b border-slate-200">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm font-semibold text-slate-800">
                           {formatDate(b.booking_date)}
                         </span>
-                        {isFuture && (
-                          <span className="text-[10px] font-bold py-0.5 px-1.5 rounded bg-emerald-50 text-brand-teal">UPCOMING</span>
-                        )}
+                        <span className="text-[10px] font-bold py-0.5 px-1.5 rounded bg-emerald-50 text-brand-teal">UPCOMING</span>
                       </div>
                       <div className="text-sm text-slate-800 mt-0.5">
                         {b.dogs?.name || "Unknown"}{" "}
@@ -420,6 +460,54 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                 </div>
               );
             })
+          )}
+        </div>
+
+        {/* PAST BOOKINGS */}
+        <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <button
+            onClick={() => setPastExpanded(p => !p)}
+            className="w-full flex justify-between items-center bg-transparent border-none cursor-pointer p-0 font-[inherit] mb-1"
+          >
+            <div className="font-extrabold text-xs text-brand-teal uppercase tracking-wide">Past Appointments ({pastBookings.length})</div>
+            <span className="text-slate-400 text-sm">{pastExpanded ? "▲ Hide" : "▼ Show"}</span>
+          </button>
+
+          {pastExpanded && (
+            <>
+              {pastBookings.length === 0 ? (
+                <div className="text-sm text-slate-500 italic py-2">No past appointments yet.</div>
+              ) : (
+                pastBookings.map(b => {
+                  const sc = STATUS_COLOURS[b.status] || STATUS_COLOURS["Completed"];
+                  return (
+                    <div key={b.id} className="py-3 border-b border-slate-200 opacity-70">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-slate-800">{formatDate(b.booking_date)}</div>
+                          <div className="text-sm text-slate-800 mt-0.5">
+                            {b.dogs?.name || "Unknown"}{" "}
+                            <span className="text-slate-500">{SERVICE_ICONS[b.service] || ""} {SERVICE_LABELS[b.service] || b.service}</span>
+                          </div>
+                          {b.slot && <div className="text-xs text-slate-500 mt-0.5">{formatSlot(b.slot)}</div>}
+                        </div>
+                        <span className={`text-[11px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap ${sc.bg} ${sc.text}`}>{b.status}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {hasMorePast && (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full mt-3 py-2 rounded-lg border border-slate-200 bg-transparent text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit]"
+                >
+                  {loadingMore ? "Loading..." : "Load more past appointments"}
+                </button>
+              )}
+            </>
           )}
         </div>
 

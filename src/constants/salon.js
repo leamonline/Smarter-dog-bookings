@@ -51,6 +51,9 @@ export const BOOKING_STATUSES = [
   { id: "Completed", label: "Completed", color: "#1F2937", bg: "#F3F4F6" },
 ];
 
+/** No-show: a dead-end status that can be set from "Not Arrived" only */
+export const NO_SHOW_STATUS = { id: "No Show", label: "No Show", color: "#6B7280", bg: "#F3F4F6" };
+
 export const ALERT_OPTIONS = [
   { label: "Bites / Nips", color: "#E8567F" },
   { label: "Reactive to dogs", color: "#E8567F" },
