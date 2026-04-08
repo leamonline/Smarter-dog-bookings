@@ -1,0 +1,129 @@
+<h2>Phase 3 — Architecture Overview</h2>
+<p class="subtitle">How the four workstreams fit together</p>
+
+<div class="section">
+  <h3>Component Architecture (after decomposition)</h3>
+  <div class="mockup">
+    <div class="mockup-header">BookingDetailModal — from 850 → ~350 lines</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.8; padding: 20px;">
+      <div style="color: #7c3aed; font-weight: bold; margin-bottom: 12px;">BookingDetailModal.jsx (orchestrator ~350 lines)</div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="background: #ede9fe; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #5b21b6; margin-bottom: 4px;">Hooks</div>
+          <div style="color: #6b7280;">useBookingEditState</div>
+          <div style="color: #6b7280;">useSlotAvailability</div>
+          <div style="color: #6b7280;">useBookingSave</div>
+        </div>
+        <div style="background: #dbeafe; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #1e40af; margin-bottom: 4px;">Existing Components</div>
+          <div style="color: #6b7280;">BookingHeader</div>
+          <div style="color: #6b7280;">BookingStatusBar</div>
+          <div style="color: #6b7280;">BookingAlerts</div>
+          <div style="color: #6b7280;">BookingActions</div>
+          <div style="color: #6b7280;">ExitConfirmDialog</div>
+        </div>
+        <div style="background: #d1fae5; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #065f46; margin-bottom: 4px;">New Components</div>
+          <div style="color: #059669;">LogisticsSection</div>
+          <div style="color: #059669;">FinanceSection</div>
+          <div style="color: #059669;">SlotSelector</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Accessibility Layer</h3>
+  <div class="mockup">
+    <div class="mockup-header">React Aria integration pattern</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.8; padding: 20px;">
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="background: #fef3c7; border-radius: 8px; padding: 12px; flex: 1; min-width: 200px;">
+          <div style="font-weight: bold; color: #92400e; margin-bottom: 8px;">AccessibleModal (shared wrapper)</div>
+          <div style="color: #78716c; font-size: 12px;">• useDialog + FocusScope</div>
+          <div style="color: #78716c; font-size: 12px;">• role="dialog", aria-modal</div>
+          <div style="color: #78716c; font-size: 12px;">• Focus trap + restore</div>
+          <div style="color: #78716c; font-size: 12px;">• Scroll lock</div>
+          <div style="color: #78716c; font-size: 12px;">• Escape to close</div>
+        </div>
+        <div style="background: #fce7f3; border-radius: 8px; padding: 12px; flex: 1; min-width: 200px;">
+          <div style="font-weight: bold; color: #9d174d; margin-bottom: 8px;">Used by all 10 modals</div>
+          <div style="color: #78716c; font-size: 12px;">BookingDetailModal</div>
+          <div style="color: #78716c; font-size: 12px;">NewBookingModal</div>
+          <div style="color: #78716c; font-size: 12px;">AddHumanModal / AddDogModal</div>
+          <div style="color: #78716c; font-size: 12px;">ChainBookingModal</div>
+          <div style="color: #78716c; font-size: 12px;">DogCardModal / HumanCardModal</div>
+          <div style="color: #78716c; font-size: 12px;">ContactPopup / DatePickerModal</div>
+          <div style="color: #78716c; font-size: 12px;">ExitConfirmDialog</div>
+        </div>
+        <div style="background: #e0e7ff; border-radius: 8px; padding: 12px; flex: 1; min-width: 200px;">
+          <div style="font-weight: bold; color: #3730a3; margin-bottom: 8px;">Semantic HTML pass</div>
+          <div style="color: #78716c; font-size: 12px;">• Skip nav link</div>
+          <div style="color: #78716c; font-size: 12px;">• Landmark regions</div>
+          <div style="color: #78716c; font-size: 12px;">• Form labels</div>
+          <div style="color: #78716c; font-size: 12px;">• Icon aria-labels</div>
+          <div style="color: #78716c; font-size: 12px;">• aria-live for notifications</div>
+          <div style="color: #78716c; font-size: 12px;">• aria-current="date"</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Keyboard Shortcuts System</h3>
+  <div class="mockup">
+    <div class="mockup-header">Context-aware shortcut layers</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.8; padding: 20px;">
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="background: #ecfdf5; border: 2px solid #059669; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #065f46; margin-bottom: 8px;">Staff — Global</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">←</kbd> <kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">→</kbd> Prev/next day</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Shift+←</kbd> <kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Shift+→</kbd> Week</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">T</kbd> Today</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">N</kbd> New booking</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">/</kbd> Search</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">?</kbd> Help</div>
+        </div>
+        <div style="background: #fff7ed; border: 2px solid #ea580c; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #9a3412; margin-bottom: 8px;">Staff — Modal</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">E</kbd> Edit mode</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Cmd+S</kbd> Save</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Esc</kbd> Close</div>
+        </div>
+        <div style="background: #f0f9ff; border: 2px solid #0284c7; border-radius: 8px; padding: 12px; flex: 1; min-width: 180px;">
+          <div style="font-weight: bold; color: #075985; margin-bottom: 8px;">Customer</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Esc</kbd> Back/close</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Enter</kbd> Confirm/next</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">Tab</kbd> Navigate fields</div>
+          <div style="color: #374151;"><kbd style="background:#e5e7eb;padding:2px 6px;border-radius:3px;">?</kbd> Help</div>
+        </div>
+      </div>
+      <div style="margin-top: 16px; padding: 10px; background: #f9fafb; border-radius: 6px; color: #6b7280; font-size: 12px;">
+        <strong>useKeyboardShortcuts hook:</strong> suppressed in text inputs · modal-aware (global shortcuts disabled when modal open) · discoverable via ? overlay
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Staff UX</h3>
+  <div class="mockup">
+    <div class="mockup-header">AppToolbar — Today button placement</div>
+    <div class="mockup-body" style="padding: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; background: #1e293b; padding: 12px 20px; border-radius: 8px; color: white; font-size: 14px;">
+        <span style="font-weight: bold; color: #38bdf8;">🐾 Smarter Dog</span>
+        <span style="margin-left: auto;"></span>
+        <button style="background: #334155; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">◀</button>
+        <button style="background: #059669; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold;">Today</button>
+        <button style="background: #334155; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">▶</button>
+        <span style="color: #94a3b8; margin: 0 8px;">7 – 13 Apr 2026</span>
+        <button style="background: #334155; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">+ New</button>
+      </div>
+      <div style="margin-top: 12px; color: #6b7280; font-size: 12px;">
+        Today button sits between nav arrows · green when not on today's week · muted when already viewing today
+      </div>
+    </div>
+  </div>
+</div>
