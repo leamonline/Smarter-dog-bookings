@@ -3,6 +3,8 @@ import {
   BRAND,
   SERVICES,
   SALON_SLOTS,
+  SIZE_THEME,
+  SIZE_FALLBACK,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
 import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
@@ -22,7 +24,7 @@ import {
   DetailRow,
   LogisticsLabel,
   FinanceLabel,
-  modalInputStyle,
+  MODAL_INPUT_CLS,
 } from "./booking-detail/shared.jsx";
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
 import {
@@ -34,6 +36,12 @@ import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
 
 const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
+
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 function buildEditState(booking, dogData, currentDateObj) {
   const size = booking.size || dogData?.size || "small";
@@ -92,6 +100,8 @@ export function BookingDetailModal({
     () => getHumanByIdOrName(humans, booking._ownerId || booking.owner) || null,
     [humans, booking._ownerId, booking.owner],
   );
+
+  const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
 
   const trustedHumans = useMemo(() => {
     const trusted = primaryHuman?.trustedIds || [];
@@ -362,18 +372,20 @@ export function BookingDetailModal({
     const human = getHumanByIdOrName(humans, value);
     return {
       value: human?.id || value,
-      label:
+      label: titleCase(
         human?.fullName ||
         `${human?.name || ""} ${human?.surname || ""}`.trim() ||
-        value,
+        value
+      ),
     };
   });
 
-  const selectedPickupLabel =
+  const selectedPickupLabel = titleCase(
     getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
     editData.pickupBy ||
     booking.pickupBy ||
-    booking.owner;
+    booking.owner
+  );
 
   return (
     <div
@@ -434,7 +446,7 @@ export function BookingDetailModal({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Dog
               </span>
               <span
@@ -445,12 +457,12 @@ export function BookingDetailModal({
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: BRAND.teal,
+                  color: sizeTheme.primary,
                   cursor: "pointer",
-                  borderBottom: `1px dashed ${BRAND.teal}`,
+                  borderBottom: `1px dashed ${sizeTheme.primary}`,
                 }}
               >
-                {booking.dogName}
+                {titleCase(booking.dogName)}
               </span>
             </div>
           </div>
@@ -463,7 +475,7 @@ export function BookingDetailModal({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Breed
               </span>
               <span
@@ -474,12 +486,12 @@ export function BookingDetailModal({
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: BRAND.teal,
+                  color: sizeTheme.primary,
                   cursor: "pointer",
-                  borderBottom: `1px dashed ${BRAND.teal}`,
+                  borderBottom: `1px dashed ${sizeTheme.primary}`,
                 }}
               >
-                {booking.breed || dogData?.breed || "—"}
+                {titleCase(booking.breed || dogData?.breed) || "—"}
               </span>
             </div>
           </div>
@@ -492,7 +504,7 @@ export function BookingDetailModal({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Human
               </span>
               <span
@@ -510,7 +522,7 @@ export function BookingDetailModal({
                   borderBottom: `1px dashed ${BRAND.teal}`,
                 }}
               >
-                {booking.owner}
+                {titleCase(booking.owner)}
               </span>
             </div>
           </div>
@@ -543,12 +555,8 @@ export function BookingDetailModal({
                     groomNotes: e.target.value,
                   }))
                 }
-                style={{
-                  ...modalInputStyle,
-                  resize: "vertical",
-                  minHeight: 44,
-                  textAlign: "right",
-                }}
+                className={MODAL_INPUT_CLS}
+                style={{ resize: "vertical", minHeight: 44, textAlign: "right" }}
               />
             }
             isEditing={isEditing}
@@ -560,16 +568,7 @@ export function BookingDetailModal({
             editNode={
               <button
                 onClick={() => setShowDatePicker(true)}
-                style={{
-                  ...modalInputStyle,
-                  flex: 1,
-                  textAlign: "left",
-                  background: BRAND.white,
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
+                className={`${MODAL_INPUT_CLS} flex-1 text-left bg-white cursor-pointer flex justify-between items-center`}
               >
                 <span style={{ fontWeight: 600 }}>
                   {formatFullDate(editData.date)}
@@ -639,21 +638,21 @@ export function BookingDetailModal({
                           cursor: allowed ? "pointer" : "not-allowed",
                           background:
                             editData.slot === slot
-                              ? BRAND.blue
+                              ? sizeTheme.primary
                               : isStaffOpened
-                                ? BRAND.blueLight
+                                ? sizeTheme.light
                                 : BRAND.white,
                           color:
                             editData.slot === slot
-                              ? BRAND.white
+                              ? sizeTheme.headerText
                               : allowed
                                 ? BRAND.text
                                 : BRAND.textLight,
                           border: `1.5px solid ${
                             editData.slot === slot
-                              ? BRAND.blue
+                              ? sizeTheme.primary
                               : isStaffOpened
-                                ? BRAND.blue
+                                ? sizeTheme.primary
                                 : BRAND.greyLight
                           }`,
                           textAlign: "center",
@@ -701,7 +700,7 @@ export function BookingDetailModal({
                   }));
                   setSaveError("");
                 }}
-                style={modalInputStyle}
+                className={MODAL_INPUT_CLS}
               >
                 {allowedServices.map((service) => (
                   <option key={service.id} value={service.id}>
@@ -740,7 +739,7 @@ export function BookingDetailModal({
                     <input
                       type="checkbox"
                       style={{
-                        accentColor: BRAND.blue,
+                        accentColor: sizeTheme.primary,
                         width: 18,
                         height: 18,
                         cursor: "pointer",
@@ -775,7 +774,7 @@ export function BookingDetailModal({
 
           <DetailRow
             label={<LogisticsLabel text="Pick-up Human" />}
-            value={isEditing ? selectedPickupLabel : booking.pickupBy || booking.owner}
+            value={isEditing ? selectedPickupLabel : titleCase(booking.pickupBy || booking.owner)}
             editNode={
               <select
                 value={editData.pickupBy}
@@ -785,7 +784,7 @@ export function BookingDetailModal({
                     pickupBy: e.target.value,
                   }));
                 }}
-                style={modalInputStyle}
+                className={MODAL_INPUT_CLS}
               >
                 {pickupOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -815,7 +814,8 @@ export function BookingDetailModal({
                         customPrice: Number(e.target.value),
                       }))
                     }
-                    style={{ ...modalInputStyle, width: 80 }}
+                    className={MODAL_INPUT_CLS}
+                    style={{ width: 80 }}
                   />
                 </div>
               ) : (
@@ -837,7 +837,7 @@ export function BookingDetailModal({
                     payment: e.target.value,
                   }))
                 }
-                style={modalInputStyle}
+                className={MODAL_INPUT_CLS}
               >
                 <option value="Due at Pick-up">Due at Pick-up</option>
                 <option value="Deposit Paid">Deposit Paid</option>
@@ -905,6 +905,7 @@ export function BookingDetailModal({
           editData={editData}
           saving={saving}
           booking={booking}
+          sizeTheme={sizeTheme}
           onSave={handleSave}
           onCancelEdit={() => {
             resetEditState();

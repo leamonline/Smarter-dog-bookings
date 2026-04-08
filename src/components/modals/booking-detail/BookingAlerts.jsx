@@ -1,5 +1,5 @@
 import { BRAND, ALERT_OPTIONS } from "../../../constants/index.js";
-import { modalInputStyle } from "./shared.jsx";
+import { MODAL_INPUT_CLS } from "./shared.jsx";
 
 export function BookingAlerts({
   isEditing,
@@ -107,13 +107,12 @@ export function BookingAlerts({
               placeholder="What is the dog allergic to?"
               value={allergyInput}
               onChange={(e) => setAllergyInput(e.target.value)}
+              className={MODAL_INPUT_CLS}
               style={{
-                ...modalInputStyle,
                 textAlign: "center",
                 borderColor: BRAND.coral,
                 borderWidth: 2,
                 padding: "10px",
-                width: "100%",
               }}
             />
           </div>

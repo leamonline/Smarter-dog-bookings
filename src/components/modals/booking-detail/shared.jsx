@@ -1,28 +1,15 @@
-import { BRAND } from "../../../constants/index.js";
+/**
+ * Shared layout helpers for BookingDetailModal and sub-components.
+ * All styling uses Tailwind — no BRAND import needed.
+ */
 
-export const modalInputStyle = {
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: `1px solid ${BRAND.greyLight}`,
-  fontSize: 13,
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-  fontFamily: "inherit",
-  color: BRAND.text,
-};
+/** Tailwind class string equivalent of the old modalInputStyle object */
+export const MODAL_INPUT_CLS =
+  "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 export function LogisticsLabel({ text }) {
   return (
-    <span
-      style={{
-        color: BRAND.blueDark,
-        textTransform: "uppercase",
-        fontWeight: 800,
-        fontSize: 12,
-        letterSpacing: 0.5,
-      }}
-    >
+    <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
       {text}
     </span>
   );
@@ -30,15 +17,7 @@ export function LogisticsLabel({ text }) {
 
 export function FinanceLabel({ text }) {
   return (
-    <span
-      style={{
-        color: BRAND.openGreen,
-        textTransform: "uppercase",
-        fontWeight: 800,
-        fontSize: 12,
-        letterSpacing: 0.5,
-      }}
-    >
+    <span className="text-[12px] font-extrabold text-brand-green uppercase tracking-wide">
       {text}
     </span>
   );
@@ -52,58 +31,31 @@ export function DetailRow({
   isEditing,
 }) {
   return (
-    <div
-      style={{
-        padding: "10px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
+    <div className="py-2.5 border-b border-slate-200">
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems:
-            isEditing && editNode && !verticalEdit ? "center" : "flex-start",
-        }}
+        className={`flex justify-between ${
+          isEditing && editNode && !verticalEdit ? "items-center" : "items-start"
+        }`}
       >
         <span
-          style={{
-            fontSize: 13,
-            color: BRAND.textLight,
-            flexShrink: 0,
-            paddingRight: 12,
-            paddingTop: isEditing && editNode && !verticalEdit ? 0 : 2,
-          }}
+          className={`text-[13px] text-slate-500 shrink-0 pr-3 ${
+            isEditing && editNode && !verticalEdit ? "" : "pt-0.5"
+          }`}
         >
           {label}
         </span>
         {isEditing && editNode && !verticalEdit ? (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              justifyContent: "flex-end",
-              maxWidth: "65%",
-            }}
-          >
+          <div className="flex-1 flex justify-end max-w-[65%]">
             {editNode}
           </div>
         ) : (
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: BRAND.text,
-              textAlign: "right",
-              wordBreak: "break-word",
-            }}
-          >
+          <span className="text-[13px] font-semibold text-slate-800 text-right break-words">
             {value}
           </span>
         )}
       </div>
       {isEditing && editNode && verticalEdit && (
-        <div style={{ marginTop: 8 }}>{editNode}</div>
+        <div className="mt-2">{editNode}</div>
       )}
     </div>
   );
