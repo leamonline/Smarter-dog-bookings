@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import {
   SERVICES,
   SALON_SLOTS,
@@ -42,29 +43,6 @@ function titleCase(str) {
 }
 
 
-function buildEditState(booking, dogData, currentDateObj) {
-  const size = booking.size || dogData?.size || "small";
-  const service = normalizeServiceForSize(
-    booking.service || "full-groom",
-    size,
-  );
-  const basePrice =
-    dogData?.customPrice !== undefined
-      ? dogData.customPrice
-      : getNumericPrice(getServicePriceLabel(service, size));
-
-  return {
-    service,
-    pickupBy: booking.pickupBy || booking.owner || "",
-    payment: booking.payment || "Due at Pick-up",
-    groomNotes: dogData?.groomNotes || "",
-    alerts: [...(dogData?.alerts || [])],
-    addons: [...(booking.addons || [])],
-    date: currentDateObj,
-    slot: booking.slot || "",
-    customPrice: basePrice,
-  };
-}
 
 export function BookingDetailModal({
   booking,
@@ -83,17 +61,31 @@ export function BookingDetailModal({
   onRebook,
   daySettings = {},
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [showContact, setShowContact] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [saving, setSaving] = useState(false);
-
   const dogData = useMemo(
     () => getDogByIdOrName(dogs, booking._dogId || booking.dogName) || {},
     [dogs, booking._dogId, booking.dogName],
   );
+
+  const {
+    editData,
+    setEditData,
+    isEditing,
+    setIsEditing,
+    saving,
+    setSaving,
+    saveError,
+    setSaveError,
+    allergyState: { hasAllergy, setHasAllergy, allergyInput, setAllergyInput },
+    modalFlags: {
+      showDatePicker,
+      setShowDatePicker,
+      showExitConfirm,
+      setShowExitConfirm,
+      showContact,
+      setShowContact,
+    },
+    resetEditState,
+  } = useBookingEditState(booking, dogData, currentDateObj);
 
   const primaryHuman = useMemo(
     () => getHumanByIdOrName(humans, booking._ownerId || booking.owner) || null,
@@ -115,21 +107,6 @@ export function BookingDetailModal({
     }
     return unique;
   }, [primaryHuman, booking._ownerId, booking.owner]);
-
-  const [editData, setEditData] = useState(() =>
-    buildEditState(booking, dogData, currentDateObj),
-  );
-
-  const [allergyInput, setAllergyInput] = useState(() => {
-    const allergy = (dogData?.alerts || []).find((a) =>
-      a.startsWith("Allergic to "),
-    );
-    return allergy ? allergy.replace("Allergic to ", "") : "";
-  });
-
-  const [hasAllergy, setHasAllergy] = useState(() =>
-    (dogData?.alerts || []).some((a) => a.startsWith("Allergic to ")),
-  );
 
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
@@ -212,18 +189,6 @@ export function BookingDetailModal({
   if (activeAddons.includes("Flea Bath")) amountDue += 10;
   if (activePayment === "Deposit Paid") amountDue -= 10;
   else if (activePayment === "Paid in Full") amountDue = 0;
-
-  const resetEditState = () => {
-    setEditData(buildEditState(booking, dogData, currentDateObj));
-    const allergy = (dogData?.alerts || []).find((a) =>
-      a.startsWith("Allergic to "),
-    );
-    setAllergyInput(allergy ? allergy.replace("Allergic to ", "") : "");
-    setHasAllergy(
-      (dogData?.alerts || []).some((a) => a.startsWith("Allergic to ")),
-    );
-    setSaveError("");
-  };
 
   const handleCloseAttempt = () => {
     if (isEditing) setShowExitConfirm(true);
