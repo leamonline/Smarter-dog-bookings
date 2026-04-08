@@ -17,6 +17,8 @@ import { useDaySettings } from "./supabase/hooks/useDaySettings.js";
 import { useWeekNav } from "./hooks/useWeekNav.js";
 import { useOfflineState } from "./hooks/useOfflineState.js";
 import { useModalState } from "./hooks/useModalState.js";
+import { useBookingActions } from "./hooks/useBookingActions.js";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts.js";
 import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
@@ -110,6 +112,18 @@ export default function App() {
     [rawDatePick],
   );
 
+  // --- Keyboard shortcuts ---
+  useKeyboardShortcuts({
+    activeView,
+    goToPrevWeek,
+    goToNextWeek,
+    jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
+    openNewBooking: useCallback(
+      () => setShowNewBooking({ dateStr: currentDateStr, slot: "" }),
+      [currentDateStr],
+    ),
+  });
+
   // --- Supabase hooks ---
   const {
     humans: sbHumans,
@@ -165,67 +179,29 @@ export default function App() {
   // --- Offline state (extracted hook) ---
   const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
 
-  // --- Online callbacks ---
-  const onlineHandleAdd = useCallback(
-    (booking, targetDateStr = currentDateStr) =>
-      sbAddBooking(targetDateStr, booking),
-    [sbAddBooking, currentDateStr],
-  );
-  const onlineHandleAddToDate = useCallback(
-    (booking, dateStr) => sbAddBooking(dateStr, booking),
-    [sbAddBooking],
-  );
-  const onlineHandleRemove = useCallback(
-    (bookingId) => sbRemoveBooking(currentDateStr, bookingId),
-    [sbRemoveBooking, currentDateStr],
-  );
-  const onlineToggleDayOpen = useCallback(
-    () => sbToggleDayOpen(currentDateStr),
-    [sbToggleDayOpen, currentDateStr],
-  );
-  const onlineHandleOverride = useCallback(
-    (slot, seatIndex, action) =>
-      sbSetOverride(currentDateStr, slot, seatIndex, action),
-    [sbSetOverride, currentDateStr],
-  );
-  const onlineHandleAddSlot = useCallback(
-    () => sbAddExtraSlot(currentDateStr),
-    [sbAddExtraSlot, currentDateStr],
-  );
-  const onlineHandleRemoveSlot = useCallback(
-    () => sbRemoveExtraSlot(currentDateStr),
-    [sbRemoveExtraSlot, currentDateStr],
-  );
-
-  // --- Pick online or offline ---
-  const dogs = isOnline ? sbDogs : offline.dogs;
-  const humans = isOnline ? sbHumans : offline.humans;
-  const bookingsByDate = isOnline ? sbBookings : offline.bookingsByDate;
-  const salonConfig = isOnline ? sbConfig : offline.config;
-  const daySettings = isOnline ? sbDaySettings : offline.daySettings;
+  // --- Resolve online/offline booking actions ---
+  const {
+    dogs, humans, bookingsByDate, salonConfig, daySettings,
+    handleAdd, handleAddToDate, handleRemove, handleUpdate,
+    toggleDayOpen, handleOverride, handleAddSlot, handleRemoveSlot,
+    updateDog, updateHuman, updateConfig, addHuman, addDog,
+  } = useBookingActions({
+    isOnline,
+    currentDateStr,
+    supabase: {
+      sbAddBooking, sbRemoveBooking, sbUpdateBooking,
+      sbToggleDayOpen, sbSetOverride, sbAddExtraSlot, sbRemoveExtraSlot,
+      sbUpdateDog, sbUpdateHuman, sbUpdateConfig, sbAddHuman, sbAddDog,
+    },
+    offline,
+    onlineData: {
+      dogs: sbDogs, humans: sbHumans, bookingsByDate: sbBookings,
+      config: sbConfig, daySettings: sbDaySettings,
+    },
+  });
 
   const isLoading = isOnline && (hl || dl || bl || cl || dsl);
   const dataError = he || de || be;
-
-  const updateDog = isOnline ? sbUpdateDog : offline.updateDog;
-  const updateHuman = isOnline ? sbUpdateHuman : offline.updateHuman;
-  const updateConfig = isOnline ? sbUpdateConfig : offline.updateConfig;
-  const addHuman = isOnline ? sbAddHuman : offline.addHuman;
-  const addDog = isOnline ? sbAddDog : offline.addDog;
-  const handleAdd = isOnline ? onlineHandleAdd : offline.handleAdd;
-  const handleAddToDate = isOnline
-    ? onlineHandleAddToDate
-    : offline.handleAddToDate;
-  const handleRemove = isOnline ? onlineHandleRemove : offline.handleRemove;
-  const handleUpdate = isOnline ? sbUpdateBooking : offline.handleUpdate;
-  const toggleDayOpen = isOnline ? onlineToggleDayOpen : offline.toggleDayOpen;
-  const handleOverride = isOnline
-    ? onlineHandleOverride
-    : offline.handleOverride;
-  const handleAddSlot = isOnline ? onlineHandleAddSlot : offline.handleAddSlot;
-  const handleRemoveSlot = isOnline
-    ? onlineHandleRemoveSlot
-    : offline.handleRemoveSlot;
 
   // --- Derived state ---
   const currentSettings = daySettings[currentDateStr] || {
@@ -290,6 +266,12 @@ export default function App() {
   // --- Render ---
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
+      >
+        Skip to content
+      </a>
       {dataError && <ErrorBanner message={dataError} />}
 
       <AppToolbar
@@ -317,6 +299,7 @@ export default function App() {
       >
         <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
+          <div id="main-content">
           {activeView === "settings" ? (
             <SettingsView
               config={salonConfig}
@@ -388,6 +371,7 @@ export default function App() {
               setShowNewBooking={setShowNewBooking}
             />
           )}
+          </div>
         </Suspense>
         </ErrorBoundary>
 

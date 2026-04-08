@@ -27,6 +27,8 @@ const STATUS_COLOURS = {
   "On the Table": { bg: "bg-violet-100", text: "text-violet-800" },
   "Finished": { bg: "bg-emerald-100", text: "text-emerald-800" },
   "Completed": { bg: "bg-slate-100", text: "text-slate-700" },
+  "Cancelled": { bg: "bg-red-100", text: "text-red-800" },
+  "No Show": { bg: "bg-orange-100", text: "text-orange-800" },
 };
 
 function formatSlot(slot) {
@@ -53,6 +55,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [olderBookings, setOlderBookings] = useState([]);
   const [hasMorePast, setHasMorePast] = useState(false);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelOther, setCancelOther] = useState("");
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -154,50 +159,56 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord]);
 
-  const handleCancelBooking = useCallback(async (bookingId) => {
-    if (!supabase) return;
+  const startCancel = useCallback((bookingId) => {
+    setCancellingId(bookingId);
+    setCancelReason("");
+    setCancelOther("");
+  }, []);
 
-    const dogIds = dogs.map(d => d.id);
-    const booking = bookings.find(b => b.id === bookingId);
-    if (!booking || !dogIds.includes(booking.dog_id)) return;
+  const confirmCancel = useCallback(async () => {
+    if (!supabase || !cancellingId) return;
+    const reason = cancelReason === "Other" ? cancelOther.trim() : cancelReason;
+    if (!reason) return;
 
+    const booking = bookings.find(b => b.id === cancellingId);
+    if (!booking) return;
+
+    setSaving(true);
+
+    // If part of a group, cancel all in the group
     if (booking.group_id) {
       const { data: groupBookings } = await supabase
         .from("bookings")
         .select("id")
-        .eq("group_id", booking.group_id)
-        .neq("id", bookingId);
+        .eq("group_id", booking.group_id);
 
-      const otherGroupBookings = groupBookings || [];
-
-      if (otherGroupBookings.length > 0) {
-        const totalInGroup = otherGroupBookings.length + 1;
-        const cancelAll = window.confirm(
-          `This booking is part of a group of ${totalInGroup} dogs. Cancel all bookings in this group, or just this one?\n\nOK = Cancel all\nCancel = Just this one`
-        );
-
-        if (cancelAll) {
-          const { error: err } = await supabase
-            .from("bookings")
-            .delete()
-            .eq("group_id", booking.group_id);
-          if (!err) {
-            const groupIds = new Set([bookingId, ...otherGroupBookings.map(b => b.id)]);
-            setBookings(prev => prev.filter(b => !groupIds.has(b.id)));
-          }
-          return;
-        }
+      const ids = (groupBookings || []).map(b => b.id);
+      const { error: err } = await supabase
+        .from("bookings")
+        .update({ status: "Cancelled", cancel_reason: reason })
+        .in("id", ids);
+      if (!err) {
+        setBookings(prev => prev.map(b =>
+          ids.includes(b.id) ? { ...b, status: "Cancelled", cancel_reason: reason } : b
+        ));
+      }
+    } else {
+      const { error: err } = await supabase
+        .from("bookings")
+        .update({ status: "Cancelled", cancel_reason: reason })
+        .eq("id", cancellingId);
+      if (!err) {
+        setBookings(prev => prev.map(b =>
+          b.id === cancellingId ? { ...b, status: "Cancelled", cancel_reason: reason } : b
+        ));
       }
     }
 
-    if (!booking.group_id) {
-      if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
-    }
-    const { error: err } = await supabase.from("bookings").delete().eq("id", bookingId);
-    if (!err) {
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
-    }
-  }, [dogs, bookings]);
+    setSaving(false);
+    setCancellingId(null);
+    setCancelReason("");
+    setCancelOther("");
+  }, [cancellingId, cancelReason, cancelOther, bookings]);
 
   const handleLoadMore = useCallback(async () => {
     if (!supabase) return;
@@ -222,7 +233,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const today = toDateStr(new Date());
 
   const upcomingBookings = useMemo(() =>
-    bookings.filter(b => b.booking_date >= today).sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.slot.localeCompare(b.slot)),
+    bookings.filter(b => b.booking_date >= today && b.status !== "Cancelled").sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.slot.localeCompare(b.slot)),
     [bookings, today]
   );
 
@@ -452,16 +463,78 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                     </div>
                     <span className={`text-[11px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap ${sc.bg} ${sc.text}`}>{b.status}</span>
                   </div>
-                  {canCancel && (
-                    <button onClick={() => handleCancelBooking(b.id)} className="mt-2 w-full py-2 rounded-lg border border-brand-coral bg-transparent text-[13px] font-semibold text-brand-coral cursor-pointer font-[inherit]">
+                  {canCancel && cancellingId !== b.id && (
+                    <button onClick={() => startCancel(b.id)} className="mt-2 w-full py-2 rounded-lg border border-brand-coral bg-transparent text-[13px] font-semibold text-brand-coral cursor-pointer font-[inherit]">
                       Cancel appointment
                     </button>
+                  )}
+                  {cancellingId === b.id && (
+                    <div className="mt-2 p-3 rounded-lg border border-brand-coral bg-red-50">
+                      <div className="text-[13px] font-semibold text-slate-800 mb-2">Why are you cancelling?</div>
+                      <select
+                        value={cancelReason}
+                        onChange={e => setCancelReason(e.target.value)}
+                        className="w-full py-2 px-3 rounded-lg border border-slate-300 text-sm font-[inherit] bg-white mb-2"
+                      >
+                        <option value="">Select a reason...</option>
+                        <option value="Changed plans">Changed plans</option>
+                        <option value="Dog unwell">Dog unwell</option>
+                        <option value="Found another date">Found another date</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {cancelReason === "Other" && (
+                        <input
+                          type="text"
+                          value={cancelOther}
+                          onChange={e => setCancelOther(e.target.value)}
+                          placeholder="Please tell us why..."
+                          className="w-full py-2 px-3 rounded-lg border border-slate-300 text-sm font-[inherit] mb-2 box-border"
+                        />
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={confirmCancel}
+                          disabled={saving || (!cancelReason || (cancelReason === "Other" && !cancelOther.trim()))}
+                          className="flex-1 py-2 rounded-lg border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-[inherit] disabled:opacity-50"
+                        >
+                          {saving ? "Cancelling..." : "Confirm cancellation"}
+                        </button>
+                        <button
+                          onClick={() => setCancellingId(null)}
+                          className="py-2 px-4 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit]"
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
             })
           )}
         </div>
+
+        {/* REBOOK PROMPT — shown when no upcoming bookings but has past completed ones */}
+        {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Completed" || b.status === "Finished") && (
+          <div className="bg-gradient-to-br from-emerald-50 to-white rounded-[14px] py-5 px-6 border border-brand-teal/30 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-center">
+            <div className="text-[28px] mb-2">{"\u2702\uFE0F"}</div>
+            <div className="text-sm font-bold text-slate-800 mb-1">Time for another groom?</div>
+            <div className="text-[13px] text-slate-500 mb-3">
+              Your last visit was {(() => {
+                const lastCompleted = pastBookings.find(b => b.status === "Completed" || b.status === "Finished");
+                if (!lastCompleted) return "a while ago";
+                const diff = Math.round((new Date() - new Date(lastCompleted.booking_date + "T00:00:00")) / (7 * 24 * 60 * 60 * 1000));
+                return diff <= 1 ? "last week" : `${diff} weeks ago`;
+              })()}
+            </div>
+            <button
+              onClick={() => navigate("/customer/book")}
+              className="py-3 px-8 rounded-xl border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-[inherit]"
+            >
+              Book your next appointment
+            </button>
+          </div>
+        )}
 
         {/* PAST BOOKINGS */}
         <div className="bg-white rounded-[14px] py-5 px-6 border border-slate-200 mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">

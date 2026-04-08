@@ -8,9 +8,8 @@ import { ClosedDayView } from "./ClosedDayView.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
 import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
-import { ShopSign } from "./ShopSign.jsx";
+import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
-import FloatingActions from "./FloatingActions.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -255,13 +254,12 @@ export function WeekCalendarView({
       {/* Day view */}
       {calendarMode === "day" && (
         <>
-          {/* Slim header bar with ShopSign */}
-          <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-3 px-5 flex items-center justify-center min-h-[56px] relative overflow-hidden">
-            <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none">
-              {"🐾"}
-            </div>
-            <ShopSign isOpen={isOpen} />
-          </div>
+          {/* Dashboard header with date + actions */}
+          <DashboardHeader
+            currentDateObj={currentDateObj}
+            bookings={dayBookings}
+            onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
+          />
 
           {isOpen ? (
             <>
@@ -314,12 +312,6 @@ export function WeekCalendarView({
           setCalendarMode={setCalendarMode}
         />
       )}
-
-      {/* Floating actions */}
-      <FloatingActions
-        bookings={dayBookings}
-        onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
-      />
 
       {/* Date picker modal */}
       {showDatePicker && (
