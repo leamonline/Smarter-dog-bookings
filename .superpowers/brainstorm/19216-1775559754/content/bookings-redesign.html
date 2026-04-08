@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookings Page Redesign — SmarterDog</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #F8FAFB;
+    color: #1F2937;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* ── Toolbar placeholder ─────────────── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .toolbar .logo { font-size: 22px; font-weight: 800; }
+  .toolbar .logo span { color: #00B8E0; }
+  .nav-group {
+    display: flex; gap: 2px; background: #F1F3F5;
+    padding: 4px; border-radius: 10px;
+  }
+  .nav-btn {
+    border-radius: 7px; padding: 6px 12px; font-size: 13px;
+    font-weight: 600; border: none; background: transparent;
+    color: #6B7280; cursor: pointer; font-family: inherit;
+  }
+  .nav-btn.active {
+    background: #FFF; color: #0099BD; font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .hamburger {
+    margin-left: auto; width: 34px; height: 34px; border-radius: 10px;
+    border: 1.5px solid #E5E7EB; background: #FFF; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: #6B7280; cursor: pointer;
+  }
+
+  /* ── Week nav ────────────────────────── */
+  .week-nav {
+    display: flex; gap: 4px; background: #F8FAFB;
+    border-radius: 12px; padding: 4px; margin-bottom: 12px;
+  }
+  .week-tab {
+    flex: 1; text-align: center; padding: 8px 4px; border-radius: 10px;
+    cursor: pointer; border: none; font-family: inherit; transition: all 0.15s;
+    background: transparent;
+  }
+  .week-tab .day { font-size: 12px; font-weight: 700; color: #6B7280; }
+  .week-tab .date { font-size: 16px; font-weight: 800; color: #1F2937; margin-top: 1px; }
+  .week-tab .count { font-size: 10px; font-weight: 700; color: #6B7280; margin-top: 2px; }
+  .week-tab.active {
+    background: #00B8E0; box-shadow: 0 2px 8px rgba(0,184,224,0.25);
+  }
+  .week-tab.active .day,
+  .week-tab.active .date,
+  .week-tab.active .count { color: #FFF; }
+  .week-tab.closed .day { color: #DC2626; }
+  .week-tab.closed .date { color: #9CA3AF; }
+  .week-tab.closed .count { color: #DC2626; }
+
+  /* ── Day header ──────────────────────── */
+  .day-header {
+    background: linear-gradient(135deg, #00B8E0, #0099BD);
+    border-radius: 14px 14px 0 0;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: #FFF;
+  }
+  .nav-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255,255,255,0.15); border: none;
+    color: #FFF; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; flex-shrink: 0;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.25); }
+  .date-box {
+    background: #FFF; border-radius: 10px; padding: 6px 14px;
+    text-align: center; min-width: 60px; flex-shrink: 0;
+  }
+  .date-box .dow {
+    font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: #FFF; background: #E8567F;
+    padding: 2px 8px; border-radius: 4px; margin: -6px auto 4px;
+    display: inline-block;
+  }
+  .date-box .num { font-size: 22px; font-weight: 800; color: #1F2937; line-height: 1; }
+  .date-box .month { font-size: 10px; font-weight: 700; color: #6B7280; margin-top: 1px; }
+  .open-sign {
+    background: #16A34A; border-radius: 20px; padding: 6px 18px;
+    font-size: 14px; font-weight: 800; color: #FFF;
+    letter-spacing: 1px; text-transform: uppercase;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .header-spacer { flex: 1; }
+  .view-toggles {
+    display: flex; gap: 4px; flex-shrink: 0;
+  }
+  .view-btn {
+    padding: 5px 10px; border-radius: 6px; border: none;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+    background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
+  }
+  .view-btn.active {
+    background: #FFF; color: #0099BD;
+  }
+  .view-btn:hover:not(.active) { background: rgba(255,255,255,0.25); }
+
+  /* ── Summary strip ───────────────────── */
+  .summary-strip {
+    background: #FFF;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .stat-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 8px;
+    font-weight: 700; font-size: 11px;
+  }
+  .stat-badge.green { background: #DCFCE7; color: #16A34A; }
+  .stat-badge.blue { background: #E0F7FC; color: #0099BD; }
+  .stat-badge.purple { background: #EDE9FE; color: #7C3AED; }
+  .stat-badge.yellow { background: #FFF8E0; color: #92400E; }
+  .stat-badge.red { background: #FEE2E2; color: #DC2626; }
+  .stat-divider { width: 1px; height: 20px; background: #E5E7EB; }
+  .stat-revenue {
+    margin-left: auto;
+    font-size: 14px; font-weight: 800; color: #1E6B5C;
+  }
+  .stat-alert {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; color: #6B7280;
+  }
+  .stat-alert .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ── Slot rows ───────────────────────── */
+  .slots-container {
+    background: #FFF;
+    border: 1px solid #E5E7EB;
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+  }
+  .slot-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 1fr;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #F1F3F5;
+    align-items: stretch;
+    min-height: 68px;
+  }
+  .slot-row:last-child { border-bottom: none; }
+  .slot-time {
+    font-size: 13px; font-weight: 700; color: #1F2937;
+    display: flex; align-items: center;
+    padding-right: 8px;
+    border-right: 2px solid #E5E7EB;
+  }
+
+  /* ── Booking card ────────────────────── */
+  .booking-card {
+    background: #FFF;
+    border: 1px solid #E5E7EB;
+    border-left: 3px solid;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .booking-card:hover {
+    border-color: #00B8E0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .booking-card.small { border-left-color: #D4A500; }
+  .booking-card.medium { border-left-color: #1E6B5C; }
+  .booking-card.large { border-left-color: #C93D63; }
+
+  .card-line1 {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .size-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .size-dot.small { background: #F5C518; }
+  .size-dot.medium { background: #2D8B7A; }
+  .size-dot.large { background: #E8567F; }
+  .dog-name { font-size: 13px; font-weight: 700; color: #1F2937; }
+  .breed { font-size: 12px; color: #6B7280; }
+  .status-badge {
+    margin-left: auto; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .status-badge.not-arrived { background: #FFF8E0; color: #92400E; }
+  .status-badge.checked-in { background: #DCFCE7; color: #16A34A; }
+  .status-badge.in-bath { background: #E0F7FC; color: #0099BD; }
+  .status-badge.ready { background: #EDE9FE; color: #7C3AED; }
+  .status-badge.completed { background: #F3F4F6; color: #1F2937; }
+
+  .card-line2 {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #6B7280;
+  }
+  .card-line2 .service { font-weight: 600; }
+  .card-line2 .sep { color: #E5E7EB; }
+  .card-line2 .owner { color: #2D8B7A; font-weight: 600; }
+  .card-line2 .price { margin-left: auto; font-weight: 700; color: #1E6B5C; }
+  .card-line2 .pickup { font-weight: 600; color: #7C3AED; }
+
+  /* ── Ghost slot (empty seat) ─────────── */
+  .ghost-seat {
+    border: 1.5px dashed #E5E7EB;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #D1D5DB;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-height: 52px;
+  }
+  .ghost-seat:hover {
+    border-color: #00B8E0;
+    color: #00B8E0;
+    background: #F0FAFF;
+  }
+
+  /* ── Empty row (both seats free) ─────── */
+  .empty-row {
+    grid-column: 2 / 4;
+    border: 1.5px dashed #E5E7EB;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #D1D5DB;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-height: 52px;
+  }
+  .empty-row:hover {
+    border-color: #00B8E0;
+    color: #00B8E0;
+    background: #F0FAFF;
+  }
+  .empty-row .plus { font-size: 16px; }
+
+  /* ── Section label ───────────────────── */
+  .section-note {
+    background: #FFF8E0; border: 1.5px solid #F5C518;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+    font-size: 12px; font-weight: 600; color: #5C4600;
+  }
+  .section-note strong { display: block; margin-bottom: 3px; }
+
+  /* ── Annotation ──────────────────────── */
+  .callout {
+    margin: 20px 0 12px;
+    font-size: 11px; font-weight: 800; color: #1E6B5C;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ TOOLBAR ═══════ -->
+<div class="toolbar">
+  <div class="logo">Smarter<span>Dog</span></div>
+  <div class="nav-group">
+    <button class="nav-btn active">Bookings</button>
+    <button class="nav-btn">Dogs</button>
+    <button class="nav-btn">Humans</button>
+  </div>
+  <div class="hamburger">&#x2630;</div>
+</div>
+
+<!-- ═══════ WEEK NAV ═══════ -->
+<div class="callout">Week Navigation — redesigned tabs</div>
+<div class="section-note">
+  <strong>What changed:</strong>
+  Tabs now show the date number prominently (not just "Mon"), plus dog count below. Selected day is a solid blue pill. Closed days show in red. Much easier to scan the week at a glance.
+</div>
+
+<div class="week-nav">
+  <button class="week-tab active">
+    <div class="day">Mon</div>
+    <div class="date">7</div>
+    <div class="count">3 dogs</div>
+  </button>
+  <button class="week-tab">
+    <div class="day">Tue</div>
+    <div class="date">8</div>
+    <div class="count">5 dogs</div>
+  </button>
+  <button class="week-tab">
+    <div class="day">Wed</div>
+    <div class="date">9</div>
+    <div class="count">2 dogs</div>
+  </button>
+  <button class="week-tab">
+    <div class="day">Thu</div>
+    <div class="date">10</div>
+    <div class="count">4 dogs</div>
+  </button>
+  <button class="week-tab">
+    <div class="day">Fri</div>
+    <div class="date">11</div>
+    <div class="count">6 dogs</div>
+  </button>
+  <button class="week-tab">
+    <div class="day">Sat</div>
+    <div class="date">12</div>
+    <div class="count">1 dog</div>
+  </button>
+  <button class="week-tab closed">
+    <div class="day">Sun</div>
+    <div class="date">13</div>
+    <div class="count">Closed</div>
+  </button>
+</div>
+
+<!-- ═══════ DAY HEADER ═══════ -->
+<div class="callout">Day Header — polished layout</div>
+<div class="section-note">
+  <strong>What changed:</strong>
+  Same date box and OPEN sign, but tidied up — view toggles are now small pills that sit inline on the right instead of stacked vertically. Nav arrows are subtler. Feels cleaner at any viewport width.
+</div>
+
+<div class="day-header">
+  <button class="nav-arrow">&lsaquo;</button>
+  <div class="date-box">
+    <div class="dow">Mon</div>
+    <div class="num">7</div>
+    <div class="month">Apr 2026</div>
+  </div>
+  <div class="open-sign">Open</div>
+  <div class="header-spacer"></div>
+  <div class="view-toggles">
+    <button class="view-btn active">Day</button>
+    <button class="view-btn">Week</button>
+    <button class="view-btn">Month</button>
+  </div>
+  <button class="nav-arrow">&rsaquo;</button>
+</div>
+
+<!-- ═══════ SUMMARY STRIP ═══════ -->
+<div class="callout">Summary Strip — at-a-glance dashboard</div>
+<div class="section-note">
+  <strong>What changed:</strong>
+  Richer info: status badges, alerts (dogs not arrived, pick-ups due), next arriving dog, and revenue. All in one compact strip below the header.
+</div>
+
+<div class="summary-strip">
+  <span class="stat-badge green">&#x2713; 2 Checked In</span>
+  <span class="stat-badge blue">&#x2731; 1 In the Bath</span>
+  <span class="stat-badge purple">&#x2191; 1 Ready for Pick-up</span>
+  <span class="stat-badge yellow">&#x25CB; 2 Not Arrived</span>
+  <span class="stat-divider"></span>
+  <span class="stat-alert"><span class="dot" style="background:#DC2626;"></span> 2 not yet arrived</span>
+  <span class="stat-alert"><span class="dot" style="background:#7C3AED;"></span> Bella pick-up due</span>
+  <span class="stat-alert"><span class="dot" style="background:#00B8E0;"></span> Next: Coco at 10:00</span>
+  <span class="stat-revenue">Est. &pound;246</span>
+</div>
+
+<!-- ═══════ TIME SLOTS ═══════ -->
+<div class="callout">Time Slots — two-seat layout</div>
+<div class="section-note">
+  <strong>What changed:</strong>
+  Each slot is a single row split into two seats (left &amp; right). Booked slots show a two-line card (dog+status on line 1, service+owner+price on line 2). Empty seats are ghost outlines with a "+" that appears on hover. Fully empty slots are a single dashed row spanning both seats.
+</div>
+
+<div class="slots-container">
+  <!-- 8:30 — Both booked -->
+  <div class="slot-row">
+    <div class="slot-time">8:30am</div>
+    <div class="booking-card small">
+      <div class="card-line1">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Bella</span>
+        <span class="breed">(Cockapoo)</span>
+        <span class="status-badge checked-in">Checked In</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#9986;&#65039; Full Groom</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Sarah Jones</span>
+        <span class="price">&pound;42</span>
+      </div>
+    </div>
+    <div class="booking-card medium">
+      <div class="card-line1">
+        <span class="size-dot medium"></span>
+        <span class="dog-name">Charlie</span>
+        <span class="breed">(Labrador)</span>
+        <span class="status-badge in-bath">In the Bath</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#128705; Bath &amp; Brush</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Tom Baker</span>
+        <span class="price">&pound;42</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9:00 — One booked, one ghost -->
+  <div class="slot-row">
+    <div class="slot-time">9:00am</div>
+    <div class="booking-card large">
+      <div class="card-line1">
+        <span class="size-dot large"></span>
+        <span class="dog-name">Rex</span>
+        <span class="breed">(German Shepherd)</span>
+        <span class="status-badge not-arrived">Not Arrived</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#9986;&#65039; Full Groom</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Dave Smith</span>
+        <span class="price">&pound;60</span>
+        <span class="sep">&middot;</span>
+        <span class="pickup">Pick-up 11:00</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <!-- 9:30 — One booked, one ghost -->
+  <div class="slot-row">
+    <div class="slot-time">9:30am</div>
+    <div class="ghost-seat">+</div>
+    <div class="booking-card small">
+      <div class="card-line1">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Coco</span>
+        <span class="breed">(Pomeranian)</span>
+        <span class="status-badge not-arrived">Not Arrived</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#128062; Puppy Groom</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Amy Clarke</span>
+        <span class="price">&pound;38</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10:00 — Both empty -->
+  <div class="slot-row">
+    <div class="slot-time">10:00am</div>
+    <div class="empty-row"><span class="plus">+</span> Available</div>
+  </div>
+
+  <!-- 10:30 — Both empty -->
+  <div class="slot-row">
+    <div class="slot-time">10:30am</div>
+    <div class="empty-row"><span class="plus">+</span> Available</div>
+  </div>
+
+  <!-- 11:00 — One booked (ready for pickup), one ghost -->
+  <div class="slot-row">
+    <div class="slot-time">11:00am</div>
+    <div class="booking-card medium">
+      <div class="card-line1">
+        <span class="size-dot medium"></span>
+        <span class="dog-name">Milo</span>
+        <span class="breed">(Spaniel)</span>
+        <span class="status-badge ready">Ready for Pick-up</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#129529; Bath &amp; Deshed</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Emma Wilson</span>
+        <span class="price">&pound;42</span>
+        <span class="sep">&middot;</span>
+        <span class="pickup">Pick-up now</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <!-- 11:30 — Both empty -->
+  <div class="slot-row">
+    <div class="slot-time">11:30am</div>
+    <div class="empty-row"><span class="plus">+</span> Available</div>
+  </div>
+
+  <!-- 12:00 — One booked (completed), one ghost -->
+  <div class="slot-row">
+    <div class="slot-time">12:00pm</div>
+    <div class="booking-card small">
+      <div class="card-line1">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Poppy</span>
+        <span class="breed">(Shih Tzu)</span>
+        <span class="status-badge completed">Completed</span>
+      </div>
+      <div class="card-line2">
+        <span class="service">&#9986;&#65039; Full Groom</span>
+        <span class="sep">&middot;</span>
+        <span class="owner">Lisa Brown</span>
+        <span class="price">&pound;42</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <!-- 12:30 — Both empty -->
+  <div class="slot-row">
+    <div class="slot-time">12:30pm</div>
+    <div class="empty-row"><span class="plus">+</span> Available</div>
+  </div>
+
+  <!-- 1:00 — Both empty -->
+  <div class="slot-row">
+    <div class="slot-time">1:00pm</div>
+    <div class="empty-row"><span class="plus">+</span> Available</div>
+  </div>
+</div>
+
+<!-- ═══════ FAB ═══════ -->
+<div style="
+  position: fixed; bottom: 28px; right: 28px;
+  background: linear-gradient(135deg, #00B8E0, #0099BD);
+  border: none; border-radius: 16px; padding: 14px 24px;
+  font-size: 14px; font-weight: 700; color: #FFF;
+  box-shadow: 0 4px 16px rgba(0,184,224,0.35), 0 2px 6px rgba(0,0,0,0.1);
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+">
+  <span style="font-size: 18px; line-height: 1;">+</span> New Booking
+</div>
+
+<div style="height: 80px;"></div>
+
+</body>
+</html>

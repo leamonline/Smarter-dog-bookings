@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toolbar Redesign — SmarterDog</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #F8FAFB;
+    color: #1F2937;
+    padding: 24px 32px;
+  }
+
+  .annotation {
+    background: #FFF8E0;
+    border: 1.5px solid #F5C518;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #5C4600;
+  }
+  .annotation strong { display: block; margin-bottom: 4px; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: #1E6B5C;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    margin-top: 32px;
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  .demo-box {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+  }
+
+  /* ── Current (before) ──────────────── */
+  .toolbar-current {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .toolbar-current .logo h1 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1F2937;
+  }
+  .toolbar-current .logo h1 span { color: #00B8E0; }
+  .toolbar-current .logo p { font-size: 13px; color: #6B7280; margin-top: 2px; }
+  .toolbar-current .buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── Shared button styles ──────────── */
+  .btn {
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #1F2937;
+  }
+  .btn:hover { border-color: #00B8E0; color: #00B8E0; }
+  .btn.active { background: #E0F7FC; border-color: #00B8E0; color: #0099BD; }
+  .btn.primary { background: #00B8E0; border: none; color: #FFFFFF; font-weight: 700; }
+  .btn.primary:hover { background: #0099BD; }
+  .btn.danger { background: #FDE8EE; border: none; color: #E8567F; font-weight: 700; }
+  .btn.danger:hover { background: #E8567F; color: #FFFFFF; }
+
+  /* ── Proposed layout ───────────────── */
+  .toolbar-proposed {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .toolbar-left .logo h1 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1F2937;
+    white-space: nowrap;
+  }
+  .toolbar-left .logo h1 span { color: #00B8E0; }
+  .toolbar-left .logo p { font-size: 13px; color: #6B7280; margin-top: 2px; }
+
+  .nav-group {
+    display: flex;
+    gap: 4px;
+    background: #F1F3F5;
+    padding: 4px;
+    border-radius: 10px;
+  }
+  .nav-btn {
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+    color: #6B7280;
+  }
+  .nav-btn:hover { color: #1F2937; background: rgba(255,255,255,0.6); }
+  .nav-btn.active { background: #FFFFFF; color: #0099BD; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Divider ───────────────────────── */
+  .v-divider {
+    width: 1px;
+    height: 28px;
+    background: #E5E7EB;
+    margin: 0 4px;
+  }
+
+  /* ── Comparison labels ─────────────── */
+  .compare-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    display: inline-block;
+  }
+  .compare-label.before { background: #FEE2E2; color: #DC2626; }
+  .compare-label.after { background: #DCFCE7; color: #16A34A; }
+
+  /* ── Callout arrows ────────────────── */
+  .callout {
+    position: relative;
+    display: inline-block;
+  }
+  .callout-label {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    color: #6B7280;
+    white-space: nowrap;
+    background: #F8FAFB;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #E5E7EB;
+  }
+</style>
+</head>
+<body>
+
+<div class="annotation">
+  <strong>Toolbar Redesign — Grouping Navigation vs Actions</strong>
+  Comparing the current flat button row with a grouped layout that separates navigation from actions.
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- BEFORE                                       -->
+<!-- ════════════════════════════════════════════ -->
+<div class="compare-label before">Before — Current</div>
+
+<div class="demo-box">
+  <div class="toolbar-current">
+    <div class="logo">
+      <h1>Smarter<span>Dog</span></h1>
+      <p>Salon Bookings</p>
+    </div>
+    <div class="buttons">
+      <button class="btn active">Bookings</button>
+      <button class="btn primary">+ New Booking</button>
+      <button class="btn">Dogs</button>
+      <button class="btn">Humans</button>
+      <button class="btn">Settings</button>
+      <button class="btn">Reports</button>
+      <button class="btn danger">Log out</button>
+    </div>
+  </div>
+  <div style="margin-top: 14px; font-size: 12px; color: #6B7280; line-height: 1.5;">
+    Everything in one flat row. "+ New Booking" sits between nav items. "Log out" looks like another nav tab. No visual grouping.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- AFTER                                         -->
+<!-- ════════════════════════════════════════════ -->
+<div class="compare-label after">After — Proposed</div>
+
+<div class="demo-box" style="padding: 20px 24px 24px;">
+  <div class="toolbar-proposed">
+    <div class="toolbar-left">
+      <div class="logo">
+        <h1>Smarter<span>Dog</span></h1>
+      </div>
+      <div class="nav-group">
+        <button class="nav-btn active">Bookings</button>
+        <button class="nav-btn">Dogs</button>
+        <button class="nav-btn">Humans</button>
+        <button class="nav-btn">Reports</button>
+        <button class="nav-btn">Settings</button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn primary">+ New Booking</button>
+      <button class="btn danger">Log out</button>
+    </div>
+  </div>
+  <div style="margin-top: 16px; font-size: 12px; color: #6B7280; line-height: 1.6;">
+    <strong style="color: #1F2937;">What changed:</strong><br>
+    • <strong>Navigation tabs</strong> grouped into a pill-shaped container with a subtle grey background — they read as one unit<br>
+    • <strong>"+ New Booking"</strong> pulled to the far right as a primary action — visually distinct from nav<br>
+    • <strong>"Log out"</strong> next to it, clearly separated from nav tabs<br>
+    • <strong>"Salon Bookings" subtitle removed</strong> — the nav tabs make the context obvious<br>
+    • <strong>Active tab</strong> gets a white background with shadow, creating a "raised" look inside the pill container
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- DETAIL: Nav group close-up                    -->
+<!-- ════════════════════════════════════════════ -->
+<div style="margin-top: 8px;" class="compare-label after">Detail — Nav Group States</div>
+
+<div class="demo-box">
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: #6B7280; margin-bottom: 10px;">Bookings active:</div>
+      <div class="nav-group" style="display: inline-flex;">
+        <button class="nav-btn active">Bookings</button>
+        <button class="nav-btn">Dogs</button>
+        <button class="nav-btn">Humans</button>
+        <button class="nav-btn">Reports</button>
+        <button class="nav-btn">Settings</button>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: #6B7280; margin-bottom: 10px;">Dogs active:</div>
+      <div class="nav-group" style="display: inline-flex;">
+        <button class="nav-btn">Bookings</button>
+        <button class="nav-btn active">Dogs</button>
+        <button class="nav-btn">Humans</button>
+        <button class="nav-btn">Reports</button>
+        <button class="nav-btn">Settings</button>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: #6B7280; margin-bottom: 10px;">Settings active:</div>
+      <div class="nav-group" style="display: inline-flex;">
+        <button class="nav-btn">Bookings</button>
+        <button class="nav-btn">Dogs</button>
+        <button class="nav-btn">Humans</button>
+        <button class="nav-btn">Reports</button>
+        <button class="nav-btn active">Settings</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

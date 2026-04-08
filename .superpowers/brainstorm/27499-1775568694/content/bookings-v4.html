@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookings v4 — Calendar Tabs + Clean Header</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #F8FAFB;
+    color: #1F2937;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* ══════════════════════════════════════════ */
+  /* CALENDAR TABS (week days + month)         */
+  /* ══════════════════════════════════════════ */
+  .cal-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 0;
+    padding: 0 4px;
+    overflow-x: auto;
+  }
+
+  /* Shared base — mini tear-off page */
+  .cal-tab {
+    flex: 1;
+    min-width: 72px;
+    border-radius: 10px 10px 0 0;
+    background: #FFF;
+    text-align: center;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    border: 1.5px solid #E5E7EB;
+    border-bottom: none;
+    user-select: none;
+    padding-bottom: 6px;
+  }
+  .cal-tab:hover { transform: translateY(-2px); box-shadow: 0 -4px 12px rgba(0,0,0,0.08); }
+  .cal-tab.active {
+    border-color: #00B8E0;
+    box-shadow: 0 -4px 14px rgba(0,184,224,0.12);
+    transform: translateY(-3px);
+    z-index: 2;
+  }
+  .cal-tab:not(.active) { opacity: 0.7; }
+  .cal-tab:not(.active):hover { opacity: 0.9; }
+
+  /* Colour strip at top */
+  .cal-tab .strip {
+    padding: 3px 0;
+    font-size: 8px;
+    font-weight: 800;
+    color: #FFF;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .cal-tab .strip.open { background: #16A34A; }
+  .cal-tab .strip.closed { background: #DC2626; }
+  .cal-tab .strip.blue { background: #0099BD; }
+
+  /* Day tab content */
+  .cal-tab .big-num {
+    font-size: 24px; font-weight: 900; color: #1F2937; line-height: 1;
+    margin-top: 2px;
+  }
+  .cal-tab .month-name {
+    font-size: 13px; font-weight: 800; color: #1F2937; line-height: 1;
+    margin-top: 1px;
+  }
+  .cal-tab .dog-count {
+    font-size: 9px; font-weight: 800; color: #00B8E0;
+    margin-top: 3px;
+  }
+  .cal-tab.active .dog-count { color: #0099BD; }
+  .cal-tab.closed .big-num { color: #9CA3AF; }
+  .cal-tab.closed .month-name { color: #9CA3AF; }
+  .cal-tab.closed .dog-count { color: #DC2626; }
+
+  /* Month tab content */
+  .cal-tab.month-tab {
+    min-width: 80px;
+    flex: 1.1;
+  }
+  .cal-tab.month-tab .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    padding: 0 4px;
+    margin-top: 2px;
+  }
+  .cal-tab.month-tab .mini-grid .cell {
+    width: 6px; height: 6px; margin: 0.5px auto;
+    border-radius: 1.5px; background: #E5E7EB;
+  }
+  .cal-tab.month-tab .mini-grid .cell.booked { background: #00B8E0; }
+  .cal-tab.month-tab .mini-grid .cell.today { background: #E8567F; }
+  .cal-tab.month-tab .mini-grid .cell.empty { background: transparent; }
+
+  /* ══════════════════════════════════════════ */
+  /* DAY HEADER — clean with angled items      */
+  /* ══════════════════════════════════════════ */
+  .day-header {
+    background: linear-gradient(135deg, #00B8E0, #0099BD);
+    border-radius: 0;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    color: #FFF;
+    position: relative;
+    overflow: hidden;
+    min-height: 90px;
+  }
+  /* Paw watermark */
+  .day-header::after {
+    content: "\uD83D\uDC3E";
+    position: absolute; right: 40px; top: -14px;
+    font-size: 100px; opacity: 0.04;
+    transform: rotate(-15deg); pointer-events: none;
+  }
+
+  .nav-arrow {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(255,255,255,0.12); border: none;
+    color: #FFF; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+
+  /* ── Open/Closed shop sign (angled) ──── */
+  .shop-sign-wrap {
+    transform: rotate(-4deg);
+    flex-shrink: 0;
+  }
+  .shop-sign { display: inline-flex; flex-direction: column; align-items: center; }
+  .shop-sign .hook {
+    width: 18px; height: 9px; border: 2px solid rgba(255,255,255,0.25);
+    border-bottom: none; border-radius: 9px 9px 0 0; margin-bottom: -2px;
+  }
+  .shop-sign .sign-body {
+    background: #16A34A; border-radius: 10px; padding: 7px 22px;
+    font-size: 15px; font-weight: 900; color: #FFF; letter-spacing: 2px;
+    text-transform: uppercase;
+    box-shadow: 0 3px 10px rgba(22,163,74,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.15); position: relative;
+  }
+  .shop-sign .sign-body .shine {
+    position: absolute; top: 3px; left: 8px; right: 8px;
+    height: 3px; background: rgba(255,255,255,0.15); border-radius: 3px;
+  }
+
+  .header-spacer { flex: 1; }
+
+  /* ── Money note (angled revenue) ─────── */
+  .money-note-wrap {
+    transform: rotate(3deg);
+    flex-shrink: 0;
+  }
+  .money-note {
+    background: linear-gradient(135deg, #16A34A, #15803D);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 8px 18px;
+    position: relative;
+    min-width: 110px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(22,163,74,0.3);
+  }
+  /* Decorative border pattern (like a real note) */
+  .money-note::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border: 1.5px dashed rgba(255,255,255,0.15);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .money-note .note-label {
+    font-size: 8px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: rgba(255,255,255,0.6);
+  }
+  .money-note .note-amount {
+    font-size: 22px; font-weight: 900; color: #FFF;
+    line-height: 1.1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .money-note .note-sub {
+    font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.5);
+    letter-spacing: 0.5px;
+  }
+  /* Corner ornaments */
+  .money-note .corner {
+    position: absolute;
+    width: 10px; height: 10px;
+    font-size: 7px; font-weight: 900;
+    color: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .money-note .corner.tl { top: 6px; left: 8px; }
+  .money-note .corner.tr { top: 6px; right: 8px; }
+  .money-note .corner.bl { bottom: 6px; left: 8px; }
+  .money-note .corner.br { bottom: 6px; right: 8px; }
+
+  /* ══════════════════════════════════════════ */
+  /* TIME SLOTS                                */
+  /* ══════════════════════════════════════════ */
+  .slots-container {
+    background: #FFF; border: 1px solid #E5E7EB;
+    border-top: none; border-radius: 0 0 14px 14px; overflow: hidden;
+  }
+  .slot-row {
+    display: grid; grid-template-columns: 72px 1fr 1fr;
+    gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid #F1F3F5;
+    align-items: stretch; min-height: 100px;
+  }
+  .slot-row:last-child { border-bottom: none; }
+  .slot-time {
+    font-size: 14px; font-weight: 800; color: #1F2937;
+    display: flex; align-items: center; justify-content: center;
+    padding-right: 10px; border-right: 2px solid #E5E7EB;
+  }
+
+  /* ── Booking card ────────────────────── */
+  .booking-card {
+    background: #FFF; border: 1.5px solid #E5E7EB;
+    border-left: 4px solid; border-radius: 12px;
+    padding: 14px 16px; display: flex; flex-direction: column;
+    gap: 4px; transition: all 0.15s; cursor: pointer;
+  }
+  .booking-card:hover {
+    border-color: #00B8E0; border-left-color: inherit;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); transform: translateY(-1px);
+  }
+  .booking-card.small { border-left-color: #D4A500; }
+  .booking-card.medium { border-left-color: #1E6B5C; }
+  .booking-card.large { border-left-color: #C93D63; }
+
+  /* Row 1: dog name + price */
+  .card-top {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .size-dot {
+    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .size-dot.small { background: #F5C518; }
+  .size-dot.medium { background: #2D8B7A; }
+  .size-dot.large { background: #E8567F; }
+  .dog-name { font-size: 17px; font-weight: 800; color: #1F2937; }
+  .card-price {
+    margin-left: auto; font-size: 17px; font-weight: 900;
+    color: #1E6B5C; flex-shrink: 0;
+  }
+
+  /* Row 2: breed */
+  .card-breed {
+    font-size: 14px; font-weight: 600; color: #6B7280;
+    padding-left: 20px;
+  }
+
+  /* Row 3: owner */
+  .card-owner {
+    font-size: 14px; font-weight: 700; color: #2D8B7A;
+    padding-left: 20px;
+  }
+
+  /* Row 4: pills row */
+  .card-footer {
+    display: flex; align-items: center; gap: 5px;
+    padding-left: 20px; margin-top: 6px;
+  }
+  .pill {
+    font-size: 10px; font-weight: 700;
+    padding: 5px 0; border-radius: 6px;
+    white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 1; text-align: center;
+  }
+  .pill.service { background: #F1F3F5; color: #374151; }
+  .pill.pickup  { background: #F3EEFF; color: #7C3AED; }
+  .pill.status-not-arrived { background: #FFF8E0; color: #92400E; }
+  .pill.status-checked-in  { background: #DCFCE7; color: #16A34A; }
+  .pill.status-in-bath     { background: #E0F7FC; color: #0099BD; }
+  .pill.status-ready       { background: #EDE9FE; color: #7C3AED; }
+  .pill.status-completed   { background: #F3F4F6; color: #374151; }
+  .pill.status-collected   { background: #F3F4F6; color: #6B7280; }
+
+  /* ── Ghost / empty ───────────────────── */
+  .ghost-seat {
+    border: 2px dashed #E5E7EB; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #D1D5DB; font-size: 22px; cursor: pointer;
+    transition: all 0.15s; min-height: 80px;
+  }
+  .ghost-seat:hover { border-color: #00B8E0; color: #00B8E0; background: #F0FAFF; }
+  .empty-row {
+    grid-column: 2 / 4; border: 2px dashed #E5E7EB; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; color: #D1D5DB; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; min-height: 80px;
+  }
+  .empty-row:hover { border-color: #00B8E0; color: #00B8E0; background: #F0FAFF; }
+  .empty-row .plus { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- CALENDAR TABS — 7 days + month            -->
+<!-- ══════════════════════════════════════════ -->
+<div class="cal-tabs">
+  <!-- Monday (active) -->
+  <div class="cal-tab active">
+    <div class="strip open">Mon</div>
+    <div class="big-num">7</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">6 dogs</div>
+  </div>
+
+  <!-- Tuesday -->
+  <div class="cal-tab">
+    <div class="strip open">Tue</div>
+    <div class="big-num">8</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">5 dogs</div>
+  </div>
+
+  <!-- Wednesday -->
+  <div class="cal-tab">
+    <div class="strip open">Wed</div>
+    <div class="big-num">9</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">2 dogs</div>
+  </div>
+
+  <!-- Thursday -->
+  <div class="cal-tab">
+    <div class="strip open">Thu</div>
+    <div class="big-num">10</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">4 dogs</div>
+  </div>
+
+  <!-- Friday -->
+  <div class="cal-tab">
+    <div class="strip open">Fri</div>
+    <div class="big-num">11</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">8 dogs</div>
+  </div>
+
+  <!-- Saturday -->
+  <div class="cal-tab">
+    <div class="strip open">Sat</div>
+    <div class="big-num">12</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">1 dog</div>
+  </div>
+
+  <!-- Sunday (closed) -->
+  <div class="cal-tab closed">
+    <div class="strip closed">Sun</div>
+    <div class="big-num">13</div>
+    <div class="month-name">April</div>
+    <div class="dog-count">Closed</div>
+  </div>
+
+  <!-- Month tab -->
+  <div class="cal-tab month-tab">
+    <div class="strip blue">April 2026</div>
+    <div class="mini-grid" style="display: grid; grid-template-columns: repeat(7,1fr); gap: 0; padding: 0 4px; margin-top: 2px;">
+      <div class="cell empty"></div><div class="cell empty"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell empty"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E8567F;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell empty"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#00B8E0;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell empty"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell" style="width:5px;height:5px;margin:0.5px auto;border-radius:1.5px;background:#E5E7EB;"></div>
+      <div class="cell empty"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- DAY HEADER — arrows, angled sign + note   -->
+<!-- ══════════════════════════════════════════ -->
+<div class="day-header" style="justify-content: center; min-height: 56px; padding: 12px 20px;">
+  <!-- Open sign at an angle -->
+  <div class="shop-sign-wrap">
+    <div class="shop-sign">
+      <div class="hook"></div>
+      <div class="sign-body"><div class="shine"></div>Open</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- TIME SLOTS                                -->
+<!-- ══════════════════════════════════════════ -->
+<div class="slots-container">
+  <div class="slot-row">
+    <div class="slot-time">8:30am</div>
+    <div class="booking-card small">
+      <div class="card-top">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Bella</span>
+        <span class="card-price">&pound;42</span>
+      </div>
+      <div class="card-breed">Cockapoo</div>
+      <div class="card-owner">Sarah Jones</div>
+      <div class="card-footer">
+        <span class="pill service">Full Groom</span>
+        <span class="pill pickup">Pick-up 10:30am</span>
+        <span class="pill status-checked-in">Checked In</span>
+      </div>
+    </div>
+    <div class="booking-card medium">
+      <div class="card-top">
+        <span class="size-dot medium"></span>
+        <span class="dog-name">Charlie</span>
+        <span class="card-price">&pound;42</span>
+      </div>
+      <div class="card-breed">Labrador</div>
+      <div class="card-owner">Tom Baker</div>
+      <div class="card-footer">
+        <span class="pill service">Bath &amp; Brush</span>
+        <span class="pill pickup">Pick-up 10:00am</span>
+        <span class="pill status-in-bath">In the Bath</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">9:00am</div>
+    <div class="booking-card large">
+      <div class="card-top">
+        <span class="size-dot large"></span>
+        <span class="dog-name">Rex</span>
+        <span class="card-price">&pound;60</span>
+      </div>
+      <div class="card-breed">German Shepherd</div>
+      <div class="card-owner">Dave Smith</div>
+      <div class="card-footer">
+        <span class="pill service">Full Groom</span>
+        <span class="pill pickup">Pick-up 11:00am</span>
+        <span class="pill status-not-arrived">Not Arrived</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">9:30am</div>
+    <div class="ghost-seat">+</div>
+    <div class="booking-card small">
+      <div class="card-top">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Coco</span>
+        <span class="card-price">&pound;38</span>
+      </div>
+      <div class="card-breed">Pomeranian</div>
+      <div class="card-owner">Amy Clarke</div>
+      <div class="card-footer">
+        <span class="pill service">Puppy Groom</span>
+        <span class="pill pickup">Pick-up 11:30am</span>
+        <span class="pill status-not-arrived">Not Arrived</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">10:00am</div>
+    <div class="empty-row"><span class="plus">+</span></div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">10:30am</div>
+    <div class="empty-row"><span class="plus">+</span></div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">11:00am</div>
+    <div class="booking-card medium">
+      <div class="card-top">
+        <span class="size-dot medium"></span>
+        <span class="dog-name">Milo</span>
+        <span class="card-price">&pound;42</span>
+      </div>
+      <div class="card-breed">Spaniel</div>
+      <div class="card-owner">Emma Wilson</div>
+      <div class="card-footer">
+        <span class="pill service">Bath &amp; Deshed</span>
+        <span class="pill pickup">Pick-up now!</span>
+        <span class="pill status-ready">Ready</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">11:30am</div>
+    <div class="empty-row"><span class="plus">+</span></div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">12:00pm</div>
+    <div class="booking-card small">
+      <div class="card-top">
+        <span class="size-dot small"></span>
+        <span class="dog-name">Poppy</span>
+        <span class="card-price">&pound;42</span>
+      </div>
+      <div class="card-breed">Shih Tzu</div>
+      <div class="card-owner">Lisa Brown</div>
+      <div class="card-footer">
+        <span class="pill service">Full Groom</span>
+        <span class="pill pickup">Collected 11:45am</span>
+        <span class="pill status-completed">Done</span>
+      </div>
+    </div>
+    <div class="ghost-seat">+</div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">12:30pm</div>
+    <div class="empty-row"><span class="plus">+</span></div>
+  </div>
+
+  <div class="slot-row">
+    <div class="slot-time">1:00pm</div>
+    <div class="empty-row"><span class="plus">+</span></div>
+  </div>
+</div>
+
+<!-- Floating: overlapping money note + business card -->
+<style>
+  .float-wrap {
+    position: fixed; bottom: 24px; right: 28px;
+    z-index: 200; display: flex; align-items: flex-end;
+  }
+
+  /* ── Money note ── */
+  .float-note {
+    transform: rotate(-4deg);
+    z-index: 201;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+    position: relative;
+    margin-right: -18px;
+    margin-bottom: 4px;
+  }
+  .float-note:hover {
+    z-index: 210;
+    transform: rotate(-4deg) translateY(-6px) scale(1.04);
+  }
+  .float-note-inner {
+    background: linear-gradient(135deg, #16A34A, #15803D);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 10px 24px 10px 20px;
+    position: relative;
+    min-width: 120px;
+    text-align: center;
+    color: #FFF;
+    box-shadow: 0 4px 16px rgba(22,163,74,0.35), 0 2px 6px rgba(0,0,0,0.1);
+  }
+  /* Dashed inner border like a real note */
+  .float-note-inner::before {
+    content: "";
+    position: absolute; inset: 5px;
+    border: 1.5px dashed rgba(255,255,255,0.15);
+    border-radius: 4px; pointer-events: none;
+  }
+  .float-note-inner .corner {
+    position: absolute; width: 10px; height: 10px;
+    font-size: 7px; font-weight: 900;
+    color: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .float-note-inner .corner.tl { top: 7px; left: 8px; }
+  .float-note-inner .corner.tr { top: 7px; right: 8px; }
+  .float-note-inner .corner.bl { bottom: 7px; left: 8px; }
+  .float-note-inner .corner.br { bottom: 7px; right: 8px; }
+
+  /* ── Business card ── */
+  .float-card {
+    transform: rotate(3deg);
+    z-index: 202;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+  }
+  .float-card:hover {
+    z-index: 210;
+    transform: rotate(3deg) translateY(-6px) scale(1.04);
+  }
+  .float-card-inner {
+    background: #FFF;
+    border-radius: 10px;
+    padding: 14px 30px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+    border: 1.5px solid #E5E7EB;
+    position: relative; overflow: hidden;
+    min-width: 150px;
+  }
+  /* Blue accent line top */
+  .float-card-inner::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #00B8E0, #0099BD);
+  }
+  /* Subtle bottom line */
+  .float-card-inner::after {
+    content: "";
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #00B8E0, #0099BD);
+    opacity: 0.3;
+  }
+</style>
+
+<div class="float-wrap">
+  <!-- Money note -->
+  <div class="float-note">
+    <div class="float-note-inner">
+      <div class="corner tl">&pound;</div>
+      <div class="corner tr">&pound;</div>
+      <div class="corner bl">&pound;</div>
+      <div class="corner br">&pound;</div>
+      <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.55);">Today's Revenue</div>
+      <div style="font-size: 24px; font-weight: 900; line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">&pound;246</div>
+    </div>
+  </div>
+
+  <!-- Business card -->
+  <div class="float-card">
+    <div class="float-card-inner">
+      <div style="font-size: 9px; font-weight: 800; color: #0099BD; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;">Smarter Dog</div>
+      <div style="font-size: 18px; font-weight: 900; color: #1F2937; line-height: 1;">Book Now</div>
+    </div>
+  </div>
+</div>
+
+<div style="height: 80px;"></div>
+</body>
+</html>
