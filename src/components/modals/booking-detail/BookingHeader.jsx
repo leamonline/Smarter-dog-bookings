@@ -1,9 +1,15 @@
-import { BRAND, SERVICES } from "../../../constants/index.js";
+import { SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index.js";
 import {
   getNumericPrice,
   getServicePriceLabel,
 } from "../../../engine/bookingRules.js";
 import { SizeTag } from "../../ui/SizeTag.jsx";
+
+function titleCase(str) {
+  if (!str) return "";
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 export function BookingHeader({
   booking,
@@ -18,61 +24,33 @@ export function BookingHeader({
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
+  const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
+  const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
 
   return (
     <div
-      style={{
-        background: `linear-gradient(135deg, ${BRAND.blue}, ${BRAND.blueDark})`,
-        padding: "20px 24px",
-        borderRadius: "16px 16px 0 0",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-      }}
+      className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
+      style={{ background: gradient }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         <SizeTag size={booking.size} headerMode />
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: BRAND.white,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
+            className="text-xl font-extrabold whitespace-nowrap overflow-hidden text-ellipsis"
+            style={{ color: sizeTheme.headerText }}
           >
-            {booking.dogName}
+            {titleCase(booking.dogName)}
             {ageYo && (
-              <span
-                style={{
-                  fontWeight: 500,
-                  fontSize: 14,
-                  opacity: 0.8,
-                  marginLeft: 6,
-                }}
-              >
+              <span className="font-medium text-sm opacity-80 ml-1.5">
                 {ageYo}
               </span>
             )}
           </div>
           <div
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.8)",
-              marginTop: 2,
-            }}
+            className="text-[13px] mt-0.5"
+            style={{ color: sizeTheme.headerTextSub }}
           >
-            {booking.breed}
+            {titleCase(booking.breed)}
           </div>
           {isEditing ? (
             <select
@@ -90,24 +68,14 @@ export function BookingHeader({
                 }));
                 setSaveError("");
               }}
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                color: BRAND.white,
-                border: "1px solid rgba(255,255,255,0.3)",
-                borderRadius: 6,
-                padding: "6px 10px",
-                fontSize: 13,
-                fontWeight: 600,
-                outline: "none",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              className="bg-white/20 border border-white/30 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit"
+              style={{ color: sizeTheme.headerText }}
             >
               {allowedServices.map((service) => (
                 <option
                   key={service.id}
                   value={service.id}
-                  style={{ color: BRAND.text }}
+                  style={{ color: "#1F2937" }}
                 >
                   {service.icon} {service.name}
                 </option>
@@ -115,11 +83,8 @@ export function BookingHeader({
             </select>
           ) : (
             <div
-              style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.8)",
-                marginTop: 2,
-              }}
+              className="text-[13px] mt-0.5"
+              style={{ color: sizeTheme.headerTextSub }}
             >
               {serviceObj?.icon} {serviceObj?.name}
             </div>
@@ -128,21 +93,8 @@ export function BookingHeader({
       </div>
       <button
         onClick={onClose}
-        style={{
-          background: "rgba(255,255,255,0.2)",
-          border: "none",
-          borderRadius: 8,
-          width: 28,
-          height: 28,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontSize: 14,
-          color: BRAND.white,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
+        className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
+        style={{ color: sizeTheme.headerText }}
       >
         {"\u00D7"}
       </button>

@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  BRAND,
   SERVICES,
   SALON_SLOTS,
   SIZE_THEME,
@@ -390,29 +389,11 @@ export function BookingDetailModal({
   return (
     <div
       onClick={handleCloseAttempt}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: BRAND.white,
-          borderRadius: 16,
-          width: 420,
-          maxHeight: "90vh",
-          overflow: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
+        className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
       >
         <BookingHeader
           booking={booking}
@@ -425,7 +406,7 @@ export function BookingDetailModal({
           onClose={handleCloseAttempt}
         />
 
-        <div style={{ padding: "16px 24px 0" }}>
+        <div className="px-6 pt-4">
           <BookingStatusBar
             booking={booking}
             currentDateStr={currentDateStr}
@@ -439,14 +420,9 @@ export function BookingDetailModal({
           />
 
           {/* Dog row */}
-          <div
-            style={{
-              padding: "10px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="py-2.5 border-b border-slate-200">
+            <div className="flex justify-between items-center">
+              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
                 Dog
               </span>
               <span
@@ -454,11 +430,9 @@ export function BookingDetailModal({
                   onOpenDog &&
                   onOpenDog(dogData?.id || booking._dogId || booking.dogName)
                 }
+                className="text-[13px] font-semibold cursor-pointer"
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
                   color: sizeTheme.primary,
-                  cursor: "pointer",
                   borderBottom: `1px dashed ${sizeTheme.primary}`,
                 }}
               >
@@ -468,14 +442,9 @@ export function BookingDetailModal({
           </div>
 
           {/* Breed row */}
-          <div
-            style={{
-              padding: "10px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="py-2.5 border-b border-slate-200">
+            <div className="flex justify-between items-center">
+              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
                 Breed
               </span>
               <span
@@ -483,11 +452,9 @@ export function BookingDetailModal({
                   onOpenDog &&
                   onOpenDog(dogData?.id || booking._dogId || booking.dogName)
                 }
+                className="text-[13px] font-semibold cursor-pointer"
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
                   color: sizeTheme.primary,
-                  cursor: "pointer",
                   borderBottom: `1px dashed ${sizeTheme.primary}`,
                 }}
               >
@@ -497,14 +464,9 @@ export function BookingDetailModal({
           </div>
 
           {/* Human / Owner row */}
-          <div
-            style={{
-              padding: "10px 0",
-              borderBottom: `1px solid ${BRAND.greyLight}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#1E6B5C", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="py-2.5 border-b border-slate-200">
+            <div className="flex justify-between items-center">
+              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
                 Human
               </span>
               <span
@@ -514,12 +476,10 @@ export function BookingDetailModal({
                     primaryHuman?.id || booking._ownerId || booking.owner,
                   )
                 }
+                className="text-[13px] font-semibold cursor-pointer"
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: BRAND.teal,
-                  cursor: "pointer",
-                  borderBottom: `1px dashed ${BRAND.teal}`,
+                  color: "#2D8B7A",
+                  borderBottom: "1px dashed #2D8B7A",
                 }}
               >
                 {titleCase(booking.owner)}
@@ -555,8 +515,7 @@ export function BookingDetailModal({
                     groomNotes: e.target.value,
                   }))
                 }
-                className={MODAL_INPUT_CLS}
-                style={{ resize: "vertical", minHeight: 44, textAlign: "right" }}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border resize-y min-h-[44px] text-right"
               />
             }
             isEditing={isEditing}
@@ -568,12 +527,12 @@ export function BookingDetailModal({
             editNode={
               <button
                 onClick={() => setShowDatePicker(true)}
-                className={`${MODAL_INPUT_CLS} flex-1 text-left bg-white cursor-pointer flex justify-between items-center`}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border bg-white cursor-pointer flex justify-between items-center"
               >
-                <span style={{ fontWeight: 600 }}>
+                <span className="font-semibold">
                   {formatFullDate(editData.date)}
                 </span>
-                <span style={{ fontSize: 14 }}>{"\uD83D\uDCC5"}</span>
+                <span className="text-sm">{"\uD83D\uDCC5"}</span>
               </button>
             }
             verticalEdit
@@ -585,19 +544,12 @@ export function BookingDetailModal({
             value={
               isEditing
                 ? editData.slot || (
-                    <span style={{ color: BRAND.coral }}>None selected</span>
+                    <span className="text-brand-coral">None selected</span>
                   )
                 : booking.slot
             }
             editNode={
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
-                  gap: 6,
-                  width: "100%",
-                }}
-              >
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5 w-full">
                 {editActiveSlots.length > 0 ? (
                   editActiveSlots.map((slot) => {
                     const allowed = canBookSlot(
@@ -630,32 +582,28 @@ export function BookingDetailModal({
                           setSaveError("");
                         }}
                         disabled={!allowed}
+                        className="py-2 rounded-lg text-[13px] font-semibold text-center"
                         style={{
-                          padding: "8px 0",
-                          borderRadius: 8,
-                          fontSize: 13,
-                          fontWeight: 600,
                           cursor: allowed ? "pointer" : "not-allowed",
                           background:
                             editData.slot === slot
                               ? sizeTheme.primary
                               : isStaffOpened
                                 ? sizeTheme.light
-                                : BRAND.white,
+                                : "#FFFFFF",
                           color:
                             editData.slot === slot
                               ? sizeTheme.headerText
                               : allowed
-                                ? BRAND.text
-                                : BRAND.textLight,
+                                ? "#1F2937"
+                                : "#6B7280",
                           border: `1.5px solid ${
                             editData.slot === slot
                               ? sizeTheme.primary
                               : isStaffOpened
                                 ? sizeTheme.primary
-                                : BRAND.greyLight
+                                : "#E5E7EB"
                           }`,
-                          textAlign: "center",
                           opacity: allowed ? 1 : 0.5,
                         }}
                       >
@@ -664,14 +612,7 @@ export function BookingDetailModal({
                     );
                   })
                 ) : (
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: BRAND.coral,
-                      fontWeight: 600,
-                      gridColumn: "1 / -1",
-                    }}
-                  >
+                  <span className="text-[13px] text-brand-coral font-semibold col-span-full">
                     No available slots on this date
                   </span>
                 )}
@@ -714,36 +655,20 @@ export function BookingDetailModal({
 
           {/* Add-ons */}
           {isEditing ? (
-            <div
-              style={{
-                padding: "10px 0",
-                borderBottom: `1px solid ${BRAND.greyLight}`,
-              }}
-            >
-              <div style={{ marginBottom: 8 }}>
+            <div className="py-2.5 border-b border-slate-200">
+              <div className="mb-2">
                 <LogisticsLabel text="Add-ons" />
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div className="flex flex-wrap gap-2">
                 {AVAILABLE_ADDONS.map((addon) => (
                   <label
                     key={addon}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      fontWeight: 500,
-                    }}
+                    className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium"
                   >
                     <input
                       type="checkbox"
-                      style={{
-                        accentColor: sizeTheme.primary,
-                        width: 18,
-                        height: 18,
-                        cursor: "pointer",
-                      }}
+                      className="w-[18px] h-[18px] cursor-pointer"
+                      style={{ accentColor: sizeTheme.primary }}
                       checked={editData.addons.includes(addon)}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -796,15 +721,15 @@ export function BookingDetailModal({
             isEditing={isEditing}
           />
 
-          <div style={{ height: 24 }} />
+          <div className="h-6" />
 
           {/* Finance rows */}
           <DetailRow
             label={<FinanceLabel text="Base Price" />}
             value={
               isEditing ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontWeight: 600 }}>{"\u00A3"}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold">{"\u00A3"}</span>
                   <input
                     type="number"
                     value={editData.customPrice}
@@ -814,8 +739,7 @@ export function BookingDetailModal({
                         customPrice: Number(e.target.value),
                       }))
                     }
-                    className={MODAL_INPUT_CLS}
-                    style={{ width: 80 }}
+                    className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border"
                   />
                 </div>
               ) : (
@@ -851,11 +775,8 @@ export function BookingDetailModal({
             label={<FinanceLabel text="Amount Due" />}
             value={
               <span
-                style={{
-                  fontWeight: 800,
-                  color: amountDue > 0 ? BRAND.coral : BRAND.openGreen,
-                  fontSize: 16,
-                }}
+                className="font-extrabold text-base"
+                style={{ color: amountDue > 0 ? "#E8567F" : "#16A34A" }}
               >
                 {"\u00A3"}{Math.max(0, amountDue)}
               </span>
@@ -864,36 +785,13 @@ export function BookingDetailModal({
           />
 
           {saveError && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "10px 12px",
-                background: BRAND.coralLight,
-                color: BRAND.coral,
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
+            <div className="mt-3 px-3 py-2.5 bg-brand-coral-light text-brand-coral rounded-lg text-[13px] font-bold">
               {saveError}
             </div>
           )}
 
           {primaryHuman?.historyFlag && (
-            <div
-              style={{
-                fontSize: 13,
-                color: BRAND.coral,
-                marginTop: 12,
-                textAlign: "right",
-                fontWeight: 700,
-                background: BRAND.coralLight,
-                padding: "8px 12px",
-                borderRadius: 8,
-                display: "inline-block",
-                float: "right",
-              }}
-            >
+            <div className="text-[13px] text-brand-coral font-bold bg-brand-coral-light px-3 py-2 rounded-lg inline-block float-right mt-3">
               Flag: {primaryHuman.historyFlag}
             </div>
           )}

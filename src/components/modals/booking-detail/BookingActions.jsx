@@ -1,4 +1,3 @@
-import { BRAND } from "../../../constants/index.js";
 import {
   IconTick,
   IconEdit,
@@ -11,6 +10,7 @@ export function BookingActions({
   editData,
   saving,
   booking,
+  sizeTheme,
   onSave,
   onCancelEdit,
   onEnterEdit,
@@ -21,65 +21,24 @@ export function BookingActions({
 }) {
   if (isEditing) {
     return (
-      <div
-        style={{
-          padding: "16px 24px 20px",
-          display: "flex",
-          gap: 10,
-          background: BRAND.offWhite,
-          borderTop: `1px solid ${BRAND.greyLight}`,
-        }}
-      >
+      <div className="px-6 py-4 pb-5 flex gap-2.5 bg-slate-50 border-t border-slate-200">
         <button
           onClick={onSave}
           disabled={!editData.slot || saving}
+          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors disabled:cursor-not-allowed"
           style={{
-            flex: 1,
-            padding: "12px 0",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: !editData.slot || saving ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
             background:
-              !editData.slot || saving ? BRAND.greyLight : BRAND.blue,
-            color: !editData.slot || saving ? BRAND.textLight : BRAND.white,
-            transition: "background 0.15s",
+              !editData.slot || saving ? "#E5E7EB" : sizeTheme.gradient[0],
+            color:
+              !editData.slot || saving ? "#6B7280" : sizeTheme.headerText,
           }}
         >
-          <IconTick size={16} colour={BRAND.white} />{" "}
+          <IconTick size={16} colour={!editData.slot || saving ? "#6B7280" : sizeTheme.headerText} />{" "}
           {saving ? "Saving..." : "Save Changes"}
         </button>
         <button
           onClick={onCancelEdit}
-          style={{
-            flex: 1,
-            padding: "12px 0",
-            borderRadius: 10,
-            border: `1.5px solid ${BRAND.greyLight}`,
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            background: BRAND.white,
-            color: BRAND.textLight,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = BRAND.offWhite)
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = BRAND.white)
-          }
+          className="flex-1 py-3 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-white text-slate-500 transition-colors hover:bg-slate-50"
         >
           Cancel
         </button>
@@ -88,103 +47,38 @@ export function BookingActions({
   }
 
   return (
-    <div
-      style={{
-        padding: "16px 24px 20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        background: BRAND.offWhite,
-        borderTop: `1px solid ${BRAND.greyLight}`,
-      }}
-    >
-      <div style={{ display: "flex", gap: 10 }}>
+    <div className="px-6 py-4 pb-5 flex flex-col gap-2.5 bg-slate-50 border-t border-slate-200">
+      <div className="flex gap-2.5">
         <button
           onClick={onEnterEdit}
+          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
           style={{
-            flex: 1,
-            padding: "12px 0",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            background: BRAND.blue,
-            color: BRAND.white,
-            transition: "background 0.15s",
+            background: sizeTheme.gradient[0],
+            color: sizeTheme.headerText,
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.background = BRAND.blueDark)
+            (e.currentTarget.style.background = sizeTheme.primary)
           }
           onMouseLeave={(e) =>
-            (e.currentTarget.style.background = BRAND.blue)
+            (e.currentTarget.style.background = sizeTheme.gradient[0])
           }
         >
-          <IconEdit size={16} colour={BRAND.white} /> Edit
+          <IconEdit size={16} colour={sizeTheme.headerText} /> Edit
         </button>
         <button
           onClick={onShowContact}
-          style={{
-            flex: 1,
-            padding: "12px 0",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            background: BRAND.teal,
-            color: BRAND.white,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "#236b5d")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = BRAND.teal)
-          }
+          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-brand-teal text-white transition-colors hover:bg-[#236b5d]"
         >
-          <IconMessage size={16} colour={BRAND.white} /> Message
+          <IconMessage size={16} colour="#FFFFFF" /> Message
         </button>
         <button
           onClick={async () => {
             const removed = await onRemove(booking.id);
             if (removed !== false) onClose();
           }}
-          style={{
-            flex: 1,
-            padding: "12px 0",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            background: BRAND.coralLight,
-            color: BRAND.coral,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "#fbd4df")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = BRAND.coralLight)
-          }
+          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-brand-coral-light text-brand-coral transition-colors hover:bg-[#fbd4df]"
         >
-          <IconBlock size={16} colour={BRAND.coral} /> Cancel
+          <IconBlock size={16} colour="#E8567F" /> Cancel
         </button>
       </div>
       {booking.status === "Completed" && onRebook && (
@@ -193,30 +87,19 @@ export function BookingActions({
             onRebook(booking);
             onClose();
           }}
+          className="w-full py-3 rounded-[10px] border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all"
           style={{
-            width: "100%",
-            padding: "12px 0",
-            borderRadius: 10,
-            border: `2px solid ${BRAND.blue}`,
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            background: BRAND.blueLight,
-            color: BRAND.blueDark,
-            transition: "all 0.15s",
+            borderColor: sizeTheme.gradient[0],
+            background: sizeTheme.light,
+            color: sizeTheme.primary,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = BRAND.blue;
-            e.currentTarget.style.color = BRAND.white;
+            e.currentTarget.style.background = sizeTheme.gradient[0];
+            e.currentTarget.style.color = sizeTheme.headerText;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = BRAND.blueLight;
-            e.currentTarget.style.color = BRAND.blueDark;
+            e.currentTarget.style.background = sizeTheme.light;
+            e.currentTarget.style.color = sizeTheme.primary;
           }}
         >
           {"\uD83D\uDD01"} Rebook this dog

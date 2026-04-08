@@ -1,9 +1,9 @@
-import { BRAND, BOOKING_STATUSES } from "../../../constants/index.js";
+import { BOOKING_STATUSES } from "../../../constants/index.js";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+    <div className="mb-4">
+      <div className="flex gap-1.5 flex-wrap justify-center">
         {BOOKING_STATUSES.map((status) => {
           const currentStatus = booking.status || "Not Arrived";
           const isActive = currentStatus === status.id;
@@ -27,26 +27,22 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   );
                 }
               }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold font-inherit transition-all"
               style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 700,
                 cursor: isActive ? "default" : "pointer",
                 background: isActive
                   ? status.bg
                   : isPast
                     ? "#F9FAFB"
-                    : BRAND.white,
+                    : "#FFFFFF",
                 color: isActive
                   ? status.color
                   : isPast
-                    ? BRAND.textLight
-                    : BRAND.grey,
+                    ? "#6B7280"
+                    : "#6B7280",
                 border: isActive
                   ? `2px solid ${status.color}`
-                  : `1px solid ${BRAND.greyLight}`,
-                transition: "all 0.15s",
+                  : `1px solid #E5E7EB`,
                 opacity: isPast ? 0.6 : 1,
               }}
             >
@@ -62,16 +58,8 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
 
 export function ClientConfirmedToggle({ booking, currentDateStr, onUpdate }) {
   return (
-    <div
-      style={{
-        padding: "10px 0",
-        borderBottom: `1px solid ${BRAND.greyLight}`,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <span style={{ fontSize: 12, fontWeight: 800, color: BRAND.blueDark, textTransform: "uppercase", letterSpacing: 0.5 }}>
+    <div className="py-2.5 border-b border-slate-200 flex justify-between items-center">
+      <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
         Client Confirmed
       </span>
       <button
@@ -82,21 +70,11 @@ export function ClientConfirmedToggle({ booking, currentDateStr, onUpdate }) {
             currentDateStr,
           );
         }}
+        className="rounded-lg px-3 py-1 text-xs font-bold cursor-pointer font-inherit transition-all"
         style={{
-          background: booking.confirmed
-            ? BRAND.openGreenBg
-            : BRAND.closedRedBg,
-          color: booking.confirmed ? BRAND.openGreen : BRAND.closedRed,
-          border: `1.5px solid ${
-            booking.confirmed ? BRAND.openGreen : BRAND.closedRed
-          }`,
-          borderRadius: 8,
-          padding: "4px 12px",
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: "pointer",
-          fontFamily: "inherit",
-          transition: "all 0.15s",
+          background: booking.confirmed ? "#DCFCE7" : "#FEE2E2",
+          color: booking.confirmed ? "#16A34A" : "#DC2626",
+          border: `1.5px solid ${booking.confirmed ? "#16A34A" : "#DC2626"}`,
         }}
       >
         {booking.confirmed ? "\u2713 Confirmed" : "Not confirmed"}
