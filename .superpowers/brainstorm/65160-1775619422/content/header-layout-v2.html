@@ -1,0 +1,124 @@
+<h2>Layout A — Dynamic Action Styles</h2>
+<p class="subtitle">Same single-row layout. Three styles for the revenue + Book Now elements. Which feels right?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0099BD, #007A96); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; min-height: 90px; border-radius: 14px; position: relative; overflow: hidden;">
+        <div style="position: absolute; right: 40px; top: -10px; font-size: 80px; opacity: 0.04; transform: rotate(-15deg); pointer-events: none;">🐾</div>
+        <div>
+          <div style="font-size: 28px; font-weight: 900; color: white; line-height: 1.1;">Monday 6th April</div>
+          <div style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); margin-top: 4px;">2026 · 1 dog booked</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <!-- Shop sign -->
+          <div style="transform: rotate(-4deg);">
+            <div style="display: inline-flex; flex-direction: column; align-items: center;">
+              <div style="width: 14px; height: 7px; border: 2px solid rgba(255,255,255,0.25); border-bottom: none; border-radius: 7px 7px 0 0; margin-bottom: -2px;"></div>
+              <div style="background: #16A34A; border-radius: 8px; padding: 5px 16px; font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 2px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 3px 10px rgba(22,163,74,0.35);">Open</div>
+            </div>
+          </div>
+          <!-- Revenue: Money note style (tilted, dashed inner border, corner £ signs) -->
+          <div style="transform: rotate(-3deg); transition: transform 0.2s;">
+            <div style="background: linear-gradient(135deg, #16A34A, #15803D); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 10px 20px; min-width: 100px; text-align: center; color: white; position: relative; box-shadow: 0 4px 16px rgba(22,163,74,0.35), 0 2px 6px rgba(0,0,0,0.1);">
+              <div style="position: absolute; inset: 5px; border: 1.5px dashed rgba(255,255,255,0.15); border-radius: 6px; pointer-events: none;"></div>
+              <span style="position: absolute; top: 6px; left: 6px; font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.2);">£</span>
+              <span style="position: absolute; top: 6px; right: 6px; font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.2);">£</span>
+              <span style="position: absolute; bottom: 6px; left: 6px; font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.2);">£</span>
+              <span style="position: absolute; bottom: 6px; right: 6px; font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.2);">£</span>
+              <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.55);">Today's Revenue</div>
+              <div style="font-size: 22px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">£42</div>
+            </div>
+          </div>
+          <!-- Book Now: Card with blue accent stripe, slight tilt opposite direction -->
+          <div style="transform: rotate(2deg); transition: transform 0.2s;">
+            <div style="background: white; border-radius: 10px; padding: 12px 28px; text-align: center; min-width: 120px; border: 1.5px solid rgba(0,0,0,0.06); box-shadow: 0 4px 16px rgba(0,0,0,0.12); position: relative; overflow: hidden; cursor: pointer;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #00B8E0, #0099BD);"></div>
+              <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #00B8E0, #0099BD); opacity: 0.3;"></div>
+              <div style="font-size: 9px; font-weight: 800; color: #0099BD; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px;">Smarter Dog</div>
+              <div style="font-size: 17px; font-weight: 900; color: #1e293b;">Book Now</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Tilted cards (current style adapted)</h3>
+      <p>Keeps the playful tilted money-note and business-card feel from the current floating buttons, just anchored into the header. Revenue tilts left, Book Now tilts right — like they're pinned to a noticeboard.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0099BD, #007A96); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; min-height: 90px; border-radius: 14px; position: relative; overflow: hidden;">
+        <div style="position: absolute; right: 40px; top: -10px; font-size: 80px; opacity: 0.04; transform: rotate(-15deg); pointer-events: none;">🐾</div>
+        <div>
+          <div style="font-size: 28px; font-weight: 900; color: white; line-height: 1.1;">Monday 6th April</div>
+          <div style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); margin-top: 4px;">2026 · 1 dog booked</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <!-- Shop sign -->
+          <div style="transform: rotate(-4deg);">
+            <div style="display: inline-flex; flex-direction: column; align-items: center;">
+              <div style="width: 14px; height: 7px; border: 2px solid rgba(255,255,255,0.25); border-bottom: none; border-radius: 7px 7px 0 0; margin-bottom: -2px;"></div>
+              <div style="background: #16A34A; border-radius: 8px; padding: 5px 16px; font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 2px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 3px 10px rgba(22,163,74,0.35);">Open</div>
+            </div>
+          </div>
+          <!-- Revenue: Glassmorphism pill -->
+          <div style="background: rgba(255,255,255,0.12); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 10px 20px; text-align: center; color: white; min-width: 100px;">
+            <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6);">Revenue</div>
+            <div style="font-size: 24px; font-weight: 900; text-shadow: 0 1px 3px rgba(0,0,0,0.15);">£42</div>
+          </div>
+          <!-- Book Now: Glowing white pill with pulse shadow -->
+          <div style="position: relative;">
+            <div style="position: absolute; inset: -3px; border-radius: 16px; background: rgba(255,255,255,0.25); filter: blur(8px); animation: pulse 2s ease-in-out infinite;"></div>
+            <div style="position: relative; background: white; border-radius: 14px; padding: 14px 28px; text-align: center; cursor: pointer; box-shadow: 0 4px 20px rgba(255,255,255,0.3);">
+              <div style="font-size: 16px; font-weight: 900; color: #0099BD; letter-spacing: 0.5px;">+ Book Now</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>@keyframes pulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }</style>
+    </div>
+    <div class="card-body">
+      <h3>B — Frosted glass + glow</h3>
+      <p>Revenue is a frosted glass pill that blends into the blue header. Book Now is a white pill with a soft pulsing glow that draws the eye. Modern, clean, subtly animated.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0099BD, #007A96); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; min-height: 90px; border-radius: 14px; position: relative; overflow: hidden;">
+        <div style="position: absolute; right: 40px; top: -10px; font-size: 80px; opacity: 0.04; transform: rotate(-15deg); pointer-events: none;">🐾</div>
+        <div>
+          <div style="font-size: 28px; font-weight: 900; color: white; line-height: 1.1;">Monday 6th April</div>
+          <div style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); margin-top: 4px;">2026 · 1 dog booked</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <!-- Shop sign -->
+          <div style="transform: rotate(-4deg);">
+            <div style="display: inline-flex; flex-direction: column; align-items: center;">
+              <div style="width: 14px; height: 7px; border: 2px solid rgba(255,255,255,0.25); border-bottom: none; border-radius: 7px 7px 0 0; margin-bottom: -2px;"></div>
+              <div style="background: #16A34A; border-radius: 8px; padding: 5px 16px; font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 2px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 3px 10px rgba(22,163,74,0.35);">Open</div>
+            </div>
+          </div>
+          <!-- Revenue: Embossed dark panel -->
+          <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px 18px; text-align: center; color: white; min-width: 100px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.08);">
+            <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.5);">Revenue</div>
+            <div style="font-size: 24px; font-weight: 900; background: linear-gradient(180deg, #4ADE80, #16A34A); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">£42</div>
+          </div>
+          <!-- Book Now: Gradient border with inner glow -->
+          <div style="position: relative; border-radius: 12px; padding: 2px; background: linear-gradient(135deg, #E8567F, #FF8FA3); box-shadow: 0 4px 16px rgba(232,86,127,0.3); cursor: pointer;">
+            <div style="background: white; border-radius: 10px; padding: 12px 24px; text-align: center;">
+              <div style="font-size: 16px; font-weight: 900; background: linear-gradient(135deg, #E8567F, #c9405f); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">+ Book Now</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Embossed + gradient accents</h3>
+      <p>Revenue sits in a recessed dark panel with a green gradient number. Book Now has a coral gradient border that pops against the blue — draws action without animation. The coral ties to your brand palette.</p>
+    </div>
+  </div>
+</div>

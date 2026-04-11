@@ -1,0 +1,75 @@
+<h2>Dashboard Header Layout</h2>
+<p class="subtitle">Full date on the left, actions on the right — anchored in the header, no more floating overlays</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; overflow: hidden;">
+      <!-- Mockup A: Inline actions -->
+      <div style="background: linear-gradient(135deg, #0099BD, #007A96); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; min-height: 90px; border-radius: 14px; position: relative; overflow: hidden;">
+        <div style="position: absolute; right: 40px; top: -10px; font-size: 80px; opacity: 0.04; transform: rotate(-15deg); pointer-events: none;">🐾</div>
+        <!-- Left: Date -->
+        <div>
+          <div style="font-size: 28px; font-weight: 900; color: white; line-height: 1.1;">Monday 6th April</div>
+          <div style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); margin-top: 4px;">2026 · 1 dog booked</div>
+        </div>
+        <!-- Right: Actions row -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <!-- Shop sign -->
+          <div style="transform: rotate(-4deg);">
+            <div style="display: inline-flex; flex-direction: column; align-items: center;">
+              <div style="width: 14px; height: 7px; border: 2px solid rgba(255,255,255,0.25); border-bottom: none; border-radius: 7px 7px 0 0; margin-bottom: -2px;"></div>
+              <div style="background: #16A34A; border-radius: 8px; padding: 5px 16px; font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 2px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 3px 10px rgba(22,163,74,0.35);">Open</div>
+            </div>
+          </div>
+          <!-- Revenue pill -->
+          <div style="background: linear-gradient(135deg, #16A34A, #15803D); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 8px 16px; text-align: center; color: white;">
+            <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.55);">Revenue</div>
+            <div style="font-size: 20px; font-weight: 900;">£42</div>
+          </div>
+          <!-- Book Now button -->
+          <button style="background: white; border: none; border-radius: 10px; padding: 12px 24px; font-size: 15px; font-weight: 900; color: #0099BD; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">Book Now</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — All in one row</h3>
+      <p>Date left, actions right. Clean single row. On mobile the actions could wrap below the date.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; overflow: hidden;">
+      <!-- Mockup B: Stacked date with action bar -->
+      <div style="background: linear-gradient(135deg, #0099BD, #007A96); padding: 20px 28px 16px; border-radius: 14px; position: relative; overflow: hidden;">
+        <div style="position: absolute; right: 40px; top: -10px; font-size: 80px; opacity: 0.04; transform: rotate(-15deg); pointer-events: none;">🐾</div>
+        <!-- Top: Big date -->
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 30px; font-weight: 900; color: white; line-height: 1.1;">Monday 6th April</div>
+          <div style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); margin-top: 4px;">2026 · 1 dog booked</div>
+        </div>
+        <!-- Bottom: Actions bar -->
+        <div style="display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12);">
+          <!-- Shop sign -->
+          <div style="transform: rotate(-4deg);">
+            <div style="display: inline-flex; flex-direction: column; align-items: center;">
+              <div style="width: 14px; height: 7px; border: 2px solid rgba(255,255,255,0.25); border-bottom: none; border-radius: 7px 7px 0 0; margin-bottom: -2px;"></div>
+              <div style="background: #16A34A; border-radius: 8px; padding: 5px 16px; font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 2px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 3px 10px rgba(22,163,74,0.35);">Open</div>
+            </div>
+          </div>
+          <div style="flex: 1;"></div>
+          <!-- Revenue pill -->
+          <div style="background: linear-gradient(135deg, #16A34A, #15803D); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 8px 16px; text-align: center; color: white;">
+            <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.55);">Revenue</div>
+            <div style="font-size: 20px; font-weight: 900;">£42</div>
+          </div>
+          <!-- Book Now button -->
+          <button style="background: white; border: none; border-radius: 10px; padding: 12px 24px; font-size: 15px; font-weight: 900; color: #0099BD; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">Book Now</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Stacked with action bar</h3>
+      <p>Date on top, actions below with a subtle divider. Open sign sits left, revenue + Book Now right. More breathing room, feels more like a proper dashboard.</p>
+    </div>
+  </div>
+</div>
