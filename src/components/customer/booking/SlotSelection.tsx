@@ -94,7 +94,7 @@ export function SlotSelection({
       )}
 
       {!loading && availableSlots.length === 0 && (
-        <div className="p-4 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold flex flex-col gap-3">
+        <div role="alert" className="p-4 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold flex flex-col gap-3">
           <div>No availability on this date. Please try another day.</div>
           <button
             onClick={onJoinWaitlist}
@@ -124,7 +124,7 @@ export function SlotSelection({
                     {formatSlot(allocation.dropOffTime)}
                   </div>
                   {selectedDogs.length > 1 && (
-                    <div className="text-[13px] text-slate-500">
+                    <div className="text-[13px] text-slate-600">
                       Drop off all dogs at this time
                     </div>
                   )}

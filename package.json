@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "seed": "node src/supabase/seed.js",
-    "test": "tsx src/engine/capacity.test.js",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "repository": {
@@ -28,9 +28,12 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
-    "vite": "^8.0.2"
+    "vite": "^8.0.2",
+    "vitest": "^4.1.4"
   }
 }

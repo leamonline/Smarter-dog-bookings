@@ -76,7 +76,7 @@ export function DogSelection({
             >
               <div>
                 <div className="font-semibold text-slate-800 text-[15px]">{dog.name}</div>
-                <div className="text-slate-500 text-[13px]">
+                <div className="text-slate-600 text-[13px]">
                   {dog.breed || "Unknown breed"} · {dog.size ? dog.size.charAt(0).toUpperCase() + dog.size.slice(1) : "Size not set"}
                 </div>
                 {!dog.size && (

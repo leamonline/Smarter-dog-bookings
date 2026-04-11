@@ -150,6 +150,17 @@ export function StatsView() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Header banner */}
+      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-[14px] relative overflow-hidden">
+        <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
+        <div className="relative z-[1]">
+          <div className="text-xl md:text-2xl font-black text-white">Weekly Snapshot</div>
+          <div className="text-sm font-semibold text-white/70 mt-0.5">
+            Performance overview for this week
+          </div>
+        </div>
+      </div>
+
       {/* Revenue card */}
       <div className="bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04),0_4px_16px_rgba(45,139,122,0.06)]">
         <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594]" />

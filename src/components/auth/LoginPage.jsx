@@ -39,8 +39,8 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       setLocalError("Please enter both email and password.");
       return;
     }
-    if (password.length < 6) {
-      setLocalError("Password must be at least 6 characters.");
+    if (password.length < 12) {
+      setLocalError("Password must be at least 12 characters.");
       return;
     }
     setLocalError("");
@@ -170,7 +170,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
-              placeholder="Min. 6 characters"
+              placeholder="Min. 12 characters"
               className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
             />
           </div>

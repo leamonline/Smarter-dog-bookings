@@ -14,6 +14,16 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
+function sanitise(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
@@ -101,8 +111,8 @@ serve(async (req) => {
     // 3. Build the cancellation message
     //    We can't tell from the webhook payload whether this was customer- or
     //    staff-initiated, so we use the default customer-initiated tone.
-    const firstName = human.name.split(" ")[0];
-    const dogName = dog.name;
+    const firstName = sanitise(human.name.split(" ")[0]);
+    const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
     const message = [

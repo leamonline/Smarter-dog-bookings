@@ -90,7 +90,7 @@ export function BookingConfirmation({
               <div className="font-semibold text-slate-800 text-[15px] mb-1">
                 {dog.name}
               </div>
-              <div className="text-[13px] text-slate-500">
+              <div className="text-[13px] text-slate-600">
                 {rawDog?.breed || "\u2014"} · {size ? size.charAt(0).toUpperCase() + size.slice(1) : "\u2014"}
               </div>
               {serviceId && (

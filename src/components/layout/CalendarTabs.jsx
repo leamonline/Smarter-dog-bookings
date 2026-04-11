@@ -27,7 +27,7 @@ export function CalendarTabs({
   }, [selectedDay, calendarMode]);
 
   return (
-    <div className="flex gap-1.5 px-1 -mb-[2px] relative z-[1] overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none">
+    <div className="flex gap-1.5 px-1 -mb-[2px] relative z-[3] overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none">
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;
         const dogCount = (bookingsByDate[d.dateStr] || []).length;

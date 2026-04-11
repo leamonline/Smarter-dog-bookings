@@ -5,6 +5,8 @@ import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { customerSupabase as supabase } from "./supabase/customerClient.js";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
+import "./customer-portal.css";
 
 export default function CustomerApp() {
   const navigate = useNavigate();
@@ -58,18 +60,20 @@ export default function CustomerApp() {
 
   if (demoMode && demoHuman) {
     return (
-      <Routes>
-        <Route path="book" element={
-          <BookingWizard
-            humanRecord={activeHuman}
-            onComplete={() => navigate("/customer")}
-            onCancel={() => navigate("/customer")}
-          />
-        } />
-        <Route path="*" element={
-          <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
-        } />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="book" element={
+            <BookingWizard
+              humanRecord={activeHuman}
+              onComplete={() => navigate("/customer")}
+              onCancel={() => navigate("/customer")}
+            />
+          } />
+          <Route path="*" element={
+            <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
+          } />
+        </Routes>
+      </ErrorBoundary>
     );
   }
 
@@ -126,12 +130,15 @@ export default function CustomerApp() {
     );
   }
 
-  // Loading state
+  // Loading state — shimmer skeleton
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
-        <div className="text-center text-slate-500">
-          Loading...
+        <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
+          <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-4 w-32 mx-auto bg-slate-200 rounded animate-pulse" />
+          <div className="h-48 bg-slate-200 rounded-2xl animate-pulse" />
+          <div className="h-12 bg-slate-200 rounded-xl animate-pulse" />
         </div>
       </div>
     );
@@ -185,17 +192,19 @@ export default function CustomerApp() {
 
   // Authenticated + matched — show dashboard or booking wizard
   return (
-    <Routes>
-      <Route path="book" element={
-        <BookingWizard
-          humanRecord={activeHuman}
-          onComplete={() => navigate("/customer")}
-          onCancel={() => navigate("/customer")}
-        />
-      } />
-      <Route path="*" element={
-        <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
-      } />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="book" element={
+          <BookingWizard
+            humanRecord={activeHuman}
+            onComplete={() => navigate("/customer")}
+            onCancel={() => navigate("/customer")}
+          />
+        } />
+        <Route path="*" element={
+          <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
+        } />
+      </Routes>
+    </ErrorBoundary>
   );
 }

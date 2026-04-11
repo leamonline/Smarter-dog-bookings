@@ -18,6 +18,16 @@ const SALON_ALERT_WHATSAPP = Deno.env.get("SALON_ALERT_WHATSAPP");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
+function sanitise(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
@@ -99,10 +109,10 @@ serve(async (req) => {
       .order("name");
 
     const dogNames = dogs && dogs.length > 0
-      ? dogs.map((d: { name: string }) => d.name).join(", ")
+      ? dogs.map((d: { name: string }) => sanitise(d.name)).join(", ")
       : "no dogs on file";
 
-    const humanName = `${human.name} ${human.surname || ""}`.trim();
+    const humanName = sanitise(`${human.name} ${human.surname || ""}`.trim());
     const dateFormatted = formatDate(entry.target_date);
 
     // 3. Build staff alert message

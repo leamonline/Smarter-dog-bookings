@@ -1,0 +1,166 @@
+import { useState, useEffect, useMemo } from "react";
+import { SERVICES } from "../../../constants/index.js";
+
+export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!dogId || !fetchBookingHistoryForDog) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchBookingHistoryForDog(dogId)
+      .then((data) => {
+        if (!cancelled) {
+          setHistory(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("GroomingHistory fetch error:", err);
+          setError(err.message || "Unknown error");
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [dogId, fetchBookingHistoryForDog]);
+
+  const completed = useMemo(
+    () => history.filter((b) => b.status === "Ready for pick-up"),
+    [history],
+  );
+
+  const lastVisitWeeksAgo = useMemo(() => {
+    if (completed.length === 0) return null;
+    const lastDate = new Date(completed[0].date);
+    const now = new Date();
+    const diffMs = now - lastDate;
+    return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  }, [completed]);
+
+  const frequencyRange = useMemo(() => {
+    if (completed.length < 2) return null;
+    const gaps = [];
+    for (let i = 0; i < completed.length - 1; i++) {
+      const a = new Date(completed[i].date);
+      const b = new Date(completed[i + 1].date);
+      const diffWeeks = Math.round(Math.abs(a - b) / (7 * 24 * 60 * 60 * 1000));
+      if (diffWeeks > 0) gaps.push(diffWeeks);
+    }
+    if (gaps.length === 0) return null;
+    const min = Math.min(...gaps);
+    const max = Math.max(...gaps);
+    return { min, max, avg: Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length) };
+  }, [completed]);
+
+  const isOverdue = useMemo(() => {
+    if (lastVisitWeeksAgo === null || frequencyRange === null) return false;
+    return lastVisitWeeksAgo > frequencyRange.max + 1;
+  }, [lastVisitWeeksAgo, frequencyRange]);
+
+  const handleRetry = () => {
+    if (!dogId || !fetchBookingHistoryForDog) return;
+    setLoading(true);
+    setError(null);
+    fetchBookingHistoryForDog(dogId)
+      .then((data) => { setHistory(data); setLoading(false); })
+      .catch((err) => { setError(err.message || "Unknown error"); setLoading(false); });
+  };
+
+  return (
+    <div className="px-6 mt-2">
+      <div
+        className="mt-4 font-extrabold text-xs uppercase tracking-wide mb-2"
+        style={{ color: accentColour || "#0099BD" }}
+      >
+        Grooming History
+      </div>
+
+      {loading && (
+        <div className="text-xs text-slate-500 pb-2">
+          Loading...
+        </div>
+      )}
+
+      {!loading && error && (
+        <div
+          onClick={handleRetry}
+          className="text-xs text-brand-coral cursor-pointer pb-2"
+        >
+          Couldn't load history. Tap to retry.
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {lastVisitWeeksAgo !== null && (
+            <div className="text-xs text-slate-500 mb-1">
+              {isOverdue ? (
+                <span className="text-brand-coral font-bold">
+                  Overdue — last visit was {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
+                </span>
+              ) : (
+                <span>
+                  Last visit:{" "}
+                  <span className="font-semibold text-slate-800">
+                    {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+
+          {frequencyRange && (
+            <div className="text-xs text-slate-500 mb-2">
+              Usually every{" "}
+              <span className="font-semibold text-slate-800">
+                {frequencyRange.min === frequencyRange.max
+                  ? `${frequencyRange.min} week${frequencyRange.min !== 1 ? "s" : ""}`
+                  : `${frequencyRange.min}–${frequencyRange.max} weeks`}
+              </span>
+            </div>
+          )}
+
+          {history.length === 0 ? (
+            <div className="text-xs text-slate-500 pb-2">
+              No previous visits recorded.
+            </div>
+          ) : (
+            history.map((b, i) => {
+              const svc = SERVICES.find((s) => s.id === b.service);
+              return (
+                <div
+                  key={`${b.date}-${b.id || b.slot}-${i}`}
+                  className="flex justify-between items-center py-1.5 border-b border-slate-200 text-xs"
+                >
+                  <div>
+                    <span className="font-semibold text-slate-800">
+                      {b.date?.split("-").reverse().join("-")}
+                    </span>
+                    <span className="text-slate-500 ml-1.5">
+                      {svc?.icon} {svc?.name || b.service}
+                    </span>
+                  </div>
+                  <span
+                    className="font-semibold text-[11px]"
+                    style={{
+                      color: b.status === "Ready for pick-up" ? "#16A34A" : undefined,
+                    }}
+                  >
+                    {b.status}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </>
+      )}
+    </div>
+  );
+}

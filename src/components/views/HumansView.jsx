@@ -15,11 +15,9 @@ function waLink(phone) {
   return `https://wa.me/${intl}`;
 }
 
-const DEFAULT_PILL = { bg: "#F8FAFB", text: "#1F2937", border: "#E5E7EB" };
-function sizePill(size) {
+function sizeDot(size) {
   const t = SIZE_THEME[size];
-  if (!t) return DEFAULT_PILL;
-  return { bg: t.light, text: t.primary, border: t.gradient[0] };
+  return t ? t.gradient[0] : "#94A3B8";
 }
 
 export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
@@ -29,36 +27,36 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-extrabold m-0 text-slate-800">
-            Humans Directory
-          </h2>
-          <div className="text-[13px] text-slate-500 mt-1">
-            Search by name, phone, address, dog, or notes.
-          </div>
-        </div>
-
-        <div className="flex gap-2.5 items-center flex-1 max-w-[460px]">
-          <div className="relative flex-1">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-              <IconSearch size={16} colour="#6B7280" />
+      {/* Header banner */}
+      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-[14px] relative overflow-hidden mb-5">
+        <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
+        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xl md:text-2xl font-black text-white">Humans Directory</div>
+            <div className="text-sm font-semibold text-white/70 mt-0.5">
+              {totalCount} human{totalCount !== 1 ? "s" : ""} registered
             </div>
-            <input
-              type="text"
-              placeholder="Search rolodex..."
-              value={searchQuery}
-              onChange={(e) => onSearch(e.target.value)}
-              className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
-            />
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-brand-teal text-white border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-[#236b5d]"
-          >
-            + Add Human
-          </button>
+          <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
+            <div className="relative flex-1">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
+                <IconSearch size={16} colour="rgba(255,255,255,0.5)" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search rolodex..."
+                value={searchQuery}
+                onChange={(e) => onSearch(e.target.value)}
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
+              />
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-white text-brand-blue border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+            >
+              + Add Human
+            </button>
+          </div>
         </div>
       </div>
 
@@ -69,70 +67,68 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
           const humanDogs = Object.values(dogs).filter(
             (dog) => dog._humanId === human.id || dog.humanId === fullName,
           );
+          const visibleDogs = humanDogs.slice(0, 4);
+          const overflow = humanDogs.length - visibleDogs.length;
 
           return (
             <div
               key={human.id}
               onClick={() => onOpenHuman(human.id || fullName)}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)]"
+              className="bg-white rounded-[14px] border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
-              <div className="bg-[#E6F5F2] p-3.5 px-4 border-b border-slate-200 flex justify-between items-start">
-                <div>
-                  <div className="text-base font-extrabold text-[#1F6659]">
+              <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594] shrink-0" />
+
+              <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
+                {/* Name + flag */}
+                <div className="flex justify-between items-start gap-2">
+                  <div className="text-[15px] font-extrabold text-slate-800 truncate">
                     {titleCase(fullName)}
                   </div>
-                  {human.phone ? (
-                    <a
-                      href={waLink(human.phone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[13px] text-slate-800 font-semibold mt-1 block no-underline hover:text-brand-teal"
-                    >
-                      {human.phone}
-                    </a>
-                  ) : (
-                    <div className="text-[13px] text-slate-500 font-semibold mt-1 italic">
-                      No phone
-                    </div>
+                  {human.historyFlag && (
+                    <span title={human.historyFlag} className="text-sm shrink-0">{"\u26A0\uFE0F"}</span>
                   )}
                 </div>
-                {human.historyFlag && (
-                  <span title={human.historyFlag} className="text-base">
-                    {"\u26A0\uFE0F"}
-                  </span>
+
+                {/* Phone */}
+                {human.phone ? (
+                  <a
+                    href={waLink(human.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal leading-snug"
+                  >
+                    {human.phone}
+                  </a>
+                ) : (
+                  <div className="text-[13px] text-slate-400 italic leading-snug">No phone</div>
                 )}
-              </div>
-              <div className="p-3.5 px-4">
-                <div className="text-[11px] font-extrabold text-[#1E6B5C] uppercase tracking-wide mb-2">
-                  Dogs
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {humanDogs.length > 0 ? (
-                    humanDogs.map((dog) => {
-                      const dogSize = dog.size || getSizeForBreed(dog.breed);
-                      const pill = sizePill(dogSize);
-                      return (
-                        <span
-                          key={dog.id}
-                          className="px-2.5 py-1 rounded-xl text-xs font-semibold"
-                          style={{
-                            background: pill.bg,
-                            border: `1px solid ${pill.border}`,
-                            color: pill.text,
-                          }}
-                        >
-                          {titleCase(dog.name)}{" "}
-                          <span className="font-medium opacity-75">
-                            ({titleCase(dog.breed)})
+
+                {/* Dogs — pushed to bottom */}
+                <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
+                  {visibleDogs.length > 0 ? (
+                    <>
+                      {visibleDogs.map((dog) => {
+                        const dogSize = dog.size || getSizeForBreed(dog.breed);
+                        return (
+                          <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ background: sizeDot(dogSize), boxShadow: `0 0 0 2px ${sizeDot(dogSize)}33` }}
+                            />
+                            <span className="text-[12px] font-semibold text-slate-600">
+                              {titleCase(dog.name)}
+                              {dog.breed && <span className="font-medium text-slate-400"> ({titleCase(dog.breed)})</span>}
+                            </span>
                           </span>
-                        </span>
-                      );
-                    })
+                        );
+                      })}
+                      {overflow > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-400 shrink-0">+{overflow}</span>
+                      )}
+                    </>
                   ) : (
-                    <span className="text-[13px] text-slate-500 italic">
-                      None listed
-                    </span>
+                    <span className="text-[12px] text-slate-400 italic">No dogs</span>
                   )}
                 </div>
               </div>

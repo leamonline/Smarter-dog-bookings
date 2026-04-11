@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
+import { PRICING } from "../../../constants/index.js";
 import type { WizardDog, WizardState, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
 import { DogSelection } from "./DogSelection.js";
 import { ServiceSelection } from "./ServiceSelection.js";
@@ -49,6 +50,20 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
+  const stepHeadingRef = useRef<HTMLDivElement>(null);
+
+  // Focus the step heading when the step changes (A2: focus management)
+  useEffect(() => {
+    stepHeadingRef.current?.focus();
+  }, [step]);
+
+  // Warn before navigating away mid-wizard (U5)
+  useEffect(() => {
+    if (step <= 1 || booked || waitlistJoined) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, booked, waitlistJoined]);
 
   const fetchDogs = useCallback(async () => {
     setDogsLoading(true);
@@ -120,7 +135,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const match = stillAvailable.find((a) => a.dropOffTime === slotAllocation.dropOffTime);
 
       if (!match) {
-        setError("Sorry, that time slot is no longer available. Please go back and choose another.");
+        setError("Sorry, that time slot is no longer available — please choose another.");
+        setSlotAllocation(null);
         setStep(4);
         setSubmitting(false);
         return;
@@ -220,31 +236,62 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="flex gap-1">
+      {/* Progress bar (A3: non-colour indicators, A5: progressbar semantics) */}
+      <div
+        className="flex gap-1"
+        role="progressbar"
+        aria-valuenow={step}
+        aria-valuemin={1}
+        aria-valuemax={5}
+        aria-label={`Booking progress: step ${step} of 5`}
+      >
         {[1, 2, 3, 4, 5].map((s) => (
           <div
             key={s}
             className={`flex-1 h-1 rounded transition-colors ${s <= step ? "bg-brand-teal" : "bg-slate-200"}`}
+            aria-hidden="true"
           />
         ))}
       </div>
 
-      {/* Step title */}
-      <div className="font-semibold text-slate-800 text-base">
+      {/* Step title (A2: focus target for step navigation) */}
+      <div
+        ref={stepHeadingRef}
+        tabIndex={-1}
+        className="font-semibold text-slate-800 text-base outline-none"
+      >
         Step {step} of 5 — {STEP_TITLES[step - 1]}
       </div>
 
-      {/* Error banner */}
+      {/* Running price estimate (U3: shows from step 2 once services selected) */}
+      {step >= 2 && Object.keys(services).length > 0 && (() => {
+        const prices = selectedDogs
+          .filter((d) => services[d.dogId])
+          .map((d) => {
+            const svc = services[d.dogId] as keyof typeof PRICING;
+            const size = d.size as "small" | "medium" | "large";
+            return PRICING[svc]?.[size] ?? null;
+          })
+          .filter(Boolean) as string[];
+        if (prices.length === 0) return null;
+        const total = prices.reduce((sum, p) => sum + parseInt(p.replace(/[^0-9]/g, ""), 10), 0);
+        return (
+          <div className="text-[13px] text-slate-600 -mt-3">
+            Estimated total: from {"\u00A3"}{total}+
+          </div>
+        );
+      })()}
+
+      {/* Error banner (A4: role=alert for screen reader announcement) */}
       {error && (
-        <div className="py-2.5 px-3.5 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold">
+        <div role="alert" className="py-2.5 px-3.5 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold">
           {error}
         </div>
       )}
 
       {/* Dogs fetch error */}
       {dogsError && step === 1 && (
-        <div className="py-3.5 px-4 rounded-[10px] bg-brand-coral-light flex items-center justify-between">
+        <div role="alert" className="py-3.5 px-4 rounded-[10px] bg-brand-coral-light flex items-center justify-between">
           <span className="text-brand-coral text-[13px] font-semibold">
             {dogsError}
           </span>

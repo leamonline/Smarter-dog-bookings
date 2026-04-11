@@ -36,7 +36,7 @@ export function SlotGrid({
           <div
             key={slot}
             className={[
-              "grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] min-h-[80px] md:min-h-[100px] items-center",
+              "grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] min-h-[110px] md:min-h-[140px] items-stretch",
               isLast ? "" : "border-b border-[#F1F3F5]",
             ].join(" ")}
           >
@@ -47,23 +47,27 @@ export function SlotGrid({
 
             {/* Seats */}
             {allAvailable ? (
-              /* Both empty — spanning ghost seat */
-              <GhostSeat
-                span
-                onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                onBlock={onOverride ? (seatIdx) => onOverride(currentDateStr, slot, seatIdx, "blocked") : undefined}
-              />
+              /* Both empty — individual ghost seats */
+              <>
+                <GhostSeat
+                  onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                  onBlock={onOverride ? () => onOverride(currentDateStr, slot, 0, "blocked") : undefined}
+                />
+                <GhostSeat
+                  onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                  onBlock={onOverride ? () => onOverride(currentDateStr, slot, 1, "blocked") : undefined}
+                />
+              </>
             ) : allBlockedByStaff ? (
-              /* Both staff-blocked — spanning blocked bar */
-              <BlockedSeatCell
-                span
-                onClick={() => {
-                  if (onOverride) {
-                    onOverride(currentDateStr, slot, 0, "blocked");
-                    onOverride(currentDateStr, slot, 1, "blocked");
-                  }
-                }}
-              />
+              /* Both staff-blocked — individual blocked bars */
+              <>
+                <BlockedSeatCell
+                  onClick={() => { if (onOverride) onOverride(currentDateStr, slot, 0, "blocked"); }}
+                />
+                <BlockedSeatCell
+                  onClick={() => { if (onOverride) onOverride(currentDateStr, slot, 1, "blocked"); }}
+                />
+              </>
             ) : (
               /* Mixed — render each seat individually */
               <>

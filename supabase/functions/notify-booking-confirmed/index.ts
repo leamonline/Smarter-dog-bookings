@@ -14,6 +14,16 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
+function sanitise(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, "")          // strip HTML tags
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "") // strip control chars (keep \n for safety, but we join lines ourselves)
+    .replace(/\n/g, " ")              // collapse any newlines into spaces
+    .replace(/\s+/g, " ")            // normalise whitespace
+    .trim();
+}
+
 async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
@@ -154,16 +164,16 @@ serve(async (req) => {
           .select("name")
           .in("id", dogIds);
 
-        dogNames = joinNames((groupDogs ?? []).map((d: { name: string }) => d.name));
+        dogNames = joinNames((groupDogs ?? []).map((d: { name: string }) => sanitise(d.name)));
       } else {
-        dogNames = dog.name;
+        dogNames = sanitise(dog.name);
       }
     } else {
-      dogNames = dog.name;
+      dogNames = sanitise(dog.name);
     }
 
     // 5. Format the message
-    const firstName = human.name.split(" ")[0];
+    const firstName = sanitise(human.name.split(" ")[0]);
     const isPlural = dogNames.includes(" and ");
     const pronoun = isPlural ? "they're" : `${dogNames} is`;
     const them = isPlural ? "them" : dogNames;

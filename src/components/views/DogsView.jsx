@@ -9,6 +9,27 @@ function titleCase(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function computeAge(dog) {
+  if (dog.dob) {
+    const [y, m] = dog.dob.split("-").map(Number);
+    if (y && m) {
+      const now = new Date();
+      let yrs = now.getFullYear() - y;
+      let mos = now.getMonth() + 1 - m;
+      if (mos < 0) { yrs--; mos += 12; }
+      return yrs >= 1 ? `${yrs} ${yrs === 1 ? "yr" : "yrs"}` : `${mos} ${mos === 1 ? "month" : "months"}`;
+    }
+  }
+  const raw = dog.age || "";
+  if (/^\d+$/.test(raw.trim())) return `${raw.trim()} yrs`;
+  return raw || "";
+}
+
+function sizeDot(size) {
+  const t = SIZE_THEME[size] || SIZE_FALLBACK;
+  return t.gradient[0];
+}
+
 export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -16,36 +37,36 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-extrabold m-0 text-slate-800">
-            Dogs Directory
-          </h2>
-          <div className="text-[13px] text-slate-500 mt-1">
-            Search by name, breed, owner, or alerts.
-          </div>
-        </div>
-
-        <div className="flex gap-2.5 items-center w-full max-w-[460px]">
-          <div className="relative flex-1">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-              <IconSearch size={16} colour="#6B7280" />
+      {/* Header banner */}
+      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-[14px] relative overflow-hidden mb-5">
+        <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
+        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xl md:text-2xl font-black text-white">Dogs Directory</div>
+            <div className="text-sm font-semibold text-white/70 mt-0.5">
+              {totalCount} dog{totalCount !== 1 ? "s" : ""} registered
             </div>
-            <input
-              type="text"
-              placeholder="Search dogs..."
-              value={searchQuery}
-              onChange={(e) => onSearch(e.target.value)}
-              className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit outline-none text-slate-800 transition-colors focus:border-brand-blue"
-            />
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-brand-blue text-white border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-brand-blue-dark"
-          >
-            + Add Dog
-          </button>
+          <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
+            <div className="relative flex-1">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
+                <IconSearch size={16} colour="rgba(255,255,255,0.5)" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search dogs..."
+                value={searchQuery}
+                onChange={(e) => onSearch(e.target.value)}
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
+              />
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-white text-brand-blue border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+            >
+              + Add Dog
+            </button>
+          </div>
         </div>
       </div>
 
@@ -59,84 +80,45 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
               ? `${owner.name} ${owner.surname}`.trim()
               : dog.humanId || "");
           const alertCount = (dog.alerts || []).length;
-
           const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
-          const sizeTheme = { bg: t.light, text: t.primary, border: t.gradient[0], shadow: `${t.gradient[0]}26` };
+          const age = computeAge(dog);
 
           return (
             <div
               key={dog.id}
               onClick={() => onOpenDog(dog.id || dog.name)}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:shadow-md"
-              style={{
-                "--hover-border": sizeTheme.border,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = sizeTheme.border;
-                e.currentTarget.style.boxShadow = `0 6px 16px ${sizeTheme.shadow}`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "";
-                e.currentTarget.style.boxShadow = "";
-              }}
+              className="bg-white rounded-[14px] border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
-              <div
-                className="p-3.5 px-4 border-b border-slate-200 flex justify-between items-start"
-                style={{ background: sizeTheme.bg }}
-              >
-                <div>
-                  <div
-                    className="text-base font-extrabold"
-                    style={{ color: sizeTheme.text }}
-                  >
-                    {titleCase(dog.name)}
-                  </div>
-                  <div className="text-[13px] text-slate-800 font-semibold mt-1">
-                    {titleCase(dog.breed)}{(() => {
-                      let age = "";
-                      if (dog.dob) {
-                        const [y, m] = dog.dob.split("-").map(Number);
-                        if (y && m) {
-                          const now = new Date();
-                          let yrs = now.getFullYear() - y;
-                          let mos = now.getMonth() + 1 - m;
-                          if (mos < 0) { yrs--; mos += 12; }
-                          age = yrs >= 1 ? `${yrs} ${yrs === 1 ? "yr" : "yrs"}` : `${mos} ${mos === 1 ? "month" : "months"}`;
-                        }
-                      } else {
-                        const raw = dog.age || "";
-                        if (/^\d+$/.test(raw.trim())) age = `${raw.trim()} yrs`;
-                        else age = raw;
-                      }
-                      return age ? ` \u00B7 ${age}` : "";
-                    })()}
-                  </div>
-                </div>
-                {alertCount > 0 && (
-                  <span className="bg-brand-coral-light text-brand-coral px-2.5 py-1 rounded-xl text-[11px] font-bold">
-                    {"\u26A0\uFE0F"} {alertCount} alert{alertCount > 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
+              <div className="h-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1] || t.gradient[0]})` }} />
 
-              <div className="p-3.5 px-4">
-                <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Owner
-                </div>
-                <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-800">
-                  {titleCase(ownerName)}
-                </span>
-
-                {dog.groomNotes && (
-                  <div className="mt-2.5">
-                    <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1">
-                      Groom Notes
-                    </div>
-                    <div className="text-xs text-slate-800 leading-relaxed">
-                      {dog.groomNotes}
-                    </div>
+              <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
+                {/* Name + alert */}
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: sizeDot(dog.size), boxShadow: `0 0 0 2px ${sizeDot(dog.size)}33` }}
+                    />
+                    <span className="text-[15px] font-extrabold text-slate-800 truncate">
+                      {titleCase(dog.name)}
+                    </span>
                   </div>
-                )}
+                  {alertCount > 0 && (
+                    <span className="text-[11px] font-bold text-brand-coral shrink-0">
+                      {"\u26A0\uFE0F"} {alertCount}
+                    </span>
+                  )}
+                </div>
+
+                {/* Breed + age */}
+                <div className="text-[13px] text-slate-500 font-semibold leading-snug mt-0.5 truncate">
+                  {titleCase(dog.breed)}{age ? ` \u00B7 ${age}` : ""}
+                </div>
+
+                {/* Owner — pushed to bottom */}
+                <div className="mt-auto text-[12px] font-semibold text-slate-400 truncate">
+                  {ownerName ? titleCase(ownerName) : <span className="italic">No owner</span>}
+                </div>
               </div>
             </div>
           );
@@ -169,7 +151,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         {hasMore && !isSearching && (
           <button
             onClick={loadMore}
-            className="border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold cursor-pointer font-inherit bg-white text-slate-800 transition-all hover:border-brand-blue hover:text-brand-blue"
+            className="border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold cursor-pointer font-inherit bg-white text-slate-800 transition-all hover:border-brand-teal hover:text-brand-teal"
           >
             Load more
           </button>

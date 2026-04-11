@@ -89,8 +89,9 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       <div className="font-semibold text-brand-teal text-sm">Add a new dog</div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[13px] text-slate-800 font-semibold">Name *</label>
+        <label htmlFor="add-dog-name" className="text-[13px] text-slate-800 font-semibold">Name *</label>
         <input
+          id="add-dog-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -100,8 +101,9 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[13px] text-slate-800 font-semibold">Breed</label>
+        <label htmlFor="add-dog-breed" className="text-[13px] text-slate-800 font-semibold">Breed</label>
         <select
+          id="add-dog-breed"
           value={breed}
           onChange={(e) => handleBreedSelect(e.target.value)}
           className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800 cursor-pointer"
@@ -114,10 +116,12 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         </select>
         {isOtherBreed && (
           <input
+            id="add-dog-custom-breed"
             type="text"
             value={customBreed}
             onChange={(e) => setCustomBreed(e.target.value)}
             placeholder="Enter breed..."
+            aria-label="Custom breed name"
             className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
             autoFocus
           />
@@ -130,7 +134,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       {error && (
-        <div className="text-brand-coral text-[13px]">{error}</div>
+        <div role="alert" className="text-brand-coral text-[13px]">{error}</div>
       )}
 
       <div className="flex gap-2">

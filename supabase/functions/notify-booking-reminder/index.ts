@@ -13,6 +13,16 @@ const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
+function sanitise(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
@@ -176,7 +186,7 @@ serve(async (_req) => {
       }
 
       // 5. Build message
-      const dogNames = joinNames((dogs as Dog[]).map((d) => d.name));
+      const dogNames = joinNames((dogs as Dog[]).map((d) => sanitise(d.name)));
       const isPlural = dogNames.includes(" and ");
       const dateFormatted = formatDate(ref.booking_date);
       const timeFormatted = formatTime(ref.slot);
