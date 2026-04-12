@@ -1,4 +1,5 @@
 // src/components/booking/SlotGrid.jsx
+import { useMemo } from "react";
 import { getSeatStatesForSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
@@ -20,7 +21,16 @@ export function SlotGrid({
   overrides,
   onOverride,
 }) {
+  const allEmpty = useMemo(() => {
+    return activeSlots.every((slot) => {
+      const slotOverrides = overrides?.[slot] || {};
+      const states = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
+      return states.every((s) => s.type === "available");
+    });
+  }, [bookings, activeSlots, overrides]);
+
   return (
+    <div className="relative">
     <div className="bg-white border border-slate-200 border-t-0 rounded-b-[14px] overflow-hidden">
       {activeSlots.map((slot, i) => {
         const slotOverrides = overrides?.[slot] || {};
@@ -122,6 +132,15 @@ export function SlotGrid({
           </div>
         );
       })}
+    </div>
+    {allEmpty && (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="text-center">
+          <div className="text-slate-400 text-sm font-semibold">No bookings today</div>
+          <div className="text-slate-400 text-xs mt-1">Tap a slot to add one</div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

@@ -35,11 +35,18 @@ export function DogSearchSection({
     }
   }, [hasDogs]);
 
-  // Build search entries from current dogs state (for display in dropdown)
+  // Build search entries from current dogs state, filtered by query
   const filteredEntries = useMemo(() => {
     if (hasDogs) return [];
-    return buildSearchEntries(dogs, humans).slice(0, 8);
-  }, [dogs, humans, hasDogs]);
+    const all = buildSearchEntries(dogs, humans);
+    if (!dogQuery.trim()) return all.slice(0, 8);
+    const q = dogQuery.toLowerCase().trim();
+    return all.filter(e =>
+      e.dog.name?.toLowerCase().includes(q) ||
+      e.dog.breed?.toLowerCase().includes(q) ||
+      e.humanKey?.toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [dogs, humans, hasDogs, dogQuery]);
 
   // Same owner's other dogs for "add another" picker
   const sameOwnerDogs = useMemo(() => {
@@ -181,15 +188,15 @@ export function DogSearchSection({
               className="w-full py-3 pl-9 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
             />
 
-            {/* Searching indicator */}
-            {isSearchingDogs && dogQuery.trim().length > 0 && (
+            {/* Searching indicator — only when no local results */}
+            {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
                 Searching...
               </div>
             )}
 
-            {/* Dropdown results */}
-            {!isSearchingDogs && filteredEntries.length > 0 && (
+            {/* Dropdown results — show even during server search */}
+            {filteredEntries.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[280px] overflow-auto">
                 {filteredEntries.map((entry, idx) => {
                   const isTrusted = entry.isTrusted;

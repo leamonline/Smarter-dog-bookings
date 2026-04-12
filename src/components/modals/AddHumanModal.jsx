@@ -56,17 +56,19 @@ export function AddHumanModal({ onClose, onAdd }) {
           <button onClick={onClose} className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0">{"\u00D7"}</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
+        <form onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">First Name *</label>
               <input value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="Sarah"
+                autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                 autoFocus />
             </div>
             <div>
               <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Surname *</label>
               <input value={surname} onChange={e => { setSurname(e.target.value); setError(""); }} placeholder="Jones"
+                autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
           </div>
@@ -74,18 +76,21 @@ export function AddHumanModal({ onClose, onAdd }) {
           <div>
             <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Phone *</label>
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
+              autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
             <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
+              autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
             <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Address</label>
             <input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
+              autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 

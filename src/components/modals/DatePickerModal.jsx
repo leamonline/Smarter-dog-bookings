@@ -69,6 +69,7 @@ export function DatePickerModal({
               <path d="M6 3l5 5-5 5" />
             </svg>
           </button>
+          <button onClick={onClose} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center text-sm text-white font-bold ml-2">{"\u00D7"}</button>
         </div>
 
         {/* Day headers */}

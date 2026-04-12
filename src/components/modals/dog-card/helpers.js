@@ -10,6 +10,13 @@ export function waLink(phone) {
   return `https://wa.me/${intl}`;
 }
 
+export function telLink(phone) {
+  if (!phone) return "#";
+  const digits = phone.replace(/[\s\-()]/g, "");
+  const intl = digits.startsWith("0") ? "+44" + digits.slice(1) : "+" + digits;
+  return `tel:${intl}`;
+}
+
 export function calcAge(dob) {
   if (!dob) return null;
   const [y, m] = dob.split("-").map(Number);

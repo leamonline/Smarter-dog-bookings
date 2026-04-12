@@ -18,6 +18,13 @@ function waLink(phone) {
   return `https://wa.me/${intl}`;
 }
 
+function telLink(phone) {
+  if (!phone) return "#";
+  const digits = phone.replace(/[\s\-()]/g, "");
+  const intl = digits.startsWith("0") ? "+44" + digits.slice(1) : "+" + digits;
+  return `tel:${intl}`;
+}
+
 function HumanBookingHistory({ human, dogs, bookingsByDate }) {
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
@@ -313,16 +320,27 @@ export function HumanCardModal({
               {titleCase(humanFullName)}
             </div>
             {human.phone ? (
-              <a
-                href={waLink(human.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-[13px] block mt-1 no-underline transition-colors hover:text-white"
-                style={{ color: "rgba(255,255,255,0.8)" }}
-              >
-                {human.phone}
-              </a>
+              <div className="flex items-center gap-2 mt-1">
+                <a
+                  href={telLink(human.phone)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[13px] no-underline transition-colors hover:text-white"
+                  style={{ color: "rgba(255,255,255,0.8)" }}
+                >
+                  {human.phone}
+                </a>
+                <a
+                  href={waLink(human.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[11px] font-bold no-underline transition-colors hover:text-white"
+                  style={{ color: "rgba(255,255,255,0.6)" }}
+                  title="WhatsApp"
+                >
+                  WA
+                </a>
+              </div>
             ) : (
               <div className="text-[13px] text-white/50 mt-1 italic">
                 No phone

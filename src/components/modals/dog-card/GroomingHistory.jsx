@@ -1,10 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { SERVICES } from "../../../constants/index.js";
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!dogId || !fetchBookingHistoryForDog) {
@@ -14,21 +20,31 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
     let cancelled = false;
     setLoading(true);
     setError(null);
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setError("Request timed out");
+        setLoading(false);
+      }
+    }, 8000);
+
     fetchBookingHistoryForDog(dogId)
       .then((data) => {
         if (!cancelled) {
+          clearTimeout(timeout);
           setHistory(data);
           setLoading(false);
         }
       })
       .catch((err) => {
         if (!cancelled) {
+          clearTimeout(timeout);
           console.error("GroomingHistory fetch error:", err);
           setError(err.message || "Unknown error");
           setLoading(false);
         }
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [dogId, fetchBookingHistoryForDog]);
 
   const completed = useMemo(
@@ -68,9 +84,14 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
     if (!dogId || !fetchBookingHistoryForDog) return;
     setLoading(true);
     setError(null);
+
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) { setError("Request timed out"); setLoading(false); }
+    }, 8000);
+
     fetchBookingHistoryForDog(dogId)
-      .then((data) => { setHistory(data); setLoading(false); })
-      .catch((err) => { setError(err.message || "Unknown error"); setLoading(false); });
+      .then((data) => { clearTimeout(timeout); if (mountedRef.current) { setHistory(data); setLoading(false); } })
+      .catch((err) => { clearTimeout(timeout); if (mountedRef.current) { setError(err.message || "Unknown error"); setLoading(false); } });
   };
 
   return (

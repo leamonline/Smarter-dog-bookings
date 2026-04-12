@@ -1,6 +1,6 @@
 import { ALERT_OPTIONS } from "../../../constants/index.js";
 import { IconSearch } from "../../icons/index.jsx";
-import { titleCase, waLink } from "./helpers.js";
+import { titleCase, waLink, telLink } from "./helpers.js";
 
 const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide";
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
@@ -125,15 +125,25 @@ export function DogDetailsSection({
               {titleCase(ownerLabel) || "\u2014"}
             </div>
             {owner?.phone && (
-              <a
-                href={waLink(owner.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-500 no-underline hover:text-brand-teal"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {owner.phone}
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={telLink(owner.phone)}
+                  className="text-xs text-slate-500 no-underline hover:text-brand-teal"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {owner.phone}
+                </a>
+                <a
+                  href={waLink(owner.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold text-green-600 no-underline hover:text-green-700"
+                  onClick={(e) => e.stopPropagation()}
+                  title="WhatsApp"
+                >
+                  WA
+                </a>
+              </div>
             )}
           </div>
         </div>
