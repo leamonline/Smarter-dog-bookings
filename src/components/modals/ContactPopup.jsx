@@ -1,9 +1,17 @@
+import { useEffect } from "react";
+
 function titleCase(str) {
   if (!str) return "";
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function ContactPopup({ human, onClose }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   if (!human) return null;
 
   const fullName = titleCase(`${human.name} ${human.surname}`);

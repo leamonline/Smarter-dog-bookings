@@ -529,39 +529,48 @@ export function useHumans() {
 
     setError(null);
 
-    const { data, error: insertErr } = await supabase
-      .from("humans")
-      .insert({
-        name: humanData.name,
-        surname: humanData.surname,
-        phone: humanData.phone || "",
-        sms: humanData.sms || false,
-        whatsapp: humanData.whatsapp || false,
-        email: humanData.email || "",
-        address: humanData.address || "",
-        notes: humanData.notes || "",
-      })
-      .select("*")
-      .single();
+    try {
+      const { data, error: insertErr } = await supabase
+        .from("humans")
+        .insert({
+          name: humanData.name,
+          surname: humanData.surname,
+          phone: humanData.phone || "",
+          sms: humanData.sms || false,
+          whatsapp: humanData.whatsapp || false,
+          email: humanData.email || "",
+          address: humanData.address || "",
+          notes: humanData.notes || "",
+        })
+        .select("*")
+        .single();
 
-    if (insertErr) {
-      console.error("Failed to add human:", insertErr);
-      setError(insertErr.message);
+      if (insertErr) {
+        console.error("Failed to add human:", insertErr);
+        const msg = insertErr.code === "23505"
+          ? `${fullName} already exists. Please use a different name.`
+          : insertErr.message;
+        setError(msg);
+        return null;
+      }
+
+      const savedHuman = buildHumanMapEntry(data);
+
+      setHumans((prev) => ({ ...prev, [savedHuman.fullName]: savedHuman }));
+      setHumansById((prev) => ({
+        ...prev,
+        [data.id]: {
+          ...data,
+          fullName: savedHuman.fullName,
+        },
+      }));
+
+      return savedHuman;
+    } catch (err: any) {
+      console.error("addHuman threw:", err);
+      setError(err?.message || "Failed to add human. Please try again.");
       return null;
     }
-
-    const savedHuman = buildHumanMapEntry(data);
-
-    setHumans((prev) => ({ ...prev, [savedHuman.fullName]: savedHuman }));
-    setHumansById((prev) => ({
-      ...prev,
-      [data.id]: {
-        ...data,
-        fullName: savedHuman.fullName,
-      },
-    }));
-
-    return savedHuman;
   }, []);
 
   return {

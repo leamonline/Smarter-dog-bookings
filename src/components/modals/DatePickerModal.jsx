@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ALL_DAYS } from "../../constants/index.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
@@ -14,6 +14,12 @@ export function DatePickerModal({
   onClose,
   dayOpenState,
 }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 

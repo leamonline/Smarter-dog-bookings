@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import { useBookingSave } from "../../hooks/useBookingSave.ts";
@@ -62,6 +62,12 @@ export function BookingDetailModal({
   onRebook,
   daySettings = {},
 }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const dogData = useMemo(
     () => getDogByIdOrName(dogs, booking._dogId || booking.dogName) || {},
     [dogs, booking._dogId, booking.dogName],

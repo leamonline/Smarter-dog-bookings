@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import {
@@ -102,6 +102,12 @@ export function HumanCardModal({
   onAddHuman,
   bookingsByDate,
 }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const human = getHumanByIdOrName(humans, humanId) || {
     id: humanId,
     fullName: humanId,

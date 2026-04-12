@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -23,6 +23,12 @@ export function NewBookingModal({
   onSearchDogs,
   isSearchingDogs,
 }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const [dogQuery, setDogQuery] = useState("");
   const [dogEntries, setDogEntries] = useState([]); // { dog, humanKey, service }
   const [selectedHumanKey, setSelectedHumanKey] = useState("");

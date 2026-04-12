@@ -27,9 +27,11 @@ export function useSalonConfig() {
 
   const updateConfig = useCallback(
     async (updaterOrValue) => {
+      // Guard: if config hasn't loaded yet, use a safe empty object for updater functions
+      const safeConfig = config || { defaultPickupOffset: 120, pricing: {}, enforceCapacity: true, largeDogSlots: {} };
       const newConfig =
         typeof updaterOrValue === "function"
-          ? updaterOrValue(config)
+          ? updaterOrValue(safeConfig)
           : updaterOrValue;
       const prev = config;
       setConfig(newConfig);

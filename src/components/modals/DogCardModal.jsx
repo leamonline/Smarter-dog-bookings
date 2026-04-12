@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import {
   getDogByIdOrName,
@@ -30,6 +30,12 @@ export function DogCardModal({
   fetchBookingHistoryForDog,
   handleAdd,
 }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const resolvedDog = getDogByIdOrName(dogs, dogId) || {
     id: dogId,
     name: dogId,

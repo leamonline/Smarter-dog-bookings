@@ -137,11 +137,6 @@ export function BookingCardNew({ booking, onClick }) {
             {service?.name || booking.service || "\u2014"}
           </span>
 
-          {/* Pickup pill */}
-          <span className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-[#F3EEFF] text-[#7C3AED]">
-            {pickupText || "\u2014"}
-          </span>
-
           {/* Status pill */}
           <span
             className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate"

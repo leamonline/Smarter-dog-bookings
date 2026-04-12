@@ -105,31 +105,39 @@ export function ReportsView() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      const since = new Date();
-      since.setDate(since.getDate() - days * 2);
-      const sinceStr = toLocal(since);
+      try {
+        const since = new Date();
+        since.setDate(since.getDate() - days * 2);
+        const sinceStr = toLocal(since);
 
-      const [bk, dg, hm] = await Promise.all([
-        supabase.from("bookings")
-          .select("id, booking_date, service, size, status, payment, slot, dog_id")
-          .gte("booking_date", sinceStr)
-          .order("booking_date"),
-        supabase.from("dogs").select("id, human_id, custom_price"),
-        supabase.from("humans").select("id, name, surname"),
-      ]);
+        const [bk, dg, hm] = await Promise.all([
+          supabase.from("bookings")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id")
+            .gte("booking_date", sinceStr)
+            .order("booking_date"),
+          supabase.from("dogs").select("id, human_id, custom_price"),
+          supabase.from("humans").select("id, name, surname"),
+        ]);
 
-      if (cancelled) return;
-      setBookings(bk.data || []);
+        if (cancelled) return;
+        setBookings(bk.data || []);
 
-      const dm = {};
-      (dg.data || []).forEach((d) => { dm[d.id] = { humanId: d.human_id, customPrice: d.custom_price }; });
-      setDogMap(dm);
+        const dm = {};
+        (dg.data || []).forEach((d) => { dm[d.id] = { humanId: d.human_id, customPrice: d.custom_price }; });
+        setDogMap(dm);
 
-      const hm2 = {};
-      (hm.data || []).forEach((h) => { hm2[h.id] = `${h.name || ""} ${h.surname || ""}`.trim(); });
-      setHumanMap(hm2);
-
+        const hm2 = {};
+        (hm.data || []).forEach((h) => { hm2[h.id] = `${h.name || ""} ${h.surname || ""}`.trim(); });
+        setHumanMap(hm2);
+      } catch (err) {
+        console.error("ReportsView: failed to load data", err);
+      }
       setLoading(false);
     }
     load();

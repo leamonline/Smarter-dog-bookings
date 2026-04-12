@@ -1,5 +1,5 @@
 // src/components/modals/ChainBookingModal.jsx
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { SERVICES, SALON_SLOTS, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.jsx";
 import { canBookSlot } from "../../engine/capacity.js";
@@ -21,6 +21,12 @@ function formatDate(date) {
 }
 
 export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const { bookingsByDate, daySettings } = useSalon();
 
   // Template defaults from last booking

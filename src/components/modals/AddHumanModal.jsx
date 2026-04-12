@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function AddHumanModal({ onClose, onAdd }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [phone, setPhone] = useState("");

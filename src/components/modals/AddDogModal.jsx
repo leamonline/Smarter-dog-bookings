@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index.js";
 import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
@@ -15,6 +15,12 @@ function titleCase(str) {
 }
 
 export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [customBreed, setCustomBreed] = useState("");

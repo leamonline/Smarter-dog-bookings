@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { SALON_SLOTS } from "../../constants/index.js";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -19,12 +19,19 @@ const DatePickerModal = lazy(() =>
  * MonthGrid — shows a full calendar month with booking counts
  * ────────────────────────────────────────────────────────── */
 function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate, onNavigateMonth, calendarMode, setCalendarMode }) {
-  const year = currentDateObj.getFullYear();
-  const month = currentDateObj.getMonth();
+  // Local view state — arrows change this without affecting day navigation
+  const [viewYear, setViewYear] = useState(currentDateObj.getFullYear());
+  const [viewMonth, setViewMonth] = useState(currentDateObj.getMonth());
+
+  // Reset view when re-entering month mode or when currentDateObj changes externally
+  useEffect(() => {
+    setViewYear(currentDateObj.getFullYear());
+    setViewMonth(currentDateObj.getMonth());
+  }, [currentDateObj]);
 
   const { weeks, monthName, yearStr } = useMemo(() => {
-    const first = new Date(year, month, 1);
-    const last = new Date(year, month + 1, 0);
+    const first = new Date(viewYear, viewMonth, 1);
+    const last = new Date(viewYear, viewMonth + 1, 0);
     const startDay = first.getDay() === 0 ? 6 : first.getDay() - 1; // Mon=0
     const mName = first.toLocaleDateString("en-GB", { month: "long" });
     const yr = String(first.getFullYear());
@@ -33,7 +40,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
     let week = new Array(startDay).fill(null);
 
     for (let d = 1; d <= last.getDate(); d++) {
-      week.push(new Date(year, month, d));
+      week.push(new Date(viewYear, viewMonth, d));
       if (week.length === 7) { rows.push(week); week = []; }
     }
     if (week.length > 0) {
@@ -41,13 +48,14 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
       rows.push(week);
     }
     return { weeks: rows, monthName: mName, yearStr: yr };
-  }, [year, month]);
+  }, [viewYear, viewMonth]);
 
   const todayStr = toDateStr(new Date());
 
   const goMonth = (offset) => {
-    const d = new Date(year, month + offset, 1);
-    (onNavigateMonth || onSelectDate)(d);
+    const d = new Date(viewYear, viewMonth + offset, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
   };
 
   return (
