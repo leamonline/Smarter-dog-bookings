@@ -28,7 +28,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-[14px] relative overflow-hidden mb-5">
+      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
         <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -74,7 +74,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
             <div
               key={human.id}
               onClick={() => onOpenHuman(human.id || fullName)}
-              className="bg-white rounded-[14px] border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
+              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
               <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594] shrink-0" />
 

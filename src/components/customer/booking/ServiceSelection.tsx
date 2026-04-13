@@ -10,6 +10,13 @@ interface ServiceSelectionProps {
   onBack: () => void;
 }
 
+const SERVICE_DESCRIPTIONS: Record<string, string> = {
+  "full-groom": "Includes bath, dry, and full clip to breed standard",
+  "bath-and-brush": "Includes bath, blow-dry, and thorough brush-out",
+  "bath-and-deshed": "Includes bath, blow-dry, and de-shedding treatment",
+  "puppy-groom": "A gentle introduction to grooming for pups under 6 months",
+};
+
 function getPriceLabel(serviceId: string, size: string): string {
   const pricing = PRICING as Record<string, Record<string, string>>;
   return pricing?.[serviceId]?.[size] || "N/A";
@@ -36,7 +43,7 @@ export function ServiceSelection({
   return (
     <div className="flex flex-col gap-5">
       <p className="m-0 text-slate-500 text-sm">
-        Choose a service for each dog.
+        Choose a service for each dog. Prices shown are starting prices &mdash; the final cost depends on coat condition and any extras.
       </p>
 
       {allSameSize && allowedForCommon.length > 0 && (
@@ -70,18 +77,25 @@ export function ServiceSelection({
                   <button
                     key={svc.id}
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
-                    className={`flex items-center justify-between py-2.5 px-3.5 rounded-lg border-2 cursor-pointer text-left w-full ${
+                    className={`flex flex-col py-2.5 px-3.5 rounded-lg border-2 cursor-pointer text-left w-full ${
                       selected
                         ? "border-brand-teal bg-emerald-50"
                         : "border-slate-200 bg-white"
                     }`}
                   >
-                    <span className="text-sm text-slate-800">
-                      {svc.icon} {svc.name}
-                    </span>
-                    <span className={`text-sm font-semibold ${selected ? "text-brand-teal" : "text-slate-500"}`}>
-                      {getPriceLabel(svc.id, dog.size)}
-                    </span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-sm text-slate-800">
+                        {svc.icon} {svc.name}
+                      </span>
+                      <span className={`text-sm font-semibold ${selected ? "text-brand-teal" : "text-slate-500"}`}>
+                        {getPriceLabel(svc.id, dog.size)}
+                      </span>
+                    </div>
+                    {SERVICE_DESCRIPTIONS[svc.id] && (
+                      <span className="text-xs text-slate-400 mt-0.5">
+                        {SERVICE_DESCRIPTIONS[svc.id]}
+                      </span>
+                    )}
                   </button>
                 );
               })}

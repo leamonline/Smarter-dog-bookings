@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
 export function AddHumanModal({ onClose, onAdd }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
@@ -38,21 +36,27 @@ export function AddHumanModal({ onClose, onAdd }) {
     });
     setSubmitting(false);
     if (result) {
+      const fullName = [name.trim(), surname.trim()].filter(Boolean).join(" ");
+      toast.show(fullName ? `${fullName} added` : "Customer added", "success");
       onClose();
     } else {
+      toast.show("Could not add customer", "error");
       setError("Failed to add human. They may already exist.");
     }
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
+    <AccessibleModal
+      onClose={onClose}
+      titleId="add-human-title"
+      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+    >
         {/* Header */}
         <div
           className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
           style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
         >
-          <div className="text-lg font-extrabold text-white">Add New Human</div>
+          <div id="add-human-title" className="text-lg font-extrabold text-white">Add New Human</div>
           <button onClick={onClose} className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0">{"\u00D7"}</button>
         </div>
 
@@ -130,7 +134,6 @@ export function AddHumanModal({ onClose, onAdd }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

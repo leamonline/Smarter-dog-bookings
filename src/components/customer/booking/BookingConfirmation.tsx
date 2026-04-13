@@ -113,6 +113,10 @@ export function BookingConfirmation({
         })}
       </div>
 
+      <p className="text-xs text-slate-500 leading-relaxed mt-1 m-0">
+        Need to cancel? Please give us at least 24 hours' notice so we can offer the slot to another pup. You can cancel from your dashboard or contact the salon directly.
+      </p>
+
       <div className="flex gap-2.5">
         <button
           onClick={onBack}

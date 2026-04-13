@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ALL_DAYS } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { toDateStr } from "../../supabase/transforms.js";
 
 function getDefaultOpenForDate(date) {
@@ -14,12 +15,6 @@ export function DatePickerModal({
   onClose,
   dayOpenState,
 }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
-
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
@@ -54,8 +49,12 @@ export function DatePickerModal({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1200]">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
+    <AccessibleModal
+      onClose={onClose}
+      titleId="date-picker-title"
+      className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      zIndex={1200}
+    >
         {/* Header */}
         <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark px-4 py-3.5 flex items-center justify-between">
           <button onClick={prevMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
@@ -63,7 +62,7 @@ export function DatePickerModal({
               <path d="M10 3l-5 5 5 5" />
             </svg>
           </button>
-          <div className="text-base font-bold text-white">{monthName}</div>
+          <div id="date-picker-title" className="text-base font-bold text-white">{monthName}</div>
           <button onClick={nextMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
             <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 3l5 5-5 5" />
@@ -128,7 +127,6 @@ export function DatePickerModal({
             Today
           </button>
         </div>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

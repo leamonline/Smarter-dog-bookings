@@ -39,6 +39,8 @@ function buildHumanMapEntry(row: any) {
     address: row.address || "",
     notes: row.notes || "",
     historyFlag: row.history_flag || "",
+    reminderHours: row.reminder_hours ?? 24,
+    reminderChannels: row.reminder_channels || ["whatsapp"],
     trustedIds: [],
   };
 }
@@ -367,6 +369,10 @@ export function useHumans() {
       if (updates.address !== undefined) dbUpdates.address = updates.address;
       if (updates.historyFlag !== undefined)
         dbUpdates.history_flag = updates.historyFlag;
+      if (updates.reminderHours !== undefined)
+        dbUpdates.reminder_hours = updates.reminderHours;
+      if (updates.reminderChannels !== undefined)
+        dbUpdates.reminder_channels = updates.reminderChannels;
 
       let savedRow = prevHumansById[existingHuman.id] || {
         id: existingHuman.id,
@@ -462,6 +468,8 @@ export function useHumans() {
         address: savedRow.address || "",
         notes: savedRow.notes || "",
         historyFlag: savedRow.history_flag || "",
+        reminderHours: savedRow.reminder_hours ?? 24,
+        reminderChannels: savedRow.reminder_channels || ["whatsapp"],
         trustedIds: trustedNames,
       };
 
@@ -503,6 +511,8 @@ export function useHumans() {
       address: humanData.address || "",
       notes: humanData.notes || "",
       historyFlag: "",
+      reminderHours: humanData.reminderHours ?? 24,
+      reminderChannels: humanData.reminderChannels || ["whatsapp"],
       trustedIds: [],
     };
 

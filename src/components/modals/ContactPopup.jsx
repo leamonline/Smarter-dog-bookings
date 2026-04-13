@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
 function titleCase(str) {
   if (!str) return "";
@@ -6,12 +6,6 @@ function titleCase(str) {
 }
 
 export function ContactPopup({ human, onClose }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
-
   if (!human) return null;
 
   const fullName = titleCase(`${human.name} ${human.surname}`);
@@ -30,11 +24,16 @@ export function ContactPopup({ human, onClose }) {
   );
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/25 flex items-center justify-center z-[1100]">
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-[14px] w-[min(280px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
+    <AccessibleModal
+      onClose={onClose}
+      titleId="contact-popup-title"
+      className="bg-white rounded-xl w-[min(280px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      backdropClass="bg-black/25"
+      zIndex={1100}
+    >
         <div className="bg-gradient-to-br from-brand-teal to-[#236b5d] px-[18px] py-3.5 flex justify-between items-center">
           <div>
-            <div className="text-[15px] font-bold text-white">{fullName}</div>
+            <div id="contact-popup-title" className="text-[15px] font-bold text-white">{fullName}</div>
             <div className="text-xs text-white/80 mt-0.5">Contact preferences</div>
           </div>
           <button onClick={onClose} className="bg-white/20 border-none rounded-md w-6 h-6 flex items-center justify-center cursor-pointer text-xs text-white font-bold">{"\u00D7"}</button>
@@ -50,7 +49,6 @@ export function ContactPopup({ human, onClose }) {
             </div>
           ) : row("Email", "\u2014")}
         </div>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

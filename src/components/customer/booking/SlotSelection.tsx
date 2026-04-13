@@ -95,13 +95,16 @@ export function SlotSelection({
 
       {!loading && availableSlots.length === 0 && (
         <div role="alert" className="p-4 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold flex flex-col gap-3">
-          <div>No availability on this date. Please try another day.</div>
+          <div>No availability on this date. Please try another day, or join the waitlist below.</div>
           <button
             onClick={onJoinWaitlist}
             className="self-start py-2.5 px-4 rounded-lg border-none bg-brand-coral text-white font-bold text-[13px] cursor-pointer"
           >
             Join Waitlist for this date
           </button>
+          <span className="text-xs text-brand-coral opacity-80">
+            We'll let you know if a slot opens up on this date.
+          </span>
         </div>
       )}
 

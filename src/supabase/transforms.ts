@@ -23,6 +23,8 @@ interface DbHumanRow {
   address: string | null;
   notes: string | null;
   history_flag: string | null;
+  reminder_hours: number | null;
+  reminder_channels: string[] | null;
 }
 
 interface DbDogRow {
@@ -50,6 +52,7 @@ interface DbBookingRow {
   dog_id: string;
   pickup_by_id: string | null;
   booking_date: string;
+  chain_id: string | null;
 }
 
 interface DbConfigRow {
@@ -197,6 +200,8 @@ export function dbHumansToMap(rows: DbHumanRow[], trustedMap: Record<string, str
       address: row.address || "",
       notes: row.notes || "",
       historyFlag: row.history_flag || "",
+      reminderHours: row.reminder_hours ?? 24,
+      reminderChannels: row.reminder_channels || ["whatsapp"],
       trustedIds: trustedMap[row.id] || [],
     };
   }
@@ -273,6 +278,7 @@ export function dbBookingsToArray(
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,
       _bookingDate: row.booking_date,
+      _chainId: row.chain_id || null,
     };
   });
 }

@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
@@ -12,6 +13,8 @@ import {
   DogCardActions,
   calcAge,
 } from "./dog-card/index.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const ChainBookingModal = lazy(() =>
   import("./ChainBookingModal.jsx").then((m) => ({ default: m.ChainBookingModal })),
@@ -30,12 +33,6 @@ export function DogCardModal({
   fetchBookingHistoryForDog,
   handleAdd,
 }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
-
   const resolvedDog = getDogByIdOrName(dogs, dogId) || {
     id: dogId,
     name: dogId,
@@ -55,8 +52,10 @@ export function DogCardModal({
   const ownerOpenValue =
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
+  const toast = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [showChainBooking, setShowChainBooking] = useState(false);
+  const [trustedToRemove, setTrustedToRemove] = useState(null);
 
   const lastBooking = useMemo(() => {
     if (!resolvedDog?.id && !resolvedDog?.name) return null;
@@ -173,6 +172,7 @@ export function DogCardModal({
 
     setTrustedSearchQuery("");
     setShowTrustedSearch(false);
+    toast.show("Trusted human added", "success");
   };
 
   const handleAddNewTrusted = async () => {
@@ -201,9 +201,10 @@ export function DogCardModal({
     setNewTrustedPhone("");
     setShowNewTrustedForm(false);
     setShowTrustedSearch(false);
+    toast.show("Trusted human added", "success");
   };
 
-  const handleRemoveTrusted = async (trustedIdToRemove) => {
+  const doRemoveTrusted = async (trustedIdToRemove) => {
     if (!owner || !onUpdateHuman) return;
     const currentTrusted = owner.trustedIds || [];
     const ownerKey = owner.fullName || owner.id;
@@ -223,6 +224,11 @@ export function DogCardModal({
         });
       }
     }
+    toast.show("Trusted human removed", "success");
+  };
+
+  const handleRemoveTrusted = (trustedIdToRemove) => {
+    setTrustedToRemove(trustedIdToRemove);
   };
 
   const handleSave = async () => {
@@ -247,6 +253,7 @@ export function DogCardModal({
 
     await onUpdateDog(resolvedDog.id || resolvedDog.name, updates);
     setIsEditing(false);
+    toast.show("Dog profile saved", "success");
   };
 
   const handleCancel = () => {
@@ -279,15 +286,13 @@ export function DogCardModal({
 
   return (
     <>
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
+    <AccessibleModal
+      onClose={onClose}
+      titleId="dog-card-title"
+      className="bg-white rounded-2xl w-[min(360px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl w-[min(360px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
-      >
         <DogCardHeader
+          titleId="dog-card-title"
           isEditing={isEditing}
           resolvedDog={resolvedDog}
           displayAge={displayAge}
@@ -388,8 +393,7 @@ export function DogCardModal({
           sizeTheme={sizeTheme}
           headerTextColour={headerTextColour}
         />
-      </div>
-    </div>
+    </AccessibleModal>
 
     {showChainBooking && lastBooking && (
       <Suspense fallback={null}>
@@ -418,6 +422,21 @@ export function DogCardModal({
           }}
         />
       </Suspense>
+    )}
+
+    {trustedToRemove && (
+      <ConfirmDialog
+        title="Remove trusted human?"
+        message="This person will no longer be linked as a trusted human."
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={async () => {
+          const id = trustedToRemove;
+          setTrustedToRemove(null);
+          await doRemoveTrusted(id);
+        }}
+        onCancel={() => setTrustedToRemove(null)}
+      />
     )}
     </>
   );

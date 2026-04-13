@@ -2,7 +2,7 @@
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick }) {
+export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const dayName = DAY_NAMES[dateObj.getDay()];
   const dateNum = dateObj.getDate();
   const monthName = dateObj.toLocaleDateString("en-GB", { month: "long" });
@@ -39,6 +39,11 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick }) {
 
   return (
     <div
+      role="tab"
+      aria-selected={isActive}
+      aria-label={`${dayName} ${dateNum} ${monthName}, ${dogCountText}`}
+      tabIndex={isActive ? 0 : -1}
+      id={id}
       className={[
         "flex-1 min-w-[56px] md:min-w-[72px] rounded-t-[10px] text-center border-[1.5px] border-b-0 select-none pb-1.5 cursor-pointer transition-all snap-center shrink-0",
         isActive
@@ -63,7 +68,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick }) {
       </div>
 
       {/* Dog count */}
-      <div className={`text-[9px] font-extrabold mt-[3px] leading-none ${activeDogCls}`}>
+      <div className={`text-[10px] font-extrabold mt-[3px] leading-none ${activeDogCls}`}>
         {dogCountText}
       </div>
     </div>

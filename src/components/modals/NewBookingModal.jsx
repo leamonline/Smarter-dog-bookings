@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { titleCase } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 // ─── main modal ─────────────────────────────────────────────────────────────
 
@@ -23,11 +25,7 @@ export function NewBookingModal({
   onSearchDogs,
   isSearchingDogs,
 }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
+  const toast = useToast();
 
   const [dogQuery, setDogQuery] = useState("");
   const [dogEntries, setDogEntries] = useState([]); // { dog, humanKey, service }
@@ -151,6 +149,7 @@ export function NewBookingModal({
     }
 
     onAdd(bookings, selectedDateStr);
+    toast.show("Booking created", "success");
   };
 
   // Format the selected date nicely
@@ -165,15 +164,19 @@ export function NewBookingModal({
   // ─── render ─────────────────────────────────────────────────────────────
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000]">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col shadow-[0_12px_48px_rgba(0,0,0,0.2)]">
+    <AccessibleModal
+      onClose={onClose}
+      titleId="new-booking-title"
+      className="bg-white rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col shadow-[0_12px_48px_rgba(0,0,0,0.2)]"
+      backdropClass="bg-black/40"
+    >
         {/* Header */}
         <div
           className="px-6 py-[18px] rounded-t-[20px] flex justify-between items-center shrink-0"
           style={{ background: `linear-gradient(135deg, ${primaryTheme.gradient[0]}, ${primaryTheme.gradient[1]})` }}
         >
           <div>
-            <div className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
+            <div id="new-booking-title" className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
             <div className="text-xs mt-0.5" style={{ color: primaryTheme.headerTextSub }}>
               {hasDogs ? dogEntries.map(e => titleCase(e.dog.name)).join(", ") : "Search for a dog to get started"}
             </div>
@@ -229,7 +232,6 @@ export function NewBookingModal({
           onConfirm={handleConfirm}
           onClose={onClose}
         />
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

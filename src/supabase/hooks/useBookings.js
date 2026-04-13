@@ -16,15 +16,19 @@ function groupBookingsByDate(rows, dogsById, humansById) {
   return grouped;
 }
 
-export function useBookings(weekStart, dogsById, humansById) {
+export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
   const [bookingsByDate, setBookingsByDate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const dogsByIdRef = useRef(dogsById);
   const humansByIdRef = useRef(humansById);
   useEffect(() => { dogsByIdRef.current = dogsById; }, [dogsById]);
   useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
+
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   useEffect(() => {
     if (!supabase || !weekStart) {
@@ -180,7 +184,7 @@ export function useBookings(weekStart, dogsById, humansById) {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [weekStart, dogsById, humansById]);
+  }, [weekStart, dogsById, humansById, refreshKey]);
 
   const addBooking = useCallback(
     async (dateStr, booking) => {
@@ -203,8 +207,17 @@ export function useBookings(weekStart, dogsById, humansById) {
         const message = `Dog not found for booking: ${booking.dogName}`;
         console.error(message);
         setError(message);
+        onErrorRef.current?.(message);
         return null;
       }
+
+      // Optimistic: add temp booking to state immediately
+      const tempId = `_temp_${Date.now()}`;
+      const tempBooking = { ...booking, id: tempId };
+      setBookingsByDate((prev) => ({
+        ...prev,
+        [dateStr]: [...(prev[dateStr] || []), tempBooking],
+      }));
 
       const pickupHumanId =
         booking._pickupById ||
@@ -225,6 +238,7 @@ export function useBookings(weekStart, dogsById, humansById) {
         pickup_by_id: pickupHumanId || null,
         payment: booking.payment || "Due at Pick-up",
         confirmed: booking.confirmed ?? false,
+        ...(booking.chain_id ? { chain_id: booking.chain_id } : {}),
       };
 
       const { data, error: err } = await supabase
@@ -234,16 +248,25 @@ export function useBookings(weekStart, dogsById, humansById) {
         .single();
 
       if (err) {
+        // Rollback optimistic change
+        setBookingsByDate((prev) => ({
+          ...prev,
+          [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== tempId),
+        }));
         console.error("Failed to add booking:", err);
         setError(err.message);
+        onErrorRef.current?.(err.message);
         return null;
       }
 
       const inserted = dbBookingsToArray([data], dogsById, humansById)[0];
 
+      // Replace temp entry with real server data
       setBookingsByDate((prev) => ({
         ...prev,
-        [dateStr]: [...(prev[dateStr] || []), inserted],
+        [dateStr]: (prev[dateStr] || []).map((b) =>
+          b.id === tempId ? inserted : b,
+        ),
       }));
 
       return inserted;
@@ -262,23 +285,36 @@ export function useBookings(weekStart, dogsById, humansById) {
 
     setError(null);
 
+    // Snapshot for rollback, then remove optimistically
+    let removed = null;
+    setBookingsByDate((prev) => {
+      removed = (prev[dateStr] || []).find((b) => b.id === bookingId) || null;
+      return {
+        ...prev,
+        [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
+      };
+    });
+
     const { error: err } = await supabase
       .from("bookings")
       .delete()
       .eq("id", bookingId);
 
     if (err) {
+      // Rollback: re-add the removed booking
+      if (removed) {
+        setBookingsByDate((prev) => ({
+          ...prev,
+          [dateStr]: [...(prev[dateStr] || []), removed],
+        }));
+      }
       console.error("Failed to remove booking:", err);
       setError(err.message);
+      onErrorRef.current?.(err.message);
       return { success: false, error: err.message };
     }
 
-    setBookingsByDate((prev) => ({
-      ...prev,
-      [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
-    }));
-
-    return { success: true };
+    return { success: true, removed };
   }, []);
 
   const updateBooking = useCallback(
@@ -305,6 +341,31 @@ export function useBookings(weekStart, dogsById, humansById) {
       }
 
       setError(null);
+
+      // Snapshot for rollback, then apply optimistically
+      let snapshot = null;
+      setBookingsByDate((prev) => {
+        snapshot =
+          (prev[fromDateStr] || []).find(
+            (b) => b.id === updatedBooking.id,
+          ) || null;
+
+        const next = { ...prev };
+        if (fromDateStr === toDateStrValue) {
+          next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
+            b.id === updatedBooking.id ? updatedBooking : b,
+          );
+        } else {
+          next[fromDateStr] = (next[fromDateStr] || []).filter(
+            (b) => b.id !== updatedBooking.id,
+          );
+          next[toDateStrValue] = [
+            ...(next[toDateStrValue] || []),
+            updatedBooking,
+          ];
+        }
+        return next;
+      });
 
       const pickupHumanId =
         updatedBooking._pickupById ||
@@ -333,16 +394,34 @@ export function useBookings(weekStart, dogsById, humansById) {
         .single();
 
       if (err) {
+        // Rollback to snapshot
+        if (snapshot) {
+          setBookingsByDate((prev) => {
+            const next = { ...prev };
+            if (fromDateStr === toDateStrValue) {
+              next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
+                b.id === snapshot.id ? snapshot : b,
+              );
+            } else {
+              next[toDateStrValue] = (next[toDateStrValue] || []).filter(
+                (b) => b.id !== snapshot.id,
+              );
+              next[fromDateStr] = [...(next[fromDateStr] || []), snapshot];
+            }
+            return next;
+          });
+        }
         console.error("Failed to update booking:", err);
         setError(err.message);
+        onErrorRef.current?.(err.message);
         return null;
       }
 
       const persisted = dbBookingsToArray([data], dogsById, humansById)[0];
 
+      // Replace optimistic entry with confirmed server data
       setBookingsByDate((prev) => {
         const next = { ...prev };
-
         if (fromDateStr === toDateStrValue) {
           next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
             b.id === persisted.id ? persisted : b,
@@ -351,9 +430,11 @@ export function useBookings(weekStart, dogsById, humansById) {
           next[fromDateStr] = (next[fromDateStr] || []).filter(
             (b) => b.id !== persisted.id,
           );
-          next[toDateStrValue] = [...(next[toDateStrValue] || []), persisted];
+          const existing = (next[toDateStrValue] || []).filter(
+            (b) => b.id !== persisted.id,
+          );
+          next[toDateStrValue] = [...existing, persisted];
         }
-
         return next;
       });
 
@@ -389,6 +470,8 @@ export function useBookings(weekStart, dogsById, humansById) {
     }));
   }, []);
 
+  const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
+
   return {
     bookingsByDate,
     loading,
@@ -397,5 +480,6 @@ export function useBookings(weekStart, dogsById, humansById) {
     removeBooking,
     updateBooking,
     fetchBookingHistoryForDog,
+    refetch,
   };
 }

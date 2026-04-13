@@ -1,9 +1,11 @@
 // src/components/booking/SlotGrid.jsx
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { getSeatStatesForSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
+import { SkeletonCard } from "../shared/SkeletonCard.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 function formatSlotTime(slot) {
   const [hourStr, minStr] = slot.split(":");
@@ -15,12 +17,33 @@ function formatSlotTime(slot) {
 
 export function SlotGrid({
   bookings,
+  loading,
   activeSlots,
   onOpenNewBooking,
   currentDateStr,
   overrides,
   onOverride,
+  searchQuery,
 }) {
+  const toast = useToast();
+
+  const block = useCallback((slot, seatIndex) => {
+    if (onOverride) {
+      onOverride(slot, seatIndex, "blocked");
+      toast.show("Seat blocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+    }
+  }, [onOverride, toast]);
+
+  const unblock = useCallback((slot, seatIndex) => {
+    if (onOverride) {
+      onOverride(slot, seatIndex, "blocked");
+      toast.show("Seat unblocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+    }
+  }, [onOverride, toast]);
+
+  const searchActive = searchQuery && searchQuery.trim().length > 0;
+  const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
+
   const allEmpty = useMemo(() => {
     return activeSlots.every((slot) => {
       const slotOverrides = overrides?.[slot] || {};
@@ -31,7 +54,7 @@ export function SlotGrid({
 
   return (
     <div className="relative">
-    <div className="bg-white border border-slate-200 border-t-0 rounded-b-[14px] overflow-hidden">
+    <div className="bg-white border border-slate-200 border-t-0 rounded-b-xl overflow-hidden">
       {activeSlots.map((slot, i) => {
         const slotOverrides = overrides?.[slot] || {};
         const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
@@ -56,26 +79,31 @@ export function SlotGrid({
             </div>
 
             {/* Seats */}
-            {allAvailable ? (
+            {loading ? (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            ) : allAvailable ? (
               /* Both empty — individual ghost seats */
               <>
                 <GhostSeat
                   onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                  onBlock={onOverride ? () => onOverride(currentDateStr, slot, 0, "blocked") : undefined}
+                  onBlock={onOverride ? () => block(slot, 0) : undefined}
                 />
                 <GhostSeat
                   onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                  onBlock={onOverride ? () => onOverride(currentDateStr, slot, 1, "blocked") : undefined}
+                  onBlock={onOverride ? () => block(slot, 1) : undefined}
                 />
               </>
             ) : allBlockedByStaff ? (
               /* Both staff-blocked — individual blocked bars */
               <>
                 <BlockedSeatCell
-                  onClick={() => { if (onOverride) onOverride(currentDateStr, slot, 0, "blocked"); }}
+                  onClick={() => unblock(slot, 0)}
                 />
                 <BlockedSeatCell
-                  onClick={() => { if (onOverride) onOverride(currentDateStr, slot, 1, "blocked"); }}
+                  onClick={() => unblock(slot, 1)}
                 />
               </>
             ) : (
@@ -83,7 +111,9 @@ export function SlotGrid({
               <>
                 {seatStates.map((seat) => {
                   if (seat.type === "booking") {
-                    return <BookingCardNew key={seat.seatIndex} booking={seat.booking} />;
+                    const b = seat.booking;
+                    const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
+                    return <BookingCardNew key={seat.seatIndex} booking={b} searchDimmed={dimmed} />;
                   }
                   if (seat.type === "reserved") {
                     return (
@@ -99,9 +129,7 @@ export function SlotGrid({
                     return (
                       <BlockedSeatCell
                         key={seat.seatIndex}
-                        onClick={() => {
-                          if (onOverride) onOverride(currentDateStr, slot, seat.seatIndex, "blocked");
-                        }}
+                        onClick={() => unblock(slot, seat.seatIndex)}
                       />
                     );
                   }
@@ -123,7 +151,7 @@ export function SlotGrid({
                     <GhostSeat
                       key={seat.seatIndex}
                       onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                      onBlock={onOverride ? () => onOverride(currentDateStr, slot, seat.seatIndex, "blocked") : undefined}
+                      onBlock={onOverride ? () => block(slot, seat.seatIndex) : undefined}
                     />
                   );
                 })}
@@ -133,7 +161,7 @@ export function SlotGrid({
         );
       })}
     </div>
-    {allEmpty && (
+    {allEmpty && !loading && (
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
           <div className="text-slate-400 text-sm font-semibold">No bookings today</div>

@@ -27,3 +27,33 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Text colour hierarchy ───────────────────────────────────────── */
+/* Primary text: text-slate-800 */
+/* Secondary text: text-slate-600 */
+/* Muted/tertiary text: text-slate-400 */
+
+/* ── Standard button styles ──────────────────────────────────────── */
+.btn {
+  @apply py-2 px-4 rounded-lg text-sm font-semibold cursor-pointer font-[inherit] transition-colors border-none;
+}
+.btn-primary {
+  @apply bg-brand-blue text-white hover:bg-brand-blue-dark;
+}
+.btn-danger {
+  @apply bg-brand-coral text-white hover:bg-[#d14468];
+}
+.btn-ghost {
+  @apply bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50;
+}
+.btn-sm {
+  @apply py-1.5 px-3 text-xs;
+}
+.btn:disabled {
+  @apply bg-slate-200 text-slate-400 cursor-not-allowed;
+}

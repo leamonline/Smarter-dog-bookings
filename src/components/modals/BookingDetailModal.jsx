@@ -1,7 +1,9 @@
-import { useMemo, useEffect, useCallback } from "react";
+import { useMemo, useEffect, useCallback, useState } from "react";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import { useBookingSave } from "../../hooks/useBookingSave.ts";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   SERVICES,
   SIZE_THEME,
@@ -36,6 +38,9 @@ import {
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
+import { useAutosave } from "../../hooks/useAutosave.js";
+import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
+import { RescheduleModal } from "./RescheduleModal.jsx";
 
 const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
 
@@ -49,6 +54,7 @@ function titleCase(str) {
 export function BookingDetailModal({
   booking,
   onClose,
+  onAdd,
   onRemove,
   onOpenHuman,
   onOpenDog,
@@ -63,12 +69,6 @@ export function BookingDetailModal({
   onRebook,
   daySettings = {},
 }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
-
   const dogData = useMemo(
     () => getDogByIdOrName(dogs, booking._dogId || booking.dogName) || {},
     [dogs, booking._dogId, booking.dogName],
@@ -101,6 +101,8 @@ export function BookingDetailModal({
   );
 
   const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
+  const [showSeries, setShowSeries] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
 
   const trustedHumans = useMemo(() => {
     const trusted = primaryHuman?.trustedIds || [];
@@ -177,6 +179,13 @@ export function BookingDetailModal({
     else onClose();
   };
 
+  // Custom Escape handler — checks for unsaved changes before closing
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") { e.stopPropagation(); handleCloseAttempt(); } };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [isEditing, onClose]);
+
   const handleSelectDate = (newDate) => {
     const newDateStr = toDateStr(newDate);
     const newSettings = daySettings[newDateStr] || {
@@ -216,11 +225,20 @@ export function BookingDetailModal({
     setShowDatePicker(false);
   };
 
+  const toast = useToast();
+
+  const setIsEditingWithToast = useCallback((value) => {
+    setIsEditing(value);
+    if (value === false) {
+      toast.show("Booking updated", "success");
+    }
+  }, [setIsEditing, toast]);
+
   const { save: handleSave } = useBookingSave({
     editData,
     setSaving,
     setSaveError,
-    setIsEditing,
+    setIsEditing: setIsEditingWithToast,
     hasAllergy,
     allergyInput,
     booking,
@@ -235,6 +253,32 @@ export function BookingDetailModal({
     onUpdate,
     onUpdateDog,
   });
+
+  // Autosave — lightweight save of booking fields while editing
+  const autosaveFn = useCallback(async () => {
+    if (!editData.slot) return;
+    const newDateStr = toDateStr(editData.date);
+    await onUpdate(
+      {
+        ...booking,
+        service: normalizeServiceForSize(editData.service, booking.size),
+        addons: editData.addons,
+        pickupBy:
+          getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
+          editData.pickupBy,
+        payment: editData.payment,
+        slot: editData.slot,
+      },
+      currentDateStr,
+      newDateStr,
+    );
+  }, [editData, booking, humans, currentDateStr, onUpdate]);
+
+  const { status: autosaveStatus } = useAutosave(
+    editData,
+    autosaveFn,
+    { delay: 2000, enabled: isEditing },
+  );
 
   const pickupOptions = trustedHumans.map((value) => {
     const human = getHumanByIdOrName(humans, value);
@@ -273,14 +317,12 @@ export function BookingDetailModal({
   }, []);
 
   return (
-    <div
-      onClick={handleCloseAttempt}
-      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
+    <AccessibleModal
+      onClose={handleCloseAttempt}
+      titleId="booking-detail-title"
+      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      dismissOnEscape={false}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
-      >
         <BookingHeader
           booking={booking}
           dogData={dogData}
@@ -290,6 +332,7 @@ export function BookingDetailModal({
           setSaveError={setSaveError}
           allowedServices={allowedServices}
           onClose={handleCloseAttempt}
+          titleId="booking-detail-title"
         />
 
         <div className="px-6 pt-4">
@@ -304,6 +347,21 @@ export function BookingDetailModal({
             currentDateStr={currentDateStr}
             onUpdate={onUpdate}
           />
+
+          {booking._chainId && (
+            <button
+              onClick={() => setShowSeries(true)}
+              className="w-full mb-2 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer font-inherit flex items-center gap-2 border-[1.5px] transition-colors hover:bg-slate-50"
+              style={{
+                borderColor: sizeTheme.primary + "40",
+                background: sizeTheme.light,
+                color: sizeTheme.primary,
+              }}
+            >
+              <span className="text-sm">{"\uD83D\uDD01"}</span>
+              Part of recurring series — View all
+            </button>
+          )}
 
           {/* Dog row */}
           <div className="py-2.5 border-b border-slate-200">
@@ -700,12 +758,14 @@ export function BookingDetailModal({
             setIsEditing(true);
           }}
           onShowContact={() => setShowContact(true)}
+          onAdd={onAdd}
           onRemove={onRemove}
           onClose={onClose}
           onRebook={onRebook}
           onAddToCalendar={handleAddToCalendar}
+          onReschedule={() => setShowReschedule(true)}
+          autosaveStatus={autosaveStatus}
         />
-      </div>
 
       {showDatePicker && (
         <DatePickerModal
@@ -732,6 +792,44 @@ export function BookingDetailModal({
           onKeepEditing={() => setShowExitConfirm(false)}
         />
       )}
-    </div>
+
+      {showReschedule && (
+        <RescheduleModal
+          booking={booking}
+          currentDateObj={currentDateObj}
+          bookingsByDate={bookingsByDate}
+          daySettings={daySettings}
+          dayOpenState={dayOpenState}
+          sizeTheme={sizeTheme}
+          onClose={() => setShowReschedule(false)}
+          onConfirm={async (newDateStr, newSlot) => {
+            const oldDateStr = currentDateStr;
+            const oldSlot = booking.slot;
+            await onUpdate(
+              { ...booking, slot: newSlot },
+              oldDateStr,
+              newDateStr,
+            );
+            setShowReschedule(false);
+            toast.show("Booking rescheduled", "success", () => {
+              onUpdate({ ...booking, slot: oldSlot }, newDateStr, oldDateStr);
+            });
+            onClose();
+          }}
+        />
+      )}
+
+      {showSeries && booking._chainId && (
+        <RecurringBookingModal
+          chainId={booking._chainId}
+          currentBookingId={booking.id}
+          dogName={booking.dogName}
+          sizeTheme={sizeTheme}
+          onClose={() => setShowSeries(false)}
+          onRemove={onRemove}
+          onCloseParent={onClose}
+        />
+      )}
+    </AccessibleModal>
   );
 }

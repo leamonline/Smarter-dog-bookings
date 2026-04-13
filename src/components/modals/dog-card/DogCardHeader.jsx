@@ -16,6 +16,7 @@ export function DogCardHeader({
   headerTextColour,
   headerSubTextColour,
   onClose,
+  titleId,
 }) {
   return (
     <div
@@ -69,7 +70,7 @@ export function DogCardHeader({
           </>
         ) : (
           <>
-            <div className="text-xl font-extrabold" style={{ color: headerTextColour }}>
+            <div id={titleId} className="text-xl font-extrabold" style={{ color: headerTextColour }}>
               {titleCase(resolvedDog.name)}
             </div>
             <div

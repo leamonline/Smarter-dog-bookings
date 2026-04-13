@@ -1,6 +1,8 @@
 import { BOOKING_STATUSES } from "../../../constants/index.js";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
+  const toast = useToast();
   const currentStatus = booking.status || "No-show";
 
   return (
@@ -26,6 +28,10 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   currentDateStr,
                   currentDateStr,
                 );
+                const variant = ["Checked in", "Being groomed", "Ready for pick-up"].includes(status.id)
+                  ? "success"
+                  : "info";
+                toast.show(`Status: ${status.label}`, variant);
               }}
               className="px-3 py-1.5 rounded-lg text-xs font-bold font-inherit transition-all"
               style={{

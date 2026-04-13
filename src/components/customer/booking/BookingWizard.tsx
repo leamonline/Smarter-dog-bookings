@@ -202,16 +202,49 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     const dropOff = slotAllocation?.dropOffTime || "";
     const fmtTime = (s: string) => { const [h, m] = s.split(":").map(Number); return `${h > 12 ? h - 12 : h}:${String(m).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
 
+    const dogNames = selectedDogs.map((d) => d.name);
+    const dogNameStr = dogNames.length === 1
+      ? dogNames[0]
+      : dogNames.slice(0, -1).join(", ") + " & " + dogNames[dogNames.length - 1];
+    const bookingRef = selectedDate
+      ? `${selectedDate.replace(/-/g, "")}-${dropOff.replace(":", "")}`
+      : "";
+
+    if (waitlistJoined && !booked) {
+      return (
+        <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
+          <div className="text-5xl mb-4">{"\uD83D\uDCDD"}</div>
+          <div className="text-xl font-extrabold text-slate-800 mb-2">
+            You're on the waitlist!
+          </div>
+          <div className="text-sm text-slate-500 mb-6 leading-relaxed">
+            We've added {dogNameStr} to the waitlist for {dateLabel}. We'll let you know as soon as a slot opens up.
+          </div>
+          <button
+            onClick={onComplete}
+            className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+          >
+            Back to dashboard
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
         <div className="text-5xl mb-4">{"\u2705"}</div>
         <div className="text-xl font-extrabold text-slate-800 mb-2">
-          Booking confirmed!
+          All booked in! We can't wait to see {dogNameStr}.
         </div>
-        <div className="text-sm text-slate-500 mb-6 leading-relaxed">
-          {selectedDogs.map((d) => d.name).join(" & ")} — {dateLabel} at {fmtTime(dropOff)}
+        <div className="text-sm text-slate-500 mb-4 leading-relaxed">
+          {dateLabel} at {fmtTime(dropOff)}
         </div>
-        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-teal text-[13px] font-semibold mb-6">
+        {bookingRef && (
+          <div className="text-xs text-slate-400 mb-5">
+            Booking ref: {bookingRef}
+          </div>
+        )}
+        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-teal text-[13px] font-semibold mb-2">
           You'll receive a confirmation message shortly.
         </div>
         {bookedIds.length > 0 && (
@@ -224,6 +257,9 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             ))}
           </div>
         )}
+        <div className="text-xs text-slate-500 mb-6">
+          We'll send you a reminder before your appointment.
+        </div>
         <button
           onClick={onComplete}
           className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"
@@ -290,7 +326,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         const total = prices.reduce((sum, p) => sum + parseInt(p.replace(/[^0-9]/g, ""), 10), 0);
         return (
           <div className="text-[13px] text-slate-600 -mt-3">
-            Estimated total: from {"\u00A3"}{total}+
+            Estimated total: from {"\u00A3"}{total} (final price confirmed at your appointment)
           </div>
         );
       })()}

@@ -8,6 +8,7 @@ import {
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 export function AddBookingForm({
   slot,
@@ -21,6 +22,8 @@ export function AddBookingForm({
   slotOverrides,
   selectedSeatIndex = null,
 }) {
+  const toast = useToast();
+
   const initialDog = prefill
     ? getDogByIdOrName(dogs, prefill._dogId || prefill.dogName) || {
         id: prefill._dogId || null,
@@ -144,7 +147,9 @@ export function AddBookingForm({
 
     setSubmitting(false);
 
-    if (!result) {
+    if (result) {
+      toast.show(`${selectedDog.name} booked in`, "success");
+    } else {
       setError("Could not save booking. Please try again.");
     }
   };
@@ -152,7 +157,7 @@ export function AddBookingForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-1.5 mt-1.5"
+      className="flex flex-col gap-1.5 mt-1.5 animate-[fadeIn_0.12s_ease-out]"
     >
       {selectedDog ? (
         <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2.5 py-1.5">
@@ -222,6 +227,7 @@ export function AddBookingForm({
       <div className="grid grid-cols-2 gap-1.5">
         <select
           value={size}
+          aria-label="Dog size"
           onChange={(e) => {
             const nextSize = e.target.value;
             setSize(nextSize);
@@ -236,6 +242,7 @@ export function AddBookingForm({
 
         <select
           value={service}
+          aria-label="Grooming service"
           onChange={(e) => {
             setService(e.target.value);
             setError("");
@@ -256,24 +263,26 @@ export function AddBookingForm({
         </div>
       )}
 
-      {error && (
-        <div className="text-xs text-brand-coral font-medium py-0.5">
-          {error}
-        </div>
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {error && (
+          <div className="text-xs text-brand-coral font-medium py-0.5" role="alert">
+            {error}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-1.5">
         <button
           type="submit"
           disabled={submitting || allowedServices.length === 0}
-          className="flex-1 py-[7px] rounded-lg border-none bg-brand-blue text-white font-semibold text-[13px] cursor-pointer font-inherit transition-colors hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+          className="flex-1 btn btn-primary btn-sm"
         >
           {submitting ? "Saving..." : "Confirm"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="py-[7px] px-3.5 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] cursor-pointer font-inherit"
+          className="btn btn-ghost btn-sm"
         >
           Cancel
         </button>

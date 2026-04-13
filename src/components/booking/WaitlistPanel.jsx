@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
   const { waitlist, loading, error, joinWaitlist, leaveWaitlist } = useWaitlist(currentDateObj);
+  const toast = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [addingId, setAddingId] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(null);
 
   // Sorted humans for dropdown
   const humanList = Object.values(humans || {}).sort((a, b) => a.name.localeCompare(b.name));
@@ -26,7 +30,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
   if (loading && waitlist.length === 0) return null;
 
   return (
-    <div className="mt-3 bg-[#FFFBF2] border border-[#F5E6C8] rounded-[14px] p-4 flex flex-col gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+    <div className="mt-3 bg-[#FFFBF2] border border-[#F5E6C8] rounded-xl p-4 flex flex-col gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
       <div className="flex justify-between items-center">
         <div className="text-[13px] font-extrabold text-slate-800 uppercase tracking-wide">
           Waitlist ({waitlist.length})
@@ -35,7 +39,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="py-1 px-2 rounded-md border-[1.5px] border-slate-200 bg-white text-slate-500 text-[11px] font-bold cursor-pointer transition-all hover:text-brand-blue hover:border-brand-blue"
+            className="btn btn-ghost btn-sm hover:text-brand-blue hover:border-brand-blue"
           >
             + Add Person
           </button>
@@ -57,7 +61,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
           </select>
           <button
             onClick={() => setShowAdd(false)}
-            className="py-1.5 px-2.5 rounded-md border-none bg-brand-coral-light text-brand-coral text-[11px] font-bold cursor-pointer"
+            className="btn btn-sm bg-brand-coral-light text-brand-coral"
           >
             Cancel
           </button>
@@ -82,8 +86,8 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
                   </div>
                 </div>
                 <button
-                  onClick={() => leaveWaitlist(entry.id)}
-                  className="bg-transparent border-none text-brand-coral text-xs font-bold cursor-pointer py-1 px-2"
+                  onClick={() => setConfirmRemove({ id: entry.id, humanId: h.id, name: `${h.name} ${h.surname}` })}
+                  className="btn btn-sm bg-transparent text-brand-coral"
                 >
                   Remove
                 </button>
@@ -93,6 +97,23 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
         </div>
       ) : (
         <div className="text-xs italic text-slate-500">No one is waiting for this date.</div>
+      )}
+
+      {confirmRemove && (
+        <ConfirmDialog
+          title="Remove from waitlist?"
+          message={`${confirmRemove.name} will be removed from today's waitlist.`}
+          confirmLabel="Remove"
+          variant="danger"
+          onConfirm={async () => {
+            const { name, humanId } = confirmRemove;
+            const dateStr = currentDateObj.toISOString().split("T")[0];
+            await leaveWaitlist(confirmRemove.id);
+            setConfirmRemove(null);
+            toast.show(`${name} removed from waitlist`, "success", () => joinWaitlist(humanId, dateStr));
+          }}
+          onCancel={() => setConfirmRemove(null)}
+        />
       )}
     </div>
   );

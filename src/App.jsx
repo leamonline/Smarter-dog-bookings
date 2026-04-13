@@ -21,6 +21,7 @@ import { useBookingActions } from "./hooks/useBookingActions.js";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts.js";
 import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext.jsx";
+import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
@@ -161,6 +162,7 @@ export default function App() {
     removeBooking: sbRemoveBooking,
     updateBooking: sbUpdateBooking,
     fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
+    refetch: refetchBookings,
   } = useBookings(weekStart, dogsById, humansById);
   const {
     config: sbConfig,
@@ -200,7 +202,8 @@ export default function App() {
     },
   });
 
-  const isLoading = isOnline && (hl || dl || bl || cl || dsl);
+  const isLoading = isOnline && (hl || dl || cl || dsl);
+  const bookingsLoading = bl;
   const dataError = he || de || be;
 
   // --- Derived state ---
@@ -265,6 +268,7 @@ export default function App() {
 
   // --- Render ---
   return (
+    <ToastProvider>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
       <a
         href="#main-content"
@@ -290,6 +294,7 @@ export default function App() {
         dayOpenState={dayOpenState}
         currentDateStr={currentDateStr}
         currentDateObj={currentDateObj}
+        onAdd={handleAdd}
         onUpdate={handleUpdate}
         onRemove={handleRemove}
         onUpdateDog={updateDog}
@@ -350,6 +355,7 @@ export default function App() {
               goToNextWeek={goToNextWeek}
               goToPrevWeek={goToPrevWeek}
               bookingsByDate={bookingsByDate}
+              bookingsLoading={bookingsLoading}
               daySettings={daySettings}
               dayOpenState={dayOpenState}
               dogs={dogs}
@@ -369,6 +375,7 @@ export default function App() {
               showRebookDatePicker={showRebookDatePicker}
               setShowRebookDatePicker={setShowRebookDatePicker}
               setShowNewBooking={setShowNewBooking}
+              onRefresh={refetchBookings}
             />
           )}
           </div>
@@ -457,5 +464,6 @@ export default function App() {
         )}
       </SalonProvider>
     </div>
+    </ToastProvider>
   );
 }

@@ -20,6 +20,7 @@ export function BookingHeader({
   setSaveError,
   allowedServices,
   onClose,
+  titleId,
 }) {
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
@@ -36,6 +37,7 @@ export function BookingHeader({
         <SizeTag size={booking.size} headerMode />
         <div className="min-w-0">
           <div
+            id={titleId}
             className="text-xl font-extrabold whitespace-nowrap overflow-hidden text-ellipsis"
             style={{ color: sizeTheme.headerText }}
           >

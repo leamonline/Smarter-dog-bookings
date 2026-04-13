@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconSearch } from "../icons/index.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 function titleCase(str) {
   if (!str) return "";
@@ -109,11 +111,7 @@ export function HumanCardModal({
   onAddHuman,
   bookingsByDate,
 }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
+  const toast = useToast();
 
   const human = getHumanByIdOrName(humans, humanId) || {
     id: humanId,
@@ -228,6 +226,7 @@ export function HumanCardModal({
 
     setTrustedSearchQuery("");
     setShowTrustedSearch(false);
+    toast.show("Trusted human linked", "success");
   };
 
   const handleAddNewTrusted = async () => {
@@ -258,6 +257,7 @@ export function HumanCardModal({
       setNewTrustedSurname("");
       setNewTrustedPhone("");
       setShowTrustedSearch(false);
+      toast.show("Trusted human added", "success");
     } catch (err) {
       console.error("Failed to create new trusted human:", err);
     }
@@ -303,20 +303,17 @@ export function HumanCardModal({
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
+    <AccessibleModal
+      onClose={onClose}
+      titleId="human-card-title"
+      className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
-      >
         <div
           className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
           style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
         >
           <div>
-            <div className="text-xl font-extrabold text-white">
+            <div id="human-card-title" className="text-xl font-extrabold text-white">
               {titleCase(humanFullName)}
             </div>
             {human.phone ? (
@@ -448,6 +445,57 @@ export function HumanCardModal({
             {showTrustedSearch ? "Cancel" : "+ Add a trusted Human"}
           </button>
 
+          {/* Reminder Preferences */}
+          <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+            Reminder Preferences
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-[13px] text-slate-600">Timing</span>
+              <select
+                value={human.reminderHours ?? 24}
+                onChange={(e) => onUpdateHuman(human.id, { reminderHours: Number(e.target.value) })}
+                className="py-1 px-2 rounded-md border border-slate-200 text-[13px] font-inherit cursor-pointer"
+              >
+                <option value={24}>24 hours before</option>
+                <option value={12}>12 hours before</option>
+                <option value={2}>2 hours before</option>
+              </select>
+            </div>
+            {[
+              { key: "whatsapp", label: "WhatsApp" },
+              { key: "sms", label: "SMS" },
+              { key: "email", label: "Email" },
+            ].map(({ key, label }) => {
+              const channels = human.reminderChannels || ["whatsapp"];
+              const active = channels.includes(key);
+              return (
+                <label key={key} className="flex items-center justify-between py-1.5 cursor-pointer">
+                  <span className="text-[13px] text-slate-600">{label}</span>
+                  <div
+                    role="switch"
+                    aria-checked={active}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        const next = active ? channels.filter((c) => c !== key) : [...channels, key];
+                        onUpdateHuman(human.id, { reminderChannels: next.length > 0 ? next : ["whatsapp"] });
+                      }
+                    }}
+                    onClick={() => {
+                      const next = active ? channels.filter((c) => c !== key) : [...channels, key];
+                      onUpdateHuman(human.id, { reminderChannels: next.length > 0 ? next : ["whatsapp"] });
+                    }}
+                    className={`w-9 h-5 rounded-full relative transition-colors ${active ? "bg-brand-teal" : "bg-slate-300"}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
           <HumanBookingHistory
             human={human}
             dogs={dogs}
@@ -565,7 +613,6 @@ export function HumanCardModal({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

@@ -4,6 +4,7 @@ import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { getDefaultOpenForDate } from "../../engine/utils.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
+import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ClosedDayView } from "./ClosedDayView.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
@@ -61,7 +62,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
   return (
     <div className="mb-4">
       {/* Month header — blue banner */}
-      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-[14px]">
+      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-xl">
         {/* Prev arrow */}
         <button onClick={() => goMonth(-1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
           <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -161,6 +162,7 @@ export function WeekCalendarView({
   currentDateStr,
   // Data
   bookingsByDate,
+  bookingsLoading,
   daySettings,
   dayOpenState,
   dogs,
@@ -184,8 +186,11 @@ export function WeekCalendarView({
   setShowRebookDatePicker,
   // New booking modal trigger
   setShowNewBooking,
+  // Pull-to-refresh
+  onRefresh,
 }) {
   const [calendarMode, setCalendarMode] = useState("day"); // "day" | "month"
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -247,23 +252,27 @@ export function WeekCalendarView({
 
       {/* Day view */}
       {calendarMode === "day" && (
-        <>
+        <PullToRefresh onRefresh={onRefresh}>
           {/* Dashboard header with date + actions */}
           <DashboardHeader
             currentDateObj={currentDateObj}
             bookings={dayBookings}
             onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
 
           {isOpen ? (
             <>
               <SlotGrid
                 bookings={dayBookings}
+                loading={bookingsLoading && dayBookings.length === 0}
                 activeSlots={activeSlots}
                 onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
                 currentDateStr={currentDateStr}
                 overrides={currentSettings.overrides || {}}
                 onOverride={handleOverride}
+                searchQuery={searchQuery}
               />
               {/* Add/Remove extra slot buttons */}
               <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
@@ -295,7 +304,7 @@ export function WeekCalendarView({
           ) : (
             <ClosedDayView onOpen={toggleDayOpen} />
           )}
-        </>
+        </PullToRefresh>
       )}
 
       {/* Month view */}

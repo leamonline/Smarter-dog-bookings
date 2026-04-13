@@ -54,17 +54,19 @@ export function useDaySettings(weekStart) {
 
     let cancelled = false;
 
-    async function fetch() {
-      setLoading(true);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const startStr = toDateStr(weekStart);
+    const endStr = toDateStr(weekEnd);
 
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+    async function fetchSettings() {
+      setLoading(true);
 
       const { data, error } = await supabase
         .from("day_settings")
         .select("*")
-        .gte("setting_date", toDateStr(weekStart))
-        .lte("setting_date", toDateStr(weekEnd));
+        .gte("setting_date", startStr)
+        .lte("setting_date", endStr);
 
       if (cancelled) return;
 
@@ -88,10 +90,32 @@ export function useDaySettings(weekStart) {
       setLoading(false);
     }
 
-    fetch();
+    fetchSettings();
+
+    // Real-time subscription for day_settings within the current week
+    const channel = supabase
+      .channel(`day-settings-rt-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "day_settings" },
+        (payload) => {
+          const row = payload.new;
+          if (!row || row.setting_date < startStr || row.setting_date > endStr) return;
+          setDaySettings((prev) => ({
+            ...prev,
+            [row.setting_date]: {
+              isOpen: row.is_open,
+              overrides: row.overrides || {},
+              extraSlots: row.extra_slots || [],
+            },
+          }));
+        },
+      )
+      .subscribe();
 
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [weekStart]);
 

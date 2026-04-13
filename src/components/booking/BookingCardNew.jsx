@@ -32,7 +32,7 @@ const STATUS_DISPLAY = {
   "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", label: "Ready" },
 };
 
-export function BookingCardNew({ booking, onClick }) {
+export function BookingCardNew({ booking, onClick, searchDimmed }) {
   const {
     dogs,
     humans,
@@ -41,6 +41,7 @@ export function BookingCardNew({ booking, onClick }) {
     bookingsByDate,
     dayOpenState,
     daySettings,
+    onAdd,
     onRemove,
     onUpdate,
     onUpdateDog,
@@ -84,8 +85,11 @@ export function BookingCardNew({ booking, onClick }) {
   return (
     <>
       <div
+        role="button"
+        tabIndex={0}
         onClick={handleCardClick}
-        className="bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-blue hover:-translate-y-px box-border"
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-blue hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
@@ -133,13 +137,13 @@ export function BookingCardNew({ booking, onClick }) {
         {/* Row 4: pill row */}
         <div className="flex gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
           {/* Service pill */}
-          <span className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-slate-100 text-slate-700">
+          <span className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-slate-100 text-slate-700">
             {service?.name || booking.service || "\u2014"}
           </span>
 
           {/* Status pill */}
           <span
-            className="flex-1 min-w-0 text-[8px] md:text-[10px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate"
+            className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate"
             style={{ background: statusObj.bg, color: statusObj.color }}
           >
             {statusObj.label}
@@ -153,6 +157,7 @@ export function BookingCardNew({ booking, onClick }) {
           <BookingDetailModal
             booking={booking}
             onClose={() => setShowDetail(false)}
+            onAdd={onAdd}
             onRemove={onRemove}
             onOpenHuman={onOpenHuman}
             onOpenDog={onOpenDog}

@@ -39,6 +39,8 @@ export interface Human {
   address: string;
   notes: string;
   historyFlag: string;
+  reminderHours: number;
+  reminderChannels: string[];
   trustedIds: string[];
 }
 
@@ -72,6 +74,7 @@ export interface Booking {
   _ownerId: string | null;
   _pickupById: string | null;
   _bookingDate: string;
+  _chainId: string | null;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;

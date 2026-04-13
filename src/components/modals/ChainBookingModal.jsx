@@ -1,7 +1,9 @@
 // src/components/modals/ChainBookingModal.jsx
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { SERVICES, SALON_SLOTS, PRICING } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { useSalon } from "../../contexts/SalonContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
@@ -21,11 +23,7 @@ function formatDate(date) {
 }
 
 export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
+  const toast = useToast();
 
   const { bookingsByDate, daySettings } = useSalon();
 
@@ -93,6 +91,7 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
     setCreating(true);
     await onCreateChain(chain);
     setCreating(false);
+    toast.show(`${chain.length} booking${chain.length === 1 ? "" : "s"} created`, "success");
     onClose();
   };
 
@@ -101,10 +100,13 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
   const selectCls = "px-2.5 py-2 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-semibold font-inherit bg-white text-slate-800 cursor-pointer";
 
   return (
-    <div className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-[min(460px,95vw)] max-h-[85vh] overflow-auto px-7 py-6 shadow-[0_8px_32px_rgba(0,0,0,0.18)]" onClick={(e) => e.stopPropagation()}>
+    <AccessibleModal
+      onClose={onClose}
+      titleId="chain-booking-title"
+      className="bg-white rounded-2xl w-[min(460px,95vw)] max-h-[85vh] overflow-auto px-7 py-6 shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+    >
         {/* Header */}
-        <div className="text-lg font-extrabold text-slate-800 mb-1">
+        <div id="chain-booking-title" className="text-lg font-extrabold text-slate-800 mb-1">
           Recurring Bookings — {dog?.name || "Dog"}
         </div>
         <div className="text-[13px] text-slate-500 mb-5">
@@ -218,7 +220,6 @@ export function ChainBookingModal({ dog, lastBooking, onClose, onCreateChain }) 
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

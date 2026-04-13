@@ -1,7 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 const SORTED_BREEDS = [
   ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
@@ -15,11 +17,7 @@ function titleCase(str) {
 }
 
 export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -128,21 +126,26 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     });
     setSubmitting(false);
     if (result) {
+      toast.show(name.trim() ? `${name.trim()} added` : "Dog added", "success");
       onClose();
     } else {
+      toast.show("Could not add dog", "error");
       setError("Failed to add dog. A dog with this name may already exist.");
     }
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]">
+    <AccessibleModal
+      onClose={onClose}
+      titleId="add-dog-title"
+      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+    >
         {/* Header */}
         <div
           className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
           style={{ background: `linear-gradient(135deg, ${headerTheme.from}, ${headerTheme.to})` }}
         >
-          <div className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
+          <div id="add-dog-title" className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
           <button
             onClick={onClose}
             className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
@@ -411,7 +414,6 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

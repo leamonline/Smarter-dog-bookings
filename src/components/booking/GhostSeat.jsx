@@ -15,6 +15,7 @@ function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
         <button
           key={label}
           onClick={() => { action(); onClose(); }}
+          aria-label={label}
           className="py-1.5 px-3 rounded-md border-none bg-brand-coral-light text-brand-coral text-xs font-bold cursor-pointer font-[inherit] transition-all text-left hover:bg-brand-coral hover:text-white"
         >
           {label}
@@ -49,6 +50,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
       {/* Book button */}
       <button
         onClick={onClick}
+        aria-label="Book this seat"
         className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-brand-blue border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-lg font-bold shadow-[0_1px_3px_rgba(14,165,233,0.15)] hover:bg-brand-blue hover:from-brand-blue hover:to-brand-blue hover:text-white"
       >
         +
@@ -56,6 +58,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
 
       {/* Block button */}
       <button
+        aria-label="Block this seat"
         onClick={(e) => {
           e.stopPropagation();
           if (span) {

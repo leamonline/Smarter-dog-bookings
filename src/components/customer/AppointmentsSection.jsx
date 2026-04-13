@@ -9,6 +9,19 @@ import {
 } from "./dashboardConstants.js";
 import { AddToCalendarButton } from "./AddToCalendarButton.js";
 
+/** Map internal statuses to customer-friendly labels */
+function customerStatusLabel(status) {
+  const statusMap = {
+    "No-show": "Awaiting confirmation",
+    "Checked in": "Checked in",
+    "Ready for pick-up": "Ready for pick-up",
+    "Completed": "Completed",
+    "Finished": "Completed",
+    "Cancelled": "Cancelled",
+  };
+  return statusMap[status] || status;
+}
+
 export function AppointmentsSection({
   upcomingBookings,
   pastBookings,
@@ -77,7 +90,7 @@ export function AppointmentsSection({
                   </div>
                   <div className="flex items-center gap-2">
                     <AddToCalendarButton bookingId={b.id} compact />
-                    <span className="portal-status-badge" style={sc}>{b.status}</span>
+                    <span className="portal-status-badge" style={sc}>{customerStatusLabel(b.status)}</span>
                   </div>
                 </div>
 
@@ -189,7 +202,7 @@ export function AppointmentsSection({
                         </div>
                         {b.slot && <div className="portal-booking-time">{formatSlot(b.slot)}</div>}
                       </div>
-                      <span className="portal-status-badge" style={sc}>{b.status}</span>
+                      <span className="portal-status-badge" style={sc}>{customerStatusLabel(b.status)}</span>
                     </div>
                   </div>
                 );
