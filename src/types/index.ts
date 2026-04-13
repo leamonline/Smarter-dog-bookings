@@ -191,3 +191,15 @@ export interface NotificationLog {
   sentAt: string | null;
   createdAt: string;
 }
+
+export interface CalendarFeedToken {
+  id: string;
+  humanId: string | null;
+  staffUserId: string | null;
+  token: string;
+  feedType: "customer" | "staff";
+  isActive: boolean;
+  createdAt: string;
+  expiresAt: string | null;
+  lastAccessed: string | null;
+}

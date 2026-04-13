@@ -18,6 +18,7 @@ export function BookingActions({
   onRemove,
   onClose,
   onRebook,
+  onAddToCalendar,
 }) {
   if (isEditing) {
     return (
@@ -81,6 +82,14 @@ export function BookingActions({
           <IconBlock size={16} colour="#E8567F" /> Cancel
         </button>
       </div>
+      {onAddToCalendar && (
+        <button
+          onClick={() => onAddToCalendar(booking.id)}
+          className="w-full py-2.5 rounded-[10px] border border-slate-200 text-[12px] font-semibold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-teal"
+        >
+          {"\uD83D\uDCC5"} Add to calendar
+        </button>
+      )}
       {booking.status === "Ready for pick-up" && onRebook && (
         <button
           onClick={() => {
