@@ -201,7 +201,7 @@ export function HumanCardModal({
     const myId = human.id || humanId;
 
     // Step 1: Add them to our trusted list
-    onUpdateHuman(myId, {
+    await onUpdateHuman(myId, {
       trustedIds: [...currentTrusted, selectedHumanId],
     });
 

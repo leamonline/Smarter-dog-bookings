@@ -2,21 +2,26 @@
 import { useState } from "react";
 import { PRICING } from "../../constants/index.js";
 
-function computeRevenue(bookings) {
+function computeRevenue(bookings, dogs) {
   let total = 0;
   for (const b of bookings) {
-    const priceStr = PRICING[b.service]?.[b.size] || "";
-    const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
-    if (!isNaN(num)) total += num;
+    const dog = dogs ? Object.values(dogs).find(d => d.id === b._dogId) : null;
+    if (dog?.customPrice != null && dog.customPrice > 0) {
+      total += dog.customPrice;
+    } else {
+      const priceStr = PRICING[b.service]?.[b.size] || "";
+      const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
+      if (!isNaN(num)) total += num;
+    }
   }
   return total;
 }
 
-export default function FloatingActions({ bookings, onNewBooking }) {
+export default function FloatingActions({ bookings, dogs, onNewBooking }) {
   const [noteHover, setNoteHover] = useState(false);
   const [cardHover, setCardHover] = useState(false);
 
-  const revenue = computeRevenue(bookings || []);
+  const revenue = computeRevenue(bookings || [], dogs);
 
   return (
     <div className="fixed z-[200] flex items-end bottom-20 right-4 md:bottom-6 md:right-7">

@@ -402,6 +402,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     _ownerId: null,
     _pickupById: null,
     _bookingDate: "",
+    _groupId: null,
   };
 }
 

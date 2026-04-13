@@ -413,10 +413,10 @@ export function DogCardModal({
                 slot: link.slot,
                 owner: owner?.id || resolvedDog.human_id || "",
                 ownerName: owner
-                  ? `${owner.first_name || owner.name || ""} ${owner.last_name || owner.surname || ""}`.trim()
+                  ? `${owner.name || ""} ${owner.surname || ""}`.trim()
                   : "",
                 status: "No-show",
-                chain_id: chainId,
+                group_id: chainId,
               }, link.dateStr);
             }
           }}

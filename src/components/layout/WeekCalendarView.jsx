@@ -7,6 +7,7 @@ import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ClosedDayView } from "./ClosedDayView.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
+import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
@@ -186,6 +187,8 @@ export function WeekCalendarView({
   setShowRebookDatePicker,
   // New booking modal trigger
   setShowNewBooking,
+  // Human card
+  onOpenHuman,
   // Pull-to-refresh
   onRefresh,
 }) {
@@ -248,6 +251,7 @@ export function WeekCalendarView({
         onSelectMonth={() => setCalendarMode("month")}
         humans={humans}
         dogs={dogs}
+        onOpenHuman={onOpenHuman}
       />
 
       {/* Day view */}
@@ -257,6 +261,7 @@ export function WeekCalendarView({
           <DashboardHeader
             currentDateObj={currentDateObj}
             bookings={dayBookings}
+            dogs={dogs}
             onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -300,6 +305,12 @@ export function WeekCalendarView({
                   Add another timeslot
                 </button>
               </div>
+              <WaitlistPanel
+                currentDateObj={currentDateObj}
+                humans={humans}
+                dogs={dogs}
+                onOpenHuman={onOpenHuman}
+              />
             </>
           ) : (
             <ClosedDayView onOpen={toggleDayOpen} />

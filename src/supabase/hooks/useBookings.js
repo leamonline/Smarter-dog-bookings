@@ -238,7 +238,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         pickup_by_id: pickupHumanId || null,
         payment: booking.payment || "Due at Pick-up",
         confirmed: booking.confirmed ?? false,
-        ...(booking.chain_id ? { chain_id: booking.chain_id } : {}),
+        ...(booking.group_id ? { group_id: booking.group_id } : {}),
       };
 
       const { data, error: err } = await supabase

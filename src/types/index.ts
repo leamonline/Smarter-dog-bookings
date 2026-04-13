@@ -74,7 +74,7 @@ export interface Booking {
   _ownerId: string | null;
   _pickupById: string | null;
   _bookingDate: string;
-  _chainId: string | null;
+  _groupId: string | null;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;
