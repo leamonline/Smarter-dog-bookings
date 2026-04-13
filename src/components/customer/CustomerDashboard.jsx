@@ -7,6 +7,7 @@ import { MyDetailsCard } from "./MyDetailsCard.jsx";
 import { DogsSection } from "./DogsSection.jsx";
 import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
+import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelOther, setCancelOther] = useState("");
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -297,6 +299,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             onStartCancel={startCancel}
             onConfirmCancel={confirmCancel}
             onCancelBack={() => setCancellingId(null)}
+            onSubscribe={() => setShowCalendarModal(true)}
           />
 
         </div>
@@ -335,6 +338,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         </div>
       </div>
 
+      {showCalendarModal && (
+        <CalendarSubscribeModal onClose={() => setShowCalendarModal(false)} />
+      )}
     </div>
   );
 }

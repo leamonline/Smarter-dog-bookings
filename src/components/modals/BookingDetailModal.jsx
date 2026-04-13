@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import { useBookingSave } from "../../hooks/useBookingSave.ts";
@@ -18,6 +18,7 @@ import {
   normalizeServiceForSize,
 } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
+import { supabase } from "../../supabase/client.js";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 import { ContactPopup } from "./ContactPopup.jsx";
 
@@ -253,6 +254,23 @@ export function BookingDetailModal({
     booking.pickupBy ||
     booking.owner
   );
+
+  const handleAddToCalendar = useCallback(async (bookingId) => {
+    if (!supabase) return;
+    try {
+      const { data: token, error } = await supabase.rpc(
+        "get_or_create_calendar_feed_token",
+        { p_feed_type: "staff" },
+      );
+      if (error || !token) return;
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!baseUrl) return;
+      const url = `${baseUrl}/functions/v1/calendar-ics?booking_id=${encodeURIComponent(bookingId)}&token=${encodeURIComponent(token)}`;
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Calendar download error:", err);
+    }
+  }, []);
 
   return (
     <div
@@ -685,6 +703,7 @@ export function BookingDetailModal({
           onRemove={onRemove}
           onClose={onClose}
           onRebook={onRebook}
+          onAddToCalendar={handleAddToCalendar}
         />
       </div>
 

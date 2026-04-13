@@ -7,6 +7,7 @@ import {
   formatDate,
   cardAnim,
 } from "./dashboardConstants.js";
+import { AddToCalendarButton } from "./AddToCalendarButton.js";
 
 export function AppointmentsSection({
   upcomingBookings,
@@ -25,6 +26,7 @@ export function AppointmentsSection({
   onStartCancel,
   onConfirmCancel,
   onCancelBack,
+  onSubscribe,
 }) {
   const navigate = useNavigate();
 
@@ -35,6 +37,14 @@ export function AppointmentsSection({
         <div className="pink-card-header">
           <span className="pink-card-icon" aria-hidden="true">{"\uD83D\uDCC5"}</span>
           <h2 className="pink-card-title">Upcoming Appointments</h2>
+          {onSubscribe && upcomingBookings.length > 0 && (
+            <button
+              onClick={onSubscribe}
+              className="ml-auto bg-transparent border-none text-[12px] text-brand-teal font-semibold cursor-pointer hover:underline"
+            >
+              Sync to calendar
+            </button>
+          )}
         </div>
         {upcomingBookings.length === 0 ? (
           <div className="portal-empty">
@@ -65,7 +75,10 @@ export function AppointmentsSection({
                       <div className="portal-booking-time">{formatSlot(b.slot)}</div>
                     )}
                   </div>
-                  <span className="portal-status-badge" style={sc}>{b.status}</span>
+                  <div className="flex items-center gap-2">
+                    <AddToCalendarButton bookingId={b.id} compact />
+                    <span className="portal-status-badge" style={sc}>{b.status}</span>
+                  </div>
                 </div>
 
                 {canCancel && cancellingId !== b.id && (

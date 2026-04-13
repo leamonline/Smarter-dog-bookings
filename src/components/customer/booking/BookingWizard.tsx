@@ -9,6 +9,7 @@ import { ServiceSelection } from "./ServiceSelection.js";
 import { DateSelection } from "./DateSelection.js";
 import { SlotSelection } from "./SlotSelection.js";
 import { BookingConfirmation } from "./BookingConfirmation.js";
+import { AddToCalendarButton } from "../AddToCalendarButton.js";
 
 interface HumanRecord {
   id: string;
@@ -49,6 +50,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
+  const [bookedIds, setBookedIds] = useState<string[]>([]);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLDivElement>(null);
 
@@ -161,9 +163,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         };
       });
 
-      const { error: insertError } = await supabase.from("bookings").insert(records);
+      const { data: inserted, error: insertError } = await supabase.from("bookings").insert(records).select("id");
       if (insertError) throw insertError;
 
+      setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
       setBooked(true);
     } catch (e: any) {
       setError(e.message || "Could not create booking");
@@ -211,6 +214,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-teal text-[13px] font-semibold mb-6">
           You'll receive a confirmation message shortly.
         </div>
+        {bookedIds.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            {bookedIds.map((id, i) => (
+              <AddToCalendarButton
+                key={id}
+                bookingId={id}
+              />
+            ))}
+          </div>
+        )}
         <button
           onClick={onComplete}
           className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"

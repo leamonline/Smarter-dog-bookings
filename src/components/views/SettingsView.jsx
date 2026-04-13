@@ -8,6 +8,7 @@ import { BookingRulesSettings } from "./settings/BookingRulesSettings.jsx";
 import { CapacitySettings } from "./settings/CapacitySettings.jsx";
 import { CustomerPortalSettings } from "./settings/CustomerPortalSettings.jsx";
 import { NotificationSettings } from "./settings/NotificationSettings.jsx";
+import { CalendarSettings } from "./settings/CalendarSettings.jsx";
 
 const SECTIONS = [
   { id: "business", label: "Your Business" },
@@ -18,6 +19,7 @@ const SECTIONS = [
   { id: "capacity", label: "Capacity Engine" },
   { id: "portal", label: "Customer Portal" },
   { id: "notifs", label: "Notifications" },
+  { id: "calendar", label: "Calendar Sync" },
 ];
 
 export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
@@ -59,6 +61,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
       {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} />}
       {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} />}
       {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} />}
+      {activeTab === "calendar" && <CalendarSettings />}
     </div>
   );
 }
