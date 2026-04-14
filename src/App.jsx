@@ -5,6 +5,7 @@ import {
   lazy,
   Suspense,
 } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 import { supabase } from "./supabase/client.js";
 import { getDefaultOpenForDate } from "./engine/utils.js";
@@ -464,6 +465,7 @@ export default function App() {
           />
         )}
       </SalonProvider>
+      <Analytics />
     </div>
     </ToastProvider>
   );
