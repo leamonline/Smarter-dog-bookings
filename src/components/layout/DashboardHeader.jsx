@@ -1,12 +1,17 @@
 import { useMemo, useRef, useEffect } from "react";
 import { PRICING } from "../../constants/index.js";
 
-function computeRevenue(bookings) {
+function computeRevenue(bookings, dogs) {
   let total = 0;
   for (const b of bookings) {
-    const priceStr = PRICING[b.service]?.[b.size] || "";
-    const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
-    if (!isNaN(num)) total += num;
+    const dog = dogs ? Object.values(dogs).find(d => d.id === b._dogId) : null;
+    if (dog?.customPrice != null && dog.customPrice > 0) {
+      total += dog.customPrice;
+    } else {
+      const priceStr = PRICING[b.service]?.[b.size] || "";
+      const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
+      if (!isNaN(num)) total += num;
+    }
   }
   return total;
 }
@@ -24,8 +29,8 @@ function formatFullDate(dateObj) {
   return { weekday, day, month, year: dateObj.getFullYear() };
 }
 
-export function DashboardHeader({ currentDateObj, bookings, onNewBooking, searchQuery, onSearchChange }) {
-  const revenue = useMemo(() => computeRevenue(bookings || []), [bookings]);
+export function DashboardHeader({ currentDateObj, bookings, dogs, onNewBooking, searchQuery, onSearchChange }) {
+  const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
   const { weekday, day, month, year } = formatFullDate(currentDateObj);
   const searchRef = useRef(null);

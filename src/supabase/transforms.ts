@@ -52,7 +52,7 @@ interface DbBookingRow {
   dog_id: string;
   pickup_by_id: string | null;
   booking_date: string;
-  chain_id: string | null;
+  group_id: string | null;
 }
 
 interface DbConfigRow {
@@ -278,7 +278,7 @@ export function dbBookingsToArray(
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,
       _bookingDate: row.booking_date,
-      _chainId: row.chain_id || null,
+      _groupId: row.group_id || null,
     };
   });
 }

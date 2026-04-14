@@ -38,7 +38,7 @@ export function RecurringBookingModal({
       const { data, error } = await supabase
         .from("bookings")
         .select("id, booking_date, slot, service, size, status")
-        .eq("chain_id", chainId)
+        .eq("group_id", chainId)
         .order("booking_date")
         .order("slot");
 

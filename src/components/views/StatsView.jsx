@@ -5,7 +5,8 @@ import { useSalon } from "../../contexts/SalonContext.jsx";
 import { getDogByIdOrName, getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
-function parsePrice(service, size) {
+function parsePrice(service, size, customPrice) {
+  if (customPrice != null && customPrice > 0) return customPrice;
   const priceStr = PRICING[service]?.[size] || "";
   const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
   return isNaN(num) ? 0 : num;
@@ -28,8 +29,11 @@ function getWeekDates(refDate) {
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function RevenueForDay(bookings) {
-  return bookings.reduce((sum, b) => sum + parsePrice(b.service, b.size), 0);
+function RevenueForDay(bookings, dogs) {
+  return bookings.reduce((sum, b) => {
+    const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
+    return sum + parsePrice(b.service, b.size, dog?.customPrice);
+  }, 0);
 }
 
 export function StatsView() {
@@ -50,7 +54,7 @@ export function StatsView() {
     return thisWeekDates.map((date, i) => {
       const dateStr = toDateStr(date);
       const dayBookings = bookingsByDate[dateStr] || [];
-      const revenue = RevenueForDay(dayBookings);
+      const revenue = RevenueForDay(dayBookings, dogs);
       return {
         label: DAY_LABELS[i],
         dateStr,
@@ -59,15 +63,15 @@ export function StatsView() {
         isToday: dateStr === todayStr,
       };
     });
-  }, [thisWeekDates, bookingsByDate, todayStr]);
+  }, [thisWeekDates, bookingsByDate, todayStr, dogs]);
 
   const lastWeekData = useMemo(() => {
     return lastWeekDates.map((date) => {
       const dateStr = toDateStr(date);
       const dayBookings = bookingsByDate[dateStr] || [];
-      return RevenueForDay(dayBookings);
+      return RevenueForDay(dayBookings, dogs);
     });
-  }, [lastWeekDates, bookingsByDate]);
+  }, [lastWeekDates, bookingsByDate, dogs]);
 
   const thisWeekTotal = thisWeekData.reduce((s, d) => s + d.revenue, 0);
   const lastWeekTotal = lastWeekData.reduce((s, v) => s + v, 0);
@@ -80,11 +84,11 @@ export function StatsView() {
     for (const [dateStr, dayBookings] of Object.entries(bookingsByDate)) {
       const d = new Date(dateStr + "T00:00:00");
       if (d.getMonth() === month && d.getFullYear() === year) {
-        total += RevenueForDay(dayBookings);
+        total += RevenueForDay(dayBookings, dogs);
       }
     }
     return total;
-  }, [bookingsByDate, todayStr]);
+  }, [bookingsByDate, todayStr, dogs]);
 
   const busiestDay = useMemo(() => {
     const dayCounts = [0, 0, 0, 0, 0, 0, 0];
@@ -122,11 +126,11 @@ export function StatsView() {
     for (const dayBookings of Object.values(bookingsByDate)) {
       for (const b of dayBookings) {
         const dog = getDogByIdOrName(dogs, b.dog_id || b.dogName);
-        const human = dog?.owner_id
-          ? getHumanByIdOrName(humans, dog.owner_id)
+        const human = dog?._humanId
+          ? getHumanByIdOrName(humans, dog._humanId)
           : null;
         const name = human
-          ? `${human.first_name || ""} ${human.last_name || ""}`.trim()
+          ? `${human.name || ""} ${human.surname || ""}`.trim()
           : b.ownerName || b.owner || "Unknown";
         if (name && name !== "Unknown") {
           ownerCounts[name] = (ownerCounts[name] || 0) + 1;

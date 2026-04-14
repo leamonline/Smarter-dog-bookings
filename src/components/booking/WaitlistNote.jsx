@@ -114,7 +114,7 @@ export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
             {count > 0 ? (
               waitlist.map(entry => {
                 const h = entry.humans;
-                const theirDogs = Object.values(dogs || {}).filter(d => d.humanId === h.id);
+                const theirDogs = Object.values(dogs || {}).filter(d => d._humanId === h.id);
                 const dogNames = theirDogs.map(d => d.name).join(", ") || "No dogs";
 
                 return (

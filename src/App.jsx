@@ -375,6 +375,7 @@ export default function App() {
               showRebookDatePicker={showRebookDatePicker}
               setShowRebookDatePicker={setShowRebookDatePicker}
               setShowNewBooking={setShowNewBooking}
+              onOpenHuman={setSelectedHumanId}
               onRefresh={refetchBookings}
             />
           )}

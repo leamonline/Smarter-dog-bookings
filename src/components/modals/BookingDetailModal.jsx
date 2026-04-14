@@ -348,7 +348,7 @@ export function BookingDetailModal({
             onUpdate={onUpdate}
           />
 
-          {booking._chainId && (
+          {booking._groupId && (
             <button
               onClick={() => setShowSeries(true)}
               className="w-full mb-2 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer font-inherit flex items-center gap-2 border-[1.5px] transition-colors hover:bg-slate-50"
@@ -819,9 +819,9 @@ export function BookingDetailModal({
         />
       )}
 
-      {showSeries && booking._chainId && (
+      {showSeries && booking._groupId && (
         <RecurringBookingModal
-          chainId={booking._chainId}
+          chainId={booking._groupId}
           currentBookingId={booking.id}
           dogName={booking.dogName}
           sizeTheme={sizeTheme}
