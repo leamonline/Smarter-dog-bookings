@@ -28,3 +28,11 @@ export function IconPlus({ size = S, colour = "#0EA5E9" }) {
 export function IconSearch({ size = S, colour = "#6B7280" }) {
   return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5" /><line x1="10.5" y1="10.5" x2="14" y2="14" /></svg>);
 }
+
+export function IconCamera({ size = S, colour = "#0EA5E9" }) {
+  return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 3L4.5 5H2.5a1 1 0 00-1 1v7a1 1 0 001 1h11a1 1 0 001-1V6a1 1 0 00-1-1h-2L10.5 3z" /><circle cx="8" cy="9" r="2.5" /></svg>);
+}
+
+export function IconGallery({ size = S, colour = "#0EA5E9" }) {
+  return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 11l3-3 2 2 3-4 4 5" /><circle cx="5.5" cy="6.5" r="1" /></svg>);
+}

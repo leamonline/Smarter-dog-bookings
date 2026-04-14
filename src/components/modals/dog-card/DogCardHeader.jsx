@@ -1,5 +1,5 @@
 import { titleCase } from "./helpers.js";
-import { IconEdit } from "../../icons/index.jsx";
+import { IconEdit, IconGallery } from "../../icons/index.jsx";
 
 export function DogCardHeader({
   isEditing,
@@ -18,6 +18,7 @@ export function DogCardHeader({
   headerSubTextColour,
   onClose,
   onEnterEdit,
+  onOpenGallery,
   titleId,
 }) {
   const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
@@ -32,6 +33,16 @@ export function DogCardHeader({
       style={{ background: gradient }}
     >
       <div className="absolute top-5 right-5 flex items-center gap-2">
+        {!isEditing && onOpenGallery && (
+          <button
+            onClick={onOpenGallery}
+            className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer shrink-0"
+            style={{ color: headerTextColour }}
+            aria-label="View groom photos"
+          >
+            <IconGallery size={16} colour={headerTextColour} />
+          </button>
+        )}
         {!isEditing && onEnterEdit && (
           <button
             onClick={onEnterEdit}

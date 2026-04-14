@@ -37,8 +37,10 @@ import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
+import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
+import { PhotoUploadModal } from "./PhotoUploadModal.jsx";
 import { titleCase } from "../../utils/text.js";
 
 const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
@@ -104,6 +106,7 @@ export function BookingDetailModal({
   const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
   const trustedHumans = useMemo(() => {
     const trusted = primaryHuman?.trustedIds || [];
@@ -231,6 +234,7 @@ export function BookingDetailModal({
   };
 
   const toast = useToast();
+  const { uploadPhoto } = useGroomPhotos();
 
   const setIsEditingWithToast = useCallback((value) => {
     setIsEditing(value);
@@ -322,6 +326,7 @@ export function BookingDetailModal({
           allowedServices={allowedServices}
           onClose={handleCloseAttempt}
           onEnterEdit={() => { resetEditState(); setIsEditing(true); }}
+          onOpenCamera={() => setShowPhotoUpload(true)}
           onOpenDog={onOpenDog}
           titleId="booking-detail-title"
           alerts={dogData?.alerts || []}
@@ -643,6 +648,18 @@ export function BookingDetailModal({
           onClose={() => setShowSeries(false)}
           onRemove={onRemove}
           onCloseParent={onClose}
+        />
+      )}
+
+      {showPhotoUpload && (
+        <PhotoUploadModal
+          dogId={dogData?.id || booking._dogId}
+          bookingId={booking.id}
+          bookingDate={currentDateStr}
+          sizeTheme={sizeTheme}
+          onClose={() => setShowPhotoUpload(false)}
+          onSaved={() => toast.show("Photo saved", "success")}
+          uploadPhoto={uploadPhoto}
         />
       )}
     </AccessibleModal>
