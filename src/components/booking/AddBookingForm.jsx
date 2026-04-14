@@ -251,7 +251,7 @@ export function AddBookingForm({
         >
           {allowedServices.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.icon} {s.name} — {getServicePriceLabel(s.id, size)}
+              {s.name} — {getServicePriceLabel(s.id, size)}
             </option>
           ))}
         </select>

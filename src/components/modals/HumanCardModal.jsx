@@ -62,7 +62,7 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
                 {titleCase(booking.dogName)}
               </span>
               <span className="text-slate-500 ml-1">
-                {service?.icon} {service?.name}
+                {service?.name}
               </span>
             </div>
             <span

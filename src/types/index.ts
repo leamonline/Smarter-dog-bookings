@@ -9,7 +9,6 @@ export type ServiceId = "full-groom" | "bath-and-brush" | "bath-and-deshed" | "p
 export interface Service {
   id: ServiceId;
   name: string;
-  icon: string;
 }
 
 export type BookingStatusId =
@@ -69,6 +68,7 @@ export interface Booking {
   addons: string[];
   pickupBy: string;
   payment: string;
+  depositAmount?: number | null;
   confirmed: boolean;
   _dogId: string;
   _ownerId: string | null;

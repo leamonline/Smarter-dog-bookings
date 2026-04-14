@@ -104,7 +104,7 @@ export function BookingHeader({
                   value={service.id}
                   style={{ color: "#1F2937" }}
                 >
-                  {service.icon} {service.name}
+                  {service.name}
                 </option>
               ))}
             </select>
@@ -116,7 +116,7 @@ export function BookingHeader({
                 color: sizeTheme.headerText,
               }}
             >
-              {serviceObj?.icon} {serviceObj?.name}
+              {serviceObj?.name}
             </span>
           )}
         </div>

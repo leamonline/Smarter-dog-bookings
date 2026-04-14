@@ -7,7 +7,7 @@ export function ServiceMix({ svcs, maxSvcRev, insight }) {
         {svcs.map((s) => (
           <div key={s.id}>
             <div className="flex justify-between items-baseline mb-1">
-              <span className="text-[13px] font-bold text-slate-700">{s.icon} {s.name}</span>
+              <span className="text-[13px] font-bold text-slate-700">{s.name}</span>
               <span className="text-[13px] font-extrabold text-slate-800">{"\u00A3"}{s.rev.toFixed(0)}</span>
             </div>
             <div className="flex items-center gap-2">

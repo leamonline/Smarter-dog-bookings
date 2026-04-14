@@ -269,7 +269,7 @@ export function ChainBookingModal({
             >
               {allowedServices.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.icon} {s.name}
+                  {s.name}
                 </option>
               ))}
             </select>
@@ -382,7 +382,7 @@ export function ChainBookingModal({
                       {formatDate(link.date)}
                     </div>
                     <div className="text-[12px] text-slate-500">
-                      {link.slot} — {svc?.icon} {svc?.name || link.service}
+                      {link.slot} — {svc?.name || link.service}
                     </div>
                   </div>
                   <button

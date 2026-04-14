@@ -73,7 +73,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
     dogRecord?.breed || booking.breed || ""
   );
   const displayOwner = titleCase(
-    humanRecord?.name || booking.owner || booking.ownerName || ""
+    humanRecord?.fullName || booking.owner || booking.ownerName || ""
   );
 
   const handleCardClick = onClick || (() => setShowDetail(true));

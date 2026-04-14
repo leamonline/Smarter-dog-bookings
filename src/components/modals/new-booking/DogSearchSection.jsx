@@ -106,7 +106,7 @@ export function DogSearchSection({
               >
                 {SERVICES.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.icon} {s.name} — {PRICING[s.id]?.[entry.dog.size || "small"] || "N/A"}
+                    {s.name} — {PRICING[s.id]?.[entry.dog.size || "small"] || "N/A"}
                   </option>
                 ))}
               </select>

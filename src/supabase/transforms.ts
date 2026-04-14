@@ -48,6 +48,7 @@ interface DbBookingRow {
   status: string | null;
   addons: string[] | null;
   payment: string | null;
+  deposit_amount?: number | null;
   confirmed: boolean | null;
   dog_id: string;
   pickup_by_id: string | null;
@@ -272,6 +273,7 @@ export function dbBookingsToArray(
       addons: row.addons || [],
       pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || "",
       payment: row.payment || "Due at Pick-up",
+      depositAmount: row.deposit_amount ?? null,
       confirmed: row.confirmed === true,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,

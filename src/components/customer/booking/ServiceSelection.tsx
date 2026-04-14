@@ -58,7 +58,7 @@ export function ServiceSelection({
                 onClick={() => applyToAll(svc.id as ServiceId)}
                 className="py-1.5 px-3 rounded-md border-2 border-brand-teal bg-white text-brand-teal font-semibold text-[13px] cursor-pointer"
               >
-                {svc.icon} {svc.name}
+                {svc.name}
               </button>
             ))}
           </div>
@@ -85,7 +85,7 @@ export function ServiceSelection({
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="text-sm text-slate-800">
-                        {svc.icon} {svc.name}
+                        {svc.name}
                       </span>
                       <span className={`text-sm font-semibold ${selected ? "text-brand-teal" : "text-slate-500"}`}>
                         {getPriceLabel(svc.id, dog.size)}
