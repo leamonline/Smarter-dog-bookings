@@ -328,3 +328,59 @@ The underlying override system uses a toggle mechanism (set if absent, remove if
 The password input placeholder says `"Min. 8 characters"` but the validation on line 51 enforces `password.length < 12` (minimum 12 characters). Users who enter 8–11 character passwords get a confusing error.
 
 **Impact:** UX confusion on password reset. Minor but trivially fixable.
+
+---
+
+## 4. Dead Code & Orphans
+
+Every item below was traced through the full import graph. "Orphan" means no file imports or references it. "Dead" means exported/defined but never called.
+
+### 4.1 Orphan Components — Never Imported
+
+| File | Export | Lines | Evidence |
+|------|--------|-------|----------|
+| `src/components/ui/AvailableSeat.jsx` | `AvailableSeat` | 17 | Zero imports across codebase. `grep 'AvailableSeat'` returns only the file itself. |
+| `src/components/ui/BlockedSeat.jsx` | `BlockedSeat` | 17 | Zero imports. Superseded by `BlockedSeatCell` in `booking/`. |
+| `src/components/ui/CapacityBar.jsx` | `CapacityBar` | 31 | Zero imports. Capacity is now shown via the slot grid seat layout. |
+| `src/components/ui/Legend.jsx` | `Legend` | 34 | Zero imports. Only internal reference is `BookingHealth.jsx` importing it — **correction**: `BookingHealth.jsx` does import `Legend`, so this is used in the Reports view. **Not orphaned.** |
+| `src/components/layout/FloatingActions.jsx` | `FloatingActions` (default) | 105 | Zero imports. Superseded by `DashboardHeader.jsx` which now embeds revenue + "Book Now" inline. |
+| `src/components/layout/ShopSign.jsx` | `ShopSign` | 24 | Zero imports. Decorative component, never mounted. |
+| `src/components/booking/BookingCard.jsx` | `BookingCard` | 244 | Zero imports. Fully replaced by `BookingCardNew`. |
+| `src/components/shared/LiveAnnouncer.tsx` | `LiveAnnouncerProvider`, `useAnnounce` | 37 | Zero imports. Provider is never mounted in `App.jsx` or `CustomerApp.jsx`. The `useAnnounce` hook is never called. |
+
+**Total orphan lines:** ~474 lines of dead component code.
+
+### 4.2 Dead Exports — Exported but Never Consumed
+
+| File | Export | Evidence |
+|------|--------|----------|
+| `src/constants/brand.ts` | `BRAND` object (23 colour values) | Never imported anywhere. Only `SIZE_THEME` and `SIZE_FALLBACK` from this file are used. |
+| `src/supabase/hooks/useAuth.js:170` | `signUp` function | Exported from hook but never destructured or called by any consumer. Staff registration is intentionally disabled (LoginPage comment confirms this). |
+| `src/supabase/hooks/useAuth.js:173` | `isStaff` boolean | Exported but never destructured in `App.jsx` (only `isOwner` is used). |
+| `src/hooks/useModalState.ts:77-78` | `closeNewBooking`, `closeRebook` | Destructured in `App.jsx` line 92 but never passed to any component or called. `App.jsx` uses inline `() => setShowNewBooking(null)` instead. |
+| `src/hooks/useReportsData.ts:17` | `pctChange()` function | Defined but never called within the file. A separate copy in `ReportWidgets.jsx` is used instead. |
+| `src/components/modals/booking-detail/BookingStatusBar.jsx` | `ClientConfirmedToggle` | Exported component, never imported anywhere. |
+| `src/components/modals/dog-card/helpers.js:13` | `telLink()` | Exported but not re-exported from the barrel `dog-card/index.js`. Consumed directly by `DogDetailsSection.jsx` (which imports from `./helpers.js`), but the barrel omits it — inconsistency, not fully dead. |
+
+### 4.3 Unused Interface Fields
+
+| File | Fields | Evidence |
+|------|--------|----------|
+| `src/hooks/useSlotAvailability.ts` | `editDateStr`, `editDayOpen`, `isEditing` in `UseSlotAvailabilityInput` | Declared in the interface but the function body only destructures `editSettings`, `otherBookings`, `bookingSize`, `bookingSlot`. The three extra fields are passed by callers but silently ignored. |
+
+### 4.4 Duplicated Utility Functions
+
+These are not dead, but represent duplicated logic that should be consolidated:
+
+| Function | Canonical Location | Duplicated In |
+|----------|-------------------|---------------|
+| `titleCase(str)` | `src/components/modals/dog-card/helpers.js:1` | `BookingCard.jsx:12`, `BookingCardNew.jsx:16`, `BookingDetailModal.jsx:44`, `BookingHeader.jsx:8`, `HumanCardModal.jsx:11`, `ContactPopup.jsx:3`, `AddDogModal.jsx:14`, `DogsView.jsx:7`, `HumansView.jsx:6`, `new-booking/helpers.js:45` — **10 duplicate copies** |
+| `computeRevenue(bookings, dogs)` | `src/components/layout/DashboardHeader.jsx:4` | `FloatingActions.jsx:5` (orphan, but identical logic also in `StatsView.jsx:32` as `RevenueForDay`) |
+| `getDefaultOpenForDate(date)` | `src/engine/utils.ts:14` | `DatePickerModal.jsx:6` (local re-implementation instead of importing) |
+| `telLink(phone)` | `src/components/modals/dog-card/helpers.js:13` | `HumanCardModal.jsx:23` (local re-implementation) |
+| `waLink(phone)` | `src/components/modals/dog-card/helpers.js:7` | `HumanCardModal.jsx:17` (local re-implementation) |
+| `pctChange(cur, prev)` | `src/components/views/reports/ReportWidgets.jsx:3` | `src/hooks/useReportsData.ts:17` (defined but unused — the widget version is the one actually called) |
+
+### 4.5 Commented-Out Code
+
+No significant commented-out code blocks were found. The codebase is clean in this regard.
