@@ -50,8 +50,8 @@ export function ResetPasswordPage() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters.");
       return;
     }
     if (password !== confirm) {
@@ -141,7 +141,7 @@ export function ResetPasswordPage() {
           Set a new password
         </div>
         <div className="text-[13px] text-slate-500 mb-5">
-          Choose something strong — at least 8 characters.
+          Choose something strong — at least 12 characters.
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

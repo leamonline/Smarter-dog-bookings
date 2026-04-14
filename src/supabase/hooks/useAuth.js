@@ -20,18 +20,11 @@ export function useAuth() {
 
     if (err) {
       if (err.code === "PGRST116") {
-        const { data: newProfile, error: insertErr } = await supabase
-          .from("staff_profiles")
-          .insert({ user_id: userId, role: ROLES.staff, display_name: "" })
-          .select()
-          .single();
-
-        if (insertErr) {
-          console.error("Failed to create staff profile:", insertErr);
-          return null;
-        }
-
-        return newProfile;
+        // No staff profile found — user is NOT authorized for the staff portal.
+        // Staff profiles must be created by an owner via the dashboard or
+        // directly in Supabase Auth. Auto-creation is disabled for security.
+        console.warn("No staff profile found for user:", userId, "— access denied.");
+        return null;
       }
 
       console.error("Failed to fetch staff profile:", err);

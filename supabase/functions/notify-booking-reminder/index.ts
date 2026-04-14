@@ -128,8 +128,18 @@ function groupBookings(bookings: Booking[]): Map<string | null, Booking[]> {
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
-serve(async (_req) => {
+serve(async (req) => {
   try {
+    // 0. Verify webhook secret — MANDATORY
+    if (!WEBHOOK_SECRET) {
+      console.error("WEBHOOK_SECRET is not configured");
+      return new Response("Server misconfiguration: WEBHOOK_SECRET not set", { status: 500 });
+    }
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const tomorrow = tomorrowDateString();
 

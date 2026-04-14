@@ -86,9 +86,13 @@ function joinNames(names: string[]): string {
 
 serve(async (req) => {
   try {
-    // 0. Verify webhook secret
+    // 0. Verify webhook secret — MANDATORY
+    if (!WEBHOOK_SECRET) {
+      console.error("WEBHOOK_SECRET is not configured");
+      return new Response("Server misconfiguration: WEBHOOK_SECRET not set", { status: 500 });
+    }
     const authHeader = req.headers.get("Authorization");
-    if (WEBHOOK_SECRET && authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+    if (authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
       return new Response("Unauthorized", { status: 401 });
     }
 

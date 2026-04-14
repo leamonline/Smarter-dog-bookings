@@ -130,7 +130,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
   const confirmCancel = useCallback(async () => {
     if (!supabase || !cancellingId) return;
-    const reason = cancelReason === "Other" ? cancelOther.trim() : cancelReason;
+    const rawReason = cancelReason === "Other" ? cancelOther.trim() : cancelReason;
+    // Sanitise: strip HTML tags and truncate to prevent XSS in the staff dashboard
+    const reason = rawReason.replace(/<[^>]*>/g, "").slice(0, 500);
     if (!reason) return;
 
     const booking = bookings.find(b => b.id === cancellingId);

@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  // OTP cooldown timer — prevent customers from spamming "Send Code"
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
 
   // Format phone for display: 07xxx -> +44 7xxx
   const normalisePhone = (raw) => {
@@ -17,6 +30,10 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
+    if (otpCooldown > 0) {
+      setLocalError(`Please wait ${otpCooldown}s before requesting another code.`);
+      return;
+    }
     const normalised = normalisePhone(phoneInput);
     if (normalised.length < 12) {
       setLocalError("Please enter a valid UK mobile number.");
@@ -26,6 +43,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     setSubmitting(true);
     await onRequestOtp(normalised);
     setSubmitting(false);
+    setOtpCooldown(60); // 60-second cooldown
   };
 
   const handleVerifyOtp = async (e) => {

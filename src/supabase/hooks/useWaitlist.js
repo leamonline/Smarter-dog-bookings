@@ -8,7 +8,7 @@ export function useWaitlist(targetDateObj) {
   const [error, setError] = useState(null);
 
   const fetchWaitlist = useCallback(async () => {
-    if (!targetDateObj || isNaN(targetDateObj.getTime())) return;
+    if (!supabase || !targetDateObj || isNaN(targetDateObj.getTime())) return;
     
     setLoading(true);
     const dateStr = toDateStr(targetDateObj);
@@ -29,6 +29,8 @@ export function useWaitlist(targetDateObj) {
   }, [targetDateObj]);
 
   useEffect(() => {
+    if (!supabase) { setLoading(false); return; }
+
     fetchWaitlist();
 
     const channel = supabase
@@ -48,6 +50,7 @@ export function useWaitlist(targetDateObj) {
   }, [fetchWaitlist]);
 
   const joinWaitlist = useCallback(async (humanId, dateStr) => {
+    if (!supabase) throw new Error("Not connected");
     const { data, error } = await supabase
       .from("waitlist_entries")
       .insert({ human_id: humanId, target_date: dateStr })
@@ -60,6 +63,7 @@ export function useWaitlist(targetDateObj) {
   }, []);
 
   const leaveWaitlist = useCallback(async (entryId) => {
+    if (!supabase) throw new Error("Not connected");
     const { error } = await supabase
       .from("waitlist_entries")
       .delete()
