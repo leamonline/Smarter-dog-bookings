@@ -384,3 +384,85 @@ These are not dead, but represent duplicated logic that should be consolidated:
 ### 4.5 Commented-Out Code
 
 No significant commented-out code blocks were found. The codebase is clean in this regard.
+
+---
+
+## 5. Improvement Opportunities
+
+Ranked by impact (highest first). Each includes what, where, the improvement, and why it matters.
+
+### 5.1 Extract `titleCase` into a shared utility (HIGH impact, LOW effort)
+
+**What:** The `titleCase` function is copy-pasted identically in 10+ files.
+**Where:** See Section 4.4 for full list.
+**Improvement:** Create `src/utils/text.ts` with a single `titleCase` export. Replace all local copies with imports.
+**Why:** Eliminates ~40 lines of duplication, reduces risk of divergent implementations, and makes future changes (e.g. locale-aware casing) a single edit.
+
+### 5.2 Consolidate the customer portal onto Tailwind (HIGH impact, HIGH effort)
+
+**What:** The staff dashboard uses Tailwind CSS v4 exclusively (via `@tailwindcss/vite`), but the customer portal uses a separate 851-line CSS file (`customer-portal.css`) with hardcoded pixel values, custom class names, and inline `font-family` declarations.
+**Where:** `src/customer-portal.css`, all files in `src/components/customer/`.
+**Improvement:** Migrate `customer-portal.css` to Tailwind utility classes, using the existing `@theme` tokens in `index.css`. Delete the CSS file.
+**Why:** Two parallel styling systems means double the maintenance. The CSS file duplicates colours already defined as Tailwind tokens (e.g. `--sd-teal: #2D8B7A` vs `--color-brand-teal: #2D8B7A`). Responsive design is harder to maintain with manual `@media` queries vs Tailwind breakpoints.
+
+### 5.3 Delete orphan components (HIGH impact, LOW effort)
+
+**What:** 6 components totalling ~474 lines are never imported (see Section 4.1).
+**Where:** `AvailableSeat.jsx`, `BlockedSeat.jsx`, `CapacityBar.jsx`, `FloatingActions.jsx`, `ShopSign.jsx`, `BookingCard.jsx`, `LiveAnnouncer.tsx`.
+**Improvement:** Delete the files. If any are intentionally reserved for future use, document that.
+**Why:** Dead code increases cognitive load, inflates the bundle (Vite tree-shaking catches unused exports but not files that are only lazy-imported), and creates false positives in grep searches.
+
+### 5.4 Replace `window.confirm` and `alert()` with `ConfirmDialog` / `useToast` (MEDIUM impact, LOW effort)
+
+**What:** Native browser dialogs (`window.confirm`, `alert`) are used in 5 places despite the codebase having purpose-built alternatives (`ConfirmDialog`, `useToast`).
+**Where:**
+- `BookingCard.jsx:80` — `window.confirm` for no-show marking
+- `CustomerDashboard.jsx:245` — `window.confirm` for unsaved changes on sign-out
+- `WeekCalendarView.jsx:293` — `window.confirm` for removing timeslots
+- `WaitlistNote.jsx:39` — `alert("Failed to join waitlist")`
+- `WaitlistPanel.jsx:24` — `alert("Failed to join waitlist")`
+
+**Improvement:** Replace with `ConfirmDialog` (for confirmations) and `toast.show(message, "error")` (for error alerts).
+**Why:** Native dialogs are blocking, unstyled, inconsistent across browsers, inaccessible, and jarring on mobile. The app already has polished alternatives.
+
+### 5.5 Move `RecurringBookingModal` Supabase call behind a hook/context (MEDIUM impact, LOW effort)
+
+**What:** `RecurringBookingModal.jsx` imports `supabase` directly and makes raw queries to the `bookings` table, bypassing the hook/context layer used everywhere else.
+**Where:** `src/components/modals/RecurringBookingModal.jsx`, lines ~15–25.
+**Improvement:** Add a `fetchGroupBookings(groupId)` method to `useBookings` or expose it via `SalonContext`.
+**Why:** Direct Supabase access in components breaks the abstraction boundary. If the schema or RLS policies change, this component won't benefit from centralised updates. It also makes offline mode impossible for this feature.
+
+### 5.6 Reduce `App.jsx` prop drilling (MEDIUM impact, MEDIUM effort)
+
+**What:** `App.jsx` (472 lines) passes 30+ props to `WeekCalendarView`, which in turn passes many of them further down. The `SalonContext` was introduced to solve this but only covers a subset of the data.
+**Where:** `src/App.jsx` lines 349–381 (the `WeekCalendarView` prop block).
+**Improvement:** Expand `SalonContext` to include `salonConfig`, `daySettings`, `currentSettings`, `activeSlots`, and action handlers like `toggleDayOpen`, `handleOverride`, `handleAddSlot`, `handleRemoveSlot`. This would let `WeekCalendarView` and its children consume context instead of props.
+**Why:** Reduces the surface area of `App.jsx`, makes component refactoring easier, and eliminates the "prop plumbing" anti-pattern where props pass through 3–4 layers untouched.
+
+### 5.7 Add missing `SALON_SLOTS` import and add a lint rule (MEDIUM impact, LOW effort)
+
+**What:** The `BookingDetailModal.jsx` bug (Section 3.3) would have been caught by TypeScript if the file were `.tsx` instead of `.jsx`, or by ESLint's `no-undef` rule.
+**Where:** `tsconfig.json` (currently `checkJs: false`).
+**Improvement:** Either rename critical `.jsx` files to `.tsx` to get type checking, or enable `checkJs: true` in `tsconfig.json`, or add ESLint with `no-undef`.
+**Why:** The codebase is a mix of `.js`/`.jsx`/`.ts`/`.tsx`. The TypeScript files get checked, the JavaScript files don't. This means bugs like undeclared variables only surface at runtime.
+
+### 5.8 Consolidate `computeRevenue` logic (LOW impact, LOW effort)
+
+**What:** Revenue computation is implemented three times with slight variations.
+**Where:** `DashboardHeader.jsx:4`, `FloatingActions.jsx:5` (orphan), `StatsView.jsx:32`.
+**Improvement:** Create `src/engine/revenue.ts` with a single `computeDayRevenue(bookings, dogs)` function.
+**Why:** Revenue calculation is business-critical. Having it in three places risks them diverging (e.g. one version handles `customPrice`, another doesn't).
+
+### 5.9 Increase test coverage beyond the engine layer (LOW impact, HIGH effort)
+
+**What:** Tests exist only for `capacity.ts` (492 lines, 55+ tests) and `transforms.ts` (665 lines). No component tests, no hook tests, no integration tests.
+**Where:** `src/engine/capacity.test.js`, `src/supabase/transforms.test.ts`.
+**Improvement:** Add tests for `bookingRules.ts`, `useWeekNav`, `useBookingActions`, and critical UI flows (e.g. the new booking modal). Vitest + React Testing Library are already configured.
+**Why:** The existing tests cover the pure logic layer well, but the hooks and components that orchestrate that logic have zero coverage. Regressions in the orchestration layer (like the `SALON_SLOTS` import bug) would be caught by integration tests.
+
+### 5.10 Add `aria-label` to interactive elements missing them (LOW impact, LOW effort)
+
+**What:** Several interactive elements lack ARIA labels, particularly in the modals and settings views.
+**Where:** Various — the staff dashboard has 33 `aria-label`/`role` attributes across 19 files, but many `<button>` elements with only icon content (e.g. close buttons rendered as `✕`) have no accessible name.
+**Improvement:** Audit all `<button>` and clickable `<div>` elements, adding `aria-label` where the visible text is absent or insufficient.
+**Why:** Screen readers cannot describe unlabelled buttons. The codebase already uses `react-aria` for modals — extending accessibility to all interactive elements is consistent with that investment.
