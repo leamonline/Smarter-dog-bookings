@@ -182,6 +182,17 @@ export interface BookingHistoryEntry {
   payment: string;
 }
 
+export interface GroomPhoto {
+  id: string;
+  dogId: string;
+  bookingId: string | null;
+  storagePath: string;
+  notes: string;
+  takenAt: string;
+  createdAt: string;
+  signedUrl?: string;
+}
+
 export interface NotificationLog {
   id: string;
   bookingId: string;

@@ -14,7 +14,9 @@ import {
   calcAge,
 } from "./dog-card/index.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { PhotoGalleryModal } from "./PhotoGalleryModal.jsx";
 
 const ChainBookingModal = lazy(() =>
   import("./ChainBookingModal.jsx").then((m) => ({ default: m.ChainBookingModal })),
@@ -53,8 +55,10 @@ export function DogCardModal({
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
   const toast = useToast();
+  const { fetchPhotosForDog, deletePhoto, updatePhotoNotes } = useGroomPhotos();
   const [isEditing, setIsEditing] = useState(false);
   const [showChainBooking, setShowChainBooking] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const [trustedToRemove, setTrustedToRemove] = useState(null);
 
   const lastBooking = useMemo(() => {
@@ -309,6 +313,7 @@ export function DogCardModal({
           headerSubTextColour={headerSubTextColour}
           onClose={onClose}
           onEnterEdit={() => setIsEditing(true)}
+          onOpenGallery={() => setShowGallery(true)}
         />
 
         <div
@@ -446,6 +451,18 @@ export function DogCardModal({
           await doRemoveTrusted(id);
         }}
         onCancel={() => setTrustedToRemove(null)}
+      />
+    )}
+
+    {showGallery && (
+      <PhotoGalleryModal
+        dogId={resolvedDog.id}
+        dogName={resolvedDog.name}
+        sizeTheme={sizeTheme}
+        onClose={() => setShowGallery(false)}
+        fetchPhotosForDog={fetchPhotosForDog}
+        deletePhoto={deletePhoto}
+        updatePhotoNotes={updatePhotoNotes}
       />
     )}
     </>

@@ -3,7 +3,7 @@ import {
   getNumericPrice,
   getServicePriceLabel,
 } from "../../../engine/bookingRules.js";
-import { IconEdit } from "../../icons/index.jsx";
+import { IconEdit, IconCamera } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text.js";
 
 export function BookingHeader({
@@ -17,6 +17,7 @@ export function BookingHeader({
   onClose,
   onEnterEdit,
   onOpenDog,
+  onOpenCamera,
   titleId,
   alerts = [],
   allergyText = "",
@@ -38,6 +39,16 @@ export function BookingHeader({
       style={{ background: gradient }}
     >
       <div className="absolute top-5 right-5 flex items-center gap-2">
+        {!isEditing && onOpenCamera && (
+          <button
+            onClick={onOpenCamera}
+            className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer shrink-0"
+            style={{ color: sizeTheme.headerText }}
+            aria-label="Add groom photo"
+          >
+            <IconCamera size={16} colour={sizeTheme.headerText} />
+          </button>
+        )}
         {!isEditing && onEnterEdit && (
           <button
             onClick={onEnterEdit}
