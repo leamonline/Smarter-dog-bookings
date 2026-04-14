@@ -28,6 +28,7 @@ function sizeDot(size) {
 
 export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
 
@@ -146,10 +147,11 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         </div>
         {hasMore && !isSearching && (
           <button
-            onClick={loadMore}
-            className="border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold cursor-pointer font-inherit bg-white text-slate-800 transition-all hover:border-brand-teal hover:text-brand-teal"
+            onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
+            disabled={loadingMore}
+            className={`border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
           >
-            Load more
+            {loadingMore ? "Loading..." : "Load more"}
           </button>
         )}
       </div>

@@ -129,10 +129,13 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
             shadowCls = "shadow-[0_2px_6px_rgba(14,165,233,0.12)]";
           }
 
+          const fullLabel = date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+
           return (
             <button
               key={dateStr}
               onClick={() => onSelectDate(date)}
+              aria-label={`${fullLabel}${count > 0 ? `, ${count} booking${count === 1 ? "" : "s"}` : ""}${!isOpen ? ", closed" : ""}`}
               className={`py-2 px-1 rounded-[10px] ${borderCls} ${bgCls} ${shadowCls} ${hoverCls} cursor-pointer font-[inherit] transition-all flex flex-col items-center gap-0.5 min-h-[56px]`}
             >
               <span className={`text-sm font-bold ${textCls}`}>{date.getDate()}</span>
