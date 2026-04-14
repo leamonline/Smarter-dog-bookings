@@ -113,7 +113,7 @@ export function SlotGrid({
                   if (seat.type === "booking") {
                     const b = seat.booking;
                     const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
-                    return <BookingCardNew key={seat.seatIndex} booking={b} searchDimmed={dimmed} />;
+                    return <BookingCardNew key={b.id || seat.seatIndex} booking={b} searchDimmed={dimmed} />;
                   }
                   if (seat.type === "reserved") {
                     return (

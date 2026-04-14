@@ -74,33 +74,6 @@ export function BookingAlerts({
     );
   }
 
-  // View mode — only show if there are alerts
-  const hasAlerts =
-    (dogData.alerts && dogData.alerts.length > 0) ||
-    (hasAllergy && allergyInput);
-  if (!hasAlerts) return null;
-
-  return (
-    <div className="flex flex-wrap gap-2.5 mb-4 mt-7 justify-center w-full">
-      {(dogData.alerts || [])
-        .filter((a) => !a.startsWith("Allergic to "))
-        .map((alertLabel) => (
-          <div
-            key={alertLabel}
-            className="text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(201,61,99,0.25)] text-center"
-            style={{ background: "#C93D63" }}
-          >
-            {alertLabel}
-          </div>
-        ))}
-      {hasAllergy && allergyInput && (
-        <div
-          className="text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(201,61,99,0.25)] text-center"
-          style={{ background: "#C93D63" }}
-        >
-          Allergic to {allergyInput}
-        </div>
-      )}
-    </div>
-  );
+  // View mode — alerts are now rendered in BookingHeader
+  return null;
 }

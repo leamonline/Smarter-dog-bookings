@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  IconTick,
-  IconEdit,
-  IconMessage,
-  IconBlock,
-} from "../../icons/index.jsx";
+import { IconTick } from "../../icons/index.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 
@@ -16,13 +11,9 @@ export function BookingActions({
   sizeTheme,
   onSave,
   onCancelEdit,
-  onEnterEdit,
-  onShowContact,
   onAdd,
   onRemove,
   onClose,
-  onRebook,
-  onAddToCalendar,
   onReschedule,
   autosaveStatus,
 }) {
@@ -64,90 +55,32 @@ export function BookingActions({
   }
 
   return (
-    <div className="px-6 py-4 pb-5 flex flex-col gap-2.5 bg-slate-50 border-t border-slate-200">
-      <div className="flex gap-2.5">
-        <button
-          onClick={onEnterEdit}
-          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
-          style={{
-            background: sizeTheme.gradient[0],
-            color: sizeTheme.headerText,
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = sizeTheme.primary)
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = sizeTheme.gradient[0])
-          }
-        >
-          <IconEdit size={16} colour={sizeTheme.headerText} /> Edit
-        </button>
-        <button
-          onClick={onShowContact}
-          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-brand-teal text-white transition-colors hover:bg-[#236b5d]"
-        >
-          <IconMessage size={16} colour="#FFFFFF" /> Message
-        </button>
-        <button
-          onClick={() => setShowCancelConfirm(true)}
-          className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-brand-coral-light text-brand-coral transition-colors hover:bg-[#fbd4df]"
-        >
-          <IconBlock size={16} colour="#E8567F" /> Cancel
-        </button>
-      </div>
-      {onAddToCalendar && (
-        <button
-          onClick={() => onAddToCalendar(booking.id)}
-          className="w-full py-2.5 rounded-[10px] border border-slate-200 text-[12px] font-semibold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-teal"
-        >
-          {"\uD83D\uDCC5"} Add to calendar
-        </button>
-      )}
+    <div
+      className="px-4 pt-1 pb-5 flex gap-2.5"
+      style={{ background: sizeTheme.light }}
+    >
       {onReschedule && (
         <button
           onClick={onReschedule}
-          className="w-full py-3 rounded-[10px] border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all"
+          className="flex-1 py-3 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center transition-all bg-white"
           style={{
-            borderColor: sizeTheme.gradient[0],
-            background: sizeTheme.light,
+            borderColor: sizeTheme.primary,
             color: sizeTheme.primary,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = sizeTheme.gradient[0];
-            e.currentTarget.style.color = sizeTheme.headerText;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = sizeTheme.light;
-            e.currentTarget.style.color = sizeTheme.primary;
-          }}
         >
-          {"\uD83D\uDCC5"} Reschedule
+          Reschedule
         </button>
       )}
-      {booking.status === "Ready for pick-up" && onRebook && (
-        <button
-          onClick={() => {
-            onRebook(booking);
-            onClose();
-          }}
-          className="w-full py-3 rounded-[10px] border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all"
-          style={{
-            borderColor: sizeTheme.gradient[0],
-            background: sizeTheme.light,
-            color: sizeTheme.primary,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = sizeTheme.gradient[0];
-            e.currentTarget.style.color = sizeTheme.headerText;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = sizeTheme.light;
-            e.currentTarget.style.color = sizeTheme.primary;
-          }}
-        >
-          {"\uD83D\uDD01"} Rebook this dog
-        </button>
-      )}
+      <button
+        onClick={() => setShowCancelConfirm(true)}
+        className="flex-1 py-3 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center transition-all bg-white hover:bg-brand-coral-light"
+        style={{
+          borderColor: "#E8567F",
+          color: "#E8567F",
+        }}
+      >
+        Cancel Booking
+      </button>
 
       {showCancelConfirm && (
         <ConfirmDialog

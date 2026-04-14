@@ -20,14 +20,14 @@ import {
   normalizeServiceForSize,
 } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
-import { supabase } from "../../supabase/client.js";
 import { DatePickerModal } from "./DatePickerModal.jsx";
-import { ContactPopup } from "./ContactPopup.jsx";
 
 import {
   DetailRow,
   LogisticsLabel,
   FinanceLabel,
+  SectionCard,
+  CardRow,
   MODAL_INPUT_CLS,
 } from "./booking-detail/shared.jsx";
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
@@ -95,6 +95,13 @@ export function BookingDetailModal({
   const primaryHuman = useMemo(
     () => getHumanByIdOrName(humans, booking._ownerId || booking.owner) || null,
     [humans, booking._ownerId, booking.owner],
+  );
+
+  const pickupHuman = useMemo(
+    () =>
+      getHumanByIdOrName(humans, booking.pickupBy || booking._ownerId || booking.owner) ||
+      primaryHuman,
+    [humans, booking.pickupBy, booking._ownerId, booking.owner, primaryHuman],
   );
 
   const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
@@ -296,23 +303,6 @@ export function BookingDetailModal({
     booking.owner
   );
 
-  const handleAddToCalendar = useCallback(async (bookingId) => {
-    if (!supabase) return;
-    try {
-      const { data: token, error } = await supabase.rpc(
-        "get_or_create_calendar_feed_token",
-        { p_feed_type: "staff" },
-      );
-      if (error || !token) return;
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!baseUrl) return;
-      const url = `${baseUrl}/functions/v1/calendar-ics?booking_id=${encodeURIComponent(bookingId)}&token=${encodeURIComponent(token)}`;
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Calendar download error:", err);
-    }
-  }, []);
-
   return (
     <AccessibleModal
       onClose={handleCloseAttempt}
@@ -329,10 +319,17 @@ export function BookingDetailModal({
           setSaveError={setSaveError}
           allowedServices={allowedServices}
           onClose={handleCloseAttempt}
+          onEnterEdit={() => { resetEditState(); setIsEditing(true); }}
+          onOpenDog={onOpenDog}
           titleId="booking-detail-title"
+          alerts={dogData?.alerts || []}
+          allergyText={hasAllergy && allergyInput ? allergyInput : ""}
         />
 
-        <div className="px-6 pt-4">
+        <div
+          className="px-4 pt-4 pb-2"
+          style={{ background: sizeTheme.light }}
+        >
           <BookingStatusBar
             booking={booking}
             currentDateStr={currentDateStr}
@@ -342,10 +339,9 @@ export function BookingDetailModal({
           {booking._groupId && (
             <button
               onClick={() => setShowSeries(true)}
-              className="w-full mb-2 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer font-inherit flex items-center gap-2 border-[1.5px] transition-colors hover:bg-slate-50"
+              className="w-full mb-3 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer font-inherit flex items-center gap-2 border-[1.5px] transition-colors bg-white hover:bg-slate-50"
               style={{
                 borderColor: sizeTheme.primary + "40",
-                background: sizeTheme.light,
                 color: sizeTheme.primary,
               }}
             >
@@ -353,83 +349,6 @@ export function BookingDetailModal({
               Part of recurring series — View all
             </button>
           )}
-
-          {/* Dog row */}
-          <div className="py-2.5 border-b border-slate-200">
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
-                Dog
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  onOpenDog &&
-                  onOpenDog(dogData?.id || booking._dogId || booking.dogName)
-                }
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
-                className="text-[13px] font-semibold cursor-pointer"
-                style={{
-                  color: sizeTheme.primary,
-                  borderBottom: `1px dashed ${sizeTheme.primary}`,
-                }}
-              >
-                {titleCase(booking.dogName)}
-              </span>
-            </div>
-          </div>
-
-          {/* Breed row */}
-          <div className="py-2.5 border-b border-slate-200">
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
-                Breed
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  onOpenDog &&
-                  onOpenDog(dogData?.id || booking._dogId || booking.dogName)
-                }
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
-                className="text-[13px] font-semibold cursor-pointer"
-                style={{
-                  color: sizeTheme.primary,
-                  borderBottom: `1px dashed ${sizeTheme.primary}`,
-                }}
-              >
-                {titleCase(booking.breed || dogData?.breed) || "—"}
-              </span>
-            </div>
-          </div>
-
-          {/* Human / Owner row */}
-          <div className="py-2.5 border-b border-slate-200">
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
-                Human
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  onOpenHuman &&
-                  onOpenHuman(
-                    primaryHuman?.id || booking._ownerId || booking.owner,
-                  )
-                }
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner); } }}
-                className="text-[13px] font-semibold cursor-pointer"
-                style={{
-                  color: sizeTheme.primary,
-                  borderBottom: `1px dashed ${sizeTheme.primary}`,
-                }}
-              >
-                {titleCase(booking.owner)}
-              </span>
-            </div>
-          </div>
 
           <BookingAlerts
             isEditing={isEditing}
@@ -442,304 +361,199 @@ export function BookingDetailModal({
             setAllergyInput={setAllergyInput}
           />
 
-          {/* Logistics rows */}
-          <DetailRow
-            label={<LogisticsLabel text="Grooming Notes" />}
-            value={
-              <span style={{ whiteSpace: "pre-wrap" }}>
-                {editData.groomNotes || "Standard groom (no specific notes)"}
-              </span>
-            }
-            editNode={
-              <textarea
-                value={editData.groomNotes}
-                onChange={(e) =>
-                  setEditData((prev) => ({
-                    ...prev,
-                    groomNotes: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border resize-y min-h-[44px] text-right"
-              />
-            }
-            isEditing={isEditing}
-          />
-
-          <DetailRow
-            label={<LogisticsLabel text="Date" />}
-            value={formatFullDate(isEditing ? editData.date : currentDateObj)}
-            editNode={
-              <button
-                onClick={() => setShowDatePicker(true)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border bg-white cursor-pointer flex justify-between items-center"
-              >
-                <span className="font-semibold">
-                  {formatFullDate(editData.date)}
-                </span>
-                <span className="text-sm">{"\uD83D\uDCC5"}</span>
-              </button>
-            }
-            verticalEdit
-            isEditing={isEditing}
-          />
-
-          <DetailRow
-            label={<LogisticsLabel text="Drop-off time" />}
-            value={
-              isEditing
-                ? editData.slot || (
-                    <span className="text-brand-coral">None selected</span>
-                  )
-                : booking.slot
-            }
-            editNode={
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5 w-full">
-                {editActiveSlots.length > 0 ? (
-                  editActiveSlots.map((slot) => {
-                    const allowed = canBookSlot(
-                      otherBookings,
-                      slot,
-                      booking.size,
-                      editActiveSlots,
-                      {
-                        overrides: editSettings.overrides?.[slot] || {},
-                      },
-                    ).allowed;
-
-                    const seatStates = getSeatStatesForSlot(
-                      otherBookings,
-                      slot,
-                      editActiveSlots,
-                      editSettings.overrides?.[slot] || {},
-                    );
-                    const isStaffOpened = seatStates.some(
-                      (seat) => seat.staffOpened,
-                    );
-
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => {
-                          if (!allowed) return;
-                          setEditData((prev) => ({ ...prev, slot }));
-                          setSaveError("");
-                        }}
-                        disabled={!allowed}
-                        className="py-2 rounded-lg text-[13px] font-semibold text-center"
-                        style={{
-                          cursor: allowed ? "pointer" : "not-allowed",
-                          background:
-                            editData.slot === slot
-                              ? sizeTheme.primary
-                              : isStaffOpened
-                                ? sizeTheme.light
-                                : "#FFFFFF",
-                          color:
-                            editData.slot === slot
-                              ? sizeTheme.headerText
-                              : allowed
-                                ? "#1F2937"
-                                : "#6B7280",
-                          border: `1.5px solid ${
-                            editData.slot === slot
-                              ? sizeTheme.primary
-                              : isStaffOpened
-                                ? sizeTheme.primary
-                                : "#E5E7EB"
-                          }`,
-                          opacity: allowed ? 1 : 0.5,
-                        }}
-                      >
-                        {slot}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <span className="text-[13px] text-brand-coral font-semibold col-span-full">
-                    No available slots on this date
-                  </span>
-                )}
-              </div>
-            }
-            verticalEdit
-            isEditing={isEditing}
-          />
-
-          <DetailRow
-            label={<LogisticsLabel text="Service" />}
-            value={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`}
-            editNode={
-              <select
-                value={editData.service}
-                onChange={(e) => {
-                  setEditData((prev) => ({
-                    ...prev,
-                    service: e.target.value,
-                    customPrice:
-                      dogData?.customPrice !== undefined
-                        ? dogData.customPrice
-                        : getNumericPrice(
-                            getServicePriceLabel(e.target.value, booking.size),
-                          ),
-                  }));
-                  setSaveError("");
-                }}
-                className={MODAL_INPUT_CLS}
-              >
-                {allowedServices.map((service) => (
-                  <option key={service.id} value={service.id}>
-                    {service.icon} {service.name}
-                  </option>
-                ))}
-              </select>
-            }
-            isEditing={isEditing}
-          />
-
-          {/* Add-ons */}
+          {/* ── Card 1: Appointment Summary ── */}
           {isEditing ? (
-            <div className="py-2.5 border-b border-slate-200">
-              <div className="mb-2">
-                <LogisticsLabel text="Add-ons" />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_ADDONS.map((addon) => (
-                  <label
-                    key={addon}
-                    className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium"
+            <SectionCard title="Appointment Details">
+              <DetailRow
+                label={<LogisticsLabel text="Date" />}
+                value={formatFullDate(editData.date)}
+                editNode={
+                  <button
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border bg-white cursor-pointer flex justify-between items-center"
                   >
-                    <input
-                      type="checkbox"
-                      className="w-[18px] h-[18px] cursor-pointer"
-                      style={{ accentColor: sizeTheme.primary }}
-                      checked={editData.addons.includes(addon)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setEditData((prev) => ({
-                            ...prev,
-                            addons: [...prev.addons, addon],
-                          }));
-                        } else {
-                          setEditData((prev) => ({
-                            ...prev,
-                            addons: prev.addons.filter((a) => a !== addon),
-                          }));
-                        }
-                      }}
-                    />{" "}
-                    {addon}
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : editData.addons && editData.addons.length > 0 ? (
-            <DetailRow
-              label={<LogisticsLabel text="Add-ons" />}
-              value={editData.addons.join(", ")}
-              isEditing={isEditing}
-            />
-          ) : null}
-
-          <DetailRow
-            label={<LogisticsLabel text="Pick-up Human" />}
-            value={isEditing ? selectedPickupLabel : titleCase(booking.pickupBy || booking.owner)}
-            editNode={
-              <select
-                value={editData.pickupBy}
-                onChange={(e) => {
-                  setEditData((prev) => ({
-                    ...prev,
-                    pickupBy: e.target.value,
-                  }));
-                }}
-                className={MODAL_INPUT_CLS}
-              >
-                {pickupOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            }
-            isEditing={isEditing}
-          />
-
-          <div className="h-6" />
-
-          {/* Finance rows */}
-          <DetailRow
-            label={<FinanceLabel text="Base Price" />}
-            value={
-              isEditing ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold">{"\u00A3"}</span>
-                  <input
-                    type="number"
-                    value={editData.customPrice}
-                    onChange={(e) =>
-                      setEditData((prev) => ({
-                        ...prev,
-                        customPrice: Number(e.target.value),
-                      }))
-                    }
-                    className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border"
-                  />
-                </div>
-              ) : (
-                `\u00A3${activePrice}`
-              )
-            }
-            isEditing={isEditing}
-          />
-
-          <DetailRow
-            label={<FinanceLabel text="Payment Status" />}
-            value={isEditing ? editData.payment : booking.payment || "Due at Pick-up"}
-            editNode={
-              <select
-                value={editData.payment}
-                onChange={(e) =>
-                  setEditData((prev) => ({
-                    ...prev,
-                    payment: e.target.value,
-                  }))
+                    <span className="font-semibold">{formatFullDate(editData.date)}</span>
+                    <span className="text-sm">{"\uD83D\uDCC5"}</span>
+                  </button>
                 }
-                className={MODAL_INPUT_CLS}
-              >
-                <option value="Due at Pick-up">Due at Pick-up</option>
-                <option value="Deposit Paid">Deposit Paid</option>
-                <option value="Paid in Full">Paid in Full</option>
-              </select>
-            }
-            isEditing={isEditing}
-          />
+                verticalEdit
+                isEditing={isEditing}
+              />
+              <DetailRow
+                label={<LogisticsLabel text="Drop-off time" />}
+                value={editData.slot || <span className="text-brand-coral">None selected</span>}
+                editNode={
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5 w-full">
+                    {editActiveSlots.length > 0 ? (
+                      editActiveSlots.map((slot) => {
+                        const allowed = canBookSlot(otherBookings, slot, booking.size, editActiveSlots, { overrides: editSettings.overrides?.[slot] || {} }).allowed;
+                        const seatStates = getSeatStatesForSlot(otherBookings, slot, editActiveSlots, editSettings.overrides?.[slot] || {});
+                        const isStaffOpened = seatStates.some((seat) => seat.staffOpened);
+                        return (
+                          <button key={slot} type="button" onClick={() => { if (!allowed) return; setEditData((prev) => ({ ...prev, slot })); setSaveError(""); }} disabled={!allowed} className="py-2 rounded-lg text-[13px] font-semibold text-center" style={{ cursor: allowed ? "pointer" : "not-allowed", background: editData.slot === slot ? sizeTheme.primary : isStaffOpened ? sizeTheme.light : "#FFFFFF", color: editData.slot === slot ? sizeTheme.headerText : allowed ? "#1F2937" : "#6B7280", border: `1.5px solid ${editData.slot === slot ? sizeTheme.primary : isStaffOpened ? sizeTheme.primary : "#E5E7EB"}`, opacity: allowed ? 1 : 0.5 }}>
+                            {slot}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <span className="text-[13px] text-brand-coral font-semibold col-span-full">No available slots on this date</span>
+                    )}
+                  </div>
+                }
+                verticalEdit
+                isEditing={isEditing}
+              />
+              <DetailRow
+                label={<LogisticsLabel text="Human" />}
+                value={titleCase(booking.owner)}
+                isEditing={isEditing}
+              />
+              <DetailRow
+                label={<LogisticsLabel text="Grooming Notes" />}
+                value={<span style={{ whiteSpace: "pre-wrap" }}>{editData.groomNotes || "Standard groom (no specific notes)"}</span>}
+                editNode={
+                  <textarea value={editData.groomNotes} onChange={(e) => setEditData((prev) => ({ ...prev, groomNotes: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border resize-y min-h-[44px] text-right" />
+                }
+                isEditing={isEditing}
+              />
+            </SectionCard>
+          ) : (
+            <SectionCard>
+              <CardRow label={<LogisticsLabel text="Date" />} value={formatFullDate(currentDateObj)} />
+              <CardRow label={<LogisticsLabel text="Drop-off Time" />} value={booking.slot} />
+              <CardRow
+                label={<LogisticsLabel text="Human" />}
+                value={titleCase(booking.owner)}
+                onClick={() => onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner)}
+              />
+              <CardRow
+                label={<LogisticsLabel text="Grooming Notes" />}
+                value={editData.groomNotes || "Standard groom (no specific notes)"}
+                last
+              />
+            </SectionCard>
+          )}
 
-          <DetailRow
-            label={<FinanceLabel text="Amount Due" />}
-            value={
-              <span
-                className="font-extrabold text-base"
-                style={{ color: amountDue > 0 ? "#E8567F" : "#16A34A" }}
-              >
-                {"\u00A3"}{Math.max(0, amountDue)}
-              </span>
-            }
-            isEditing={isEditing}
-          />
+          {/* ── Card 2: Services & Add-ons ── */}
+          {isEditing ? (
+            <SectionCard title="Services & Add-ons">
+              <DetailRow
+                label={<LogisticsLabel text="Service" />}
+                value={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`}
+                editNode={
+                  <select value={editData.service} onChange={(e) => { setEditData((prev) => ({ ...prev, service: e.target.value, customPrice: dogData?.customPrice !== undefined ? dogData.customPrice : getNumericPrice(getServicePriceLabel(e.target.value, booking.size)) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
+                    {allowedServices.map((service) => (<option key={service.id} value={service.id}>{service.icon} {service.name}</option>))}
+                  </select>
+                }
+                isEditing={isEditing}
+              />
+              <div className="py-2.5 border-b border-slate-100">
+                <div className="mb-2"><LogisticsLabel text="Add-ons" /></div>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABLE_ADDONS.map((addon) => (
+                    <label key={addon} className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium">
+                      <input type="checkbox" className="w-[18px] h-[18px] cursor-pointer" style={{ accentColor: sizeTheme.primary }} checked={editData.addons.includes(addon)} onChange={(e) => { if (e.target.checked) { setEditData((prev) => ({ ...prev, addons: [...prev.addons, addon] })); } else { setEditData((prev) => ({ ...prev, addons: prev.addons.filter((a) => a !== addon) })); } }} />{" "}{addon}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <DetailRow
+                label={<FinanceLabel text="Base Price" />}
+                value={
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold">{"\u00A3"}</span>
+                    <input type="number" value={editData.customPrice} onChange={(e) => setEditData((prev) => ({ ...prev, customPrice: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+                  </div>
+                }
+                isEditing={isEditing}
+              />
+            </SectionCard>
+          ) : (
+            <SectionCard>
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                <LogisticsLabel text={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`} />
+                <span className="text-[13px] font-bold text-slate-800">{"\u00A3"}{activePrice}</span>
+              </div>
+              {activeAddons.map((addon) => (
+                <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <LogisticsLabel text={`${addon} — Add-on`} />
+                  <span className="text-[13px] font-bold text-slate-800">
+                    {addon === "Flea Bath" ? "\u00A310" : <span className="text-slate-400 font-medium italic">Included</span>}
+                  </span>
+                </div>
+              ))}
+              {activePayment === "Deposit Paid" && (
+                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <FinanceLabel text="Deposit Paid" />
+                  <span className="text-[13px] font-bold text-emerald-600">{"\u2212\u00A3"}10</span>
+                </div>
+              )}
+              {activePayment === "Paid in Full" && (
+                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <FinanceLabel text="Paid in Full" />
+                  <span className="text-[13px] font-bold text-emerald-600">
+                    {"\u2212\u00A3"}{Number(activePrice || 0) + (activeAddons.includes("Flea Bath") ? 10 : 0)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-3 pb-1">
+                <FinanceLabel text={activePayment === "Paid in Full" ? "Paid" : "Total Due"} />
+                <span className="text-[15px] font-extrabold" style={{ color: amountDue > 0 ? "#C93D63" : "#16A34A" }}>
+                  {"\u00A3"}{Math.max(0, amountDue)}
+                </span>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* ── Card 3: Actions & Payments ── */}
+          {isEditing ? (
+            <SectionCard title="Payments">
+              <DetailRow
+                label={<FinanceLabel text="Payment Status" />}
+                value={editData.payment}
+                editNode={
+                  <select value={editData.payment} onChange={(e) => setEditData((prev) => ({ ...prev, payment: e.target.value }))} className={MODAL_INPUT_CLS}>
+                    <option value="Due at Pick-up">Due at Pick-up</option>
+                    <option value="Deposit Paid">Deposit Paid</option>
+                    <option value="Paid in Full">Paid in Full</option>
+                  </select>
+                }
+                isEditing={isEditing}
+              />
+              <DetailRow
+                label={<LogisticsLabel text="Pick-up Human" />}
+                value={selectedPickupLabel}
+                editNode={
+                  <select value={editData.pickupBy} onChange={(e) => setEditData((prev) => ({ ...prev, pickupBy: e.target.value }))} className={MODAL_INPUT_CLS}>
+                    {pickupOptions.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                  </select>
+                }
+                isEditing={isEditing}
+              />
+            </SectionCard>
+          ) : (
+            <SectionCard>
+              <CardRow label={<LogisticsLabel text="Pick-up Human" />} value={titleCase(booking.pickupBy || booking.owner)} last />
+              {pickupHuman?.phone && (
+                <a
+                  href={`sms:${pickupHuman.phone}?body=${encodeURIComponent(`Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon \uD83C\uDF93\uD83D\uDC36\u2764\uFE0F X`)}`}
+                  className="block mt-3 py-2.5 rounded-lg text-[13px] font-bold text-center transition-colors no-underline"
+                  style={{
+                    background: sizeTheme.gradient[0],
+                    color: sizeTheme.headerText,
+                  }}
+                >
+                  Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}
+                </a>
+              )}
+            </SectionCard>
+          )}
 
           {saveError && (
-            <div className="mt-3 px-3 py-2.5 bg-brand-coral-light text-brand-coral rounded-lg text-[13px] font-bold">
+            <div className="px-3 py-2.5 bg-white text-brand-coral rounded-xl text-[13px] font-bold mb-3 shadow-sm">
               {saveError}
             </div>
           )}
-
-          {primaryHuman?.historyFlag && (
-            <div className="text-[13px] text-brand-coral font-bold bg-brand-coral-light px-3 py-2 rounded-lg inline-block float-right mt-3">
-              Flag: {primaryHuman.historyFlag}
-            </div>
-          )}
-          <div style={{ clear: "both" }} />
         </div>
 
         <BookingActions
@@ -753,16 +567,9 @@ export function BookingDetailModal({
             resetEditState();
             setIsEditing(false);
           }}
-          onEnterEdit={() => {
-            resetEditState();
-            setIsEditing(true);
-          }}
-          onShowContact={() => setShowContact(true)}
           onAdd={onAdd}
           onRemove={onRemove}
           onClose={onClose}
-          onRebook={onRebook}
-          onAddToCalendar={handleAddToCalendar}
           onReschedule={() => setShowReschedule(true)}
           autosaveStatus={autosaveStatus}
         />
@@ -773,13 +580,6 @@ export function BookingDetailModal({
           dayOpenState={dayOpenState}
           onSelectDate={handleSelectDate}
           onClose={() => setShowDatePicker(false)}
-        />
-      )}
-
-      {showContact && (
-        <ContactPopup
-          human={primaryHuman}
-          onClose={() => setShowContact(false)}
         />
       )}
 

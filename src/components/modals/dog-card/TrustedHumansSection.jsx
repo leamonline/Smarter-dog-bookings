@@ -1,7 +1,7 @@
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase } from "./helpers.js";
+import { SectionCard, CardRow } from "../booking-detail/shared.jsx";
 
-const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide";
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 export function TrustedHumansSection({
@@ -35,45 +35,52 @@ export function TrustedHumansSection({
   getHumanByIdOrName,
 }) {
   return (
-    <div className="px-6 mt-3">
-      <div className={`${SECTION_LABEL_CLS} mb-2`} style={{ color: sizeAccent }}>
-        Trusted Humans
-      </div>
+    <SectionCard title="Trusted Humans">
       {trustedIds.length > 0 ? (
-        trustedIds.map((trustedId) => {
+        trustedIds.map((trustedId, i) => {
           const trustedHuman = getHumanByIdOrName(humans, trustedId);
           const trustedLabel =
             trustedHuman?.fullName ||
             `${trustedHuman?.name || ""} ${trustedHuman?.surname || ""}`.trim() ||
             trustedId;
-          return (
-            <div
-              key={trustedId}
-              className="py-2 border-b border-slate-200 flex items-center justify-between"
-            >
-              <span
-                onClick={() => {
-                  onClose();
-                  onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
-                }}
-                className="text-[13px] font-semibold text-brand-teal cursor-pointer"
+
+          if (isEditing && onUpdateHuman) {
+            return (
+              <div
+                key={trustedId}
+                className={`flex items-center justify-between py-2.5 ${
+                  i === trustedIds.length - 1 && !showTrustedSearch ? "" : "border-b border-slate-100"
+                }`}
               >
-                {titleCase(trustedLabel)}
-              </span>
-              {isEditing && onUpdateHuman && (
+                <span className="text-[13px] font-semibold text-slate-800">
+                  {titleCase(trustedLabel)}
+                </span>
                 <button
                   onClick={() => handleRemoveTrusted(trustedId)}
                   className="bg-transparent border-none text-brand-coral text-base font-bold cursor-pointer px-1 leading-none font-inherit"
                   title="Remove trusted human"
                 >
-                  ×
+                  {"\u00D7"}
                 </button>
-              )}
-            </div>
+              </div>
+            );
+          }
+
+          return (
+            <CardRow
+              key={trustedId}
+              label={titleCase(trustedLabel)}
+              value=""
+              onClick={() => {
+                onClose();
+                onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
+              }}
+              last={i === trustedIds.length - 1}
+            />
           );
         })
       ) : (
-        <div className="text-[13px] text-slate-500 italic">
+        <div className="text-[13px] text-slate-400 italic py-2">
           None listed
         </div>
       )}
@@ -82,10 +89,11 @@ export function TrustedHumansSection({
         <>
           <button
             onClick={() => setShowTrustedSearch(!showTrustedSearch)}
-            className="w-full mt-2.5 py-2 rounded-[10px] border-[1.5px] border-dashed border-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all"
+            className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-dashed text-[13px] font-bold cursor-pointer font-inherit transition-all"
             style={{
-              background: showTrustedSearch ? "#2D8B7A" : "#E6F5F2",
-              color: showTrustedSearch ? "#FFFFFF" : "#2D8B7A",
+              borderColor: sizeAccent,
+              background: showTrustedSearch ? sizeAccent : "#FFFFFF",
+              color: showTrustedSearch ? "#FFFFFF" : sizeAccent,
             }}
           >
             {showTrustedSearch ? "Cancel" : "+ Add a trusted human"}
@@ -103,7 +111,8 @@ export function TrustedHumansSection({
                   value={trustedSearchQuery}
                   onChange={(e) => setTrustedSearchQuery(e.target.value)}
                   autoFocus
-                  className={`${INPUT_CLS} pl-8 border-brand-teal`}
+                  className={`${INPUT_CLS} pl-8`}
+                  style={{ borderColor: sizeAccent }}
                 />
               </div>
               {trustedSearchResults.length > 0 && (
@@ -114,7 +123,7 @@ export function TrustedHumansSection({
                       <div
                         key={candidate.id}
                         onClick={() => handleAddTrusted(candidate.id)}
-                        className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]"
+                        className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-slate-50"
                       >
                         <div className="text-[13px] font-semibold text-slate-800">{fullName}</div>
                         {candidate.phone && (
@@ -133,14 +142,15 @@ export function TrustedHumansSection({
               {onAddHuman && !showNewTrustedForm && (
                 <button
                   onClick={() => setShowNewTrustedForm(true)}
-                  className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-brand-teal bg-white text-brand-teal text-xs font-bold cursor-pointer font-inherit transition-all"
+                  className="w-full mt-2 py-2 rounded-lg border-[1.5px] text-xs font-bold cursor-pointer font-inherit transition-all bg-white"
+                  style={{ borderColor: sizeAccent, color: sizeAccent }}
                 >
                   + Add new human
                 </button>
               )}
               {showNewTrustedForm && (
                 <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2">New Trusted Human</div>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wide mb-2" style={{ color: sizeAccent }}>New Trusted Human</div>
                   <div className="flex gap-2 mb-2">
                     <input
                       type="text"
@@ -169,7 +179,8 @@ export function TrustedHumansSection({
                     <button
                       onClick={handleAddNewTrusted}
                       disabled={!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()}
-                      className="flex-1 py-2 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      className="flex-1 py-2 rounded-lg border-none text-white text-xs font-bold cursor-pointer font-inherit disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      style={{ background: sizeAccent }}
                     >
                       Add
                     </button>
@@ -191,6 +202,6 @@ export function TrustedHumansSection({
           )}
         </>
       )}
-    </div>
+    </SectionCard>
   );
 }

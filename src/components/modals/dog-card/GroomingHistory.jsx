@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { SERVICES } from "../../../constants/index.js";
+import { SectionCard } from "../booking-detail/shared.jsx";
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
   const [history, setHistory] = useState([]);
@@ -95,16 +96,9 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
   };
 
   return (
-    <div className="px-6 mt-2">
-      <div
-        className="mt-4 font-extrabold text-xs uppercase tracking-wide mb-2"
-        style={{ color: accentColour || "#0099BD" }}
-      >
-        Grooming History
-      </div>
-
+    <SectionCard title="Grooming History">
       {loading && (
-        <div className="text-xs text-slate-500 pb-2">
+        <div className="text-xs text-slate-400 py-1">
           Loading...
         </div>
       )}
@@ -112,7 +106,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
       {!loading && error && (
         <div
           onClick={handleRetry}
-          className="text-xs text-brand-coral cursor-pointer pb-2"
+          className="text-xs text-brand-coral cursor-pointer py-1"
         >
           Couldn't load history. Tap to retry.
         </div>
@@ -121,7 +115,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
       {!loading && !error && (
         <>
           {lastVisitWeeksAgo !== null && (
-            <div className="text-xs text-slate-500 mb-1">
+            <div className="text-xs text-slate-500 mb-1 py-1">
               {isOverdue ? (
                 <span className="text-brand-coral font-bold">
                   Overdue — last visit was {lastVisitWeeksAgo} week{lastVisitWeeksAgo !== 1 ? "s" : ""} ago
@@ -143,13 +137,13 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
               <span className="font-semibold text-slate-800">
                 {frequencyRange.min === frequencyRange.max
                   ? `${frequencyRange.min} week${frequencyRange.min !== 1 ? "s" : ""}`
-                  : `${frequencyRange.min}–${frequencyRange.max} weeks`}
+                  : `${frequencyRange.min}\u2013${frequencyRange.max} weeks`}
               </span>
             </div>
           )}
 
           {history.length === 0 ? (
-            <div className="text-xs text-slate-500 pb-2">
+            <div className="text-xs text-slate-400 italic py-1">
               No previous visits recorded.
             </div>
           ) : (
@@ -158,7 +152,9 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
               return (
                 <div
                   key={`${b.date}-${b.id || b.slot}-${i}`}
-                  className="flex justify-between items-center py-1.5 border-b border-slate-200 text-xs"
+                  className={`flex justify-between items-center py-2 text-xs ${
+                    i === history.length - 1 ? "" : "border-b border-slate-100"
+                  }`}
                 >
                   <div>
                     <span className="font-semibold text-slate-800">
@@ -174,7 +170,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
                       color: b.status === "Ready for pick-up" ? "#16A34A" : undefined,
                     }}
                   >
-                    {b.status}
+                    {b.status === "Ready for pick-up" ? "Finished" : b.status}
                   </span>
                 </div>
               );
@@ -182,6 +178,6 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
           )}
         </>
       )}
-    </div>
+    </SectionCard>
   );
 }

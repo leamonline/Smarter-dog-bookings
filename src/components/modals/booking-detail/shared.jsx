@@ -23,6 +23,49 @@ export function FinanceLabel({ text }) {
   );
 }
 
+/** White card wrapper for grouped sections */
+export function SectionCard({ title, children }) {
+  return (
+    <div className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)] mb-3 overflow-hidden">
+      {title && (
+        <div className="px-4 pt-3.5 pb-1">
+          <span className="text-[13px] font-extrabold text-slate-700">
+            {title}
+          </span>
+        </div>
+      )}
+      <div className="px-4 pb-3">{children}</div>
+    </div>
+  );
+}
+
+/** Compact key–value row for use inside SectionCard */
+export function CardRow({ label, value, onClick, last }) {
+  const content = (
+    <div
+      className={`flex justify-between items-start py-2.5 ${
+        last ? "" : "border-b border-slate-100"
+      }`}
+    >
+      <span className="text-[13px] text-slate-400 shrink-0 pr-3">{label}</span>
+      <span
+        className={`text-[13px] font-semibold text-right break-words ${
+          onClick
+            ? "text-brand-teal cursor-pointer"
+            : "text-slate-800"
+        }`}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      >
+        {value}
+      </span>
+    </div>
+  );
+  return content;
+}
+
 export function DetailRow({
   label,
   value,

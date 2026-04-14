@@ -289,7 +289,7 @@ export function DogCardModal({
     <AccessibleModal
       onClose={onClose}
       titleId="dog-card-title"
-      className="bg-white rounded-2xl w-[min(360px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
     >
         <DogCardHeader
           titleId="dog-card-title"
@@ -308,7 +308,13 @@ export function DogCardModal({
           headerTextColour={headerTextColour}
           headerSubTextColour={headerSubTextColour}
           onClose={onClose}
+          onEnterEdit={() => setIsEditing(true)}
         />
+
+        <div
+          className="px-4 pt-4 pb-2"
+          style={{ background: sizeTheme.light }}
+        >
 
         <DogDetailsSection
           isEditing={isEditing}
@@ -374,22 +380,25 @@ export function DogCardModal({
           accentColour={sizeAccent}
         />
 
-        {lastBooking && (
-          <div className="px-6">
-            <button
-              onClick={() => setShowChainBooking(true)}
-              className="w-full py-2.5 rounded-[10px] border-none bg-brand-teal text-white text-[13px] font-bold cursor-pointer font-inherit transition-all hover:bg-[#1E6B5C] mt-2"
-            >
-              Recurring Bookings
-            </button>
-          </div>
+        {lastBooking && !isEditing && (
+          <button
+            onClick={() => setShowChainBooking(true)}
+            className="w-full py-2.5 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit transition-all bg-white mb-2"
+            style={{
+              borderColor: sizeAccent,
+              color: sizeAccent,
+            }}
+          >
+            Recurring Bookings
+          </button>
         )}
+
+        </div>
 
         <DogCardActions
           isEditing={isEditing}
           onSave={handleSave}
           onCancel={handleCancel}
-          onEdit={() => setIsEditing(true)}
           sizeTheme={sizeTheme}
           headerTextColour={headerTextColour}
         />
@@ -401,6 +410,7 @@ export function DogCardModal({
           dog={resolvedDog}
           lastBooking={lastBooking}
           onClose={() => setShowChainBooking(false)}
+          onUpdateDog={onUpdateDog}
           onCreateChain={async (chain) => {
             const chainId = crypto.randomUUID();
             for (const link of chain) {
