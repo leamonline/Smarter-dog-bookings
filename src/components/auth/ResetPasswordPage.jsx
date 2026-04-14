@@ -151,7 +151,7 @@ export function ResetPasswordPage() {
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
-              placeholder="Min. 8 characters"
+              placeholder="Min. 12 characters"
               className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-blue"
               autoFocus
             />

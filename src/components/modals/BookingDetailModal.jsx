@@ -8,6 +8,7 @@ import {
   SERVICES,
   SIZE_THEME,
   SIZE_FALLBACK,
+  SALON_SLOTS,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
 import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";

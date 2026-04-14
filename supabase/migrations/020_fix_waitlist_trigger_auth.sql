@@ -1,4 +1,7 @@
 -- 020_fix_waitlist_trigger_auth.sql
+-- ⚠ WARNING: This migration contains a hardcoded Supabase project URL
+-- (nlzhllhkigmsvrzduefz.supabase.co). If the project ref changes, update
+-- the pg_net URL in the trigger function below.
 -- HIGH-2: The waitlist trigger fires a webhook WITHOUT an Authorization header,
 -- completely bypassing the WEBHOOK_SECRET check in the edge function.
 
