@@ -21,7 +21,7 @@ import { useModalState } from "./hooks/useModalState.js";
 import { useBookingActions } from "./hooks/useBookingActions.js";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts.js";
 import { useRebookFlow } from "./hooks/useRebookFlow.js";
-import { SalonProvider } from "./contexts/SalonContext.jsx";
+import { SalonProvider } from "./contexts/SalonContext.js";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";

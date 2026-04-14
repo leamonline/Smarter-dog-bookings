@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { SERVICES, BOOKING_STATUSES, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
-import { useSalon } from "../../contexts/SalonContext.jsx";
+import { useSalon } from "../../contexts/SalonContext.js";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,

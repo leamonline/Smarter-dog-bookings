@@ -1,7 +1,7 @@
 // src/components/views/StatsView.jsx
 import { useMemo } from "react";
 import { PRICING, SERVICES, SALON_SLOTS } from "../../constants/index.js";
-import { useSalon } from "../../contexts/SalonContext.jsx";
+import { useSalon } from "../../contexts/SalonContext.js";
 import { getDogByIdOrName, getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
 

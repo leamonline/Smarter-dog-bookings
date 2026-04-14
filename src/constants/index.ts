@@ -9,8 +9,6 @@ export {
   ALERT_OPTIONS,
   BOOKING_STATUSES,
 } from "./salon.js";
-// styles.js exports (inputStyle, labelStyle, closeBtnStyle, onInputFocus, onInputBlur)
-// are no longer imported by any component — all forms now use Tailwind classes directly.
 export {
   BREED_SIZE_MAP,
   BREED_LIST,

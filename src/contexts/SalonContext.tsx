@@ -4,9 +4,31 @@
  *
  * Data consumers call `useSalon()` instead of accepting props.
  */
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import type { Booking, Dog, Human, DaySettings, BookingsByDate } from "../types/index.js";
 
-const SalonContext = createContext(null);
+export interface SalonContextValue {
+  dogs: Record<string, Dog>;
+  humans: Record<string, Human>;
+  bookingsByDate: BookingsByDate;
+  daySettings: Record<string, DaySettings>;
+  dayOpenState: boolean;
+  currentDateStr: string;
+  currentDateObj: Date;
+  onAdd: (booking: Booking, targetDateStr?: string) => void | Promise<void>;
+  onUpdate: (booking: Booking) => void | Promise<void>;
+  onRemove: (bookingId: string) => void | Promise<void>;
+  onUpdateDog: (dog: Dog) => void | Promise<void>;
+  onOpenHuman: (name: string) => void;
+  onOpenDog: (name: string) => void;
+  onRebook: (booking: Booking) => void;
+}
+
+const SalonContext = createContext<SalonContextValue | null>(null);
+
+interface SalonProviderProps extends SalonContextValue {
+  children: ReactNode;
+}
 
 export function SalonProvider({
   children,
@@ -24,8 +46,8 @@ export function SalonProvider({
   onOpenHuman,
   onOpenDog,
   onRebook,
-}) {
-  const value = useMemo(
+}: SalonProviderProps) {
+  const value = useMemo<SalonContextValue>(
     () => ({
       dogs,
       humans,
@@ -65,7 +87,7 @@ export function SalonProvider({
   );
 }
 
-export function useSalon() {
+export function useSalon(): SalonContextValue {
   const ctx = useContext(SalonContext);
   if (!ctx) {
     throw new Error("useSalon must be used within a <SalonProvider>");

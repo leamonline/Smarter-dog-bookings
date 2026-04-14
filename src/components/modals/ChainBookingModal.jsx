@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { SERVICES, SALON_SLOTS, PRICING } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { useSalon } from "../../contexts/SalonContext.jsx";
+import { useSalon } from "../../contexts/SalonContext.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";

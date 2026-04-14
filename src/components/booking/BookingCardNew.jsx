@@ -1,7 +1,7 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
 import { SERVICES } from "../../constants/index.js";
-import { useSalon } from "../../contexts/SalonContext.jsx";
+import { useSalon } from "../../contexts/SalonContext.js";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,

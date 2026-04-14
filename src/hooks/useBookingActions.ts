@@ -4,41 +4,42 @@
  * online or offline versions based on connectivity.
  */
 import { useCallback } from "react";
+import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } from "../types/index.js";
 
 interface SupabaseFns {
-  sbAddBooking: (dateStr: string, booking: any) => Promise<any>;
-  sbRemoveBooking: (dateStr: string, bookingId: string) => Promise<any>;
-  sbUpdateBooking: (booking: any) => Promise<any>;
-  sbToggleDayOpen: (dateStr: string) => Promise<any>;
-  sbSetOverride: (dateStr: string, slot: string, seatIndex: number, action: string) => Promise<any>;
-  sbAddExtraSlot: (dateStr: string) => Promise<any>;
-  sbRemoveExtraSlot: (dateStr: string) => Promise<any>;
-  sbUpdateDog: (dog: any) => Promise<any>;
-  sbUpdateHuman: (human: any) => Promise<any>;
-  sbUpdateConfig: (config: any) => Promise<any>;
-  sbAddHuman: (human: any) => Promise<any>;
-  sbAddDog: (dog: any) => Promise<any>;
+  sbAddBooking: (dateStr: string, booking: Booking) => Promise<void>;
+  sbRemoveBooking: (dateStr: string, bookingId: string) => Promise<void>;
+  sbUpdateBooking: (booking: Booking) => Promise<void>;
+  sbToggleDayOpen: (dateStr: string) => Promise<void>;
+  sbSetOverride: (dateStr: string, slot: string, seatIndex: number, action: string) => Promise<void>;
+  sbAddExtraSlot: (dateStr: string) => Promise<void>;
+  sbRemoveExtraSlot: (dateStr: string) => Promise<void>;
+  sbUpdateDog: (dog: Dog) => Promise<void>;
+  sbUpdateHuman: (human: Human) => Promise<void>;
+  sbUpdateConfig: (config: SalonConfig) => Promise<void>;
+  sbAddHuman: (human: Human) => Promise<void>;
+  sbAddDog: (dog: Dog) => Promise<void>;
 }
 
 interface OfflineFns {
-  handleAdd: (booking: any) => void;
-  handleAddToDate: (booking: any, dateStr: string) => void;
+  handleAdd: (booking: Booking) => void;
+  handleAddToDate: (booking: Booking, dateStr: string) => void;
   handleRemove: (bookingId: string) => void;
-  handleUpdate: (booking: any) => void;
+  handleUpdate: (booking: Booking) => void;
   toggleDayOpen: () => void;
   handleOverride: (slot: string, seatIndex: number, action: string) => void;
   handleAddSlot: () => void;
   handleRemoveSlot: () => void;
-  updateDog: (dog: any) => void;
-  updateHuman: (human: any) => void;
-  updateConfig: (config: any) => void;
-  addHuman: (human: any) => void;
-  addDog: (dog: any) => void;
-  dogs: any[];
-  humans: any[];
-  bookingsByDate: Record<string, any>;
-  config: any;
-  daySettings: Record<string, any>;
+  updateDog: (dog: Dog) => void;
+  updateHuman: (human: Human) => void;
+  updateConfig: (config: SalonConfig) => void;
+  addHuman: (human: Human) => void;
+  addDog: (dog: Dog) => void;
+  dogs: Record<string, Dog>;
+  humans: Record<string, Human>;
+  bookingsByDate: BookingsByDate;
+  config: SalonConfig;
+  daySettings: Record<string, DaySettings>;
 }
 
 interface UseBookingActionsParams {
@@ -47,11 +48,11 @@ interface UseBookingActionsParams {
   supabase: SupabaseFns;
   offline: OfflineFns;
   onlineData: {
-    dogs: any[];
-    humans: any[];
-    bookingsByDate: Record<string, any>;
-    config: any;
-    daySettings: Record<string, any>;
+    dogs: Record<string, Dog>;
+    humans: Record<string, Human>;
+    bookingsByDate: BookingsByDate;
+    config: SalonConfig;
+    daySettings: Record<string, DaySettings>;
   };
 }
 
@@ -64,12 +65,12 @@ export function useBookingActions({
 }: UseBookingActionsParams) {
   // --- Online callbacks bound to currentDateStr ---
   const onlineHandleAdd = useCallback(
-    (booking: any, targetDateStr: string = currentDateStr) =>
+    (booking: Booking, targetDateStr: string = currentDateStr) =>
       sb.sbAddBooking(targetDateStr, booking),
     [sb.sbAddBooking, currentDateStr],
   );
   const onlineHandleAddToDate = useCallback(
-    (booking: any, dateStr: string) => sb.sbAddBooking(dateStr, booking),
+    (booking: Booking, dateStr: string) => sb.sbAddBooking(dateStr, booking),
     [sb.sbAddBooking],
   );
   const onlineHandleRemove = useCallback(
