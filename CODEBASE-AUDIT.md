@@ -531,3 +531,97 @@ Ranked by impact (highest first). Each includes what, where, the improvement, an
 - **Optimistic updates without rollback in several hooks.** `useSalonConfig.updateConfig` does an optimistic `setConfig(newConfig)` before the Supabase call, and rolls back on error — this is correct. But `useBookings.addBooking` does an optimistic insert and does not roll back on error — the local state shows a booking that was never persisted.
 - **Trusted contact updates** in `HumanCardModal.jsx` and `DogCardModal.jsx` perform bidirectional inserts (A trusts B, B trusts A) as two separate Supabase calls. If the second call fails, the trust relationship is half-created. There's a rollback attempt, but it's best-effort.
 - **The confirmed notification Edge Function** (`notify-booking-confirmed`) waits 2 seconds before checking for duplicate group sends. This is a pragmatic approach but could miss very rapid sequential inserts within the 2-second window.
+
+---
+
+## 7. UI/UX Assessment
+
+### 7.1 Responsiveness
+
+**Overall: GOOD on staff dashboard, FAIR on customer portal.**
+
+**Staff dashboard strengths:**
+- `AppToolbar.jsx` implements a proper responsive pattern: desktop shows horizontal tab bar, mobile shows a fixed bottom tab bar with `pb-[env(safe-area-inset-bottom)]` for notch-aware spacing.
+- `App.jsx` uses `max-w-5xl mx-auto px-4 sm:px-6` for consistent container width with responsive padding.
+- `SlotGrid.jsx` uses `grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr]` — time labels get more space on desktop while seat columns remain fluid.
+- `BookingCardNew.jsx` scales text sizes between mobile and desktop: `text-sm md:text-[17px]` for dog names, `text-[9px] md:text-[11px]` for pill labels.
+- `DashboardHeader.jsx` stacks vertically on mobile (`flex-col`) and horizontally on desktop (`md:flex-row md:items-center`).
+- Calendar tabs use `overflow-x-auto snap-x snap-mandatory` for horizontal scrolling on small screens — good touch UX.
+
+**Staff dashboard weaknesses:**
+- `WeekCalendarView.jsx:293` — the "Remove slot" button uses `window.confirm` which is particularly jarring on mobile Safari (full-screen takeover).
+- The hamburger menu dropdown (`AppToolbar.jsx`) positions with `absolute top-11 right-0` — on very narrow screens this could clip if the toolbar padding changes.
+
+**Customer portal weaknesses:**
+- `customer-portal.css` has a single `@media (max-width: 400px)` breakpoint (lines 818–851) that only adjusts font sizes and padding. There are no intermediate breakpoints (e.g. tablet). Elements like `.pink-card` have `max-width: 460px` which works but doesn't scale up gracefully on larger screens.
+- Several customer portal components use inline `font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]` class strings (`CustomerLoginPage.jsx:62`, `LoginPage.jsx:76`, `ResetPasswordPage.jsx:70`, `CustomerApp.jsx:84,137`) instead of a Tailwind `font-sans` utility or a single CSS class. These are functionally correct but brittle — if the font stack changes, 5 files need updating.
+- `CalendarSubscribeModal.tsx` and `BookingWizard.tsx` have fixed `max-w-[400px]` or `max-w-md` containers but no `min-height` handling — on very short viewports (e.g. landscape mobile), content may overflow without scrolling.
+
+### 7.2 Accessibility
+
+**Overall: FAIR — good foundations, inconsistent execution.**
+
+**Strengths:**
+- `AccessibleModal.tsx` uses `react-aria`'s `FocusScope` (with `contain`, `restoreFocus`, `autoFocus`) and `useDialog` — this is the gold standard for modal accessibility. All major modals use it.
+- `App.jsx:274-279` includes a skip-to-content link (`<a href="#main-content" className="sr-only focus:not-sr-only ...">Skip to content</a>`), and `#main-content` is applied to the content container.
+- `DayTab.jsx` uses proper ARIA tab semantics: `role="tab"`, `aria-selected`, `tabIndex={isActive ? 0 : -1}`, and descriptive `aria-label` including day name, date, and dog count.
+- `CalendarTabs.jsx` wraps tabs in `role="tablist" aria-label="Day navigation"`.
+- `BlockedSeatCell.jsx` and `GhostSeat.jsx` include `role="button"`, `tabIndex={0}`, `aria-label`, and `onKeyDown` handlers for Enter/Space.
+- `BookingCardNew.jsx` similarly has `role="button"`, `tabIndex={0}`, `onKeyDown`, and `focus:ring` styles.
+- SVG icons in `icons/index.jsx` all have `aria-hidden="true"` — correct, as the parent buttons should carry the accessible name.
+- Error messages use `aria-live="polite"` and `role="alert"` in `AddBookingForm.jsx`.
+
+**Weaknesses:**
+- `LiveAnnouncerProvider` is implemented but **never mounted** (see Section 4.1). Status announcements (e.g. "Booking saved", "Seat blocked") are only conveyed visually via toasts — screen reader users get no notification.
+- `ExitConfirmDialog.jsx` does **not** use `AccessibleModal` — it renders a plain `<div>` overlay with no focus trapping, no ARIA role, and no escape key handling. This is the only modal that bypasses the accessible pattern.
+- The `AppToolbar.jsx` hamburger button uses `☰` as its text content but has no `aria-label`. Screen readers will announce "hamburger" or the Unicode character name. Should have `aria-label="Menu"` and `aria-expanded`.
+- `MonthGrid` (inside `WeekCalendarView.jsx`) renders calendar day buttons without `aria-label` — screen readers get only the day number with no month context.
+- The `ConfirmDialog.jsx` close action triggers `onCancel` when clicking the backdrop (via `AccessibleModal`), but there's no visible "close" (X) button — users who rely on visible affordances rather than Escape may not know how to dismiss it.
+- Settings view toggle switches (`settings/shared.jsx:Toggle`) use a `<div>` with `onClick` but no `role="switch"`, `aria-checked`, or keyboard handling. These should be `<button role="switch" aria-checked={value}>`.
+
+### 7.3 Intuitiveness & Interaction Patterns
+
+**Overall: GOOD — clear information hierarchy, strong visual feedback.**
+
+**Strengths:**
+- Navigation is predictable: 4 primary tabs (Bookings, Dogs, Humans, Stats) + 2 overflow items (Reports, Settings) in the hamburger menu. The active tab is visually distinct on both desktop and mobile.
+- Keyboard shortcuts are available: `N` (new booking), `T` (jump to today), `←`/`→` (prev/next week) — these are documented in the `useKeyboardShortcuts.ts` docstring but not surfaced to users in the UI.
+- The booking creation flow is multi-step and clear: search dog → select service → pick date → pick slot → confirm. Validation is inline (`canBookSlot` checks capacity before allowing confirmation).
+- Status progression on booking cards (`Booked → Checked in → Finished`) uses colour-coded pill buttons with `▶` prefix — the next action is always visible.
+- The toast system (`ToastContext.jsx`) supports `info`, `success`, and `error` variants with optional "Undo" buttons — good pattern for destructive actions.
+- Pull-to-refresh (`PullToRefresh.jsx`) is available on the day view — appropriate for a mobile-first tool used by salon staff.
+- The customer booking wizard (`BookingWizard.tsx`) has a clear 5-step flow with a visual step indicator and back/next navigation.
+
+**Weaknesses:**
+- **Keyboard shortcuts are not discoverable.** There's no help modal, tooltip, or settings panel listing available shortcuts. Users must read the source code to learn `N` opens new booking.
+- **Form validation is inconsistent.** The `AddHumanModal.jsx` requires name + surname + phone before enabling submit (good), but the `MyDetailsCard.jsx` in the customer portal allows saving empty fields with no validation.
+- **No loading indicator on "Load More" buttons.** `HumansView.jsx` and `DogsView.jsx` show a "Load more" button with a remaining count, but clicking it gives no visual feedback until the data arrives.
+- **Confirmation feedback for settings changes** is absent. `SettingsView` sub-components (e.g. `PricingSettings.jsx`, `HoursSettings.jsx`) call `updateConfig` and show a brief "Saved!" label, but there's no toast or animation — the feedback is easy to miss.
+- **The customer portal "Cancel booking" flow** (`AppointmentsSection.jsx`) uses a text area for cancellation reason but doesn't indicate that the reason is optional — users may think they're blocked from cancelling without typing something.
+
+### 7.4 Visual Consistency
+
+**Overall: GOOD on staff dashboard, MIXED on customer portal.**
+
+**Staff dashboard strengths:**
+- Consistent design token usage via Tailwind theme (`index.css`): `brand-blue`, `brand-coral`, `brand-teal`, `brand-green`, `brand-red` are used throughout.
+- `SIZE_THEME` in `constants/brand.ts` provides per-size colour palettes (small=gold, medium=teal, large=coral) used consistently across `SizeTag`, `BookingCardNew`, `DogCardHeader`, `AddDogModal`, and search results.
+- Button styles are centralised in `index.css` (`.btn`, `.btn-primary`, `.btn-danger`, `.btn-ghost`, `.btn-sm`) and used consistently.
+- Card shadows follow a consistent pattern: `shadow-[0_2px_12px_rgba(0,0,0,0.04)]` for subtle, `shadow-lg` for elevated.
+- Text hierarchy is consistent: `text-slate-800` for primary, `text-slate-600`/`text-slate-500` for secondary, `text-slate-400` for muted (documented in `index.css` comments).
+
+**Customer portal weaknesses:**
+- The customer portal defines its **own colour tokens** in `customer-portal.css` (:root variables like `--sd-teal`, `--sd-blue`, `--sd-coral`) that duplicate the Tailwind theme tokens. The hex values match, but the naming convention differs (`--sd-teal` vs `--color-brand-teal`).
+- Font family declarations are scattered across 25+ CSS rules in `customer-portal.css`, alternating between `'Quicksand'` and `'Montserrat'` — the logic of which font applies where is implicit rather than systematic.
+- The customer portal uses custom CSS animations (`cardSlideUp`, `portalPulse`, `portalBounce`) while the staff dashboard uses Tailwind's `animate-[fadeIn_...]` syntax. Same concept, different implementation.
+- `BookingWizard.tsx` and its child components use Tailwind classes (they're `.tsx` files in the customer path), while `CustomerDashboard.jsx` and `AppointmentsSection.jsx` use the CSS class names from `customer-portal.css`. This creates a hybrid styling approach within the same feature area.
+
+### 7.5 Touch Target Sizes
+
+**Assessment: MOSTLY COMPLIANT with 44px minimum.**
+
+- `StaffIconBtn.jsx`: 26x26px (`w-[26px] h-[26px]`) — **below the 44px minimum**. These are used throughout `BookingCard.jsx` for Edit and Message actions. On mobile, they're difficult to tap accurately.
+- `DayTab.jsx`: `min-w-[56px]` width, variable height — compliant.
+- `GhostSeat.jsx` book/block buttons: 32x32px (`w-8 h-8`) — **below 44px minimum**.
+- Bottom tab bar buttons (`AppToolbar.jsx`): `flex-1` width with `py-2` padding — compliant (>44px effective height).
+- Customer portal buttons (`.wobbly-btn`): have sufficient padding to exceed 44px — compliant.
