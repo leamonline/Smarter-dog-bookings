@@ -10,13 +10,10 @@ interface EditSettings {
 }
 
 interface UseSlotAvailabilityInput {
-  editDateStr: string;
   editSettings: EditSettings;
-  editDayOpen: boolean;
   otherBookings: unknown[];
   bookingSize: string;
   bookingSlot: string;
-  isEditing: boolean;
 }
 
 interface UseSlotAvailabilityReturn {

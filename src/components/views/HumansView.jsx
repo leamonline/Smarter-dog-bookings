@@ -2,11 +2,7 @@ import { useState, useMemo } from "react";
 import { SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { titleCase } from "../../utils/text.js";
 
 function waLink(phone) {
   if (!phone) return "#";

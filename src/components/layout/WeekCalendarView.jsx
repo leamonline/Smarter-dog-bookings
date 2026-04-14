@@ -11,6 +11,7 @@ import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -194,6 +195,7 @@ export function WeekCalendarView({
 }) {
   const [calendarMode, setCalendarMode] = useState("day"); // "day" | "month"
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -289,9 +291,7 @@ export function WeekCalendarView({
                   const display = `${hour > 12 ? hour - 12 : hour}:${m}${suffix}`;
                   return (
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Remove the ${display} timeslot?`)) handleRemoveSlot();
-                      }}
+                      onClick={() => setConfirmRemoveSlot(display)}
                       className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-600 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
                     >
                       Remove {display} slot
@@ -500,6 +500,16 @@ export function WeekCalendarView({
             onClose={() => setShowRebookDatePicker(false)}
           />
         </Suspense>
+      )}
+      {confirmRemoveSlot && (
+        <ConfirmDialog
+          title={`Remove the ${confirmRemoveSlot} timeslot?`}
+          message="This will remove the extra slot from today's schedule."
+          confirmLabel="Remove"
+          variant="danger"
+          onConfirm={() => { handleRemoveSlot(); setConfirmRemoveSlot(null); }}
+          onCancel={() => setConfirmRemoveSlot(null)}
+        />
       )}
     </>
   );

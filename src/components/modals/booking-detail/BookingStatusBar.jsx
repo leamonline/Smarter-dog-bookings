@@ -62,29 +62,3 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   );
 }
 
-export function ClientConfirmedToggle({ booking, currentDateStr, onUpdate }) {
-  return (
-    <div className="py-2.5 border-b border-slate-200 flex justify-between items-center">
-      <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
-        Client Confirmed
-      </span>
-      <button
-        onClick={async () => {
-          await onUpdate(
-            { ...booking, confirmed: !booking.confirmed },
-            currentDateStr,
-            currentDateStr,
-          );
-        }}
-        className="rounded-lg px-3 py-1 text-xs font-bold cursor-pointer font-inherit transition-all"
-        style={{
-          background: booking.confirmed ? "#DCFCE7" : "#FEE2E2",
-          color: booking.confirmed ? "#16A34A" : "#DC2626",
-          border: `1.5px solid ${booking.confirmed ? "#16A34A" : "#DC2626"}`,
-        }}
-      >
-        {booking.confirmed ? "\u2713 Confirmed" : "Not confirmed"}
-      </button>
-    </div>
-  );
-}

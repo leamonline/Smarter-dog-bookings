@@ -3,11 +3,7 @@ import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { titleCase } from "../../utils/text.js";
 
 function computeAge(dog) {
   if (dog.dob) {

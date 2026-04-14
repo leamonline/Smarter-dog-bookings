@@ -21,7 +21,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
       setShowAdd(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to join waitlist");
+      toast.show("Failed to join waitlist", "error");
     } finally {
       setAddingId(null);
     }

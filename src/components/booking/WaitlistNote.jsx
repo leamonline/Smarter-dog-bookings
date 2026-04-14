@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
   const { waitlist, loading, joinWaitlist, leaveWaitlist } = useWaitlist(currentDateObj);
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addingId, setAddingId] = useState(null);
@@ -36,7 +38,7 @@ export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
       await joinWaitlist(humanId, currentDateObj.toISOString().split("T")[0]);
       setShowAdd(false);
     } catch {
-      alert("Failed to join waitlist");
+      toast.show("Failed to join waitlist", "error");
     } finally {
       setAddingId(null);
     }
