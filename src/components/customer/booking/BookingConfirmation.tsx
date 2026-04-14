@@ -32,13 +32,8 @@ function formatSlot(slot: string): string {
 }
 
 function getServiceLabel(serviceId: ServiceId): string {
-  const allServices = SERVICES as Array<{ id: string; name: string; icon: string }>;
+  const allServices = SERVICES as Array<{ id: string; name: string }>;
   return allServices.find((s) => s.id === serviceId)?.name || serviceId;
-}
-
-function getServiceIcon(serviceId: ServiceId): string {
-  const allServices = SERVICES as Array<{ id: string; name: string; icon: string }>;
-  return allServices.find((s) => s.id === serviceId)?.icon || "";
 }
 
 function getPriceLabel(serviceId: string, size: string): string {
@@ -95,7 +90,7 @@ export function BookingConfirmation({
               </div>
               {serviceId && (
                 <div className="mt-1.5 text-sm text-slate-800">
-                  {getServiceIcon(serviceId)} {getServiceLabel(serviceId)}
+                  {getServiceLabel(serviceId)}
                   {size && (
                     <span className="ml-2 text-brand-teal font-semibold">
                       {getPriceLabel(serviceId, size)}

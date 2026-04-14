@@ -87,7 +87,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
             }`}
           >
             <div className="text-sm font-semibold text-slate-800">
-              {s.icon && <span className="mr-1.5">{s.icon}</span>}{s.name}
+              {s.name}
             </div>
             {["small", "medium", "large"].map((size) => {
               const val = currentPricing[s.id]?.[size] || "";

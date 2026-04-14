@@ -12,6 +12,7 @@ interface EditData {
   service: string;
   pickupBy: string;
   payment: string;
+  depositAmount: number;
   groomNotes: string;
   alerts: string[];
   addons: string[];
@@ -153,6 +154,7 @@ export function useBookingSave({
           getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
           editData.pickupBy,
         payment: editData.payment,
+        depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
         slot: editData.slot,
       },
       currentDateStr,

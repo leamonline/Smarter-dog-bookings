@@ -382,6 +382,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         addons: updatedBooking.addons || [],
         pickup_by_id: pickupHumanId || null,
         payment: updatedBooking.payment || "Due at Pick-up",
+        deposit_amount: updatedBooking.depositAmount ?? null,
         status: updatedBooking.status || "No-show",
         confirmed: updatedBooking.confirmed ?? false,
       };

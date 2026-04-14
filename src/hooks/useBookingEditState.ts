@@ -9,6 +9,7 @@ interface EditData {
   service: string;
   pickupBy: string;
   payment: string;
+  depositAmount: number;
   groomNotes: string;
   alerts: string[];
   addons: string[];
@@ -62,6 +63,7 @@ function buildEditState(booking: any, dogData: any, currentDateObj: Date): EditD
     service,
     pickupBy: booking.pickupBy || booking.owner || "",
     payment: booking.payment || "Due at Pick-up",
+    depositAmount: booking.depositAmount ?? 10,
     groomNotes: dogData?.groomNotes || "",
     alerts: [...(dogData?.alerts || [])],
     addons: [...(booking.addons || [])],

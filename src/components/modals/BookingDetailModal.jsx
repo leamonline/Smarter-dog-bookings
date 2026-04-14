@@ -170,9 +170,13 @@ export function BookingDetailModal({
     ? editData.payment
     : booking.payment || "Due at Pick-up";
 
+  const activeDepositAmount = isEditing
+    ? editData.depositAmount
+    : booking.depositAmount ?? 10;
+
   let amountDue = Number(activePrice || 0);
   if (activeAddons.includes("Flea Bath")) amountDue += 10;
-  if (activePayment === "Deposit Paid") amountDue -= 10;
+  if (activePayment === "Deposit Paid") amountDue -= Number(activeDepositAmount || 0);
   else if (activePayment === "Paid in Full") amountDue = 0;
 
   const handleCloseAttempt = () => {
@@ -268,6 +272,7 @@ export function BookingDetailModal({
           getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
           editData.pickupBy,
         payment: editData.payment,
+        depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
         slot: editData.slot,
       },
       currentDateStr,
@@ -436,10 +441,10 @@ export function BookingDetailModal({
             <SectionCard title="Services & Add-ons">
               <DetailRow
                 label={<LogisticsLabel text="Service" />}
-                value={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`}
+                value={serviceObj?.name || currentService}
                 editNode={
                   <select value={editData.service} onChange={(e) => { setEditData((prev) => ({ ...prev, service: e.target.value, customPrice: dogData?.customPrice !== undefined ? dogData.customPrice : getNumericPrice(getServicePriceLabel(e.target.value, booking.size)) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
-                    {allowedServices.map((service) => (<option key={service.id} value={service.id}>{service.icon} {service.name}</option>))}
+                    {allowedServices.map((service) => (<option key={service.id} value={service.id}>{service.name}</option>))}
                   </select>
                 }
                 isEditing={isEditing}
@@ -468,7 +473,7 @@ export function BookingDetailModal({
           ) : (
             <SectionCard>
               <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                <LogisticsLabel text={`${serviceObj?.icon || ""} ${serviceObj?.name || currentService}`} />
+                <LogisticsLabel text={serviceObj?.name || currentService} />
                 <span className="text-[13px] font-bold text-slate-800">{"\u00A3"}{activePrice}</span>
               </div>
               {activeAddons.map((addon) => (
@@ -482,7 +487,7 @@ export function BookingDetailModal({
               {activePayment === "Deposit Paid" && (
                 <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
                   <FinanceLabel text="Deposit Paid" />
-                  <span className="text-[13px] font-bold text-emerald-600">{"\u2212\u00A3"}10</span>
+                  <span className="text-[13px] font-bold text-emerald-600">{"\u2212\u00A3"}{Number(activeDepositAmount || 0)}</span>
                 </div>
               )}
               {activePayment === "Paid in Full" && (
@@ -517,6 +522,19 @@ export function BookingDetailModal({
                 }
                 isEditing={isEditing}
               />
+              {editData.payment === "Deposit Paid" && (
+                <DetailRow
+                  label={<FinanceLabel text="Deposit Amount" />}
+                  value={`£${editData.depositAmount}`}
+                  editNode={
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold">{"\u00A3"}</span>
+                      <input type="number" min="0" value={editData.depositAmount} onChange={(e) => setEditData((prev) => ({ ...prev, depositAmount: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+                    </div>
+                  }
+                  isEditing={isEditing}
+                />
+              )}
               <DetailRow
                 label={<LogisticsLabel text="Pick-up Human" />}
                 value={selectedPickupLabel}

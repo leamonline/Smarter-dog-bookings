@@ -7,10 +7,10 @@ export const SALON_SLOTS = [
 export const MAX_DOGS_PER_SLOT = 5;
 
 export const SERVICES = [
-  { id: "full-groom", name: "Full Groom", icon: "\u2702\uFE0F" },
-  { id: "bath-and-brush", name: "Bath & Brush", icon: "\uD83D\uDEC1" },
-  { id: "bath-and-deshed", name: "Bath & Deshed", icon: "\uD83E\uDDF9" },
-  { id: "puppy-groom", name: "Puppy Groom", icon: "\uD83D\uDC3E" },
+  { id: "full-groom", name: "Full Groom" },
+  { id: "bath-and-brush", name: "Bath & Brush" },
+  { id: "bath-and-deshed", name: "Bath & Deshed" },
+  { id: "puppy-groom", name: "Puppy Groom" },
 ];
 
 export const ALL_DAYS = [

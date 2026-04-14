@@ -161,7 +161,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
                       {b.date?.split("-").reverse().join("-")}
                     </span>
                     <span className="text-slate-500 ml-1.5">
-                      {svc?.icon} {svc?.name || b.service}
+                      {svc?.name || b.service}
                     </span>
                   </div>
                   <span
