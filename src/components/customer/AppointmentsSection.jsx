@@ -14,7 +14,7 @@ function customerStatusLabel(status) {
   const statusMap = {
     "No-show": "Awaiting confirmation",
     "Checked in": "Checked in",
-    "Ready for pick-up": "Ready for pick-up",
+    "Ready for pick-up": "Finished",
     "Completed": "Completed",
     "Finished": "Completed",
     "Cancelled": "Cancelled",

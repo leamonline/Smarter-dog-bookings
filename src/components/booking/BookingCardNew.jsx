@@ -27,9 +27,9 @@ const SIZE_DOT = {
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
 const STATUS_DISPLAY = {
-  "No-show":            { bg: "#FFF8E0", color: "#92400E", label: "No-show" },
+  "No-show":            { bg: "#F1F5F9", color: "#475569", label: "Booked" },
   "Checked in":         { bg: "#DCFCE7", color: "#16A34A", label: "Checked in" },
-  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", label: "Ready" },
+  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", label: "Finished" },
 };
 
 export function BookingCardNew({ booking, onClick, searchDimmed }) {

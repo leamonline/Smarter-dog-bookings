@@ -15,7 +15,7 @@ export const SERVICE_ICONS = {
 };
 
 export const STATUS_STYLES = {
-  "No-show":          { background: "#FFF8E0", color: "#9A7800" },
+  "No-show":          { background: "#F1F5F9", color: "#475569" },
   "Checked in":       { background: "#E6F5F2", color: "#1E6B5C" },
   "Drying":           { background: "#E8E0FF", color: "#5B3D99" },
   "On the Table":     { background: "#F0E0FF", color: "#7B3DC9" },

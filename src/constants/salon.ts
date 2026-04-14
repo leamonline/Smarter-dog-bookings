@@ -44,9 +44,9 @@ export const PRICING = {
 };
 
 export const BOOKING_STATUSES = [
-  { id: "No-show", label: "No-show", color: "#92400E", bg: "#FFF8E0" },
+  { id: "No-show", label: "Booked", color: "#475569", bg: "#F1F5F9" },
   { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
-  { id: "Ready for pick-up", label: "Ready for pick-up", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: "Ready for pick-up", label: "Finished", color: "#7C3AED", bg: "#EDE9FE" },
 ];
 
 export const ALERT_OPTIONS = [

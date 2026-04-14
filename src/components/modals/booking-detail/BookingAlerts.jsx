@@ -55,7 +55,7 @@ export function BookingAlerts({
               hasAllergy ? "bg-brand-coral text-white" : "bg-white text-brand-coral"
             }`}
           >
-            {"\u26A0\uFE0F"} Allergy {"\u26A0\uFE0F"}
+            Allergy
           </button>
         </div>
 
@@ -87,14 +87,18 @@ export function BookingAlerts({
         .map((alertLabel) => (
           <div
             key={alertLabel}
-            className="bg-brand-coral text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(232,86,127,0.25)] text-center"
+            className="text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(201,61,99,0.25)] text-center"
+            style={{ background: "#C93D63" }}
           >
-            {"\u26A0\uFE0F"} {alertLabel} {"\u26A0\uFE0F"}
+            {alertLabel}
           </div>
         ))}
       {hasAllergy && allergyInput && (
-        <div className="bg-brand-coral text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(232,86,127,0.25)] text-center">
-          {"\u26A0\uFE0F"} Allergic to {allergyInput} {"\u26A0\uFE0F"}
+        <div
+          className="text-white py-2.5 px-[18px] rounded-3xl text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(201,61,99,0.25)] text-center"
+          style={{ background: "#C93D63" }}
+        >
+          Allergic to {allergyInput}
         </div>
       )}
     </div>

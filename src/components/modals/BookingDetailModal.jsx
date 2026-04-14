@@ -31,10 +31,7 @@ import {
   MODAL_INPUT_CLS,
 } from "./booking-detail/shared.jsx";
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
-import {
-  BookingStatusBar,
-  ClientConfirmedToggle,
-} from "./booking-detail/BookingStatusBar.jsx";
+import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
@@ -342,12 +339,6 @@ export function BookingDetailModal({
             onUpdate={onUpdate}
           />
 
-          <ClientConfirmedToggle
-            booking={booking}
-            currentDateStr={currentDateStr}
-            onUpdate={onUpdate}
-          />
-
           {booking._groupId && (
             <button
               onClick={() => setShowSeries(true)}
@@ -370,10 +361,13 @@ export function BookingDetailModal({
                 Dog
               </span>
               <span
+                role="button"
+                tabIndex={0}
                 onClick={() =>
                   onOpenDog &&
                   onOpenDog(dogData?.id || booking._dogId || booking.dogName)
                 }
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
                 className="text-[13px] font-semibold cursor-pointer"
                 style={{
                   color: sizeTheme.primary,
@@ -392,10 +386,13 @@ export function BookingDetailModal({
                 Breed
               </span>
               <span
+                role="button"
+                tabIndex={0}
                 onClick={() =>
                   onOpenDog &&
                   onOpenDog(dogData?.id || booking._dogId || booking.dogName)
                 }
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
                 className="text-[13px] font-semibold cursor-pointer"
                 style={{
                   color: sizeTheme.primary,
@@ -414,16 +411,19 @@ export function BookingDetailModal({
                 Human
               </span>
               <span
+                role="button"
+                tabIndex={0}
                 onClick={() =>
                   onOpenHuman &&
                   onOpenHuman(
                     primaryHuman?.id || booking._ownerId || booking.owner,
                   )
                 }
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner); } }}
                 className="text-[13px] font-semibold cursor-pointer"
                 style={{
-                  color: "#2D8B7A",
-                  borderBottom: "1px dashed #2D8B7A",
+                  color: sizeTheme.primary,
+                  borderBottom: `1px dashed ${sizeTheme.primary}`,
                 }}
               >
                 {titleCase(booking.owner)}

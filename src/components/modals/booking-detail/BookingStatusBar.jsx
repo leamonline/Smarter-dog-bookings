@@ -7,7 +7,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
 
   return (
     <div className="mb-4">
-      <div className="flex gap-1.5 flex-wrap justify-center">
+      <div className="flex gap-1.5 justify-center">
         {BOOKING_STATUSES.map((status) => {
           const isActive = currentStatus === status.id;
           const currentIdx = BOOKING_STATUSES.findIndex(
@@ -33,7 +33,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   : "info";
                 toast.show(`Status: ${status.label}`, variant);
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold font-inherit transition-all"
+              className="flex-1 px-2 py-2.5 rounded-lg text-xs font-bold font-inherit transition-all text-center"
               style={{
                 cursor: isActive ? "default" : "pointer",
                 background: isActive

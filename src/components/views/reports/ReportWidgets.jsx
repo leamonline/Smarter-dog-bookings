@@ -50,6 +50,6 @@ export function Section({ title, accent = "#2D8B7A", children, insight }) {
 
 // Display-level constants shared across report sub-components
 export const SIZE_COLORS = { small: "#F5C518", medium: "#2D8B7A", large: "#E8567F" };
-export const STATUS_COLORS = { "No-show": "#D97706", "Checked in": "#16A34A", "Ready for pick-up": "#7C3AED" };
-export const STATUS_LABELS = { "No-show": "Awaiting / No-show", "Checked in": "Checked in", "Ready for pick-up": "Ready" };
+export const STATUS_COLORS = { "No-show": "#475569", "Checked in": "#16A34A", "Ready for pick-up": "#7C3AED" };
+export const STATUS_LABELS = { "No-show": "Awaiting / No-show", "Checked in": "Checked in", "Ready for pick-up": "Finished" };
 export const PERIODS = [{ v: 7, l: "7 days" }, { v: 30, l: "30 days" }, { v: 90, l: "90 days" }];
