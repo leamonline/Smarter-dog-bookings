@@ -625,3 +625,120 @@ Ranked by impact (highest first). Each includes what, where, the improvement, an
 - `GhostSeat.jsx` book/block buttons: 32x32px (`w-8 h-8`) — **below 44px minimum**.
 - Bottom tab bar buttons (`AppToolbar.jsx`): `flex-1` width with `py-2` padding — compliant (>44px effective height).
 - Customer portal buttons (`.wobbly-btn`): have sufficient padding to exceed 44px — compliant.
+
+---
+
+## 8. Dependency Health
+
+### 8.1 Production Dependencies
+
+| Package | Version | Status | Notes |
+|---------|---------|--------|-------|
+| `react` | ^19.2.4 | **Current** | React 19 — latest stable. |
+| `react-dom` | ^19.2.4 | **Current** | Matches React version. |
+| `react-router-dom` | ^7.13.2 | **Current** | v7 — latest stable. |
+| `@supabase/supabase-js` | ^2.100.0 | **Current** | v2 latest. |
+| `tailwindcss` | ^4.2.2 | **Current** | Tailwind v4 — latest. |
+| `@tailwindcss/vite` | ^4.2.2 | **Current** | Matches Tailwind version. |
+| `react-aria` | ^3.47.0 | **Current** | Only `FocusScope` and `useDialog` are used (from `AccessibleModal.tsx`). The full `react-aria` package is 100+ modules — could use `@react-aria/focus` and `@react-aria/dialog` individually to reduce install size. |
+| `@vercel/analytics` | ^2.0.1 | **Current** | Lightweight. Only used in `App.jsx`. Not loaded in `CustomerApp.jsx` — customer portal analytics are not tracked. |
+
+**Assessment: All production dependencies are current.** No deprecated or vulnerable packages detected. The only optimisation opportunity is narrowing the `react-aria` import to specific sub-packages.
+
+### 8.2 Dev Dependencies
+
+| Package | Version | Status | Notes |
+|---------|---------|--------|-------|
+| `vite` | ^7.3.2 | **Current** | Vite 7 — latest. |
+| `@vitejs/plugin-react` | ^4.7.0 | **Current** | |
+| `typescript` | ^6.0.2 | **Current** | TS 6 — latest. |
+| `vitest` | ^4.1.4 | **Current** | |
+| `@types/react` | ^19.2.14 | **Current** | Matches React 19. |
+| `@types/react-dom` | ^19.2.3 | **Current** | Matches React DOM 19. |
+| `vite-plugin-pwa` | ^1.2.0 | **Current** | |
+| `tsx` | ^4.21.0 | **Current** | Used for running the seed script. |
+
+**Assessment: All dev dependencies are current.** No issues.
+
+### 8.3 Missing Dependencies
+
+- **No linter.** There's no ESLint, Biome, or similar. The `checkJs: false` in `tsconfig.json` means `.jsx` files get no static analysis at all. This is how the `SALON_SLOTS` bug (Section 3.3) slipped through.
+- **No formatter.** No Prettier or Biome formatting config. Code style is manually consistent but not enforced.
+- **No `@react-aria/focus` or `@react-aria/dialog` sub-packages.** The full `react-aria` umbrella package is installed but only two hooks are used. Not a bug, but an optimisation opportunity.
+
+### 8.4 Edge Function Dependencies (Deno)
+
+| Import | Version | Notes |
+|--------|---------|-------|
+| `deno.land/std@0.168.0/http/server.ts` | 0.168.0 | **Outdated** — Deno std `serve()` moved to `Deno.serve()` in later versions. `0.168.0` is from 2023. Not a security risk but worth updating. |
+| `esm.sh/@supabase/supabase-js@2` | @2 (latest) | Resolves to latest v2 at import time — acceptable for Edge Functions. |
+
+### 8.5 Unused Dependency Check
+
+All installed packages are actively imported somewhere in the codebase. No phantom dependencies.
+
+---
+
+## 9. Quick Wins
+
+Small effort, high impact changes — the low-hanging fruit.
+
+| # | What | Where | Effort | Impact |
+|---|------|-------|--------|--------|
+| 1 | **Add missing `SALON_SLOTS` import** | `BookingDetailModal.jsx` line 7 | 1 line | Fixes crash when editing booking dates |
+| 2 | **Add missing `WEBHOOK_SECRET` declaration** | `notify-booking-reminder/index.ts` line 13 | 1 line | Fixes completely broken daily reminders |
+| 3 | **Fix CSP for Google Fonts** | `vercel.json` + `netlify.toml` CSP headers | 2 lines | Restores custom fonts in production |
+| 4 | **Fix password placeholder** | `ResetPasswordPage.jsx` line 132 | Change `"Min. 8 characters"` → `"Min. 12 characters"` | Eliminates user confusion |
+| 5 | **Delete 6 orphan component files** | See Section 4.1 | Delete files | Removes ~474 lines of dead code |
+| 6 | **Extract shared `titleCase` utility** | Create `src/utils/text.ts`, find-replace 10 copies | ~30 min | Eliminates most-duplicated function |
+| 7 | **Replace `window.confirm`/`alert` with existing components** | 5 call sites (see Section 5.4) | ~1 hr | Consistent, accessible, styled dialogs |
+| 8 | **Add `aria-label="Menu"` to hamburger button** | `AppToolbar.jsx` ~line 117 | 1 attribute | Screen reader users can identify the menu |
+| 9 | **Increase `StaffIconBtn` touch target** | `StaffIconBtn.jsx` — change `w-[26px] h-[26px]` to `w-11 h-11` | 1 line | Meets 44px minimum tap target |
+| 10 | **Remove dead `BRAND` export** | `constants/brand.ts` — delete lines 1–23 | Delete block | Removes unused code, reduces confusion with Tailwind tokens |
+
+---
+
+## 10. Recommended Priority Order
+
+If tackling these in order, here's the sequence and rationale:
+
+### Phase 1: Fix What's Broken (1–2 days)
+
+1. **Add `WEBHOOK_SECRET` to reminder function** (Section 3.1) — daily reminders are completely non-functional. One line fix, immediate business value.
+2. **Add `SALON_SLOTS` import to `BookingDetailModal`** (Section 3.3) — crash when editing booking dates. One line fix.
+3. **Fix CSP headers for Google Fonts** (Section 3.2) — production fonts are broken. Two line fix across two files.
+4. **Fix password placeholder mismatch** (Section 3.6) — trivial fix.
+5. **Fix SlotGrid undo toast behaviour** (Section 3.5) — the undo button does the wrong thing.
+
+### Phase 2: Clean House (1–2 days)
+
+6. **Delete orphan components** (Section 4.1) — remove ~474 lines of dead code.
+7. **Extract `titleCase` into shared utility** (Section 5.1) — eliminate 10 duplicates.
+8. **Remove dead exports** (`BRAND`, `signUp`, `isStaff`, `pctChange`, `ClientConfirmedToggle`) (Section 4.2).
+9. **Replace `window.confirm`/`alert` with `ConfirmDialog`/`useToast`** (Section 5.4).
+
+### Phase 3: Accessibility & UX Polish (2–3 days)
+
+10. **Mount `LiveAnnouncerProvider`** or delete it (Section 4.1 / 7.2).
+11. **Fix `ExitConfirmDialog` to use `AccessibleModal`** (Section 7.2).
+12. **Add ARIA attributes** to hamburger menu, toggle switches, month grid buttons (Section 7.2).
+13. **Increase touch targets** on `StaffIconBtn` and `GhostSeat` buttons (Section 7.5).
+14. **Add loading states to "Load More" buttons** (Section 7.3).
+15. **Surface keyboard shortcuts** via a help tooltip or modal (Section 7.3).
+
+### Phase 4: Architecture Improvements (1–2 weeks)
+
+16. **Move `RecurringBookingModal` Supabase query behind a hook** (Section 5.5).
+17. **Expand `SalonContext` to reduce prop drilling** (Section 5.6).
+18. **Add ESLint or enable `checkJs`** to catch undeclared variable bugs (Section 5.7).
+19. **Add realtime subscriptions to `useDogs`/`useHumans`** (Section 6.2).
+20. **Consolidate customer portal onto Tailwind** (Section 5.2) — largest effort but eliminates the dual styling system.
+
+### Phase 5: Test Coverage (Ongoing)
+
+21. **Add hook and integration tests** for critical flows (Section 5.9).
+22. **Add `ErrorBoundary` to customer portal dashboard** (Section 6.3).
+
+---
+
+*End of audit report.*
