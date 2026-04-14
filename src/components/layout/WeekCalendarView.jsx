@@ -11,6 +11,7 @@ import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -128,10 +129,13 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
             shadowCls = "shadow-[0_2px_6px_rgba(14,165,233,0.12)]";
           }
 
+          const fullLabel = date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+
           return (
             <button
               key={dateStr}
               onClick={() => onSelectDate(date)}
+              aria-label={`${fullLabel}${count > 0 ? `, ${count} booking${count === 1 ? "" : "s"}` : ""}${!isOpen ? ", closed" : ""}`}
               className={`py-2 px-1 rounded-[10px] ${borderCls} ${bgCls} ${shadowCls} ${hoverCls} cursor-pointer font-[inherit] transition-all flex flex-col items-center gap-0.5 min-h-[56px]`}
             >
               <span className={`text-sm font-bold ${textCls}`}>{date.getDate()}</span>
@@ -194,6 +198,7 @@ export function WeekCalendarView({
 }) {
   const [calendarMode, setCalendarMode] = useState("day"); // "day" | "month"
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -289,9 +294,7 @@ export function WeekCalendarView({
                   const display = `${hour > 12 ? hour - 12 : hour}:${m}${suffix}`;
                   return (
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Remove the ${display} timeslot?`)) handleRemoveSlot();
-                      }}
+                      onClick={() => setConfirmRemoveSlot(display)}
                       className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-600 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
                     >
                       Remove {display} slot
@@ -500,6 +503,16 @@ export function WeekCalendarView({
             onClose={() => setShowRebookDatePicker(false)}
           />
         </Suspense>
+      )}
+      {confirmRemoveSlot && (
+        <ConfirmDialog
+          title={`Remove the ${confirmRemoveSlot} timeslot?`}
+          message="This will remove the extra slot from today's schedule."
+          confirmLabel="Remove"
+          variant="danger"
+          onConfirm={() => { handleRemoveSlot(); setConfirmRemoveSlot(null); }}
+          onCancel={() => setConfirmRemoveSlot(null)}
+        />
       )}
     </>
   );

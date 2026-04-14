@@ -4,17 +4,13 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { titleCase } from "../../utils/text.js";
 
 const SORTED_BREEDS = [
   ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
   ...BREED_LIST.medium.map(b => ({ name: b, size: "medium" })),
   ...BREED_LIST.large.map(b => ({ name: b, size: "large" })),
 ].sort((a, b) => a.name.localeCompare(b.name));
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const toast = useToast();

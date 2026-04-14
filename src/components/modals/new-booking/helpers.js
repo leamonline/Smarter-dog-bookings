@@ -42,7 +42,4 @@ export function buildSearchEntries(dogs, humans) {
   return entries;
 }
 
-export function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+export { titleCase } from "../../../utils/text.js";

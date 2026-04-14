@@ -1,9 +1,5 @@
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { titleCase } from "../../utils/text.js";
 
 export function ContactPopup({ human, onClose }) {
   if (!human) return null;

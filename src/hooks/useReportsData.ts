@@ -14,11 +14,6 @@ function estPrice(
   return parseFloat(str.replace(/[^0-9.]/g, "")) || 0;
 }
 
-function pctChange(cur: number, prev: number): number {
-  if (prev === 0) return cur > 0 ? 100 : 0;
-  return ((cur - prev) / prev) * 100;
-}
-
 export function fmtSlot(slot: string): string {
   const [h, m] = slot.split(":").map(Number);
   const suffix = h < 12 ? "am" : "pm";

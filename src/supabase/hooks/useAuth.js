@@ -126,27 +126,6 @@ export function useAuth() {
     return { data };
   }, []);
 
-  const signUp = useCallback(async (email, password) => {
-    if (!supabase) {
-      setError("Supabase not configured. Running in offline mode.");
-      return { error: { message: "Offline mode" } };
-    }
-
-    setError(null);
-
-    const { data, error: err } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (err) {
-      setError("Sign-up failed. Please try again.");
-      return { error: err };
-    }
-
-    return { data };
-  }, []);
-
   const signOut = useCallback(async () => {
     if (!supabase) return;
 
@@ -158,7 +137,6 @@ export function useAuth() {
   }, []);
 
   const isOwner = staffProfile?.role === ROLES.owner;
-  const isStaff = !!staffProfile;
   const displayName = staffProfile?.display_name || user?.email || "";
 
   return {
@@ -167,10 +145,8 @@ export function useAuth() {
     loading,
     error,
     signIn,
-    signUp,
     signOut,
     isOwner,
-    isStaff,
     displayName,
   };
 }

@@ -1,4 +1,7 @@
 -- 014_waitlist_pg_net_trigger.sql
+-- ⚠ WARNING: This migration contains a hardcoded Supabase project URL
+-- (nlzhllhkigmsvrzduefz.supabase.co). If the project ref changes, update
+-- the pg_net URL in the trigger function below.
 -- Postgres trigger: fire notify-waitlist-joined edge function on waitlist INSERT
 
 CREATE OR REPLACE FUNCTION notify_waitlist_joined_trigger()

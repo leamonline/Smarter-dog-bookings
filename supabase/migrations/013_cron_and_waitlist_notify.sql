@@ -1,4 +1,7 @@
 -- 013_cron_and_waitlist_notify.sql
+-- ⚠ WARNING: This migration contains a hardcoded Supabase project URL
+-- (nlzhllhkigmsvrzduefz.supabase.co). If the project ref changes, update
+-- the cron job URL in this file accordingly.
 -- 1. Extend notification_log trigger_type to include 'waitlist_joined'
 -- 2. Enable pg_cron + pg_net for scheduled reminder calls
 -- 3. Schedule the daily reminder cron job

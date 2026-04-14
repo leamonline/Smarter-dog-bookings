@@ -1,7 +1,4 @@
-export function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+export { titleCase } from "../../../utils/text.js";
 
 export function waLink(phone) {
   if (!phone) return "#";

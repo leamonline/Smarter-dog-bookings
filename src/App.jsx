@@ -89,7 +89,7 @@ export default function App() {
     showAddHumanModal, setShowAddHumanModal,
     rebookData, setRebookData,
     showRebookDatePicker, setShowRebookDatePicker,
-    openNewBooking, closeNewBooking, closeRebook,
+    openNewBooking,
   } = useModalState();
 
   // --- Week navigation (extracted hook) ---

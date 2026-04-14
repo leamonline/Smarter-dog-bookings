@@ -6,17 +6,13 @@ import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
+import { titleCase } from "../../utils/text.js";
 
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({
     default: module.BookingDetailModal,
   })),
 );
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 const SIZE_DOT = {
   small:  { dot: "#F5C518", border: "#D4A500", gradient: "linear-gradient(90deg, #F5C518, #FACC15)", glow: "rgba(245,197,24," },

@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { supabase } from "../../supabase/client.js";
 import { SIZE_THEME, SIZE_FALLBACK, SERVICES } from "../../constants/index.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { useGroupBookings } from "../../supabase/hooks/useGroupBookings.js";
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
@@ -25,31 +25,9 @@ export function RecurringBookingModal({
   onCloseParent,
 }) {
   const toast = useToast();
-  const [chainBookings, setChainBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { chainBookings, loading, cancelBookings } = useGroupBookings(chainId);
   const [showCancelAll, setShowCancelAll] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-
-  useEffect(() => {
-    if (!supabase || !chainId) return;
-
-    async function fetchChain() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("id, booking_date, slot, service, size, status")
-        .eq("group_id", chainId)
-        .order("booking_date")
-        .order("slot");
-
-      if (!error && data) {
-        setChainBookings(data);
-      }
-      setLoading(false);
-    }
-
-    fetchChain();
-  }, [chainId]);
 
   const today = new Date().toISOString().slice(0, 10);
   const futureBookings = chainBookings.filter(
@@ -60,17 +38,11 @@ export function RecurringBookingModal({
     setCancelling(true);
     const ids = futureBookings.map((b) => b.id);
 
-    if (supabase && ids.length > 0) {
-      const { error } = await supabase
-        .from("bookings")
-        .delete()
-        .in("id", ids);
-
-      if (error) {
-        toast.show("Failed to cancel series", "error");
-        setCancelling(false);
-        return;
-      }
+    const result = await cancelBookings(ids);
+    if (!result.success) {
+      toast.show("Failed to cancel series", "error");
+      setCancelling(false);
+      return;
     }
 
     toast.show(

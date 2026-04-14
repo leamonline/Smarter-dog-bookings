@@ -121,6 +121,8 @@ export function AppToolbar({
         <div ref={menuRef} className="relative shrink-0">
           <button
             onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
             className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all text-lg font-[inherit] ${
               menuOpen || isMenuViewActive
                 ? "border-brand-blue-dark bg-sky-50 text-brand-blue-dark"
@@ -150,6 +152,18 @@ export function AppToolbar({
                   </button>
                 );
               })}
+
+              <div className="hidden md:block">
+                <div className="h-px bg-slate-200 mx-3" />
+                <div className="px-4 py-2.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Shortcuts</div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">N</kbd><span>New booking</span>
+                    <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">T</kbd><span>Jump to today</span>
+                    <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">&larr; &rarr;</kbd><span>Navigate weeks</span>
+                  </div>
+                </div>
+              </div>
 
               {isOnline && user && (
                 <>

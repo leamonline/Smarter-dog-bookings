@@ -8,6 +8,7 @@ import {
   SERVICES,
   SIZE_THEME,
   SIZE_FALLBACK,
+  SALON_SLOTS,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
 import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
@@ -38,13 +39,9 @@ import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
 import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
+import { titleCase } from "../../utils/text.js";
 
 const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 
 

@@ -1,13 +1,7 @@
 import { useState } from "react";
-import { ALL_DAYS } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { toDateStr } from "../../supabase/transforms.js";
-
-function getDefaultOpenForDate(date) {
-  const dayOfWeek = date.getDay();
-  const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  return ALL_DAYS[dayIndex]?.defaultOpen ?? false;
-}
+import { getDefaultOpenForDate } from "../../engine/utils.js";
 
 export function DatePickerModal({
   currentDate,

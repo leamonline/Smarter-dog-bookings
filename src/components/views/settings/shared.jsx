@@ -47,15 +47,18 @@ export function SettingRow({ label, sublabel, control, border = true }) {
 
 export function Toggle({ on, onToggle }) {
   return (
-    <div
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
       onClick={onToggle}
-      className={`w-11 h-6 rounded-xl relative cursor-pointer transition-colors duration-200 ${on ? "bg-brand-green" : "bg-slate-200"}`}
+      className={`w-11 h-6 rounded-xl relative cursor-pointer transition-colors duration-200 border-none p-0 ${on ? "bg-brand-green" : "bg-slate-200"}`}
     >
       <div
         className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-[left] duration-200"
         style={{ left: on ? 22 : 2 }}
       />
-    </div>
+    </button>
   );
 }
 

@@ -10,6 +10,7 @@ const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM")!;
 const TWILIO_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM")!;
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

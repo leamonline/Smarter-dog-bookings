@@ -8,6 +8,7 @@ import { DogsSection } from "./DogsSection.jsx";
 import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [trustedHumans, setTrustedHumans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pastExpanded, setPastExpanded] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -242,7 +244,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             <button
               className="wobbly-btn wobbly-btn--logout"
               onClick={() => {
-                if (editing && !window.confirm("You have unsaved changes. Sign out anyway?")) return;
+                if (editing) { setShowSignOutConfirm(true); return; }
                 onSignOut();
               }}
             >
@@ -342,6 +344,17 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
       {showCalendarModal && (
         <CalendarSubscribeModal onClose={() => setShowCalendarModal(false)} />
+      )}
+
+      {showSignOutConfirm && (
+        <ConfirmDialog
+          title="Unsaved changes"
+          message="You have unsaved changes. Sign out anyway?"
+          confirmLabel="Sign out"
+          variant="danger"
+          onConfirm={() => { setShowSignOutConfirm(false); onSignOut(); }}
+          onCancel={() => setShowSignOutConfirm(false)}
+        />
       )}
     </div>
   );

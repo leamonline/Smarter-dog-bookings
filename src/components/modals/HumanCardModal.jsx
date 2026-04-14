@@ -7,25 +7,8 @@ import {
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-
-function titleCase(str) {
-  if (!str) return "";
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function waLink(phone) {
-  if (!phone) return "#";
-  const digits = phone.replace(/[\s\-()]/g, "");
-  const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
-  return `https://wa.me/${intl}`;
-}
-
-function telLink(phone) {
-  if (!phone) return "#";
-  const digits = phone.replace(/[\s\-()]/g, "");
-  const intl = digits.startsWith("0") ? "+44" + digits.slice(1) : "+" + digits;
-  return `tel:${intl}`;
-}
+import { titleCase } from "../../utils/text.js";
+import { waLink, telLink } from "./dog-card/helpers.js";
 
 function HumanBookingHistory({ human, dogs, bookingsByDate }) {
   const history = useMemo(() => {
