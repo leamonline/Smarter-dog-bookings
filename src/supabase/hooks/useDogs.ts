@@ -417,6 +417,59 @@ export function useDogs(humansById: Record<string, any>) {
     [humansById],
   );
 
+  const fetchDogById = useCallback(async (dogId: string) => {
+    if (!dogId) return null;
+
+    // Check local cache first
+    if (dogsById[dogId]) {
+      const row = dogsById[dogId];
+      const owner = humansById?.[row.human_id || ""];
+      return {
+        id: row.id,
+        name: row.name,
+        breed: row.breed,
+        age: row.age || "",
+        size: (row.size as any) || null,
+        humanId: owner ? owner.fullName : (row.human_id || ""),
+        _humanId: row.human_id || null,
+        alerts: row.alerts || [],
+        groomNotes: row.groom_notes || "",
+        customPrice: row.custom_price,
+        dob: row.dob || "",
+      };
+    }
+
+    if (!supabase) return null;
+
+    const { data, error: err } = await supabase
+      .from("dogs")
+      .select("*")
+      .eq("id", dogId)
+      .single();
+
+    if (err || !data) return null;
+
+    // Merge into local caches so subsequent lookups are instant
+    setDogsById((prev) => ({ ...prev, [data.id]: data }));
+    const owner = humansById?.[data.human_id || ""];
+    const dogObj = {
+      id: data.id,
+      name: data.name,
+      breed: data.breed,
+      age: data.age || "",
+      size: (data.size as any) || null,
+      humanId: owner ? owner.fullName : (data.human_id || ""),
+      _humanId: data.human_id || null,
+      alerts: data.alerts || [],
+      groomNotes: data.groom_notes || "",
+      customPrice: data.custom_price,
+      dob: data.dob || "",
+    };
+    setDogs((prev) => ({ ...prev, [data.name]: dogObj }));
+
+    return dogObj;
+  }, [dogsById, humansById]);
+
   return {
     dogs,
     dogsById,
@@ -424,6 +477,7 @@ export function useDogs(humansById: Record<string, any>) {
     error,
     updateDog,
     addDog,
+    fetchDogById,
     hasMore,
     totalCount,
     loadMore,

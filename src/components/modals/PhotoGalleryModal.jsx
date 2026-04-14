@@ -21,6 +21,7 @@ export function PhotoGalleryModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [failedIds, setFailedIds] = useState(new Set());
   const mountedRef = useRef(true);
 
   const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
@@ -171,12 +172,13 @@ export function PhotoGalleryModal({
                   className="bg-transparent border-none p-0 cursor-pointer text-left rounded-xl overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden">
-                    {photo.signedUrl ? (
+                    {photo.signedUrl && !failedIds.has(photo.id) ? (
                       <img
                         src={photo.signedUrl}
                         alt="Groom photo"
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        onError={() => setFailedIds((prev) => new Set(prev).add(photo.id))}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

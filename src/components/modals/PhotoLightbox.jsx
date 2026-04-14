@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { IconGallery } from "../icons/index.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
 import { formatDateStr } from "../../utils/text.js";
 
@@ -19,6 +20,7 @@ export function PhotoLightbox({
   const [notesValue, setNotesValue] = useState(photo.notes);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
 
@@ -49,11 +51,19 @@ export function PhotoLightbox({
       >
         {/* Image */}
         <div className="relative bg-slate-900 rounded-t-2xl">
-          <img
-            src={photo.signedUrl}
-            alt="Groom photo"
-            className="w-full max-h-[55vh] object-contain rounded-t-2xl"
-          />
+          {!imgFailed ? (
+            <img
+              src={photo.signedUrl}
+              alt="Groom photo"
+              className="w-full max-h-[55vh] object-contain rounded-t-2xl"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <div className="w-full h-[200px] flex flex-col items-center justify-center text-slate-400 rounded-t-2xl">
+              <IconGallery size={36} colour="#CBD5E1" />
+              <p className="text-sm mt-2">Photo unavailable</p>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="absolute top-3 right-3 bg-black/50 text-white border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
