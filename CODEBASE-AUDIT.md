@@ -466,3 +466,68 @@ Ranked by impact (highest first). Each includes what, where, the improvement, an
 **Where:** Various — the staff dashboard has 33 `aria-label`/`role` attributes across 19 files, but many `<button>` elements with only icon content (e.g. close buttons rendered as `✕`) have no accessible name.
 **Improvement:** Audit all `<button>` and clickable `<div>` elements, adding `aria-label` where the visible text is absent or insufficient.
 **Why:** Screen readers cannot describe unlabelled buttons. The codebase already uses `react-aria` for modals — extending accessibility to all interactive elements is consistent with that investment.
+
+---
+
+## 6. Backend/Frontend Integration
+
+### 6.1 API Contracts & Data Layer
+
+**Overall assessment: GOOD.** The Supabase data layer is well-structured with a clear transform boundary.
+
+**Strengths:**
+- The `src/supabase/transforms.ts` file (319 lines, 665 lines of tests) provides a clean boundary between DB snake_case rows and app-layer camelCase models. All hooks go through these transforms — there's no raw DB shape leaking into components.
+- Type definitions in `src/types/index.ts` cover all major entities (`Human`, `Dog`, `Booking`, `SalonConfig`, `DaySettings`, etc.) and are used consistently in `.ts`/`.tsx` files.
+- The single-row `salon_config` pattern (with `appConfigToDb` / `dbConfigToApp` converters) is clean and avoids the complexity of a multi-row settings system.
+
+**Weaknesses:**
+- `.jsx` files (the majority of components) don't benefit from type checking. Props are passed untyped, so shape mismatches between what a hook returns and what a component expects are only caught at runtime. The `tsconfig.json` has `checkJs: false`.
+- The `useBookings` hook (486 lines) handles add, remove, update, and history fetch — it's doing too much. A cross-date booking move (reschedule) requires the caller to manage the "remove from old date, add to new date" dance rather than the hook providing an atomic `moveBooking(id, fromDate, toDate)`.
+- The `useHumans` hook (601 lines) is the largest hook and combines CRUD, pagination, search, and trusted-contact management. Trusted contact logic could be extracted.
+
+### 6.2 Realtime & Caching
+
+**Strengths:**
+- `useBookings` subscribes to Postgres changes via Supabase Realtime (`postgres_changes` channel) and refetches on INSERT/UPDATE/DELETE. Multi-tab and multi-device sync works.
+- `useWaitlist` similarly subscribes to realtime changes on `waitlist_entries`.
+- The PWA service worker (Workbox via `vite-plugin-pwa`) caches Supabase API responses with `NetworkFirst` strategy and 5-minute expiration — appropriate for a booking system.
+
+**Weaknesses:**
+- `useDogs` and `useHumans` do **not** subscribe to realtime changes. If a second staff member adds a dog or updates a customer's phone number, the first staff member won't see it until they refresh.
+- Booking data is fetched per-week (`useBookings(weekStart, ...)`). When viewing the month calendar or reports, the bookings for out-of-view weeks are not loaded. The `StatsView` and `ReportsView` work around this by querying Supabase directly (via `useReportsData`) rather than using the shared booking state — a pragmatic but architecturally inconsistent approach.
+
+### 6.3 Loading, Error, and Empty States
+
+**Strengths:**
+- The main `App.jsx` has three explicit loading gates: auth loading, data loading, and bookings loading. Each shows `<LoadingSpinner />`.
+- `ErrorBoundary` wraps every `<Suspense>` boundary and every lazy-loaded view/modal — uncaught errors show a "Try again" button rather than a white screen.
+- `ErrorBanner` is shown when any data hook returns an error.
+- `SlotGrid` renders `<SkeletonCard />` placeholders while bookings load.
+- Empty slot grids show a centred "No bookings today — Tap a slot to add one" message.
+
+**Weaknesses:**
+- The customer portal has no `ErrorBoundary` inside the dashboard. If `AppointmentsSection` or `DogsSection` throws, the entire customer view crashes.
+- `useSalonConfig` has an `error` state but it's never exposed or checked — config load failures are silently swallowed.
+- Pagination in `useHumans` and `useDogs` doesn't show loading states for the "Load More" action — the button just appears unresponsive until data arrives.
+
+### 6.4 Authentication & Authorization
+
+**Strengths:**
+- **Dual auth architecture:** Staff use email/password (`useAuth`), customers use phone OTP (`useCustomerAuth`). Separate Supabase clients with separate `storageKey` values prevent session cross-contamination.
+- **RLS is comprehensive:** 21 migration files build up a layered RLS policy set. Staff-only access is gated by the `is_staff()` function (SECURITY DEFINER). Customer access is scoped to their own `customer_user_id`.
+- **Role escalation prevention:** Migration `005` prevents staff from self-promoting to `owner`. Migration `019` prevents customers from modifying `customer_user_id`, `history_flag`, or `phone`.
+- **Demo RPC lockdown:** Migration `010` revokes `get_demo_customers` and `get_demo_customer` from `anon`/`authenticated`, so demo RPCs only work with the service role key.
+- **Security headers:** Both `vercel.json` and `netlify.toml` set `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `HSTS`, `Permissions-Policy`, and CSP (albeit with the font-src bug noted in Section 3.2).
+- **Password policy:** Minimum 12 characters enforced in `LoginPage.jsx` and `ResetPasswordPage.jsx`.
+
+**Weaknesses:**
+- **No frontend route guards for customer portal.** The `/customer/*` routes rely entirely on `useCustomerAuth` returning `null` for unauthenticated users, which is correct, but there's no redirect-to-login for deep links — an unauthenticated user hitting `/customer/book` sees a loading skeleton indefinitely until the auth check completes and the login page renders.
+- **Demo mode in customer portal is guarded only by `import.meta.env.DEV`.** This is correct (demo mode won't run in production builds), but the `get_demo_customers` RPC is separately locked down at the DB level by migration `010` — defence in depth is good, but the two layers should be documented together.
+- **The `link_customer_to_human` RPC** (migration `004`) links a phone number to an auth user on first OTP login. If two humans have the same phone number in the DB, only the first match is linked. There's no handling for duplicate phones.
+
+### 6.5 Race Conditions & Stale Data
+
+**Potential issues:**
+- **Optimistic updates without rollback in several hooks.** `useSalonConfig.updateConfig` does an optimistic `setConfig(newConfig)` before the Supabase call, and rolls back on error — this is correct. But `useBookings.addBooking` does an optimistic insert and does not roll back on error — the local state shows a booking that was never persisted.
+- **Trusted contact updates** in `HumanCardModal.jsx` and `DogCardModal.jsx` perform bidirectional inserts (A trusts B, B trusts A) as two separate Supabase calls. If the second call fails, the trust relationship is half-created. There's a rollback attempt, but it's best-effort.
+- **The confirmed notification Edge Function** (`notify-booking-confirmed`) waits 2 seconds before checking for duplicate group sends. This is a pragmatic approach but could miss very rapid sequential inserts within the 2-second window.
