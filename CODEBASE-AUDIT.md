@@ -28,3 +28,303 @@
 **Source file count:** ~95 source files (excluding node_modules, build output, docs, and tooling config).
 
 **Total estimated source lines:** ~16,000 lines across frontend components, hooks, engine logic, Supabase hooks, SQL migrations, and Edge Functions.
+
+---
+
+## 2. Codebase Map
+
+### Entry Points
+
+| Entry | File | Purpose |
+|-------|------|---------|
+| HTML shell | `index.html` | SPA shell, loads Google Fonts (Quicksand + Montserrat), mounts `#root` |
+| React root | `src/index.jsx` | Creates `BrowserRouter`, splits routes: `/reset-password`, `/customer/*`, `/*` |
+| Staff app | `src/App.jsx` (472 lines) | Main staff dashboard — auth gate, data hooks, view router, modal orchestration |
+| Customer app | `src/CustomerApp.jsx` (211 lines) | Customer portal — OTP auth, demo mode, booking wizard, dashboard |
+
+### Directory Structure
+
+```
+src/
+├── index.jsx                    — React entry, route splitting
+├── index.css                    — Tailwind v4 import + brand theme tokens + global button classes
+├── customer-portal.css          — 851-line CSS file for customer portal (non-Tailwind)
+├── App.jsx                      — Staff dashboard root component
+├── CustomerApp.jsx              — Customer portal root component
+├── vite-env.d.ts                — Vite client type declarations
+│
+├── types/
+│   └── index.ts                 — Core TypeScript interfaces (Dog, Human, Booking, SalonConfig, etc.)
+│
+├── constants/
+│   ├── index.ts                 — Barrel re-export for all constants
+│   ├── brand.ts                 — BRAND colour map, SIZE_THEME, SIZE_FALLBACK
+│   ├── salon.ts                 — SALON_SLOTS, MAX_DOGS_PER_SLOT, SERVICES, ALL_DAYS, LARGE_DOG_SLOTS, PRICING, BOOKING_STATUSES, ALERT_OPTIONS
+│   └── breeds.ts                — BREED_SIZE_MAP, BREED_LIST, getSizeForBreed()
+│
+├── engine/
+│   ├── bookingRules.ts          — Service validation, price helpers, entity lookup helpers
+│   ├── capacity.ts              — Core capacity engine: 2-2-1 rule, large dog rules, slot validation
+│   ├── capacity.test.js         — 492 lines, 55+ tests for capacity engine
+│   └── utils.ts                 — Date formatting, default open-day check, pickup time helpers
+│
+├── contexts/
+│   ├── SalonContext.tsx          — React context providing dogs/humans/bookings/callbacks to all components
+│   └── ToastContext.jsx          — Toast notification system (show/dismiss/undo)
+│
+├── data/
+│   └── sample.js                — Offline/demo mode sample data (humans, dogs, bookings)
+│
+├── hooks/
+│   ├── useAutosave.js           — Debounced autosave with status tracking
+│   ├── useBookingActions.ts     — Online/offline booking action resolver
+│   ├── useBookingEditState.ts   — Booking detail modal edit state management
+│   ├── useBookingSave.ts        — Booking save logic with validation
+│   ├── useKeyboardShortcuts.ts  — Global keyboard shortcuts (N, T, arrows)
+│   ├── useModalState.ts         — Modal open/close state for App.jsx
+│   ├── useOfflineState.js       — Full offline mode state + CRUD (322 lines)
+│   ├── useRebookFlow.js         — Rebook-from-previous-appointment logic
+│   ├── useReportsData.ts        — Reports data fetching + analytics computation (378 lines)
+│   ├── useSlotAvailability.ts   — Slot availability computation for edit modal
+│   └── useWeekNav.js            — Week navigation (offset, date computation, date picking)
+│
+├── supabase/
+│   ├── client.js                — Staff Supabase client (with navigator.locks fallback)
+│   ├── customerClient.js        — Customer Supabase client (separate storage key)
+│   ├── seed.js                  — Database seeder script (service_role key, CLI only)
+│   ├── transforms.ts            — DB row ↔ app model transforms (319 lines)
+│   ├── transforms.test.ts       — 665-line test suite for transforms
+│   └── hooks/
+│       ├── useAuth.js           — Staff auth (email/password, staff profiles, role checks)
+│       ├── useBookings.js       — Booking CRUD + realtime subscription (486 lines)
+│       ├── useCustomerAuth.js   — Customer OTP auth (phone-based)
+│       ├── useDaySettings.js    — Per-date open/closed, overrides, extra slots
+│       ├── useDogs.ts           — Dog CRUD + pagination + search (435 lines)
+│       ├── useHumans.ts         — Human CRUD + pagination + search + trusted contacts (601 lines)
+│       ├── useSalonConfig.js    — Single-row salon config CRUD
+│       └── useWaitlist.js       — Waitlist entries + realtime subscription
+│
+├── components/
+│   ├── icons/
+│   │   └── index.jsx            — 7 SVG icon components (Tick, Block, Reopen, Edit, Message, Plus, Search)
+│   │
+│   ├── shared/
+│   │   ├── AccessibleModal.tsx  — FocusScope + useDialog modal wrapper (react-aria)
+│   │   ├── ConfirmDialog.jsx    — Reusable confirm/cancel dialog
+│   │   ├── LiveAnnouncer.tsx    — ARIA live region provider (NOT USED)
+│   │   ├── PullToRefresh.jsx    — Touch pull-to-refresh wrapper
+│   │   └── SkeletonCard.jsx     — Loading placeholder card
+│   │
+│   ├── ui/
+│   │   ├── AvailableSeat.jsx    — Available seat row display (NOT USED)
+│   │   ├── BlockedSeat.jsx      — Blocked seat row display (NOT USED)
+│   │   ├── CapacityBar.jsx      — 2-bar capacity indicator (NOT USED)
+│   │   ├── ErrorBanner.jsx      — Error alert banner
+│   │   ├── ErrorBoundary.jsx    — React error boundary (class component)
+│   │   ├── Legend.jsx           — Icon legend popover (NOT USED)
+│   │   ├── LoadingSpinner.jsx   — Centred spinner
+│   │   ├── SizeTag.jsx          — Coloured size dot indicator
+│   │   └── StaffIconBtn.jsx     — Small icon button
+│   │
+│   ├── auth/
+│   │   ├── LoginPage.jsx        — Staff email/password login + forgot password
+│   │   ├── CustomerLoginPage.jsx — Customer OTP login (UK mobile)
+│   │   └── ResetPasswordPage.jsx — Password recovery flow
+│   │
+│   ├── layout/
+│   │   ├── AppToolbar.jsx       — Top nav bar + mobile bottom tab bar
+│   │   ├── CalendarTabs.jsx     — Day tab strip + month tab + waitlist tab
+│   │   ├── ClosedDayView.jsx    — "Salon closed" placeholder with open button
+│   │   ├── DashboardHeader.jsx  — Date header + revenue card + search bar
+│   │   ├── DayTab.jsx           — Individual day tab with dog count
+│   │   ├── FloatingActions.jsx  — Floating revenue note + book button (NOT USED)
+│   │   ├── MonthTab.jsx         — Mini month calendar tab
+│   │   ├── ShopSign.jsx         — Open/Closed shop sign decoration (NOT USED)
+│   │   └── WeekCalendarView.jsx — Main calendar view (506 lines) — day/month mode, slot grid, rebook
+│   │
+│   ├── booking/
+│   │   ├── AddBookingForm.jsx   — Inline booking form (dog search, size/service select)
+│   │   ├── BlockedSeatCell.jsx  — Blocked seat grid cell (dashed border)
+│   │   ├── BookingCard.jsx      — Original booking card row (NOT USED — replaced by BookingCardNew)
+│   │   ├── BookingCardNew.jsx   — Current booking card (gradient accent, size dot)
+│   │   ├── GhostSeat.jsx       — Empty seat placeholder with book/block buttons
+│   │   ├── SlotGrid.jsx         — Time slot grid rendering all seats
+│   │   ├── WaitlistNote.jsx     — Compact waitlist tab/popover
+│   │   └── WaitlistPanel.jsx    — Inline waitlist panel with confirm dialog
+│   │
+│   ├── modals/
+│   │   ├── AddDogModal.jsx      — New dog creation form (419 lines)
+│   │   ├── AddHumanModal.jsx    — New human creation form
+│   │   ├── BookingDetailModal.jsx — Full booking detail/edit modal (635 lines)
+│   │   ├── ChainBookingModal.jsx — Recurring/chain booking creation (517 lines)
+│   │   ├── ContactPopup.jsx     — Human contact info popup
+│   │   ├── DatePickerModal.jsx  — Month calendar date picker
+│   │   ├── DogCardModal.jsx     — Dog detail/edit card (453 lines)
+│   │   ├── HumanCardModal.jsx   — Human detail/edit card (618 lines)
+│   │   ├── NewBookingModal.jsx  — Multi-dog new booking orchestrator
+│   │   ├── RecurringBookingModal.jsx — View/cancel recurring booking series
+│   │   ├── RescheduleModal.jsx  — 7-day reschedule picker
+│   │   ├── booking-detail/      — BookingDetailModal sub-components (6 files)
+│   │   ├── dog-card/            — DogCardModal sub-components + helpers (6 files)
+│   │   └── new-booking/         — NewBookingModal sub-components + helpers (5 files)
+│   │
+│   ├── views/
+│   │   ├── DogsView.jsx         — Dogs directory with search + pagination
+│   │   ├── HumansView.jsx       — Humans directory with search + pagination
+│   │   ├── ReportsView.jsx      — Reports dashboard (7 widget sub-components)
+│   │   ├── SettingsView.jsx     — Settings hub (9 settings sub-components)
+│   │   ├── StatsView.jsx        — Weekly stats snapshot
+│   │   ├── reports/             — Report widget components (7 files)
+│   │   └── settings/            — Settings panel components (10 files)
+│   │
+│   └── customer/
+│       ├── CustomerDashboard.jsx — Customer home (appointments, dogs, details, trusted humans)
+│       ├── AppointmentsSection.jsx — Upcoming/past appointments list
+│       ├── DogsSection.jsx      — Customer's dogs display
+│       ├── MyDetailsCard.jsx    — Editable customer details card
+│       ├── TrustedHumansSection.jsx — Trusted humans list
+│       ├── AddToCalendarButton.tsx — Single-event .ics download
+│       ├── CalendarSubscribeModal.tsx — Calendar subscription (iCal feed URL)
+│       ├── dashboardConstants.js — Customer portal display constants
+│       └── booking/             — Customer booking wizard (7 files)
+
+supabase/
+├── migrations/                  — 21 SQL migration files (001–021)
+│   ├── 001_initial_schema.sql   — Core tables: humans, dogs, bookings, salon_config, day_settings
+│   ├── 002–005                  — Auth, staff profiles, RLS, role escalation prevention
+│   ├── 006_capacity_trigger.sql — Server-side capacity validation (372 lines)
+│   ├── 007–009                  — Group bookings, notification log, staff phone
+│   ├── 010_revoke_demo_rpcs.sql — Revoke demo RPC access from anon/authenticated
+│   ├── 011_indexes_and_functions.sql — FK indexes, search_path hardening, INITPLAN fix
+│   ├── 012–014                  — Waitlist table, pg_cron reminder job, waitlist trigger
+│   ├── 015_cancel_reason.sql    — Customer cancellation with reason
+│   ├── 016_security_hardening.sql — Staff profile visibility, audit log, customer notification access
+│   ├── 017_calendar_feed_tokens.sql — Calendar feed token management
+│   ├── 018–020                  — Waitlist RLS fix, customer self-update restriction, trigger auth fix
+│   └── 021_reminder_preferences.sql — Per-customer reminder hours/channels
+│
+└── functions/
+    ├── _shared/
+    │   ├── calendar-auth.ts     — Feed token validation
+    │   └── ics-generator.ts     — RFC 5545 iCal generation (VTIMEZONE, VEVENT, folding)
+    ├── calendar-feed/index.ts   — Subscribable multi-event iCal feed (customer/staff scoped)
+    ├── calendar-ics/index.ts    — Single-booking .ics download
+    ├── notify-booking-cancelled/index.ts — Cancellation notification (Twilio/SendGrid)
+    ├── notify-booking-confirmed/index.ts — Confirmation notification (group dedup)
+    ├── notify-booking-reminder/index.ts  — Daily reminder (pg_cron triggered)
+    └── notify-waitlist-joined/index.ts   — Staff alert on waitlist join
+```
+
+### Data Flow
+
+```
+Customer Portal                    Staff Dashboard
+     │                                   │
+     ▼                                   ▼
+customerSupabase                     supabase
+(separate auth session)          (staff auth session)
+     │                                   │
+     └──────────┐           ┌────────────┘
+                ▼           ▼
+           Supabase Postgres
+           (RLS enforced)
+                │
+    ┌───────────┼───────────┐
+    ▼           ▼           ▼
+ pg_cron    Webhooks    Edge Functions
+ (daily)   (on INSERT/  (notify-*, calendar-*)
+           DELETE)
+    │           │           │
+    ▼           ▼           ▼
+         Twilio / SendGrid
+         (WhatsApp, SMS, Email)
+```
+
+---
+
+## 3. Critical Issues
+
+These are bugs or misconfigurations that are broken or will break in production. Fix these first.
+
+### 3.1 CRITICAL — Booking reminder Edge Function is non-functional
+
+**File:** `supabase/functions/notify-booking-reminder/index.ts`, lines 1–13 and 134–139
+
+The `WEBHOOK_SECRET` constant is **never declared** in the environment variable block (lines 4–12). Every other notification function (`notify-booking-confirmed`, `notify-booking-cancelled`, `notify-waitlist-joined`) declares it on line 13 as:
+
+```ts
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+```
+
+This line is missing from `notify-booking-reminder`. At line 134 the function checks `if (!WEBHOOK_SECRET)` — since the variable is undefined, this will either throw a `ReferenceError` or always return `500 "WEBHOOK_SECRET not set"`. **No daily booking reminders are being sent.**
+
+**Impact:** Complete failure of the daily reminder cron job. Customers receive no appointment reminders.
+
+### 3.2 CRITICAL — CSP blocks Google Fonts in production
+
+**Files:** `vercel.json` line 14, `netlify.toml` line 19, `index.html` lines 13–15
+
+The Content-Security-Policy header specifies:
+- `font-src 'self'` — blocks font files from `fonts.gstatic.com`
+- `style-src 'self' 'unsafe-inline'` — blocks the external stylesheet from `fonts.googleapis.com`
+
+But `index.html` loads Google Fonts (Quicksand + Montserrat) from these exact origins:
+```html
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@...&family=Montserrat:wght@...&display=swap" rel="stylesheet">
+```
+
+The customer portal CSS (`src/customer-portal.css`) references `font-family: 'Quicksand'` and `font-family: 'Montserrat'` in 25+ declarations. **In production, all custom fonts are silently blocked by CSP — the entire customer portal renders in fallback system fonts.**
+
+The CSP also lacks `connect-src` entries for `@vercel/analytics` endpoints, which may silently fail.
+
+**Fix:** Add `https://fonts.googleapis.com` to `style-src`, add `https://fonts.gstatic.com` to `font-src`, and add Vercel analytics domains to `connect-src` in both `vercel.json` and `netlify.toml`.
+
+### 3.3 HIGH — `BookingDetailModal` uses undeclared `SALON_SLOTS`
+
+**File:** `src/components/modals/BookingDetailModal.jsx`, line 203
+
+```js
+const newActiveSlots = [...SALON_SLOTS, ...(newSettings.extraSlots || [])];
+```
+
+`SALON_SLOTS` is **not imported** in this file (lines 1–40 contain all imports; only `SERVICES`, `SIZE_THEME`, `SIZE_FALLBACK` are imported from `constants/index.js`). This will throw a `ReferenceError` at runtime when a staff member changes the date while editing a booking via the date picker.
+
+**Impact:** Editing a booking's date crashes the modal. The error is hidden behind the `ErrorBoundary` — the user sees "Something went wrong" with no explanation.
+
+### 3.4 HIGH — Hardcoded Supabase project URL in SQL migrations
+
+**Files:** `supabase/migrations/013_cron_and_waitlist_notify.sql` line 36, `supabase/migrations/014_waitlist_pg_net_trigger.sql` line 12, `supabase/migrations/020_fix_waitlist_trigger_auth.sql` line 13
+
+The Supabase project URL `https://nlzhllhkigmsvrzduefz.supabase.co` is hardcoded in three migrations. These migrations create `pg_cron` jobs and `pg_net` triggers that call Edge Functions at this specific URL. If the project is migrated, forked, or the project ref changes, the cron job and waitlist notification trigger will silently point to the wrong (or dead) endpoint.
+
+**Impact:** Not currently broken, but a deployment hazard. Should be parameterised via `current_setting('app.settings...')` or a migration variable.
+
+### 3.5 HIGH — `SlotGrid` block/unblock logic is identical
+
+**File:** `src/components/booking/SlotGrid.jsx`, lines 30–42
+
+Both `block` and `unblock` callbacks call `onOverride(slot, seatIndex, "blocked")` — they are **functionally identical**:
+
+```js
+const block = useCallback((slot, seatIndex) => {
+  onOverride(slot, seatIndex, "blocked");       // ← "blocked"
+  toast.show("Seat blocked", ...);
+}, ...);
+
+const unblock = useCallback((slot, seatIndex) => {
+  onOverride(slot, seatIndex, "blocked");       // ← also "blocked" (toggle)
+  toast.show("Seat unblocked", ...);
+}, ...);
+```
+
+The underlying override system uses a toggle mechanism (set if absent, remove if already set), so this *happens to work* — but the "Undo" callbacks in both toasts also pass `"blocked"`, meaning clicking Undo on a block toast would re-block the seat, and clicking Undo on an unblock toast would re-unblock it. The undo action is backwards in both cases.
+
+**Impact:** The "Undo" button on block/unblock toasts does the opposite of what the user expects.
+
+### 3.6 MEDIUM — `ResetPasswordPage` placeholder contradicts validation
+
+**File:** `src/components/auth/ResetPasswordPage.jsx`, line 132 vs line 51
+
+The password input placeholder says `"Min. 8 characters"` but the validation on line 51 enforces `password.length < 12` (minimum 12 characters). Users who enter 8–11 character passwords get a confusing error.
+
+**Impact:** UX confusion on password reset. Minor but trivially fixable.
