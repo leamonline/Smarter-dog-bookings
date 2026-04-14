@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
@@ -33,9 +33,10 @@ export function DogCardModal({
   onAddHuman,
   bookingsByDate,
   fetchBookingHistoryForDog,
+  fetchDogById,
   handleAdd,
 }) {
-  const resolvedDog = getDogByIdOrName(dogs, dogId) || {
+  const fallback = {
     id: dogId,
     name: dogId,
     breed: "",
@@ -45,6 +46,24 @@ export function DogCardModal({
     alerts: [],
     groomNotes: "",
   };
+
+  const [resolvedDog, setResolvedDog] = useState(
+    () => getDogByIdOrName(dogs, dogId) || fallback,
+  );
+
+  useEffect(() => {
+    const found = getDogByIdOrName(dogs, dogId);
+    if (found) {
+      setResolvedDog(found);
+      return;
+    }
+    // Dog not in the pre-loaded page — fetch on demand
+    if (fetchDogById) {
+      fetchDogById(dogId).then((dog) => {
+        if (dog) setResolvedDog(dog);
+      });
+    }
+  }, [dogId, dogs, fetchDogById]);
 
   const owner =
     getHumanByIdOrName(humans, resolvedDog._humanId || resolvedDog.humanId) ||
@@ -109,6 +128,23 @@ export function DogCardModal({
   const [hasAllergy, setHasAllergy] = useState(() =>
     (resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")),
   );
+
+  // Re-sync edit defaults when resolvedDog updates (e.g. after on-demand fetch)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditName(resolvedDog.name || "");
+      setEditBreed(resolvedDog.breed || "");
+      const dob = resolvedDog.dob || "";
+      setEditDobMonth(dob ? dob.split("-")[1] || "" : "");
+      setEditDobYear(dob ? dob.split("-")[0] || "" : "");
+      setEditNotes(resolvedDog.groomNotes || "");
+      setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
+      setEditAlerts([...(resolvedDog.alerts || [])]);
+      const allergy = (resolvedDog.alerts || []).find((a) => a.startsWith("Allergic to "));
+      setAllergyInput(allergy ? allergy.replace("Allergic to ", "") : "");
+      setHasAllergy((resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")));
+    }
+  }, [resolvedDog]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Trusted humans state ---
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);

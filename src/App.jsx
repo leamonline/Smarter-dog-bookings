@@ -148,6 +148,7 @@ export default function App() {
     error: de,
     updateDog: sbUpdateDog,
     addDog: sbAddDog,
+    fetchDogById,
     hasMore: dogsHasMore,
     totalCount: dogsTotalCount,
     loadMore: dogsLoadMore,
@@ -416,6 +417,7 @@ export default function App() {
               onAddHuman={addHuman}
               bookingsByDate={bookingsByDate}
               fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
+              fetchDogById={fetchDogById}
               handleAdd={handleAdd}
             />
           </Suspense>

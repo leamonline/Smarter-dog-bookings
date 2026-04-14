@@ -28,9 +28,13 @@ export function useGroomPhotos() {
     // Generate signed URLs for each photo
     const photos = await Promise.all(
       (data || []).map(async (row) => {
-        const { data: urlData } = await supabase.storage
+        const { data: urlData, error: urlError } = await supabase.storage
           .from("groom-photos")
           .createSignedUrl(row.storage_path, 3600);
+
+        if (urlError) {
+          console.warn("Signed URL failed for", row.storage_path, urlError);
+        }
 
         return {
           id: row.id,
