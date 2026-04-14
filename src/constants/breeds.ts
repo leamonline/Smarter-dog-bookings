@@ -185,7 +185,7 @@ const LARGE_BREEDS = [
 ];
 
 // Build the lookup map: lowercase breed name → size
-const BREED_SIZE_MAP = {};
+const BREED_SIZE_MAP: Record<string, string> = {};
 
 for (const breed of SMALL_BREEDS) {
   BREED_SIZE_MAP[breed.toLowerCase()] = "small";
@@ -203,7 +203,7 @@ export { BREED_SIZE_MAP };
  * Look up the size for a breed. Returns "small", "medium", "large", or null
  * if the breed isn't recognised (needs staff approval).
  */
-export function getSizeForBreed(breed) {
+export function getSizeForBreed(breed: string | null | undefined): string | null {
   if (!breed || !breed.trim()) return null;
   return BREED_SIZE_MAP[breed.trim().toLowerCase()] || null;
 }

@@ -68,6 +68,7 @@ export function SlotSelection({
           _ownerId: null,
           _pickupById: row.pickup_by_id || null,
           _bookingDate: row.booking_date,
+          _groupId: row.group_id || null,
         }));
 
         const dogs = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));

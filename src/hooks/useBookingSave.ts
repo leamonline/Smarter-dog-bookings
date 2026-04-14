@@ -6,6 +6,7 @@ import {
 } from "../engine/bookingRules.js";
 import { formatFullDate } from "../engine/utils.js";
 import { toDateStr } from "../supabase/transforms.js";
+import type { SlotOverrides, Human } from "../types/index.js";
 
 interface EditData {
   service: string;
@@ -38,7 +39,7 @@ interface UseBookingSaveParams {
   hasAllergy: boolean;
   allergyInput: string;
   booking: any;
-  humans: any[];
+  humans: Record<string, Human>;
   currentDateObj: Date;
   currentDateStr: string;
   editDayOpen: boolean;
@@ -96,12 +97,12 @@ export function useBookingSave({
       booking.size,
       editActiveSlots,
       {
-        overrides: editSettings.overrides?.[editData.slot] || {},
+        overrides: (editSettings.overrides?.[editData.slot] || {}) as SlotOverrides,
       },
     );
 
     if (!slotCheck.allowed) {
-      setSaveError(slotCheck.reason);
+      setSaveError(slotCheck.reason || "Slot unavailable");
       return;
     }
 

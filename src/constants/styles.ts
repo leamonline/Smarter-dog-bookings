@@ -7,6 +7,8 @@
  * with any remaining consumers. New code should use Tailwind classes directly.
  */
 
+import type React from "react";
+
 export const inputStyle = {
   width: "100%",
   padding: "10px 14px",
@@ -46,11 +48,11 @@ export const closeBtnStyle = {
 };
 
 /** Attach to onFocus for consistent input highlight */
-export const onInputFocus = (color = "#0EA5E9") => (e) => {
+export const onInputFocus = (color = "#0EA5E9") => (e: React.FocusEvent<HTMLInputElement>) => {
   e.target.style.borderColor = color;
 };
 
 /** Attach to onBlur to reset input border */
-export const onInputBlur = (e) => {
+export const onInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
   e.target.style.borderColor = "#E5E7EB";
 };

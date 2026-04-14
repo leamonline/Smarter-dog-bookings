@@ -129,7 +129,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         service: row.service, owner: "", status: row.status, addons: row.addons || [],
         pickupBy: "", payment: row.payment || "", confirmed: row.confirmed || false,
         _dogId: row.dog_id, _ownerId: null, _pickupById: row.pickup_by_id || null,
-        _bookingDate: row.booking_date,
+        _bookingDate: row.booking_date, _groupId: row.group_id || null,
       }));
 
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));

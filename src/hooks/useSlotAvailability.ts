@@ -1,14 +1,11 @@
 import { useMemo } from "react";
 import { canBookSlot } from "../engine/capacity.js";
 import { SALON_SLOTS } from "../constants/index.js";
-
-interface SlotOverrides {
-  [slot: string]: Record<string, unknown>;
-}
+import type { SlotOverrides } from "../types/index.js";
 
 interface EditSettings {
   isOpen?: boolean;
-  overrides?: SlotOverrides;
+  overrides?: Record<string, SlotOverrides>;
   extraSlots?: string[];
 }
 
