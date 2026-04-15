@@ -90,10 +90,64 @@ Cyan (`#00C2FF`) on white yields a contrast ratio of ~1.6:1, which fails WCAG AA
 
 **Removed tokens:** `--color-brand-blue`, `--color-brand-blue-dark` (replaced by the three-tier cyan scale).
 
+### Semantic token layer (added below `@theme` in `index.css`)
+
+Maps brand colours to intent. Developers use these — never raw brand tokens in components. Next rebrand = change the mappings, not every file.
+
+```css
+/* ── Semantic tokens ──────────────────────────────────────────── */
+/* Use THESE in components. Never use brand-cyan-* directly.      */
+:root {
+  /* Actions */
+  --color-action-primary: var(--color-brand-cyan);
+  --color-action-primary-hover: var(--color-brand-cyan-dark);
+  --color-action-cta: var(--color-brand-yellow);
+  --color-action-danger: var(--color-brand-coral);
+
+  /* Text */
+  --color-text-body: var(--color-brand-dark);
+  --color-text-heading: var(--color-brand-dark);
+  --color-text-link: var(--color-brand-cyan-dark);
+  --color-text-on-action: #FFFFFF;
+  --color-text-muted: theme(--color-slate-400);
+
+  /* Surfaces */
+  --color-surface-page: var(--color-brand-paper);
+  --color-surface-card: #FFFFFF;
+  --color-surface-header: var(--color-brand-cyan);
+
+  /* Borders */
+  --color-border-default: theme(--color-stone-200);
+  --color-border-focus: var(--color-brand-cyan-dark);
+  --color-border-accent: var(--color-brand-cyan-light);
+
+  /* Feedback */
+  --color-feedback-success: var(--color-brand-green);
+  --color-feedback-error: var(--color-brand-red);
+  --color-feedback-warning: var(--color-brand-yellow);
+}
+```
+
+**Migration path:** During this rebrand, existing `brand-*` Tailwind classes are swapped to the correct semantic token. New code should use semantic tokens exclusively. Existing code using raw brand tokens will work but is considered legacy.
+
 ### New shared utility classes in `index.css`
 
 ```css
-/* Pill button base — shared by portal and dashboard */
+/* ── Usage-locking classes ────────────────────────────────────── */
+/* Devs use THESE instead of raw colour classes.                  */
+/* "text-link" not "text-brand-cyan-dark"                         */
+.text-link       { color: var(--color-text-link); }
+.text-heading    { color: var(--color-text-heading); }
+.text-body       { color: var(--color-text-body); }
+.text-on-action  { color: var(--color-text-on-action); }
+.bg-action       { background-color: var(--color-action-primary); }
+.bg-action-hover { background-color: var(--color-action-primary-hover); }
+.bg-page         { background-color: var(--color-surface-page); }
+.bg-card         { background-color: var(--color-surface-card); }
+.border-accent   { border-color: var(--color-border-accent); }
+.border-focus    { border-color: var(--color-border-focus); }
+
+/* ── Pill button base ─────────────────────────────────────────── */
 .btn-pill {
   @apply rounded-full font-bold transition-all duration-300 cursor-pointer;
 }
@@ -106,29 +160,74 @@ Cyan (`#00C2FF`) on white yields a contrast ratio of ~1.6:1, which fails WCAG AA
   transition-duration: 80ms;
 }
 
-/* Glassmorphism card */
+/* ── Card variants ────────────────────────────────────────────── */
+
+/* Glassmorphism card — USE ONLY over coloured/image backgrounds  */
 .card-glass {
   @apply bg-white/60 backdrop-blur-sm border border-white/50 rounded-xl shadow-sm hover:shadow-md transition-all;
 }
 
-/* Solid card */
+/* Solid card — default for all content on white/paper surfaces   */
 .card-solid {
   @apply bg-white rounded-2xl shadow-lg border border-gray-100;
 }
 
-/* Entrance animation */
+/* ── Animations ───────────────────────────────────────────────── */
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out forwards;
 }
 
-/* Hover lift for cards */
 .hover-lift {
   transition: transform 300ms ease;
 }
 .hover-lift:hover {
   transform: translateY(-4px);
 }
+
+/* ── Motion safety ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .hover-lift,
+  .btn-pill,
+  .btn,
+  .portal-btn {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  /* Allow opacity transitions (non-motion) but kill transforms */
+  .animate-fade-in-up {
+    opacity: 1 !important;
+  }
+}
+
+/* ── Global focus styles ──────────────────────────────────────── */
+/* One rule. Every focusable element. Consistent everywhere.      */
+:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+/* Remove default outline — :focus-visible handles it */
+:focus:not(:focus-visible) {
+  outline: none;
+}
 ```
+
+### Glassmorphism usage rules
+
+`.card-glass` is powerful but dangerous. Rules:
+
+| Allowed | Not allowed |
+|---------|-------------|
+| Over coloured section backgrounds (cyan, teal, coral) | Over white or paper backgrounds (use `.card-solid`) |
+| Hero areas and feature highlights | Dense data tables |
+| Testimonial cards, stats overlays | Forms and input-heavy areas |
+| Where content is short (1-3 lines) | Long-form reading content |
+
+**Fallback requirement:** `.card-glass` always renders as opaque white at 60% on devices that don't support `backdrop-filter`. Content must be readable without the blur effect.
+
+**Performance rule:** Maximum 4 glass cards visible on screen at once. Beyond that, the compositor cost degrades scroll performance on low-end devices.
 
 ### Staff dashboard `.btn` class updates
 
@@ -202,7 +301,7 @@ Quicksand (legacy), Sora, and DM Sans removed. Montserrat weight 900 dropped (un
 | `.portal-btn:hover` | `transform` | `scale(1.02)` | `translateY(-2px)` (lift, not scale — avoids width jitter on pills) |
 | `.portal-btn:hover` | `box-shadow` | `rgba(45, 0, 75, 0.15)` | `0 4px 12px rgba(0, 0, 0, 0.1)` |
 | `.portal-btn:active` | `transform` | `scale(0.98)` | `scale(0.95)` |
-| `.portal-btn:focus-visible` | `outline` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan-dark)` (dark cyan for visibility) |
+| `.portal-btn:focus-visible` | `outline` | `2px solid var(--sd-purple)` | Removed — handled by global `:focus-visible` rule in `index.css` |
 | `.portal-btn--primary` | `background` | `var(--sd-purple)` | `var(--sd-cyan)` (`#007AAB` — white bold text at 3.1:1) |
 | `.portal-btn--secondary` | `border` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan-dark)` |
 | `.portal-btn--secondary` | `color` | `var(--sd-purple)` | `var(--sd-cyan-dark)` (`#005986` — 5.2:1 on white) |
@@ -331,13 +430,33 @@ Single line change to the Google Fonts `<link>` tag.
 - **Cached CSS**: Users with cached old styles will see a flash of the old design on first load after deploy.
 - **Glassmorphism performance**: `backdrop-blur-sm` requires heavy browser repainting. The solid fallback (`bg-white/60`) degrades gracefully on older devices — no visual breakage, just no blur.
 
-## Accessibility Notes (Revision 1)
+## Hard Bans
 
-These were identified during review and incorporated into the spec above:
+These are not guidelines — they are constraints. Violating them is a bug.
+
+| Rule | Why |
+|------|-----|
+| Never use `cyan-light` (`#00C2FF`) for text or small icons | 1.6:1 contrast on white — fails WCAG AA, invisible to many users |
+| Never use `cyan-light` for focus borders | Too light to indicate focus state reliably |
+| Never use `.card-glass` inside forms | Blur + transparency makes form fields hard to read; use `.card-solid` |
+| Never use `.card-glass` over white/paper backgrounds | No visible effect — wastes GPU compositing for nothing |
+| Never apply `hover:scale-*` to pill buttons wider than ~120px | Width expansion jitters adjacent layout; use `translateY(-2px)` instead |
+| Never apply hover/active transforms to layout containers | Transforms on parents shift all children; restrict to leaf interactive elements |
+| Never use raw `brand-cyan-*` classes in new code | Use semantic classes (`.text-link`, `.bg-action`, etc.) — raw tokens are legacy |
+| Never use `cyan-50` for text | It's a decorative wash — 0.3:1 contrast |
+| Never omit `@media (prefers-reduced-motion)` when adding animations | Legal compliance in some regions; essential for neurodivergent users |
+| Never mix portal classes (`.portal-*`) and dashboard classes (`.btn`) in the same component | Different design systems — mixing creates visual incoherence |
+
+## Accessibility Notes (Revision 2)
+
+Identified during review and incorporated into the spec:
 
 1. **Cyan contrast failure resolved.** Raw cyan (`#00C2FF`) at 1.6:1 on white fails WCAG AA. Solved with a three-tier scale: `cyan-light` (decorative only), `cyan` (`#007AAB`, 3.1:1 — AA for large/bold text), `cyan-dark` (`#005986`, 5.2:1 — AA for normal text). Every usage in the spec is mapped to the appropriate tier.
 2. **Button hover changed from `scale(1.05)` to `translateY(-2px)`.** A 5% scale on a wide pill button expands its width by ~12px, causing adjacent layout elements to jitter. Vertical lift avoids this while maintaining the interactive feel.
 3. **Form input resting borders stay neutral grey.** Cyan is too light for a resting border state. `stone-200` at rest, `cyan-dark` on focus — clear distinction between idle and active fields.
+4. **Motion safety added.** `@media (prefers-reduced-motion: reduce)` kills all transforms and animations on `.animate-fade-in-up`, `.hover-lift`, `.btn-pill`, `.btn`, and `.portal-btn`. Opacity is forced to 1 so fade-in content remains visible.
+5. **Global focus styles consolidated.** Single `:focus-visible` rule with `2px solid cyan-dark` + `2px offset` replaces per-component focus declarations. Consistent across all interactive elements.
+6. **Semantic tokens added.** Developers use intent-based classes (`.text-link`, `.bg-action`) instead of raw colour tokens. This prevents misuse and makes future rebrands a one-file change.
 
 ## Out of Scope
 
