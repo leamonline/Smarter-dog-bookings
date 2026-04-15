@@ -48,7 +48,7 @@ export function PullToRefresh({ onRefresh, children }) {
           style={{ height: refreshing ? 36 : pullDistance * 0.6 }}
         >
           {refreshing ? (
-            <svg className="animate-spin w-4 h-4 text-brand-blue" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin w-4 h-4 text-brand-cyan" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
               <path d="M12 2a10 10 0 019.8 8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>

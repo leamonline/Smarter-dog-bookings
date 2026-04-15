@@ -25,7 +25,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
+      <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
         <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -49,7 +49,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-blue border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+              className="bg-white text-brand-cyan border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
             >
               + Add Human
             </button>

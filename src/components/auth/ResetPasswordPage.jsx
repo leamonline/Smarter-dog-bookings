@@ -106,7 +106,7 @@ export function ResetPasswordPage() {
           </div>
           <a
             href="/"
-            className="inline-block py-2.5 px-5 bg-brand-blue text-white rounded-[10px] text-sm font-bold no-underline"
+            className="inline-block py-2.5 px-5 bg-brand-cyan text-white rounded-[10px] text-sm font-bold no-underline"
           >
             Back to sign in
           </a>
@@ -132,7 +132,7 @@ export function ResetPasswordPage() {
       <div className={cardCls}>
         <div className="text-center mb-6">
           <div className="text-[28px] font-extrabold text-slate-800">
-            Smarter<span className="text-brand-blue">Dog</span>
+            Smarter<span className="text-brand-cyan">Dog</span>
           </div>
           <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
         </div>
@@ -152,7 +152,7 @@ export function ResetPasswordPage() {
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
               placeholder="Min. 12 characters"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-blue"
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-cyan"
               autoFocus
             />
           </div>
@@ -164,7 +164,7 @@ export function ResetPasswordPage() {
               value={confirm}
               onChange={e => { setConfirm(e.target.value); setError(""); }}
               placeholder="Same again"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-blue"
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-cyan"
             />
           </div>
 
@@ -180,7 +180,7 @@ export function ResetPasswordPage() {
             className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] mt-1 ${
               saving
                 ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-brand-blue text-white cursor-pointer"
+                : "bg-brand-cyan text-white cursor-pointer"
             }`}
           >
             {saving ? "Saving..." : "Set new password"}

@@ -11,7 +11,7 @@ export function DogsSection({ dogs }) {
       {dogs.length === 0 ? (
         <div className="text-center py-4">
           <PawPrint size={32} className="text-slate-300 mx-auto mb-2" aria-hidden="true" />
-          <p className="text-sm font-semibold text-brand-purple m-0 mb-1">No dogs on file</p>
+          <p className="text-sm font-semibold text-brand-cyan-dark m-0 mb-1">No dogs on file</p>
           <p className="text-[13px] text-slate-500 m-0">
             <a href="tel:+441onal" className="text-brand-teal font-semibold hover:underline">Contact the salon</a> to add your dogs
           </p>
@@ -20,12 +20,12 @@ export function DogsSection({ dogs }) {
         dogs.map(dog => (
           <div key={dog.id} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-b-0">
             <div>
-              <div className="text-[15px] font-semibold text-brand-purple font-[Sora]">{dog.name}</div>
+              <div className="text-[15px] font-semibold text-brand-cyan-dark font-[Montserrat]">{dog.name}</div>
               <div className="text-[13px] font-medium text-slate-500 mt-0.5">
                 {dog.breed}{dog.size ? ` \u00B7 ${dog.size}` : ""}
               </div>
               {dog.groom_notes && (
-                <div className="text-xs text-brand-purple-light bg-purple-50 py-1 px-2.5 rounded-md mt-1.5 font-medium">
+                <div className="text-xs text-brand-cyan-dark-light bg-cyan-50 py-1 px-2.5 rounded-md mt-1.5 font-medium">
                   {dog.groom_notes}
                 </div>
               )}

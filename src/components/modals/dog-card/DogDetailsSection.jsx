@@ -172,7 +172,7 @@ export function DogDetailsSection({
                     value={ownerSearchQuery}
                     onChange={(e) => setOwnerSearchQuery(e.target.value)}
                     autoFocus
-                    className={`${INPUT_CLS} pl-8 border-brand-blue`}
+                    className={`${INPUT_CLS} pl-8 border-brand-cyan`}
                   />
                 </div>
                 {ownerSearchResults.length > 0 && (

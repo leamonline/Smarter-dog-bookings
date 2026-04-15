@@ -162,7 +162,7 @@ export function AddBookingForm({
       {selectedDog ? (
         <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2.5 py-1.5">
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-bold text-brand-blue-dark">
+            <div className="text-[13px] font-bold text-brand-cyan-dark">
               {selectedDog.name}
             </div>
             <div className="text-[11px] text-slate-800">
@@ -189,7 +189,7 @@ export function AddBookingForm({
               setDogQuery(e.target.value);
               setError("");
             }}
-            className="w-full py-[7px] pl-[26px] pr-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border transition-colors focus:border-brand-blue"
+            className="w-full py-[7px] pl-[26px] pr-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border transition-colors focus:border-brand-cyan"
             autoFocus
           />
           {dogResults.length > 0 && (

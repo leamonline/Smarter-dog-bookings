@@ -10,7 +10,7 @@ export function Legend() {
       <button
         onClick={() => setOpen((p) => !p)}
         className={`w-8 h-8 rounded-full border-none text-base font-extrabold cursor-pointer flex items-center justify-center transition-all shrink-0 shadow-[0_1px_4px_rgba(0,0,0,0.1)] ${
-          open ? "bg-brand-blue text-white" : "bg-slate-50 text-slate-500"
+          open ? "bg-brand-cyan text-white" : "bg-slate-50 text-slate-500"
         }`}
         title="Show legend"
       >

@@ -15,7 +15,7 @@ export function TrustedHumansSection({ trustedHumans }) {
       ) : (
         trustedHumans.map(th => (
           <div key={th.id} className="py-2.5 border-b border-slate-100 last:border-b-0">
-            <div className="text-sm font-semibold text-brand-purple font-[Sora]">{th.name} {th.surname}</div>
+            <div className="text-sm font-semibold text-brand-cyan-dark font-[Montserrat]">{th.name} {th.surname}</div>
             <div className="text-xs text-slate-500 font-medium">{th.phone}</div>
           </div>
         ))

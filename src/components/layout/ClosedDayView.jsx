@@ -8,7 +8,7 @@ export function ClosedDayView({ onOpen }) {
       </div>
       <button
         onClick={onOpen}
-        className="btn btn-primary focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2"
+        className="btn btn-primary focus:outline-none focus:ring-2 focus:ring-brand-cyan focus:ring-offset-2"
       >
         Open this day
       </button>

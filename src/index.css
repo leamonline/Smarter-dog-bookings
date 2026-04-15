@@ -1,13 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand accent colours */
-  --color-brand-blue: #0EA5E9;
-  --color-brand-blue-dark: #0284C7;
+  /* Primary brand scale — accessible cyan */
+  --color-brand-cyan-light: #00C2FF;
+  --color-brand-cyan: #007AAB;
+  --color-brand-cyan-dark: #005986;
+
+  /* Accents */
   --color-brand-coral: #E8567F;
   --color-brand-coral-light: #FDE2E8;
   --color-brand-teal: #2D8B7A;
-  --color-brand-green: #16A34A;
+  --color-brand-green: #00D94A;
+  --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
 
   /* Customer portal palette */
@@ -16,6 +20,7 @@
   --color-brand-yellow: #FFCC00;
   --color-brand-yellow-dark: #D4A500;
   --color-brand-paper: #FAF9F6;
+  --color-brand-dark: #2A1810;
 
   /* Size dot colours */
   --color-size-small: #F5C518;
@@ -23,13 +28,59 @@
   --color-size-large: #E8567F;
 }
 
-/* Body reset */
+/* ── Semantic tokens ──────────────────────────────────────────── */
+:root {
+  --color-action-primary: var(--color-brand-cyan);
+  --color-action-primary-hover: var(--color-brand-cyan-dark);
+  --color-action-cta: var(--color-brand-yellow);
+  --color-action-danger: var(--color-brand-coral);
+
+  --color-text-body: var(--color-brand-dark);
+  --color-text-heading: var(--color-brand-dark);
+  --color-text-link: var(--color-brand-cyan-dark);
+  --color-text-on-action: #FFFFFF;
+  --color-text-muted: theme(--color-slate-400);
+
+  --color-surface-page: var(--color-brand-paper);
+  --color-surface-card: #FFFFFF;
+  --color-surface-header: var(--color-brand-cyan);
+
+  --color-border-default: theme(--color-stone-200);
+  --color-border-focus: var(--color-brand-cyan-dark);
+  --color-border-accent: var(--color-brand-cyan-light);
+
+  --color-feedback-success: var(--color-brand-green);
+  --color-feedback-error: var(--color-brand-red);
+  --color-feedback-warning: var(--color-brand-yellow);
+}
+
+/* ── Usage-locking classes ────────────────────────────────────── */
+.text-link       { color: var(--color-text-link); }
+.text-heading    { color: var(--color-text-heading); }
+.text-body       { color: var(--color-text-body); }
+.text-on-action  { color: var(--color-text-on-action); }
+.bg-action       { background-color: var(--color-action-primary); }
+.bg-page         { background-color: var(--color-surface-page); }
+.bg-card         { background-color: var(--color-surface-card); }
+.border-accent   { border-color: var(--color-border-accent); }
+.border-focus    { border-color: var(--color-border-focus); }
+
+/* ── Global focus ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Body reset ───────────────────────────────────────────────── */
 body {
   margin: 0;
   background-color: theme(--color-slate-50);
 }
 
-/* Animations */
+/* ── Animations ───────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -40,17 +91,78 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Text colour hierarchy ───────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Motion safety ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .hover-lift,
+  .btn-pill,
+  .btn,
+  .portal-btn {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .animate-fade-in-up {
+    opacity: 1 !important;
+  }
+}
+
+/* ── Shared utility classes ───────────────────────────────────── */
+.btn-pill {
+  @apply rounded-full font-bold transition-all duration-300 cursor-pointer;
+}
+.btn-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.btn-pill:active {
+  transform: scale(0.95);
+  transition-duration: 80ms;
+}
+
+.card-glass {
+  @apply bg-white/60 backdrop-blur-sm border border-white/50 rounded-xl shadow-sm hover:shadow-md transition-all;
+}
+
+.card-solid {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.hover-lift {
+  transition: transform 300ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* ── Text colour hierarchy ───────────────────────────────────── */
 /* Primary text: text-slate-800 */
 /* Secondary text: text-slate-600 */
 /* Muted/tertiary text: text-slate-400 */
 
-/* ── Standard button styles ──────────────────────────────────────── */
+/* ── Standard button styles (staff dashboard) ────────────────── */
 .btn {
-  @apply py-2 px-4 rounded-lg text-sm font-semibold cursor-pointer font-[inherit] transition-colors border-none;
+  @apply py-2 px-4 rounded-full text-sm font-semibold cursor-pointer font-[inherit] transition-all duration-300 border-none;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.btn:active {
+  transform: scale(0.95);
+  transition-duration: 80ms;
 }
 .btn-primary {
-  @apply bg-brand-blue text-white hover:bg-brand-blue-dark;
+  @apply bg-brand-cyan text-white hover:bg-brand-cyan-dark;
 }
 .btn-danger {
   @apply bg-brand-coral text-white hover:bg-[#d14468];
@@ -63,4 +175,6 @@ body {
 }
 .btn:disabled {
   @apply bg-slate-200 text-slate-400 cursor-not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }

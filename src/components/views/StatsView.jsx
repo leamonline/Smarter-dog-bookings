@@ -155,7 +155,7 @@ export function StatsView() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden">
         <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
         <div className="relative z-[1]">
           <div className="text-xl md:text-2xl font-black text-white">Weekly Snapshot</div>
@@ -186,7 +186,7 @@ export function StatsView() {
           {thisWeekData.map((day) => (
             <div key={day.label} className="flex-1 text-center flex flex-col items-center justify-end h-full">
               <div
-                className={`w-full max-w-[40px] rounded-t-md min-h-[4px] transition-[height] duration-300 ${day.isToday ? "bg-brand-teal" : "bg-brand-blue"}`}
+                className={`w-full max-w-[40px] rounded-t-md min-h-[4px] transition-[height] duration-300 ${day.isToday ? "bg-brand-teal" : "bg-brand-cyan"}`}
                 style={{
                   height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%`,
                 }}
@@ -217,9 +217,9 @@ export function StatsView() {
 
       {/* Operations card */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04),0_4px_16px_rgba(14,165,233,0.06)]">
-        <div className="h-[3px] bg-gradient-to-r from-brand-blue to-[#38BDF8]" />
+        <div className="h-[3px] bg-gradient-to-r from-brand-cyan to-[#38BDF8]" />
         <div className="p-5 px-6">
-        <div className="text-[13px] font-extrabold text-brand-blue uppercase tracking-widest mb-4">Operations</div>
+        <div className="text-[13px] font-extrabold text-brand-cyan uppercase tracking-widest mb-4">Operations</div>
 
         {/* Busiest day */}
         <div className="mb-5">
@@ -247,7 +247,7 @@ export function StatsView() {
                 </span>
                 <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden">
                   <div
-                    className="h-full bg-brand-blue rounded"
+                    className="h-full bg-brand-cyan rounded"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -269,7 +269,7 @@ export function StatsView() {
               <span className="text-[13px] font-semibold text-slate-800">
                 {i + 1}. {c.name}
               </span>
-              <span className="text-xs font-extrabold text-brand-blue">
+              <span className="text-xs font-extrabold text-brand-cyan">
                 {c.count} booking{c.count !== 1 ? "s" : ""}
               </span>
             </div>

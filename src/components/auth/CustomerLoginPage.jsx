@@ -58,14 +58,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
   };
 
   return (
-    <div className="min-h-screen bg-brand-paper flex items-center justify-center p-5 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-brand-paper flex items-center justify-center p-5 font-['Montserrat',sans-serif]">
       <div className="w-full max-w-[400px]">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <PawPrint size={28} className="text-brand-purple" aria-hidden="true" />
+            <PawPrint size={28} className="text-brand-cyan-dark" aria-hidden="true" />
           </div>
-          <div className="text-[28px] font-[800] text-brand-purple font-['Sora',sans-serif] tracking-tight">
+          <div className="text-[28px] font-[800] text-brand-cyan-dark font-['Montserrat',sans-serif] tracking-tight">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-sm text-slate-500 mt-1 font-medium">Customer Portal</div>
@@ -74,20 +74,20 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         <div className="bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
           {!otpSent ? (
             <>
-              <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-1">
+              <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1">
                 Welcome
               </div>
               <div className="text-[13px] text-slate-500 mb-5 font-medium">
                 Enter your mobile number and we'll text you a login code.
               </div>
               <form onSubmit={handleRequestOtp}>
-                <label className="text-[11px] font-bold text-brand-purple uppercase tracking-wider block mb-1.5 font-['Sora',sans-serif]">Mobile Number</label>
+                <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Mobile Number</label>
                 <input
                   type="tel"
                   value={phoneInput}
                   onChange={e => { setPhoneInput(e.target.value); setLocalError(""); }}
                   placeholder="07700 900000"
-                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-base font-[inherit] box-border outline-none text-brand-purple transition-colors focus:border-brand-purple"
+                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-base font-[inherit] box-border outline-none text-brand-cyan-dark transition-colors focus:border-brand-cyan-dark"
                   autoFocus
                   autoComplete="tel"
                 />
@@ -111,14 +111,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             </>
           ) : (
             <>
-              <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-1">
+              <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1">
                 Check your phone
               </div>
               <div className="text-[13px] text-slate-500 mb-5 font-medium">
-                We sent a 6-digit code to <strong className="text-brand-purple">{phone}</strong>
+                We sent a 6-digit code to <strong className="text-brand-cyan-dark">{phone}</strong>
               </div>
               <form onSubmit={handleVerifyOtp}>
-                <label className="text-[11px] font-bold text-brand-purple uppercase tracking-wider block mb-1.5 font-['Sora',sans-serif]">Verification Code</label>
+                <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Verification Code</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -126,7 +126,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   value={code}
                   onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setLocalError(""); }}
                   placeholder="000000"
-                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-2xl font-[inherit] box-border outline-none text-brand-purple transition-colors text-center tracking-[8px] font-bold focus:border-brand-purple"
+                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-2xl font-[inherit] box-border outline-none text-brand-cyan-dark transition-colors text-center tracking-[8px] font-bold focus:border-brand-cyan-dark"
                   autoFocus
                   autoComplete="one-time-code"
                 />
@@ -161,7 +161,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         {onDemoMode && (
           <button
             onClick={onDemoMode}
-            className="w-full mt-4 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-transparent text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit] transition-all hover:border-brand-purple hover:text-brand-purple"
+            className="w-full mt-4 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-transparent text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit] transition-all hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
           >
             Demo Mode — Preview as a customer
           </button>

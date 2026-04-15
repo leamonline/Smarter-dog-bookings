@@ -50,7 +50,7 @@ export function DatePickerModal({
       zIndex={1200}
     >
         {/* Header */}
-        <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark px-4 py-3.5 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark px-4 py-3.5 flex items-center justify-between">
           <button onClick={prevMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
             <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 3l-5 5 5 5" />
@@ -88,8 +88,8 @@ export function DatePickerModal({
 
             let bgCls = "bg-transparent hover:bg-slate-50";
             let textCls = "text-slate-800";
-            if (selected) { bgCls = "bg-brand-blue"; textCls = "text-white"; }
-            else if (today) { bgCls = "bg-sky-50 hover:bg-sky-100"; textCls = "text-brand-blue"; }
+            if (selected) { bgCls = "bg-brand-cyan"; textCls = "text-white"; }
+            else if (today) { bgCls = "bg-sky-50 hover:bg-sky-100"; textCls = "text-brand-cyan"; }
             if (disabled) { textCls = "text-slate-300"; bgCls = "bg-transparent"; }
 
             return (
@@ -116,7 +116,7 @@ export function DatePickerModal({
                 : getDefaultOpenForDate(today);
               if (isOpen) onSelectDate(today);
             }}
-            className="bg-transparent border-[1.5px] border-brand-blue rounded-lg px-5 py-2 text-[13px] font-semibold text-brand-blue cursor-pointer font-[inherit] hover:bg-sky-50"
+            className="bg-transparent border-[1.5px] border-brand-cyan rounded-lg px-5 py-2 text-[13px] font-semibold text-brand-cyan cursor-pointer font-[inherit] hover:bg-sky-50"
           >
             Today
           </button>

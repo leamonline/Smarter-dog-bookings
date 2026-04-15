@@ -48,7 +48,7 @@ export function ServiceSelection({
 
       {allSameSize && allowedForCommon.length > 0 && (
         <div className="bg-emerald-50 rounded-lg py-3 px-3.5 flex flex-col gap-2">
-          <div className="text-[13px] font-semibold text-brand-purple">
+          <div className="text-[13px] font-semibold text-brand-cyan-dark">
             Same service for all dogs:
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -56,7 +56,7 @@ export function ServiceSelection({
               <button
                 key={svc.id}
                 onClick={() => applyToAll(svc.id as ServiceId)}
-                className="py-1.5 px-3 rounded-md border-2 border-brand-purple bg-white text-brand-purple font-semibold text-[13px] cursor-pointer"
+                className="py-1.5 px-3 rounded-md border-2 border-brand-cyan-dark bg-white text-brand-cyan-dark font-semibold text-[13px] cursor-pointer"
               >
                 {svc.name}
               </button>
@@ -79,7 +79,7 @@ export function ServiceSelection({
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
                     className={`flex flex-col py-2.5 px-3.5 rounded-lg border-2 cursor-pointer text-left w-full ${
                       selected
-                        ? "border-brand-purple bg-purple-50"
+                        ? "border-brand-cyan-dark bg-cyan-50"
                         : "border-slate-200 bg-white"
                     }`}
                   >
@@ -87,7 +87,7 @@ export function ServiceSelection({
                       <span className="text-sm text-slate-800">
                         {svc.name}
                       </span>
-                      <span className={`text-sm font-semibold ${selected ? "text-brand-purple" : "text-slate-500"}`}>
+                      <span className={`text-sm font-semibold ${selected ? "text-brand-cyan-dark" : "text-slate-500"}`}>
                         {getPriceLabel(svc.id, dog.size)}
                       </span>
                     </div>
@@ -116,7 +116,7 @@ export function ServiceSelection({
           disabled={!allServiced}
           className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
             allServiced
-              ? "bg-brand-purple text-white cursor-pointer"
+              ? "bg-brand-cyan text-white cursor-pointer"
               : "bg-slate-200 text-slate-500 cursor-not-allowed"
           }`}
         >
