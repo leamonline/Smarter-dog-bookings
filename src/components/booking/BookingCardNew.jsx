@@ -23,9 +23,15 @@ const SIZE_DOT = {
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
 const STATUS_DISPLAY = {
-  "No-show":            { bg: "#F1F5F9", color: "#475569", label: "Booked" },
-  "Checked in":         { bg: "#DCFCE7", color: "#16A34A", label: "Checked in" },
-  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", label: "Finished" },
+  "No-show":            { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", label: "Booked" },
+  "Checked in":         { bg: "#ECFDF5", color: "#059669", border: "#A7F3D0", label: "Checked in" },
+  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", border: "#DDD6FE", label: "Finished" },
+};
+
+const SIZE_TOOLTIP = {
+  small: "Small dog",
+  medium: "Medium dog",
+  large: "Large dog",
 };
 
 export function BookingCardNew({ booking, onClick, searchDimmed }) {
@@ -99,15 +105,18 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
           <span
             className="w-3 h-3 rounded-full shrink-0 inline-block"
             style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
+            title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
           />
           <span className="text-sm md:text-[17px] font-extrabold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">
             {displayDogName}
           </span>
           {dogRecord?.alerts?.length > 0 && (
-            <svg width="14" height="14" viewBox="0 0 24 24" className="shrink-0">
-              <path d="M12 2L1 21h22L12 2z" fill="#E8567F" />
-              <text x="12" y="18" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontFamily="inherit">!</text>
-            </svg>
+            <span title="Alert — check notes" className="shrink-0 animate-pulse">
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M12 2L1 21h22L12 2z" fill="#E8567F" />
+                <text x="12" y="18" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontFamily="inherit">!</text>
+              </svg>
+            </span>
           )}
           {price && (
             <span className="text-sm md:text-[17px] font-black text-[#1E6B5C] ml-auto shrink-0">
@@ -116,17 +125,17 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
           )}
         </div>
 
-        {/* Row 2: breed */}
-        {displayBreed && (
-          <div className="text-xs md:text-sm font-semibold text-slate-500 pl-4 md:pl-5">
-            {displayBreed}
+        {/* Row 2: owner */}
+        {displayOwner && (
+          <div className="text-xs md:text-sm font-semibold text-brand-teal pl-4 md:pl-5">
+            {displayOwner}
           </div>
         )}
 
-        {/* Row 3: owner */}
-        {displayOwner && (
-          <div className="text-xs md:text-sm font-bold text-brand-teal pl-4 md:pl-5">
-            {displayOwner}
+        {/* Row 3: breed */}
+        {displayBreed && (
+          <div className="text-[10px] md:text-xs font-normal text-slate-400 pl-4 md:pl-5">
+            {displayBreed}
           </div>
         )}
 
@@ -139,10 +148,11 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
 
           {/* Status pill */}
           <span
-            className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate"
-            style={{ background: statusObj.bg, color: statusObj.color }}
+            className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
+            style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
           >
             {statusObj.label}
+            <span className="text-[8px] opacity-60">{"\u25BE"}</span>
           </span>
         </div>
         </div>

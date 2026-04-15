@@ -6,6 +6,7 @@ import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { customerSupabase as supabase } from "./supabase/customerClient.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
+import { PawPrint } from "lucide-react";
 import "./customer-portal.css";
 
 export default function CustomerApp() {
@@ -23,14 +24,11 @@ export default function CustomerApp() {
     resetOtp,
   } = useCustomerAuth();
 
-  // Demo mode state
   const [demoMode, setDemoMode] = useState(false);
   const [demoHuman, setDemoHuman] = useState(null);
   const [demoList, setDemoList] = useState([]);
   const [demoLoading, setDemoLoading] = useState(false);
 
-  // Fetch demo customers list (uses RPC to bypass RLS)
-  // Guarded: only available in development builds for safety
   const loadDemoList = async () => {
     if (!import.meta.env.DEV || !supabase) return;
     setDemoLoading(true);
@@ -55,7 +53,6 @@ export default function CustomerApp() {
     setDemoList([]);
   };
 
-  // If in demo mode and a human is selected, fall through to Routes block below
   const activeHuman = demoMode ? demoHuman : humanRecord;
   const handleSignOut = demoMode ? exitDemo : signOut;
 
@@ -78,43 +75,39 @@ export default function CustomerApp() {
     );
   }
 
-  // If in demo mode, show customer picker
+  // Demo mode — customer picker
   if (demoMode) {
     return (
-      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] p-5">
-        <div className="w-full max-w-[400px] bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-          <div className="text-xl font-extrabold text-slate-800 mb-1 text-center">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif] p-5">
+        <div className="w-full max-w-[400px] bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
+          <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-1 text-center">
             Demo Mode
           </div>
-          <div className="text-[13px] text-slate-500 mb-5 text-center">
+          <div className="text-[13px] text-slate-500 mb-5 text-center font-medium">
             Pick a customer to view their dashboard
           </div>
 
           {demoLoading ? (
-            <div className="text-center text-slate-500 py-5">
-              Loading...
-            </div>
+            <div className="text-center text-slate-500 py-5 text-sm">Loading...</div>
           ) : demoList.length === 0 ? (
-            <div className="text-center text-slate-500 py-5">
-              No customers found
-            </div>
+            <div className="text-center text-slate-500 py-5 text-sm">No customers found</div>
           ) : (
             <div className="flex flex-col gap-1.5">
               {demoList.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => handleDemoSelect(h.id)}
-                  className="flex justify-between items-center py-3 px-3.5 rounded-[10px] border border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-teal hover:bg-emerald-50"
+                  className="flex justify-between items-center py-3 px-3.5 rounded-lg border-2 border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-purple hover:bg-purple-50"
                 >
                   <div>
-                    <div className="text-sm font-bold text-slate-800">
+                    <div className="text-sm font-bold text-brand-purple">
                       {h.name} {h.surname}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 font-medium">
                       {h.phone}
                     </div>
                   </div>
-                  <span className="text-lg text-brand-teal">{"\u2192"}</span>
+                  <span className="text-lg text-brand-purple">{"\u2192"}</span>
                 </button>
               ))}
             </div>
@@ -122,7 +115,7 @@ export default function CustomerApp() {
 
           <button
             onClick={exitDemo}
-            className="w-full mt-4 py-2.5 rounded-[10px] border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit]"
+            className="portal-btn portal-btn--secondary w-full mt-4 text-[13px]"
           >
             Back to login
           </button>
@@ -131,21 +124,21 @@ export default function CustomerApp() {
     );
   }
 
-  // Loading state — shimmer skeleton
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif]">
         <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
           <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
           <div className="h-4 w-32 mx-auto bg-slate-200 rounded animate-pulse" />
-          <div className="h-48 bg-slate-200 rounded-2xl animate-pulse" />
-          <div className="h-12 bg-slate-200 rounded-xl animate-pulse" />
+          <div className="h-48 bg-slate-200 rounded-xl animate-pulse" />
+          <div className="h-12 bg-slate-200 rounded-lg animate-pulse" />
         </div>
       </div>
     );
   }
 
-  // Not authenticated — show login
+  // Not authenticated
   if (!user) {
     return (
       <CustomerLoginPage
@@ -167,22 +160,22 @@ export default function CustomerApp() {
     );
   }
 
-  // Authenticated but no matching human record
+  // Authenticated but no matching human
   if (!humanRecord) {
     return (
-      <div className="min-h-screen bg-[#F8FFFE] flex items-center justify-center font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif] p-5">
-        <div className="max-w-[400px] text-center bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-          <div className="text-[32px] mb-3">{"\uD83D\uDC3E"}</div>
-          <div className="text-lg font-extrabold text-slate-800 mb-2">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif] p-5">
+        <div className="max-w-[400px] text-center bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
+          <PawPrint size={32} className="text-brand-purple mx-auto mb-3" />
+          <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-2">
             Phone not recognised
           </div>
-          <div className="text-sm text-slate-500 mb-5">
+          <div className="text-sm text-slate-500 mb-5 font-medium">
             Your number isn't linked to a customer account yet. Please contact
             the salon so they can add your details.
           </div>
           <button
             onClick={signOut}
-            className="w-full py-3 rounded-[10px] border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-[inherit]"
+            className="portal-btn portal-btn--primary w-full py-3 text-sm"
           >
             Sign Out
           </button>
@@ -191,7 +184,7 @@ export default function CustomerApp() {
     );
   }
 
-  // Authenticated + matched — show dashboard or booking wizard
+  // Authenticated + matched
   return (
     <ErrorBoundary>
       <Routes>

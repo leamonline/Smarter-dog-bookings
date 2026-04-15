@@ -70,7 +70,7 @@ export function DogSelection({
               onClick={() => !disabled && toggleDog(dog)}
               className={`flex items-center justify-between py-3 px-4 rounded-[10px] border-2 text-left w-full ${
                 selected
-                  ? "border-brand-teal bg-emerald-50"
+                  ? "border-brand-purple bg-purple-50"
                   : "border-slate-200 bg-white"
               } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
             >
@@ -86,7 +86,7 @@ export function DogSelection({
                 )}
               </div>
               {selected && (
-                <span className="text-brand-teal text-xl font-bold">{"\u2713"}</span>
+                <span className="text-brand-purple text-xl font-bold">{"\u2713"}</span>
               )}
             </button>
           );
@@ -102,7 +102,7 @@ export function DogSelection({
       ) : (
         <button
           onClick={() => setShowAddDog(true)}
-          className="py-2.5 px-4 rounded-lg border-2 border-dashed border-slate-200 bg-transparent text-brand-teal font-semibold text-sm cursor-pointer"
+          className="py-2.5 px-4 rounded-lg border-2 border-dashed border-slate-200 bg-transparent text-brand-purple font-semibold text-sm cursor-pointer"
         >
           + Add a new dog
         </button>
@@ -114,7 +114,7 @@ export function DogSelection({
         className={`mt-2 py-3 px-6 rounded-lg border-none font-bold text-[15px] ${
           selectedDogs.length === 0
             ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-            : "bg-brand-teal text-white cursor-pointer"
+            : "bg-brand-purple text-white cursor-pointer"
         }`}
       >
         Next {"\u2192"}

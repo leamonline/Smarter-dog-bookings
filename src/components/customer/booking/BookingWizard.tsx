@@ -10,6 +10,7 @@ import { DateSelection } from "./DateSelection.js";
 import { SlotSelection } from "./SlotSelection.js";
 import { BookingConfirmation } from "./BookingConfirmation.js";
 import { AddToCalendarButton } from "../AddToCalendarButton.js";
+import { CheckCircle, Clipboard, PawPrint } from "lucide-react";
 
 interface HumanRecord {
   id: string;
@@ -213,7 +214,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     if (waitlistJoined && !booked) {
       return (
         <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
-          <div className="text-5xl mb-4">{"\uD83D\uDCDD"}</div>
+          <Clipboard size={48} className="text-brand-purple mx-auto mb-4" aria-hidden="true" />
           <div className="text-xl font-extrabold text-slate-800 mb-2">
             You're on the waitlist!
           </div>
@@ -222,7 +223,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           </div>
           <button
             onClick={onComplete}
-            className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+            className="py-3 px-8 rounded-lg border-none bg-brand-purple text-white font-bold text-[15px] cursor-pointer font-[inherit]"
           >
             Back to dashboard
           </button>
@@ -232,7 +233,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
     return (
       <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
-        <div className="text-5xl mb-4">{"\u2705"}</div>
+        <CheckCircle size={48} className="text-brand-green mx-auto mb-4" aria-hidden="true" />
         <div className="text-xl font-extrabold text-slate-800 mb-2">
           All booked in! We can't wait to see {dogNameStr}.
         </div>
@@ -244,7 +245,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             Booking ref: {bookingRef}
           </div>
         )}
-        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-teal text-[13px] font-semibold mb-2">
+        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-purple text-[13px] font-semibold mb-2">
           You'll receive a confirmation message shortly.
         </div>
         {bookedIds.length > 0 && (
@@ -262,7 +263,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         </div>
         <button
           onClick={onComplete}
-          className="py-3 px-8 rounded-lg border-none bg-brand-teal text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+          className="py-3 px-8 rounded-lg border-none bg-brand-purple text-white font-bold text-[15px] cursor-pointer font-[inherit]"
         >
           Back to dashboard
         </button>
@@ -274,7 +275,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     <div className="max-w-[480px] mx-auto font-[inherit] flex flex-col gap-6 py-6 px-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="font-bold text-brand-teal text-lg">
+        <div className="font-bold text-brand-purple text-lg font-['Sora',sans-serif]">
           Book an appointment
         </div>
         <button
@@ -297,7 +298,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         {[1, 2, 3, 4, 5].map((s) => (
           <div
             key={s}
-            className={`flex-1 h-1 rounded transition-colors ${s <= step ? "bg-brand-teal" : "bg-slate-200"}`}
+            className={`flex-1 h-1 rounded transition-colors ${s <= step ? "bg-brand-purple" : "bg-slate-200"}`}
             aria-hidden="true"
           />
         ))}

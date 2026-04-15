@@ -60,9 +60,9 @@ export function BookingConfirmation({
       </p>
 
       {/* Date & time summary */}
-      <div className="bg-emerald-50 rounded-[10px] py-3.5 px-4 flex flex-col gap-1">
-        <div className="font-bold text-brand-teal text-[15px]">
-          {"\uD83D\uDCC5"} {selectedDate ? formatDate(selectedDate) : "\u2014"}
+      <div className="bg-purple-50 rounded-[10px] py-3.5 px-4 flex flex-col gap-1">
+        <div className="font-bold text-brand-purple text-[15px]">
+          {selectedDate ? formatDate(selectedDate) : "\u2014"}
         </div>
         <div className="text-slate-800 text-sm">
           Drop-off: <strong>{slotAllocation ? formatSlot(slotAllocation.dropOffTime) : "\u2014"}</strong>
@@ -92,7 +92,7 @@ export function BookingConfirmation({
                 <div className="mt-1.5 text-sm text-slate-800">
                   {getServiceLabel(serviceId)}
                   {size && (
-                    <span className="ml-2 text-brand-teal font-semibold">
+                    <span className="ml-2 text-brand-purple font-semibold">
                       {getPriceLabel(serviceId, size)}
                     </span>
                   )}
@@ -128,7 +128,7 @@ export function BookingConfirmation({
           className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
             submitting
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-brand-teal text-white cursor-pointer"
+              : "bg-brand-yellow text-brand-purple cursor-pointer"
           }`}
         >
           {submitting ? "Booking\u2026" : `Confirm Booking${selectedDogs.length > 1 ? "s" : ""}`}

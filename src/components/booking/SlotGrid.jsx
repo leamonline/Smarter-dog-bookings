@@ -44,16 +44,7 @@ export function SlotGrid({
   const searchActive = searchQuery && searchQuery.trim().length > 0;
   const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
 
-  const allEmpty = useMemo(() => {
-    return activeSlots.every((slot) => {
-      const slotOverrides = overrides?.[slot] || {};
-      const states = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
-      return states.every((s) => s.type === "available");
-    });
-  }, [bookings, activeSlots, overrides]);
-
   return (
-    <div className="relative">
     <div className="bg-white border border-slate-200 border-t-0 rounded-b-xl overflow-hidden">
       {activeSlots.map((slot, i) => {
         const slotOverrides = overrides?.[slot] || {};
@@ -65,11 +56,16 @@ export function SlotGrid({
 
         const isLast = i === activeSlots.length - 1;
 
+        const hasBooking = seatStates.some((s) => s.type === "booking");
+        const rowHeight = hasBooking
+          ? "min-h-[110px] md:min-h-[140px]"
+          : "min-h-[48px] md:min-h-[56px]";
+
         return (
           <div
             key={slot}
             className={[
-              "grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] min-h-[110px] md:min-h-[140px] items-stretch",
+              `grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] ${rowHeight} items-stretch`,
               isLast ? "" : "border-b border-[#F1F3F5]",
             ].join(" ")}
           >
@@ -137,12 +133,13 @@ export function SlotGrid({
                     return (
                       <div
                         key={seat.seatIndex}
-                        className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-300"
+                        className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-300"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="9" stroke="#D1D5DB" strokeWidth="2" />
                           <line x1="6" y1="6" x2="18" y2="18" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" />
                         </svg>
+                        <span className="text-[10px] font-semibold text-slate-300">Closed</span>
                       </div>
                     );
                   }
@@ -160,15 +157,6 @@ export function SlotGrid({
           </div>
         );
       })}
-    </div>
-    {allEmpty && !loading && (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center">
-          <div className="text-slate-400 text-sm font-semibold">No bookings today</div>
-          <div className="text-slate-400 text-xs mt-1">Tap a slot to add one</div>
-        </div>
-      </div>
-    )}
     </div>
   );
 }

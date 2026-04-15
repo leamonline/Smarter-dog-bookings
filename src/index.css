@@ -10,6 +10,13 @@
   --color-brand-green: #16A34A;
   --color-brand-red: #DC2626;
 
+  /* Customer portal palette */
+  --color-brand-purple: #2D004B;
+  --color-brand-purple-light: #5B3D80;
+  --color-brand-yellow: #FFCC00;
+  --color-brand-yellow-dark: #D4A500;
+  --color-brand-paper: #FAF9F6;
+
   /* Size dot colours */
   --color-size-small: #F5C518;
   --color-size-medium: #2D8B7A;
