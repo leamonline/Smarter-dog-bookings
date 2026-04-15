@@ -57,7 +57,6 @@ export function CalendarTabs({
       >
         <MonthTab
           currentDateObj={currentDateObj}
-          bookingsByDate={bookingsByDate}
           isActive={calendarMode === "month"}
           onClick={onSelectMonth}
         />

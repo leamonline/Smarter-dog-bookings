@@ -3,6 +3,8 @@ import { SALON_SLOTS } from "../../constants/index.js";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { getDefaultOpenForDate } from "../../engine/utils.js";
+import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
+import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ClosedDayView } from "./ClosedDayView.jsx";
@@ -21,7 +23,7 @@ const DatePickerModal = lazy(() =>
 /* ──────────────────────────────────────────────────────────
  * MonthGrid — shows a full calendar month with booking counts
  * ────────────────────────────────────────────────────────── */
-function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate, onNavigateMonth, calendarMode, setCalendarMode }) {
+function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode, setCalendarMode }) {
   // Local view state — arrows change this without affecting day navigation
   const [viewYear, setViewYear] = useState(currentDateObj.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDateObj.getMonth());
@@ -31,6 +33,10 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
     setViewYear(currentDateObj.getFullYear());
     setViewMonth(currentDateObj.getMonth());
   }, [currentDateObj]);
+
+  // Month-scoped data — follows local viewYear/viewMonth navigation
+  const { monthBookingsByDate: bookingsByDate } = useMonthBookings(viewYear, viewMonth);
+  const { monthDayOpenState: dayOpenState } = useMonthDaySettings(viewYear, viewMonth);
 
   const { weeks, monthName, yearStr } = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -325,8 +331,6 @@ export function WeekCalendarView({
       {calendarMode === "month" && (
         <MonthGrid
           currentDateObj={currentDateObj}
-          bookingsByDate={bookingsByDate}
-          dayOpenState={dayOpenState}
           onSelectDate={handleMonthDateSelect}
           onNavigateMonth={handleDatePick}
           calendarMode={calendarMode}

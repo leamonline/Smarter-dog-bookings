@@ -1,14 +1,21 @@
 // src/components/layout/MonthTab.jsx
 import { useMemo } from "react";
 import { toDateStr } from "../../supabase/transforms.js";
+import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 
-export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) {
+export function MonthTab({ currentDateObj, isActive, onClick }) {
   const monthLabel = currentDateObj.toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
   });
 
   const today = toDateStr(new Date());
+
+  // Month-scoped booking data
+  const { monthBookingsByDate: bookingsByDate } = useMonthBookings(
+    currentDateObj.getFullYear(),
+    currentDateObj.getMonth(),
+  );
 
   // Build calendar grid cells
   const cells = useMemo(() => {
