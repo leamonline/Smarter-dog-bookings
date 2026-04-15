@@ -39,7 +39,7 @@ export function WaitlistPanel({ currentDateObj, humans, dogs, onOpenHuman }) {
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="btn btn-ghost btn-sm hover:text-brand-blue hover:border-brand-blue"
+            className="btn btn-ghost btn-sm hover:text-brand-cyan hover:border-brand-cyan"
           >
             + Add Person
           </button>

@@ -91,7 +91,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
         tabIndex={0}
         onClick={handleCardClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-blue hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-cyan hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-cyan focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}

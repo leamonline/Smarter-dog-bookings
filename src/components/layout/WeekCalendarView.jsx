@@ -64,7 +64,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
   return (
     <div className="mb-4">
       {/* Month header — blue banner */}
-      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-xl">
+      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-cyan to-brand-cyan-dark rounded-xl">
         {/* Prev arrow */}
         <button onClick={() => goMonth(-1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
           <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -118,14 +118,14 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
             hoverCls = "";
           }
           if (isSelected) {
-            bgCls = "bg-gradient-to-b from-brand-blue to-brand-blue-dark";
+            bgCls = "bg-gradient-to-b from-brand-cyan to-brand-cyan-dark";
             textCls = "text-white";
-            borderCls = "border border-brand-blue";
+            borderCls = "border border-brand-cyan";
             shadowCls = "shadow-[0_2px_8px_rgba(14,165,233,0.2)]";
             hoverCls = "";
           }
           if (isToday && !isSelected) {
-            borderCls = "border-2 border-brand-blue";
+            borderCls = "border-2 border-brand-cyan";
             shadowCls = "shadow-[0_2px_6px_rgba(14,165,233,0.12)]";
           }
 
@@ -141,7 +141,7 @@ function MonthGrid({ currentDateObj, bookingsByDate, dayOpenState, onSelectDate,
               <span className={`text-sm font-bold ${textCls}`}>{date.getDate()}</span>
               {isOpen ? (
                 <span className={`text-[11px] font-extrabold ${
-                  isSelected ? "text-white/85" : count > 0 ? "text-brand-blue" : "text-slate-500"
+                  isSelected ? "text-white/85" : count > 0 ? "text-brand-cyan" : "text-slate-500"
                 }`}>
                   {count > 0 ? count : "\u2014"}
                 </span>
@@ -303,7 +303,7 @@ export function WeekCalendarView({
                 })()}
                 <button
                   onClick={handleAddSlot}
-                  className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-blue hover:text-brand-blue"
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-cyan hover:text-brand-cyan"
                 >
                   + Add another timeslot
                 </button>
@@ -414,7 +414,7 @@ export function WeekCalendarView({
                     }
                     className={`py-2 rounded-lg border-[1.5px] text-[13px] font-semibold font-[inherit] transition-all ${
                       isActive
-                        ? "border-brand-blue bg-brand-blue text-white"
+                        ? "border-brand-cyan bg-brand-cyan text-white"
                         : "border-slate-200 bg-white"
                     } ${
                       allowed

@@ -51,7 +51,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onNewBooking, 
   }, [onSearchChange]);
 
   return (
-    <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark py-6 px-5 md:px-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-b-xl relative overflow-hidden">
+    <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-6 px-5 md:px-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-b-xl relative overflow-hidden">
       {/* Paw watermark */}
       <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">
         {"\uD83D\uDC3E"}
@@ -97,7 +97,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onNewBooking, 
         {/* Book Now pill */}
         <button
           onClick={onNewBooking}
-          className="bg-white text-brand-blue font-semibold rounded-full px-5 py-2 text-sm border-none cursor-pointer transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] font-[inherit]"
+          className="bg-white text-brand-cyan font-semibold rounded-full px-5 py-2 text-sm border-none cursor-pointer transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] font-[inherit]"
         >
           Book Now
         </button>

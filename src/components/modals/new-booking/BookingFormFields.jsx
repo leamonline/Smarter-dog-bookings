@@ -70,7 +70,7 @@ export function BookingFormFields({
           <select
             value={recurringWeeks}
             onChange={(e) => setRecurringWeeks(Number(e.target.value))}
-            className="w-full py-3 px-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-blue"
+            className="w-full py-3 px-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-cyan"
           >
             <option value={0}>None (Once off)</option>
             <option value={4}>Every 4 weeks</option>

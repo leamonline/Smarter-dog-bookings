@@ -35,7 +35,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
     return (
       <div
         onClick={onClick}
-        className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 text-lg cursor-pointer transition-all min-h-[36px] md:min-h-[44px] hover:border-brand-blue hover:text-brand-blue hover:bg-sky-50 ${spanClass}`}
+        className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 text-lg cursor-pointer transition-all min-h-[36px] md:min-h-[44px] hover:border-brand-cyan hover:text-brand-cyan hover:bg-sky-50 ${spanClass}`}
       >
         +
       </div>
@@ -51,7 +51,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
       <button
         onClick={onClick}
         aria-label="Book this seat"
-        className="w-8 h-8 rounded-md bg-sky-50 text-brand-blue border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-sm font-bold hover:bg-brand-blue hover:text-white"
+        className="w-8 h-8 rounded-md bg-sky-50 text-brand-cyan border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-sm font-bold hover:bg-brand-cyan hover:text-white"
       >
         +
       </button>

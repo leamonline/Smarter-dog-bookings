@@ -91,7 +91,7 @@ export function AppToolbar({
           onClick={() => setActiveView("dashboard")}
         >
           <div className="text-2xl font-extrabold text-slate-800">
-            Smarter<span className="text-brand-blue">Dog</span>
+            Smarter<span className="text-brand-cyan">Dog</span>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export function AppToolbar({
                 onClick={() => setActiveView(item.key)}
                 className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition-all border-none cursor-pointer whitespace-nowrap font-[inherit] ${
                   isActive
-                    ? "bg-white text-brand-blue shadow-sm"
+                    ? "bg-white text-brand-cyan shadow-sm"
                     : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60"
                 }`}
               >
@@ -126,8 +126,8 @@ export function AppToolbar({
             aria-expanded={menuOpen}
             className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all text-lg font-[inherit] ${
               menuOpen || isMenuViewActive
-                ? "border-brand-blue-dark bg-sky-50 text-brand-blue-dark"
-                : "border-slate-200 bg-white text-slate-500 hover:border-brand-blue-dark hover:text-brand-blue-dark"
+                ? "border-brand-cyan-dark bg-sky-50 text-brand-cyan-dark"
+                : "border-slate-200 bg-white text-slate-500 hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
             }`}
           >
             ☰
@@ -164,7 +164,7 @@ export function AppToolbar({
                     onClick={() => { setActiveView(item.key); setMenuOpen(false); }}
                     className={`flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm text-left transition-colors font-[inherit] ${
                       isActive
-                        ? "font-bold text-brand-blue-dark bg-sky-50"
+                        ? "font-bold text-brand-cyan-dark bg-sky-50"
                         : "font-semibold text-slate-800 bg-transparent hover:bg-slate-50"
                     }`}
                   >
@@ -213,7 +213,7 @@ export function AppToolbar({
                 key={item.key}
                 onClick={() => setActiveView(item.key)}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2 border-none cursor-pointer bg-transparent font-[inherit] transition-colors ${
-                  isActive ? "text-brand-blue" : "text-slate-400"
+                  isActive ? "text-brand-cyan" : "text-slate-400"
                 }`}
               >
                 {item.icon}

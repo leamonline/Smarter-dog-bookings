@@ -43,13 +43,13 @@ export function MonthTab({ currentDateObj, bookingsByDate, isActive, onClick }) 
       className={[
         "flex-[1.1] min-w-[64px] md:min-w-[80px] rounded-t-[10px] bg-white text-center border-[1.5px] border-b-0 select-none pb-1.5 cursor-pointer transition-all snap-center shrink-0",
         isActive
-          ? "border-brand-blue opacity-100 -translate-y-[3px] z-[2] shadow-[0_-4px_14px_rgba(0,184,224,0.12)]"
+          ? "border-brand-cyan opacity-100 -translate-y-[3px] z-[2] shadow-[0_-4px_14px_rgba(0,184,224,0.12)]"
           : "opacity-70 hover:opacity-90 hover:-translate-y-0.5 z-[1] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] border-slate-200",
       ].join(" ")}
       onClick={onClick}
     >
       {/* Blue strip */}
-      <div className="bg-brand-blue-dark py-[3px] px-1 text-[8px] font-extrabold text-white uppercase tracking-[0.8px] rounded-t-lg whitespace-nowrap overflow-hidden text-ellipsis">
+      <div className="bg-brand-cyan-dark py-[3px] px-1 text-[8px] font-extrabold text-white uppercase tracking-[0.8px] rounded-t-lg whitespace-nowrap overflow-hidden text-ellipsis">
         {monthLabel}
       </div>
 

@@ -185,7 +185,7 @@ export function DogSearchSection({
               placeholder="Start typing a dog's name, breed, or owner..."
               value={dogQuery}
               onChange={(e) => { setDogQuery(e.target.value); setError(""); onSearchDogs?.(e.target.value); }}
-              className="w-full py-3 pl-9 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
+              className="w-full py-3 pl-9 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
             />
 
             {/* Searching indicator — only when no local results */}
@@ -244,7 +244,7 @@ export function DogSearchSection({
                   No dogs found matching "{dogQuery}"
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { onClose(); onOpenAddDog?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-blue text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
+                  <button type="button" onClick={() => { onClose(); onOpenAddDog?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-cyan text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
                   <button type="button" onClick={() => { onClose(); onOpenAddHuman?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit">+ New Human</button>
                 </div>
               </div>

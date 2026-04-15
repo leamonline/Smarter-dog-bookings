@@ -58,7 +58,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
         <div className="text-center mb-8">
           <div className="text-[28px] font-extrabold text-slate-800">
-            Smarter<span className="text-brand-blue">Dog</span>
+            Smarter<span className="text-brand-cyan">Dog</span>
           </div>
           <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
         </div>
@@ -76,7 +76,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
       <div className="text-center mb-8">
         <div className="text-[28px] font-extrabold text-slate-800">
-          Smarter<span className="text-brand-blue">Dog</span>
+          Smarter<span className="text-brand-cyan">Dog</span>
         </div>
         <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
       </div>
@@ -97,7 +97,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                 </div>
                 <button
                   onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
-                  className="text-[13px] text-brand-blue bg-transparent border-none cursor-pointer font-semibold"
+                  className="text-[13px] text-brand-cyan bg-transparent border-none cursor-pointer font-semibold"
                 >
                   {"\u2190"} Back to sign in
                 </button>
@@ -113,7 +113,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                   value={resetEmail}
                   onChange={e => { setResetEmail(e.target.value); setResetError(""); }}
                   placeholder="you@smarterdog.co.uk"
-                  className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
+                  className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
                   autoFocus
                 />
                 {resetError && (
@@ -127,7 +127,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                   className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] ${
                     resetSending
                       ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : "bg-brand-blue text-white cursor-pointer"
+                      : "bg-brand-cyan text-white cursor-pointer"
                   }`}
                 >
                   {resetSending ? "Sending..." : "Send reset link"}
@@ -158,7 +158,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={email}
               onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
               placeholder="you@smarterdog.co.uk"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
               autoFocus
             />
           </div>
@@ -171,7 +171,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
               placeholder="Min. 12 characters"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-blue"
+              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
             />
           </div>
 
@@ -187,7 +187,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] transition-all mt-1 ${
               submitting
                 ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-brand-blue text-white cursor-pointer hover:bg-brand-blue-dark"
+                : "bg-brand-cyan text-white cursor-pointer hover:bg-brand-cyan-dark"
             }`}
           >
             {submitting ? "Signing in..." : "Sign In"}

@@ -3,7 +3,7 @@
 
 const CARD_HEAD_THEMES = {
   teal:   { bg: "bg-[#E6F5F2]", color: "text-[#1E6B5C]" },
-  blue:   { bg: "bg-blue-50",    color: "text-brand-blue-dark" },
+  blue:   { bg: "bg-blue-50",    color: "text-brand-cyan-dark" },
   yellow: { bg: "bg-amber-50",   color: "text-amber-800" },
   coral:  { bg: "bg-brand-coral-light", color: "text-brand-coral" },
 };
