@@ -85,8 +85,8 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
   };
 
   return (
-    <div className="border-2 border-brand-purple rounded-[10px] p-4 bg-purple-50 flex flex-col gap-3">
-      <div className="font-semibold text-brand-purple text-sm">Add a new dog</div>
+    <div className="border-2 border-brand-cyan-dark rounded-[10px] p-4 bg-cyan-50 flex flex-col gap-3">
+      <div className="font-semibold text-brand-cyan-dark text-sm">Add a new dog</div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="add-dog-name" className="text-[13px] text-slate-800 font-semibold">Name *</label>
@@ -127,7 +127,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           />
         )}
         {breed && !isOtherBreed && getSizeForBreed(breed) && (
-          <span className="text-xs text-brand-purple">
+          <span className="text-xs text-brand-cyan-dark">
             Size auto-set: {getSizeForBreed(breed)}
           </span>
         )}
@@ -144,7 +144,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           className={`flex-1 py-2.5 px-4 rounded-lg border-none font-bold text-sm ${
             !name.trim()
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-brand-purple text-white cursor-pointer"
+              : "bg-brand-cyan text-white cursor-pointer"
           }`}
         >
           {saving ? "Saving\u2026" : "Save dog"}

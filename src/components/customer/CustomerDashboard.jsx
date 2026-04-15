@@ -277,27 +277,31 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
           <DogsSection dogs={dogs} />
 
-          <TrustedHumansSection trustedHumans={trustedHumans} />
+          <div className="portal-section--full">
+            <TrustedHumansSection trustedHumans={trustedHumans} />
+          </div>
 
-          <AppointmentsSection
-            upcomingBookings={upcomingBookings}
-            pastBookings={pastBookings}
-            pastExpanded={pastExpanded}
-            setPastExpanded={setPastExpanded}
-            hasMorePast={hasMorePast}
-            loadingMore={loadingMore}
-            onLoadMore={handleLoadMore}
-            cancellingId={cancellingId}
-            cancelReason={cancelReason}
-            setCancelReason={setCancelReason}
-            cancelOther={cancelOther}
-            setCancelOther={setCancelOther}
-            saving={saving}
-            onStartCancel={startCancel}
-            onConfirmCancel={confirmCancel}
-            onCancelBack={() => setCancellingId(null)}
-            onSubscribe={() => setShowCalendarModal(true)}
-          />
+          <div className="portal-section--full">
+            <AppointmentsSection
+              upcomingBookings={upcomingBookings}
+              pastBookings={pastBookings}
+              pastExpanded={pastExpanded}
+              setPastExpanded={setPastExpanded}
+              hasMorePast={hasMorePast}
+              loadingMore={loadingMore}
+              onLoadMore={handleLoadMore}
+              cancellingId={cancellingId}
+              cancelReason={cancelReason}
+              setCancelReason={setCancelReason}
+              cancelOther={cancelOther}
+              setCancelOther={setCancelOther}
+              saving={saving}
+              onStartCancel={startCancel}
+              onConfirmCancel={confirmCancel}
+              onCancelBack={() => setCancellingId(null)}
+              onSubscribe={() => setShowCalendarModal(true)}
+            />
+          </div>
 
         </div>
       </main>

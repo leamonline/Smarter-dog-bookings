@@ -78,9 +78,9 @@ export default function CustomerApp() {
   // Demo mode — customer picker
   if (demoMode) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif] p-5">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif] p-5">
         <div className="w-full max-w-[400px] bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
-          <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-1 text-center">
+          <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1 text-center">
             Demo Mode
           </div>
           <div className="text-[13px] text-slate-500 mb-5 text-center font-medium">
@@ -97,17 +97,17 @@ export default function CustomerApp() {
                 <button
                   key={h.id}
                   onClick={() => handleDemoSelect(h.id)}
-                  className="flex justify-between items-center py-3 px-3.5 rounded-lg border-2 border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-purple hover:bg-purple-50"
+                  className="flex justify-between items-center py-3 px-3.5 rounded-lg border-2 border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-cyan-dark hover:bg-cyan-50"
                 >
                   <div>
-                    <div className="text-sm font-bold text-brand-purple">
+                    <div className="text-sm font-bold text-brand-cyan-dark">
                       {h.name} {h.surname}
                     </div>
                     <div className="text-xs text-slate-500 font-medium">
                       {h.phone}
                     </div>
                   </div>
-                  <span className="text-lg text-brand-purple">{"\u2192"}</span>
+                  <span className="text-lg text-brand-cyan-dark">{"\u2192"}</span>
                 </button>
               ))}
             </div>
@@ -127,7 +127,7 @@ export default function CustomerApp() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif]">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif]">
         <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
           <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
           <div className="h-4 w-32 mx-auto bg-slate-200 rounded animate-pulse" />
@@ -163,10 +163,10 @@ export default function CustomerApp() {
   // Authenticated but no matching human
   if (!humanRecord) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['DM_Sans',sans-serif] p-5">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif] p-5">
         <div className="max-w-[400px] text-center bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
-          <PawPrint size={32} className="text-brand-purple mx-auto mb-3" />
-          <div className="text-lg font-bold text-brand-purple font-['Sora',sans-serif] mb-2">
+          <PawPrint size={32} className="text-brand-cyan-dark mx-auto mb-3" />
+          <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-2">
             Phone not recognised
           </div>
           <div className="text-sm text-slate-500 mb-5 font-medium">

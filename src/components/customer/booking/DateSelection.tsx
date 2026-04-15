@@ -113,7 +113,7 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
                 onClick={() => open && onSelect(dateStr)}
                 className={`py-2 px-1 rounded-md text-[13px] text-center ${
                   selected
-                    ? "border-2 border-brand-purple bg-purple-50 font-bold"
+                    ? "border-2 border-brand-cyan-dark bg-cyan-50 font-bold"
                     : open
                       ? "border border-slate-200 bg-white font-normal"
                       : "border border-transparent bg-slate-50 font-normal"
@@ -140,7 +140,7 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
           disabled={!selectedDate}
           className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
             selectedDate
-              ? "bg-brand-purple text-white cursor-pointer"
+              ? "bg-brand-cyan text-white cursor-pointer"
               : "bg-slate-200 text-slate-500 cursor-not-allowed"
           }`}
         >

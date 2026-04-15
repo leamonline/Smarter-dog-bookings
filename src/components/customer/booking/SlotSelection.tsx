@@ -119,7 +119,7 @@ export function SlotSelection({
                 onClick={() => onSelect(allocation)}
                 className={`flex items-center justify-between py-3 px-4 rounded-lg border-2 cursor-pointer text-left w-full ${
                   selected
-                    ? "border-brand-purple bg-purple-50"
+                    ? "border-brand-cyan-dark bg-cyan-50"
                     : "border-slate-200 bg-white"
                 }`}
               >
@@ -134,7 +134,7 @@ export function SlotSelection({
                   )}
                 </div>
                 {selected && (
-                  <span className="text-brand-purple text-xl font-bold">{"\u2713"}</span>
+                  <span className="text-brand-cyan-dark text-xl font-bold">{"\u2713"}</span>
                 )}
               </button>
             );
@@ -154,7 +154,7 @@ export function SlotSelection({
           disabled={!selectedDropOff}
           className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
             selectedDropOff
-              ? "bg-brand-purple text-white cursor-pointer"
+              ? "bg-brand-cyan text-white cursor-pointer"
               : "bg-slate-200 text-slate-500 cursor-not-allowed"
           }`}
         >
