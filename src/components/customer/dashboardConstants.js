@@ -6,26 +6,24 @@ export const SERVICE_LABELS = {
   "nail-trim": "Nail Trim",
 };
 
-export const SERVICE_ICONS = {
-  "full-groom": "\u2702\uFE0F",
-  "bath-and-brush": "\uD83D\uDEC1",
-  "bath-and-deshed": "\uD83E\uDDF9",
-  "puppy-groom": "\uD83D\uDC3E",
-  "nail-trim": "\u2702\uFE0F",
+// Icon names resolved to Lucide components in each component file
+export const SERVICE_ICON_NAMES = {
+  "full-groom": "Scissors",
+  "bath-and-brush": "Droplets",
+  "bath-and-deshed": "Wind",
+  "puppy-groom": "PawPrint",
+  "nail-trim": "Scissors",
 };
 
 export const STATUS_STYLES = {
   "No-show":          { background: "#F1F5F9", color: "#475569" },
-  "Checked in":       { background: "#E6F5F2", color: "#1E6B5C" },
-  "Drying":           { background: "#E8E0FF", color: "#5B3D99" },
-  "On the Table":     { background: "#F0E0FF", color: "#7B3DC9" },
-  "Finished":         { background: "#E6F5F2", color: "#1E6B5C" },
-  "Ready for pick-up":{ background: "#F0F0F5", color: "#666" },
-  "Cancelled":        { background: "#FFE8E8", color: "#CC2020" },
+  "Checked in":       { background: "#ECFDF5", color: "#065F46" },
+  "Drying":           { background: "#F3E8FF", color: "#6B21A8" },
+  "On the Table":     { background: "#F3E8FF", color: "#7C3AED" },
+  "Finished":         { background: "#ECFDF5", color: "#065F46" },
+  "Ready for pick-up":{ background: "#F1F5F9", color: "#475569" },
+  "Cancelled":        { background: "#FEF2F2", color: "#DC2626" },
 };
-
-export const POLAROID_COLORS = ["#00C2FF", "#E8506A", "#FFCC00", "#2A6F6B", "#7AB8A8", "#2D004B"];
-export const POLAROID_ROTATIONS = [-5, 3, -2, 4, -3, 2];
 
 export function formatSlot(slot) {
   const [h, m] = slot.split(":").map(Number);
@@ -39,4 +37,4 @@ export function formatDate(dateStr) {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
-export const cardAnim = (delay) => ({ animation: `cardSlideUp 0.4s ease-out ${delay}s both` });
+export const cardAnim = (delay) => ({ animation: `cardSlideUp 0.3s ease-out ${delay}s both` });

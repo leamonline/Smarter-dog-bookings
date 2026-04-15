@@ -54,6 +54,7 @@ const NAV_ITEMS = [
 const MENU_ITEMS = [
   { key: "reports", label: "Reports", icon: "📊" },
   { key: "settings", label: "Settings", icon: "⚙️" },
+  { key: "customer-portal", label: "Customer Portal", icon: "🐾", href: "/customer" },
 ];
 
 export function AppToolbar({
@@ -136,6 +137,26 @@ export function AppToolbar({
           {menuOpen && (
             <div className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg min-w-[180px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               {MENU_ITEMS.map((item) => {
+                if (item.href) {
+                  return (
+                    <a
+                      key={item.key}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 w-full px-4 py-3 no-underline cursor-pointer text-sm text-left transition-colors font-[inherit] font-semibold text-slate-800 bg-transparent hover:bg-slate-50"
+                    >
+                      <span className="text-base">{item.icon}</span>
+                      {item.label}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-slate-400">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </a>
+                  );
+                }
                 const isActive = activeView === item.key;
                 return (
                   <button

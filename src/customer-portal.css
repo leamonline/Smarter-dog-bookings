@@ -1,21 +1,17 @@
 /* ==============================================
-   Customer Portal — Smarter Dog Brand Theme
-   Matches smarterdog.co.uk palette & typography
+   Customer Portal — Bold & Graphic Redesign
+   Smarter Dog Grooming
    ============================================== */
 
-/* --- Brand Tokens --- */
+/* --- Brand Tokens (portal-specific) --- */
 :root {
-  --sd-blue: #00C2FF;
-  --sd-coral: #E8506A;
-  --sd-coral-light: #FFF0F3;
-  --sd-coral-border: #FFD0D9;
-  --sd-yellow: #FFCC00;
-  --sd-yellow-dark: #D4A500;
-  --sd-teal: #2A6F6B;
-  --sd-teal-light: #7AB8A8;
-  --sd-green: #2FD43F;
   --sd-purple: #2D004B;
   --sd-purple-light: #5B3D80;
+  --sd-teal: #2A6F6B;
+  --sd-yellow: #FFCC00;
+  --sd-yellow-dark: #D4A500;
+  --sd-coral: #E8506A;
+  --sd-coral-light: #FFF0F3;
   --sd-paper: #FAF9F6;
   --sd-white: #FFFFFF;
 }
@@ -25,17 +21,18 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--sd-paper);
+  color: var(--sd-purple);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--sd-purple);
 }
 
-/* --- Blue Top Section --- */
+/* --- Header Band --- */
 .portal-header {
-  background: var(--sd-blue);
-  padding: 20px 20px 16px;
+  background: var(--sd-purple);
+  padding: 16px 20px 20px;
   position: relative;
   z-index: 2;
 }
@@ -49,42 +46,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .portal-brand {
-  font-family: 'Quicksand', sans-serif;
+  font-family: 'Sora', sans-serif;
   font-size: 22px;
-  font-weight: 700;
-  color: var(--sd-purple);
+  font-weight: 800;
+  color: var(--sd-white);
+  letter-spacing: -0.5px;
 }
 
 .portal-brand span {
-  color: var(--sd-purple);
-}
-
-.portal-nav {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
-
-.portal-nav-link {
-  color: var(--sd-purple);
-  text-decoration: none;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  transition: color 0.2s;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  opacity: 0.7;
-}
-
-.portal-nav-link:hover {
-  opacity: 1;
+  color: var(--sd-yellow);
 }
 
 .portal-header-bottom {
@@ -94,37 +68,18 @@
 }
 
 .portal-welcome {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 30px;
-  font-weight: 600;
-  color: var(--sd-purple);
-  margin: 0 0 4px;
+  font-family: 'Sora', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--sd-white);
+  margin: 0;
   line-height: 1.2;
 }
 
-.portal-phone {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--sd-purple);
-  opacity: 0.6;
-  margin: 0;
-}
-
-/* --- Wave Dividers --- */
-.portal-wave {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-top: -1px;
-  margin-bottom: -1px;
-}
-
-/* --- Coral Middle Section --- */
+/* --- Main Content --- */
 .portal-main {
-  background: var(--sd-coral);
   flex: 1;
-  padding: 8px 16px 0;
-  position: relative;
+  padding: 24px 16px 40px;
 }
 
 .portal-content {
@@ -132,670 +87,146 @@
   margin: 0 auto;
 }
 
-/* --- Yellow Bottom Section --- */
-.portal-footer {
-  background: var(--sd-yellow);
-  padding: 24px 16px 44px;
-  position: relative;
-}
-
-.portal-footer-inner {
-  max-width: 560px;
-  margin: 0 auto;
-}
-
-.portal-footer-title {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-/* =========================================
-   Cards (off-white / coral-light)
-   ========================================= */
-.pink-card {
-  background: var(--sd-coral-light);
-  border-radius: 22px;
-  padding: 22px 24px;
+/* --- Cards --- */
+.portal-card {
+  background: var(--sd-white);
+  border-radius: 12px;
+  padding: 20px 22px;
   margin-bottom: 16px;
-  border: 2.5px solid var(--sd-coral-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-left: 3px solid var(--sd-purple);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.pink-card-header {
+.portal-card--teal {
+  border-left-color: var(--sd-teal);
+}
+
+.portal-card--yellow {
+  border-left-color: var(--sd-yellow);
+}
+
+.portal-card--muted {
+  border-left-color: #CBD5E1;
+}
+
+.portal-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
 }
 
-.pink-card-icon {
-  font-size: 18px;
-  line-height: 1;
+.portal-card-icon {
+  color: var(--sd-purple-light);
+  flex-shrink: 0;
 }
 
-.pink-card-title {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 13px;
+.portal-card-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--sd-teal);
+  color: #64748B;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   flex: 1;
   margin: 0;
 }
 
-/* =========================================
-   Wobbly Yellow Buttons (brand yellow)
-   ========================================= */
-.wobbly-btn {
-  background: var(--sd-yellow);
-  color: var(--sd-purple);
-  border: 3px solid var(--sd-yellow-dark);
-  font-family: 'Quicksand', sans-serif;
+/* --- Buttons --- */
+.portal-btn {
+  font-family: 'Sora', sans-serif;
   font-weight: 700;
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
-  box-shadow: 3px 4px 0 var(--sd-yellow-dark);
-  position: relative;
+  transition: transform 150ms ease, box-shadow 150ms ease;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.wobbly-btn:hover {
-  transform: rotate(1.5deg) scale(1.04) translateY(-2px);
-  box-shadow: 4px 6px 0 var(--sd-yellow-dark);
+.portal-btn:focus-visible {
+  outline: 2px solid var(--sd-purple);
+  outline-offset: 2px;
 }
 
-.wobbly-btn:active {
-  transform: rotate(0deg) scale(0.97) translateY(1px);
-  box-shadow: 1px 2px 0 var(--sd-yellow-dark);
-  transition-duration: 0.1s;
+.portal-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(45, 0, 75, 0.15);
 }
 
-.wobbly-btn:disabled {
+.portal-btn:active {
+  transform: scale(0.98);
+  box-shadow: none;
+  transition-duration: 80ms;
+}
+
+.portal-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
-  box-shadow: 2px 3px 0 var(--sd-yellow-dark);
+  box-shadow: none !important;
 }
 
-/* Button variants with organic border-radius */
-.wobbly-btn--logout {
-  padding: 7px 18px;
-  font-size: 13px;
-  border-radius: 65% 35% 40% 60% / 45% 55% 45% 55%;
-  transform: rotate(-2deg);
-}
-.wobbly-btn--logout:hover {
-  transform: rotate(1deg) scale(1.06) translateY(-2px);
+.portal-btn--primary {
+  background: var(--sd-purple);
+  color: var(--sd-white);
+  padding: 10px 20px;
+  font-size: 14px;
 }
 
-.wobbly-btn--book {
-  width: 100%;
-  padding: 16px 24px;
-  font-size: 20px;
-  border-radius: 40% 60% 55% 45% / 55% 45% 55% 45%;
-  margin-bottom: 20px;
-  box-shadow: 4px 5px 0 var(--sd-yellow-dark);
-  letter-spacing: 0.5px;
-}
-.wobbly-btn--book:hover {
-  box-shadow: 5px 7px 0 var(--sd-yellow-dark);
-}
-
-.wobbly-btn--edit {
-  padding: 6px 16px;
-  font-size: 13px;
-  border-radius: 35% 65% 60% 40% / 55% 45% 55% 45%;
-  transform: rotate(1deg);
-}
-.wobbly-btn--edit:hover {
-  transform: rotate(-0.5deg) scale(1.06) translateY(-2px);
-}
-
-.wobbly-btn--save {
-  padding: 6px 16px;
-  font-size: 13px;
-  border-radius: 50% 50% 45% 55% / 45% 55% 50% 50%;
-}
-
-.wobbly-btn--cancel-text {
-  padding: 6px 14px;
-  font-size: 13px;
-  border-radius: 45% 55% 50% 50% / 50% 50% 45% 55%;
+.portal-btn--secondary {
   background: var(--sd-white);
-  color: var(--sd-coral);
-  border-color: var(--sd-coral-border);
-  box-shadow: 2px 3px 0 var(--sd-coral-border);
-}
-.wobbly-btn--cancel-text:hover {
-  box-shadow: 3px 5px 0 var(--sd-coral-border);
-}
-.wobbly-btn--cancel-text:active {
-  box-shadow: 1px 1px 0 var(--sd-coral-border);
+  color: var(--sd-purple);
+  border: 2px solid var(--sd-purple);
+  padding: 8px 18px;
+  font-size: 13px;
 }
 
-.wobbly-btn--danger {
+.portal-btn--ghost {
+  background: transparent;
+  color: var(--sd-white);
+  padding: 7px 16px;
+  font-size: 13px;
+  opacity: 0.85;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.portal-btn--ghost:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.portal-btn--cta {
+  background: var(--sd-yellow);
+  color: var(--sd-purple);
+  padding: 14px 24px;
+  font-size: 17px;
+  width: 100%;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
+}
+
+.portal-btn--cta:hover {
+  box-shadow: 0 4px 14px rgba(255, 204, 0, 0.4);
+}
+
+.portal-btn--danger {
   background: var(--sd-coral);
   color: var(--sd-white);
-  border-color: #C93D55;
-  box-shadow: 3px 4px 0 #C93D55;
-  border-radius: 55% 45% 50% 50% / 50% 50% 45% 55%;
-}
-.wobbly-btn--danger:hover {
-  box-shadow: 4px 6px 0 #C93D55;
-}
-.wobbly-btn--danger:active {
-  box-shadow: 1px 2px 0 #C93D55;
-}
-.wobbly-btn--danger:disabled {
-  box-shadow: 2px 3px 0 #C93D55;
-}
-
-.wobbly-btn--green {
-  background: var(--sd-green);
-  color: var(--sd-white);
-  border-color: #22A832;
-  box-shadow: 3px 4px 0 #22A832;
-  border-radius: 50% 50% 45% 55% / 45% 55% 50% 50%;
-}
-.wobbly-btn--green:hover {
-  box-shadow: 4px 6px 0 #22A832;
-}
-
-/* =========================================
-   Detail Rows (My Details card)
-   ========================================= */
-.portal-detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 2px dashed var(--sd-coral-border);
-}
-
-.portal-detail-row:last-child {
-  border-bottom: none;
-}
-
-.portal-detail-label {
-  font-family: 'Quicksand', sans-serif;
+  padding: 10px 20px;
   font-size: 13px;
-  color: var(--sd-teal);
-  font-weight: 700;
-  min-width: 90px;
 }
 
-.portal-detail-value {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  text-align: right;
-  flex: 1;
-  margin-left: 12px;
-}
-
-/* --- Inputs --- */
-.portal-input {
-  flex: 1;
-  margin-left: 12px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  border: 2.5px solid var(--sd-coral-border);
-  font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--sd-purple);
-  background: var(--sd-white);
-  outline: none;
-  text-align: right;
-  box-sizing: border-box;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.portal-input:focus {
-  border-color: var(--sd-coral);
-  box-shadow: 0 0 0 3px rgba(232, 80, 106, 0.15);
-}
-
-.portal-input--full {
-  margin-left: 0;
-  text-align: left;
-  width: 100%;
-}
-
-/* =========================================
-   Dog Items
-   ========================================= */
-.portal-dog-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 2px dashed var(--sd-coral-border);
-}
-
-.portal-dog-item:last-child {
-  border-bottom: none;
-}
-
-.portal-dog-name {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--sd-purple);
-}
-
-.portal-dog-meta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--sd-teal);
-  margin-top: 2px;
-}
-
-.portal-dog-notes {
+.portal-btn--small {
+  padding: 6px 14px;
   font-size: 12px;
-  color: var(--sd-purple-light);
-  background: #FFE8F0;
-  padding: 4px 10px;
-  border-radius: 10px;
-  margin-top: 6px;
-  font-weight: 600;
 }
 
-.portal-size-badge {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 12px;
-  border-radius: 20px;
-  text-transform: capitalize;
-}
-
-.portal-size-badge--small {
-  background: #FFF8E0;
-  color: #9A7800;
-}
-.portal-size-badge--medium {
-  background: #E6F5F2;
-  color: var(--sd-teal);
-}
-.portal-size-badge--large {
-  background: #FFE8F0;
-  color: var(--sd-coral);
-}
-
-.portal-alert-badge {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--sd-coral);
-}
-
-/* =========================================
-   Booking Items
-   ========================================= */
-.portal-booking-item {
-  padding: 14px 0;
-  border-bottom: 2px dashed var(--sd-coral-border);
-}
-
-.portal-booking-item:last-child {
-  border-bottom: none;
-}
-
-.portal-booking-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.portal-booking-date {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sd-purple);
-}
-
-.portal-booking-detail {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  margin-top: 3px;
-}
-
-.portal-booking-service {
-  color: var(--sd-teal);
-  font-weight: 600;
-}
-
-.portal-booking-time {
-  font-size: 12px;
-  color: var(--sd-purple-light);
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-.portal-upcoming-badge {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  background: #E6F5F2;
-  color: var(--sd-teal);
-  padding: 3px 8px;
-  border-radius: 8px;
-  letter-spacing: 0.5px;
-}
-
-.portal-status-badge {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 10px;
-  white-space: nowrap;
-}
-
-/* =========================================
-   Cancel Booking Panel
-   ========================================= */
-.portal-cancel-panel {
-  margin-top: 10px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 2.5px solid var(--sd-coral);
-  background: var(--sd-coral-light);
-}
-
-.portal-cancel-title {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  margin-bottom: 10px;
-}
-
-.portal-cancel-select,
-.portal-cancel-input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 2.5px solid var(--sd-coral-border);
-  font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--sd-purple);
-  background: var(--sd-white);
-  outline: none;
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.portal-cancel-select:focus,
-.portal-cancel-input:focus {
-  border-color: var(--sd-coral);
-  box-shadow: 0 0 0 3px rgba(232, 80, 106, 0.15);
-}
-
-.portal-cancel-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* =========================================
-   Past Bookings Toggle
-   ========================================= */
-.portal-past-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  padding: 0;
-  margin-bottom: 4px;
-}
-
-.portal-past-arrow {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 13px;
-  color: var(--sd-teal);
-  font-weight: 600;
-}
-
-/* =========================================
-   Rebook Prompt
-   ========================================= */
-.portal-rebook {
-  background: linear-gradient(135deg, var(--sd-coral-light), #FFE8F0);
-  border-radius: 22px;
-  padding: 28px 24px;
-  margin-bottom: 16px;
-  border: 2.5px dashed var(--sd-coral-border);
-  text-align: center;
-}
-
-.portal-rebook-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-
-.portal-rebook-title {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  margin: 0 0 6px;
-}
-
-.portal-rebook-text {
-  font-size: 14px;
-  color: var(--sd-purple-light);
-  font-weight: 600;
-  margin: 0 0 16px;
-}
-
-/* =========================================
-   Trusted Humans
-   ========================================= */
-.portal-trusted-item {
-  padding: 10px 0;
-  border-bottom: 2px dashed var(--sd-coral-border);
-}
-
-.portal-trusted-item:last-child {
-  border-bottom: none;
-}
-
-.portal-trusted-name {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sd-purple);
-}
-
-.portal-trusted-phone {
-  font-size: 12px;
-  color: var(--sd-purple-light);
-  font-weight: 600;
-}
-
-.portal-trusted-cta {
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 16px;
-  border: 2.5px dashed var(--sd-coral-border);
-  background: #FFE8F0;
-  text-align: center;
-  font-family: 'Quicksand', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--sd-teal);
-}
-
-/* =========================================
-   Dog Polaroids (Footer)
-   ========================================= */
-.dog-prints-row {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.dog-polaroid {
-  background: var(--sd-white);
-  padding: 8px 8px 24px;
-  border-radius: 4px;
-  box-shadow: 3px 4px 10px rgba(45, 0, 75, 0.15);
-  transform: rotate(var(--polaroid-rotation, 0deg));
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
-  width: 96px;
-  flex-shrink: 0;
-}
-
-.dog-polaroid:hover {
-  transform: rotate(0deg) scale(1.1) translateY(-6px);
-  box-shadow: 4px 8px 18px rgba(45, 0, 75, 0.2);
-  z-index: 1;
-}
-
-.polaroid-image {
-  width: 80px;
-  height: 80px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Quicksand', sans-serif;
-  font-size: 34px;
-  font-weight: 700;
-  color: var(--sd-white);
-  text-shadow: 1px 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.polaroid-name {
-  text-align: center;
-  margin-top: 8px;
-  font-family: 'Quicksand', sans-serif;
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--sd-purple);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* =========================================
-   WhatsApp Toggle
-   ========================================= */
-.portal-toggle {
-  position: relative;
-  width: 48px;
-  height: 26px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.portal-toggle--on {
-  background: var(--sd-green);
-}
-.portal-toggle--off {
-  background: #D4D0DA;
-}
-
-.portal-toggle-knob {
-  position: absolute;
-  top: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--sd-white);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: left 0.2s;
-}
-
-/* =========================================
-   Empty States
-   ========================================= */
-.portal-empty {
-  text-align: center;
-  padding: 16px 0;
-}
-
-.portal-empty-icon {
-  font-size: 32px;
-  margin-bottom: 6px;
-}
-
-.portal-empty-title {
-  font-family: 'Quicksand', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--sd-purple);
-  margin: 0 0 4px;
-}
-
-.portal-empty-text {
-  font-size: 13px;
-  color: var(--sd-purple-light);
-  font-weight: 600;
-  margin: 0;
-}
-
-/* =========================================
-   Loading State
-   ========================================= */
-.portal-loading {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Quicksand', sans-serif;
-  background: linear-gradient(to bottom, var(--sd-blue) 0%, var(--sd-blue) 25%, var(--sd-coral) 25%, var(--sd-coral) 75%, var(--sd-yellow) 75%);
-}
-
-.portal-loading-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--sd-white);
-  animation: portalPulse 1.5s ease-in-out infinite;
-}
-
-.portal-loading-paw {
-  font-size: 40px;
-  margin-bottom: 12px;
-  animation: portalBounce 1s ease-in-out infinite;
-}
-
-/* =========================================
-   Grass divider (between yellow & teal)
-   ========================================= */
-.portal-grass {
-  display: block;
-  width: 100%;
-  height: 20px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,20 L2,8 L4,20 L6,5 L8,20 L10,10 L12,20 L14,6 L16,20 L18,9 L20,20 L22,4 L24,20 L26,11 L28,20 L30,7 L32,20 L34,5 L36,20 L38,10 L40,20 L42,8 L44,20 L46,6 L48,20 L50,9 L52,20 L54,4 L56,20 L58,11 L60,20 L62,7 L64,20 L66,5 L68,20 L70,10 L72,20 L74,8 L76,20 L78,6 L80,20 L82,9 L84,20 L86,4 L88,20 L90,11 L92,20 L94,7 L96,20 L98,5 L100,20 Z' fill='%232A6F6B'/%3E%3C/svg%3E") repeat-x bottom;
-  background-size: 100px 20px;
-}
-
-/* =========================================
-   Animations
-   ========================================= */
+/* --- Animations --- */
 @keyframes cardSlideUp {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -813,38 +244,62 @@
   50% { transform: translateY(-8px); }
 }
 
-/* =========================================
-   Responsive
-   ========================================= */
+/* --- Loading State --- */
+.portal-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Sora', sans-serif;
+  background: var(--sd-paper);
+}
+
+.portal-loading-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sd-purple);
+  animation: portalPulse 1.5s ease-in-out infinite;
+}
+
+.portal-loading-icon {
+  color: var(--sd-purple-light);
+  margin-bottom: 12px;
+  animation: portalBounce 1s ease-in-out infinite;
+}
+
+/* --- Skip Link --- */
+.portal-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--sd-yellow);
+  color: var(--sd-purple);
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.portal-skip-link:focus {
+  left: 16px;
+}
+
+/* --- Responsive --- */
 @media (max-width: 400px) {
   .portal-welcome {
-    font-size: 24px;
+    font-size: 22px;
   }
 
-  .wobbly-btn--book {
-    font-size: 17px;
-    padding: 14px 20px;
+  .portal-btn--cta {
+    font-size: 15px;
+    padding: 12px 20px;
   }
 
-  .pink-card {
-    padding: 18px 18px;
-    border-radius: 18px;
-  }
-
-  .dog-polaroid {
-    width: 80px;
-    padding: 6px 6px 20px;
-  }
-
-  .polaroid-image {
-    width: 68px;
-    height: 68px;
-    font-size: 26px;
-  }
-
-  .portal-header-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .portal-card {
+    padding: 16px 18px;
   }
 }

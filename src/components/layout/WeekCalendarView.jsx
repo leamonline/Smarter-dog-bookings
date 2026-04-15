@@ -303,9 +303,9 @@ export function WeekCalendarView({
                 })()}
                 <button
                   onClick={handleAddSlot}
-                  className="w-full py-2.5 rounded-[10px] border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:bg-[#D9466F]"
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-blue hover:text-brand-blue"
                 >
-                  Add another timeslot
+                  + Add another timeslot
                 </button>
               </div>
               <WaitlistPanel

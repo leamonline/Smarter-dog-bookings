@@ -82,43 +82,25 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onNewBooking, 
         )}
       </div>
 
-      {/* Right: Action cards */}
-      <div className="relative z-[1] flex items-center justify-center md:justify-end self-center md:self-auto">
-        {/* Revenue card — teal, tilted left, overlaps Book Now */}
-        <div className="-rotate-[3deg] z-[2] -mr-3.5 transition-transform hover:-translate-y-1 hover:scale-[1.04]">
-          <div className="bg-gradient-to-br from-brand-teal to-[#236b5d] border-2 border-white/15 rounded-xl py-2.5 px-5 min-w-[110px] text-center text-white relative shadow-[0_4px_16px_rgba(45,139,122,0.4),0_2px_6px_rgba(0,0,0,0.1)]">
-            {/* Dashed inner border */}
-            <div className="absolute inset-[5px] border-[1.5px] border-dashed border-white/12 rounded-lg pointer-events-none" />
-            {/* Corner £ symbols */}
-            <span className="absolute top-1.5 left-1.5 text-[7px] font-black text-white/18">&pound;</span>
-            <span className="absolute top-1.5 right-1.5 text-[7px] font-black text-white/18">&pound;</span>
-            <span className="absolute bottom-1.5 left-1.5 text-[7px] font-black text-white/18">&pound;</span>
-            <span className="absolute bottom-1.5 right-1.5 text-[7px] font-black text-white/18">&pound;</span>
-            <div className="text-[8px] font-extrabold uppercase tracking-[1px] text-white/55">
-              Today&apos;s Revenue
-            </div>
-            <div className="text-[22px] font-black leading-tight" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.15)" }}>
-              &pound;{revenue}
-            </div>
+      {/* Right: Revenue stat + Book Now pill */}
+      <div className="relative z-[1] flex items-center gap-4 justify-center md:justify-end self-center md:self-auto">
+        {/* Revenue stat */}
+        <div className="text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
+            Today&apos;s revenue
+          </div>
+          <div className="text-2xl font-black text-white leading-tight">
+            &pound;{revenue}
           </div>
         </div>
 
-        {/* Book Now card — coral, tilted right, behind revenue */}
-        <div
-          className="rotate-[3deg] z-[1] transition-transform hover:-translate-y-1 hover:scale-[1.04] cursor-pointer"
+        {/* Book Now pill */}
+        <button
           onClick={onNewBooking}
+          className="bg-white text-brand-blue font-semibold rounded-full px-5 py-2 text-sm border-none cursor-pointer transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] font-[inherit]"
         >
-          <div className="bg-gradient-to-br from-brand-coral to-[#c9405f] border-2 border-white/15 rounded-xl py-2.5 px-5 min-w-[110px] text-center text-white relative shadow-[0_4px_16px_rgba(232,86,127,0.35),0_2px_6px_rgba(0,0,0,0.1)]">
-            {/* Dashed inner border */}
-            <div className="absolute inset-[5px] border-[1.5px] border-dashed border-white/12 rounded-lg pointer-events-none" />
-            <div className="text-[8px] font-extrabold uppercase tracking-[1px] text-white/55">
-              Smarter Dog
-            </div>
-            <div className="text-lg font-black leading-tight" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-              Book Now
-            </div>
-          </div>
-        </div>
+          Book Now
+        </button>
       </div>
     </div>
   );
