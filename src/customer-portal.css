@@ -1,12 +1,14 @@
 /* ==============================================
-   Customer Portal — Bold & Graphic Redesign
+   Customer Portal — Cyan Rebrand
    Smarter Dog Grooming
    ============================================== */
 
 /* --- Brand Tokens (portal-specific) --- */
 :root {
-  --sd-purple: #2D004B;
-  --sd-purple-light: #5B3D80;
+  --sd-cyan-light: #00C2FF;
+  --sd-cyan: #007AAB;
+  --sd-cyan-dark: #005986;
+  --sd-deep: #2D004B;
   --sd-teal: #2A6F6B;
   --sd-yellow: #FFCC00;
   --sd-yellow-dark: #D4A500;
@@ -14,6 +16,7 @@
   --sd-coral-light: #FFF0F3;
   --sd-paper: #FAF9F6;
   --sd-white: #FFFFFF;
+  --sd-dark: #2A1810;
 }
 
 /* --- Portal Wrapper --- */
@@ -21,9 +24,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--sd-paper);
-  color: var(--sd-purple);
+  color: var(--sd-dark);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -31,14 +34,14 @@
 
 /* --- Header Band --- */
 .portal-header {
-  background: var(--sd-purple);
+  background: var(--sd-cyan);
   padding: 16px 20px 20px;
   position: relative;
   z-index: 2;
 }
 
 .portal-header-inner {
-  max-width: 560px;
+  max-width: 840px;
   margin: 0 auto;
 }
 
@@ -50,7 +53,7 @@
 }
 
 .portal-brand {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 22px;
   font-weight: 800;
   color: var(--sd-white);
@@ -68,7 +71,7 @@
 }
 
 .portal-welcome {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 26px;
   font-weight: 700;
   color: var(--sd-white);
@@ -87,14 +90,41 @@
   margin: 0 auto;
 }
 
+/* --- Responsive Grid --- */
+@media (min-width: 640px) {
+  .portal-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 768px;
+  }
+
+  .portal-content > .portal-btn--cta,
+  .portal-content > .portal-section--full {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .portal-content {
+    max-width: 840px;
+  }
+}
+
 /* --- Cards --- */
 .portal-card {
   background: var(--sd-white);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px 22px;
   margin-bottom: 16px;
-  border-left: 3px solid var(--sd-purple);
+  border-left: 3px solid var(--sd-cyan-light);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 640px) {
+  .portal-card {
+    margin-bottom: 0;
+  }
 }
 
 .portal-card--teal {
@@ -117,12 +147,12 @@
 }
 
 .portal-card-icon {
-  color: var(--sd-purple-light);
+  color: var(--sd-cyan-dark);
   flex-shrink: 0;
 }
 
 .portal-card-title {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 700;
   color: #64748B;
@@ -134,28 +164,22 @@
 
 /* --- Buttons --- */
 .portal-btn {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   border: none;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease;
-  outline: none;
+  transition: transform 300ms ease, box-shadow 300ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.portal-btn:focus-visible {
-  outline: 2px solid var(--sd-purple);
-  outline-offset: 2px;
-}
-
 .portal-btn:hover {
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(45, 0, 75, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .portal-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.95);
   box-shadow: none;
   transition-duration: 80ms;
 }
@@ -168,7 +192,7 @@
 }
 
 .portal-btn--primary {
-  background: var(--sd-purple);
+  background: var(--sd-cyan);
   color: var(--sd-white);
   padding: 10px 20px;
   font-size: 14px;
@@ -176,8 +200,8 @@
 
 .portal-btn--secondary {
   background: var(--sd-white);
-  color: var(--sd-purple);
-  border: 2px solid var(--sd-purple);
+  color: var(--sd-cyan-dark);
+  border: 2px solid var(--sd-cyan-dark);
   padding: 8px 18px;
   font-size: 13px;
 }
@@ -198,7 +222,7 @@
 
 .portal-btn--cta {
   background: var(--sd-yellow);
-  color: var(--sd-purple);
+  color: var(--sd-deep);
   padding: 14px 24px;
   font-size: 17px;
   width: 100%;
@@ -251,19 +275,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: 'Sora', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--sd-paper);
 }
 
 .portal-loading-text {
   font-size: 16px;
   font-weight: 600;
-  color: var(--sd-purple);
+  color: var(--sd-cyan-dark);
   animation: portalPulse 1.5s ease-in-out infinite;
 }
 
 .portal-loading-icon {
-  color: var(--sd-purple-light);
+  color: var(--sd-cyan-light);
   margin-bottom: 12px;
   animation: portalBounce 1s ease-in-out infinite;
 }
@@ -275,12 +299,12 @@
   top: 8px;
   z-index: 100;
   background: var(--sd-yellow);
-  color: var(--sd-purple);
-  font-family: 'Sora', sans-serif;
+  color: var(--sd-deep);
+  font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 13px;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 9999px;
   text-decoration: none;
 }
 
