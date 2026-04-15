@@ -25,6 +25,7 @@ This spec aligns the app with the website's visual identity so customers experie
 | Card radius | 12px | 16px (`rounded-2xl`) |
 | Dashboard accent | Blue `#0EA5E9` | Cyan `#007AAB` (accessible) |
 | Font imports | Quicksand + Montserrat + Sora + DM Sans | Montserrat only |
+| Portal layout | Fixed 560px single-column | Responsive grid: 1-col mobile, 2-col tablet/desktop (see Section 6) |
 
 ### Accessible Cyan Palette
 
@@ -45,7 +46,6 @@ Cyan (`#00C2FF`) on white yields a contrast ratio of ~1.6:1, which fails WCAG AA
 - Coral danger/accent (`#E8506A`)
 - Paper background (`#FAF9F6`) for portal
 - Left-border card system (accent colour shifts cyan)
-- 560px portal max-width, single-column layout
 - 900px dashboard max-width
 - Card slide-up animations
 - Dashboard system font stack
@@ -413,14 +413,131 @@ Single line change to the Google Fonts `<link>` tag.
 
 ---
 
+## Section 6: Responsive Portal Layout
+
+### Why the 560px constraint is wrong
+
+The original 560px single-column was a mobile-first decision that never grew up. On a 1440px monitor, the portal renders as a 560px strip with 440px of wasted space on each side. It feels like a phone app stretched onto a laptop. The content — glanceable data cards, a CTA, and a list of appointments — naturally pairs into two columns at wider viewports without any information architecture changes.
+
+### Why two columns is the ceiling
+
+Three columns was considered and ruled out. MyDetailsCard in edit mode contains form inputs (name, address, email, social fields) that need ~280px minimum width to remain usable. Three columns at the widest max-width (840px) yields ~250px per column after gaps — too narrow for form inputs, and the content hierarchy doesn't have three independent streams of related data. This is a customer portal for a dog grooming salon, not a financial dashboard. Two columns is the ceiling.
+
+### Breakpoints
+
+| Breakpoint | Viewport | Max-width | Columns | Rationale |
+|------------|----------|-----------|---------|-----------|
+| Mobile | < 640px | 560px | 1 | Current behaviour preserved. Single column is correct for phones — cards need full width for readable form inputs and appointment details. |
+| Tablet | 640px–1023px | 768px | 2 | Two cards per row. 768px gives two ~360px columns after gap — enough for form inputs and dog cards side by side. |
+| Desktop | 1024px+ | 840px | 2 | Same two-column grid, slightly wider. 840px gives two ~396px columns. Beyond 840px adds no value — the cards would just get wider without gaining readability. |
+
+### Grid layout
+
+```
+MOBILE (< 640px) — single column, max-width 560px
+┌──────────────────────────────┐
+│ [Book a Groom] CTA           │
+├──────────────────────────────┤
+│ My Details                    │
+├──────────────────────────────┤
+│ My Dogs                       │
+├──────────────────────────────┤
+│ Trusted Humans                │
+├──────────────────────────────┤
+│ Appointments                  │
+└──────────────────────────────┘
+
+TABLET / DESKTOP (≥ 640px) — two-column grid, max-width 768px / 840px
+┌──────────────────────────────────────┐
+│ [Book a Groom] CTA                   │  ← full span (grid-column: 1 / -1)
+├──────────────────┬───────────────────┤
+│ My Details       │ My Dogs           │  ← paired: "about you" info
+├──────────────────┴───────────────────┤
+│ Trusted Humans                       │  ← full span: lightweight (0-3 items)
+├──────────────────────────────────────┤
+│ Appointments (upcoming + past)       │  ← full span: heavy, expandable
+└──────────────────────────────────────┘
+```
+
+### Card pairing rationale
+
+| Position | Card(s) | Span | Why |
+|----------|---------|------|-----|
+| Row 1 | CTA button | Full | Most important action. Full-width at every breakpoint. Must be the first thing the eye hits. |
+| Row 2 | MyDetailsCard + DogsSection | 2-col pair | Both are "about you" information — your contact details and your dogs. Similar visual weight (~6-10 lines each). MyDetailsCard is slightly taller in edit mode but the grid handles unequal heights via `align-items: start`. |
+| Row 3 | TrustedHumansSection | Full | Too lightweight to pair (typically 0-3 items). Putting it in a half-column would leave an awkward empty gap next to it. Full span keeps it clean. If a future card is added (e.g. "Loyalty Points"), this becomes a pairing candidate. |
+| Row 4 | AppointmentsSection | Full | Heaviest component — expandable past appointments, inline cancellation forms, lazy-loaded history. Needs full width for the appointment cards to breathe. Collapsible past section would create jarring height changes if constrained to a half-column. |
+
+### Orphan card behaviour
+
+If a card is alone in a two-column row, it spans the full grid width (`grid-column: 1 / -1`). No half-width cards sitting next to empty space — that looks like a broken layout. The current four-card structure has no orphans in the paired row (MyDetails always exists, Dogs always exists even if empty state), but if a card were conditionally hidden, the remaining card should span full.
+
+### CSS for `.portal-content`
+
+Added to `customer-portal.css`:
+
+```css
+/* ── Responsive grid ──────────────────────────────────────────── */
+.portal-content {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .portal-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 768px;
+  }
+
+  /* Full-span elements */
+  .portal-content > .portal-btn--cta,
+  .portal-content > .portal-section--full {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .portal-content {
+    max-width: 840px;
+  }
+}
+```
+
+### Component markup changes
+
+`CustomerDashboard.jsx` needs two changes:
+
+1. **TrustedHumansSection and AppointmentsSection** get a wrapper class `.portal-section--full` (or the class is added to their root element) so they span the full grid width.
+
+2. **MyDetailsCard and DogsSection** need no changes — they naturally fill one grid cell each.
+
+3. **CTA button** already has `.portal-btn--cta` which is targeted by the grid rule.
+
+### Staggered entrance animations across two columns
+
+The existing `cardSlideUp` animation with staggered delays works in a grid without modification — CSS animation stagger is based on the element's position in the DOM, not its visual position. Cards animate in DOM order (CTA → MyDetails → Dogs → TrustedHumans → Appointments), which reads naturally left-to-right-then-down in the grid.
+
+The stagger delays should remain short (0.05s increments) so paired cards appear nearly simultaneously. A delay difference of more than 0.1s between paired cards looks like a bug, not an animation.
+
+### What this does NOT change
+
+- **Mobile experience is identical.** Below 640px, `display: grid` is not applied. The portal renders exactly as it does today — single column, 560px max-width.
+- **Card classes are untouched.** `.portal-card`, `.portal-card--teal`, left-border accents — all the same.
+- **BookingWizard is unaffected.** The wizard has its own layout and is rendered at a separate route (`/customer/book`), not inside the dashboard grid.
+- **Header stays full-width.** The responsive grid applies to `.portal-content` inside `.portal-main`, not the header.
+
+---
+
 ## Implementation Order
 
 1. `index.html` — font import cleanup
-2. `index.css` — new `@theme` tokens, utility classes, `.btn` updates
-3. `customer-portal.css` — token swap, class updates
-4. Portal components (13 files) — inline font and colour references
+2. `index.css` — new `@theme` tokens, semantic tokens, utility classes, global focus, motion safety, `.btn` updates
+3. `customer-portal.css` — token swap, class updates, responsive grid
+4. Portal components (13 files) — inline font and colour references, `.portal-section--full` classes
 5. Dashboard components — `brand-blue` → `brand-cyan` sweep
-6. Visual verification — dev server, check both portal and dashboard
+6. Visual verification — dev server, check portal at mobile/tablet/desktop widths, check dashboard
 
 ## Risks
 
@@ -446,8 +563,11 @@ These are not guidelines — they are constraints. Violating them is a bug.
 | Never use `cyan-50` for text | It's a decorative wash — 0.3:1 contrast |
 | Never omit `@media (prefers-reduced-motion)` when adding animations | Legal compliance in some regions; essential for neurodivergent users |
 | Never mix portal classes (`.portal-*`) and dashboard classes (`.btn`) in the same component | Different design systems — mixing creates visual incoherence |
+| Never go beyond two columns in the portal grid | Content doesn't support it — form inputs need ~280px min width, and three streams of grooming data don't exist |
+| Never let a portal card render below 280px width | Form inputs, appointment details, and dog info become unreadable below this threshold |
+| Never leave a half-width orphan card next to empty space | If a card is alone in a grid row, it must span full width (`grid-column: 1 / -1`) |
 
-## Accessibility Notes (Revision 2)
+## Accessibility Notes (Revision 3)
 
 Identified during review and incorporated into the spec:
 
@@ -457,6 +577,9 @@ Identified during review and incorporated into the spec:
 4. **Motion safety added.** `@media (prefers-reduced-motion: reduce)` kills all transforms and animations on `.animate-fade-in-up`, `.hover-lift`, `.btn-pill`, `.btn`, and `.portal-btn`. Opacity is forced to 1 so fade-in content remains visible.
 5. **Global focus styles consolidated.** Single `:focus-visible` rule with `2px solid cyan-dark` + `2px offset` replaces per-component focus declarations. Consistent across all interactive elements.
 6. **Semantic tokens added.** Developers use intent-based classes (`.text-link`, `.bg-action`) instead of raw colour tokens. This prevents misuse and makes future rebrands a one-file change.
+7. **Responsive grid touch targets.** At the tablet breakpoint (640px), two-column cards are ~360px wide — comfortably above the 280px minimum for form inputs. Touch targets (buttons, tappable cards) remain minimum 44x44px at all breakpoints. The CTA button stays full-width at every viewport size, maintaining a generous thumb target.
+8. **Card minimum width enforced.** The 280px minimum card width prevents content compression in the two-column grid. At the smallest two-column breakpoint (640px), each column is ~360px — well above the floor. If future breakpoints are added, this constraint must hold.
+9. **Two-column animation order.** Staggered entrance animations run in DOM order, which reads left-to-right-then-down in the grid. Paired cards (MyDetails + Dogs) animate within 0.05s of each other so they appear to load together. A gap of more than 0.1s between paired cards looks like a rendering bug, not a deliberate animation.
 
 ## Out of Scope
 
