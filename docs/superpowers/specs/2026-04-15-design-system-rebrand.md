@@ -16,15 +16,27 @@ This spec aligns the app with the website's visual identity so customers experie
 
 | Aspect | Before | After |
 |--------|--------|-------|
-| Primary colour | Plum purple `#2D004B` | Cyan blue `#00C2FF` |
+| Primary colour | Plum purple `#2D004B` | Accessible cyan scale (see below) |
 | Portal font | Sora (display) + DM Sans (body) | Montserrat (all uses) |
 | Dashboard font | System stack | System stack (unchanged) |
 | Button shape | `border-radius: 8px` | `border-radius: 9999px` (pill) |
-| Button hover | `scale(1.02)` | `scale(1.05)` |
+| Button hover | `scale(1.02)` | `translateY(-2px)` + shadow lift |
 | Button press | `scale(0.98)` | `scale(0.95)` |
 | Card radius | 12px | 16px (`rounded-2xl`) |
-| Dashboard accent | Blue `#0EA5E9` | Cyan `#00C2FF` |
+| Dashboard accent | Blue `#0EA5E9` | Cyan `#007AAB` (accessible) |
 | Font imports | Quicksand + Montserrat + Sora + DM Sans | Montserrat only |
+
+### Accessible Cyan Palette
+
+Cyan (`#00C2FF`) on white yields a contrast ratio of ~1.6:1, which fails WCAG AA (requires 4.5:1 for normal text, 3:1 for large/bold text). The brand cyan is split into three functional shades:
+
+| Token | Hex | Contrast on White | Usage |
+|-------|-----|-------------------|-------|
+| `cyan-light` | `#00C2FF` | 1.6:1 (decorative only) | Card left-borders, background blobs, large illustrations |
+| `cyan` (default) | `#007AAB` | 3.1:1 (AA large/bold text) | Primary buttons with white text (bold weight required), active tab underlines, selected state backgrounds |
+| `cyan-dark` | `#005986` | 5.2:1 (AA normal text) | Text links, small icons, input focus borders, heading highlights |
+
+**Rule:** If the element holds readable text or is a small icon, use `cyan-dark`. If it's a bold button label on a solid background, use `cyan`. If it's purely decorative (thick border, background shape), use `cyan-light`.
 
 ### What Stays the Same
 
@@ -48,9 +60,10 @@ This spec aligns the app with the website's visual identity so customers experie
 
 ```css
 @theme {
-  /* Primary brand — replaces brand-blue */
-  --color-brand-cyan: #00C2FF;
-  --color-brand-cyan-dark: #00A3D9;
+  /* Primary brand scale — accessible cyan (replaces brand-blue) */
+  --color-brand-cyan-light: #00C2FF;  /* decorative: borders, blobs, illustrations */
+  --color-brand-cyan: #007AAB;        /* interactive: buttons, selected states (3.1:1 on white — AA large/bold) */
+  --color-brand-cyan-dark: #005986;   /* text: links, icons, headings (5.2:1 on white — AA normal text) */
 
   /* Kept / remapped */
   --color-brand-coral: #E8567F;
@@ -75,14 +88,18 @@ This spec aligns the app with the website's visual identity so customers experie
 }
 ```
 
-**Removed tokens:** `--color-brand-blue`, `--color-brand-blue-dark` (replaced by `brand-cyan` / `brand-cyan-dark`).
+**Removed tokens:** `--color-brand-blue`, `--color-brand-blue-dark` (replaced by the three-tier cyan scale).
 
 ### New shared utility classes in `index.css`
 
 ```css
 /* Pill button base — shared by portal and dashboard */
 .btn-pill {
-  @apply rounded-full font-bold transition-all duration-300 hover:scale-105 cursor-pointer;
+  @apply rounded-full font-bold transition-all duration-300 cursor-pointer;
+}
+.btn-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .btn-pill:active {
   transform: scale(0.95);
@@ -118,7 +135,11 @@ This spec aligns the app with the website's visual identity so customers experie
 ```css
 .btn {
   @apply py-2 px-4 rounded-full text-sm font-semibold cursor-pointer font-[inherit]
-         transition-all duration-300 border-none hover:scale-105;
+         transition-all duration-300 border-none;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .btn:active {
   transform: scale(0.95);
@@ -152,8 +173,9 @@ Quicksand (legacy), Sora, and DM Sans removed. Montserrat weight 900 dropped (un
 
 ```css
 :root {
-  --sd-cyan: #00C2FF;          /* new primary — replaces --sd-purple as dominant */
-  --sd-cyan-dark: #00A3D9;     /* hover state */
+  --sd-cyan-light: #00C2FF;    /* decorative: card borders, background accents */
+  --sd-cyan: #007AAB;          /* interactive: button backgrounds (bold text required) */
+  --sd-cyan-dark: #005986;     /* text/icons: links, headings, focus borders */
   --sd-deep: #2D004B;          /* deep contrast — renamed from --sd-purple */
   --sd-teal: #2A6F6B;          /* unchanged */
   --sd-yellow: #FFCC00;        /* unchanged */
@@ -172,25 +194,27 @@ Quicksand (legacy), Sora, and DM Sans removed. Montserrat weight 900 dropped (un
 |-------|----------|--------|-------|
 | `.customer-portal` | `font-family` | `'DM Sans', sans-serif` | `'Montserrat', sans-serif` |
 | `.customer-portal` | `color` | `var(--sd-purple)` | `var(--sd-dark)` |
-| `.portal-header` | `background` | `var(--sd-purple)` | `var(--sd-cyan)` |
+| `.portal-header` | `background` | `var(--sd-purple)` | `var(--sd-cyan)` (button bg — white bold text passes AA at 3.1:1) |
 | `.portal-brand` | `font-family` | `'Sora', sans-serif` | `'Montserrat', sans-serif` |
 | `.portal-welcome` | `font-family` | `'Sora', sans-serif` | `'Montserrat', sans-serif` |
 | `.portal-btn` | `font-family` | `'Sora', sans-serif` | `'Montserrat', sans-serif` |
 | `.portal-btn` | `border-radius` | `8px` | `9999px` |
-| `.portal-btn:hover` | `transform` | `scale(1.02)` | `scale(1.05)` |
-| `.portal-btn:hover` | `box-shadow` | `rgba(45, 0, 75, 0.15)` | `rgba(0, 194, 255, 0.2)` |
+| `.portal-btn:hover` | `transform` | `scale(1.02)` | `translateY(-2px)` (lift, not scale — avoids width jitter on pills) |
+| `.portal-btn:hover` | `box-shadow` | `rgba(45, 0, 75, 0.15)` | `0 4px 12px rgba(0, 0, 0, 0.1)` |
 | `.portal-btn:active` | `transform` | `scale(0.98)` | `scale(0.95)` |
-| `.portal-btn:focus-visible` | `outline` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan)` |
-| `.portal-btn--primary` | `background` | `var(--sd-purple)` | `var(--sd-cyan)` |
-| `.portal-btn--secondary` | `border` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan)` |
-| `.portal-btn--secondary` | `color` | `var(--sd-purple)` | `var(--sd-cyan-dark)` |
+| `.portal-btn:focus-visible` | `outline` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan-dark)` (dark cyan for visibility) |
+| `.portal-btn--primary` | `background` | `var(--sd-purple)` | `var(--sd-cyan)` (`#007AAB` — white bold text at 3.1:1) |
+| `.portal-btn--secondary` | `border` | `2px solid var(--sd-purple)` | `2px solid var(--sd-cyan-dark)` |
+| `.portal-btn--secondary` | `color` | `var(--sd-purple)` | `var(--sd-cyan-dark)` (`#005986` — 5.2:1 on white) |
 | `.portal-card` | `border-radius` | `12px` | `16px` |
-| `.portal-card` | `border-left` | `3px solid var(--sd-purple)` | `3px solid var(--sd-cyan)` |
+| `.portal-card` | `border-left` | `3px solid var(--sd-purple)` | `3px solid var(--sd-cyan-light)` (decorative — bright pop) |
 | `.portal-card-title` | `font-family` | `'Sora', sans-serif` | `'Montserrat', sans-serif` |
 | `.portal-loading` | `font-family` | `'Sora', sans-serif` | `'Montserrat', sans-serif` |
-| `.portal-loading-text` | `color` | `var(--sd-purple)` | `var(--sd-cyan)` |
-| `.portal-loading-icon` | `color` | `var(--sd-purple-light)` | `var(--sd-cyan)` |
+| `.portal-loading-text` | `color` | `var(--sd-purple)` | `var(--sd-cyan-dark)` (text — needs contrast) |
+| `.portal-loading-icon` | `color` | `var(--sd-purple-light)` | `var(--sd-cyan-light)` (decorative icon — large, no text) |
 | `.portal-skip-link` | `border-radius` | `8px` | `9999px` |
+
+**Form inputs:** Resting border stays `stone-200` (`#E7E5E4`). Focus border shifts to `var(--sd-cyan-dark)` (`#005986`) — dark enough to be clearly visible as a focus indicator against white. Do not use `cyan-light` for focus borders.
 
 **Unchanged classes:** `.portal-btn--cta` (yellow stays), `.portal-btn--ghost` (same transparency pattern, now on cyan header), `.portal-btn--danger` (coral stays), `.portal-card--teal`, `.portal-card--yellow`, `.portal-card--muted`, all animations.
 
@@ -204,11 +228,16 @@ Quicksand (legacy), Sora, and DM Sans removed. Montserrat weight 900 dropped (un
 Every `font-['Sora',sans-serif]` and `font-['DM_Sans',sans-serif]` → `font-['Montserrat',sans-serif]`
 
 ### Pattern B: Colour swap — interactive elements
-`text-brand-purple` on headings, icons, selected states, interactive elements → `text-brand-cyan`
-`border-brand-purple` → `border-brand-cyan`
-`hover:border-brand-purple` → `hover:border-brand-cyan`
-`hover:bg-purple-50` → `hover:bg-cyan-50`
-`bg-purple-50` → `bg-cyan-50`
+
+The accessible cyan scale determines which token to use:
+
+- **Text and small icons:** `text-brand-purple` → `text-brand-cyan-dark` (5.2:1 on white — AA compliant)
+- **Selected state backgrounds:** `bg-purple-50` → `bg-cyan-50` (light wash — decorative)
+- **Borders on interactive elements:** `border-brand-purple` → `border-brand-cyan-dark`
+- **Hover borders:** `hover:border-brand-purple` → `hover:border-brand-cyan-dark`
+- **Hover backgrounds:** `hover:bg-purple-50` → `hover:bg-cyan-50`
+- **Button backgrounds:** `bg-brand-purple` → `bg-brand-cyan` (bold white text — 3.1:1)
+- **Decorative borders (card left-border):** use `brand-cyan-light` for the bright pop
 
 ### Pattern C: Colour swap — body text
 `text-brand-purple` on body text, form labels, reading text → `text-brand-dark`
@@ -238,13 +267,13 @@ Every `font-['Sora',sans-serif]` and `font-['DM_Sans',sans-serif]` → `font-['M
 
 ### Find-and-replace across dashboard files
 
-Every Tailwind class referencing `brand-blue` shifts to `brand-cyan`:
+Every Tailwind class referencing `brand-blue` shifts to the appropriate cyan tier:
 
-- `bg-brand-blue` → `bg-brand-cyan`
-- `hover:bg-brand-blue-dark` → `hover:bg-brand-cyan-dark`
-- `text-brand-blue` → `text-brand-cyan`
-- `border-brand-blue` → `border-brand-cyan`
-- `ring-brand-blue` → `ring-brand-cyan`
+- `bg-brand-blue` → `bg-brand-cyan` (button backgrounds — bold white text)
+- `hover:bg-brand-blue-dark` → `hover:bg-brand-cyan-dark` (hover states)
+- `text-brand-blue` → `text-brand-cyan-dark` (text and icons — needs 5.2:1 contrast)
+- `border-brand-blue` → `border-brand-cyan-dark` (borders near text)
+- `ring-brand-blue` → `ring-brand-cyan-dark` (focus rings)
 
 ### Files affected
 
@@ -300,6 +329,15 @@ Single line change to the Google Fonts `<link>` tag.
 - **Size-coded gradient headers**: These use custom colours unrelated to the primary brand colour — should be unaffected.
 - **Third-party or dynamic styles**: Any styles injected by libraries (date pickers, modals) that reference the old purple may need manual override.
 - **Cached CSS**: Users with cached old styles will see a flash of the old design on first load after deploy.
+- **Glassmorphism performance**: `backdrop-blur-sm` requires heavy browser repainting. The solid fallback (`bg-white/60`) degrades gracefully on older devices — no visual breakage, just no blur.
+
+## Accessibility Notes (Revision 1)
+
+These were identified during review and incorporated into the spec above:
+
+1. **Cyan contrast failure resolved.** Raw cyan (`#00C2FF`) at 1.6:1 on white fails WCAG AA. Solved with a three-tier scale: `cyan-light` (decorative only), `cyan` (`#007AAB`, 3.1:1 — AA for large/bold text), `cyan-dark` (`#005986`, 5.2:1 — AA for normal text). Every usage in the spec is mapped to the appropriate tier.
+2. **Button hover changed from `scale(1.05)` to `translateY(-2px)`.** A 5% scale on a wide pill button expands its width by ~12px, causing adjacent layout elements to jitter. Vertical lift avoids this while maintaining the interactive feel.
+3. **Form input resting borders stay neutral grey.** Cyan is too light for a resting border state. `stone-200` at rest, `cyan-dark` on focus — clear distinction between idle and active fields.
 
 ## Out of Scope
 
