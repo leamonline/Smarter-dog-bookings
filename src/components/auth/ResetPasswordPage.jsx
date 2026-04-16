@@ -72,7 +72,7 @@ export function ResetPasswordPage() {
     setTimeout(() => { window.location.href = "/"; }, 2500);
   };
 
-  const containerCls = "min-h-screen bg-[#F8FFFE] flex items-center justify-center p-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]";
+  const containerCls = "min-h-screen bg-brand-paper flex items-center justify-center p-5 font-sans";
   const cardCls = "w-full max-w-[400px] bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]";
 
   // Success
@@ -106,7 +106,7 @@ export function ResetPasswordPage() {
           </div>
           <a
             href="/"
-            className="inline-block py-2.5 px-5 bg-brand-cyan text-white rounded-[10px] text-sm font-bold no-underline"
+            className="inline-block py-2.5 px-5 bg-action text-on-action rounded-full text-sm font-bold no-underline hover:bg-brand-yellow-dark"
           >
             Back to sign in
           </a>
@@ -131,8 +131,8 @@ export function ResetPasswordPage() {
     <div className={containerCls}>
       <div className={cardCls}>
         <div className="text-center mb-6">
-          <div className="text-[28px] font-extrabold text-slate-800">
-            Smarter<span className="text-brand-cyan">Dog</span>
+          <div className="text-[28px] font-display font-bold text-brand-purple">
+            Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
         </div>
@@ -177,10 +177,10 @@ export function ResetPasswordPage() {
           <button
             type="submit"
             disabled={saving}
-            className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] mt-1 ${
+            className={`w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] mt-1 ${
               saving
                 ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-brand-cyan text-white cursor-pointer"
+                : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
             }`}
           >
             {saving ? "Saving..." : "Set new password"}

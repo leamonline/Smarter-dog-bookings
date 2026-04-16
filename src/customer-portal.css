@@ -34,7 +34,7 @@
 
 /* --- Header Band --- */
 .portal-header {
-  background: var(--sd-cyan);
+  background: var(--sd-deep);
   padding: 16px 20px 20px;
   position: relative;
   z-index: 2;
@@ -192,8 +192,8 @@
 }
 
 .portal-btn--primary {
-  background: var(--sd-cyan);
-  color: var(--sd-white);
+  background: var(--sd-yellow);
+  color: var(--sd-deep);
   padding: 10px 20px;
   font-size: 14px;
 }
