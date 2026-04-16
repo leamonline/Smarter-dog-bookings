@@ -27,6 +27,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelOther, setCancelOther] = useState("");
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -42,52 +43,64 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
   useEffect(() => {
     if (!supabase || !humanRecord?.id) { setLoading(false); return; }
+    let cancelled = false;
 
     async function fetchData() {
-      const { data: dogRows } = await supabase
-        .from("dogs")
-        .select("*")
-        .eq("human_id", humanRecord.id)
-        .order("name");
-      setDogs(dogRows || []);
+      try {
+        const { data: dogRows, error: dogErr } = await supabase
+          .from("dogs")
+          .select("*")
+          .eq("human_id", humanRecord.id)
+          .order("name");
+        if (dogErr) throw dogErr;
+        if (cancelled) return;
+        setDogs(dogRows || []);
 
-      const dogIds = (dogRows || []).map(d => d.id);
-      if (dogIds.length > 0) {
-        const pastDate = new Date();
-        pastDate.setDate(pastDate.getDate() - 180);
-        const pastStr = toDateStr(pastDate);
+        const dogIds = (dogRows || []).map(d => d.id);
+        if (dogIds.length > 0) {
+          const pastDate = new Date();
+          pastDate.setDate(pastDate.getDate() - 180);
+          const pastStr = toDateStr(pastDate);
 
-        const { data: bookingRows } = await supabase
-          .from("bookings")
-          .select("*, dogs(name, breed, size)")
-          .in("dog_id", dogIds)
-          .gte("booking_date", pastStr)
-          .order("booking_date", { ascending: false })
-          .order("slot", { ascending: false });
-        setBookings(bookingRows || []);
+          const { data: bookingRows, error: bookErr } = await supabase
+            .from("bookings")
+            .select("*, dogs(name, breed, size)")
+            .in("dog_id", dogIds)
+            .gte("booking_date", pastStr)
+            .order("booking_date", { ascending: false })
+            .order("slot", { ascending: false });
+          if (bookErr) throw bookErr;
+          if (cancelled) return;
+          setBookings(bookingRows || []);
 
-        const { count } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true })
-          .in("dog_id", dogIds)
-          .lt("booking_date", pastStr);
-        setHasMorePast((count || 0) > 0);
+          const { count } = await supabase
+            .from("bookings")
+            .select("id", { count: "exact", head: true })
+            .in("dog_id", dogIds)
+            .lt("booking_date", pastStr);
+          if (!cancelled) setHasMorePast((count || 0) > 0);
+        }
+
+        const { data: trustedLinks, error: trustedErr } = await supabase
+          .from("human_trusted_contacts")
+          .select("trusted_id, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
+          .eq("human_id", humanRecord.id);
+        if (trustedErr) throw trustedErr;
+
+        if (!cancelled && trustedLinks) {
+          setTrustedHumans(
+            trustedLinks.map(link => link.humans).filter(Boolean)
+          );
+        }
+      } catch (err) {
+        console.error("CustomerDashboard fetch failed:", err);
+        if (!cancelled) setLoadError(err?.message || "We couldn't load your details. Please refresh.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const { data: trustedLinks } = await supabase
-        .from("human_trusted_contacts")
-        .select("trusted_id, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
-        .eq("human_id", humanRecord.id);
-
-      if (trustedLinks) {
-        setTrustedHumans(
-          trustedLinks.map(link => link.humans).filter(Boolean)
-        );
-      }
-
-      setLoading(false);
     }
     fetchData();
+    return () => { cancelled = true; };
   }, [humanRecord]);
 
   const handleSave = useCallback(async () => {
@@ -251,6 +264,12 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       {/* ===== MAIN CONTENT ===== */}
       <main id="main-content" className="portal-main">
         <div className="portal-content">
+
+          {loadError && (
+            <div role="alert" className="portal-section--full mb-4 py-3 px-4 rounded-xl bg-pink-50 border border-pink-200 text-brand-coral text-sm font-semibold text-center">
+              {loadError}
+            </div>
+          )}
 
           {/* Book a Groom CTA */}
           <button
