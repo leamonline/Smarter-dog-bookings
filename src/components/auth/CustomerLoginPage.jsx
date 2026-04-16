@@ -74,11 +74,11 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         <div className="bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
           {!otpSent ? (
             <>
-              <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1">
-                Welcome
+              <div className="text-lg font-bold text-brand-purple font-display mb-1">
+                Hi there
               </div>
               <div className="text-[13px] text-slate-500 mb-5 font-medium">
-                Enter your mobile number and we'll text you a login code.
+                Pop your mobile number in and we&apos;ll text you a login code.
               </div>
               <form onSubmit={handleRequestOtp}>
                 <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Mobile Number</label>
@@ -105,17 +105,17 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                       : "portal-btn--primary"
                   }`}
                 >
-                  {submitting ? "Sending..." : "Send Login Code"}
+                  {submitting ? "Just a sec\u2026" : "Send login code"}
                 </button>
               </form>
             </>
           ) : (
             <>
-              <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1">
+              <div className="text-lg font-bold text-brand-purple font-display mb-1">
                 Check your phone
               </div>
               <div className="text-[13px] text-slate-500 mb-5 font-medium">
-                We sent a 6-digit code to <strong className="text-brand-cyan-dark">{phone}</strong>
+                We&apos;ve sent a 6-digit code to <strong className="text-brand-purple">{phone}</strong>.
               </div>
               <form onSubmit={handleVerifyOtp}>
                 <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Verification Code</label>
@@ -144,7 +144,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                       : "portal-btn--primary"
                   }`}
                 >
-                  {submitting ? "Verifying..." : "Verify & Sign In"}
+                  {submitting ? "Just a sec\u2026" : "Sign me in"}
                 </button>
               </form>
               <button

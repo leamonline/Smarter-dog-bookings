@@ -82,8 +82,8 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       </div>
 
       <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-        <div className="text-lg font-extrabold text-slate-800 mb-1">Welcome back</div>
-        <div className="text-[13px] text-slate-500 mb-5">Sign in to manage the salon.</div>
+        <div className="text-lg font-extrabold text-brand-purple mb-1">Hello again</div>
+        <div className="text-[13px] text-slate-500 mb-5">Sign in to start the day.</div>
 
         {/* Forgot password mode */}
         {forgotMode && (
@@ -130,7 +130,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                       : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
                   }`}
                 >
-                  {resetSending ? "Sending..." : "Send reset link"}
+                  {resetSending ? "Just a sec\u2026" : "Send reset link"}
                 </button>
                 <button
                   type="button"
@@ -190,7 +190,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                 : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
             }`}
           >
-            {submitting ? "Signing in..." : "Sign In"}
+            {submitting ? "Just a sec\u2026" : "Sign in"}
           </button>
 
           <button

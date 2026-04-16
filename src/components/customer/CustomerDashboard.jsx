@@ -226,7 +226,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     return (
       <div className="portal-loading">
         <PawPrint size={40} className="portal-loading-icon" />
-        <div className="portal-loading-text">Loading your dashboard...</div>
+        <div className="portal-loading-text">Just a sec, fetching your details\u2026</div>
       </div>
     );
   }
