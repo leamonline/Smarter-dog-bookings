@@ -26,6 +26,7 @@ import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
+import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { CalendarTabs } from "./components/layout/CalendarTabs.jsx";
 import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
@@ -64,6 +65,9 @@ import { NewBookingModal } from "./components/modals/NewBookingModal.jsx";
 import { AddDogModal } from "./components/modals/AddDogModal.jsx";
 import { AddHumanModal } from "./components/modals/AddHumanModal.jsx";
 
+// Top-level App: only handles auth state + the auth gate.
+// Data hooks live in <AuthedApp /> so they don't fire pre-auth (which used to
+// produce 406 noise on /login because RLS denied salon_config to anon callers).
 export default function App() {
   const {
     user,
@@ -76,7 +80,40 @@ export default function App() {
   } = useAuth();
   const isOnline = !!supabase;
 
-  // --- Navigation (URL-based) ---
+  if (authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (isOnline && !user) {
+    return (
+      <Suspense
+        fallback={
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
+            <LoadingSpinner />
+          </div>
+        }
+      >
+        <LoginPage onSignIn={signIn} error={authError} isOffline={false} />
+      </Suspense>
+    );
+  }
+
+  return (
+    <AuthedApp
+      user={user}
+      staffProfile={staffProfile}
+      isOwner={isOwner}
+      signOut={signOut}
+      isOnline={isOnline}
+    />
+  );
+}
+
+function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const location = useLocation();
   const {
     selectedHumanId, setSelectedHumanId,
@@ -90,7 +127,6 @@ export default function App() {
     openNewBooking,
   } = useModalState();
 
-  // --- Week navigation (extracted hook) ---
   const {
     weekStart,
     selectedDay,
@@ -112,7 +148,6 @@ export default function App() {
     [rawDatePick],
   );
 
-  // --- Keyboard shortcuts ---
   useKeyboardShortcuts({
     activeOnPath: "/",
     currentPath: location.pathname,
@@ -125,7 +160,6 @@ export default function App() {
     ),
   });
 
-  // --- Supabase hooks ---
   const {
     humans: sbHumans,
     humansById,
@@ -169,7 +203,7 @@ export default function App() {
     config: sbConfig,
     loading: cl,
     updateConfig: sbUpdateConfig,
-  } = useSalonConfig();
+  } = useSalonConfig({ canSeed: isOwner });
   const {
     daySettings: sbDaySettings,
     loading: dsl,
@@ -179,10 +213,8 @@ export default function App() {
     removeExtraSlot: sbRemoveExtraSlot,
   } = useDaySettings(weekStart);
 
-  // --- Offline state (extracted hook) ---
   const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
 
-  // --- Resolve online/offline booking actions ---
   const {
     dogs, humans, bookingsByDate, salonConfig, daySettings,
     handleAdd, handleAddToDate, handleRemove, handleUpdate,
@@ -207,7 +239,6 @@ export default function App() {
   const bookingsLoading = bl;
   const dataError = he || de || be;
 
-  // --- Derived state ---
   const currentSettings = daySettings[currentDateStr] || {
     isOpen: getDefaultOpenForDate(currentDateObj),
     overrides: {},
@@ -222,42 +253,10 @@ export default function App() {
     return state;
   }, [dates, daySettings]);
 
-  // --- Rebook logic (extracted hook) ---
   const { handleOpenRebook } = useRebookFlow({
     currentDateObj, daySettings, dayOpenState, bookingsByDate,
     setRebookData, setShowRebookDatePicker,
   });
-
-  // --- Loading / Auth gates ---
-  if (authLoading) {
-    return (
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          padding: "20px 16px",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (isOnline && !user) {
-    return (
-      <Suspense
-        fallback={
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
-            <LoadingSpinner />
-          </div>
-        }
-      >
-        <LoginPage onSignIn={signIn} error={authError} isOffline={false} />
-      </Suspense>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -267,7 +266,6 @@ export default function App() {
     );
   }
 
-  // --- Render ---
   return (
     <ToastProvider>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
@@ -277,6 +275,7 @@ export default function App() {
       >
         Skip to content
       </a>
+      <OfflineDemoBanner isOnline={isOnline} />
       {dataError && <ErrorBanner message={dataError} />}
 
       <AppToolbar

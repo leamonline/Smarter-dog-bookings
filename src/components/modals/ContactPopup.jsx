@@ -35,7 +35,17 @@ export function ContactPopup({ human, onClose }) {
           <button onClick={onClose} className="bg-white/20 border-none rounded-md w-6 h-6 flex items-center justify-center cursor-pointer text-xs text-white font-bold">{"\u00D7"}</button>
         </div>
         <div className="px-[18px] pt-2.5 pb-4">
-          {row("Phone", human.phone)}
+          {human.phone ? (
+            <div className="flex justify-between items-center py-2 border-b border-slate-200">
+              <span className="text-[13px] text-slate-500">Phone</span>
+              <a
+                href={`tel:${human.phone.replace(/\s/g, "")}`}
+                className="text-[13px] font-semibold text-brand-teal no-underline hover:underline"
+              >
+                {human.phone}
+              </a>
+            </div>
+          ) : row("Phone", "\u2014")}
           {row("SMS", null, human.sms)}
           {row("WhatsApp", null, human.whatsapp)}
           {human.email ? (

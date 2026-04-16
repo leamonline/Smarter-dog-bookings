@@ -160,24 +160,37 @@ export default function CustomerApp() {
     );
   }
 
-  // Authenticated but no matching human
+  // Authenticated but no matching human — give them a way to reach the salon.
   if (!humanRecord) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif] p-5">
+      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-sans p-5">
         <div className="max-w-[400px] text-center bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
-          <PawPrint size={32} className="text-brand-cyan-dark mx-auto mb-3" />
-          <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-2">
-            Phone not recognised
+          <PawPrint size={32} className="text-brand-purple mx-auto mb-3" aria-hidden="true" />
+          <div className="text-lg font-bold text-brand-purple font-display mb-2">
+            We don&apos;t have your number on file yet
           </div>
-          <div className="text-sm text-slate-500 mb-5 font-medium">
-            Your number isn't linked to a customer account yet. Please contact
-            the salon so they can add your details.
+          <div className="text-sm text-slate-500 mb-5 font-medium leading-relaxed">
+            Drop us a message and we&apos;ll add you in. Once we&apos;ve done that, come back here and try again.
           </div>
+          <a
+            href="https://wa.me/447507731487"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="portal-btn portal-btn--cta w-full inline-flex items-center justify-center gap-2 mb-2 no-underline"
+          >
+            <span>Message Smarter Dog on WhatsApp</span>
+          </a>
+          <a
+            href="tel:07507731487"
+            className="portal-btn portal-btn--secondary w-full inline-block no-underline mb-3"
+          >
+            Or call 07507 731487
+          </a>
           <button
             onClick={signOut}
-            className="portal-btn portal-btn--primary w-full py-3 text-sm"
+            className="text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold py-1"
           >
-            Sign Out
+            Sign out
           </button>
         </div>
       </div>
