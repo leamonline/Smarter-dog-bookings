@@ -13,6 +13,7 @@ import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
+import { BookingList } from "../booking/BookingList.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { DashboardSidebar } from "./DashboardSidebar.jsx";
 import { SidebarTodos } from "./SidebarTodos.jsx";
@@ -206,6 +207,7 @@ export function WeekCalendarView({
   onRefresh,
 }) {
   const [calendarMode, setCalendarMode] = useState("day"); // "day" | "month"
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
   const [confirmDayToggle, setConfirmDayToggle] = useState(null); // "open" | "close" | null
@@ -280,20 +282,29 @@ export function WeekCalendarView({
                 bookings={dayBookings}
                 dogs={dogs}
                 onOpenCalendar={() => setShowDatePicker(true)}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
               />
 
               {isOpen ? (
                 <>
-                  <SlotGrid
-                    bookings={dayBookings}
-                    loading={bookingsLoading && dayBookings.length === 0}
-                    activeSlots={activeSlots}
-                    onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
-                    currentDateStr={currentDateStr}
-                    overrides={currentSettings.overrides || {}}
-                    onOverride={handleOverride}
-                    searchQuery={searchQuery}
-                  />
+                  {viewMode === "grid" ? (
+                    <SlotGrid
+                      bookings={dayBookings}
+                      loading={bookingsLoading && dayBookings.length === 0}
+                      activeSlots={activeSlots}
+                      onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
+                      currentDateStr={currentDateStr}
+                      overrides={currentSettings.overrides || {}}
+                      onOverride={handleOverride}
+                      searchQuery={searchQuery}
+                    />
+                  ) : (
+                    <BookingList
+                      bookings={dayBookings}
+                      searchQuery={searchQuery}
+                    />
+                  )}
                   {/* Add/Remove extra slot + close day buttons */}
                   <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
                     {(currentSettings.extraSlots || []).length > 0 && (() => {

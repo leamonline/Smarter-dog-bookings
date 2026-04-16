@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { IconSearch } from "../icons/index.jsx";
+import { IconSearch, IconEdit, IconTick } from "../icons/index.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
@@ -151,6 +151,75 @@ export function HumanCardModal({
   const [newTrustedSurname, setNewTrustedSurname] = useState("");
   const [newTrustedPhone, setNewTrustedPhone] = useState("");
 
+  // --- Edit state ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(human.name || "");
+  const [editSurname, setEditSurname] = useState(human.surname || "");
+  const [editPhone, setEditPhone] = useState(human.phone || "");
+  const [editEmail, setEditEmail] = useState(human.email || "");
+  const [editAddress, setEditAddress] = useState(human.address || "");
+  const [editFb, setEditFb] = useState(human.fb || "");
+  const [editInsta, setEditInsta] = useState(human.insta || "");
+  const [editTiktok, setEditTiktok] = useState(human.tiktok || "");
+  const [editNotes, setEditNotes] = useState(human.notes || "");
+  const [editSms, setEditSms] = useState(!!human.sms);
+  const [editWhatsapp, setEditWhatsapp] = useState(!!human.whatsapp);
+  const [editHistoryFlag, setEditHistoryFlag] = useState(human.historyFlag || "");
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditName(human.name || "");
+      setEditSurname(human.surname || "");
+      setEditPhone(human.phone || "");
+      setEditEmail(human.email || "");
+      setEditAddress(human.address || "");
+      setEditFb(human.fb || "");
+      setEditInsta(human.insta || "");
+      setEditTiktok(human.tiktok || "");
+      setEditNotes(human.notes || "");
+      setEditSms(!!human.sms);
+      setEditWhatsapp(!!human.whatsapp);
+      setEditHistoryFlag(human.historyFlag || "");
+    }
+  }, [human.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveHuman = async () => {
+    const updates = {
+      name: editName.trim(),
+      surname: editSurname.trim(),
+      fullName: `${editName.trim()} ${editSurname.trim()}`.trim(),
+      phone: editPhone.trim(),
+      email: editEmail.trim(),
+      address: editAddress.trim(),
+      fb: editFb.trim(),
+      insta: editInsta.trim(),
+      tiktok: editTiktok.trim(),
+      notes: editNotes.trim(),
+      sms: editSms,
+      whatsapp: editWhatsapp,
+      historyFlag: editHistoryFlag.trim(),
+    };
+    await onUpdateHuman(human.id || humanId, updates);
+    setIsEditing(false);
+    toast.show("Profile saved", "success");
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(human.name || "");
+    setEditSurname(human.surname || "");
+    setEditPhone(human.phone || "");
+    setEditEmail(human.email || "");
+    setEditAddress(human.address || "");
+    setEditFb(human.fb || "");
+    setEditInsta(human.insta || "");
+    setEditTiktok(human.tiktok || "");
+    setEditNotes(human.notes || "");
+    setEditSms(!!human.sms);
+    setEditWhatsapp(!!human.whatsapp);
+    setEditHistoryFlag(human.historyFlag || "");
+    setIsEditing(false);
+  };
+
   const trustedSearchResults = useMemo(() => {
     if (!trustedSearchQuery.trim()) return [];
 
@@ -255,6 +324,19 @@ export function HumanCardModal({
     </div>
   );
 
+  const editableRow = (label, value, setter, { type = "text", placeholder = "" } = {}) => (
+    <div className="flex justify-between items-center gap-3 py-2 border-b border-slate-200">
+      <span className="text-[13px] text-slate-500 shrink-0">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => setter(e.target.value)}
+        placeholder={placeholder}
+        className="flex-1 max-w-[65%] py-1 px-2 rounded-md border border-slate-200 text-[13px] font-semibold font-inherit outline-none text-slate-800 text-right focus:border-brand-teal"
+      />
+    </div>
+  );
+
   const contactRow = (label, active) => (
     <div className="flex justify-between py-2 border-b border-slate-200">
       <span className="text-[13px] text-slate-500">{label}</span>
@@ -265,6 +347,27 @@ export function HumanCardModal({
         {active ? "\u2705 Active" : "\u274C Off"}
       </span>
     </div>
+  );
+
+  const editableToggleRow = (label, active, setter) => (
+    <label className="flex items-center justify-between py-2 border-b border-slate-200 cursor-pointer">
+      <span className="text-[13px] text-slate-500">{label}</span>
+      <div
+        role="switch"
+        aria-checked={active}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setter(!active);
+          }
+        }}
+        onClick={() => setter(!active)}
+        className={`w-9 h-5 rounded-full relative transition-colors ${active ? "bg-brand-teal" : "bg-slate-300"}`}
+      >
+        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
+      </div>
+    </label>
   );
 
   const PILL_FALLBACK = { light: "#E5E7EB", primary: "#6B7280" };
@@ -295,60 +398,133 @@ export function HumanCardModal({
           className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
           style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
         >
-          <div>
-            <div id="human-card-title" className="text-xl font-extrabold text-white">
-              {titleCase(humanFullName)}
-            </div>
-            {human.phone ? (
-              <div className="flex items-center gap-2 mt-1">
-                <a
-                  href={telLink(human.phone)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[13px] no-underline transition-colors hover:text-white"
-                  style={{ color: "rgba(255,255,255,0.8)" }}
-                >
-                  {human.phone}
-                </a>
-                <a
-                  href={waLink(human.phone)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] font-bold no-underline transition-colors hover:text-white"
-                  style={{ color: "rgba(255,255,255,0.6)" }}
-                  title="WhatsApp"
-                >
-                  WA
-                </a>
-              </div>
+          <div className="flex-1 min-w-0 pr-3">
+            {isEditing ? (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="First name"
+                    className="text-base font-extrabold bg-white/15 border border-white/30 rounded-lg px-2 py-1 w-1/2 box-border outline-none font-inherit text-white placeholder-white/50"
+                  />
+                  <input
+                    value={editSurname}
+                    onChange={(e) => setEditSurname(e.target.value)}
+                    placeholder="Surname"
+                    className="text-base font-extrabold bg-white/15 border border-white/30 rounded-lg px-2 py-1 w-1/2 box-border outline-none font-inherit text-white placeholder-white/50"
+                  />
+                </div>
+                <input
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="Phone"
+                  type="tel"
+                  className="mt-2 text-[13px] bg-white/15 border border-white/30 rounded-md px-2 py-1 w-full box-border outline-none font-inherit text-white placeholder-white/50"
+                />
+              </>
             ) : (
-              <div className="text-[13px] text-white/50 mt-1 italic">
-                No phone
-              </div>
+              <>
+                <div id="human-card-title" className="text-xl font-extrabold text-white">
+                  {titleCase(humanFullName)}
+                </div>
+                {human.phone ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <a
+                      href={telLink(human.phone)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[13px] no-underline transition-colors hover:text-white"
+                      style={{ color: "rgba(255,255,255,0.8)" }}
+                    >
+                      {human.phone}
+                    </a>
+                    <a
+                      href={waLink(human.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[11px] font-bold no-underline transition-colors hover:text-white"
+                      style={{ color: "rgba(255,255,255,0.6)" }}
+                      title="WhatsApp"
+                    >
+                      WA
+                    </a>
+                  </div>
+                ) : (
+                  <div className="text-[13px] text-white/50 mt-1 italic">
+                    No phone
+                  </div>
+                )}
+              </>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm text-white font-bold shrink-0"
-          >
-            {"\u00D7"}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isEditing && onUpdateHuman && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-white shrink-0"
+                aria-label="Edit profile"
+                title="Edit profile"
+              >
+                <IconEdit size={14} colour="#FFFFFF" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm text-white font-bold shrink-0"
+            >
+              {"\u00D7"}
+            </button>
+          </div>
         </div>
 
         <div className="px-6 pt-4 pb-5">
-          {detailRow("Address", human.address)}
-          {detailRow("Email", human.email)}
-          {contactRow("SMS", human.sms)}
-          {contactRow("WhatsApp", human.whatsapp)}
-          {detailRow("Facebook", human.fb)}
-          {detailRow("Instagram", human.insta)}
-          {detailRow("TikTok", human.tiktok)}
-          {detailRow("Notes", human.notes)}
+          {isEditing ? (
+            <>
+              {editableRow("Address", editAddress, setEditAddress, { placeholder: "Address" })}
+              {editableRow("Email", editEmail, setEditEmail, { type: "email", placeholder: "name@example.com" })}
+              {editableToggleRow("SMS", editSms, setEditSms)}
+              {editableToggleRow("WhatsApp", editWhatsapp, setEditWhatsapp)}
+              {editableRow("Facebook", editFb, setEditFb, { placeholder: "@handle or URL" })}
+              {editableRow("Instagram", editInsta, setEditInsta, { placeholder: "@handle" })}
+              {editableRow("TikTok", editTiktok, setEditTiktok, { placeholder: "@handle" })}
+              <div className="flex flex-col py-2 border-b border-slate-200">
+                <span className="text-[13px] text-slate-500 mb-1">Notes</span>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Anything worth remembering..."
+                  rows={2}
+                  className="w-full py-1.5 px-2 rounded-md border border-slate-200 text-[13px] font-inherit outline-none text-slate-800 resize-y focus:border-brand-teal"
+                />
+              </div>
+              <div className="flex flex-col py-2">
+                <span className="text-[13px] text-slate-500 mb-1">History flag</span>
+                <input
+                  value={editHistoryFlag}
+                  onChange={(e) => setEditHistoryFlag(e.target.value)}
+                  placeholder="Warning to show on the card"
+                  className="w-full py-1.5 px-2 rounded-md border border-slate-200 text-[13px] font-inherit outline-none text-slate-800 focus:border-brand-coral"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {detailRow("Address", human.address)}
+              {detailRow("Email", human.email)}
+              {contactRow("SMS", human.sms)}
+              {contactRow("WhatsApp", human.whatsapp)}
+              {detailRow("Facebook", human.fb)}
+              {detailRow("Instagram", human.insta)}
+              {detailRow("TikTok", human.tiktok)}
+              {detailRow("Notes", human.notes)}
 
-          {human.historyFlag && (
-            <div className="text-[13px] text-brand-coral font-bold bg-brand-coral-light px-3 py-2 rounded-lg mt-3">
-              {"\u26A0\uFE0F"} {human.historyFlag}
-            </div>
+              {human.historyFlag && (
+                <div className="text-[13px] text-brand-coral font-bold bg-brand-coral-light px-3 py-2 rounded-lg mt-3">
+                  {"\u26A0\uFE0F"} {human.historyFlag}
+                </div>
+              )}
+            </>
           )}
 
           {/* DOGS (own dogs) */}
@@ -596,6 +772,24 @@ export function HumanCardModal({
             </div>
           )}
         </div>
+
+        {isEditing && (
+          <div className="px-6 py-4 pb-5 flex gap-2.5 bg-slate-50 border-t border-slate-200">
+            <button
+              onClick={handleSaveHuman}
+              className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors text-white"
+              style={{ background: "#2D8B7A" }}
+            >
+              <IconTick size={16} colour="#FFFFFF" /> Save Changes
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="flex-1 py-3 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
     </AccessibleModal>
   );
 }
