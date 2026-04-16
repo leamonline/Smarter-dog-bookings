@@ -99,20 +99,14 @@ npm run build    # outputs to /dist
 - [ ] Set environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 - [ ] Deploy — Vercel auto-detects Vite config
 
-**Option B: Netlify**
-- [ ] Connect GitHub repo to Netlify
-- [ ] Set build command: `npm run build`
-- [ ] Set publish directory: `dist`
-- [ ] Add environment variables
-
-**Option C: GitHub Pages**
+**Option B: GitHub Pages**
 - [ ] Add `base` to `vite.config.js` matching repo name
 - [ ] Set up GitHub Actions to build and deploy on push
 
 ### 4.3 Custom Domain (Optional)
 - [ ] Purchase/configure domain
 - [ ] Add DNS records pointing to hosting provider
-- [ ] Enable HTTPS (automatic on Vercel/Netlify)
+- [ ] Enable HTTPS (automatic on Vercel)
 
 ### 4.4 Post-Deploy Verification
 - [ ] Verify login works on production URL
@@ -187,13 +181,12 @@ npm run build    # outputs to /dist
 **"Build fails with 'process is not defined'"**
 - This is a Vite thing — it doesn't polyfill Node globals. Make sure you're using `import.meta.env.VITE_*` (not `process.env.*`) everywhere. If a dependency expects `process`, you may need to add a `define` block in `vite.config.js`.
 
-**"Works locally but not on Vercel/Netlify"**
+**"Works locally but not on Vercel"**
 - The most common cause is missing environment variables. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your hosting provider's settings, then redeploy.
-- For Netlify, confirm `netlify.toml` has the correct build command and publish directory (`dist`).
-- For Vercel, confirm `vercel.json` is present and correct.
+- Confirm `vercel.json` is present and correct.
 
 **"Page not found on refresh (404)"**
-- This is a client-side routing issue. Both `vercel.json` and `netlify.toml` should include rewrite rules that send all routes to `index.html`. Check that these files are present and correctly configured.
+- This is a client-side routing issue. `vercel.json` should include rewrite rules that send all routes to `index.html`. Check that this file is present and correctly configured.
 
 ---
 
@@ -261,7 +254,7 @@ npm audit fix         # Auto-fix where possible
 
 If the app goes down:
 1. **Check Supabase status** at [status.supabase.com](https://status.supabase.com) — if it's a platform outage, the app will fall back to offline mode automatically
-2. **Check hosting provider status** (Vercel/Netlify status pages)
+2. **Check hosting provider status** (Vercel status page)
 3. **Check the browser console** for error messages — screenshot them for debugging
 4. **Fall back to manual bookings** (pen and paper) if needed — the app is a tool, not the business
 
@@ -276,7 +269,7 @@ This maps each phase to a target date range and who's responsible. Adjust dates 
 | **1. Infrastructure** | Supabase setup, migrations, env config, first admin | Days 1–2 | Leam (or technical person) | None |
 | **2. Configuration** | Pricing, operating hours, staff accounts | Days 2–3 | Leam + salon owner | Phase 1 complete |
 | **3. Testing** | Functional, auth, device, edge case testing | Days 3–5 | All staff (coordinated by Leam) | Phase 2 complete |
-| **4. Deployment** | Build, deploy to Vercel/Netlify, domain setup | Days 5–6 | Leam | Phase 3 sign-off |
+| **4. Deployment** | Build, deploy to Vercel, domain setup | Days 5–6 | Leam | Phase 3 sign-off |
 | **5. Go Live** | Data entry, staff onboarding, launch | Days 6–7 | Salon owner + Leam | Phase 4 complete |
 | **6. Stabilisation** | Monitor for bugs, gather feedback, quick fixes | Days 7–14 | Leam (with staff reporting) | Phase 5 complete |
 | **7. Compliance review** | Complete the App Compliance Code (see below) | Days 7–21 | Salon owner + legal advisor | Phase 5 complete |
