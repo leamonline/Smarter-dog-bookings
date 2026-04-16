@@ -223,7 +223,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           </div>
           <button
             onClick={onComplete}
-            className="py-3 px-8 rounded-lg border-none bg-brand-cyan text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+            className="py-3 px-8 rounded-full border-none bg-action text-on-action font-bold text-[15px] cursor-pointer font-[inherit] hover:bg-brand-yellow-dark"
           >
             Back to dashboard
           </button>
@@ -263,7 +263,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         </div>
         <button
           onClick={onComplete}
-          className="py-3 px-8 rounded-lg border-none bg-brand-cyan text-white font-bold text-[15px] cursor-pointer font-[inherit]"
+          className="py-3 px-8 rounded-full border-none bg-action text-on-action font-bold text-[15px] cursor-pointer font-[inherit] hover:bg-brand-yellow-dark"
         >
           Back to dashboard
         </button>

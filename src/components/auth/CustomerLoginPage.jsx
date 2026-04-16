@@ -65,7 +65,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
           <div className="inline-flex items-center gap-2 mb-2">
             <PawPrint size={28} className="text-brand-cyan-dark" aria-hidden="true" />
           </div>
-          <div className="text-[28px] font-[800] text-brand-cyan-dark font-['Montserrat',sans-serif] tracking-tight">
+          <div className="text-[28px] font-[800] text-brand-purple font-display tracking-tight">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-sm text-slate-500 mt-1 font-medium">Customer Portal</div>

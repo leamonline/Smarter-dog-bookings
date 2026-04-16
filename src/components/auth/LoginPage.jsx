@@ -55,10 +55,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
   if (isOffline) {
     return (
-      <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+      <div className="max-w-[400px] mx-auto mt-20 px-5 font-sans">
         <div className="text-center mb-8">
-          <div className="text-[28px] font-extrabold text-slate-800">
-            Smarter<span className="text-brand-cyan">Dog</span>
+          <div className="text-[28px] font-display font-bold text-brand-purple">
+            Smarter<span className="text-brand-yellow">Dog</span>
           </div>
           <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
         </div>
@@ -73,10 +73,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   }
 
   return (
-    <div className="max-w-[400px] mx-auto mt-20 px-5 font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]">
+    <div className="max-w-[400px] mx-auto mt-20 px-5 font-sans">
       <div className="text-center mb-8">
-        <div className="text-[28px] font-extrabold text-slate-800">
-          Smarter<span className="text-brand-cyan">Dog</span>
+        <div className="text-[28px] font-display font-bold text-brand-purple">
+          Smarter<span className="text-brand-yellow">Dog</span>
         </div>
         <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
       </div>
@@ -124,10 +124,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                 <button
                   type="submit"
                   disabled={resetSending}
-                  className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] ${
+                  className={`w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] ${
                     resetSending
                       ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : "bg-brand-cyan text-white cursor-pointer"
+                      : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
                   }`}
                 >
                   {resetSending ? "Sending..." : "Send reset link"}
@@ -184,10 +184,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           <button
             type="submit"
             disabled={submitting}
-            className={`w-full py-3 rounded-[10px] border-none text-sm font-bold font-[inherit] transition-all mt-1 ${
+            className={`w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] transition-all mt-1 ${
               submitting
                 ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-brand-cyan text-white cursor-pointer hover:bg-brand-cyan-dark"
+                : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
             }`}
           >
             {submitting ? "Signing in..." : "Sign In"}

@@ -141,10 +141,10 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         <button
           onClick={handleSave}
           disabled={saving || !name.trim()}
-          className={`flex-1 py-2.5 px-4 rounded-lg border-none font-bold text-sm ${
+          className={`flex-1 py-2.5 px-4 rounded-full border-none font-bold text-sm ${
             !name.trim()
               ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-brand-cyan text-white cursor-pointer"
+              : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
           }`}
         >
           {saving ? "Saving\u2026" : "Save dog"}
