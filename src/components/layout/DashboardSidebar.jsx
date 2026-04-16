@@ -62,7 +62,7 @@ export function DashboardSidebar({
       {/* Revenue card */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-          Today &mdash; {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+          {selectedStr === todayStr ? "Today" : "Viewing"} &mdash; {currentDateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
         </div>
         <div className="flex items-baseline gap-3">
           <div>

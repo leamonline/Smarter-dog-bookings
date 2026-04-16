@@ -29,7 +29,7 @@ function formatFullDate(dateObj) {
   return { weekday, day, month, year: dateObj.getFullYear() };
 }
 
-export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar }) {
+export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, viewMode, setViewMode }) {
   const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
   const { weekday, day, month } = formatFullDate(currentDateObj);
@@ -68,11 +68,41 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
         </div>
       </div>
 
+      {/* View Mode Toggle (Grid/List) */}
+      {setViewMode && (
+        <div className="relative z-[1] flex bg-white/15 rounded-lg p-0.5 shrink-0">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
+              viewMode === "grid" ? "bg-white text-brand-cyan shadow-sm" : "bg-transparent text-white/70 hover:text-white"
+            }`}
+            aria-label="Grid view"
+            title="Grid view"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
+              viewMode === "list" ? "bg-white text-brand-cyan shadow-sm" : "bg-transparent text-white/70 hover:text-white"
+            }`}
+            aria-label="List view"
+            title="List view"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Calendar picker button — mobile/tablet only (xl has sidebar calendar) */}
       {onOpenCalendar && (
         <button
           onClick={onOpenCalendar}
-          className="relative z-[1] xl:hidden w-9 h-9 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+          className="relative z-[1] xl:hidden w-9 h-9 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25 ml-1"
           aria-label="Open calendar"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

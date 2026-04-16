@@ -33,33 +33,38 @@ export function GhostSeat({ onClick, onBlock, span }) {
   // Simple ghost seat without blocking (e.g., rebook modal)
   if (!onBlock) {
     return (
-      <div
+      <button
         onClick={onClick}
-        className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 text-lg cursor-pointer transition-all min-h-[36px] md:min-h-[44px] hover:border-brand-cyan hover:text-brand-cyan hover:bg-sky-50 ${spanClass}`}
+        aria-label="Book this seat"
+        title="Add booking"
+        className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer transition-all min-h-[36px] md:min-h-[44px] font-[inherit] hover:border-brand-cyan hover:text-brand-cyan hover:bg-sky-50 ${spanClass}`}
       >
-        +
-      </div>
+        <span className="text-lg font-bold">+</span>
+        <span className="text-xs font-semibold">Book</span>
+      </button>
     );
   }
 
   // Ghost seat with block button
   return (
     <div
-      className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition-all min-h-[36px] md:min-h-[44px] relative ${spanClass}`}
+      className={`border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-1.5 transition-all min-h-[36px] md:min-h-[44px] relative px-1.5 ${spanClass}`}
     >
       {/* Book button */}
       <button
         onClick={onClick}
         aria-label="Book this seat"
-        className="w-8 h-8 rounded-md bg-sky-50 text-brand-cyan border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] text-sm font-bold hover:bg-brand-cyan hover:text-white"
+        title="Add booking"
+        className="flex-1 h-8 rounded-md bg-sky-50 text-brand-cyan border-none flex items-center justify-center gap-1 cursor-pointer transition-all font-[inherit] hover:bg-brand-cyan hover:text-white"
       >
-        +
+        <span className="text-sm font-bold">+</span>
+        <span className="text-xs font-semibold">Book</span>
       </button>
 
       {/* Block button */}
       <button
         aria-label="Block this seat"
-        title="Block this seat — prevents bookings"
+        title="Block this timeslot"
         onClick={(e) => {
           e.stopPropagation();
           if (span) {
@@ -68,7 +73,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
             onBlock();
           }
         }}
-        className="w-8 h-8 rounded-md bg-pink-50 text-brand-coral border-none flex items-center justify-center cursor-pointer transition-all font-[inherit] hover:bg-brand-coral hover:text-white"
+        className="w-8 h-8 rounded-md bg-pink-50 text-brand-coral border-none flex items-center justify-center shrink-0 cursor-pointer transition-all font-[inherit] hover:bg-brand-coral hover:text-white"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />

@@ -40,9 +40,6 @@ npm run dev
 ### Vercel
 Connect this repo — Vercel auto-detects Vite. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables.
 
-### Netlify
-Connect this repo — config is in `netlify.toml`. Add environment variables in the Netlify dashboard.
-
 ### Manual
 ```bash
 npm run build   # outputs to dist/
