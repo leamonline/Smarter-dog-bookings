@@ -99,6 +99,18 @@ export function NewBookingModal({
     if (!selectedDateStr) { setError("Please select a date."); return; }
     if (!selectedSlot) { setError("Please select a time slot."); return; }
 
+    // Check for duplicate dogs on the same date/slot
+    const existingBookings = bookingsByDate?.[selectedDateStr] || [];
+    for (const entry of dogEntries) {
+      const duplicate = existingBookings.find(
+        (b) => (b.dog_id === entry.dog.id || b.dogName === entry.dog.name) && b.slot === selectedSlot
+      );
+      if (duplicate) {
+        setError(`${entry.dog.name} is already booked at ${selectedSlot} on this date.`);
+        return;
+      }
+    }
+
     const bookings = [];
     const occurrences = recurringWeeks > 0 ? Math.floor(52 / recurringWeeks) : 1;
     let baseDate = new Date(selectedDateStr + "T00:00:00");

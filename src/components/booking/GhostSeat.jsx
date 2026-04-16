@@ -59,6 +59,7 @@ export function GhostSeat({ onClick, onBlock, span }) {
       {/* Block button */}
       <button
         aria-label="Block this seat"
+        title="Block this seat — prevents bookings"
         onClick={(e) => {
           e.stopPropagation();
           if (span) {

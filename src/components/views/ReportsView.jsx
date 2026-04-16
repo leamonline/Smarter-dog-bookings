@@ -8,6 +8,7 @@ import { SizeSplit } from "./reports/SizeSplit.jsx";
 import { ScheduleCharts } from "./reports/ScheduleCharts.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
+import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
 
 export function ReportsView() {
   const [days, setDays] = useState(30);
@@ -15,9 +16,12 @@ export function ReportsView() {
 
   return (
     <div className="py-2.5 flex flex-col gap-4">
+      {/* Weekly Snapshot */}
+      <WeeklySnapshot />
+
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center gap-3">
-        <h2 className="text-[22px] font-extrabold m-0 text-slate-800">Overview & Analytics</h2>
+        <h2 className="text-[22px] font-extrabold m-0 text-slate-800 font-display">Overview & Analytics</h2>
         <div className="flex bg-slate-100 p-1 rounded-lg">
           {PERIODS.map((p) => (
             <button
