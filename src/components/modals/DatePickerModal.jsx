@@ -38,9 +38,11 @@ export function DatePickerModal({
     return d === currentDate.getDate() && viewMonth === currentDate.getMonth() && viewYear === currentDate.getFullYear();
   };
 
+  // Always render 6 rows (42 cells) so the header never shifts position
   const cells = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length < 42) cells.push(null);
 
   return (
     <AccessibleModal
@@ -75,7 +77,7 @@ export function DatePickerModal({
         {/* Day cells */}
         <div className="grid grid-cols-7 px-3 pb-3.5 gap-0.5">
           {cells.map((d, i) => {
-            if (d === null) return <div key={`e${i}`} />;
+            if (d === null) return <div key={`e${i}`} className="aspect-square" />;
 
             const cellDate = new Date(viewYear, viewMonth, d);
             const dateStr = toDateStr(cellDate);

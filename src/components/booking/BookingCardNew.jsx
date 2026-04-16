@@ -1,6 +1,6 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
-import { SERVICES } from "../../constants/index.js";
+import { SERVICES, PRICING } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
 import {
   getDogByIdOrName,
@@ -53,6 +53,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
   } = useSalon();
 
   const [showDetail, setShowDetail] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
@@ -68,9 +69,17 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
 
-  const price = dogRecord?.customPrice != null
-    ? `£${dogRecord.customPrice}`
-    : "";
+  // Calculate total price including add-ons
+  let displayPrice = dogRecord?.customPrice ?? null;
+  if (displayPrice == null) {
+    const priceStr = PRICING[booking.service]?.[booking.size] || "";
+    const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
+    if (!isNaN(num)) displayPrice = num;
+  }
+  if (displayPrice != null && booking.addons?.includes("Flea Bath")) {
+    displayPrice += 10;
+  }
+  const price = displayPrice != null ? `£${displayPrice}` : "";
 
   const displayDogName = titleCase(
     dogRecord?.name || booking.dogName || "Unknown Dog"
@@ -140,20 +149,53 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
         )}
 
         {/* Row 4: pill row */}
-        <div className="flex gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
-          {/* Service pill */}
-          <span className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate bg-slate-100 text-slate-700">
+        <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
+          {/* Service pill — stretches to match status picker height */}
+          <span className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold px-1.5 rounded-md text-center bg-slate-100 text-slate-700 flex items-center justify-center">
             {service?.name || booking.service || "\u2014"}
           </span>
 
-          {/* Status pill */}
-          <span
-            className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
-            style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
-          >
-            {statusObj.label}
-            <span className="text-[8px] opacity-60">{"\u25BE"}</span>
-          </span>
+          {/* Status pill / inline picker */}
+          {statusOpen ? (
+            <div className="flex-1 min-w-0 flex flex-col gap-[3px]" onClick={(e) => e.stopPropagation()}>
+              {[
+                { id: "No-show", ...STATUS_DISPLAY["No-show"] },
+                { id: "Checked in", ...STATUS_DISPLAY["Checked in"] },
+                { id: "Ready for pick-up", ...STATUS_DISPLAY["Ready for pick-up"] },
+              ].map((s) => {
+                const isCurrent = s.id === booking.status;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      if (!isCurrent && onUpdate) onUpdate({ ...booking, status: s.id }, currentDateStr, currentDateStr);
+                      setStatusOpen(false);
+                    }}
+                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] ${
+                      isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
+                    }`}
+                    style={{
+                      background: s.bg,
+                      color: s.color,
+                      borderColor: s.border,
+                      ...(isCurrent ? { ringColor: s.color } : {}),
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <span
+              onClick={(e) => { e.stopPropagation(); setStatusOpen(true); }}
+              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
+              style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
+            >
+              {statusObj.label}
+              <span className="text-[8px] opacity-60">{"\u25BE"}</span>
+            </span>
+          )}
         </div>
         </div>
       </div>

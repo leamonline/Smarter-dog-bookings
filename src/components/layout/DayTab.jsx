@@ -2,60 +2,54 @@
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function busyStyle(count, isOpen) {
+  if (!isOpen) return "bg-red-100 text-red-800";
+  if (count === 0) return "bg-slate-100 text-slate-500";
+  if (count <= 3) return "bg-emerald-500 text-white";
+  if (count <= 6) return "bg-amber-500 text-white";
+  return "bg-rose-500 text-white";
+}
+
 export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const dayName = DAY_NAMES[dateObj.getDay()];
   const dateNum = dateObj.getDate();
-  const monthName = dateObj.toLocaleDateString("en-GB", { month: "long" });
-
-  let dogCountText;
-  if (!isOpen) {
-    dogCountText = "Closed";
-  } else if (dogCount === 1) {
-    dogCountText = "1 dog";
-  } else {
-    dogCountText = `${dogCount} dogs`;
-  }
 
   return (
-    <div
+    <button
       role="tab"
       aria-selected={isActive}
-      aria-label={`${dayName} ${dateNum} ${monthName}, ${dogCountText}`}
+      aria-label={`${dayName} ${dateNum}, ${!isOpen ? "closed" : `${dogCount} dogs`}`}
       tabIndex={isActive ? 0 : -1}
       id={id}
-      className={[
-        "flex-1 min-w-[56px] md:min-w-[72px] rounded-t-[10px] text-center border-[1.5px] border-b-0 select-none py-2 cursor-pointer transition-all snap-center shrink-0",
-        isActive
-          ? "bg-gradient-to-b from-brand-cyan to-brand-cyan-dark border-brand-cyan opacity-100 -translate-y-[3px] z-[2] shadow-[0_-4px_16px_rgba(14,165,233,0.25),0_4px_12px_rgba(14,165,233,0.15)]"
-          : "bg-white border-slate-200 opacity-80 hover:opacity-100 hover:-translate-y-0.5 z-[1] shadow-[0_-2px_8px_rgba(0,0,0,0.04)]",
-      ].join(" ")}
       onClick={onClick}
+      className={[
+        "flex flex-col items-center gap-0.5 py-1.5 px-1 sm:px-1.5 rounded-xl cursor-pointer transition-all border-none font-[inherit] min-w-[40px] sm:min-w-[46px]",
+        isActive
+          ? "bg-brand-cyan/10"
+          : "bg-transparent hover:bg-slate-50",
+      ].join(" ")}
     >
       {/* Day name */}
-      <div className={`text-[10px] font-bold uppercase tracking-wide ${isActive ? "text-white/80" : "text-slate-500"}`}>
+      <span className={`text-[10px] font-bold uppercase tracking-wide leading-none ${isActive ? "text-brand-cyan" : !isOpen ? "text-red-800" : "text-slate-400"}`}>
         {dayName}
-      </div>
+      </span>
 
-      {/* Date number */}
-      <div className={`text-lg md:text-2xl font-black leading-none mt-0.5 ${isActive ? "text-white" : "text-slate-800"}`}>
+      {/* Date circle */}
+      <span
+        className={[
+          "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
+          isActive
+            ? "bg-brand-cyan text-white shadow-[0_2px_10px_rgba(0,122,171,0.35)]"
+            : busyStyle(dogCount, isOpen),
+        ].join(" ")}
+      >
         {dateNum}
-      </div>
+      </span>
 
-      {/* Month name */}
-      <div className={`text-[10px] md:text-[13px] font-extrabold leading-none mt-px ${isActive ? "text-white/90" : "text-slate-600"}`}>
-        {monthName}
-      </div>
-
-      {/* Dog count */}
-      <div className={`text-[10px] font-extrabold mt-[3px] leading-none ${
-        isActive
-          ? "text-white/80"
-          : !isOpen
-            ? "text-slate-400 italic font-semibold"
-            : "text-brand-cyan"
-      }`}>
-        {dogCountText}
-      </div>
-    </div>
+      {/* Dog count or closed */}
+      <span className={`text-[9px] font-bold leading-none ${isActive ? "text-brand-cyan" : "text-slate-500"}`}>
+        {dogCount === 0 ? "—" : `${dogCount}`}
+      </span>
+    </button>
   );
 }

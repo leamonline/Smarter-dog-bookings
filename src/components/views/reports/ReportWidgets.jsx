@@ -22,7 +22,7 @@ export function Kpi({ label, value, sub, cur, prev, color = "#2D8B7A", invert })
     <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
       <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">{label}</div>
       <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="text-2xl md:text-[28px] font-black leading-none" style={{ color }}>{value}</span>
+        <span className="text-2xl md:text-[28px] font-black leading-none font-display" style={{ color }}>{value}</span>
         {cur != null && prev != null && <Trend cur={cur} prev={prev} invert={invert} />}
       </div>
       {sub && <div className="text-[11px] text-slate-400 font-medium mt-1">{sub}</div>}

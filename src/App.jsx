@@ -1,10 +1,10 @@
 import {
-  useState,
   useCallback,
   useMemo,
   lazy,
   Suspense,
 } from "react";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 
 import { supabase } from "./supabase/client.js";
@@ -27,11 +27,9 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
+import { CalendarTabs } from "./components/layout/CalendarTabs.jsx";
 import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
 import { ReportsView } from "./components/views/ReportsView.jsx";
-const StatsView = lazy(() =>
-  import("./components/views/StatsView.jsx").then((m) => ({ default: m.StatsView })),
-);
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -78,8 +76,8 @@ export default function App() {
   } = useAuth();
   const isOnline = !!supabase;
 
-  // --- Navigation & view state ---
-  const [activeView, setActiveView] = useState("dashboard");
+  // --- Navigation (URL-based) ---
+  const location = useLocation();
   const {
     selectedHumanId, setSelectedHumanId,
     selectedDogId, setSelectedDogId,
@@ -116,7 +114,8 @@ export default function App() {
 
   // --- Keyboard shortcuts ---
   useKeyboardShortcuts({
-    activeView,
+    activeOnPath: "/",
+    currentPath: location.pathname,
     goToPrevWeek,
     goToNextWeek,
     jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
@@ -250,7 +249,7 @@ export default function App() {
     return (
       <Suspense
         fallback={
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
             <LoadingSpinner />
           </div>
         }
@@ -262,7 +261,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
         <LoadingSpinner />
       </div>
     );
@@ -271,7 +270,7 @@ export default function App() {
   // --- Render ---
   return (
     <ToastProvider>
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
@@ -281,11 +280,19 @@ export default function App() {
       {dataError && <ErrorBanner message={dataError} />}
 
       <AppToolbar
-        activeView={activeView}
-        setActiveView={setActiveView}
         onSignOut={signOut}
         isOnline={isOnline}
         user={user}
+        weekNav={location.pathname === "/" ? (
+          <CalendarTabs
+            dates={dates}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            bookingsByDate={bookingsByDate}
+            dayOpenState={dayOpenState}
+            calendarMode="day"
+          />
+        ) : null}
       />
 
       <SalonProvider
@@ -307,80 +314,83 @@ export default function App() {
         <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
           <div id="main-content">
-          {activeView === "settings" ? (
-            <SettingsView
-              config={salonConfig}
-              onUpdateConfig={updateConfig}
-              isOwner={isOwner}
-              user={user}
-              staffProfile={staffProfile}
-            />
-          ) : activeView === "humans" ? (
-            <HumansView
-              humans={humans}
-              dogs={dogs}
-              onOpenHuman={setSelectedHumanId}
-              onAddHuman={addHuman}
-              hasMore={humansHasMore}
-              totalCount={humansTotalCount}
-              loadMore={humansLoadMore}
-              onSearch={humansSearchHumans}
-              searchQuery={humansSearchQuery}
-              isSearching={humansIsSearching}
-            />
-          ) : activeView === "dogs" ? (
-            <DogsView
-              dogs={dogs}
-              humans={humans}
-              onOpenDog={setSelectedDogId}
-              onAddDog={addDog}
-              onAddHuman={addHuman}
-              hasMore={dogsHasMore}
-              totalCount={dogsTotalCount}
-              loadMore={dogsLoadMore}
-              onSearch={dogsSearchDogs}
-              searchQuery={dogsSearchQuery}
-              isSearching={dogsIsSearching}
-            />
-          ) : activeView === "reports" ? (
-            <ReportsView />
-          ) : activeView === "stats" ? (
-            <StatsView />
-          ) : (
-            <WeekCalendarView
-              selectedDay={selectedDay}
-              setSelectedDay={setSelectedDay}
-              dates={dates}
-              currentDateObj={currentDateObj}
-              currentDateStr={currentDateStr}
-              currentDayConfig={currentDayConfig}
-              goToNextWeek={goToNextWeek}
-              goToPrevWeek={goToPrevWeek}
-              bookingsByDate={bookingsByDate}
-              bookingsLoading={bookingsLoading}
-              daySettings={daySettings}
-              dayOpenState={dayOpenState}
-              dogs={dogs}
-              humans={humans}
-              currentSettings={currentSettings}
-              handleAdd={handleAdd}
-              handleRemove={handleRemove}
-              handleOverride={handleOverride}
-              handleAddSlot={handleAddSlot}
-              handleRemoveSlot={handleRemoveSlot}
-              toggleDayOpen={toggleDayOpen}
-              showDatePicker={showDatePicker}
-              setShowDatePicker={setShowDatePicker}
-              handleDatePick={handleDatePick}
-              rebookData={rebookData}
-              setRebookData={setRebookData}
-              showRebookDatePicker={showRebookDatePicker}
-              setShowRebookDatePicker={setShowRebookDatePicker}
-              setShowNewBooking={setShowNewBooking}
-              onOpenHuman={setSelectedHumanId}
-              onRefresh={refetchBookings}
-            />
-          )}
+          <Routes>
+            <Route path="/settings" element={
+              <SettingsView
+                config={salonConfig}
+                onUpdateConfig={updateConfig}
+                isOwner={isOwner}
+                user={user}
+                staffProfile={staffProfile}
+              />
+            } />
+            <Route path="/humans" element={
+              <HumansView
+                humans={humans}
+                dogs={dogs}
+                onOpenHuman={setSelectedHumanId}
+                onAddHuman={addHuman}
+                hasMore={humansHasMore}
+                totalCount={humansTotalCount}
+                loadMore={humansLoadMore}
+                onSearch={humansSearchHumans}
+                searchQuery={humansSearchQuery}
+                isSearching={humansIsSearching}
+              />
+            } />
+            <Route path="/dogs" element={
+              <DogsView
+                dogs={dogs}
+                humans={humans}
+                onOpenDog={setSelectedDogId}
+                onAddDog={addDog}
+                onAddHuman={addHuman}
+                hasMore={dogsHasMore}
+                totalCount={dogsTotalCount}
+                loadMore={dogsLoadMore}
+                onSearch={dogsSearchDogs}
+                searchQuery={dogsSearchQuery}
+                isSearching={dogsIsSearching}
+              />
+            } />
+            <Route path="/reports" element={<ReportsView />} />
+            <Route path="/" element={
+              <WeekCalendarView
+                selectedDay={selectedDay}
+                setSelectedDay={setSelectedDay}
+                dates={dates}
+                currentDateObj={currentDateObj}
+                currentDateStr={currentDateStr}
+                currentDayConfig={currentDayConfig}
+                goToNextWeek={goToNextWeek}
+                goToPrevWeek={goToPrevWeek}
+                bookingsByDate={bookingsByDate}
+                bookingsLoading={bookingsLoading}
+                daySettings={daySettings}
+                dayOpenState={dayOpenState}
+                dogs={dogs}
+                humans={humans}
+                currentSettings={currentSettings}
+                handleAdd={handleAdd}
+                handleRemove={handleRemove}
+                handleOverride={handleOverride}
+                handleAddSlot={handleAddSlot}
+                handleRemoveSlot={handleRemoveSlot}
+                toggleDayOpen={toggleDayOpen}
+                showDatePicker={showDatePicker}
+                setShowDatePicker={setShowDatePicker}
+                handleDatePick={handleDatePick}
+                rebookData={rebookData}
+                setRebookData={setRebookData}
+                showRebookDatePicker={showRebookDatePicker}
+                setShowRebookDatePicker={setShowRebookDatePicker}
+                setShowNewBooking={setShowNewBooking}
+                onOpenHuman={setSelectedHumanId}
+                onRefresh={refetchBookings}
+              />
+            } />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
           </div>
         </Suspense>
         </ErrorBoundary>

@@ -1,7 +1,5 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "./DayTab.jsx";
-import { MonthTab } from "./MonthTab.jsx";
-import { WaitlistNote } from "../booking/WaitlistNote.jsx";
 
 export function CalendarTabs({
   dates,
@@ -9,12 +7,7 @@ export function CalendarTabs({
   onSelectDay,
   bookingsByDate,
   dayOpenState,
-  currentDateObj,
   calendarMode,
-  onSelectMonth,
-  humans,
-  dogs,
-  onOpenHuman,
 }) {
   const activeTabRef = useRef(null);
 
@@ -24,10 +17,14 @@ export function CalendarTabs({
       inline: "center",
       block: "nearest",
     });
-  }, [selectedDay, calendarMode]);
+  }, [selectedDay]);
 
   return (
-    <div role="tablist" aria-label="Day navigation" className="flex gap-1.5 px-1 -mb-[2px] relative z-[3] overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none">
+    <div
+      role="tablist"
+      aria-label="Day navigation"
+      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-white xl:bg-transparent xl:border-0 xl:py-0 xl:justify-start border-b border-slate-200 overflow-x-auto snap-x snap-mandatory scrollbar-none"
+    >
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;
         const dogCount = (bookingsByDate[d.dateStr] || []).length;
@@ -50,24 +47,6 @@ export function CalendarTabs({
           </div>
         );
       })}
-
-      <div
-        ref={calendarMode === "month" ? activeTabRef : null}
-        className="snap-center shrink-0"
-      >
-        <MonthTab
-          currentDateObj={currentDateObj}
-          isActive={calendarMode === "month"}
-          onClick={onSelectMonth}
-        />
-      </div>
-
-      <WaitlistNote
-        currentDateObj={currentDateObj}
-        humans={humans}
-        dogs={dogs}
-        onOpenHuman={onOpenHuman}
-      />
     </div>
   );
 }

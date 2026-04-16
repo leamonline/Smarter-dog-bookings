@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { PRICING } from "../../constants/index.js";
 
 function computeRevenue(bookings, dogs) {
@@ -29,79 +29,60 @@ function formatFullDate(dateObj) {
   return { weekday, day, month, year: dateObj.getFullYear() };
 }
 
-export function DashboardHeader({ currentDateObj, bookings, dogs, onNewBooking, searchQuery, onSearchChange }) {
+export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar }) {
   const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
-  const { weekday, day, month, year } = formatFullDate(currentDateObj);
-  const searchRef = useRef(null);
-
-  useEffect(() => {
-    const h = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-      if (e.key === "Escape" && document.activeElement === searchRef.current) {
-        onSearchChange?.("");
-        searchRef.current?.blur();
-      }
-    };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onSearchChange]);
+  const { weekday, day, month } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-6 px-5 md:px-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-b-xl relative overflow-hidden">
+    <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-3 px-4 md:px-5 flex items-center gap-3 rounded-b-xl relative overflow-hidden">
       {/* Paw watermark */}
-      <div className="absolute right-10 -top-3.5 text-[100px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">
-        {"\uD83D\uDC3E"}
-      </div>
+      <svg className="absolute right-6 -top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white">
+        <ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" />
+      </svg>
 
-      {/* Left: Full date + search */}
-      <div className="relative z-[1]">
-        <div className="text-2xl md:text-[28px] font-black text-white leading-tight">
+      {/* Date */}
+      <div className="relative z-[1] min-w-0">
+        <div className="text-lg md:text-xl font-black text-white leading-tight truncate font-display">
           {weekday} {day} {month}
         </div>
-        <div className="text-sm font-semibold text-white/70 mt-1">
-          {year} · {bookingCount} {bookingCount === 1 ? "dog" : "dogs"} booked
-        </div>
-        {onSearchChange && (
-          <div className="relative mt-2.5">
-            <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery || ""}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search bookings... (Cmd+K)"
-              className="w-full md:w-56 py-1.5 pl-7 pr-2 rounded-lg bg-white/15 border border-white/20 text-white text-xs font-medium placeholder:text-white/40 outline-none focus:bg-white/25 focus:border-white/40 transition-colors"
-            />
-          </div>
-        )}
       </div>
 
-      {/* Right: Revenue stat + Book Now pill */}
-      <div className="relative z-[1] flex items-center gap-4 justify-center md:justify-end self-center md:self-auto">
-        {/* Revenue stat */}
-        <div className="text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
-            Today&apos;s revenue
-          </div>
-          <div className="text-2xl font-black text-white leading-tight">
-            &pound;{revenue}
-          </div>
-        </div>
+      {/* Stats pills — desktop */}
+      <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold text-white/70 shrink-0">
+        <span className="bg-white/15 rounded-full px-2.5 py-1">
+          {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
+        </span>
+        <span className="bg-white/15 rounded-full px-2.5 py-1">
+          £{revenue}
+        </span>
+      </div>
 
-        {/* Book Now pill */}
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Mobile stats */}
+      <div className="relative z-[1] xl:hidden text-right shrink-0">
+        <div className="text-xs font-bold text-white/70">
+          {bookingCount} dogs · £{revenue}
+        </div>
+      </div>
+
+      {/* Calendar picker button — mobile/tablet only (xl has sidebar calendar) */}
+      {onOpenCalendar && (
         <button
-          onClick={onNewBooking}
-          className="bg-white text-brand-cyan font-semibold rounded-full px-5 py-2 text-sm border-none cursor-pointer transition-all hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] font-[inherit]"
+          onClick={onOpenCalendar}
+          className="relative z-[1] xl:hidden w-9 h-9 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+          aria-label="Open calendar"
         >
-          Book Now
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+          </svg>
         </button>
-      </div>
+      )}
     </div>
   );
 }

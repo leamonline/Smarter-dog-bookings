@@ -65,16 +65,19 @@ export function SlotGrid({
           <div
             key={slot}
             className={[
-              `grid grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] ${rowHeight} items-stretch`,
+              `grid grid-cols-[56px_1fr] sm:grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
+              hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
               isLast ? "" : "border-b border-[#F1F3F5]",
-            ].join(" ")}
+              !hasBooking ? "opacity-60 hover:opacity-100 transition-opacity" : "",
+            ].filter(Boolean).join(" ")}
           >
             {/* Time label */}
-            <div className="text-sm font-extrabold text-slate-800 text-center border-r-2 border-slate-200 pr-2 md:pr-2.5 self-stretch flex items-center justify-center">
+            <div className={`text-sm font-extrabold text-center border-r-2 border-slate-200 pr-2 md:pr-2.5 self-stretch flex items-center justify-center ${hasBooking ? "text-slate-800" : "text-slate-400"}`}>
               {formatSlotTime(slot)}
             </div>
 
-            {/* Seats */}
+            {/* Seats — stacked on mobile, side-by-side on sm+ */}
+            <div className="flex flex-col gap-1.5 sm:contents">
             {loading ? (
               <>
                 <SkeletonCard />
@@ -154,6 +157,7 @@ export function SlotGrid({
                 })}
               </>
             )}
+            </div>
           </div>
         );
       })}

@@ -36,10 +36,10 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Header banner */}
       <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
-        <div className="absolute right-8 top-0 text-[80px] opacity-[0.04] -rotate-[15deg] pointer-events-none select-none">{"\uD83D\uDC3E"}</div>
+        <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xl md:text-2xl font-black text-white">Dogs Directory</div>
+            <div className="text-xl md:text-2xl font-black text-white font-display">Dogs Directory</div>
             <div className="text-sm font-semibold text-white/70 mt-0.5">
               {totalCount} dog{totalCount !== 1 ? "s" : ""} registered
             </div>
@@ -65,6 +65,21 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Size legend */}
+      <div className="flex items-center gap-4 mb-3 text-xs font-semibold text-slate-500">
+        <span className="text-slate-400 uppercase tracking-wide text-[10px] font-bold">Size:</span>
+        {[
+          { label: "Small", colour: "#F5C518" },
+          { label: "Medium", colour: "#2D8B7A" },
+          { label: "Large", colour: "#E8567F" },
+        ].map((s) => (
+          <span key={s.label} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.colour }} />
+            {s.label}
+          </span>
+        ))}
       </div>
 
       {/* Card grid */}

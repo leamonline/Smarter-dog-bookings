@@ -14,6 +14,9 @@ import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { DashboardSidebar } from "./DashboardSidebar.jsx";
+import { SidebarTodos } from "./SidebarTodos.jsx";
+import { useTodos } from "../../supabase/hooks/useTodos.js";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -80,7 +83,7 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
 
         {/* Month & year */}
         <div className="flex-1 text-center">
-          <div className="text-2xl md:text-[28px] font-black text-white leading-tight">
+          <div className="text-2xl md:text-[28px] font-black text-white leading-tight font-display">
             {monthName} {yearStr}
           </div>
         </div>
@@ -205,6 +208,8 @@ export function WeekCalendarView({
   const [calendarMode, setCalendarMode] = useState("day"); // "day" | "month"
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
+  const [confirmDayToggle, setConfirmDayToggle] = useState(null); // "open" | "close" | null
+  const { addTodos } = useTodos();
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -250,93 +255,122 @@ export function WeekCalendarView({
 
   return (
     <>
-      {/* Calendar tabs */}
-      <CalendarTabs
-        dates={dates}
-        selectedDay={selectedDay}
-        onSelectDay={(i) => { setSelectedDay(i); if (calendarMode !== "day") setCalendarMode("day"); }}
-        bookingsByDate={bookingsByDate}
-        dayOpenState={dayOpenState}
-        currentDateObj={currentDateObj}
-        calendarMode={calendarMode}
-        onSelectMonth={() => setCalendarMode("month")}
-        humans={humans}
-        dogs={dogs}
-        onOpenHuman={onOpenHuman}
-      />
+      {/* Calendar tabs — hidden on xl where toolbar has them */}
+      <div className="xl:hidden">
+        <CalendarTabs
+          dates={dates}
+          selectedDay={selectedDay}
+          onSelectDay={(i) => { setSelectedDay(i); if (calendarMode !== "day") setCalendarMode("day"); }}
+          bookingsByDate={bookingsByDate}
+          dayOpenState={dayOpenState}
+          calendarMode={calendarMode}
+        />
+      </div>
 
-      {/* Day view */}
-      {calendarMode === "day" && (
-        <PullToRefresh onRefresh={onRefresh}>
-          {/* Dashboard header with date + actions */}
-          <DashboardHeader
+      {/* Two-column layout: main content + sidebar on xl+ */}
+      <div className="flex gap-5">
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          {/* Day view */}
+          {calendarMode === "day" && (
+            <PullToRefresh onRefresh={onRefresh}>
+              {/* Dashboard header with date + actions */}
+              <DashboardHeader
+                currentDateObj={currentDateObj}
+                bookings={dayBookings}
+                dogs={dogs}
+                onOpenCalendar={() => setShowDatePicker(true)}
+              />
+
+              {isOpen ? (
+                <>
+                  <SlotGrid
+                    bookings={dayBookings}
+                    loading={bookingsLoading && dayBookings.length === 0}
+                    activeSlots={activeSlots}
+                    onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
+                    currentDateStr={currentDateStr}
+                    overrides={currentSettings.overrides || {}}
+                    onOverride={handleOverride}
+                    searchQuery={searchQuery}
+                  />
+                  {/* Add/Remove extra slot + close day buttons */}
+                  <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
+                    {(currentSettings.extraSlots || []).length > 0 && (() => {
+                      const lastSlot = currentSettings.extraSlots[currentSettings.extraSlots.length - 1];
+                      const [h, m] = lastSlot.split(":");
+                      const hour = parseInt(h, 10);
+                      const suffix = hour < 12 ? "am" : "pm";
+                      const display = `${hour > 12 ? hour - 12 : hour}:${m}${suffix}`;
+                      return (
+                        <button
+                          onClick={() => setConfirmRemoveSlot(display)}
+                          className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-600 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
+                        >
+                          Remove {display} slot
+                        </button>
+                      );
+                    })()}
+                    <button
+                      onClick={handleAddSlot}
+                      className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-cyan hover:text-brand-cyan"
+                    >
+                      + Add another timeslot
+                    </button>
+                    <button
+                      onClick={() => setConfirmDayToggle("close")}
+                      className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
+                    >
+                      Close this day
+                    </button>
+                  </div>
+                  <WaitlistPanel
+                    currentDateObj={currentDateObj}
+                    humans={humans}
+                    dogs={dogs}
+                    onOpenHuman={onOpenHuman}
+                  />
+                  {/* To-do list — shown below waitlist on smaller screens, hidden on xl where sidebar has it */}
+                  <div className="xl:hidden mt-4 mb-2 px-1">
+                    <SidebarTodos />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ClosedDayView onOpen={() => setConfirmDayToggle("open")} />
+                  <div className="xl:hidden mt-4 mb-2 px-1">
+                    <SidebarTodos />
+                  </div>
+                </>
+              )}
+            </PullToRefresh>
+          )}
+
+          {/* Month view */}
+          {calendarMode === "month" && (
+            <MonthGrid
+              currentDateObj={currentDateObj}
+              onSelectDate={handleMonthDateSelect}
+              onNavigateMonth={handleDatePick}
+              calendarMode={calendarMode}
+              setCalendarMode={setCalendarMode}
+            />
+          )}
+        </div>
+
+        {/* Desktop sidebar — hidden below xl */}
+        <div className="hidden xl:block w-72 shrink-0">
+          <DashboardSidebar
             currentDateObj={currentDateObj}
             bookings={dayBookings}
             dogs={dogs}
-            onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSelectDate={(date) => {
+              handleDatePick(date);
+              setCalendarMode("day");
+            }}
           />
-
-          {isOpen ? (
-            <>
-              <SlotGrid
-                bookings={dayBookings}
-                loading={bookingsLoading && dayBookings.length === 0}
-                activeSlots={activeSlots}
-                onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
-                currentDateStr={currentDateStr}
-                overrides={currentSettings.overrides || {}}
-                onOverride={handleOverride}
-                searchQuery={searchQuery}
-              />
-              {/* Add/Remove extra slot buttons */}
-              <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
-                {(currentSettings.extraSlots || []).length > 0 && (() => {
-                  const lastSlot = currentSettings.extraSlots[currentSettings.extraSlots.length - 1];
-                  const [h, m] = lastSlot.split(":");
-                  const hour = parseInt(h, 10);
-                  const suffix = hour < 12 ? "am" : "pm";
-                  const display = `${hour > 12 ? hour - 12 : hour}:${m}${suffix}`;
-                  return (
-                    <button
-                      onClick={() => setConfirmRemoveSlot(display)}
-                      className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-600 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
-                    >
-                      Remove {display} slot
-                    </button>
-                  );
-                })()}
-                <button
-                  onClick={handleAddSlot}
-                  className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-cyan hover:text-brand-cyan"
-                >
-                  + Add another timeslot
-                </button>
-              </div>
-              <WaitlistPanel
-                currentDateObj={currentDateObj}
-                humans={humans}
-                dogs={dogs}
-                onOpenHuman={onOpenHuman}
-              />
-            </>
-          ) : (
-            <ClosedDayView onOpen={toggleDayOpen} />
-          )}
-        </PullToRefresh>
-      )}
-
-      {/* Month view */}
-      {calendarMode === "month" && (
-        <MonthGrid
-          currentDateObj={currentDateObj}
-          onSelectDate={handleMonthDateSelect}
-          onNavigateMonth={handleDatePick}
-          calendarMode={calendarMode}
-          setCalendarMode={setCalendarMode}
-        />
-      )}
+        </div>
+      </div>
 
       {/* Date picker modal */}
       {showDatePicker && (
@@ -516,6 +550,35 @@ export function WeekCalendarView({
           variant="danger"
           onConfirm={() => { handleRemoveSlot(); setConfirmRemoveSlot(null); }}
           onCancel={() => setConfirmRemoveSlot(null)}
+        />
+      )}
+
+      {confirmDayToggle && (
+        <ConfirmDialog
+          title={confirmDayToggle === "close" ? "Close this day?" : "Open this day?"}
+          message={
+            confirmDayToggle === "close"
+              ? dayBookings.length > 0
+                ? `This will mark the day as closed. ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"} will need rearranging — to-do items will be created for each one.`
+                : "This will mark the day as closed. No bookings to rearrange."
+              : "This will open the day for appointments."
+          }
+          confirmLabel={confirmDayToggle === "close" ? "Yes, close it" : "Yes, open it"}
+          variant={confirmDayToggle === "close" ? "danger" : "primary"}
+          onConfirm={() => {
+            if (confirmDayToggle === "close" && dayBookings.length > 0) {
+              const dateLabel = currentDateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+              const items = dayBookings.map((b) => {
+                const dogName = b.dogName || "Unknown";
+                const owner = b.ownerName || b.owner || "";
+                return `Rearrange: ${dogName}${owner ? ` (${owner})` : ""} — was ${dateLabel} ${b.slot}`;
+              });
+              addTodos(items);
+            }
+            toggleDayOpen();
+            setConfirmDayToggle(null);
+          }}
+          onCancel={() => setConfirmDayToggle(null)}
         />
       )}
     </>
