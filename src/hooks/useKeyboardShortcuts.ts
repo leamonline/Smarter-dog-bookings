@@ -12,8 +12,10 @@
 import { useEffect } from "react";
 
 interface UseKeyboardShortcutsParams {
-  /** Currently active view (shortcuts only fire on "dashboard") */
-  activeView: string;
+  /** Path where shortcuts are active (e.g. "/") */
+  activeOnPath: string;
+  /** Current URL pathname */
+  currentPath: string;
   /** Navigate to previous week */
   goToPrevWeek: () => void;
   /** Navigate to next week */
@@ -25,7 +27,8 @@ interface UseKeyboardShortcutsParams {
 }
 
 export function useKeyboardShortcuts({
-  activeView,
+  activeOnPath,
+  currentPath,
   goToPrevWeek,
   goToNextWeek,
   jumpToToday,
@@ -40,8 +43,8 @@ export function useKeyboardShortcuts({
       // Skip when inside a contentEditable element
       if ((e.target as HTMLElement).isContentEditable) return;
 
-      // Only fire on dashboard view
-      if (activeView !== "dashboard") return;
+      // Only fire on the bookings view
+      if (currentPath !== activeOnPath) return;
 
       // Skip if modifier keys are held (allow browser/OS shortcuts)
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -70,5 +73,5 @@ export function useKeyboardShortcuts({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activeView, goToPrevWeek, goToNextWeek, jumpToToday, openNewBooking]);
+  }, [activeOnPath, currentPath, goToPrevWeek, goToNextWeek, jumpToToday, openNewBooking]);
 }
