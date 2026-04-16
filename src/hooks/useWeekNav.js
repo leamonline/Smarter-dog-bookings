@@ -2,13 +2,16 @@
  * useWeekNav — manages week navigation state and date computation.
  * Extracted from App.jsx to reduce its size and improve testability.
  */
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ALL_DAYS } from "../constants/index.js";
 import { toDateStr } from "../supabase/transforms.js";
 
 export function useWeekNav() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(0);
+  const initialised = useRef(false);
 
   const weekStart = useMemo(() => {
     const today = new Date();
@@ -73,6 +76,28 @@ export function useWeekNav() {
     );
     setWeekOffset(diffWeeks);
   }, []);
+
+  // Initialise from ?date= param on mount
+  useEffect(() => {
+    if (initialised.current) return;
+    initialised.current = true;
+    const dateParam = searchParams.get("date");
+    if (!dateParam) return;
+    const parsed = new Date(dateParam + "T00:00:00");
+    if (!isNaN(parsed.getTime())) {
+      handleDatePick(parsed);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync current date to URL params
+  useEffect(() => {
+    const dateStr = dates[selectedDay]?.dateStr;
+    if (!dateStr) return;
+    const current = searchParams.get("date");
+    if (current !== dateStr) {
+      setSearchParams({ date: dateStr }, { replace: true });
+    }
+  }, [selectedDay, dates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     weekOffset,
