@@ -73,11 +73,11 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
 
   return (
     <>
-      {/* ── Desktop header (xl+) — two-column grid matching main layout ── */}
-      <div className="hidden xl:flex gap-5 mb-3 pb-2.5 border-b border-slate-200/60">
+      {/* ── Desktop header (xl+) — deep-purple brand band, full-bleed via -mx ── */}
+      <div className="hidden xl:flex gap-5 mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
         {/* Left column — logo + week dots (above main content) */}
         <div className="flex-1 min-w-0 flex items-center gap-4">
-          <NavLink to="/" className="shrink-0 no-underline">
+          <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
             <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-9 w-auto" />
           </NavLink>
           {weekNav && <div className="min-w-0">{weekNav}</div>}
@@ -91,10 +91,10 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 no-underline transition-all ${
+                `w-10 h-10 rounded-full flex flex-col items-center justify-center gap-0.5 no-underline transition-all ${
                   isActive
-                    ? "bg-brand-cyan/10 text-brand-cyan"
-                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                    ? "bg-brand-yellow text-brand-purple"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 }`
               }
               title={item.label}
@@ -110,10 +110,10 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Menu"
               aria-expanded={menuOpen}
-              className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all ${
+              className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                 menuOpen
-                  ? "border-brand-cyan-dark bg-sky-50 text-brand-cyan-dark"
-                  : "border-slate-200 bg-white text-slate-500 hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
+                  ? "bg-brand-yellow text-brand-purple"
+                  : "text-white/80 hover:bg-white/10"
               }`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
@@ -193,18 +193,18 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
       </div>
 
       {/* ── Mobile/tablet top bar (below xl) ── */}
-      <div className="xl:hidden mb-4 flex items-center gap-4 pb-3 border-b border-slate-200/60">
-        <NavLink to="/" className="shrink-0 no-underline">
+      <div className="xl:hidden mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 flex items-center gap-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
+        <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
           <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-8 w-auto" />
         </NavLink>
         <div className="flex-1" />
         <button
           onClick={() => navigate("/settings")}
           aria-label="Settings"
-          className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+          className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all shrink-0 ${
             location.pathname === "/settings"
-              ? "border-brand-cyan-dark bg-sky-50 text-brand-cyan-dark"
-              : "border-slate-200 bg-white text-slate-500 hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
+              ? "bg-brand-yellow text-brand-purple"
+              : "text-white/80 hover:bg-white/10"
           }`}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -217,10 +217,10 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
             onClick={() => setMenuOpen((o) => !o)}
             aria-label="Menu"
             aria-expanded={menuOpen}
-            className={`w-9 h-9 rounded-lg border-[1.5px] flex items-center justify-center cursor-pointer transition-all ${
+            className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all ${
               menuOpen
-                ? "border-brand-cyan-dark bg-sky-50 text-brand-cyan-dark"
-                : "border-slate-200 bg-white text-slate-500 hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
+                ? "bg-brand-yellow text-brand-purple"
+                : "text-white/80 hover:bg-white/10"
             }`}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
@@ -262,7 +262,7 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               end={item.to === "/"}
               className={({ isActive }) =>
                 `flex-1 flex flex-col items-center gap-0.5 py-2 no-underline transition-colors ${
-                  isActive ? "text-brand-cyan" : "text-slate-400"
+                  isActive ? "text-brand-purple" : "text-slate-400"
                 }`
               }
             >

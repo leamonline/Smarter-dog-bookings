@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { PRICING } from "../../constants/index.js";
+import { DogSilhouette, HandDrawnUnderline } from "../decor/index.jsx";
 
 function computeRevenue(bookings, dogs) {
   let total = 0;
@@ -35,25 +36,36 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
   const { weekday, day, month } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-3 px-4 md:px-5 flex items-center gap-3 rounded-b-xl relative overflow-hidden">
-      {/* Paw watermark */}
-      <svg className="absolute right-6 -top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white">
-        <ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" />
-      </svg>
+    <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-4 px-4 md:px-5 flex items-center gap-3 rounded-2xl relative overflow-hidden shadow-md">
+      {/* Brand silhouette watermark */}
+      <DogSilhouette
+        color="white"
+        size={104}
+        rotation={12}
+        opacity={0.07}
+        className="absolute -right-3 -top-3"
+      />
 
-      {/* Date */}
+      {/* Date — Quicksand display, hand-drawn underline under the day-of-week */}
       <div className="relative z-[1] min-w-0">
-        <div className="text-lg md:text-xl font-black text-white leading-tight truncate font-display">
-          {weekday} {day} {month}
+        <div className="text-lg md:text-xl font-bold text-white leading-tight truncate font-display">
+          <span className="relative inline-block">
+            {weekday}
+            <HandDrawnUnderline
+              color="var(--color-brand-yellow)"
+              className="absolute left-0 right-0 -bottom-1"
+            />
+          </span>{" "}
+          {day} {month}
         </div>
       </div>
 
-      {/* Stats pills — desktop */}
-      <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold text-white/70 shrink-0">
-        <span className="bg-white/15 rounded-full px-2.5 py-1">
+      {/* Stats pills — desktop. Booking count chip is mustard for emphasis. */}
+      <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold shrink-0">
+        <span className="bg-brand-yellow text-brand-purple rounded-full px-3 py-1 shadow-[0_2px_6px_rgba(255,204,0,0.3)]">
           {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
         </span>
-        <span className="bg-white/15 rounded-full px-2.5 py-1">
+        <span className="bg-white/15 text-white rounded-full px-2.5 py-1">
           £{revenue}
         </span>
       </div>
@@ -63,8 +75,8 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
 
       {/* Mobile stats */}
       <div className="relative z-[1] xl:hidden text-right shrink-0">
-        <div className="text-xs font-bold text-white/70">
-          {bookingCount} dogs · £{revenue}
+        <div className="text-xs font-bold text-white/85">
+          <span className="text-brand-yellow">{bookingCount}</span> dogs · £{revenue}
         </div>
       </div>
 
@@ -74,7 +86,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
           <button
             onClick={() => setViewMode("grid")}
             className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
-              viewMode === "grid" ? "bg-white text-brand-cyan shadow-sm" : "bg-transparent text-white/70 hover:text-white"
+              viewMode === "grid" ? "bg-brand-yellow text-brand-purple shadow-sm" : "bg-transparent text-white/70 hover:text-white"
             }`}
             aria-label="Grid view"
             title="Grid view"
@@ -86,7 +98,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
           <button
             onClick={() => setViewMode("list")}
             className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
-              viewMode === "list" ? "bg-white text-brand-cyan shadow-sm" : "bg-transparent text-white/70 hover:text-white"
+              viewMode === "list" ? "bg-brand-yellow text-brand-purple shadow-sm" : "bg-transparent text-white/70 hover:text-white"
             }`}
             aria-label="List view"
             title="List view"
