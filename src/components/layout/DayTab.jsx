@@ -14,6 +14,8 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const dayName = DAY_NAMES[dateObj.getDay()];
   const dateNum = dateObj.getDate();
 
+  // Two display modes: light (mobile/tablet, on white CalendarTabs bg) and
+  // dark (xl+ inside the purple AppToolbar). Mode selected via Tailwind's xl: prefix.
   return (
     <button
       role="tab"
@@ -23,14 +25,22 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       id={id}
       onClick={onClick}
       className={[
-        "flex flex-col items-center gap-0.5 py-1.5 px-1 sm:px-1.5 rounded-xl cursor-pointer transition-all border-none font-[inherit] min-w-[40px] sm:min-w-[46px]",
+        "flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-2.5 rounded-full cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[50px]",
         isActive
-          ? "bg-brand-cyan/10"
-          : "bg-transparent hover:bg-slate-50",
+          ? "bg-brand-purple/10 xl:bg-white/15"
+          : "bg-transparent hover:bg-slate-50 xl:hover:bg-white/10",
       ].join(" ")}
     >
       {/* Day name */}
-      <span className={`text-[10px] font-bold uppercase tracking-wide leading-none ${isActive ? "text-brand-cyan" : !isOpen ? "text-red-800" : "text-slate-400"}`}>
+      <span
+        className={`text-[10px] font-bold uppercase tracking-wide leading-none ${
+          isActive
+            ? "text-brand-purple xl:text-brand-yellow"
+            : !isOpen
+              ? "text-red-700 xl:text-red-300"
+              : "text-slate-400 xl:text-white/60"
+        }`}
+      >
         {dayName}
       </span>
 
@@ -39,7 +49,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
         className={[
           "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
-            ? "bg-brand-cyan text-white shadow-[0_2px_10px_rgba(0,122,171,0.35)]"
+            ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(255,204,0,0.45)]"
             : busyStyle(dogCount, isOpen),
         ].join(" ")}
       >
@@ -47,7 +57,13 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       </span>
 
       {/* Dog count or closed */}
-      <span className={`text-[9px] font-bold leading-none ${isActive ? "text-brand-cyan" : "text-slate-500"}`}>
+      <span
+        className={`text-[9px] font-bold leading-none ${
+          isActive
+            ? "text-brand-purple xl:text-brand-yellow"
+            : "text-slate-500 xl:text-white/60"
+        }`}
+      >
         {dogCount === 0 ? "—" : `${dogCount}`}
       </span>
     </button>

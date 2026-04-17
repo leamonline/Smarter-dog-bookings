@@ -1,0 +1,12 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e7]
+    - generic [ref=e12]: SmarterDog
+    - generic [ref=e13]: Customer Portal
+  - generic [ref=e14]:
+    - generic [ref=e15]: Welcome
+    - generic [ref=e16]: Enter your mobile number and we'll text you a login code.
+    - generic [ref=e17]:
+      - generic [ref=e18]: Mobile Number
+      - textbox "07700 900000" [active] [ref=e19]
+      - button "Send Login Code" [ref=e20] [cursor=pointer]

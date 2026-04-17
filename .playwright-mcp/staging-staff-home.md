@@ -1,0 +1,19 @@
+- generic [ref=e7]:
+  - generic [ref=e8]:
+    - generic [ref=e9]: SmarterDog
+    - generic [ref=e10]: Salon Bookings
+  - generic [ref=e11]:
+    - generic [ref=e12]: Welcome back
+    - generic [ref=e13]: Sign in to manage the salon.
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Email
+        - textbox "you@smarterdog.co.uk" [active] [ref=e17]
+      - generic [ref=e18]:
+        - generic [ref=e19]: Password
+        - textbox "Min. 12 characters" [ref=e20]
+      - button "Sign In" [ref=e21] [cursor=pointer]
+      - button "Forgot password?" [ref=e22] [cursor=pointer]
+    - generic [ref=e24]:
+      - strong [ref=e25]: Need an account?
+      - text: Ask the salon owner to add your email in Supabase Auth, then use the password reset link to set your password.

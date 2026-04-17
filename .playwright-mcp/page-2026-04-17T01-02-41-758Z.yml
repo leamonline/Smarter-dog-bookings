@@ -1,0 +1,70 @@
+- generic [ref=e7]:
+  - link "Skip to content" [ref=e8] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e9]:
+    - link "Smarter Dog Grooming Salon" [ref=e10] [cursor=pointer]:
+      - /url: /
+      - img "Smarter Dog Grooming Salon" [ref=e11]
+    - button "Settings" [ref=e12] [cursor=pointer]:
+      - img [ref=e13]
+    - button "Menu" [ref=e17] [cursor=pointer]:
+      - img [ref=e18]
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - heading "Salon Settings" [level=2] [ref=e22]
+      - generic [ref=e23]: Manage your business, pricing, booking rules, and more.
+    - generic [ref=e24]:
+      - button "Your Business" [ref=e25] [cursor=pointer]
+      - button "Hours & Closures" [ref=e26] [cursor=pointer]
+      - button "Your Account" [ref=e27] [cursor=pointer]
+      - button "Services & Pricing" [ref=e28] [cursor=pointer]
+      - button "Booking Rules" [ref=e29] [cursor=pointer]
+      - button "Capacity Engine" [ref=e30] [cursor=pointer]
+      - button "Customer Portal" [ref=e31] [cursor=pointer]
+      - button "Notifications" [ref=e32] [cursor=pointer]
+      - button "Calendar Sync" [ref=e33] [cursor=pointer]
+    - generic [ref=e54]:
+      - generic [ref=e56]:
+        - generic [ref=e57]: Notifications
+        - generic [ref=e58]: What gets sent to customers and via which channel
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - generic [ref=e63]: Booking confirmation
+              - generic [ref=e64]: Sent immediately when a booking is made
+            - switch [checked] [ref=e65] [cursor=pointer]
+          - generic [ref=e67]:
+            - generic [ref=e68] [cursor=pointer]: WhatsApp
+            - generic [ref=e69] [cursor=pointer]: Email
+            - generic [ref=e70] [cursor=pointer]: SMS
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - generic [ref=e74]: Day-before reminder
+              - generic [ref=e75]: Sent the evening before the appointment
+            - switch [checked] [ref=e76] [cursor=pointer]
+          - generic [ref=e78]:
+            - generic [ref=e79] [cursor=pointer]: WhatsApp
+            - generic [ref=e80] [cursor=pointer]: Email
+            - generic [ref=e81] [cursor=pointer]: SMS
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]: Ready for collection
+              - generic [ref=e86]: Notify owner when their dog is finished
+            - switch [checked] [ref=e87] [cursor=pointer]
+          - generic [ref=e89]:
+            - generic [ref=e90] [cursor=pointer]: WhatsApp
+            - generic [ref=e91] [cursor=pointer]: Email
+            - generic [ref=e92] [cursor=pointer]: SMS
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]: Follow-up / review request
+              - generic [ref=e97]: Sent 24 hours after the appointment
+            - switch [ref=e98] [cursor=pointer]
+          - generic [ref=e100]:
+            - generic: WhatsApp
+            - generic: Email
+            - generic: SMS

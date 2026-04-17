@@ -1,0 +1,399 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - navigation [ref=e5]:
+        - link "Skip to main content" [ref=e6] [cursor=pointer]:
+          - /url: "#main-content"
+        - generic [ref=e7]:
+          - link "Smarter Dog Grooming Salon" [ref=e9] [cursor=pointer]:
+            - /url: /
+            - img "Smarter Dog Grooming Salon" [ref=e10]
+          - generic [ref=e11]:
+            - link "Services" [ref=e12] [cursor=pointer]:
+              - /url: /services
+              - text: Services
+            - link "Houndsly" [ref=e13] [cursor=pointer]:
+              - /url: /houndsly
+              - text: Houndsly
+            - link "Our Approach" [ref=e14] [cursor=pointer]:
+              - /url: /approach
+              - text: Our Approach
+            - link "FAQ" [ref=e15] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+            - button "Book your visit" [ref=e17]
+      - main [ref=e18]:
+        - generic [ref=e20]:
+          - generic:
+            - img
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - heading "Come scruffy. Leave gorgeous." [level=1] [ref=e23]:
+                - text: Come scruffy.
+                - generic [ref=e24]:
+                  - text: Leave gorgeous.
+                  - img [ref=e25]
+              - paragraph [ref=e27]:
+                - text: Over 40 years grooming dogs across Ashton-under-Lyne and Tameside.
+                - text: No fuss. No rushing. Just experienced local care.
+              - generic [ref=e28]:
+                - button "Book your visit →" [ref=e29]:
+                  - generic [ref=e30]: Book your visit
+                  - generic [ref=e31]: →
+                - link "Message 07507 731487" [ref=e32] [cursor=pointer]:
+                  - /url: sms:07507731487
+            - generic [ref=e33]:
+              - generic [ref=e35]:
+                - img "Happy freshly groomed pup" [ref=e39]
+                - generic [ref=e40]:
+                  - paragraph [ref=e41]: Happy freshly groomed pup
+                  - img [ref=e42]
+              - generic [ref=e45]:
+                - img "Fluffy and fabulous" [ref=e49]
+                - generic [ref=e50]:
+                  - paragraph [ref=e51]: Fluffy and fabulous
+                  - img [ref=e52]
+              - generic [ref=e55]:
+                - img "Feeling gorgeous" [ref=e61]
+                - generic [ref=e62]:
+                  - paragraph [ref=e63]: Feeling gorgeous
+                  - img [ref=e64]
+        - img [ref=e67]
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: Since 1982
+            - generic [ref=e74]: Serving Ashton
+          - generic [ref=e76]:
+            - generic [ref=e77]: 10,000+
+            - generic [ref=e78]: Happy Pups
+          - generic [ref=e80]:
+            - generic [ref=e81]: 4.9★
+            - generic [ref=e82]: Google Rating
+          - generic [ref=e84]:
+            - generic [ref=e85]: 100%
+            - generic [ref=e86]: Tail Wags
+        - img [ref=e88]
+        - generic [ref=e91]:
+          - generic:
+            - img
+          - heading "How we care for your dog" [level=2] [ref=e94]
+          - generic [ref=e95]:
+            - generic [ref=e97]:
+              - img "Full Groom" [ref=e101]
+              - heading "Full Groom" [level=3] [ref=e102]
+              - paragraph [ref=e103]: The full works — bath, dry, brush, trim, nails, ears, the lot. They'll leave looking like a million quid and smelling even better.
+              - paragraph [ref=e104]: "Best for: first visits or long-overdue tidy-ups"
+            - generic [ref=e106]:
+              - img "Maintenance Groom" [ref=e110]
+              - heading "Maintenance Groom" [level=3] [ref=e111]
+              - paragraph [ref=e112]: Not due a full groom but looking a bit scruffy? This keeps them fresh and tidy in between.
+              - paragraph [ref=e113]: "Best for: regulars between full grooms"
+            - generic [ref=e115]:
+              - img "De-Shedding" [ref=e119]
+              - heading "De-Shedding Package" [level=3] [ref=e120]
+              - paragraph [ref=e121]: For the fluffier breeds who like to redecorate your house with fur. A proper deep clean and undercoat blowout.
+              - paragraph [ref=e122]: "Best for: double coats and heavy shedders"
+            - generic [ref=e124]:
+              - img "Puppy Intro" [ref=e128]
+              - heading "Puppy Intro" [level=3] [ref=e129]
+              - paragraph [ref=e130]: First salon visit? We take it nice and slow — no rushing, no drama. Just gentle introductions for pups under 6 months.
+              - paragraph [ref=e131]: "Best for: puppies under 6 months or nervous first-timers"
+          - generic [ref=e132]:
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - generic:
+                  - img "Ear Cleaning"
+              - generic [ref=e136]:
+                - heading "Ear Cleaning" [level=4] [ref=e137]
+                - paragraph [ref=e138]: We give their ears a good clean and check for any issues. Keeps them clean, comfy, and stops nasties building up.
+            - generic [ref=e140]:
+              - generic [ref=e141]:
+                - generic:
+                  - img "Anal Gland Expression"
+              - generic [ref=e142]:
+                - heading "Anal Gland Expression" [level=4] [ref=e143]
+                - paragraph [ref=e144]: Nobody's favourite topic, but sometimes it needs doing — relieves discomfort and prevents impaction. We handle it so you don't have to.
+            - generic [ref=e146]:
+              - generic [ref=e147]:
+                - generic:
+                  - img "Nail Trims"
+              - generic [ref=e148]:
+                - heading "Nail Trims" [level=4] [ref=e149]
+                - paragraph [ref=e150]: Quick, stress-free nail clips. Healthier paws, fewer scratches on your floors. Everyone wins.
+        - img [ref=e152]
+        - generic [ref=e156]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - img [ref=e160]
+              - text: Post-groom care guides
+            - heading "Keep that fresh groom looking great at home" [level=2] [ref=e164]
+            - paragraph [ref=e165]: Pick your coat type for a practical routine, right tools, and a recommended rebook rhythm.
+          - generic [ref=e166]:
+            - button "Curly / Doodle" [pressed] [ref=e167]
+            - button "Double Coat" [ref=e168]
+            - button "Wire / Terrier" [ref=e169]
+          - generic [ref=e170]:
+            - article [ref=e171]:
+              - generic [ref=e172]:
+                - img [ref=e173]
+                - heading "Best For" [level=3] [ref=e177]
+              - list [ref=e178]:
+                - listitem [ref=e179]: Cockapoo
+                - listitem [ref=e180]: Cavapoo
+                - listitem [ref=e181]: Poodle mixes
+              - paragraph [ref=e182]:
+                - text: "Tools:"
+                - strong [ref=e183]: Slicker brush + metal comb
+            - article [ref=e184]:
+              - generic [ref=e185]:
+                - img [ref=e186]
+                - heading "Home Routine" [level=3] [ref=e190]
+              - list [ref=e191]:
+                - listitem [ref=e192]:
+                  - generic [ref=e193]: ✓
+                  - generic [ref=e194]: Line-brush coat 4 times weekly
+                - listitem [ref=e195]:
+                  - generic [ref=e196]: ✓
+                  - generic [ref=e197]: Comb legs, armpits, and behind ears daily
+                - listitem [ref=e198]:
+                  - generic [ref=e199]: ✓
+                  - generic [ref=e200]: Dry beard after meals to avoid knotting
+            - article [ref=e201]:
+              - generic [ref=e202]:
+                - img [ref=e203]
+                - heading "Rebook Rhythm" [level=3] [ref=e208]
+              - paragraph [ref=e209]: Every 6 weeks
+              - paragraph [ref=e210]: Ask us to keep a rolling slot so your dog stays comfortable and mat-free year-round.
+              - button "Set regular visits" [ref=e211]
+        - generic [ref=e213]:
+          - heading "Strike a pose, wet nose." [level=2] [ref=e215]
+          - generic [ref=e216]:
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e224]
+            - img [ref=e226]
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e235]
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e243]
+            - img [ref=e245]
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e254]
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e262]
+          - generic [ref=e264]:
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e272]
+            - img "Dog being groomed at Smarter Dog Grooming Salon" [ref=e280]
+        - img [ref=e282]
+        - generic [ref=e285]:
+          - generic [ref=e288]:
+            - generic [ref=e289]:
+              - generic [ref=e292]:
+                - img "Houndsly Natural Shampoo" [ref=e298]
+                - generic [ref=e299]:
+                  - paragraph [ref=e300]: Houndsly Natural Shampoo
+                  - img [ref=e301]
+              - generic [ref=e305]:
+                - img "Drynamite Dry Shampoo" [ref=e311]
+                - generic [ref=e312]:
+                  - paragraph [ref=e313]: Drynamite Dry Shampoo
+                  - img [ref=e314]
+            - generic [ref=e317]:
+              - img "Houndsly Pet Products" [ref=e318]
+              - generic [ref=e320]:
+                - generic [ref=e321]: Handmade with love
+                - img [ref=e322]
+              - heading "Made for Sensitive Skin" [level=2] [ref=e324]
+              - paragraph [ref=e325]: We couldn't find products we actually wanted to use on our dogs, so we made our own. 100% natural, vegan, and properly gentle — even on the fussiest skin.
+              - paragraph [ref=e326]: Handmade in small batches, because your dog deserves better than whatever's on offer at the supermarket.
+              - generic [ref=e327]:
+                - generic [ref=e328]:
+                  - generic [ref=e329]: 🌱
+                  - generic [ref=e330]: Vegan
+                - generic [ref=e331]:
+                  - generic [ref=e332]: 🧴
+                  - generic [ref=e333]: Small Batch
+              - paragraph [ref=e334]: These are the products we actually use in the salon every day.
+              - link "Shop Houndsly →" [ref=e335] [cursor=pointer]:
+                - /url: https://houndsly.co.uk
+          - img [ref=e337]
+        - generic [ref=e340]:
+          - generic [ref=e342]:
+            - heading "Dogs who wouldn't go anywhere else" [level=3] [ref=e343]
+            - paragraph [ref=e344]: Real words from long-time regulars, nervous pups and first-time visitors.
+          - generic [ref=e347]:
+            - generic [ref=e348]:
+              - generic [ref=e349]: ★★★★★
+              - generic [ref=e350]: 4.9 on Google from local dog owners
+            - generic [ref=e352]:
+              - generic [ref=e353]:
+                - paragraph [ref=e354]: Sandra W.
+                - text: 30+ years with us
+              - paragraph [ref=e355]: "\"Been going to Smarter Dogs for over 30 years, they are brilliant. Sam & Liam are the best – so caring and they genuinely love the dogs they groom. Cassie is 17 now, blind and deaf, but she still loves to go and see them and always comes out looking beautiful.\""
+            - generic [ref=e356]:
+              - generic [ref=e357]:
+                - generic [ref=e358]:
+                  - paragraph [ref=e359]: Wallis
+                  - text: Excited every time
+                - paragraph [ref=e360]: "\"Incredible groomers. Our puppy gets excited when we're near the shop, which is always a good sign! They looked after our old dog and their advice and care really improved his skin and coat. Their cuts are excellent and reasonably priced – definitely recommended.\""
+              - generic [ref=e361]:
+                - generic [ref=e362]:
+                  - paragraph [ref=e363]: Lindsay C.
+                  - text: Back after a big operation
+                - paragraph [ref=e364]: "\"Thank you so much for grooming Barney today. After his big operation this year I didn't think he would cope – but he did. He smells divine and you've done a great job with him. I wouldn't go anywhere else now.\""
+              - generic [ref=e365]:
+                - generic [ref=e366]:
+                  - paragraph [ref=e367]: K.G.
+                  - text: Took a chance changing groomers
+                - paragraph [ref=e368]: "\"Took a chance changing groomers and took my little Yorkie here for the first time. What a fantastic place! Definitely caring doggy lovers!!\""
+              - generic [ref=e369]:
+                - generic [ref=e370]:
+                  - paragraph [ref=e371]: Kate M.
+                  - text: Wouldn't go anywhere else
+                - paragraph [ref=e372]: "\"I wouldn't go anywhere else, other than Smarter Dogs. The staff are fantastic. I can hand on heart say not only do they do an exceptional job with the dog grooming, they genuinely care.\""
+            - link "See all reviews on Google →" [ref=e374] [cursor=pointer]:
+              - /url: https://g.page/r/CQJp3bxjrSfmEAE/review
+              - img [ref=e375]
+              - text: See all reviews on Google →
+        - img [ref=e381]
+        - generic [ref=e384]:
+          - article [ref=e386]:
+            - generic [ref=e387]:
+              - img [ref=e388]
+              - heading "Easy To Find" [level=2] [ref=e392]
+            - paragraph [ref=e393]: 183 Kings Road, Ashton-under-Lyne, OL6 8HD
+            - iframe [ref=e395]
+            - link "Get directions" [ref=e396] [cursor=pointer]:
+              - /url: https://www.google.com/maps/dir/?api=1&destination=183+Kings+Road,+Ashton-under-Lyne,+OL6+8HD
+          - generic [ref=e397]:
+            - article [ref=e398]:
+              - generic [ref=e399]:
+                - img [ref=e400]
+                - heading "Typical Travel Times" [level=3] [ref=e404]
+              - generic [ref=e405]:
+                - generic [ref=e406]:
+                  - text: Ashton-under-Lyne
+                  - generic [ref=e407]: 5 min
+                - generic [ref=e408]:
+                  - text: Dukinfield
+                  - generic [ref=e409]: 8 min
+                - generic [ref=e410]:
+                  - text: Stalybridge
+                  - generic [ref=e411]: 10 min
+                - generic [ref=e412]:
+                  - text: Denton
+                  - generic [ref=e413]: 12 min
+                - generic [ref=e414]:
+                  - text: Mossley
+                  - generic [ref=e415]: 14 min
+                - generic [ref=e416]:
+                  - text: Hyde
+                  - generic [ref=e417]: 15 min
+            - article [ref=e418]:
+              - generic [ref=e419]:
+                - img [ref=e420]
+                - heading "Parking & Drop-Off" [level=3] [ref=e423]
+              - list [ref=e424]:
+                - listitem [ref=e425]: Free street parking nearby on Kings Road and side streets.
+                - listitem [ref=e426]: Easy kerbside drop-off for nervous or elderly dogs.
+                - listitem [ref=e427]: Flat entrance and quick handover to keep arrivals calm.
+        - generic [ref=e432]:
+          - text: Ready for their pamper?
+          - heading "Book your visit" [level=3] [ref=e433]
+          - paragraph [ref=e434]: We're open Monday to Wednesday, 8:30am–3pm in Ashton-under-Lyne. Slots go fast — get yours booked in.
+          - generic [ref=e435]:
+            - button "Book your visit" [ref=e436]
+            - link "💬 Message 07507 731487" [ref=e437] [cursor=pointer]:
+              - /url: sms:07507731487
+              - generic [ref=e438]: 💬
+              - generic [ref=e439]: Message 07507 731487
+          - generic [ref=e440]:
+            - heading "What happens next" [level=4] [ref=e441]
+            - generic [ref=e442]:
+              - article [ref=e443]:
+                - paragraph [ref=e444]: 1) Send your request
+                - paragraph [ref=e445]: Tell us your dog, service, and best times in about 2 minutes.
+              - article [ref=e446]:
+                - paragraph [ref=e447]: 2) We confirm a slot
+                - paragraph [ref=e448]: Our Ashton team checks the diary and replies by text or call.
+              - article [ref=e449]:
+                - paragraph [ref=e450]: 3) Easy drop-off
+                - paragraph [ref=e451]: Bring them in on the day and we will handle the rest.
+          - generic [ref=e452]:
+            - generic [ref=e453]:
+              - paragraph [ref=e454]: New to us?
+              - paragraph [ref=e455]: We'll talk through your dog's needs first — no rush.
+            - generic [ref=e456]:
+              - paragraph [ref=e457]: Already a regular?
+              - paragraph [ref=e458]: Just tell us who you are and when you'd like to come in.
+        - img [ref=e460]
+      - contentinfo [ref=e462]:
+        - generic:
+          - img
+        - generic [ref=e463]:
+          - generic [ref=e464]:
+            - generic [ref=e465]:
+              - img "Smarter Dog Grooming Salon" [ref=e467]
+              - paragraph [ref=e468]: Over 40 years of happy dogs in Ashton-under-Lyne. We're not going anywhere.
+              - generic [ref=e469]:
+                - link "Visit our Facebook page" [ref=e470] [cursor=pointer]:
+                  - /url: https://facebook.com/smarterdog
+                  - img [ref=e471]
+                - link "Follow us on Instagram" [ref=e473] [cursor=pointer]:
+                  - /url: https://instagram.com/smarterdog
+                  - img [ref=e474]
+                - link "Watch us on TikTok" [ref=e476] [cursor=pointer]:
+                  - /url: https://tiktok.com/@smarterdog
+                  - img [ref=e477]
+            - generic [ref=e479]:
+              - heading "Opening Hours" [level=2] [ref=e480]
+              - generic [ref=e481]:
+                - paragraph [ref=e482]:
+                  - generic [ref=e483]: Mon–Wed
+                  - generic [ref=e484]: 8:30am – 3:00pm
+                - paragraph [ref=e485]:
+                  - generic [ref=e486]: Thu–Sun
+                  - generic [ref=e487]: Closed
+                - paragraph [ref=e488]: "* We close on Bank Holidays but open the Thursday after instead."
+            - generic [ref=e489]:
+              - heading "Find Us" [level=2] [ref=e490]
+              - generic [ref=e491]:
+                - paragraph [ref=e492]: 183 Kings Road
+                - paragraph [ref=e493]: Ashton-under-Lyne
+                - paragraph [ref=e494]: OL6 8HD
+            - generic [ref=e495]:
+              - heading "Get in Touch" [level=2] [ref=e496]
+              - generic [ref=e497]:
+                - paragraph [ref=e498]:
+                  - link "bookings@smarterdog.co.uk" [ref=e499] [cursor=pointer]:
+                    - /url: mailto:bookings@smarterdog.co.uk
+                - paragraph [ref=e500]:
+                  - link "WhatsApp 07507 731487" [ref=e501] [cursor=pointer]:
+                    - /url: https://wa.me/447507731487
+                - paragraph [ref=e502]:
+                  - link "Message 07507 731487" [ref=e503] [cursor=pointer]:
+                    - /url: sms:07507731487
+                - link "WhatsApp Available" [ref=e504] [cursor=pointer]:
+                  - /url: https://wa.me/447507731487
+                  - img [ref=e505]
+                  - text: WhatsApp Available
+          - generic [ref=e507]:
+            - generic [ref=e508]:
+              - paragraph [ref=e509]: © 2026 Smarter Dog Grooming Salon. All rights reserved.
+              - generic [ref=e510]: "|"
+              - generic [ref=e511]:
+                - generic [ref=e512]: "Legal:"
+                - link "Terms" [ref=e513] [cursor=pointer]:
+                  - /url: /terms
+                - generic [ref=e514]: •
+                - link "Matted Coats" [ref=e515] [cursor=pointer]:
+                  - /url: /matted-coat-policy
+                - generic [ref=e516]: •
+                - link "Privacy" [ref=e517] [cursor=pointer]:
+                  - /url: /privacy
+            - paragraph [ref=e518]: Made with 🐾 in Ashton-under-Lyne
+      - button "Scroll to top":
+        - img
+    - generic [ref=e520]:
+      - generic [ref=e521]:
+        - heading "🍪 We use cookies" [level=3] [ref=e522]
+        - paragraph [ref=e523]: We use cookies to analyze our traffic and improve your experience. We don't sell your data to anyone.
+      - generic [ref=e524]:
+        - button "Decline" [ref=e525]
+        - button "Accept" [ref=e526]

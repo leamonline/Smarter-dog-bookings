@@ -18,6 +18,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { DashboardSidebar } from "./DashboardSidebar.jsx";
 import { SidebarTodos } from "./SidebarTodos.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
+import { FloatingDecor } from "../decor/index.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
@@ -256,7 +257,10 @@ export function WeekCalendarView({
   };
 
   return (
-    <>
+    <div className="relative">
+      {/* Brand decor — silhouettes + soft circles, behind everything */}
+      <FloatingDecor />
+
       {/* Calendar tabs — hidden on xl where toolbar has them */}
       <div className="xl:hidden">
         <CalendarTabs
@@ -270,7 +274,7 @@ export function WeekCalendarView({
       </div>
 
       {/* Two-column layout: main content + sidebar on xl+ */}
-      <div className="flex gap-5">
+      <div className="flex gap-5 relative">
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Day view */}
@@ -592,6 +596,6 @@ export function WeekCalendarView({
           onCancel={() => setConfirmDayToggle(null)}
         />
       )}
-    </>
+    </div>
   );
 }

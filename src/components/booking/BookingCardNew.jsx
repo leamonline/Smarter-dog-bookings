@@ -22,10 +22,13 @@ const SIZE_DOT = {
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
+// Status palette — pulls from the brand: mustard for "still to come", teal for
+// "in the salon now", deep purple for "all done". Cancelled stays coral.
 const STATUS_DISPLAY = {
-  "No-show":            { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", label: "Booked" },
-  "Checked in":         { bg: "#ECFDF5", color: "#059669", border: "#A7F3D0", label: "Checked in" },
-  "Ready for pick-up":  { bg: "#EDE9FE", color: "#7C3AED", border: "#DDD6FE", label: "Finished" },
+  "No-show":            { bg: "#FFF6CC", color: "#2D004B", border: "#FFCC00", label: "Booked" },
+  "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
+  "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Finished" },
+  "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E8567F", label: "Cancelled" },
 };
 
 const SIZE_TOOLTIP = {
@@ -100,7 +103,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
         tabIndex={0}
         onClick={handleCardClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-cyan hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-cyan focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
@@ -116,10 +119,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
             style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
             title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
           />
-          <span className="text-sm md:text-[17px] font-extrabold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+          <span className="text-sm md:text-[17px] font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
             {displayDogName}
             {displayBreed && (
-              <span className="font-normal text-slate-400 ml-1">
+              <span className="font-normal text-slate-400 ml-1 font-sans">
                 ({displayBreed})
               </span>
             )}
