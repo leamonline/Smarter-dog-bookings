@@ -18,8 +18,12 @@ A booking and management dashboard for dog grooming salons. Built with React + V
 # Install dependencies
 npm install
 
-# Copy env template and fill in your Supabase credentials
-cp .env.example .env.local
+# Create .env.local with your Supabase credentials
+# (get these from supabase.com → Your Project → Settings → API)
+cat > .env.local <<'EOF'
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+EOF
 
 # Start dev server
 npm run dev
