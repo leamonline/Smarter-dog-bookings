@@ -488,4 +488,16 @@ describe("Multi-Dog Slot Grouping", () => {
   it("5 dogs returns empty", () => {
     expect(findGroupedSlots(dogs(["small", "small", "small", "small", "small"]), [], SLOTS).length).toBe(0);
   });
+
+  it("selected dog order does not change grouped slot availability", () => {
+    const compactSlots = ["12:30", "13:00"];
+    const orderA = findGroupedSlots(dogs(["small", "large", "small"]), [], compactSlots);
+    const orderB = findGroupedSlots(dogs(["small", "small", "large"]), [], compactSlots);
+
+    expect(orderA.map((allocation) => allocation.dropOffTime).sort()).toEqual(
+      orderB.map((allocation) => allocation.dropOffTime).sort(),
+    );
+    expect(orderA.length).toBeGreaterThan(0);
+    expect(orderB.length).toBeGreaterThan(0);
+  });
 });

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { PawPrint } from "lucide-react";
+import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
@@ -58,7 +59,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
   };
 
   return (
-    <div className="min-h-screen bg-brand-paper flex items-center justify-center p-5 font-['Montserrat',sans-serif]">
+    <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
       <div className="w-full max-w-[400px]">
         {/* Header */}
         <div className="text-center mb-8">
@@ -71,7 +72,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
           <div className="text-sm text-slate-500 mt-1 font-medium">Customer Portal</div>
         </div>
 
-        <div className="bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
+        <PortalCard className="rounded-xl shadow-sm">
           {!otpSent ? (
             <>
               <div className="text-lg font-bold text-brand-purple font-display mb-1">
@@ -155,7 +156,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               </button>
             </>
           )}
-        </div>
+        </PortalCard>
 
         {/* Demo mode button */}
         {onDemoMode && (
@@ -167,6 +168,6 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
           </button>
         )}
       </div>
-    </div>
+    </CenteredScreen>
   );
 }

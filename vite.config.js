@@ -49,8 +49,23 @@ export default defineConfig({
             return "react-vendor";
           }
 
-          if (id.includes("node_modules/@supabase/supabase-js")) {
+          if (id.includes("node_modules/@supabase/")) {
             return "supabase";
+          }
+
+          if (id.includes("node_modules/@vercel/analytics")) {
+            return "analytics";
+          }
+
+          if (
+            id.includes("node_modules/react-router") ||
+            id.includes("node_modules/react-router-dom")
+          ) {
+            return "router";
+          }
+
+          if (id.includes("node_modules/lucide-react")) {
+            return "lucide";
           }
 
           if (id.includes("/src/components/views/")) {

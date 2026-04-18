@@ -6,6 +6,7 @@ import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { customerSupabase as supabase } from "./supabase/customerClient.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
+import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
 import "./customer-portal.css";
 
@@ -78,8 +79,8 @@ export default function CustomerApp() {
   // Demo mode — customer picker
   if (demoMode) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif] p-5">
-        <div className="w-full max-w-[400px] bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
+      <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
+        <PortalCard className="rounded-xl shadow-sm">
           <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1 text-center">
             Demo Mode
           </div>
@@ -119,22 +120,22 @@ export default function CustomerApp() {
           >
             Back to login
           </button>
-        </div>
-      </div>
+        </PortalCard>
+      </CenteredScreen>
     );
   }
 
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-['Montserrat',sans-serif]">
+      <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
         <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
           <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
           <div className="h-4 w-32 mx-auto bg-slate-200 rounded animate-pulse" />
           <div className="h-48 bg-slate-200 rounded-xl animate-pulse" />
           <div className="h-12 bg-slate-200 rounded-lg animate-pulse" />
         </div>
-      </div>
+      </CenteredScreen>
     );
   }
 
@@ -163,8 +164,8 @@ export default function CustomerApp() {
   // Authenticated but no matching human — give them a way to reach the salon.
   if (!humanRecord) {
     return (
-      <div className="min-h-screen bg-brand-paper flex items-center justify-center font-sans p-5">
-        <div className="max-w-[400px] text-center bg-white rounded-xl p-7 border border-slate-200 shadow-sm">
+      <CenteredScreen fontClassName="font-sans">
+        <PortalCard className="rounded-xl shadow-sm text-center">
           <PawPrint size={32} className="text-brand-purple mx-auto mb-3" aria-hidden="true" />
           <div className="text-lg font-bold text-brand-purple font-display mb-2">
             We don&apos;t have your number on file yet
@@ -192,8 +193,8 @@ export default function CustomerApp() {
           >
             Sign out
           </button>
-        </div>
-      </div>
+        </PortalCard>
+      </CenteredScreen>
     );
   }
 

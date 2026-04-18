@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabase/client.js";
+import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 
 /**
  * Handles the Supabase password recovery flow.
@@ -72,14 +73,11 @@ export function ResetPasswordPage() {
     setTimeout(() => { window.location.href = "/"; }, 2500);
   };
 
-  const containerCls = "min-h-screen bg-brand-paper flex items-center justify-center p-5 font-sans";
-  const cardCls = "w-full max-w-[400px] bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]";
-
   // Success
   if (done) {
     return (
-      <div className={containerCls}>
-        <div className={`${cardCls} text-center`}>
+      <CenteredScreen>
+        <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-[40px] mb-3">{"\u2705"}</div>
           <div className="text-lg font-extrabold text-slate-800 mb-2">
             Password updated!
@@ -87,16 +85,16 @@ export function ResetPasswordPage() {
           <div className="text-[13px] text-slate-500">
             Taking you to the dashboard...
           </div>
-        </div>
-      </div>
+        </PortalCard>
+      </CenteredScreen>
     );
   }
 
   // Expired / invalid link
   if (expired) {
     return (
-      <div className={containerCls}>
-        <div className={`${cardCls} text-center`}>
+      <CenteredScreen>
+        <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-[40px] mb-3">{"\u23F1\uFE0F"}</div>
           <div className="text-lg font-extrabold text-slate-800 mb-2">
             Link expired
@@ -110,26 +108,26 @@ export function ResetPasswordPage() {
           >
             Back to sign in
           </a>
-        </div>
-      </div>
+        </PortalCard>
+      </CenteredScreen>
     );
   }
 
   // Waiting for recovery session
   if (!ready) {
     return (
-      <div className={containerCls}>
-        <div className={`${cardCls} text-center`}>
+      <CenteredScreen>
+        <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-[13px] text-slate-500">Verifying reset link...</div>
-        </div>
-      </div>
+        </PortalCard>
+      </CenteredScreen>
     );
   }
 
   // Set new password form
   return (
-    <div className={containerCls}>
-      <div className={cardCls}>
+    <CenteredScreen>
+      <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
         <div className="text-center mb-6">
           <div className="text-[28px] font-display font-bold text-brand-purple">
             Smarter<span className="text-brand-yellow">Dog</span>
@@ -186,7 +184,7 @@ export function ResetPasswordPage() {
             {saving ? "Saving..." : "Set new password"}
           </button>
         </form>
-      </div>
-    </div>
+      </PortalCard>
+    </CenteredScreen>
   );
 }

@@ -24,13 +24,12 @@ import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext.js";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
+import { AppFrame } from "./components/ui/PageShell.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 import { CalendarTabs } from "./components/layout/CalendarTabs.jsx";
-import { WeekCalendarView } from "./components/layout/WeekCalendarView.jsx";
-import { ReportsView } from "./components/views/ReportsView.jsx";
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -56,14 +55,42 @@ const DogsView = lazy(() =>
     default: module.DogsView,
   })),
 );
+const WeekCalendarView = lazy(() =>
+  import("./components/layout/WeekCalendarView.jsx").then((module) => ({
+    default: module.WeekCalendarView,
+  })),
+);
+const ReportsView = lazy(() =>
+  import("./components/views/ReportsView.jsx").then((module) => ({
+    default: module.ReportsView,
+  })),
+);
+const NewBookingModal = lazy(() =>
+  import("./components/modals/NewBookingModal.jsx").then((module) => ({
+    default: module.NewBookingModal,
+  })),
+);
+const AddDogModal = lazy(() =>
+  import("./components/modals/AddDogModal.jsx").then((module) => ({
+    default: module.AddDogModal,
+  })),
+);
+const AddHumanModal = lazy(() =>
+  import("./components/modals/AddHumanModal.jsx").then((module) => ({
+    default: module.AddHumanModal,
+  })),
+);
 const LoginPage = lazy(() =>
   import("./components/auth/LoginPage.jsx").then((module) => ({
     default: module.LoginPage,
   })),
 );
-import { NewBookingModal } from "./components/modals/NewBookingModal.jsx";
-import { AddDogModal } from "./components/modals/AddDogModal.jsx";
-import { AddHumanModal } from "./components/modals/AddHumanModal.jsx";
+
+const appLoadingShell = (
+  <AppFrame>
+    <LoadingSpinner />
+  </AppFrame>
+);
 
 // Top-level App: only handles auth state + the auth gate.
 // Data hooks live in <AuthedApp /> so they don't fire pre-auth (which used to
@@ -81,22 +108,12 @@ export default function App() {
   const isOnline = !!supabase;
 
   if (authLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
-        <LoadingSpinner />
-      </div>
-    );
+    return appLoadingShell;
   }
 
   if (isOnline && !user) {
     return (
-      <Suspense
-        fallback={
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
-            <LoadingSpinner />
-          </div>
-        }
-      >
+      <Suspense fallback={appLoadingShell}>
         <LoginPage onSignIn={signIn} error={authError} isOffline={false} />
       </Suspense>
     );
@@ -259,225 +276,233 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans">
-        <LoadingSpinner />
-      </div>
-    );
+    return appLoadingShell;
   }
 
   return (
     <ToastProvider>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 font-sans text-slate-800 pb-20 md:pb-5">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
-      >
-        Skip to content
-      </a>
-      <OfflineDemoBanner isOnline={isOnline} />
-      {dataError && <ErrorBanner message={dataError} />}
+      <AppFrame className="text-slate-800 pb-20 md:pb-5">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
+        >
+          Skip to content
+        </a>
+        <OfflineDemoBanner isOnline={isOnline} />
+        {dataError && <ErrorBanner message={dataError} />}
 
-      <AppToolbar
-        onSignOut={signOut}
-        isOnline={isOnline}
-        user={user}
-        weekNav={location.pathname === "/" ? (
-          <CalendarTabs
-            dates={dates}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            bookingsByDate={bookingsByDate}
-            dayOpenState={dayOpenState}
-            calendarMode="day"
-          />
-        ) : null}
-      />
-
-      <SalonProvider
-        dogs={dogs}
-        humans={humans}
-        bookingsByDate={bookingsByDate}
-        daySettings={daySettings}
-        dayOpenState={dayOpenState}
-        currentDateStr={currentDateStr}
-        currentDateObj={currentDateObj}
-        onAdd={handleAdd}
-        onUpdate={handleUpdate}
-        onRemove={handleRemove}
-        onUpdateDog={updateDog}
-        onOpenHuman={setSelectedHumanId}
-        onOpenDog={setSelectedDogId}
-        onRebook={handleOpenRebook}
-      >
-        <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
-          <div id="main-content">
-          <Routes>
-            <Route path="/settings" element={
-              <SettingsView
-                config={salonConfig}
-                onUpdateConfig={updateConfig}
-                isOwner={isOwner}
-                user={user}
-                staffProfile={staffProfile}
-              />
-            } />
-            <Route path="/humans" element={
-              <HumansView
-                humans={humans}
-                dogs={dogs}
-                onOpenHuman={setSelectedHumanId}
-                onAddHuman={addHuman}
-                hasMore={humansHasMore}
-                totalCount={humansTotalCount}
-                loadMore={humansLoadMore}
-                onSearch={humansSearchHumans}
-                searchQuery={humansSearchQuery}
-                isSearching={humansIsSearching}
-              />
-            } />
-            <Route path="/dogs" element={
-              <DogsView
-                dogs={dogs}
-                humans={humans}
-                onOpenDog={setSelectedDogId}
-                onAddDog={addDog}
-                onAddHuman={addHuman}
-                hasMore={dogsHasMore}
-                totalCount={dogsTotalCount}
-                loadMore={dogsLoadMore}
-                onSearch={dogsSearchDogs}
-                searchQuery={dogsSearchQuery}
-                isSearching={dogsIsSearching}
-              />
-            } />
-            <Route path="/reports" element={<ReportsView />} />
-            <Route path="/" element={
-              <WeekCalendarView
-                selectedDay={selectedDay}
-                setSelectedDay={setSelectedDay}
-                dates={dates}
-                currentDateObj={currentDateObj}
-                currentDateStr={currentDateStr}
-                currentDayConfig={currentDayConfig}
-                goToNextWeek={goToNextWeek}
-                goToPrevWeek={goToPrevWeek}
-                bookingsByDate={bookingsByDate}
-                bookingsLoading={bookingsLoading}
-                daySettings={daySettings}
-                dayOpenState={dayOpenState}
-                dogs={dogs}
-                humans={humans}
-                currentSettings={currentSettings}
-                handleAdd={handleAdd}
-                handleRemove={handleRemove}
-                handleOverride={handleOverride}
-                handleAddSlot={handleAddSlot}
-                handleRemoveSlot={handleRemoveSlot}
-                toggleDayOpen={toggleDayOpen}
-                showDatePicker={showDatePicker}
-                setShowDatePicker={setShowDatePicker}
-                handleDatePick={handleDatePick}
-                rebookData={rebookData}
-                setRebookData={setRebookData}
-                showRebookDatePicker={showRebookDatePicker}
-                setShowRebookDatePicker={setShowRebookDatePicker}
-                setShowNewBooking={setShowNewBooking}
-                onOpenHuman={setSelectedHumanId}
-                onRefresh={refetchBookings}
-              />
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          </div>
-        </Suspense>
-        </ErrorBoundary>
-
-        {selectedHumanId && (
-          <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner />}>
-            <HumanCardModal
-              humanId={selectedHumanId}
-              onClose={() => setSelectedHumanId(null)}
-              onOpenHuman={setSelectedHumanId}
-              onOpenDog={setSelectedDogId}
-              humans={humans}
-              dogs={dogs}
-              onUpdateHuman={updateHuman}
-              onAddHuman={addHuman}
+        <AppToolbar
+          onSignOut={signOut}
+          isOnline={isOnline}
+          user={user}
+          weekNav={location.pathname === "/" ? (
+            <CalendarTabs
+              dates={dates}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
               bookingsByDate={bookingsByDate}
+              dayOpenState={dayOpenState}
+              calendarMode="day"
             />
-          </Suspense>
-          </ErrorBoundary>
-        )}
+          ) : null}
+        />
 
-        {selectedDogId && (
+        <SalonProvider
+          dogs={dogs}
+          humans={humans}
+          bookingsByDate={bookingsByDate}
+          daySettings={daySettings}
+          dayOpenState={dayOpenState}
+          currentDateStr={currentDateStr}
+          currentDateObj={currentDateObj}
+          onAdd={handleAdd}
+          onUpdate={handleUpdate}
+          onRemove={handleRemove}
+          onUpdateDog={updateDog}
+          onOpenHuman={setSelectedHumanId}
+          onOpenDog={setSelectedDogId}
+          onRebook={handleOpenRebook}
+        >
           <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner />}>
-            <DogCardModal
-              dogId={selectedDogId}
-              onClose={() => setSelectedDogId(null)}
-              onOpenHuman={setSelectedHumanId}
-              dogs={dogs}
-              humans={humans}
-              onUpdateDog={updateDog}
-              onUpdateHuman={updateHuman}
-              onAddHuman={addHuman}
-              bookingsByDate={bookingsByDate}
-              fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
-              fetchDogById={fetchDogById}
-              handleAdd={handleAdd}
-            />
-          </Suspense>
+            <Suspense fallback={<LoadingSpinner />}>
+              <div id="main-content">
+                <Routes>
+                  <Route path="/settings" element={
+                    <SettingsView
+                      config={salonConfig}
+                      onUpdateConfig={updateConfig}
+                      isOwner={isOwner}
+                      user={user}
+                      staffProfile={staffProfile}
+                    />
+                  } />
+                  <Route path="/humans" element={
+                    <HumansView
+                      humans={humans}
+                      dogs={dogs}
+                      onOpenHuman={setSelectedHumanId}
+                      onAddHuman={addHuman}
+                      hasMore={humansHasMore}
+                      totalCount={humansTotalCount}
+                      loadMore={humansLoadMore}
+                      onSearch={humansSearchHumans}
+                      searchQuery={humansSearchQuery}
+                      isSearching={humansIsSearching}
+                    />
+                  } />
+                  <Route path="/dogs" element={
+                    <DogsView
+                      dogs={dogs}
+                      humans={humans}
+                      onOpenDog={setSelectedDogId}
+                      onAddDog={addDog}
+                      onAddHuman={addHuman}
+                      hasMore={dogsHasMore}
+                      totalCount={dogsTotalCount}
+                      loadMore={dogsLoadMore}
+                      onSearch={dogsSearchDogs}
+                      searchQuery={dogsSearchQuery}
+                      isSearching={dogsIsSearching}
+                    />
+                  } />
+                  <Route path="/reports" element={<ReportsView />} />
+                  <Route path="/" element={
+                    <WeekCalendarView
+                      selectedDay={selectedDay}
+                      setSelectedDay={setSelectedDay}
+                      dates={dates}
+                      currentDateObj={currentDateObj}
+                      currentDateStr={currentDateStr}
+                      currentDayConfig={currentDayConfig}
+                      goToNextWeek={goToNextWeek}
+                      goToPrevWeek={goToPrevWeek}
+                      bookingsByDate={bookingsByDate}
+                      bookingsLoading={bookingsLoading}
+                      daySettings={daySettings}
+                      dayOpenState={dayOpenState}
+                      dogs={dogs}
+                      humans={humans}
+                      currentSettings={currentSettings}
+                      handleAdd={handleAdd}
+                      handleRemove={handleRemove}
+                      handleOverride={handleOverride}
+                      handleAddSlot={handleAddSlot}
+                      handleRemoveSlot={handleRemoveSlot}
+                      toggleDayOpen={toggleDayOpen}
+                      showDatePicker={showDatePicker}
+                      setShowDatePicker={setShowDatePicker}
+                      handleDatePick={handleDatePick}
+                      rebookData={rebookData}
+                      setRebookData={setRebookData}
+                      showRebookDatePicker={showRebookDatePicker}
+                      setShowRebookDatePicker={setShowRebookDatePicker}
+                      setShowNewBooking={setShowNewBooking}
+                      onOpenHuman={setSelectedHumanId}
+                      onRefresh={refetchBookings}
+                    />
+                  } />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+            </Suspense>
           </ErrorBoundary>
-        )}
 
-        {showNewBooking && (
-          <NewBookingModal
-            onClose={() => setShowNewBooking(null)}
-            onAdd={(bookingOrArray, dateStr) => {
-              const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-              list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
-              setShowNewBooking(null);
-            }}
-            dogs={dogs}
-            humans={humans}
-            bookingsByDate={bookingsByDate}
-            dayOpenState={dayOpenState}
-            daySettings={daySettings}
-            onOpenAddDog={() => setShowAddDogModal(true)}
-            onOpenAddHuman={() => setShowAddHumanModal(true)}
-            initialDateStr={showNewBooking.dateStr}
-            initialSlot={showNewBooking.slot}
-            onSearchDogs={dogsSearchDogs}
-            isSearchingDogs={dogsIsSearching}
-          />
-        )}
+          {selectedHumanId && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <HumanCardModal
+                  humanId={selectedHumanId}
+                  onClose={() => setSelectedHumanId(null)}
+                  onOpenHuman={setSelectedHumanId}
+                  onOpenDog={setSelectedDogId}
+                  humans={humans}
+                  dogs={dogs}
+                  onUpdateHuman={updateHuman}
+                  onAddHuman={addHuman}
+                  bookingsByDate={bookingsByDate}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
 
-        {showAddDogModal && (
-          <AddDogModal
-            onClose={() => setShowAddDogModal(false)}
-            onAdd={async (dogData) => {
-              const result = await addDog(dogData);
-              return result;
-            }}
-            humans={humans}
-          />
-        )}
+          {selectedDogId && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DogCardModal
+                  dogId={selectedDogId}
+                  onClose={() => setSelectedDogId(null)}
+                  onOpenHuman={setSelectedHumanId}
+                  dogs={dogs}
+                  humans={humans}
+                  onUpdateDog={updateDog}
+                  onUpdateHuman={updateHuman}
+                  onAddHuman={addHuman}
+                  bookingsByDate={bookingsByDate}
+                  fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
+                  fetchDogById={fetchDogById}
+                  handleAdd={handleAdd}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
 
-        {showAddHumanModal && (
-          <AddHumanModal
-            onClose={() => setShowAddHumanModal(false)}
-            onAdd={async (humanData) => {
-              const result = await addHuman(humanData);
-              return result;
-            }}
-          />
-        )}
-      </SalonProvider>
-      <Analytics />
-    </div>
+          {showNewBooking && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <NewBookingModal
+                  onClose={() => setShowNewBooking(null)}
+                  onAdd={(bookingOrArray, dateStr) => {
+                    const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
+                    list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
+                    setShowNewBooking(null);
+                  }}
+                  dogs={dogs}
+                  humans={humans}
+                  bookingsByDate={bookingsByDate}
+                  dayOpenState={dayOpenState}
+                  daySettings={daySettings}
+                  onOpenAddDog={() => setShowAddDogModal(true)}
+                  onOpenAddHuman={() => setShowAddHumanModal(true)}
+                  initialDateStr={showNewBooking.dateStr}
+                  initialSlot={showNewBooking.slot}
+                  onSearchDogs={dogsSearchDogs}
+                  isSearchingDogs={dogsIsSearching}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {showAddDogModal && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <AddDogModal
+                  onClose={() => setShowAddDogModal(false)}
+                  onAdd={async (dogData) => {
+                    const result = await addDog(dogData);
+                    return result;
+                  }}
+                  humans={humans}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {showAddHumanModal && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <AddHumanModal
+                  onClose={() => setShowAddHumanModal(false)}
+                  onAdd={async (humanData) => {
+                    const result = await addHuman(humanData);
+                    return result;
+                  }}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+        </SalonProvider>
+        <Analytics />
+      </AppFrame>
     </ToastProvider>
   );
 }

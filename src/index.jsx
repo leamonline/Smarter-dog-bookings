@@ -1,15 +1,24 @@
 import { createRoot } from "react-dom/client";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import App from "./App.jsx";
-import CustomerApp from "./CustomerApp.jsx";
-import { ResetPasswordPage } from "./components/auth/ResetPasswordPage.jsx";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
+
+const App = lazy(() => import("./App.jsx"));
+const CustomerApp = lazy(() => import("./CustomerApp.jsx"));
+const ResetPasswordPage = lazy(() =>
+  import("./components/auth/ResetPasswordPage.jsx").then((module) => ({
+    default: module.ResetPasswordPage,
+  })),
+);
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
-    <Routes>
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/customer/*" element={<CustomerApp />} />
-      <Route path="/*" element={<App />} />
-    </Routes>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/customer/*" element={<CustomerApp />} />
+        <Route path="/*" element={<App />} />
+      </Routes>
+    </Suspense>
   </BrowserRouter>
 );
