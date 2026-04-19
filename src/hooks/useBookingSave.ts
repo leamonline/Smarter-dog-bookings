@@ -99,6 +99,7 @@ export function useBookingSave({
       editActiveSlots,
       {
         overrides: (editSettings.overrides?.[editData.slot] || {}) as SlotOverrides,
+        dogId: booking._dogId,
       },
     );
 

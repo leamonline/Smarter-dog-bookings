@@ -38,7 +38,7 @@ export function NewBookingModal({
 
   const hasDogs = dogEntries.length > 0;
   const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
-  const selectedSizes = dogEntries.map(e => e.dog.size || "small");
+  const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small" }));
 
   // ─── handlers ───────────────────────────────────────────────────────────
 
@@ -130,13 +130,18 @@ export function NewBookingModal({
 
       for (const entry of dogEntries) {
         const size = entry.dog.size || "small";
-        const check = canBookSlot(simulated, selectedSlot, size, activeSlots);
+        const check = canBookSlot(simulated, selectedSlot, size, activeSlots, {
+          dogId: entry.dog.id,
+        });
         if (!check.allowed) {
           allFit = false;
           failureReason = check.reason;
           break;
         }
-        simulated = [...simulated, { slot: selectedSlot, size, id: `check-${entry.dog.id}` }];
+        simulated = [
+          ...simulated,
+          { slot: selectedSlot, size, id: `check-${entry.dog.id}`, _dogId: entry.dog.id },
+        ];
       }
 
       if (allFit) {
@@ -149,7 +154,8 @@ export function NewBookingModal({
              size: entry.dog.size || "small",
              service: entry.service,
              owner: entry.dog.humanId,
-             _bookingDate: targetDateStr
+             _dogId: entry.dog.id,
+             _bookingDate: targetDateStr,
           });
         });
       } else {
@@ -234,7 +240,7 @@ export function NewBookingModal({
           selectedDateStr={selectedDateStr}
           selectedDateDisplay={selectedDateDisplay}
           selectedSlot={selectedSlot}
-          selectedSizes={selectedSizes}
+          selectedDogs={selectedDogs}
           recurringWeeks={recurringWeeks}
           setRecurringWeeks={setRecurringWeeks}
           primaryTheme={primaryTheme}

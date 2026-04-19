@@ -1,7 +1,7 @@
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { computeSlotCapacities, canBookSlot } from "../../../engine/capacity.js";
 
-export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedSizes, onSelectSlot, selectedSlot, sizeTheme }) {
+export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedDogs, onSelectSlot, selectedSlot, sizeTheme }) {
   const dayBookings = bookingsByDate?.[dateStr] || [];
   const settings = daySettings?.[dateStr];
   const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
@@ -12,10 +12,12 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedS
     if (!cap || cap.available <= 0) return false;
     // Check that ALL dogs can fit — simulate sequential booking
     let simulated = [...dayBookings];
-    for (const size of selectedSizes) {
-      const check = canBookSlot(simulated, slot, size, activeSlots);
+    for (const dog of selectedDogs) {
+      const check = canBookSlot(simulated, slot, dog.size, activeSlots, {
+        dogId: dog.id,
+      });
       if (!check.allowed) return false;
-      simulated = [...simulated, { slot, size, id: `sim-${size}-${Math.random()}` }];
+      simulated = [...simulated, { slot, size: dog.size, id: `sim-${dog.id}`, _dogId: dog.id }];
     }
     return true;
   });

@@ -71,10 +71,11 @@ export function RescheduleModal({
     return activeSlots.filter((slot) => {
       const result = canBookSlot(dayBookings, slot, booking.size, activeSlots, {
         overrides: selectedDay.settings.overrides?.[slot] || {},
+        dogId: booking._dogId,
       });
       return result.allowed;
     });
-  }, [selectedDay, bookingsByDate, booking.size]);
+  }, [selectedDay, bookingsByDate, booking.size, booking._dogId]);
 
   const handleConfirm = () => {
     if (!selectedDateStr || !selectedSlot) return;

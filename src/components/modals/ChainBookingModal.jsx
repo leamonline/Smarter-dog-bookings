@@ -96,11 +96,12 @@ export function ChainBookingModal({
       return activeSlots.filter((slot) => {
         const result = canBookSlot(dayBookings, slot, dogSize, activeSlots, {
           overrides: settings.overrides?.[slot] || {},
+          dogId: dog?.id,
         });
         return result.allowed;
       });
     },
-    [bookingsByDate, daySettings, dogSize],
+    [bookingsByDate, daySettings, dogSize, dog?.id],
   );
 
   const firstDateSlots = useMemo(

@@ -246,6 +246,7 @@ export function WeekCalendarView({
       (slot) =>
         canBookSlot(rebookBookings, slot, rebookData.size, rebookSlots, {
           overrides: rebookSettings?.overrides?.[slot] || {},
+          dogId: rebookData._dogId,
         }).allowed,
     );
   }, [rebookData, rebookSlots, rebookBookings, rebookSettings]);
@@ -452,6 +453,7 @@ export function WeekCalendarView({
                   rebookSlots,
                   {
                     overrides: rebookSettings?.overrides?.[slot] || {},
+                    dogId: rebookData._dogId,
                   },
                 ).allowed;
 
@@ -542,6 +544,7 @@ export function WeekCalendarView({
                   (slot) =>
                     canBookSlot(bookings, slot, rebookData.size, slots, {
                       overrides: settings.overrides?.[slot] || {},
+                      dogId: rebookData._dogId,
                     }).allowed,
                 ) || "";
 

@@ -222,14 +222,21 @@ export function canBookSlot(
   slot: string,
   size: DogSize,
   activeSlots: string[],
-  options: { overrides?: SlotOverrides; selectedSeatIndex?: number | null } = {},
+  options: { overrides?: SlotOverrides; selectedSeatIndex?: number | null; dogId?: string | null } = {},
 ): BookingResult {
-  const { overrides = {}, selectedSeatIndex = null } = options;
+  const { overrides = {}, selectedSeatIndex = null, dogId = null } = options;
   const capacities = computeSlotCapacities(bookings, activeSlots);
   const cap = capacities[slot];
   const largeDogSlots = LARGE_DOG_SLOTS as Record<string, LargeDogSlotRule>;
 
   if (!cap) return { allowed: false, reason: "Invalid slot" };
+
+  if (dogId && bookings.some((b) => b.slot === slot && b._dogId === dogId)) {
+    return {
+      allowed: false,
+      reason: "This dog is already booked in this slot",
+    };
+  }
 
   const seatsNeeded = getSeatsNeeded(size, slot);
 

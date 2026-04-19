@@ -392,6 +392,145 @@ describe("Combined Scenarios", () => {
 });
 
 // ============================================================
+// 10B. DUPLICATE DOG IN SAME SLOT
+// ============================================================
+describe("Duplicate Dog Prevention", () => {
+  it("Rejects same dog booked twice in same slot", () => {
+    const bookings = [{ ...b("09:00", "small"), _dogId: "dog-123" }];
+    const result = canBookSlot(bookings, "09:00", "small", SLOTS, {
+      dogId: "dog-123",
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/already booked/i);
+  });
+
+  it("Allows same dog in a different slot", () => {
+    const bookings = [{ ...b("09:00", "small"), _dogId: "dog-123" }];
+    const result = canBookSlot(bookings, "10:00", "small", SLOTS, {
+      dogId: "dog-123",
+    });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("Allows a different dog in the same slot", () => {
+    const bookings = [{ ...b("09:00", "small"), _dogId: "dog-123" }];
+    const result = canBookSlot(bookings, "09:00", "small", SLOTS, {
+      dogId: "dog-456",
+    });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("Skips duplicate check when dogId not provided (backwards compatible)", () => {
+    const bookings = [{ ...b("09:00", "small"), _dogId: "dog-123" }];
+    const result = canBookSlot(bookings, "09:00", "small", SLOTS);
+    expect(result.allowed).toBe(true);
+  });
+
+  it("Ignores bookings with missing _dogId", () => {
+    const bookings = [b("09:00", "small")];
+    const result = canBookSlot(bookings, "09:00", "small", SLOTS, {
+      dogId: "dog-123",
+    });
+    expect(result.allowed).toBe(true);
+  });
+});
+
+// ============================================================
+// 10C. CALLER INTEGRATION PATTERNS
+//
+// Exercises the patterns used by callers of canBookSlot across
+// the codebase: find-first-available (useRebookFlow,
+// WeekCalendarView), filter-available-slots (RescheduleModal,
+// TimeSlotPicker, ChainBookingModal), and reject-on-save
+// (useBookingSave, BookingDetailModal).
+// ============================================================
+describe("Caller integration patterns", () => {
+  it("find-first-available skips the dog's existing slot (useRebookFlow / WeekCalendarView pattern)", () => {
+    // 08:30 is full, 09:00 has the dog, 09:30 onwards capped by 2-2-1 after 08:30+09:00 doubles.
+    // 10:00 is the first slot with real capacity after walking.
+    const bookings = [
+      { ...b("08:30", "small"), _dogId: "dog-a" },
+      { ...b("08:30", "small"), _dogId: "dog-b" },
+      { ...b("09:00", "small"), _dogId: "bella" },
+    ];
+
+    const pick = (dogId) =>
+      SLOTS.find(
+        (slot) =>
+          canBookSlot(bookings, slot, "small", SLOTS, { dogId }).allowed,
+      );
+
+    // Without dogId, 09:00 looks bookable (1 free seat) and is picked first.
+    expect(pick(undefined)).toBe("09:00");
+    // With Bella's dogId, 09:00 is skipped → fall through to 09:30.
+    expect(pick("bella")).toBe("09:30");
+  });
+
+  it("filter-available-slots hides the dog's existing slot (RescheduleModal / TimeSlotPicker pattern)", () => {
+    const bookings = [{ ...b("10:00", "small"), _dogId: "bella" }];
+
+    const availableFor = (dogId) =>
+      SLOTS.filter(
+        (slot) =>
+          canBookSlot(bookings, slot, "small", SLOTS, { dogId }).allowed,
+      );
+
+    const withoutFilter = availableFor(undefined);
+    const withFilter = availableFor("bella");
+
+    expect(withoutFilter).toContain("10:00");
+    expect(withFilter).not.toContain("10:00");
+  });
+
+  it("reject-on-save fires when dog has another booking in target slot (useBookingSave / BookingDetailModal pattern)", () => {
+    // Simulate the "otherBookings excludes the edit target" convention:
+    // the edit target (id=edit-me) is filtered out, but Bella also has a
+    // separate booking at 12:30 — moving the edit target to 12:30 must be
+    // rejected.
+    const allBookings = [
+      { ...b("09:00", "small"), id: "edit-me", _dogId: "bella" },
+      { ...b("12:30", "small"), id: "other", _dogId: "bella" },
+    ];
+    const otherBookings = allBookings.filter((x) => x.id !== "edit-me");
+
+    const result = canBookSlot(otherBookings, "12:30", "small", SLOTS, {
+      dogId: "bella",
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/already booked/i);
+  });
+
+  it("simulated-booking flow catches within-batch duplicates (NewBookingModal pattern)", () => {
+    // NewBookingModal iterates dogEntries and appends simulated bookings.
+    // If the second entry is the same dog, the dogId check on the second
+    // iteration must fire.
+    let simulated = [];
+    const entries = [
+      { dog: { id: "bella", size: "small" } },
+      { dog: { id: "bella", size: "small" } },
+    ];
+
+    const failures = [];
+    for (const entry of entries) {
+      const check = canBookSlot(simulated, "12:30", entry.dog.size, SLOTS, {
+        dogId: entry.dog.id,
+      });
+      if (!check.allowed) {
+        failures.push(check.reason);
+        break;
+      }
+      simulated = [
+        ...simulated,
+        { slot: "12:30", size: entry.dog.size, _dogId: entry.dog.id },
+      ];
+    }
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatch(/already booked/i);
+  });
+});
+
+// ============================================================
 // 11. STAFF OVERRIDES
 // ============================================================
 describe("Staff Overrides", () => {

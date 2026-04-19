@@ -116,6 +116,7 @@ export function AddBookingForm({
     const check = canBookSlot(bookings, slot, size, activeSlots, {
       slotOverrides,
       selectedSeatIndex,
+      dogId: selectedDog.id || null,
     });
 
     if (!check.allowed) {

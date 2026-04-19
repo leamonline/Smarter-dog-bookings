@@ -10,7 +10,7 @@ export function BookingFormFields({
   selectedDateStr,
   selectedDateDisplay,
   selectedSlot,
-  selectedSizes,
+  selectedDogs,
   recurringWeeks,
   setRecurringWeeks,
   primaryTheme,
@@ -48,7 +48,7 @@ export function BookingFormFields({
             dateStr={selectedDateStr}
             bookingsByDate={bookingsByDate}
             daySettings={daySettings}
-            selectedSizes={selectedSizes}
+            selectedDogs={selectedDogs}
             onSelectSlot={onSelectSlot}
             selectedSlot={selectedSlot}
             sizeTheme={primaryTheme}

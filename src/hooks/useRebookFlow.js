@@ -26,6 +26,7 @@ export function useRebookFlow({ currentDateObj, daySettings, dayOpenState, booki
           (slot) =>
             canBookSlot(targetBookings, slot, booking.size, targetSlots, {
               overrides: targetSettings.overrides?.[slot] || {},
+              dogId: booking._dogId,
             }).allowed,
         ) || "";
 

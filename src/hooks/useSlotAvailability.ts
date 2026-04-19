@@ -14,6 +14,7 @@ interface UseSlotAvailabilityInput {
   otherBookings: unknown[];
   bookingSize: string;
   bookingSlot: string;
+  bookingDogId?: string | null;
 }
 
 interface UseSlotAvailabilityReturn {
@@ -27,6 +28,7 @@ export function useSlotAvailability({
   otherBookings,
   bookingSize,
   bookingSlot,
+  bookingDogId,
 }: UseSlotAvailabilityInput): UseSlotAvailabilityReturn {
   const editActiveSlots = useMemo(
     () => [...SALON_SLOTS, ...(editSettings.extraSlots || [])],
@@ -42,11 +44,12 @@ export function useSlotAvailability({
         editActiveSlots,
         {
           overrides: editSettings.overrides?.[slot] || {},
+          dogId: bookingDogId,
         },
       );
       return check.allowed;
     });
-  }, [otherBookings, bookingSize, editActiveSlots, editSettings.overrides]);
+  }, [otherBookings, bookingSize, editActiveSlots, editSettings.overrides, bookingDogId]);
 
   const currentSlotStillValid = useMemo(() => {
     if (!bookingSlot) return false;
@@ -57,10 +60,11 @@ export function useSlotAvailability({
       editActiveSlots,
       {
         overrides: editSettings.overrides?.[bookingSlot] || {},
+        dogId: bookingDogId,
       },
     );
     return check.allowed;
-  }, [otherBookings, bookingSize, editActiveSlots, editSettings.overrides, bookingSlot]);
+  }, [otherBookings, bookingSize, editActiveSlots, editSettings.overrides, bookingSlot, bookingDogId]);
 
   return { editActiveSlots, availableSlots, currentSlotStillValid };
 }
