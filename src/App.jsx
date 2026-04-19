@@ -385,6 +385,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       currentSettings={currentSettings}
                       handleAdd={handleAdd}
                       handleRemove={handleRemove}
+                      handleUpdate={handleUpdate}
                       handleOverride={handleOverride}
                       handleAddSlot={handleAddSlot}
                       handleRemoveSlot={handleRemoveSlot}

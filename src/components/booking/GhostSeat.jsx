@@ -25,19 +25,25 @@ function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
   );
 }
 
-export function GhostSeat({ onClick, onBlock, span }) {
+export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onDrop, isDropTarget }) {
   const [showMenu, setShowMenu] = useState(false);
 
   const spanClass = span ? "col-span-2" : "";
+  const dropClass = isDropTarget
+    ? "border-brand-yellow bg-brand-yellow/20 ring-2 ring-brand-yellow/40"
+    : "";
 
   // Simple ghost seat without blocking (e.g., rebook modal)
   if (!onBlock) {
     return (
       <button
         onClick={onClick}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer transition-all min-h-[36px] md:min-h-[44px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass}`}
+        className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer transition-all min-h-[36px] md:min-h-[44px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
       >
         <span className="text-lg font-bold">+</span>
         <span className="text-xs font-semibold">Book</span>
@@ -48,7 +54,10 @@ export function GhostSeat({ onClick, onBlock, span }) {
   // Ghost seat with block button
   return (
     <div
-      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all min-h-[36px] md:min-h-[44px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass}`}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all min-h-[36px] md:min-h-[44px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
     >
       {/* Book button — mustard CTA on hover */}
       <button

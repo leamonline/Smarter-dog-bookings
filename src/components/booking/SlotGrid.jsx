@@ -1,11 +1,12 @@
 // src/components/booking/SlotGrid.jsx
 import { useState, useMemo, useCallback } from "react";
-import { getSeatStatesForSlot } from "../../engine/capacity.js";
+import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
 import { SkeletonCard } from "../shared/SkeletonCard.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop.js";
 
 function formatSlotTime(slot) {
   const [hourStr, minStr] = slot.split(":");
@@ -20,12 +21,53 @@ export function SlotGrid({
   loading,
   activeSlots,
   onOpenNewBooking,
+  onMoveBooking,
   currentDateStr,
   overrides,
   onOverride,
   searchQuery,
 }) {
   const toast = useToast();
+
+  const canDropAt = useCallback(
+    (booking, targetSlot) => {
+      const otherBookings = bookings.filter((b) => b.id !== booking.id);
+      const check = canBookSlot(
+        otherBookings,
+        targetSlot,
+        booking.size,
+        activeSlots,
+        {
+          overrides: overrides?.[targetSlot] || {},
+          dogId: booking._dogId,
+        },
+      );
+      return check.allowed;
+    },
+    [bookings, activeSlots, overrides],
+  );
+
+  const handleMoveBooking = useCallback(
+    async (booking, targetSlot) => {
+      if (!onMoveBooking) return;
+      if (!canDropAt(booking, targetSlot)) {
+        toast.show("Can't move booking there", "error");
+        return;
+      }
+      try {
+        await onMoveBooking(booking, targetSlot);
+        toast.show(`Moved ${booking.dogName || "booking"} to ${targetSlot}`, "success");
+      } catch {
+        toast.show("Move failed", "error");
+      }
+    },
+    [onMoveBooking, canDropAt, toast],
+  );
+
+  const dnd = useSlotDragAndDrop({
+    onMoveBooking: handleMoveBooking,
+    canDropAt,
+  });
 
   const block = useCallback((slot, seatIndex) => {
     if (onOverride) {
@@ -131,10 +173,18 @@ export function SlotGrid({
             <GhostSeat
               onClick={() => onOpenNewBooking(currentDateStr, slot)}
               onBlock={onOverride ? () => block(slot, 0) : undefined}
+              onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+              onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+              onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+              isDropTarget={dnd.drag.overSlot === slot}
             />
             <GhostSeat
               onClick={() => onOpenNewBooking(currentDateStr, slot)}
               onBlock={onOverride ? () => block(slot, 1) : undefined}
+              onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+              onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+              onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+              isDropTarget={dnd.drag.overSlot === slot}
             />
           </>
         ) : allBlockedByStaff ? (
@@ -152,7 +202,17 @@ export function SlotGrid({
               if (seat.type === "booking") {
                 const b = seat.booking;
                 const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
-                return <BookingCardNew key={b.id || seat.seatIndex} booking={b} searchDimmed={dimmed} />;
+                return (
+                  <BookingCardNew
+                    key={b.id || seat.seatIndex}
+                    booking={b}
+                    searchDimmed={dimmed}
+                    draggable={!!onMoveBooking}
+                    onDragStart={onMoveBooking ? dnd.onCardDragStart : undefined}
+                    onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
+                    isBeingDragged={dnd.drag.booking?.id === b.id}
+                  />
+                );
               }
               if (seat.type === "reserved") {
                 return (
@@ -191,6 +251,10 @@ export function SlotGrid({
                   key={seat.seatIndex}
                   onClick={() => onOpenNewBooking(currentDateStr, slot)}
                   onBlock={onOverride ? () => block(slot, seat.seatIndex) : undefined}
+                  onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+                  onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+                  onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+                  isDropTarget={dnd.drag.overSlot === slot}
                 />
               );
             })}

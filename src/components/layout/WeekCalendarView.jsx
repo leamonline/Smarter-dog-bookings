@@ -187,6 +187,7 @@ export function WeekCalendarView({
   currentSettings,
   // Handlers
   handleAdd,
+  handleUpdate,
   handleOverride,
   handleAddSlot,
   handleRemoveSlot,
@@ -299,6 +300,16 @@ export function WeekCalendarView({
                       loading={bookingsLoading && dayBookings.length === 0}
                       activeSlots={activeSlots}
                       onOpenNewBooking={(dateStr, slot) => setShowNewBooking({ dateStr, slot })}
+                      onMoveBooking={
+                        handleUpdate
+                          ? (booking, targetSlot) =>
+                              handleUpdate(
+                                { ...booking, slot: targetSlot },
+                                currentDateStr,
+                                currentDateStr,
+                              )
+                          : undefined
+                      }
                       currentDateStr={currentDateStr}
                       overrides={currentSettings.overrides || {}}
                       onOverride={handleOverride}
