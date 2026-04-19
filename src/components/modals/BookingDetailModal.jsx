@@ -42,8 +42,7 @@ import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 import { PhotoUploadModal } from "./PhotoUploadModal.jsx";
 import { titleCase } from "../../utils/text.js";
-
-const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"];
+import { AVAILABLE_ADDONS, getAddonPrice, getAddonsTotal } from "../../constants/salon.js";
 
 
 
@@ -178,8 +177,7 @@ export function BookingDetailModal({
     ? editData.depositAmount
     : booking.depositAmount ?? 10;
 
-  let amountDue = Number(activePrice || 0);
-  if (activeAddons.includes("Flea Bath")) amountDue += 10;
+  let amountDue = Number(activePrice || 0) + getAddonsTotal(activeAddons);
   if (activePayment === "Deposit Paid") amountDue -= Number(activeDepositAmount || 0);
   else if (activePayment === "Paid in Full") amountDue = 0;
 
@@ -487,7 +485,7 @@ export function BookingDetailModal({
                 <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
                   <LogisticsLabel text={`${addon} — Add-on`} />
                   <span className="text-[13px] font-bold text-slate-800">
-                    {addon === "Flea Bath" ? "\u00A310" : <span className="text-slate-400 font-medium italic">Included</span>}
+                    {getAddonPrice(addon) > 0 ? `\u00A3${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
                   </span>
                 </div>
               ))}
@@ -501,7 +499,7 @@ export function BookingDetailModal({
                 <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
                   <FinanceLabel text="Paid in Full" />
                   <span className="text-[13px] font-bold text-emerald-600">
-                    {"\u2212\u00A3"}{Number(activePrice || 0) + (activeAddons.includes("Flea Bath") ? 10 : 0)}
+                    {"\u2212\u00A3"}{Number(activePrice || 0) + getAddonsTotal(activeAddons)}
                   </span>
                 </div>
               )}

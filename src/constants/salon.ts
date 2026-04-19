@@ -43,6 +43,21 @@ export const PRICING = {
   "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
 };
 
+export const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"] as const;
+
+export const ADDON_PRICES: Record<string, number> = {
+  "Flea Bath": 10,
+};
+
+export function getAddonPrice(addon: string): number {
+  return ADDON_PRICES[addon] || 0;
+}
+
+export function getAddonsTotal(addons: string[] | null | undefined): number {
+  if (!addons?.length) return 0;
+  return addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
+}
+
 export const BOOKING_STATUSES = [
   { id: "No-show", label: "Booked", color: "#475569", bg: "#F1F5F9" },
   { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },

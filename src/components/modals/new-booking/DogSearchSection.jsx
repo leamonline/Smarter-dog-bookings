@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect } from "react";
 import { SERVICES, PRICING, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index.js";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon.js";
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase, buildSearchEntries } from "./helpers.js";
 
@@ -17,6 +18,7 @@ export function DogSearchSection({
   onAddAnotherDog,
   onRemoveDog,
   onServiceChange,
+  onAddonsChange,
   onClearAll,
   onClose,
   onOpenAddDog,
@@ -110,6 +112,30 @@ export function DogSearchSection({
                   </option>
                 ))}
               </select>
+
+              {/* Add-ons chips */}
+              <div className="flex flex-wrap gap-1 mt-2" role="group" aria-label={`Add-ons for ${titleCase(entry.dog.name)}`}>
+                {AVAILABLE_ADDONS.map((addon) => {
+                  const active = (entry.addons || []).includes(addon);
+                  const price = getAddonPrice(addon);
+                  return (
+                    <button
+                      key={addon}
+                      type="button"
+                      onClick={() => onAddonsChange(entry.dog.id, addon)}
+                      aria-pressed={active}
+                      className={`px-2 py-[3px] rounded-full text-[10px] font-semibold border transition-colors ${
+                        active
+                          ? "bg-brand-cyan text-white border-brand-cyan"
+                          : "bg-white text-slate-600 border-slate-200"
+                      }`}
+                    >
+                      {addon}
+                      {price > 0 ? ` +\u00A3${price}` : ""}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
           })}

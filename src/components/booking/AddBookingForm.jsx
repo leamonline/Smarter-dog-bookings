@@ -7,6 +7,7 @@ import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon.js";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 
@@ -43,8 +44,15 @@ export function AddBookingForm({
   const [service, setService] = useState(
     normalizeServiceForSize(prefill?.service || "full-groom", initialSize),
   );
+  const [addons, setAddons] = useState(prefill?.addons || []);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleAddon = (addon) => {
+    setAddons((prev) =>
+      prev.includes(addon) ? prev.filter((a) => a !== addon) : [...prev, addon],
+    );
+  };
 
   const allowedServices = useMemo(
     () => getAllowedServicesForSize(size),
@@ -136,7 +144,7 @@ export function AddBookingForm({
       service,
       owner: ownerName,
       status: prefill?.status || "No-show",
-      addons: prefill?.addons || [],
+      addons,
       pickupBy: prefill?.pickupBy || ownerName,
       payment: prefill?.payment || "Due at Pick-up",
       confirmed: prefill?.confirmed ?? false,
@@ -263,6 +271,29 @@ export function AddBookingForm({
           No valid services are available for this dog size.
         </div>
       )}
+
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Add-ons">
+        {AVAILABLE_ADDONS.map((addon) => {
+          const active = addons.includes(addon);
+          const price = getAddonPrice(addon);
+          return (
+            <button
+              key={addon}
+              type="button"
+              onClick={() => toggleAddon(addon)}
+              aria-pressed={active}
+              className={`px-2 py-[5px] rounded-full text-[11px] font-semibold border transition-colors ${
+                active
+                  ? "bg-brand-cyan text-white border-brand-cyan"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-brand-cyan"
+              }`}
+            >
+              {addon}
+              {price > 0 ? ` +£${price}` : ""}
+            </button>
+          );
+        })}
+      </div>
 
       <div aria-live="polite" aria-atomic="true">
         {error && (

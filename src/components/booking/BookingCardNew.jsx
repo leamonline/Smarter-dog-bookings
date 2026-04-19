@@ -1,6 +1,7 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
 import { SERVICES, PRICING } from "../../constants/index.js";
+import { getAddonsTotal } from "../../constants/salon.js";
 import { useSalon } from "../../contexts/SalonContext.js";
 import {
   getDogByIdOrName,
@@ -79,8 +80,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed }) {
     const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
     if (!isNaN(num)) displayPrice = num;
   }
-  if (displayPrice != null && booking.addons?.includes("Flea Bath")) {
-    displayPrice += 10;
+  if (displayPrice != null) {
+    displayPrice += getAddonsTotal(booking.addons);
   }
   const price = displayPrice != null ? `£${displayPrice}` : "";
 

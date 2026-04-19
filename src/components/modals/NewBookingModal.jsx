@@ -43,14 +43,14 @@ export function NewBookingModal({
   // ─── handlers ───────────────────────────────────────────────────────────
 
   const handleSelectEntry = (entry) => {
-    setDogEntries([{ dog: entry.dog, humanKey: entry.humanKey, service: "full-groom" }]);
+    setDogEntries([{ dog: entry.dog, humanKey: entry.humanKey, service: "full-groom", addons: [] }]);
     setSelectedHumanKey(entry.humanKey);
     setDogQuery(entry.dog.name);
     setError("");
   };
 
   const handleAddAnotherDog = (dog) => {
-    setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom" }]);
+    setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom", addons: [] }]);
     setAddingAnotherDog(false);
     setSelectedSlot(""); // Reset slot — capacity may have changed
   };
@@ -73,6 +73,19 @@ export function NewBookingModal({
     setDogEntries(prev => prev.map(e =>
       e.dog.id === dogId ? { ...e, service: newService } : e
     ));
+  };
+
+  const handleAddonsChange = (dogId, addon) => {
+    setDogEntries(prev => prev.map(e => {
+      if (e.dog.id !== dogId) return e;
+      const current = e.addons || [];
+      return {
+        ...e,
+        addons: current.includes(addon)
+          ? current.filter(a => a !== addon)
+          : [...current, addon],
+      };
+    }));
   };
 
   const handleClearAll = () => {
@@ -153,6 +166,7 @@ export function NewBookingModal({
              breed: entry.dog.breed,
              size: entry.dog.size || "small",
              service: entry.service,
+             addons: entry.addons || [],
              owner: entry.dog.humanId,
              _dogId: entry.dog.id,
              _bookingDate: targetDateStr,
@@ -221,6 +235,7 @@ export function NewBookingModal({
           onAddAnotherDog={handleAddAnotherDog}
           onRemoveDog={handleRemoveDog}
           onServiceChange={handleServiceChange}
+          onAddonsChange={handleAddonsChange}
           onClearAll={handleClearAll}
           onClose={onClose}
           onOpenAddDog={onOpenAddDog}
