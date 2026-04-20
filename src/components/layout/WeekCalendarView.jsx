@@ -288,6 +288,12 @@ export function WeekCalendarView({
                 bookings={dayBookings}
                 dogs={dogs}
                 onOpenCalendar={() => setShowDatePicker(true)}
+                onNavigateMonth={(delta) => {
+                  const target = new Date(currentDateObj.getFullYear(), currentDateObj.getMonth() + delta, 1);
+                  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+                  target.setDate(Math.min(currentDateObj.getDate(), lastDay));
+                  handleDatePick(target);
+                }}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
               />

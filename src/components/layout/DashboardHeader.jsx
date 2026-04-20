@@ -33,7 +33,7 @@ function formatFullDate(dateObj) {
   return { weekday, weekdayShort, day, dayShort, month, monthShort, year: dateObj.getFullYear() };
 }
 
-export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, viewMode, setViewMode }) {
+export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, onNavigateMonth, viewMode, setViewMode }) {
   const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
   const { weekday, weekdayShort, day, dayShort, month, monthShort } = formatFullDate(currentDateObj);
@@ -49,11 +49,24 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
         className="absolute -right-3 -top-3"
       />
 
-      {/* Date — Quicksand display, hand-drawn underline under the day-of-week.
+      {/* Date + month-navigation arrows — Quicksand display, hand-drawn underline under the day-of-week.
           Short format on narrow mobile, full format from sm+ to avoid truncation.
-          Takes full width on narrow screens (header wraps to 2 rows). */}
-      <div className="relative z-[1] min-w-0 basis-full sm:basis-auto">
-        <div className="text-lg md:text-xl font-bold text-white leading-tight font-display">
+          Takes full width on narrow screens (header wraps to 2 rows); arrows flank the date. */}
+      <div className="relative z-[1] min-w-0 basis-full sm:basis-auto flex items-center gap-2">
+        {onNavigateMonth && (
+          <button
+            type="button"
+            onClick={() => onNavigateMonth(-1)}
+            aria-label="Previous month"
+            title="Previous month"
+            className="w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        )}
+        <div className="text-lg md:text-xl font-bold text-white leading-tight font-display flex-1 sm:flex-initial text-center sm:text-left min-w-0">
           <span className="relative inline-block">
             <span className="sm:hidden">{weekdayShort}</span>
             <span className="hidden sm:inline">{weekday}</span>
@@ -65,6 +78,19 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
           <span className="sm:hidden">{dayShort} {monthShort}</span>
           <span className="hidden sm:inline">{day} {month}</span>
         </div>
+        {onNavigateMonth && (
+          <button
+            type="button"
+            onClick={() => onNavigateMonth(1)}
+            aria-label="Next month"
+            title="Next month"
+            className="w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Stats pills — desktop. Booking count chip is mustard for emphasis. */}

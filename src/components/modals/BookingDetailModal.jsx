@@ -408,7 +408,7 @@ export function BookingDetailModal({
                 isEditing={isEditing}
               />
               <DetailRow
-                label={<LogisticsLabel text="Human" />}
+                label={<LogisticsLabel text="Owner" />}
                 value={titleCase(booking.owner)}
                 isEditing={isEditing}
               />
@@ -423,10 +423,12 @@ export function BookingDetailModal({
             </SectionCard>
           ) : (
             <SectionCard>
-              <CardRow label={<LogisticsLabel text="Date" />} value={formatFullDate(currentDateObj)} />
-              <CardRow label={<LogisticsLabel text="Drop-off Time" />} value={booking.slot} />
               <CardRow
-                label={<LogisticsLabel text="Human" />}
+                label={<LogisticsLabel text="Time & Date" />}
+                value={`${booking.slot} on ${formatFullDate(currentDateObj)}`}
+              />
+              <CardRow
+                label={<LogisticsLabel text="Owner" />}
                 value={titleCase(booking.owner)}
                 onClick={() => onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner)}
               />
