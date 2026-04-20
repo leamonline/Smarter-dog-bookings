@@ -1,5 +1,62 @@
 import { PRICING, SERVICES } from "../constants/index.js";
+import { getAddonsTotal } from "../constants/salon.js";
 import type { Service, Human, Dog } from "../types/index.js";
+
+export const DEFAULT_DEPOSIT_AMOUNT = 10;
+
+export interface BookingPricingInput {
+  service: string;
+  size: string;
+  addons?: string[] | null;
+  payment?: string | null;
+  depositAmount?: number | null;
+  customPrice?: number | null;
+}
+
+export interface BookingPricing {
+  basePrice: number;
+  addonsTotal: number;
+  subtotal: number;
+  depositPaid: number;
+  amountDue: number;
+  isPaidInFull: boolean;
+  isDepositPaid: boolean;
+}
+
+export function computeBookingPricing(input: BookingPricingInput): BookingPricing {
+  let basePrice: number;
+  const customPrice = input.customPrice;
+  if (customPrice != null && !isNaN(Number(customPrice))) {
+    basePrice = Number(customPrice);
+  } else {
+    const normalizedService = normalizeServiceForSize(input.service, input.size);
+    basePrice = getNumericPrice(getServicePriceLabel(normalizedService, input.size));
+  }
+
+  const addonsTotal = getAddonsTotal(input.addons ?? null);
+  const subtotal = basePrice + addonsTotal;
+
+  const payment = input.payment || "Due at Pick-up";
+  const depositAmount = input.depositAmount ?? DEFAULT_DEPOSIT_AMOUNT;
+
+  const isPaidInFull = payment === "Paid in Full";
+  const isDepositPaid = payment === "Deposit Paid";
+
+  let amountDue: number;
+  if (isPaidInFull) amountDue = 0;
+  else if (isDepositPaid) amountDue = Math.max(0, subtotal - depositAmount);
+  else amountDue = subtotal;
+
+  return {
+    basePrice,
+    addonsTotal,
+    subtotal,
+    depositPaid: isDepositPaid ? depositAmount : 0,
+    amountDue,
+    isPaidInFull,
+    isDepositPaid,
+  };
+}
 
 export function isServiceSupportedForSize(serviceId: string, size: string): boolean {
   const pricing = PRICING as Record<string, Record<string, string>>;

@@ -1,11 +1,11 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, lazy, Suspense } from "react";
-import { SERVICES, PRICING } from "../../constants/index.js";
-import { getAddonsTotal } from "../../constants/salon.js";
+import { SERVICES } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
+  computeBookingPricing,
 } from "../../engine/bookingRules.js";
 import { titleCase } from "../../utils/text.js";
 
@@ -73,17 +73,16 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
 
-  // Calculate total price including add-ons
-  let displayPrice = dogRecord?.customPrice ?? null;
-  if (displayPrice == null) {
-    const priceStr = PRICING[booking.service]?.[booking.size] || "";
-    const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
-    if (!isNaN(num)) displayPrice = num;
-  }
-  if (displayPrice != null) {
-    displayPrice += getAddonsTotal(booking.addons);
-  }
-  const price = displayPrice != null ? `£${displayPrice}` : "";
+  // Total owed at pick-up (service + add-ons, minus deposit or paid-in-full).
+  // Shared with BookingDetailModal so card and modal can't drift.
+  const pricing = computeBookingPricing({
+    service: booking.service,
+    size: booking.size,
+    addons: booking.addons,
+    payment: booking.payment,
+    depositAmount: booking.depositAmount,
+    customPrice: dogRecord?.customPrice,
+  });
 
   const displayDogName = titleCase(
     dogRecord?.name || booking.dogName || "Unknown Dog"
@@ -131,11 +130,26 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               </span>
             )}
           </span>
-          {price && (
-            <span className="text-sm md:text-[17px] font-black text-[#1E6B5C] ml-auto shrink-0">
-              {price}
+          {pricing.isPaidInFull ? (
+            <span
+              className="text-[10px] md:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md ml-auto shrink-0"
+              title={`Paid in full (£${pricing.subtotal})`}
+            >
+              Paid
             </span>
-          )}
+          ) : pricing.subtotal > 0 ? (
+            <span
+              className="text-sm md:text-[17px] font-black text-[#1E6B5C] ml-auto shrink-0"
+              title={pricing.isDepositPaid ? `£${pricing.amountDue} due (deposit of £${pricing.depositPaid} paid)` : undefined}
+            >
+              {"\u00A3"}{pricing.amountDue}
+              {pricing.isDepositPaid && (
+                <span className="ml-1 text-[9px] md:text-[10px] font-semibold text-emerald-600 align-middle">
+                  dep.
+                </span>
+              )}
+            </span>
+          ) : null}
         </div>
 
         {/* Row 2: owner */}

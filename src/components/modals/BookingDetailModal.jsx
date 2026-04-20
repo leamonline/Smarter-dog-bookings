@@ -19,6 +19,7 @@ import {
   getNumericPrice,
   getServicePriceLabel,
   normalizeServiceForSize,
+  computeBookingPricing,
 } from "../../engine/bookingRules.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { DatePickerModal } from "./DatePickerModal.jsx";
@@ -42,7 +43,7 @@ import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 import { PhotoUploadModal } from "./PhotoUploadModal.jsx";
 import { titleCase } from "../../utils/text.js";
-import { AVAILABLE_ADDONS, getAddonPrice, getAddonsTotal } from "../../constants/salon.js";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon.js";
 
 
 
@@ -157,17 +158,6 @@ export function BookingDetailModal({
     [booking.size, dogData?.size],
   );
 
-  const activePrice = isEditing
-    ? editData.customPrice
-    : dogData?.customPrice !== undefined
-      ? dogData.customPrice
-      : getNumericPrice(
-          getServicePriceLabel(
-            normalizeServiceForSize(booking.service, booking.size),
-            booking.size,
-          ),
-        );
-
   const activeAddons = isEditing ? editData.addons : booking.addons || [];
   const activePayment = isEditing
     ? editData.payment
@@ -177,9 +167,16 @@ export function BookingDetailModal({
     ? editData.depositAmount
     : booking.depositAmount ?? 10;
 
-  let amountDue = Number(activePrice || 0) + getAddonsTotal(activeAddons);
-  if (activePayment === "Deposit Paid") amountDue -= Number(activeDepositAmount || 0);
-  else if (activePayment === "Paid in Full") amountDue = 0;
+  const pricing = computeBookingPricing({
+    service: booking.service,
+    size: booking.size,
+    addons: activeAddons,
+    payment: activePayment,
+    depositAmount: activeDepositAmount,
+    customPrice: isEditing ? editData.customPrice : dogData?.customPrice,
+  });
+  const activePrice = pricing.basePrice;
+  const amountDue = pricing.amountDue;
 
   const handleCloseAttempt = () => {
     if (isEditing) setShowExitConfirm(true);
@@ -499,7 +496,7 @@ export function BookingDetailModal({
                 <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
                   <FinanceLabel text="Paid in Full" />
                   <span className="text-[13px] font-bold text-emerald-600">
-                    {"\u2212\u00A3"}{Number(activePrice || 0) + getAddonsTotal(activeAddons)}
+                    {"\u2212\u00A3"}{pricing.subtotal}
                   </span>
                 </div>
               )}
