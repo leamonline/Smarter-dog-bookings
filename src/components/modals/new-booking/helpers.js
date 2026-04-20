@@ -5,39 +5,43 @@ export function getHumanPhone(humans, humanKey) {
   return h?.phone || "";
 }
 
+/**
+ * One entry per dog, with the owner and trusted humans grouped inside.
+ * Shape: { dog, hasAlerts, humans: [{ key, phone, isTrusted }] }.
+ * Owner is always first in the humans array; trusted follow in the order
+ * they appear on the owner.
+ */
 export function buildSearchEntries(dogs, humans) {
-  // Returns an array of { dog, humanKey, humanPhone, isTrusted, trustedHumanKey, trustedHumanPhone }
   const entries = [];
   for (const dog of Object.values(dogs || {})) {
     const ownerKey = dog.humanId || "";
-    const owner = humans?.[ownerKey];
-    const ownerPhone = owner?.phone || "";
-    const hasAlerts = dog.alerts && dog.alerts.length > 0;
+    const owner = ownerKey ? humans?.[ownerKey] : null;
+    const hasAlerts = Boolean(dog.alerts?.length);
 
-    // Primary entry (owner)
-    entries.push({
-      dog,
-      humanKey: ownerKey,
-      humanPhone: ownerPhone,
-      isTrusted: false,
-      hasAlerts,
-    });
+    const humansForDog = [];
 
-    // Trusted human entries
+    if (ownerKey) {
+      humansForDog.push({
+        key: ownerKey,
+        phone: owner?.phone || "",
+        isTrusted: false,
+      });
+    }
+
     if (owner?.trustedIds?.length) {
       for (const trustedKey of owner.trustedIds) {
         const trusted = humans?.[trustedKey];
         if (trusted) {
-          entries.push({
-            dog,
-            humanKey: trustedKey,
-            humanPhone: trusted.phone || "",
+          humansForDog.push({
+            key: trustedKey,
+            phone: trusted.phone || "",
             isTrusted: true,
-            hasAlerts,
           });
         }
       }
     }
+
+    entries.push({ dog, hasAlerts, humans: humansForDog });
   }
   return entries;
 }
