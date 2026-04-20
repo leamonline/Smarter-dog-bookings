@@ -165,7 +165,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
           {/* Status pill / inline picker */}
           {statusOpen ? (
-            <div className="flex-1 min-w-0 flex flex-col gap-[3px]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in" onClick={(e) => e.stopPropagation()}>
               {[
                 { id: "No-show", ...STATUS_DISPLAY["No-show"] },
                 { id: "Checked in", ...STATUS_DISPLAY["Checked in"] },

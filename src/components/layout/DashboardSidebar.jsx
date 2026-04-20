@@ -102,13 +102,23 @@ export function DashboardSidebar({
               const isToday = dateStr === todayStr;
               const isSelected = dateStr === selectedStr;
 
+              const dotColor =
+                count === 0
+                  ? null
+                  : count <= 3
+                    ? "bg-emerald-400"
+                    : count <= 6
+                      ? "bg-amber-400"
+                      : "bg-rose-400";
+
               return (
                 <button
                   key={dateStr}
                   onClick={() => onSelectDate(date)}
-                  className={`w-full aspect-square rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
+                  aria-label={`${date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}${count > 0 ? `, ${count} ${count === 1 ? "booking" : "bookings"}` : !isOpen ? ", closed" : ""}`}
+                  className={`relative w-full aspect-square rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
                     isSelected
-                      ? "bg-brand-cyan text-white"
+                      ? "bg-brand-cyan text-white shadow-[0_2px_6px_rgba(0,184,224,0.35)]"
                       : isToday
                         ? "bg-sky-50 text-brand-cyan border border-brand-cyan"
                         : !isOpen
@@ -118,7 +128,15 @@ export function DashboardSidebar({
                             : "bg-transparent text-slate-500 hover:bg-slate-50"
                   }`}
                 >
-                  {date.getDate()}
+                  <span>{date.getDate()}</span>
+                  {dotColor && (
+                    <span
+                      className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${
+                        isSelected ? "bg-white/90" : dotColor
+                      }`}
+                      aria-hidden="true"
+                    />
+                  )}
                 </button>
               );
             })}

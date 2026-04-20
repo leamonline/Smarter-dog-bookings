@@ -7,16 +7,20 @@ export function BlockedSeatCell({ onClick, span }) {
       role="button"
       tabIndex={0}
       aria-label="Unblock this seat"
+      title="Click to unblock"
       className={[
-        "border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all min-h-[36px] md:min-h-[44px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus:outline-none focus:ring-2 focus:ring-brand-coral focus:ring-offset-1",
+        "group border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all duration-200 min-h-[36px] md:min-h-[44px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus:outline-none focus:ring-2 focus:ring-brand-coral focus:ring-offset-1",
         span ? "col-span-2" : "",
       ].join(" ")}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover:scale-110">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
         <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className="text-[10px] font-semibold">Blocked</span>
+      <span className="text-[10px] font-semibold">
+        <span className="group-hover:hidden">Blocked</span>
+        <span className="hidden group-hover:inline">Unblock</span>
+      </span>
     </div>
   );
 }
