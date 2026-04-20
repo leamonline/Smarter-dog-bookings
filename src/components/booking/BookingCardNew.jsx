@@ -152,21 +152,23 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           ) : null}
         </div>
 
-        {/* Row 2: owner */}
-        {displayOwner && (
-          <div className="text-xs md:text-sm font-semibold text-brand-teal pl-4 md:pl-5">
-            {displayOwner}
-          </div>
-        )}
-
-        {/* Row 3: Alerts */}
-        {dogRecord?.alerts?.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-0.5 pl-4 md:pl-5">
-            {dogRecord.alerts.map((alert, idx) => (
-              <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
-                <span className="text-[8px]">🔴</span> {alert}
-              </span>
-            ))}
+        {/* Row 2: owner + alerts */}
+        {(displayOwner || dogRecord?.alerts?.length > 0) && (
+          <div className="flex items-center gap-2 pl-4 md:pl-5">
+            {displayOwner && (
+              <div className="text-xs md:text-sm font-semibold text-brand-teal min-w-0 truncate">
+                {displayOwner}
+              </div>
+            )}
+            {dogRecord?.alerts?.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1 ml-auto shrink-0">
+                {dogRecord.alerts.map((alert, idx) => (
+                  <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
+                    <span className="text-[8px]">🔴</span> {alert}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
