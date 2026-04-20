@@ -25,18 +25,21 @@ function ordinal(n) {
 
 function formatFullDate(dateObj) {
   const weekday = dateObj.toLocaleDateString("en-GB", { weekday: "long" });
+  const weekdayShort = dateObj.toLocaleDateString("en-GB", { weekday: "short" });
   const day = ordinal(dateObj.getDate());
+  const dayShort = String(dateObj.getDate());
   const month = dateObj.toLocaleDateString("en-GB", { month: "long" });
-  return { weekday, day, month, year: dateObj.getFullYear() };
+  const monthShort = dateObj.toLocaleDateString("en-GB", { month: "short" });
+  return { weekday, weekdayShort, day, dayShort, month, monthShort, year: dateObj.getFullYear() };
 }
 
 export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, viewMode, setViewMode }) {
   const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
-  const { weekday, day, month } = formatFullDate(currentDateObj);
+  const { weekday, weekdayShort, day, dayShort, month, monthShort } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-4 px-4 md:px-5 flex items-center gap-3 rounded-2xl relative overflow-hidden shadow-md">
+    <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-3 px-4 md:py-4 md:px-5 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 rounded-2xl relative overflow-hidden shadow-md">
       {/* Brand silhouette watermark */}
       <DogSilhouette
         color="white"
@@ -46,17 +49,21 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
         className="absolute -right-3 -top-3"
       />
 
-      {/* Date — Quicksand display, hand-drawn underline under the day-of-week */}
-      <div className="relative z-[1] min-w-0">
-        <div className="text-lg md:text-xl font-bold text-white leading-tight truncate font-display">
+      {/* Date — Quicksand display, hand-drawn underline under the day-of-week.
+          Short format on narrow mobile, full format from sm+ to avoid truncation.
+          Takes full width on narrow screens (header wraps to 2 rows). */}
+      <div className="relative z-[1] min-w-0 basis-full sm:basis-auto">
+        <div className="text-lg md:text-xl font-bold text-white leading-tight font-display">
           <span className="relative inline-block">
-            {weekday}
+            <span className="sm:hidden">{weekdayShort}</span>
+            <span className="hidden sm:inline">{weekday}</span>
             <HandDrawnUnderline
               color="var(--color-brand-yellow)"
               className="absolute left-0 right-0 -bottom-1"
             />
           </span>{" "}
-          {day} {month}
+          <span className="sm:hidden">{dayShort} {monthShort}</span>
+          <span className="hidden sm:inline">{day} {month}</span>
         </div>
       </div>
 

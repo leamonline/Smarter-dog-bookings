@@ -23,7 +23,7 @@ export function CalendarTabs({
     <div
       role="tablist"
       aria-label="Day navigation"
-      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-white xl:bg-transparent xl:border-0 xl:py-0 xl:justify-start border-b border-slate-200 overflow-x-auto snap-x snap-mandatory scrollbar-none"
+      className="flex items-center justify-start gap-1 px-2 py-1.5 bg-white xl:bg-transparent xl:border-0 xl:py-0 border-b border-slate-200 overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
     >
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;
