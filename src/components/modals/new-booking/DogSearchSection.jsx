@@ -37,7 +37,8 @@ export function DogSearchSection({
     }
   }, [hasDogs]);
 
-  // Build search entries from current dogs state, filtered by query
+  // Build search entries from current dogs state, filtered by query.
+  // One entry per dog; owner + trusted humans are nested inside `entry.humans`.
   const filteredEntries = useMemo(() => {
     if (hasDogs) return [];
     const all = buildSearchEntries(dogs, humans);
@@ -46,7 +47,7 @@ export function DogSearchSection({
     return all.filter(e =>
       e.dog.name?.toLowerCase().includes(q) ||
       e.dog.breed?.toLowerCase().includes(q) ||
-      e.humanKey?.toLowerCase().includes(q)
+      e.humans.some(h => h.key?.toLowerCase().includes(q))
     ).slice(0, 8);
   }, [dogs, humans, hasDogs, dogQuery]);
 
@@ -221,45 +222,63 @@ export function DogSearchSection({
               </div>
             )}
 
-            {/* Dropdown results — show even during server search */}
+            {/* Dropdown results — one card per dog, humans nested inside */}
             {filteredEntries.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[280px] overflow-auto">
-                {filteredEntries.map((entry, idx) => {
-                  const isTrusted = entry.isTrusted;
-                  const textColor = isTrusted ? "#2D8B7A" : "#1F2937";
-                  const subtextColor = isTrusted ? "#2D8B7A" : "#6B7280";
-                  const bgHover = isTrusted ? "#E6F5F2" : "#E0F7FC";
-                  const label = isTrusted ? "Trusted" : "Owner";
-                  const labelBg = isTrusted ? "#E6F5F2" : "#E0F7FC";
-                  const labelColor = isTrusted ? "#2D8B7A" : "#0099BD";
-
-                  return (
-                    <div
-                      key={`${entry.dog.id}-${entry.humanKey}-${idx}`}
-                      onMouseDown={() => onSelectEntry(entry)}
-                      className="px-3.5 py-2.5 cursor-pointer transition-colors"
-                      style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid #E5E7EB" : "none" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = bgHover)}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
-                    >
-                      <div className="flex items-center gap-1.5 justify-between">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-sm font-bold" style={{ color: textColor }}>{titleCase(entry.dog.name)}</span>
-                          <span className="text-xs" style={{ color: subtextColor }}>—</span>
-                          <span className="text-xs" style={{ color: subtextColor }}>{titleCase(entry.dog.breed)}</span>
-                          {entry.hasAlerts && <span className="text-[13px]">⚠️</span>}
-                        </div>
-                        <span
-                          className="text-[10px] font-bold py-0.5 px-[7px] rounded-md shrink-0 uppercase tracking-wide"
-                          style={{ background: labelBg, color: labelColor }}
-                        >{label}</span>
-                      </div>
-                      <div className="text-xs mt-0.5" style={{ color: subtextColor }}>
-                        {titleCase(entry.humanKey)}{entry.humanPhone ? ` · ${entry.humanPhone}` : ""}
-                      </div>
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
+                {filteredEntries.map((entry, idx) => (
+                  <div
+                    key={entry.dog.id}
+                    className="px-3.5 py-2.5"
+                    style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid #E5E7EB" : "none" }}
+                  >
+                    {/* Dog header */}
+                    <div className="flex items-center gap-1.5 min-w-0 mb-1.5">
+                      <span className="text-sm font-bold text-slate-800">{titleCase(entry.dog.name)}</span>
+                      <span className="text-xs text-slate-400">—</span>
+                      <span className="text-xs text-slate-500">{titleCase(entry.dog.breed)}</span>
+                      {entry.hasAlerts && <span className="text-[13px]" aria-label="Has alerts">⚠️</span>}
                     </div>
-                  );
-                })}
+
+                    {/* Humans — each row is clickable to pick that (dog, human) pair */}
+                    {entry.humans.length === 0 ? (
+                      <button
+                        type="button"
+                        onMouseDown={() => onSelectEntry({ dog: entry.dog, humanKey: "", humanPhone: "", isTrusted: false, hasAlerts: entry.hasAlerts })}
+                        className="w-full text-left px-2 py-1.5 rounded-md text-xs font-semibold text-slate-500 italic bg-transparent border-none cursor-pointer font-[inherit] hover:bg-slate-50"
+                      >
+                        No human on file — tap to continue
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {entry.humans.map((human) => {
+                          const labelBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
+                          const labelColor = human.isTrusted ? "#2D8B7A" : "#0099BD";
+                          const hoverBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
+                          return (
+                            <button
+                              key={human.key}
+                              type="button"
+                              aria-label={`Book ${titleCase(entry.dog.name)} with ${titleCase(human.key)}${human.isTrusted ? " (trusted)" : " (owner)"}`}
+                              onMouseDown={() => onSelectEntry({ dog: entry.dog, humanKey: human.key, humanPhone: human.phone, isTrusted: human.isTrusted, hasAlerts: entry.hasAlerts })}
+                              className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
+                              onMouseEnter={(e) => (e.currentTarget.style.background = hoverBg)}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <span
+                                className="text-[9px] font-bold py-0.5 px-[7px] rounded-md shrink-0 uppercase tracking-wide"
+                                style={{ background: labelBg, color: labelColor }}
+                              >{human.isTrusted ? "Trusted" : "Owner"}</span>
+                              <span className="text-xs font-semibold text-slate-800 truncate">{titleCase(human.key)}</span>
+                              {human.phone && (
+                                <span className="text-xs text-slate-500 truncate">· {human.phone}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
