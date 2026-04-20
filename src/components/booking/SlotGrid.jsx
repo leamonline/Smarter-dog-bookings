@@ -89,7 +89,7 @@ export function SlotGrid({
   const [expandedBlocks, setExpandedBlocks] = useState({});
 
   const rows = useMemo(() => {
-    const minCollapseCount = 3;
+    const minCollapseCount = 2;
     const result = [];
     let currentEmptyBlock = null;
 
@@ -271,18 +271,28 @@ export function SlotGrid({
         if (row.type === 'emptyBlock') {
           const isExpanded = expandedBlocks[row.startSlot];
           if (!isExpanded) {
+            const rangeLabel = `${formatSlotTime(row.startTime)} \u2013 ${formatSlotTime(activeSlots[row.endIndex] || row.endSlot)}`;
             return (
-              <div key={`empty-${row.startSlot}`} className="p-3 border-b border-[#F1F3F5] bg-slate-50 flex items-center justify-between text-slate-500 min-h-[48px] md:min-h-[56px]">
-                <div className="text-sm font-bold pl-1 md:pl-2 text-slate-500 rounded-lg flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>
-                    No bookings <span className="opacity-60 ml-2 font-semibold">({formatSlotTime(row.startTime)} &ndash; {formatSlotTime(activeSlots[row.endIndex] || row.endSlot)})</span>
-                  </span>
-                </div>
+              <div
+                key={`empty-${row.startSlot}`}
+                className="group flex items-stretch border-b border-[#F1F3F5] bg-slate-50 hover:bg-brand-yellow/15 text-slate-500 min-h-[44px] md:min-h-[52px] transition-colors"
+              >
                 <button
-                  aria-label="Expand timeslots"
+                  type="button"
+                  onClick={() => onOpenNewBooking(currentDateStr, row.startSlot)}
+                  aria-label={`Add a booking between ${rangeLabel}`}
+                  className="flex-1 flex items-center gap-2 p-3 text-sm font-bold text-left font-[inherit] bg-transparent border-none cursor-pointer text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-inset"
+                >
+                  <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 group-hover:bg-brand-yellow group-hover:text-brand-purple flex items-center justify-center text-sm font-bold transition-colors shrink-0">+</span>
+                  <span className="group-hover:text-brand-purple transition-colors">
+                    Free <span className="opacity-60 ml-1 font-semibold">({rangeLabel})</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Expand timeslots to see or block individual seats"
                   onClick={() => setExpandedBlocks(prev => ({ ...prev, [row.startSlot]: true }))}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-brand-cyan hover:border-brand-cyan hover:bg-sky-50 transition-all font-[inherit] cursor-pointer"
+                  className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 bg-transparent border-none cursor-pointer px-3 font-[inherit] focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-inset transition-colors"
                 >
                   Expand
                 </button>
