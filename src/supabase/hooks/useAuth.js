@@ -50,23 +50,40 @@ export function useAuth() {
       }
     };
 
-    const syncFromSession = async (session) => {
+    // Apply synchronous state updates from a session. Safe inside the
+    // onAuthStateChange callback (Supabase holds the auth lock while it
+    // fires subscribers, so awaiting another Supabase API here would
+    // deadlock the client — notably during TOKEN_REFRESHED).
+    const applySessionState = (session) => {
       if (cancelled) return;
-
-      try {
-        if (session?.user) {
-          setUser(session.user);
-          const profile = await fetchProfile(session.user.id);
-          if (!cancelled) setStaffProfile(profile);
-        } else {
-          setUser(null);
-          setStaffProfile(null);
-        }
-      } catch (err) {
-        console.error("useAuth: error while syncing auth state:", err);
-      } finally {
-        finishInitialLoad();
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+        setStaffProfile(null);
       }
+    };
+
+    // Fetch the staff profile in a new task, after the auth lock has been
+    // released. Called from both the getSession() init path and the
+    // onAuthStateChange callback. Marks the initial load done once the
+    // profile has been fetched (or fetch failed).
+    const scheduleProfileFetch = (userId) => {
+      if (cancelled) return;
+      if (!userId) {
+        finishInitialLoad();
+        return;
+      }
+      setTimeout(async () => {
+        try {
+          const profile = await fetchProfile(userId);
+          if (!cancelled) setStaffProfile(profile);
+        } catch (err) {
+          console.error("useAuth: error fetching staff profile:", err);
+        } finally {
+          finishInitialLoad();
+        }
+      }, 0);
     };
 
     const timeout = setTimeout(() => {
@@ -86,7 +103,9 @@ export function useAuth() {
           finishInitialLoad();
           return;
         }
-        return syncFromSession(data?.session ?? null);
+        const session = data?.session ?? null;
+        applySessionState(session);
+        scheduleProfileFetch(session?.user?.id);
       })
       .catch((err) => {
         console.error("useAuth: unexpected getSession error:", err);
@@ -95,8 +114,9 @@ export function useAuth() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      await syncFromSession(session);
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySessionState(session);
+      scheduleProfileFetch(session?.user?.id);
     });
 
     return () => {

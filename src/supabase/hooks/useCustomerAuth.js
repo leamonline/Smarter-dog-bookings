@@ -89,25 +89,30 @@ export function useCustomerAuth() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
-      try {
-        if (session?.user) {
-          setUser(session.user);
 
-          const ph = session.user.phone;
-          if (ph) {
-            const human = await linkHumanRecord(ph);
+      // Supabase holds the auth lock while firing subscribers, so awaiting
+      // another Supabase API here deadlocks the client during TOKEN_REFRESHED.
+      // Sync state inline and defer the RPC lookup to a fresh task.
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+        setHumanRecord(null);
+      }
+      finish();
+
+      const phoneNum = session?.user?.phone;
+      if (phoneNum) {
+        setTimeout(async () => {
+          try {
+            const human = await linkHumanRecord(phoneNum);
             if (!cancelled) setHumanRecord(human);
+          } catch (err) {
+            console.error("useCustomerAuth: error linking human record:", err);
           }
-        } else {
-          setUser(null);
-          setHumanRecord(null);
-        }
-      } catch (err) {
-        console.error("useCustomerAuth: unexpected error:", err);
-      } finally {
-        finish();
+        }, 0);
       }
     });
 
