@@ -141,6 +141,22 @@ export function DashboardSidebar({
               );
             })}
           </div>
+
+          {/* Busyness dot legend */}
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-slate-500">
+            <span className="flex items-center gap-1" title="1–3 bookings: quiet day">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+              Quiet
+            </span>
+            <span className="flex items-center gap-1" title="4–6 bookings: steady day">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />
+              Steady
+            </span>
+            <span className="flex items-center gap-1" title="7+ bookings: full day">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" aria-hidden="true" />
+              Full
+            </span>
+          </div>
         </div>
       </div>
 
