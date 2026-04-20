@@ -9,6 +9,7 @@ import {
   toLocalDateStr,
   getHumanByIdOrName,
   getDogByIdOrName,
+  computeBookingPricing,
 } from "./bookingRules.js";
 
 // ── isServiceSupportedForSize ───────────────────────────────────
@@ -174,5 +175,64 @@ describe("getDogByIdOrName", () => {
 
   it("returns null for empty input", () => {
     expect(getDogByIdOrName(dogs, "")).toBeNull();
+  });
+});
+
+// ── computeBookingPricing ────────────────────────────────────────
+
+describe("computeBookingPricing", () => {
+  it("uses PRICING when no custom price", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small" });
+    expect(result.basePrice).toBe(42);
+    expect(result.subtotal).toBe(42);
+    expect(result.amountDue).toBe(42);
+  });
+
+  it("prefers customPrice over PRICING", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", customPrice: 55 });
+    expect(result.basePrice).toBe(55);
+    expect(result.subtotal).toBe(55);
+  });
+
+  it("treats null customPrice as unset and falls back to PRICING", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "medium", customPrice: null });
+    expect(result.basePrice).toBe(46);
+  });
+
+  it("adds addons to subtotal", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", addons: ["Flea Bath"] });
+    expect(result.addonsTotal).toBe(10);
+    expect(result.subtotal).toBe(52);
+    expect(result.amountDue).toBe(52);
+  });
+
+  it("subtracts deposit when Deposit Paid", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", addons: ["Flea Bath"], payment: "Deposit Paid", depositAmount: 10 });
+    expect(result.subtotal).toBe(52);
+    expect(result.depositPaid).toBe(10);
+    expect(result.amountDue).toBe(42);
+    expect(result.isDepositPaid).toBe(true);
+  });
+
+  it("defaults deposit to £10 when Deposit Paid with no amount", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", payment: "Deposit Paid" });
+    expect(result.amountDue).toBe(32);
+  });
+
+  it("zeroes amountDue when Paid in Full", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", addons: ["Flea Bath"], payment: "Paid in Full" });
+    expect(result.subtotal).toBe(52);
+    expect(result.amountDue).toBe(0);
+    expect(result.isPaidInFull).toBe(true);
+  });
+
+  it("clamps amountDue at 0 when deposit exceeds subtotal", () => {
+    const result = computeBookingPricing({ service: "full-groom", size: "small", payment: "Deposit Paid", depositAmount: 100 });
+    expect(result.amountDue).toBe(0);
+  });
+
+  it("normalizes invalid service+size combo via PRICING fallback", () => {
+    const result = computeBookingPricing({ service: "puppy-groom", size: "large" });
+    expect(result.basePrice).toBeGreaterThan(0);
   });
 });
