@@ -43,9 +43,9 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer transition-all min-h-[36px] md:min-h-[44px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
+        className={`group border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer transition-all duration-200 min-h-[36px] md:min-h-[44px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
       >
-        <span className="text-lg font-bold">+</span>
+        <span className="text-lg font-bold transition-transform duration-200 group-hover:scale-125">+</span>
         <span className="text-xs font-semibold">Book</span>
       </button>
     );
@@ -57,16 +57,16 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all min-h-[36px] md:min-h-[44px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
+      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all duration-200 min-h-[36px] md:min-h-[44px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
     >
       {/* Book button — mustard CTA on hover */}
       <button
         onClick={onClick}
         aria-label="Book this seat"
         title="Add booking"
-        className="flex-1 h-8 rounded-full bg-brand-yellow/15 text-brand-purple border-none flex items-center justify-center gap-1 cursor-pointer transition-all font-[inherit] hover:bg-brand-yellow"
+        className="group/book flex-1 h-8 rounded-full bg-brand-yellow/15 text-brand-purple border-none flex items-center justify-center gap-1 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-brand-yellow"
       >
-        <span className="text-sm font-bold">+</span>
+        <span className="text-sm font-bold transition-transform duration-200 group-hover/book:scale-125">+</span>
         <span className="text-xs font-semibold">Book</span>
       </button>
 
@@ -82,9 +82,9 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
             onBlock();
           }
         }}
-        className="w-8 h-8 rounded-full bg-pink-50 text-brand-coral border-none flex items-center justify-center shrink-0 cursor-pointer transition-all font-[inherit] hover:bg-brand-coral hover:text-white"
+        className="group/block w-8 h-8 rounded-full bg-pink-50 text-brand-coral border-none flex items-center justify-center shrink-0 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-brand-coral hover:text-white"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover/block:scale-110">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />
           <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
         </svg>

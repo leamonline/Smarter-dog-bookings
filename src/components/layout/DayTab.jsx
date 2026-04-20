@@ -13,6 +13,11 @@ function busyStyle(count, isOpen) {
 export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const dayName = DAY_NAMES[dateObj.getDay()];
   const dateNum = dateObj.getDate();
+  const today = new Date();
+  const isToday =
+    dateObj.getFullYear() === today.getFullYear() &&
+    dateObj.getMonth() === today.getMonth() &&
+    dateObj.getDate() === today.getDate();
 
   // Two display modes: light (mobile/tablet, on white CalendarTabs bg) and
   // dark (xl+ inside the purple AppToolbar). Mode selected via Tailwind's xl: prefix.
@@ -47,10 +52,11 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       {/* Date circle */}
       <span
         className={[
-          "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
+          "relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
             ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(255,204,0,0.45)]"
             : busyStyle(dogCount, isOpen),
+          isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1 xl:ring-offset-brand-purple" : "",
         ].join(" ")}
       >
         {dateNum}
