@@ -111,6 +111,7 @@ export function HumanCardModal({
     address: "",
     notes: "",
     trustedIds: [],
+    trustedContacts: [],
     historyFlag: "",
   };
 
@@ -150,6 +151,7 @@ export function HumanCardModal({
   const [newTrustedName, setNewTrustedName] = useState("");
   const [newTrustedSurname, setNewTrustedSurname] = useState("");
   const [newTrustedPhone, setNewTrustedPhone] = useState("");
+  const [newTrustedRelationship, setNewTrustedRelationship] = useState("");
 
   // --- Edit state ---
   const [isEditing, setIsEditing] = useState(false);
@@ -224,7 +226,9 @@ export function HumanCardModal({
     if (!trustedSearchQuery.trim()) return [];
 
     const query = trustedSearchQuery.toLowerCase().trim();
-    const currentTrusted = human.trustedIds || [];
+    const currentContacts = human.trustedContacts || [];
+    const linkedIds = new Set(currentContacts.map((c) => c.id).filter(Boolean));
+    const linkedNames = new Set(currentContacts.map((c) => c.fullName).filter(Boolean));
 
     return Object.values(humans || {})
       .filter((candidate) => candidate.id !== human.id)
@@ -232,10 +236,7 @@ export function HumanCardModal({
         const candidateFullName =
           candidate.fullName ||
           `${candidate.name || ""} ${candidate.surname || ""}`.trim();
-        return (
-          !currentTrusted.includes(candidate.id) &&
-          !currentTrusted.includes(candidateFullName)
-        );
+        return !linkedIds.has(candidate.id) && !linkedNames.has(candidateFullName);
       })
       .filter((candidate) => {
         const fullName =
@@ -246,30 +247,30 @@ export function HumanCardModal({
           .includes(query);
       })
       .slice(0, 5);
-  }, [trustedSearchQuery, humans, human.id, human.trustedIds]);
+  }, [trustedSearchQuery, humans, human.id, human.trustedContacts]);
 
   const handleAddTrusted = async (selectedHumanId) => {
-    const currentTrusted = human.trustedIds || [];
+    const currentContacts = human.trustedContacts || [];
     const myId = human.id || humanId;
 
-    // Step 1: Add them to our trusted list
+    // Step 1: Add them to our trusted list (relationship blank initially)
     await onUpdateHuman(myId, {
-      trustedIds: [...currentTrusted, selectedHumanId],
+      trustedContacts: [...currentContacts, { id: selectedHumanId, relationship: "" }],
     });
 
-    // Step 2: Add us to their trusted list
+    // Step 2: Add us to their trusted list (reciprocal, relationship blank)
     const selectedHuman = getHumanByIdOrName(humans, selectedHumanId);
     if (selectedHuman) {
-      const theirTrusted = selectedHuman.trustedIds || [];
-      if (!theirTrusted.includes(myId)) {
+      const theirContacts = selectedHuman.trustedContacts || [];
+      if (!theirContacts.some((c) => c.id === myId || c.fullName === humanFullName)) {
         try {
           await onUpdateHuman(selectedHuman.id || selectedHumanId, {
-            trustedIds: [...theirTrusted, myId],
+            trustedContacts: [...theirContacts, { id: myId, relationship: "" }],
           });
         } catch {
           // Step 2 failed — roll back step 1 to prevent one-directional trust
           onUpdateHuman(myId, {
-            trustedIds: currentTrusted,
+            trustedContacts: currentContacts,
           });
           console.error("Failed to create bidirectional trust; rolled back.");
         }
@@ -283,6 +284,7 @@ export function HumanCardModal({
 
   const handleAddNewTrusted = async () => {
     if (!newTrustedName.trim() || !onAddHuman) return;
+    const relationship = (newTrustedRelationship || "").trim();
     try {
       const result = await onAddHuman({
         name: newTrustedName.trim(),
@@ -292,13 +294,13 @@ export function HumanCardModal({
       const newId = result?.id || result?.[0]?.id;
       if (newId) {
         const myId = human.id || humanId;
-        const currentTrusted = human.trustedIds || [];
+        const currentContacts = human.trustedContacts || [];
         await onUpdateHuman(myId, {
-          trustedIds: [...currentTrusted, newId],
+          trustedContacts: [...currentContacts, { id: newId, relationship }],
         });
         try {
           await onUpdateHuman(newId, {
-            trustedIds: [myId],
+            trustedContacts: [{ id: myId, relationship: "" }],
           });
         } catch {
           console.error("Failed to add bidirectional trust for new human");
@@ -308,11 +310,22 @@ export function HumanCardModal({
       setNewTrustedName("");
       setNewTrustedSurname("");
       setNewTrustedPhone("");
+      setNewTrustedRelationship("");
       setShowTrustedSearch(false);
       toast.show("Trusted human added", "success");
     } catch (err) {
       console.error("Failed to create new trusted human:", err);
     }
+  };
+
+  const handleUpdateTrustedRelationship = async (trustedIdOrName, relationship) => {
+    const currentContacts = human.trustedContacts || [];
+    const nextContacts = currentContacts.map((c) =>
+      c.id === trustedIdOrName || c.fullName === trustedIdOrName
+        ? { ...c, relationship }
+        : c,
+    );
+    await onUpdateHuman(human.id || humanId, { trustedContacts: nextContacts });
   };
 
   const detailRow = (label, value) => (
@@ -566,24 +579,47 @@ export function HumanCardModal({
           <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
             Trusted Humans
           </div>
-          {human.trustedIds && human.trustedIds.length > 0 ? (
-            human.trustedIds.map((trustedId) => {
-              const trustedHuman = getHumanByIdOrName(humans, trustedId);
+          {human.trustedContacts && human.trustedContacts.length > 0 ? (
+            human.trustedContacts.map((contact) => {
+              const trustedHuman =
+                getHumanByIdOrName(humans, contact.id) ||
+                getHumanByIdOrName(humans, contact.fullName);
               const trustedLabel =
                 trustedHuman?.fullName ||
+                contact.fullName ||
                 `${trustedHuman?.name || ""} ${trustedHuman?.surname || ""}`.trim() ||
-                trustedId;
+                contact.id;
+              const rowKey = contact.id || contact.fullName || trustedLabel;
 
               return (
-                <div
-                  key={trustedId}
-                  onClick={() => {
-                    onClose();
-                    onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
-                  }}
-                  className="py-2 border-b border-slate-200 text-[13px] font-semibold text-brand-teal cursor-pointer"
-                >
-                  {titleCase(trustedLabel)}
+                <div key={rowKey} className="py-2 border-b border-slate-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenHuman && onOpenHuman(trustedHuman?.id || contact.id);
+                      }}
+                      className="text-[13px] font-semibold text-brand-teal cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit"
+                    >
+                      {titleCase(trustedLabel)}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Relationship (e.g. husband, dog walker)"
+                    defaultValue={contact.relationship || ""}
+                    onBlur={(e) => {
+                      const nextValue = e.target.value.trim();
+                      if (nextValue === (contact.relationship || "")) return;
+                      handleUpdateTrustedRelationship(
+                        contact.id || contact.fullName,
+                        nextValue,
+                      );
+                    }}
+                    className="w-full mt-1 px-2 py-1 rounded-md border border-slate-200 text-[12px] outline-none font-inherit text-slate-800"
+                    aria-label={`Relationship for ${titleCase(trustedLabel)}`}
+                  />
                 </div>
               );
             })
@@ -747,6 +783,13 @@ export function HumanCardModal({
                     onChange={(e) => setNewTrustedPhone(e.target.value)}
                     className="w-full py-2 px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none box-border text-slate-800 mb-2.5 transition-colors focus:border-brand-teal"
                   />
+                  <input
+                    type="text"
+                    placeholder="Relationship (e.g. husband, dog walker)"
+                    value={newTrustedRelationship}
+                    onChange={(e) => setNewTrustedRelationship(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none box-border text-slate-800 mb-2.5 transition-colors focus:border-brand-teal"
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={handleAddNewTrusted}
@@ -761,6 +804,7 @@ export function HumanCardModal({
                         setNewTrustedName("");
                         setNewTrustedSurname("");
                         setNewTrustedPhone("");
+                        setNewTrustedRelationship("");
                       }}
                       className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit bg-white text-slate-500 transition-colors hover:bg-slate-50"
                     >

@@ -8,18 +8,26 @@ import {
 
 const PAGE_SIZE = 50;
 
-function buildTrustedMap(trustedRows: any[], humansById: Record<string, any>) {
+function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
   const trustedMap: Record<string, string[]> = {};
+  const trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
 
   for (const row of trustedRows || []) {
-    if (!trustedMap[row.human_id]) trustedMap[row.human_id] = [];
     const trustedHuman = humansById[row.trusted_id];
-    if (trustedHuman?.fullName) {
-      trustedMap[row.human_id].push(trustedHuman.fullName);
-    }
+    if (!trustedHuman?.fullName) continue;
+
+    if (!trustedMap[row.human_id]) trustedMap[row.human_id] = [];
+    trustedMap[row.human_id].push(trustedHuman.fullName);
+
+    if (!trustedContactsMap[row.human_id]) trustedContactsMap[row.human_id] = [];
+    trustedContactsMap[row.human_id].push({
+      id: row.trusted_id,
+      fullName: trustedHuman.fullName,
+      relationship: row.relationship || "",
+    });
   }
 
-  return trustedMap;
+  return { trustedMap, trustedContactsMap };
 }
 
 function buildHumanMapEntry(row: any) {
@@ -42,6 +50,7 @@ function buildHumanMapEntry(row: any) {
     reminderHours: row.reminder_hours ?? 24,
     reminderChannels: row.reminder_channels || ["whatsapp"],
     trustedIds: [],
+    trustedContacts: [],
   };
 }
 
@@ -104,7 +113,7 @@ export function useHumans() {
 
       const { data: trustedRows, error: trustedErr } = await supabase!
         .from("human_trusted_contacts")
-        .select("human_id, trusted_id");
+        .select("human_id, trusted_id, relationship");
 
       if (cancelled) return;
 
@@ -117,10 +126,10 @@ export function useHumans() {
       }
 
       const byId = buildHumansById(humanRows || []);
-      const trustedMap = buildTrustedMap(trustedRows, byId);
+      const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows, byId);
 
       setHumansById(byId);
-      setHumans(dbHumansToMap(humanRows || [], trustedMap));
+      setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
       setHasMore((humanRows || []).length >= limit);
       setLoading(false);
     }
@@ -197,17 +206,21 @@ export function useHumans() {
     const newIds = rows.map((r: any) => r.id);
     let trustedMap: Record<string, string[]> = {};
 
+    let trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
+
     if (newIds.length > 0) {
       const { data: trustedRows } = await supabase
         .from("human_trusted_contacts")
-        .select("human_id, trusted_id")
+        .select("human_id, trusted_id, relationship")
         .in("human_id", newIds);
 
       const mergedById = { ...humansById, ...newHumansById };
-      trustedMap = buildTrustedMap(trustedRows || [], mergedById);
+      const maps = buildTrustedMaps(trustedRows || [], mergedById);
+      trustedMap = maps.trustedMap;
+      trustedContactsMap = maps.trustedContactsMap;
     }
 
-    const newHumans = dbHumansToMap(rows, trustedMap);
+    const newHumans = dbHumansToMap(rows, trustedMap, trustedContactsMap);
 
     setHumansById((prev) => ({ ...prev, ...newHumansById }));
     setHumans((prev) => ({ ...prev, ...newHumans }));
@@ -248,13 +261,13 @@ export function useHumans() {
 
         const { data: trustedRows } = await supabase!
           .from("human_trusted_contacts")
-          .select("human_id, trusted_id");
+          .select("human_id, trusted_id, relationship");
 
         const byId = buildHumansById(humanRows || []);
-        const trustedMap = buildTrustedMap(trustedRows || [], byId);
+        const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows || [], byId);
 
         setHumansById(byId);
-        setHumans(dbHumansToMap(humanRows || [], trustedMap));
+        setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
         setHasMore((humanRows || []).length >= PAGE_SIZE);
       }
 
@@ -286,18 +299,21 @@ export function useHumans() {
 
       const ids = rows.map((r: any) => r.id);
       let trustedMap: Record<string, string[]> = {};
+      let trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
 
       if (ids.length > 0) {
         const { data: trustedRows } = await supabase
           .from("human_trusted_contacts")
-          .select("human_id, trusted_id")
+          .select("human_id, trusted_id, relationship")
           .in("human_id", ids);
 
-        trustedMap = buildTrustedMap(trustedRows || [], byId);
+        const maps = buildTrustedMaps(trustedRows || [], byId);
+        trustedMap = maps.trustedMap;
+        trustedContactsMap = maps.trustedContactsMap;
       }
 
       setHumansById(byId);
-      setHumans(dbHumansToMap(rows, trustedMap));
+      setHumans(dbHumansToMap(rows, trustedMap, trustedContactsMap));
       setHasMore(false);
     }, 300);
   }, []);
@@ -403,14 +419,46 @@ export function useHumans() {
         updates.trustedIds !== undefined
           ? updates.trustedIds
           : humans[currentFullName]?.trustedIds || [];
+      let savedTrustedContacts: { id: string; fullName: string; relationship: string }[] =
+        humans[currentFullName]?.trustedContacts || [];
 
-      if (updates.trustedIds !== undefined) {
-        const trustedUuids = updates.trustedIds
-          .map(
-            (value: any) =>
-              findHumanByIdOrName(prevHumansById, prevHumans, value)?.id,
-          )
-          .filter(Boolean);
+      const hasTrustedContactsUpdate = updates.trustedContacts !== undefined;
+      const hasTrustedIdsUpdate = updates.trustedIds !== undefined;
+
+      if (hasTrustedContactsUpdate || hasTrustedIdsUpdate) {
+        // Build a normalised list of { id, relationship } for the new state.
+        // Prefer explicit trustedContacts; fall back to trustedIds (preserving any
+        // existing relationship labels we already have for those pairs).
+        const existingRelationshipById = new Map<string, string>(
+          (humans[currentFullName]?.trustedContacts || []).map((c: any) => [c.id, c.relationship || ""]),
+        );
+
+        const nextPairs: { id: string; relationship: string }[] = [];
+
+        if (hasTrustedContactsUpdate) {
+          for (const entry of updates.trustedContacts as any[]) {
+            const resolved = findHumanByIdOrName(prevHumansById, prevHumans, entry?.id ?? entry);
+            const id = (resolved as any)?.id;
+            if (!id) continue;
+            nextPairs.push({
+              id,
+              relationship:
+                typeof entry?.relationship === "string"
+                  ? entry.relationship.trim()
+                  : existingRelationshipById.get(id) || "",
+            });
+          }
+        } else {
+          for (const value of updates.trustedIds as any[]) {
+            const resolved = findHumanByIdOrName(prevHumansById, prevHumans, value);
+            const id = (resolved as any)?.id;
+            if (!id) continue;
+            nextPairs.push({
+              id,
+              relationship: existingRelationshipById.get(id) || "",
+            });
+          }
+        }
 
         const { error: deleteErr } = await supabase
           .from("human_trusted_contacts")
@@ -425,13 +473,14 @@ export function useHumans() {
           return null;
         }
 
-        if (trustedUuids.length > 0) {
+        if (nextPairs.length > 0) {
           const { error: insertErr } = await supabase
             .from("human_trusted_contacts")
             .insert(
-              trustedUuids.map((trustedId: string) => ({
+              nextPairs.map((pair) => ({
                 human_id: existingHuman.id,
-                trusted_id: trustedId,
+                trusted_id: pair.id,
+                relationship: pair.relationship || null,
               })),
             );
 
@@ -444,12 +493,24 @@ export function useHumans() {
           }
         }
 
-        trustedNames = updates.trustedIds
+        trustedNames = nextPairs
           .map(
-            (value: any) =>
-              findHumanByIdOrName(prevHumansById, prevHumans, value)?.fullName,
+            (pair) =>
+              (findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any)?.fullName,
           )
           .filter(Boolean);
+
+        savedTrustedContacts = nextPairs
+          .map((pair) => {
+            const resolved = findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any;
+            if (!resolved?.fullName) return null;
+            return {
+              id: pair.id,
+              fullName: resolved.fullName,
+              relationship: pair.relationship,
+            };
+          })
+          .filter(Boolean) as { id: string; fullName: string; relationship: string }[];
       }
 
       const savedFullName = `${savedRow.name} ${savedRow.surname}`;
@@ -471,6 +532,7 @@ export function useHumans() {
         reminderHours: savedRow.reminder_hours ?? 24,
         reminderChannels: savedRow.reminder_channels || ["whatsapp"],
         trustedIds: trustedNames,
+        trustedContacts: savedTrustedContacts,
       };
 
       setHumansById((prev) => ({
@@ -514,6 +576,7 @@ export function useHumans() {
       reminderHours: humanData.reminderHours ?? 24,
       reminderChannels: humanData.reminderChannels || ["whatsapp"],
       trustedIds: [],
+      trustedContacts: [],
     };
 
     if (!supabase) {

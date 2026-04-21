@@ -3,7 +3,7 @@
  * Components use name-keyed maps and camelCase; DB uses UUID FKs and snake_case.
  */
 
-import type { Human, Dog, Booking, SalonConfig } from "../types/index.js";
+import type { Human, Dog, Booking, SalonConfig, TrustedContact } from "../types/index.js";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)
@@ -182,7 +182,11 @@ export function findDogByIdOrName(
 // DB-to-app transforms
 // ============================================================
 
-export function dbHumansToMap(rows: DbHumanRow[], trustedMap: Record<string, string[]>): Record<string, Human> {
+export function dbHumansToMap(
+  rows: DbHumanRow[],
+  trustedMap: Record<string, string[]>,
+  trustedContactsMap: Record<string, TrustedContact[]> = {},
+): Record<string, Human> {
   const map: Record<string, Human> = {};
   for (const row of rows) {
     const key = buildHumanFullName(row);
@@ -204,6 +208,7 @@ export function dbHumansToMap(rows: DbHumanRow[], trustedMap: Record<string, str
       reminderHours: row.reminder_hours ?? 24,
       reminderChannels: row.reminder_channels || ["whatsapp"],
       trustedIds: trustedMap[row.id] || [],
+      trustedContacts: trustedContactsMap[row.id] || [],
     };
   }
   return map;

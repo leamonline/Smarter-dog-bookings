@@ -7,7 +7,7 @@ const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13p
 export function TrustedHumansSection({
   isEditing,
   sizeAccent,
-  trustedIds,
+  trustedContacts,
   humans,
   owner,
   onClose,
@@ -31,51 +31,73 @@ export function TrustedHumansSection({
   setNewTrustedSurname,
   newTrustedPhone,
   setNewTrustedPhone,
+  newTrustedRelationship,
+  setNewTrustedRelationship,
   handleAddNewTrusted,
+  handleUpdateTrustedRelationship,
   getHumanByIdOrName,
 }) {
+  const contacts = trustedContacts || [];
+
   return (
     <SectionCard title="Trusted Humans">
-      {trustedIds.length > 0 ? (
-        trustedIds.map((trustedId, i) => {
-          const trustedHuman = getHumanByIdOrName(humans, trustedId);
+      {contacts.length > 0 ? (
+        contacts.map((contact, i) => {
+          const trustedHuman = getHumanByIdOrName(humans, contact.id) || getHumanByIdOrName(humans, contact.fullName);
           const trustedLabel =
             trustedHuman?.fullName ||
+            contact.fullName ||
             `${trustedHuman?.name || ""} ${trustedHuman?.surname || ""}`.trim() ||
-            trustedId;
+            contact.id;
+          const rowKey = contact.id || contact.fullName || trustedLabel;
 
           if (isEditing && onUpdateHuman) {
             return (
               <div
-                key={trustedId}
-                className={`flex items-center justify-between py-2.5 ${
-                  i === trustedIds.length - 1 && !showTrustedSearch ? "" : "border-b border-slate-100"
+                key={rowKey}
+                className={`py-2.5 ${
+                  i === contacts.length - 1 && !showTrustedSearch ? "" : "border-b border-slate-100"
                 }`}
               >
-                <span className="text-[13px] font-semibold text-slate-800">
-                  {titleCase(trustedLabel)}
-                </span>
-                <button
-                  onClick={() => handleRemoveTrusted(trustedId)}
-                  className="bg-transparent border-none text-brand-coral text-base font-bold cursor-pointer px-1 leading-none font-inherit"
-                  title="Remove trusted human"
-                >
-                  {"\u00D7"}
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-slate-800 flex-1 min-w-0 truncate">
+                    {titleCase(trustedLabel)}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveTrusted(contact.id || contact.fullName)}
+                    className="bg-transparent border-none text-brand-coral text-base font-bold cursor-pointer px-1 leading-none font-inherit shrink-0"
+                    title="Remove trusted human"
+                  >
+                    {"\u00D7"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Relationship (e.g. husband, dog walker)"
+                  defaultValue={contact.relationship || ""}
+                  onBlur={(e) => {
+                    const nextValue = e.target.value.trim();
+                    if (nextValue === (contact.relationship || "")) return;
+                    handleUpdateTrustedRelationship &&
+                      handleUpdateTrustedRelationship(contact.id || contact.fullName, nextValue);
+                  }}
+                  className={`${INPUT_CLS} mt-1.5 text-[12px]`}
+                  aria-label={`Relationship for ${titleCase(trustedLabel)}`}
+                />
               </div>
             );
           }
 
           return (
             <CardRow
-              key={trustedId}
+              key={rowKey}
               label={titleCase(trustedLabel)}
-              value=""
+              value={contact.relationship || ""}
               onClick={() => {
                 onClose();
-                onOpenHuman && onOpenHuman(trustedHuman?.id || trustedId);
+                onOpenHuman && onOpenHuman(trustedHuman?.id || contact.id);
               }}
-              last={i === trustedIds.length - 1}
+              last={i === contacts.length - 1}
             />
           );
         })
@@ -175,6 +197,13 @@ export function TrustedHumansSection({
                     onChange={(e) => setNewTrustedPhone(e.target.value)}
                     className={`${INPUT_CLS} w-full mb-2`}
                   />
+                  <input
+                    type="text"
+                    placeholder="Relationship (e.g. husband, dog walker)"
+                    value={newTrustedRelationship || ""}
+                    onChange={(e) => setNewTrustedRelationship && setNewTrustedRelationship(e.target.value)}
+                    className={`${INPUT_CLS} w-full mb-2`}
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={handleAddNewTrusted}
@@ -190,6 +219,7 @@ export function TrustedHumansSection({
                         setNewTrustedName("");
                         setNewTrustedSurname("");
                         setNewTrustedPhone("");
+                        setNewTrustedRelationship && setNewTrustedRelationship("");
                       }}
                       className="flex-1 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer font-inherit"
                     >
