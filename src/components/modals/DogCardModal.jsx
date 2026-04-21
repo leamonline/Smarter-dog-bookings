@@ -144,7 +144,7 @@ export function DogCardModal({
       setAllergyInput(allergy ? allergy.replace("Allergic to ", "") : "");
       setHasAllergy((resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")));
     }
-  }, [resolvedDog]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [resolvedDog]);  
 
   // --- Trusted humans state ---
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);

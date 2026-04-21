@@ -87,7 +87,7 @@ export function useWeekNav() {
     if (!isNaN(parsed.getTime())) {
       handleDatePick(parsed);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // Sync current date to URL params
   useEffect(() => {
@@ -97,7 +97,7 @@ export function useWeekNav() {
     if (current !== dateStr) {
       setSearchParams({ date: dateStr }, { replace: true });
     }
-  }, [selectedDay, dates]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedDay, dates]);  
 
   return {
     weekOffset,
