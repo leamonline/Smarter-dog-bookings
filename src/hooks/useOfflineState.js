@@ -135,6 +135,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
       tiktok: "",
       historyFlag: "",
       trustedIds: [],
+      trustedContacts: [],
     };
     setOfflineHumans((prev) => ({ ...prev, [key]: newHuman }));
     return newHuman;

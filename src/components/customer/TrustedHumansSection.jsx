@@ -15,7 +15,12 @@ export function TrustedHumansSection({ trustedHumans }) {
       ) : (
         trustedHumans.map(th => (
           <div key={th.id} className="py-2.5 border-b border-slate-100 last:border-b-0">
-            <div className="text-sm font-semibold text-brand-purple font-display">{th.name} {th.surname}</div>
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-sm font-semibold text-brand-purple font-display">{th.name} {th.surname}</div>
+              {th.relationship ? (
+                <div className="text-xs text-slate-500 italic shrink-0">{th.relationship}</div>
+              ) : null}
+            </div>
             {th.phone ? (
               <a
                 href={`tel:${th.phone.replace(/\s/g, "")}`}
