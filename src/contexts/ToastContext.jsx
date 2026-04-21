@@ -55,40 +55,49 @@ const VARIANT_STYLES = {
 function Toaster({ toasts, onDismiss }) {
   if (toasts.length === 0) return null;
 
-  return (
+  // Split so error toasts can live in an assertive live region
+  // (interrupting other announcements) while info/success stay polite.
+  const errorToasts = toasts.filter((t) => t.variant === "error");
+  const politeToasts = toasts.filter((t) => t.variant !== "error");
+
+  const renderToast = (t) => (
     <div
-      aria-live="polite"
-      aria-atomic="false"
-      className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-2 pointer-events-none"
+      key={t.id}
+      role={t.variant === "error" ? "alert" : "status"}
+      className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold animate-[toastIn_0.25s_ease-out] ${VARIANT_STYLES[t.variant] || VARIANT_STYLES.info}`}
     >
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className={`pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold animate-[toastIn_0.25s_ease-out] ${VARIANT_STYLES[t.variant] || VARIANT_STYLES.info}`}
+      <span>{t.message}</span>
+
+      {t.onUndo && (
+        <button
+          type="button"
+          onClick={() => { t.onUndo(); onDismiss(t.id); }}
+          className="bg-white/20 hover:bg-white/30 text-inherit border-none rounded-md px-2 py-0.5 text-xs font-bold cursor-pointer transition-colors"
         >
-          <span>{t.message}</span>
+          Undo
+        </button>
+      )}
 
-          {t.onUndo && (
-            <button
-              type="button"
-              onClick={() => { t.onUndo(); onDismiss(t.id); }}
-              className="bg-white/20 hover:bg-white/30 text-inherit border-none rounded-md px-2 py-0.5 text-xs font-bold cursor-pointer transition-colors"
-            >
-              Undo
-            </button>
-          )}
+      <button
+        type="button"
+        onClick={() => onDismiss(t.id)}
+        className="bg-transparent border-none text-white/60 hover:text-white cursor-pointer text-base leading-none ml-1"
+        aria-label="Dismiss notification"
+      >
+        &times;
+      </button>
+    </div>
+  );
 
-          <button
-            type="button"
-            onClick={() => onDismiss(t.id)}
-            className="bg-transparent border-none text-white/60 hover:text-white cursor-pointer text-base leading-none ml-1"
-            aria-label="Dismiss notification"
-          >
-            &times;
-          </button>
-        </div>
-      ))}
+  return (
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-2 pointer-events-none">
+      <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-2">
+        {politeToasts.map(renderToast)}
+      </div>
+      <div aria-live="assertive" aria-atomic="true" className="flex flex-col gap-2">
+        {errorToasts.map(renderToast)}
+      </div>
     </div>
   );
 }
+

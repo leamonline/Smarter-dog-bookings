@@ -77,8 +77,12 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
       {/* Month header — blue banner */}
       <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark rounded-xl">
         {/* Prev arrow */}
-        <button onClick={() => goMonth(-1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <button
+          onClick={() => goMonth(-1)}
+          aria-label="Previous month"
+          className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+        >
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M10 3l-5 5 5 5" />
           </svg>
         </button>
@@ -91,8 +95,12 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
         </div>
 
         {/* Next arrow */}
-        <button onClick={() => goMonth(1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <button
+          onClick={() => goMonth(1)}
+          aria-label="Next month"
+          className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+        >
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M6 3l5 5-5 5" />
           </svg>
         </button>

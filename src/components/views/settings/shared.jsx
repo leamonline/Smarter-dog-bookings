@@ -1,6 +1,8 @@
 // src/components/views/settings/shared.jsx
 // Shared sub-components used by multiple settings sections.
 
+import { cloneElement, useState } from "react";
+
 const CARD_HEAD_THEMES = {
   teal:   { bg: "bg-[#E6F5F2]", color: "text-[#1E6B5C]" },
   blue:   { bg: "bg-blue-50",    color: "text-brand-cyan-dark" },
@@ -33,25 +35,38 @@ export function CardBody({ children }) {
   return <div className="p-4">{children}</div>;
 }
 
+let settingRowIdCounter = 0;
+const nextSettingRowId = () => `setting-row-${++settingRowIdCounter}`;
+
 export function SettingRow({ label, sublabel, control, border = true }) {
+  // Give the label a stable id so interactive controls (e.g. Toggle) can
+  // reference it via aria-labelledby and assistive tech reads the row label
+  // together with the switch state.
+  const [labelId] = useState(nextSettingRowId);
+  const enhancedControl =
+    control && typeof control === "object" && "type" in control
+      ? cloneElement(control, { "aria-labelledby": labelId })
+      : control;
+
   return (
     <div className={`flex justify-between items-center py-3.5 ${border ? "border-b border-slate-200" : ""}`}>
       <div>
-        <div className="text-sm font-semibold text-slate-800">{label}</div>
+        <div id={labelId} className="text-sm font-semibold text-slate-800">{label}</div>
         {sublabel && <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>}
       </div>
-      <div className="shrink-0">{control}</div>
+      <div className="shrink-0">{enhancedControl}</div>
     </div>
   );
 }
 
-export function Toggle({ on, onToggle }) {
+export function Toggle({ on, onToggle, ...rest }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
       onClick={onToggle}
+      {...rest}
       className={`w-11 h-6 rounded-xl relative cursor-pointer transition-colors duration-200 border-none p-0 ${on ? "bg-brand-green" : "bg-slate-200"}`}
     >
       <div

@@ -183,7 +183,7 @@ export function HumanCardModal({
       setEditWhatsapp(!!human.whatsapp);
       setEditHistoryFlag(human.historyFlag || "");
     }
-  }, [human.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [human.id]);  
 
   const handleSaveHuman = async () => {
     const updates = {
