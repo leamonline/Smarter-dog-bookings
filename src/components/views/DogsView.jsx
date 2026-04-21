@@ -35,7 +35,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
+      <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
         <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -73,7 +73,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         {[
           { label: "Small", colour: "#F5C518" },
           { label: "Medium", colour: "#2D8B7A" },
-          { label: "Large", colour: "#E8567F" },
+          { label: "Large", colour: "#E7546C" },
         ].map((s) => (
           <span key={s.label} className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.colour }} />

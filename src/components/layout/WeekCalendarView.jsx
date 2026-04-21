@@ -75,10 +75,10 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
   return (
     <div className="mb-4">
       {/* Month header — blue banner */}
-      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-cyan to-brand-cyan-dark rounded-xl">
+      <div className="flex items-center mb-3 py-3.5 px-4 bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark rounded-xl">
         {/* Prev arrow */}
         <button onClick={() => goMonth(-1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3l-5 5 5 5" />
           </svg>
         </button>
@@ -92,7 +92,7 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
 
         {/* Next arrow */}
         <button onClick={() => goMonth(1)} className="w-7 h-10 flex items-center justify-center bg-white border-none rounded-lg cursor-pointer shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E8567F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="#E7546C" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 3l5 5-5 5" />
           </svg>
         </button>
@@ -129,7 +129,7 @@ function MonthGrid({ currentDateObj, onSelectDate, onNavigateMonth, calendarMode
             hoverCls = "";
           }
           if (isSelected) {
-            bgCls = "bg-gradient-to-b from-brand-cyan to-brand-cyan-dark";
+            bgCls = "bg-gradient-to-b from-brand-cyan-light to-brand-cyan-dark";
             textCls = "text-white";
             borderCls = "border border-brand-cyan";
             shadowCls = "shadow-[0_2px_8px_rgba(14,165,233,0.2)]";

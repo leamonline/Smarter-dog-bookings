@@ -1,6 +1,8 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useState,
   lazy,
   Suspense,
 } from "react";
@@ -255,6 +257,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const isLoading = isOnline && (hl || dl || cl || dsl);
   const bookingsLoading = bl;
   const dataError = he || de || be;
+  const [errorDismissed, setErrorDismissed] = useState(false);
+  useEffect(() => { setErrorDismissed(false); }, [dataError]);
 
   const currentSettings = daySettings[currentDateStr] || {
     isOpen: getDefaultOpenForDate(currentDateObj),
@@ -289,7 +293,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           Skip to content
         </a>
         <OfflineDemoBanner isOnline={isOnline} />
-        {dataError && <ErrorBanner message={dataError} />}
+        {dataError && !errorDismissed && (
+          <ErrorBanner message={dataError} onClose={() => setErrorDismissed(true)} />
+        )}
 
         <AppToolbar
           onSignOut={signOut}
@@ -342,6 +348,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogs={dogs}
                       onOpenHuman={setSelectedHumanId}
                       onAddHuman={addHuman}
+                      onUpdateDog={updateDog}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -497,6 +504,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     const result = await addHuman(humanData);
                     return result;
                   }}
+                  dogs={dogs}
+                  humans={humans}
+                  onUpdateDog={updateDog}
                 />
               </Suspense>
             </ErrorBoundary>

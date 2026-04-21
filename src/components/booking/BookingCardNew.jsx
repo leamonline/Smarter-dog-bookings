@@ -18,7 +18,7 @@ const BookingDetailModal = lazy(() =>
 const SIZE_DOT = {
   small:  { dot: "#F5C518", border: "#D4A500", gradient: "linear-gradient(90deg, #F5C518, #FACC15)", glow: "rgba(245,197,24," },
   medium: { dot: "#2D8B7A", border: "#1E6B5C", gradient: "linear-gradient(90deg, #2D8B7A, #3BA594)", glow: "rgba(45,139,122," },
-  large:  { dot: "#E8567F", border: "#C93D63", gradient: "linear-gradient(90deg, #E8567F, #F472B6)", glow: "rgba(232,86,127," },
+  large:  { dot: "#E7546C", border: "#C93D63", gradient: "linear-gradient(90deg, #E7546C, #F472B6)", glow: "rgba(231,84,108," },
 };
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
@@ -26,10 +26,10 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 // Status palette — pulls from the brand: mustard for "still to come", teal for
 // "in the salon now", deep purple for "all done". Cancelled stays coral.
 const STATUS_DISPLAY = {
-  "No-show":            { bg: "#FFF6CC", color: "#2D004B", border: "#FFCC00", label: "Booked" },
+  "No-show":            { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
   "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
   "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Finished" },
-  "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E8567F", label: "Cancelled" },
+  "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E7546C", label: "Cancelled" },
 };
 
 const SIZE_TOOLTIP = {

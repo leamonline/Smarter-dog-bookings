@@ -2,7 +2,7 @@ import { Section, SIZE_COLORS } from "./ReportWidgets.jsx";
 
 export function SizeSplit({ sizes, insight }) {
   return (
-    <Section title="Size Split" accent="#E8567F" insight={insight}>
+    <Section title="Size Split" accent="#E7546C" insight={insight}>
       <div className="flex flex-col gap-3">
         {sizes.map((s) => (
           <div key={s.size}>

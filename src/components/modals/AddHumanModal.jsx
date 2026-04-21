@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { IconSearch } from "../icons/index.jsx";
+import { titleCase } from "../../utils/text.js";
+import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 
-export function AddHumanModal({ onClose, onAdd }) {
+export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
   const toast = useToast();
 
   const [name, setName] = useState("");
@@ -15,6 +18,50 @@ export function AddHumanModal({ onClose, onAdd }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [dogQuery, setDogQuery] = useState("");
+  const [selectedDogIds, setSelectedDogIds] = useState([]);
+
+  const dogList = useMemo(() => {
+    if (!dogs) return [];
+    return Object.values(dogs);
+  }, [dogs]);
+
+  const selectedDogs = useMemo(() => {
+    if (!dogs) return [];
+    return selectedDogIds
+      .map((id) => dogList.find((d) => (d.id || d.name) === id))
+      .filter(Boolean);
+  }, [selectedDogIds, dogList, dogs]);
+
+  const dogSearchResults = useMemo(() => {
+    if (!dogQuery.trim()) return [];
+    const q = dogQuery.toLowerCase().trim();
+    return dogList
+      .filter((d) => !selectedDogIds.includes(d.id || d.name))
+      .filter((d) => {
+        const name = (d.name || "").toLowerCase();
+        const breed = (d.breed || "").toLowerCase();
+        return name.includes(q) || breed.includes(q);
+      })
+      .slice(0, 6);
+  }, [dogQuery, dogList, selectedDogIds]);
+
+  const addDog = (dog) => {
+    setSelectedDogIds((ids) => [...ids, dog.id || dog.name]);
+    setDogQuery("");
+  };
+
+  const removeDog = (id) => {
+    setSelectedDogIds((ids) => ids.filter((x) => x !== id));
+  };
+
+  const ownerLabelFor = (dog) => {
+    if (!humans) return "";
+    const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
+    if (!owner) return "";
+    return owner.fullName || `${owner.name || ""} ${owner.surname || ""}`.trim();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,10 +81,21 @@ export function AddHumanModal({ onClose, onAdd }) {
       whatsapp,
       notes: notes.trim(),
     });
+    const newHumanId = result?.id || result?.[0]?.id;
+    if (result && newHumanId && onUpdateDog && selectedDogs.length > 0) {
+      await Promise.all(
+        selectedDogs.map((dog) =>
+          onUpdateDog(dog.id || dog.name, { humanId: newHumanId }),
+        ),
+      );
+    }
     setSubmitting(false);
     if (result) {
       const fullName = [name.trim(), surname.trim()].filter(Boolean).join(" ");
-      toast.show(fullName ? `${fullName} added` : "Customer added", "success");
+      const suffix = selectedDogs.length > 0
+        ? ` with ${selectedDogs.length} dog${selectedDogs.length === 1 ? "" : "s"}`
+        : "";
+      toast.show(fullName ? `${fullName} added${suffix}` : `Customer added${suffix}`, "success");
       onClose();
     } else {
       toast.show("Could not add customer", "error");
@@ -110,6 +168,77 @@ export function AddHumanModal({ onClose, onAdd }) {
               WhatsApp
             </label>
           </div>
+
+          {/* Link dogs */}
+          {dogs && onUpdateDog && (
+            <div>
+              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">
+                Dogs they own
+                <span className="font-medium normal-case tracking-normal text-slate-400 ml-1.5">optional</span>
+              </label>
+              {selectedDogs.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {selectedDogs.map((dog) => (
+                    <span
+                      key={dog.id || dog.name}
+                      className="inline-flex items-center gap-1.5 bg-brand-cyan-light/20 text-brand-cyan-dark border border-brand-cyan-light px-2 py-1 rounded-full text-[12px] font-bold"
+                    >
+                      {titleCase(dog.name)}
+                      <button
+                        type="button"
+                        onClick={() => removeDog(dog.id || dog.name)}
+                        aria-label={`Remove ${dog.name}`}
+                        className="w-4 h-4 flex items-center justify-center rounded-full bg-brand-cyan-dark/10 hover:bg-brand-cyan-dark/25 text-brand-cyan-dark text-[11px] font-bold cursor-pointer border-none"
+                      >
+                        {"\u00D7"}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none">
+                  <IconSearch size={14} colour="#6B7280" />
+                </div>
+                <input
+                  type="text"
+                  value={dogQuery}
+                  onChange={(e) => setDogQuery(e.target.value)}
+                  placeholder="Search dogs by name or breed..."
+                  autoComplete="off"
+                  className="w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                />
+                {dogSearchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    {dogSearchResults.map((dog) => {
+                      const ownerLabel = ownerLabelFor(dog);
+                      return (
+                        <div
+                          key={dog.id || dog.name}
+                          onMouseDown={() => addDog(dog)}
+                          className="px-3.5 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-slate-50"
+                        >
+                          <div className="text-[13px] font-semibold text-slate-800">
+                            {titleCase(dog.name)}
+                            {dog.breed && (
+                              <span className="font-normal text-slate-400 ml-1">
+                                ({titleCase(dog.breed)})
+                              </span>
+                            )}
+                          </div>
+                          {ownerLabel && (
+                            <div className="text-[11px] text-brand-coral font-semibold">
+                              Currently owned by {titleCase(ownerLabel)} — will transfer
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Notes</label>

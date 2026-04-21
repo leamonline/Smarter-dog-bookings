@@ -64,7 +64,7 @@ export function ReportsView() {
               sub={`${stats.uniqueCusts} customer${stats.uniqueCusts !== 1 ? "s" : ""}`}
               cur={stats.curN}
               prev={stats.prevN}
-              color="#0EA5E9"
+              color="#10C2FC"
             />
             <Kpi
               label="Avg per Dog"
@@ -78,7 +78,7 @@ export function ReportsView() {
               label="Seat Fill Rate"
               value={`${stats.util.toFixed(0)}%`}
               sub={`across ${stats.openDays} open day${stats.openDays !== 1 ? "s" : ""}`}
-              color="#E8567F"
+              color="#E7546C"
             />
           </div>
 

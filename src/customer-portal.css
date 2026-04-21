@@ -5,14 +5,14 @@
 
 /* --- Brand Tokens (portal-specific) --- */
 :root {
-  --sd-cyan-light: #00C2FF;
+  --sd-cyan-light: #10C2FC;
   --sd-cyan: #007AAB;
   --sd-cyan-dark: #005986;
   --sd-deep: #2D004B;
   --sd-teal: #2A6F6B;
-  --sd-yellow: #FFCC00;
+  --sd-yellow: #FECC13;
   --sd-yellow-dark: #D4A500;
-  --sd-coral: #E8506A;
+  --sd-coral: #E7546C;
   --sd-coral-light: #FFF0F3;
   --sd-paper: #FAF9F6;
   --sd-white: #FFFFFF;
@@ -227,11 +227,11 @@
   font-size: 17px;
   width: 100%;
   letter-spacing: 0.3px;
-  box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(254, 204, 19, 0.3);
 }
 
 .portal-btn--cta:hover {
-  box-shadow: 0 4px 14px rgba(255, 204, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(254, 204, 19, 0.4);
 }
 
 .portal-btn--danger {

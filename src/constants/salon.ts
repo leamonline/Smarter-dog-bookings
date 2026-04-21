@@ -65,9 +65,9 @@ export const BOOKING_STATUSES = [
 ];
 
 export const ALERT_OPTIONS = [
-  { label: "Bites / Nips", color: "#E8567F" },
-  { label: "Reactive to dogs", color: "#E8567F" },
-  { label: "Kennel aggressive", color: "#E8567F" },
+  { label: "Bites / Nips", color: "#E7546C" },
+  { label: "Reactive to dogs", color: "#E7546C" },
+  { label: "Kennel aggressive", color: "#E7546C" },
   { label: "Nervous / Anxious", color: "#D97706" },
   { label: "Fear of dryer", color: "#D97706" },
   { label: "Sensitive paws", color: "#D97706" },

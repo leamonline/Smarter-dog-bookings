@@ -57,12 +57,12 @@
   --font-display: "Quicksand", "Montserrat", sans-serif;
 
   /* Primary brand scale — accessible cyan */
-  --color-brand-cyan-light: #00C2FF;
+  --color-brand-cyan-light: #10C2FC;
   --color-brand-cyan: #007AAB;
   --color-brand-cyan-dark: #005986;
 
   /* Accents */
-  --color-brand-coral: #E8567F;
+  --color-brand-coral: #E7546C;
   --color-brand-coral-light: #FDE2E8;
   --color-brand-teal: #2D8B7A;
   --color-brand-green: #00D94A;
@@ -72,7 +72,7 @@
   /* Customer portal palette */
   --color-brand-purple: #2D004B;
   --color-brand-purple-light: #5B3D80;
-  --color-brand-yellow: #FFCC00;
+  --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
   --color-brand-paper: #FAF9F6;
   --color-brand-dark: #2A1810;
@@ -80,11 +80,11 @@
   /* Size dot colours */
   --color-size-small: #F5C518;
   --color-size-medium: #2D8B7A;
-  --color-size-large: #E8567F;
+  --color-size-large: #E7546C;
 
   /* Semantic action tokens (Tailwind v4 utilities: bg-action, text-action, text-on-action, etc.) */
   /* Mapped to mustard CTA on deep-purple ink — matches smarterdog.co.uk */
-  --color-action: #FFCC00;
+  --color-action: #FECC13;
   --color-on-action: #2D004B;
 }
 

@@ -54,7 +54,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
         className={[
           "relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
-            ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(255,204,0,0.45)]"
+            ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
             : busyStyle(dogCount, isOpen),
           isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1 xl:ring-offset-brand-purple" : "",
         ].join(" ")}
