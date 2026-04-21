@@ -75,8 +75,8 @@ export function BookingActions({
         onClick={() => setShowCancelConfirm(true)}
         className="flex-1 py-3 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center transition-all bg-white hover:bg-brand-coral-light"
         style={{
-          borderColor: "#E8567F",
-          color: "#E8567F",
+          borderColor: "#E7546C",
+          color: "#E7546C",
         }}
       >
         Cancel Booking

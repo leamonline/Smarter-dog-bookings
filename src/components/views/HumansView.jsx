@@ -16,7 +16,7 @@ function sizeDot(size) {
   return t ? t.gradient[0] : "#94A3B8";
 }
 
-export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -25,7 +25,7 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
+      <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
         <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -172,6 +172,9 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, hasMore, tot
         <AddHumanModal
           onClose={() => setShowAddModal(false)}
           onAdd={onAddHuman}
+          dogs={dogs}
+          humans={humans}
+          onUpdateDog={onUpdateDog}
         />
       )}
     </div>

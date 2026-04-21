@@ -2,7 +2,7 @@ import { Section, STATUS_COLORS, STATUS_LABELS } from "./ReportWidgets.jsx";
 
 export function BookingHealth({ statusAcc, totalPast, noShowN, noShowRate, prevNoShowRate, insight }) {
   return (
-    <Section title="Booking Health" accent="#E8567F" insight={insight}>
+    <Section title="Booking Health" accent="#E7546C" insight={insight}>
       {totalPast === 0 ? (
         <div className="text-[13px] text-slate-400">No completed bookings to analyse yet</div>
       ) : (

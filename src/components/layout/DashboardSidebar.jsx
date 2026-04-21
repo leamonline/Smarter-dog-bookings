@@ -79,7 +79,7 @@ export function DashboardSidebar({
 
       {/* Mini month calendar */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-        <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark px-4 py-2.5">
+        <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 py-2.5">
           <div className="text-sm font-extrabold text-white font-display">{monthName}</div>
         </div>
 

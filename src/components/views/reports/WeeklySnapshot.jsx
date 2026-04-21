@@ -103,7 +103,7 @@ export function WeeklySnapshot() {
       {/* Toggle header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-3.5 bg-gradient-to-br from-brand-cyan to-brand-cyan-dark border-none cursor-pointer font-[inherit]"
+        className="w-full flex items-center justify-between px-5 py-3.5 bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark border-none cursor-pointer font-[inherit]"
       >
         <div className="flex items-center gap-2">
           <span className="text-base font-extrabold text-white">This Week at a Glance</span>

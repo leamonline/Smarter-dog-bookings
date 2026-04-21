@@ -24,7 +24,7 @@ export const SIZE_THEME = {
   large: {
     primary: "#C93D63",
     light: "#FDE8EE",
-    gradient: ["#E8567F", "#C93D63"],
+    gradient: ["#E7546C", "#C93D63"],
     headerText: "#FFFFFF",
     headerTextSub: "rgba(255,255,255,0.8)",
   },

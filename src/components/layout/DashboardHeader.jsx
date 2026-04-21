@@ -39,7 +39,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
   const { weekday, weekdayShort, day, dayShort, month, monthShort } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-3 px-4 md:py-4 md:px-5 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 rounded-2xl relative overflow-hidden shadow-md">
+    <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-3 px-4 md:py-4 md:px-5 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 rounded-2xl relative overflow-hidden shadow-md">
       {/* Brand silhouette watermark */}
       <DogSilhouette
         color="white"
@@ -95,7 +95,7 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
 
       {/* Stats pills — desktop. Booking count chip is mustard for emphasis. */}
       <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold shrink-0">
-        <span className="bg-brand-yellow text-brand-purple rounded-full px-3 py-1 shadow-[0_2px_6px_rgba(255,204,0,0.3)]">
+        <span className="bg-brand-yellow text-brand-purple rounded-full px-3 py-1 shadow-[0_2px_6px_rgba(254,204,19,0.3)]">
           {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
         </span>
         <span className="bg-white/15 text-white rounded-full px-2.5 py-1">

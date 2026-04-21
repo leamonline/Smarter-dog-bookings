@@ -2,7 +2,7 @@ import { Section } from "./ReportWidgets.jsx";
 
 export function ServiceMix({ svcs, maxSvcRev, insight }) {
   return (
-    <Section title="Service Mix" accent="#0EA5E9" insight={insight}>
+    <Section title="Service Mix" accent="#10C2FC" insight={insight}>
       <div className="flex flex-col gap-3">
         {svcs.map((s) => (
           <div key={s.id}>

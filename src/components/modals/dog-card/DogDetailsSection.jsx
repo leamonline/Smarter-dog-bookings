@@ -90,9 +90,9 @@ export function DogDetailsSection({
           onClick={() => setHasAllergy(!hasAllergy)}
           className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
           style={{
-            background: hasAllergy ? "#E8567F" : "#FFFFFF",
-            color: hasAllergy ? "#FFFFFF" : "#E8567F",
-            border: "2px solid #E8567F",
+            background: hasAllergy ? "#E7546C" : "#FFFFFF",
+            color: hasAllergy ? "#FFFFFF" : "#E7546C",
+            border: "2px solid #E7546C",
           }}
         >
           Allergy

@@ -342,7 +342,7 @@ export function HumanCardModal({
       <span className="text-[13px] text-slate-500">{label}</span>
       <span
         className="text-[13px] font-semibold"
-        style={{ color: active ? "#2D8B7A" : "#E8567F" }}
+        style={{ color: active ? "#2D8B7A" : "#E7546C" }}
       >
         {active ? "\u2705 Active" : "\u274C Off"}
       </span>

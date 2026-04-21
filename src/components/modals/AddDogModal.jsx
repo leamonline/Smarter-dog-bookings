@@ -215,7 +215,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
               }}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
               style={{
-                borderColor: sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E8567F" : undefined,
+                borderColor: sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E7546C" : undefined,
               }}>
                 <option value="">Select size</option>
                 <option value="small">Small</option>
@@ -368,9 +368,9 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 onClick={() => setHasAllergy(!hasAllergy)}
                 className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
                 style={{
-                  background: hasAllergy ? "#E8567F" : "#FFFFFF",
-                  color: hasAllergy ? "#FFFFFF" : "#E8567F",
-                  border: "1.5px solid #E8567F",
+                  background: hasAllergy ? "#E7546C" : "#FFFFFF",
+                  color: hasAllergy ? "#FFFFFF" : "#E7546C",
+                  border: "1.5px solid #E7546C",
                 }}
               >
                 Allergy

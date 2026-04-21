@@ -52,7 +52,7 @@ export function DatePickerModal({
       zIndex={1200}
     >
         {/* Header */}
-        <div className="bg-gradient-to-br from-brand-cyan to-brand-cyan-dark px-4 py-3.5 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 py-3.5 flex items-center justify-between">
           <button onClick={prevMonth} className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center">
             <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 3l-5 5 5 5" />

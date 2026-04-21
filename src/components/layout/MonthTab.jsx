@@ -72,7 +72,7 @@ export function MonthTab({ currentDateObj, isActive, onClick }) {
 
           let dotColour;
           if (isToday) {
-            dotColour = "#E8567F";
+            dotColour = "#E7546C";
           } else if (hasBookings) {
             dotColour = "#00B8E0";
           } else {

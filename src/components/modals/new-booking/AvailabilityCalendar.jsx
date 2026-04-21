@@ -115,7 +115,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
           }
           if (status === "closed") {
             bg = "#FDE8EE";
-            color = "#E8567F";
+            color = "#E7546C";
             border = "2px solid #FDE8EE";
             cursor = "not-allowed";
             opacity = 0.7;
@@ -123,7 +123,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
           }
           if (status === "full") {
             bg = "#FDE8EE";
-            color = "#E8567F";
+            color = "#E7546C";
             border = "2px solid #FDE8EE";
             cursor = "not-allowed";
             opacity = 0.6;
