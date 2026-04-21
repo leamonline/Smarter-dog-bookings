@@ -83,13 +83,15 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
         const { data: trustedLinks, error: trustedErr } = await supabase
           .from("human_trusted_contacts")
-          .select("trusted_id, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
+          .select("trusted_id, relationship, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
           .eq("human_id", humanRecord.id);
         if (trustedErr) throw trustedErr;
 
         if (!cancelled && trustedLinks) {
           setTrustedHumans(
-            trustedLinks.map(link => link.humans).filter(Boolean)
+            trustedLinks
+              .map(link => link.humans ? { ...link.humans, relationship: link.relationship || "" } : null)
+              .filter(Boolean)
           );
         }
       } catch (err) {

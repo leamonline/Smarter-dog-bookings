@@ -153,22 +153,25 @@ export function DogCardModal({
   const [newTrustedName, setNewTrustedName] = useState("");
   const [newTrustedSurname, setNewTrustedSurname] = useState("");
   const [newTrustedPhone, setNewTrustedPhone] = useState("");
+  const [newTrustedRelationship, setNewTrustedRelationship] = useState("");
 
-  const trustedIds = owner?.trustedIds || [];
+  const trustedContacts = owner?.trustedContacts || [];
 
   const trustedSearchResults = useMemo(() => {
     if (!trustedSearchQuery.trim()) return [];
     const query = trustedSearchQuery.toLowerCase().trim();
+    const linkedIds = new Set(trustedContacts.map((c) => c.id).filter(Boolean));
+    const linkedNames = new Set(trustedContacts.map((c) => c.fullName).filter(Boolean));
     return Object.values(humans)
       .filter((h) => {
         if (!h || h.id === owner?.id) return false;
-        if (trustedIds.includes(h.id) || trustedIds.includes(h.fullName)) return false;
+        if (linkedIds.has(h.id) || linkedNames.has(h.fullName)) return false;
         const fullName = (h.fullName || `${h.name || ""} ${h.surname || ""}`).toLowerCase();
         const phone = (h.phone || "").toLowerCase();
         return fullName.includes(query) || phone.includes(query);
       })
       .slice(0, 5);
-  }, [trustedSearchQuery, humans, owner?.id, trustedIds]);
+  }, [trustedSearchQuery, humans, owner?.id, trustedContacts]);
 
   const ownerSearchResults = useMemo(() => {
     if (!ownerSearchQuery.trim()) return [];
@@ -191,21 +194,21 @@ export function DogCardModal({
   // --- Handlers ---
   const handleAddTrusted = async (selectedHumanId) => {
     if (!owner || !onUpdateHuman) return;
-    const currentTrusted = owner.trustedIds || [];
+    const currentContacts = owner.trustedContacts || [];
     const ownerKey = owner.fullName || owner.id;
 
     await onUpdateHuman(ownerKey, {
-      trustedIds: [...currentTrusted, selectedHumanId],
+      trustedContacts: [...currentContacts, { id: selectedHumanId, relationship: "" }],
     });
 
     const selectedHuman = getHumanByIdOrName(humans, selectedHumanId);
     if (selectedHuman) {
-      const theirTrusted = selectedHuman.trustedIds || [];
+      const theirContacts = selectedHuman.trustedContacts || [];
       const myId = owner.id || ownerKey;
-      if (!theirTrusted.includes(myId)) {
+      if (!theirContacts.some((c) => c.id === myId || c.fullName === owner.fullName)) {
         const theirKey = selectedHuman.fullName || selectedHuman.id;
         await onUpdateHuman(theirKey, {
-          trustedIds: [...theirTrusted, myId],
+          trustedContacts: [...theirContacts, { id: myId, relationship: "" }],
         });
       }
     }
@@ -220,47 +223,65 @@ export function DogCardModal({
     const name = newTrustedName.trim();
     const surname = newTrustedSurname.trim();
     const phone = newTrustedPhone.trim();
+    const relationship = (newTrustedRelationship || "").trim();
     if (!name || !surname || !phone) return;
 
     const newHuman = await onAddHuman({ name, surname, phone });
     if (!newHuman) return;
 
-    const currentTrusted = owner.trustedIds || [];
+    const currentContacts = owner.trustedContacts || [];
     const ownerKey = owner.fullName || owner.id;
     await onUpdateHuman(ownerKey, {
-      trustedIds: [...currentTrusted, newHuman.id],
+      trustedContacts: [...currentContacts, { id: newHuman.id, relationship }],
     });
 
     const newKey = newHuman.fullName || `${name} ${surname}`;
     await onUpdateHuman(newKey, {
-      trustedIds: [owner.id || ownerKey],
+      trustedContacts: [{ id: owner.id || ownerKey, relationship: "" }],
     });
 
     setNewTrustedName("");
     setNewTrustedSurname("");
     setNewTrustedPhone("");
+    setNewTrustedRelationship("");
     setShowNewTrustedForm(false);
     setShowTrustedSearch(false);
     toast.show("Trusted human added", "success");
   };
 
+  const handleUpdateTrustedRelationship = async (trustedIdOrName, relationship) => {
+    if (!owner || !onUpdateHuman) return;
+    const currentContacts = owner.trustedContacts || [];
+    const nextContacts = currentContacts.map((c) =>
+      c.id === trustedIdOrName || c.fullName === trustedIdOrName
+        ? { ...c, relationship }
+        : c,
+    );
+    const ownerKey = owner.fullName || owner.id;
+    await onUpdateHuman(ownerKey, { trustedContacts: nextContacts });
+  };
+
   const doRemoveTrusted = async (trustedIdToRemove) => {
     if (!owner || !onUpdateHuman) return;
-    const currentTrusted = owner.trustedIds || [];
+    const currentContacts = owner.trustedContacts || [];
     const ownerKey = owner.fullName || owner.id;
 
     await onUpdateHuman(ownerKey, {
-      trustedIds: currentTrusted.filter((id) => id !== trustedIdToRemove),
+      trustedContacts: currentContacts.filter(
+        (c) => c.id !== trustedIdToRemove && c.fullName !== trustedIdToRemove,
+      ),
     });
 
     const removedHuman = getHumanByIdOrName(humans, trustedIdToRemove);
     if (removedHuman) {
-      const theirTrusted = removedHuman.trustedIds || [];
+      const theirContacts = removedHuman.trustedContacts || [];
       const myId = owner.id || ownerKey;
-      if (theirTrusted.includes(myId)) {
+      if (theirContacts.some((c) => c.id === myId || c.fullName === owner.fullName)) {
         const theirKey = removedHuman.fullName || removedHuman.id;
         await onUpdateHuman(theirKey, {
-          trustedIds: theirTrusted.filter((id) => id !== myId),
+          trustedContacts: theirContacts.filter(
+            (c) => c.id !== myId && c.fullName !== owner.fullName,
+          ),
         });
       }
     }
@@ -389,7 +410,7 @@ export function DogCardModal({
         <TrustedHumansSection
           isEditing={isEditing}
           sizeAccent={sizeAccent}
-          trustedIds={trustedIds}
+          trustedContacts={trustedContacts}
           humans={humans}
           owner={owner}
           onClose={onClose}
@@ -411,7 +432,10 @@ export function DogCardModal({
           setNewTrustedSurname={setNewTrustedSurname}
           newTrustedPhone={newTrustedPhone}
           setNewTrustedPhone={setNewTrustedPhone}
+          newTrustedRelationship={newTrustedRelationship}
+          setNewTrustedRelationship={setNewTrustedRelationship}
           handleAddNewTrusted={handleAddNewTrusted}
+          handleUpdateTrustedRelationship={handleUpdateTrustedRelationship}
           getHumanByIdOrName={getHumanByIdOrName}
         />
 

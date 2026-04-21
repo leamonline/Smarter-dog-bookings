@@ -23,6 +23,12 @@ export interface BookingStatus {
   bg: string;
 }
 
+export interface TrustedContact {
+  id: string;
+  fullName: string;
+  relationship: string;
+}
+
 export interface Human {
   id: string;
   fullName: string;
@@ -41,6 +47,7 @@ export interface Human {
   reminderHours: number;
   reminderChannels: string[];
   trustedIds: string[];
+  trustedContacts: TrustedContact[];
 }
 
 export interface Dog {
