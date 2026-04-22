@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 
 // ── Primary nav (always visible) ──────────────────────────────────
 const PRIMARY_NAV = [
@@ -38,6 +39,17 @@ const PRIMARY_NAV = [
       </svg>
     ),
   },
+  {
+    to: "/whatsapp",
+    label: "WhatsApp",
+    // Generic speech-bubble; intentionally not the WhatsApp green logo
+    // (trademark) — the path tells staff where they are, not the brand.
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </svg>
+    ),
+  },
 ];
 
 // ── All mobile bottom tab items (includes Reports) ────────────────
@@ -61,6 +73,11 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  // Surfaces new customer messages without forcing staff to click into
+  // the inbox. Only rendered on the WhatsApp item; capped at 99+ so it
+  // never stretches the nav layout.
+  const { unread: waUnread } = useWhatsAppUnread();
+  const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -91,7 +108,7 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `w-10 h-10 rounded-full flex flex-col items-center justify-center gap-0.5 no-underline transition-all ${
+                `relative w-10 h-10 rounded-full flex flex-col items-center justify-center gap-0.5 no-underline transition-all ${
                   isActive
                     ? "bg-brand-yellow text-brand-purple"
                     : "text-white/70 hover:text-white hover:bg-white/10"
@@ -101,6 +118,11 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
             >
               {item.icon}
               <span className="text-[8px] font-bold leading-none">{item.label}</span>
+              {item.to === "/whatsapp" && waBadge && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                  {waBadge}
+                </span>
+              )}
             </NavLink>
           ))}
 
@@ -261,13 +283,18 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-0.5 py-2 no-underline transition-colors ${
+                `relative flex-1 flex flex-col items-center gap-0.5 py-2 no-underline transition-colors ${
                   isActive ? "text-brand-purple" : "text-slate-400"
                 }`
               }
             >
               {item.icon}
               <span className="text-[10px] font-bold">{item.label}</span>
+              {item.to === "/whatsapp" && waBadge && (
+                <span className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                  {waBadge}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>

@@ -67,6 +67,11 @@ const ReportsView = lazy(() =>
     default: module.ReportsView,
   })),
 );
+const WhatsAppInboxView = lazy(() =>
+  import("./components/views/WhatsAppInboxView.jsx").then((module) => ({
+    default: module.WhatsAppInboxView,
+  })),
+);
 const NewBookingModal = lazy(() =>
   import("./components/modals/NewBookingModal.jsx").then((module) => ({
     default: module.NewBookingModal,
@@ -373,6 +378,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     />
                   } />
                   <Route path="/reports" element={<ReportsView />} />
+                  <Route path="/whatsapp" element={<WhatsAppInboxView />} />
                   <Route path="/" element={
                     <WeekCalendarView
                       selectedDay={selectedDay}
