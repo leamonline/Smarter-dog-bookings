@@ -174,9 +174,21 @@ export function useWhatsAppInbox() {
 
     if (!conversationId || !supabase) return;
 
+    // Optimistic: zero out the unread badge for this conversation
+    // immediately. The RPC below + realtime echo will confirm, but
+    // without this the list badge stays "2" for the round-trip and
+    // looks broken. Only touch the one row — leave other counts alone.
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId && (c.unread_count ?? 0) > 0
+          ? { ...c, unread_count: 0 }
+          : c,
+      ),
+    );
+
     setLoadingDetail(true);
-    // Mark as read via RPC (migration 029). Fire and forget; the UI
-    // already shows unread=0 because the list will refresh from realtime.
+    // Mark as read via RPC (migration 029). Fire and forget; realtime
+    // (migration 031) will reconcile any drift with the actual DB state.
     supabase
       .rpc("mark_whatsapp_conversation_read", { p_conversation_id: conversationId })
       .then(({ error }) => {
@@ -238,6 +250,14 @@ export function useWhatsAppInbox() {
       // Optimistic: clear the pending draft so the UI doesn't show the
       // approve buttons twice; the realtime refresh will confirm.
       setDraft(null);
+      // Also flip the list-pane badge for this conversation so the
+      // amber "draft pending" dot goes away at the same time as the
+      // draft panel below the thread.
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedIdRef.current ? { ...c, has_pending_draft: false } : c,
+        ),
+      );
       return { ok: true, result: data };
     } catch (err) {
       console.error("approveDraft:", err);
@@ -271,6 +291,12 @@ export function useWhatsAppInbox() {
         .eq("state", "pending");
       if (error) throw error;
       setDraft(null);
+      // Same optimistic list-badge flip as approveDraft — amber dot off.
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedIdRef.current ? { ...c, has_pending_draft: false } : c,
+        ),
+      );
       return { ok: true };
     } catch (err) {
       console.error("rejectDraft:", err);
