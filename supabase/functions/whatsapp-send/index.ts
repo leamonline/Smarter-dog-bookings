@@ -6,40 +6,38 @@
 // through here. whatsapp-webhook is the "ears", whatsapp-agent is
 // the "brain", this is the "mouth".
 //
-// Two modes:
+// Three modes:
 //
 //   mode: "draft"
-//     Sends a free-form text message based on an approved draft.
+//     Sends a free-form text message based on an approved AI draft.
 //     Caller (admin inbox UI) passes { mode, draft_id, edited_text? }.
-//     Claude-drafted text or staff-edited text is sent as a plain
-//     WhatsApp text message. Only works inside Meta's 24h customer
-//     service window — the function rejects the call if the last
-//     inbound from that customer was >24h ago.
+//
+//   mode: "manual"
+//     Sends a free-form text message typed by staff — no draft row
+//     involved. Caller (admin inbox compose box) passes
+//     { mode, conversation_id, text }. Used when staff take over a
+//     conversation and write their own reply, or when they want to
+//     send an ad-hoc message alongside the AI's suggestions.
 //
 //   mode: "template"
-//     Sends a pre-approved Meta template message.
-//     Caller (notify-booking-reminder, or admin UI when the 24h
-//     window has expired) passes { mode, to, template_name,
-//     language?, params }. params is a positional array filling
-//     the {{1}}, {{2}}, ... placeholders in the template body.
-//
-// What this function does NOT do:
-//   - Look up customer phones from humans. That's the caller's job.
-//   - Decide which template to use. That's the caller's job.
-//   - Retry on failure. One attempt, surface the error.
-//   - Handle media or interactive messages. v1 is text + template only.
+//     Sends a pre-approved Meta template message. Used for
+//     appointment reminders and for re-engaging outside the 24h
+//     customer service window.
 //
 // Auth:
-//   Deployed WITH jwt verification. The caller must be a logged-in
-//   Supabase auth user. This function then verifies they're staff
-//   via the is_staff() helper. The staff check uses a user-scoped
-//   supabase client; the actual DB writes use the service role.
-//   This means internal callers (like notify-booking-reminder) need
-//   to use the service role key directly, which they already do.
+//   Gateway JWT verification is DISABLED (verify_jwt=false) because
+//   the Supabase gateway currently rejects ES256-signed user session
+//   JWTs with UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM. We instead
+//   verify the JWT ourselves inside authorise() via
+//   userClient.auth.getUser() — which hits Supabase Auth (GOTRUE),
+//   which supports all signing algorithms — and then check is_staff().
 //
 //   For service-role callers (no JWT), we accept the shared
-//   SEND_INTERNAL_SECRET header as a backup. This is how
-//   notify-booking-reminder authenticates without a user JWT.
+//   SEND_INTERNAL_SECRET header as a backup.
+//
+// CORS:
+//   Browser callers (staff inbox) need a preflight OPTIONS response.
+//   All responses include Access-Control-Allow-* headers.
 //
 // Env vars required:
 //   SUPABASE_URL                (auto)
@@ -48,16 +46,11 @@
 //   META_ACCESS_TOKEN           (user-added — permanent system user)
 //   META_PHONE_NUMBER_ID        (user-added — e.g. 1060731703795077)
 //   SEND_INTERNAL_SECRET        (user-added — for service-role callers)
-//
-// Deploy with:
-//   supabase functions deploy whatsapp-send
-//   (JWT verification is ON — the default. Don't pass --no-verify-jwt.)
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -67,23 +60,41 @@ const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 
 const META_GRAPH_VERSION = "v22.0";
 
-// ── Types ───────────────────────────────────────────────────
+// Max characters for a single outbound text. Meta's hard limit is
+// 4096 but anything that long is almost certainly a bug; cap at 2000
+// to protect against accidental paste-the-whole-document disasters.
+const MAX_MANUAL_TEXT_LEN = 2000;
+
+const CORS_HEADERS: HeadersInit = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-internal-secret",
+  "Access-Control-Max-Age": "86400",
+};
+
 interface DraftMode {
   mode: "draft";
   draft_id: string;
-  edited_text?: string; // if staff edited before sending
+  edited_text?: string;
+}
+
+interface ManualMode {
+  mode: "manual";
+  conversation_id: string;
+  text: string;
 }
 
 interface TemplateMode {
   mode: "template";
-  to: string;                // E.164 with or without leading +
-  template_name: string;     // must match an approved Meta template
-  language?: string;         // default en_GB
-  params?: string[];         // positional body placeholders {{1}}, {{2}}, ...
-  conversation_id?: string;  // optional — for attaching the outbound record
+  to: string;
+  template_name: string;
+  language?: string;
+  params?: string[];
+  conversation_id?: string;
 }
 
-type SendBody = DraftMode | TemplateMode;
+type SendBody = DraftMode | ManualMode | TemplateMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -103,14 +114,6 @@ interface MetaSendError {
   };
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Normalise a phone number for the Meta API.
- * Meta accepts either "+447873329440" or "447873329440" but returns
- * wa_id as digits-only. We standardise on digits-only going out, and
- * store +E.164 in our own DB elsewhere.
- */
 function toMetaTo(phone: string): string {
   return phone.replace(/\D/g, "");
 }
@@ -120,10 +123,6 @@ function toE164(digits: string): string {
   return d ? `+${d}` : "";
 }
 
-/**
- * Call Meta's messages endpoint. Throws on non-2xx with Meta's error
- * body in the message so logs contain the full story.
- */
 async function callMeta(body: unknown): Promise<MetaSendSuccess> {
   const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${META_PHONE_NUMBER_ID}/messages`;
   const res = await fetch(url, {
@@ -147,11 +146,11 @@ async function callMeta(body: unknown): Promise<MetaSendSuccess> {
   return json;
 }
 
-/**
- * Write an outbound message row. Records the wamid so subsequent
- * delivery/read status events from Meta (handled in whatsapp-agent)
- * can be stitched back to this row.
- */
+// Note: whatsapp_messages.role has a CHECK constraint allowing only
+// 'user'|'assistant'|'system'|'tool'. All outbound goes in as 'assistant'
+// regardless of whether it came from the AI or from a staff compose box.
+// If we later want the inbox to visually distinguish staff vs AI replies,
+// extend the CHECK with 'staff' in a follow-up migration.
 async function recordOutbound(
   supabase: SupabaseClient,
   conversationId: string | null,
@@ -159,7 +158,7 @@ async function recordOutbound(
   content: string | null,
   raw: unknown,
 ) {
-  if (!conversationId) return; // template sends without a conversation row — skip
+  if (!conversationId) return;
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
     direction: "outbound",
@@ -173,43 +172,21 @@ async function recordOutbound(
   if (error) console.error("recordOutbound failed:", error);
 }
 
-/**
- * 24-hour customer service window check.
- * Meta only allows free-form (non-template) replies within 24h of the
- * customer's last inbound. Outside that window Meta returns error 131047.
- * Check proactively to give a clearer error to staff.
- *
- * Returns true if the window is open.
- */
 function isWindowOpen(lastInboundAt: string | null | undefined): boolean {
   if (!lastInboundAt) return false;
   const ms = Date.now() - new Date(lastInboundAt).getTime();
   return ms < 24 * 60 * 60 * 1000;
 }
 
-// ── Auth ─────────────────────────────────────────────────────
-/**
- * Returns {ok:true, userId} if the caller is a logged-in staff member,
- * {ok:true, internal:true} if they provided the internal shared
- * secret, or {ok:false, reason} otherwise.
- *
- * The JWT path uses a user-scoped supabase client so is_staff()
- * evaluates in that user's context. DB writes later in the request
- * use the service role.
- */
 async function authorise(req: Request): Promise<
   | { ok: true; userId?: string; internal?: boolean }
   | { ok: false; reason: string; status: number }
 > {
-  // Internal callers (edge functions → edge functions) — e.g. the
-  // reminder cron job. Constant-time-ish compare isn't necessary here
-  // because we control both sides.
   const internalHeader = req.headers.get("x-internal-secret");
   if (SEND_INTERNAL_SECRET && internalHeader === SEND_INTERNAL_SECRET) {
     return { ok: true, internal: true };
   }
 
-  // JWT path — forward the Authorization header to a user-scoped client.
   const authHeader = req.headers.get("authorization");
   if (!authHeader) {
     return { ok: false, reason: "missing authorization", status: 401 };
@@ -221,11 +198,10 @@ async function authorise(req: Request): Promise<
 
   const { data: userRes, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userRes?.user) {
+    console.error("getUser failed:", userErr);
     return { ok: false, reason: "invalid token", status: 401 };
   }
 
-  // is_staff() is a helper defined in migration 004_rls_policies.sql.
-  // When called via .rpc it runs in the user's JWT context.
   const { data: staffCheck, error: staffErr } = await userClient.rpc("is_staff");
   if (staffErr) {
     console.error("is_staff rpc failed:", staffErr);
@@ -238,13 +214,11 @@ async function authorise(req: Request): Promise<
   return { ok: true, userId: userRes.user.id };
 }
 
-// ── Draft-mode handler ──────────────────────────────────────
 async function handleDraftMode(
   supabase: SupabaseClient,
   body: DraftMode,
   userId: string | undefined,
 ): Promise<Response> {
-  // Load draft + conversation in one go
   const { data: draft, error: draftErr } = await supabase
     .from("whatsapp_drafts")
     .select(
@@ -270,7 +244,6 @@ async function handleDraftMode(
     last_inbound_at: string | null;
   };
 
-  // 24h customer service window check
   if (!isWindowOpen(conv.last_inbound_at)) {
     return json(
       {
@@ -288,8 +261,6 @@ async function handleDraftMode(
     return json({ error: "empty message body" }, 400);
   }
 
-  // Atomic state transition: only proceed if still pending.
-  // Guards against double-clicks / concurrent approvals.
   const { data: claimed, error: claimErr } = await supabase
     .from("whatsapp_drafts")
     .update({
@@ -310,7 +281,6 @@ async function handleDraftMode(
     );
   }
 
-  // Send to Meta
   let metaRes: MetaSendSuccess;
   try {
     metaRes = await callMeta({
@@ -320,7 +290,6 @@ async function handleDraftMode(
       text: { body: textToSend },
     });
   } catch (err) {
-    // Revert the state so staff can retry
     await supabase
       .from("whatsapp_drafts")
       .update({
@@ -352,7 +321,86 @@ async function handleDraftMode(
   });
 }
 
-// ── Template-mode handler ───────────────────────────────────
+// ── Manual-mode handler ────────────────────────────────────
+// Free-form text typed directly by staff, no AI draft in the loop.
+// Used by the compose box in /whatsapp. Subject to the same 24h
+// window rule as draft mode — Meta won't allow non-template text
+// outside that window, so we reject early with a clear message.
+async function handleManualMode(
+  supabase: SupabaseClient,
+  body: ManualMode,
+): Promise<Response> {
+  if (!body.conversation_id) {
+    return json({ error: "conversation_id is required" }, 400);
+  }
+
+  const text = (body.text ?? "").trim();
+  if (!text) {
+    return json({ error: "empty message body" }, 400);
+  }
+  if (text.length > MAX_MANUAL_TEXT_LEN) {
+    return json(
+      {
+        error: "message too long",
+        detail: `Manual messages are capped at ${MAX_MANUAL_TEXT_LEN} characters.`,
+        length: text.length,
+      },
+      400,
+    );
+  }
+
+  const { data: conv, error: convErr } = await supabase
+    .from("whatsapp_conversations")
+    .select("id, phone_e164, last_inbound_at")
+    .eq("id", body.conversation_id)
+    .single();
+
+  if (convErr || !conv) {
+    return json({ error: "conversation not found", detail: convErr?.message }, 404);
+  }
+
+  if (!isWindowOpen(conv.last_inbound_at)) {
+    return json(
+      {
+        error: "24h window closed",
+        detail:
+          "Cannot send free-form text — last inbound message was more than 24 hours ago. Use a template instead.",
+        last_inbound_at: conv.last_inbound_at,
+      },
+      422,
+    );
+  }
+
+  let metaRes: MetaSendSuccess;
+  try {
+    metaRes = await callMeta({
+      messaging_product: "whatsapp",
+      to: toMetaTo(conv.phone_e164),
+      type: "text",
+      text: { body: text },
+    });
+  } catch (err) {
+    return json(
+      {
+        error: "Meta send failed",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      502,
+    );
+  }
+
+  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+
+  await recordOutbound(supabase, conv.id, metaMessageId, text, metaRes);
+
+  return json({
+    ok: true,
+    meta_message_id: metaMessageId,
+    sent_text: text,
+    conversation_id: conv.id,
+  });
+}
+
 async function handleTemplateMode(
   supabase: SupabaseClient,
   body: TemplateMode,
@@ -397,8 +445,6 @@ async function handleTemplateMode(
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  // Best-effort: attach to conversation if caller provided conversation_id
-  // or if we can find one by phone.
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
     const { data: conv } = await supabase
@@ -420,16 +466,21 @@ async function handleTemplateMode(
   });
 }
 
-// ── HTTP helpers ─────────────────────────────────────────────
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+    },
   });
 }
 
-// ── Main handler ─────────────────────────────────────────────
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return json({ error: "method not allowed" }, 405);
   }
@@ -447,7 +498,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json({ error: "mode is required ('draft' | 'template')" }, 400);
+    return json({ error: "mode is required ('draft' | 'manual' | 'template')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -455,6 +506,8 @@ serve(async (req) => {
   try {
     if (parsed.mode === "draft") {
       return await handleDraftMode(supabase, parsed, auth.userId);
+    } else if (parsed.mode === "manual") {
+      return await handleManualMode(supabase, parsed);
     } else if (parsed.mode === "template") {
       return await handleTemplateMode(supabase, parsed);
     } else {
@@ -466,30 +519,3 @@ serve(async (req) => {
     return json({ error: "internal error", detail: message }, 500);
   }
 });
-
-// ============================================================
-// Local test harness
-//
-// 1) As a staff user, approve a pending draft (JWT path):
-//    curl -X POST https://<project>.supabase.co/functions/v1/whatsapp-send \
-//      -H "Authorization: Bearer <user-session-jwt>" \
-//      -H "Content-Type: application/json" \
-//      -d '{"mode":"draft","draft_id":"<uuid>"}'
-//
-// 2) Send a reminder template (service-role path):
-//    curl -X POST https://<project>.supabase.co/functions/v1/whatsapp-send \
-//      -H "x-internal-secret: $SEND_INTERNAL_SECRET" \
-//      -H "Content-Type: application/json" \
-//      -d '{"mode":"template","to":"+447873329440",
-//           "template_name":"appointment_reminder_v1",
-//           "params":["Paul","Roxy","10:30am on Tuesday 22 April"]}'
-//
-// Expected Meta errors that indicate setup problems, not code bugs:
-//   - 131026 (message undeliverable) — phone number not registered on WA
-//   - 131047 (24h window closed) — our isWindowOpen check should catch
-//     this before calling Meta, but templates can still hit it if Meta
-//     rejects the template itself
-//   - 132000 (template name does not exist) — template isn't approved
-//     or spelled wrong
-//   - 190 (invalid access token) — META_ACCESS_TOKEN expired or wrong
-// ============================================================

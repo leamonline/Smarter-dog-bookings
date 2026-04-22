@@ -4,17 +4,17 @@
 // The staff WhatsApp inbox. Two-pane layout on desktop (list + detail),
 // stacked on mobile. Uses the useWhatsAppInbox hook for all data/actions.
 //
-// Feature set (v1):
+// Feature set:
 //   - Conversations list with unread badges, pending-draft indicator
 //   - Thread view showing the full message history
 //   - Pending AI draft panel with Approve / Edit & Send / Reject
+//   - Compose box for free-form staff replies — always visible when a
+//     conversation is selected, disabled outside the 24h window
 //   - "Take over" toggle — switches the conversation to human_takeover
 //     so the AI stops drafting for it
 //   - Auto-refreshes via realtime subscriptions in the hook
 //
-// Not in v1 (add later):
-//   - Free-form "write a reply from scratch" when there's no pending draft
-//     (v1 relies on staff replying via their own WA app outside this UI)
+// Not yet:
 //   - Template picker for messages outside the 24h window
 //   - Booking-action approval (whatsapp_booking_actions) — separate screen
 // ============================================================
@@ -50,6 +50,29 @@ function confidenceLabel(c) {
   if (c >= 0.9) return "high";
   if (c >= 0.6) return "medium";
   return "low";
+}
+
+// Meta only lets us send free-form text within 24h of the customer's
+// last inbound message. Client-side check mirrors the backend check
+// in whatsapp-send so we can disable the compose box before the user
+// writes anything. Backend still enforces — this is a UX hint, not
+// security. Returns true if the window is currently open.
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+function isWindowOpen(lastInboundAt) {
+  if (!lastInboundAt) return false;
+  return Date.now() - new Date(lastInboundAt).getTime() < WINDOW_MS;
+}
+
+// Human-friendly "window closes in Xh Ym" — shown as a soft hint next
+// to the compose box so staff know when they'll lose free-form.
+function windowCountdown(lastInboundAt) {
+  if (!lastInboundAt) return null;
+  const remaining = WINDOW_MS - (Date.now() - new Date(lastInboundAt).getTime());
+  if (remaining <= 0) return null;
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours >= 1) return `Window closes in ${hours}h ${mins}m`;
+  return `Window closes in ${mins}m`;
 }
 
 // ── Components ──────────────────────────────────────────────
@@ -274,6 +297,94 @@ function DraftPanel({ draft, onApprove, onReject, inFlight }) {
   );
 }
 
+// Compose box for free-form staff replies. Always visible when a
+// conversation is selected. Disabled outside the 24h window with a
+// hint that the template picker is coming. Enter sends, Shift+Enter
+// inserts a newline — matches WhatsApp and most chat apps.
+function ComposePanel({ conversation, onSend, inFlight }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState(null);
+
+  // Reset input when the user switches to a different conversation,
+  // so a half-typed message doesn't get sent to the wrong person.
+  useEffect(() => {
+    setText("");
+    setError(null);
+  }, [conversation?.id]);
+
+  const windowOpen = isWindowOpen(conversation?.last_inbound_at);
+  const countdown = windowOpen ? windowCountdown(conversation?.last_inbound_at) : null;
+
+  async function handleSend() {
+    const trimmed = text.trim();
+    if (!trimmed || inFlight) return;
+    setError(null);
+    const res = await onSend({ text: trimmed });
+    if (res?.ok) {
+      setText("");
+    } else {
+      setError(res?.reason ?? "Send failed");
+    }
+  }
+
+  function handleKeyDown(e) {
+    // Enter = send, Shift+Enter = newline. Matches WhatsApp.
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
+  if (!windowOpen) {
+    return (
+      <div className="p-4 bg-slate-50 border-t border-slate-200">
+        <div className="text-[13px] text-slate-600">
+          <span className="font-bold">24h window closed.</span>{" "}
+          Can't send a free-form reply — the customer hasn't messaged us in the last 24 hours.
+          Template picker coming soon; for now, use the WhatsApp consumer app on your phone if it's urgent.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 bg-white border-t border-slate-200">
+      {error && (
+        <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
+          {error}
+        </div>
+      )}
+      <div className="flex items-end gap-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Write a reply…"
+          disabled={inFlight}
+          rows={2}
+          maxLength={2000}
+          className="flex-1 text-[14px] p-2 bg-white border border-slate-300 rounded-lg font-[inherit] resize-y disabled:opacity-50"
+        />
+        <button
+          onClick={handleSend}
+          disabled={inFlight || !text.trim()}
+          className="px-4 py-2 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50 shrink-0"
+        >
+          Send
+        </button>
+      </div>
+      <div className="flex justify-between items-center mt-1">
+        <span className="text-[11px] text-slate-400">
+          Enter to send · Shift+Enter for new line
+        </span>
+        {countdown && (
+          <span className="text-[11px] text-slate-400">{countdown}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main view ───────────────────────────────────────────────
 export function WhatsAppInboxView() {
   const {
@@ -287,6 +398,7 @@ export function WhatsAppInboxView() {
     selectConversation,
     approveDraft,
     rejectDraft,
+    sendManualReply,
     takeoverConversation,
     releaseConversation,
     actionInFlight,
@@ -395,11 +507,21 @@ export function WhatsAppInboxView() {
                 )}
               </div>
 
-              {/* Pending draft */}
-              <DraftPanel
-                draft={draft}
-                onApprove={approveDraft}
-                onReject={rejectDraft}
+              {/* Pending AI draft — only rendered when there is one */}
+              {draft && (
+                <DraftPanel
+                  draft={draft}
+                  onApprove={approveDraft}
+                  onReject={rejectDraft}
+                  inFlight={actionInFlight}
+                />
+              )}
+
+              {/* Free-form compose box — always available when a
+                  conversation is selected, gated on the 24h window */}
+              <ComposePanel
+                conversation={selectedConversation}
+                onSend={sendManualReply}
                 inFlight={actionInFlight}
               />
             </>
