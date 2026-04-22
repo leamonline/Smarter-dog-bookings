@@ -306,6 +306,46 @@ export function useWhatsAppInbox() {
     }
   }, [draft, actionInFlight]);
 
+  // Send a staff-typed manual reply. No AI draft involved — this is
+  // the compose-box path. whatsapp-send (mode:"manual") handles the
+  // 24h-window check, Meta call, and recording the outbound message
+  // to whatsapp_messages. Returns { ok, reason?, result? } in the
+  // same shape as approveDraft so the caller can render errors.
+  const sendManualReply = useCallback(async ({ text } = {}) => {
+    if (!selectedId || actionInFlight) {
+      return { ok: false, reason: "no conversation selected or action in flight" };
+    }
+    const trimmed = typeof text === "string" ? text.trim() : "";
+    if (!trimmed) return { ok: false, reason: "empty message" };
+
+    setActionInFlight(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+        body: {
+          mode: "manual",
+          conversation_id: selectedId,
+          text: trimmed,
+        },
+      });
+
+      if (error) {
+        return { ok: false, reason: error.message ?? String(error), detail: data };
+      }
+      if (data?.error) {
+        return { ok: false, reason: data.error, detail: data };
+      }
+
+      // Optimistic: realtime subscription on whatsapp_messages will
+      // fold the new row into the thread. Nothing to do here.
+      return { ok: true, result: data };
+    } catch (err) {
+      console.error("sendManualReply:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight]);
+
   const takeoverConversation = useCallback(async () => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
@@ -360,6 +400,7 @@ export function useWhatsAppInbox() {
     selectConversation,
     approveDraft,
     rejectDraft,
+    sendManualReply,
     takeoverConversation,
     releaseConversation,
     actionInFlight,
