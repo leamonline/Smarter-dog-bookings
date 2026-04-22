@@ -70,7 +70,12 @@ const MOBILE_NAV = [
 
 export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  // Two refs, one per toolbar variant (desktop xl+ / mobile below xl).
+  // Both variants are always mounted — one is hidden via Tailwind breakpoints,
+  // not unmounted — so a single shared ref gets last-write-wins overwritten
+  // and the outside-click detector ends up checking the wrong DOM subtree.
+  const desktopMenuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   // Surfaces new customer messages without forcing staff to click into
@@ -82,7 +87,11 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      // Close only if the click landed outside BOTH variants. Checking just
+      // one false-positives on whichever variant is currently display:none.
+      const insideDesktop = desktopMenuRef.current?.contains(e.target);
+      const insideMobile = mobileMenuRef.current?.contains(e.target);
+      if (!insideDesktop && !insideMobile) setMenuOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -127,7 +136,7 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
           ))}
 
           {/* Hamburger — Reports, Settings, Portal, Logout */}
-          <div ref={menuRef} className="relative">
+          <div ref={desktopMenuRef} className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Menu"
@@ -234,7 +243,7 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
-        <div ref={!menuOpen ? undefined : menuRef} className="relative shrink-0">
+        <div ref={mobileMenuRef} className="relative shrink-0">
           <button
             onClick={() => setMenuOpen((o) => !o)}
             aria-label="Menu"
