@@ -1,6 +1,20 @@
+// ============================================================
+// DashboardHeader.jsx
+//
+// Compact flat-blue day header. Replaces the previous cyan
+// gradient hero + watermark — the sidebar is now doing more of
+// the "dashboard at a glance" work (WhatsApp + waitlist cards),
+// so the header can stop trying to be the star of the page and
+// just tell you what day you're looking at.
+//
+// Kept: month-nav arrows, HandDrawnUnderline on the weekday
+// (brand voice), stats pills, grid/list toggle, mobile calendar
+// picker. Dropped: DogSilhouette watermark, gradient background.
+// ============================================================
+
 import { useMemo } from "react";
 import { PRICING } from "../../constants/index.js";
-import { DogSilhouette, HandDrawnUnderline } from "../decor/index.jsx";
+import { HandDrawnUnderline } from "../decor/index.jsx";
 
 function computeRevenue(bookings, dogs) {
   let total = 0;
@@ -39,19 +53,9 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
   const { weekday, weekdayShort, day, dayShort, month, monthShort } = formatFullDate(currentDateObj);
 
   return (
-    <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-3 px-4 md:py-4 md:px-5 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 rounded-2xl relative overflow-hidden shadow-md">
-      {/* Brand silhouette watermark */}
-      <DogSilhouette
-        color="white"
-        size={104}
-        rotation={12}
-        opacity={0.07}
-        className="absolute -right-3 -top-3"
-      />
-
-      {/* Date + month-navigation arrows — Quicksand display, hand-drawn underline under the day-of-week.
-          Short format on narrow mobile, full format from sm+ to avoid truncation.
-          Takes full width on narrow screens (header wraps to 2 rows); arrows flank the date. */}
+    <div className="bg-brand-cyan-dark py-2 px-4 md:py-2.5 md:px-5 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 rounded-xl relative shadow-sm">
+      {/* Date + month-navigation arrows. Compact inline layout.
+          Short format on narrow mobile; full format from sm+. */}
       <div className="relative z-[1] min-w-0 basis-full sm:basis-auto flex items-center gap-2">
         {onNavigateMonth && (
           <button
@@ -59,14 +63,14 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
             onClick={() => onNavigateMonth(-1)}
             aria-label="Previous month"
             title="Previous month"
-            className="w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+            className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
         )}
-        <div className="text-lg md:text-xl font-bold text-white leading-tight font-display flex-1 sm:flex-initial text-center sm:text-left min-w-0">
+        <div className="text-base md:text-lg font-bold text-white leading-tight font-display flex-1 sm:flex-initial text-center sm:text-left min-w-0">
           <span className="relative inline-block">
             <span className="sm:hidden">{weekdayShort}</span>
             <span className="hidden sm:inline">{weekday}</span>
@@ -84,16 +88,16 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
             onClick={() => onNavigateMonth(1)}
             aria-label="Next month"
             title="Next month"
-            className="w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
+            className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
         )}
       </div>
 
-      {/* Stats pills — desktop. Booking count chip is mustard for emphasis. */}
+      {/* Stats pills — desktop. Mustard chip on dog count for emphasis. */}
       <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold shrink-0">
         <span className="bg-brand-yellow text-brand-purple rounded-full px-3 py-1 shadow-[0_2px_6px_rgba(254,204,19,0.3)]">
           {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
@@ -113,44 +117,44 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
         </div>
       </div>
 
-      {/* View Mode Toggle (Grid/List) */}
+      {/* Grid/list toggle */}
       {setViewMode && (
         <div className="relative z-[1] flex bg-white/15 rounded-lg p-0.5 shrink-0">
           <button
             onClick={() => setViewMode("grid")}
-            className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
+            className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
               viewMode === "grid" ? "bg-brand-yellow text-brand-purple shadow-sm" : "bg-transparent text-white/70 hover:text-white"
             }`}
             aria-label="Grid view"
             title="Grid view"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
             </svg>
           </button>
           <button
             onClick={() => setViewMode("list")}
-            className={`w-8 h-8 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
+            className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer border-none ${
               viewMode === "list" ? "bg-brand-yellow text-brand-purple shadow-sm" : "bg-transparent text-white/70 hover:text-white"
             }`}
             aria-label="List view"
             title="List view"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
             </svg>
           </button>
         </div>
       )}
 
-      {/* Calendar picker button — mobile/tablet only (xl has sidebar calendar) */}
+      {/* Mobile calendar picker (xl+ uses sidebar calendar) */}
       {onOpenCalendar && (
         <button
           onClick={onOpenCalendar}
-          className="relative z-[1] xl:hidden w-9 h-9 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25 ml-1"
+          className="relative z-[1] xl:hidden w-8 h-8 rounded-md flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
           aria-label="Open calendar"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" />
             <line x1="3" y1="10" x2="21" y2="10" />
             <line x1="8" y1="2" x2="8" y2="6" />

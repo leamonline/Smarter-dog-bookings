@@ -5,6 +5,8 @@ import { PRICING } from "../../constants/index.js";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
 import { SidebarTodos } from "./SidebarTodos.jsx";
+import { DashboardWhatsAppCard } from "./DashboardWhatsAppCard.jsx";
+import { DashboardWaitlistCard } from "./DashboardWaitlistCard.jsx";
 
 function computeRevenue(bookings, dogs) {
   let total = 0;
@@ -59,6 +61,14 @@ export function DashboardSidebar({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* WhatsApp summary — awaiting-reply first. Placed at top so
+          inbound customer messages get visual priority over revenue. */}
+      <DashboardWhatsAppCard />
+
+      {/* Waitlist summary — total + this week (not day-scoped; that would
+          duplicate WaitlistPanel in the main content area). */}
+      <DashboardWaitlistCard />
+
       {/* Revenue card */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -79,7 +89,9 @@ export function DashboardSidebar({
 
       {/* Mini month calendar */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-        <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 py-2.5">
+        {/* Navy header — intentionally not cyan so the sidebar has a
+            visual anchor distinct from the day header above. */}
+        <div className="bg-brand-purple px-4 py-2.5">
           <div className="text-sm font-extrabold text-white font-display">{monthName}</div>
         </div>
 
