@@ -9,7 +9,7 @@
 //
 // What it owns:
 //   - conversations list (with joined human name + pending draft indicator)
-//   - the currently-selected conversation's messages and pending draft
+//   - the currently-selected conversation's messages, pending draft, and pending booking actions
 //   - approve/edit/reject/takeover actions
 //   - optimistic state so the UI feels snappy
 //
@@ -46,7 +46,8 @@ async function fetchConversationsList() {
       unread_count,
       auto_send_enabled,
       humans:human_id ( name, surname ),
-      whatsapp_drafts ( id, state )
+      whatsapp_drafts ( id, state ),
+      whatsapp_booking_actions ( id, state )
       `,
     )
     .order("last_inbound_at", { ascending: false, nullsFirst: false })
@@ -60,11 +61,13 @@ async function fetchConversationsList() {
     ...c,
     has_pending_draft: Array.isArray(c.whatsapp_drafts) &&
       c.whatsapp_drafts.some((d) => d.state === "pending"),
+    has_pending_booking_action: Array.isArray(c.whatsapp_booking_actions) &&
+      c.whatsapp_booking_actions.some((a) => a.state === "pending"),
   }));
 }
 
 async function fetchConversationDetail(conversationId) {
-  const [messagesRes, draftRes] = await Promise.all([
+  const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
     supabase
       .from("whatsapp_messages")
       .select("id, direction, content, sent_at, status, meta_message_id")
@@ -81,15 +84,24 @@ async function fetchConversationDetail(conversationId) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("whatsapp_booking_actions")
+      .select("id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
+      .eq("conversation_id", conversationId)
+      .eq("state", "pending")
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   if (messagesRes.error) throw messagesRes.error;
   // draftRes can return PGRST116 if maybeSingle found nothing — swallow
   if (draftRes.error && draftRes.error.code !== "PGRST116") throw draftRes.error;
+  if (bookingActionsRes.error) throw bookingActionsRes.error;
 
   return {
     messages: messagesRes.data ?? [],
     draft: draftRes.data ?? null,
+    bookingActions: bookingActionsRes.data ?? [],
   };
 }
 
@@ -102,6 +114,7 @@ export function useWhatsAppInbox() {
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState(null);
+  const [bookingActions, setBookingActions] = useState([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
@@ -143,6 +156,11 @@ export function useWhatsAppInbox() {
         { event: "*", schema: "public", table: "whatsapp_drafts" },
         () => refreshList(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "whatsapp_booking_actions" },
+        () => refreshList(),
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -152,11 +170,12 @@ export function useWhatsAppInbox() {
   const refreshDetail = useCallback(async (conversationId) => {
     if (!conversationId) return;
     try {
-      const { messages: m, draft: d } = await fetchConversationDetail(conversationId);
+      const { messages: m, draft: d, bookingActions: a } = await fetchConversationDetail(conversationId);
       // Guard against race: user may have moved on.
       if (selectedIdRef.current !== conversationId) return;
       setMessages(m);
       setDraft(d);
+      setBookingActions(a);
       setDetailError(null);
     } catch (err) {
       console.error("useWhatsAppInbox refreshDetail:", err);
@@ -170,6 +189,7 @@ export function useWhatsAppInbox() {
     setSelectedId(conversationId);
     setMessages([]);
     setDraft(null);
+    setBookingActions([]);
     setDetailError(null);
 
     if (!conversationId || !supabase) return;
@@ -215,6 +235,14 @@ export function useWhatsAppInbox() {
         "postgres_changes",
         {
           event: "*", schema: "public", table: "whatsapp_drafts",
+          filter: `conversation_id=eq.${selectedId}`,
+        },
+        () => refreshDetail(selectedId),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*", schema: "public", table: "whatsapp_booking_actions",
           filter: `conversation_id=eq.${selectedId}`,
         },
         () => refreshDetail(selectedId),
@@ -346,6 +374,68 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  const applyBookingAction = useCallback(async (actionId) => {
+    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
+    setActionInFlight(true);
+    try {
+      const { data, error } = await supabase.rpc("apply_whatsapp_booking_action", {
+        p_action_id: actionId,
+      });
+      if (error) throw error;
+      setBookingActions((prev) => {
+        const next = prev.filter((action) => action.id !== actionId);
+        setConversations((conversationsPrev) =>
+          conversationsPrev.map((c) =>
+            c.id === selectedIdRef.current
+              ? { ...c, has_pending_booking_action: next.length > 0 }
+              : c,
+          ),
+        );
+        return next;
+      });
+      return { ok: true, bookingId: data };
+    } catch (err) {
+      console.error("applyBookingAction:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [actionInFlight]);
+
+  const rejectBookingAction = useCallback(async (actionId, reason = "") => {
+    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
+    setActionInFlight(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_booking_actions")
+        .update({
+          state: "rejected",
+          rejection_reason: typeof reason === "string" && reason.trim() ? reason.trim().slice(0, 500) : null,
+          decided_at: new Date().toISOString(),
+        })
+        .eq("id", actionId)
+        .eq("state", "pending");
+      if (error) throw error;
+      setBookingActions((prev) => {
+        const next = prev.filter((action) => action.id !== actionId);
+        setConversations((conversationsPrev) =>
+          conversationsPrev.map((c) =>
+            c.id === selectedIdRef.current
+              ? { ...c, has_pending_booking_action: next.length > 0 }
+              : c,
+          ),
+        );
+        return next;
+      });
+      return { ok: true };
+    } catch (err) {
+      console.error("rejectBookingAction:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [actionInFlight]);
+
   const takeoverConversation = useCallback(async () => {
     if (!selectedId || actionInFlight) return { ok: false };
     setActionInFlight(true);
@@ -394,6 +484,7 @@ export function useWhatsAppInbox() {
     selectedConversation,
     messages,
     draft,
+    bookingActions,
     loadingDetail,
     detailError,
     // actions
@@ -401,6 +492,8 @@ export function useWhatsAppInbox() {
     approveDraft,
     rejectDraft,
     sendManualReply,
+    applyBookingAction,
+    rejectBookingAction,
     takeoverConversation,
     releaseConversation,
     actionInFlight,

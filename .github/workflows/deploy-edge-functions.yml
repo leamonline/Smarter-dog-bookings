@@ -44,19 +44,33 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v4
         with:
-          # Need the previous commit so we can diff and see which
-          # function dirs actually changed.
-          fetch-depth: 2
+          # Need the pushed range so multi-commit pushes deploy every
+          # changed function, not only the final commit.
+          fetch-depth: 0
 
       - name: Work out which functions changed
         id: changed
         shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          # Diff against the previous commit on main. On a merge commit,
-          # HEAD^ is the previous main tip — exactly what we want.
-          changed_paths=$(git diff --name-only HEAD^ HEAD -- 'supabase/functions/' || true)
+          # Diff the whole pushed range. This matters for direct pushes,
+          # merge queues, and any update that advances main by multiple
+          # commits in one push event.
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            base_sha=$(git rev-parse "${AFTER_SHA}^" 2>/dev/null || true)
+          else
+            base_sha="$BEFORE_SHA"
+          fi
+
+          if [ -z "${base_sha:-}" ]; then
+            changed_paths=$(git ls-tree -r --name-only "$AFTER_SHA" -- 'supabase/functions/' || true)
+          else
+            changed_paths=$(git diff --name-only "$base_sha" "$AFTER_SHA" -- 'supabase/functions/' || true)
+          fi
           echo "Changed paths:"
           echo "$changed_paths"
 

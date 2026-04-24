@@ -102,6 +102,17 @@ interface DraftFromClaude {
     | "other";
   confidence: number; // 0..1
   proposed_text: string;
+  booking_action?: BookingActionFromClaude | null;
+}
+
+interface BookingActionFromClaude {
+  action: "create";
+  dog_id: string;
+  booking_date: string;
+  slot: string;
+  service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
+  size?: "small" | "medium" | "large";
+  notes?: string;
 }
 
 // ── System prompt ────────────────────────────────────────────
@@ -123,9 +134,28 @@ SALON BASICS (use when relevant, never invent around these)
 ────────────────────────────────────────────────────────
 - Open days: Monday, Tuesday, Wednesday only.
 - Hours: 08:30 to 15:00.
-- Booking slots: every 30 minutes, from 08:30 to 13:00 (last booking at 13:00).
+- Booking slots: every 30 minutes: 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30, 12:00, 12:30, 13:00.
+- Service IDs you may use in booking_action: full-groom, bath-and-brush, bath-and-deshed, puppy-groom.
 - Bank holidays: closed; they make up the day on the following Thursday.
 - If a customer asks for Thursday/Friday/weekend, kindly point out we're Mon-Wed and offer to find a slot in the next open window.
+- Appointments are usually booked for up to 2.5 hours. Some dogs are ready sooner, but we allow that time so the groom can be done calmly and properly.
+
+────────────────────────────────────────────────────────
+SERVICES AND GUIDE PRICES
+────────────────────────────────────────────────────────
+You may give guide prices only. Never present prices as fixed guarantees. Always say final price depends on coat condition, behaviour, style, dog size, matting, and time required.
+
+- Full Groom: small from £42, medium from £46, large from £60.
+  Use for haircuts, trims, breed-style grooming, full tidy-ups, and complete grooms.
+- Bath & Brush: small from £38, medium from £42, large from £55.
+  Use for a wash, dry, freshen-up, brush-out, or maintenance between full grooms.
+- Bath & Deshed: small from £38, medium from £42, large from £55.
+  Use for heavy shedding, undercoat, double coats, and breeds such as Husky, Labrador, German Shepherd, Pomeranian, or Corgi.
+- Puppy Groom / Puppy Cut: puppies under 6 months from £38.
+  Focus on confidence, handling, salon sounds, bath, dryer, and gentle trimming.
+- Flea bath: if fleas are found during a groom, a flea bath is compulsory and costs £10 per dog.
+
+Good price wording: "That's a guide price. The groomer will confirm properly once they've seen the coat and what you'd like doing."
 
 ────────────────────────────────────────────────────────
 BRAND VOICE — non-negotiable
@@ -168,12 +198,47 @@ PERSONALISATION RULES
 ────────────────────────────────────────────────────────
 HARD RULES — always
 ────────────────────────────────────────────────────────
-- NEVER confirm, create, move, or cancel a booking. If the customer asks any of those, say you'll check the diary and get back to them ASAP. Set intent accordingly (booking_query, booking_propose, booking_change, booking_cancel) with a holding reply.
-- NEVER quote a specific price. Route pricing questions to staff.
+- NEVER directly confirm, move, or cancel a booking in the text. Staff approves every action before it reaches the diary.
+- You MAY propose a new booking action only when all of these are explicit or safely resolved from context: exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID. Use only dog IDs shown in context.
+- If you include booking_action, the proposed_text must still be staff-reviewed wording. Do not say the dog is booked in; say you'll get it checked/added and the team will confirm.
+- If any booking detail is missing or ambiguous, do not include booking_action. Ask for the missing detail or say staff will check the diary.
+- Do not propose reschedules or cancellations yet. For those, set intent booking_change or booking_cancel and write a holding reply.
+- NEVER quote prices as fixed guarantees. Guide prices are okay when clearly labelled as "starts from" or "guide price".
 - NEVER invent appointment slots beyond what's in the context you've been given. If the context doesn't list availability, don't make up times — say "let me just check the diary and come back to you".
 - NEVER promise same-day turnaround or specific groomer assignments.
 - If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply ("thanks for letting me know, I'll make sure one of the team sees this straight away"). Don't attempt to resolve.
 - If a message seems medical or safety-related (dog unwell, injury, adverse reaction to grooming) → intent "escalate", brief holding reply, let staff handle.
+
+────────────────────────────────────────────────────────
+POLICY GUIDANCE
+────────────────────────────────────────────────────────
+Matting:
+- Explain gently that matting can be uncomfortable or painful.
+- Say the groomer will check the coat in person.
+- If matting is tight, the kindest option may be to go shorter because brushing out severe matting can hurt.
+- Do not blame the owner.
+
+Puppies:
+- Frame puppy grooms around confidence and positive handling, not just appearance.
+- If asked for a full adult-style haircut on a young puppy, say the groomer can advise what is suitable for their age, coat, and confidence.
+
+Nervous, reactive, elderly, or difficult dogs:
+- Gather details and hand over to the groomer when needed.
+- Ask what they struggle with: handling, other dogs, dryer, feet, face, or being separated.
+- Do not say "we can definitely groom them"; say the groomer needs to check what is safest and most comfortable.
+
+Health and vet-related questions:
+- Do not give veterinary advice.
+- For skin infections, wounds, ear infections, limping, pain, recent surgery, pregnancy, seizures, sedation, medication, severe anxiety, or contagious conditions, recommend checking with a vet before booking.
+
+Complaints:
+- Stay calm. Do not argue. Do not admit fault.
+- Ask for dog name, appointment date, a short explanation, and photos if relevant.
+- Say you'll pass it to the team so they can look into it properly.
+
+Booking enquiries:
+- If details are missing, collect dog name, breed or size, age if puppy, service wanted, coat condition, matting/shedding, behaviour or health notes, preferred day/time, customer name, and phone number if not already known.
+- Only ask for information needed to help. Do not ask for payment card details or unrelated sensitive personal information.
 
 ────────────────────────────────────────────────────────
 CONFIDENCE
@@ -191,7 +256,16 @@ Reply with ONE JSON object, no prose, no markdown, no code fences:
 {
   "intent": "faq" | "greeting" | "booking_query" | "booking_propose" | "booking_confirm" | "booking_change" | "booking_cancel" | "confirm_time" | "smalltalk" | "escalate" | "other",
   "confidence": 0.00..1.00,
-  "proposed_text": "your drafted reply including the 🎓🐶❤️ X sign-off"
+  "proposed_text": "your drafted reply including the 🎓🐶❤️ X sign-off",
+  "booking_action": null | {
+    "action": "create",
+    "dog_id": "uuid from context",
+    "booking_date": "YYYY-MM-DD",
+    "slot": "HH:MM",
+    "service": "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
+    "size": "small" | "medium" | "large",
+    "notes": "short reason, optional"
+  }
 }
 
 If you genuinely cannot draft something useful, return intent="escalate" with a short holding reply. Never return an empty proposed_text.`;
@@ -341,7 +415,7 @@ async function buildContext(
 
     const { data: dogs } = await supabase
       .from("dogs")
-      .select("name, breed, size, groom_notes, alerts")
+      .select("id, name, breed, size, groom_notes, alerts")
       .eq("human_id", humanId);
 
     if (dogs?.length) {
@@ -350,7 +424,7 @@ async function buildContext(
           ? ` (alerts: ${d.alerts.join(", ")})`
           : "";
         const notes = d.groom_notes ? `\n    Notes: ${d.groom_notes}` : "";
-        return `  - ${d.name} (${d.breed}, ${d.size ?? "size unknown"})${alerts}${notes}`;
+        return `  - ${d.name} [dog_id: ${d.id}] (${d.breed}, ${d.size ?? "size unknown"})${alerts}${notes}`;
       }).join("\n");
       parts.push(`--- Dogs ---\n${dogLines}`);
     }
@@ -444,7 +518,12 @@ function parseClaudeJson(text: string): DraftFromClaude {
       typeof parsed?.confidence === "number" &&
       typeof parsed?.proposed_text === "string"
     ) {
-      return parsed as DraftFromClaude;
+      return {
+        intent: parsed.intent,
+        confidence: parsed.confidence,
+        proposed_text: parsed.proposed_text,
+        booking_action: parseBookingAction(parsed.booking_action),
+      } as DraftFromClaude;
     }
   } catch {
     // fall through
@@ -461,6 +540,29 @@ function parseClaudeJson(text: string): DraftFromClaude {
   };
 }
 
+function parseBookingAction(value: unknown): BookingActionFromClaude | null {
+  if (!value || typeof value !== "object") return null;
+  const action = value as Record<string, unknown>;
+  const validServices = new Set(["full-groom", "bath-and-brush", "bath-and-deshed", "puppy-groom"]);
+  const validSizes = new Set(["small", "medium", "large"]);
+
+  if (action.action !== "create") return null;
+  if (typeof action.dog_id !== "string" || !action.dog_id) return null;
+  if (typeof action.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(action.booking_date)) return null;
+  if (typeof action.slot !== "string" || !/^\d{2}:\d{2}$/.test(action.slot)) return null;
+  if (typeof action.service !== "string" || !validServices.has(action.service)) return null;
+
+  return {
+    action: "create",
+    dog_id: action.dog_id,
+    booking_date: action.booking_date,
+    slot: action.slot,
+    service: action.service as BookingActionFromClaude["service"],
+    ...(typeof action.size === "string" && validSizes.has(action.size) ? { size: action.size as BookingActionFromClaude["size"] } : {}),
+    ...(typeof action.notes === "string" && action.notes.trim() ? { notes: action.notes.trim().slice(0, 300) } : {}),
+  };
+}
+
 // ── Draft save ───────────────────────────────────────────────
 async function saveDraft(
   supabase: SupabaseClient,
@@ -470,7 +572,7 @@ async function saveDraft(
   tokensIn: number,
   tokensOut: number,
   rawResponse: unknown,
-) {
+): Promise<string> {
   // Find the whatsapp_messages.id for the inbound message we just
   // inserted — trigger_message_id on the draft is a nice-to-have
   // for the admin UI to show "in response to this message".
@@ -487,7 +589,7 @@ async function saveDraft(
     triggerMessageId = data?.id ?? null;
   }
 
-  const { error } = await supabase.from("whatsapp_drafts").insert({
+  const { data, error } = await supabase.from("whatsapp_drafts").insert({
     conversation_id: conversationId,
     trigger_message_id: triggerMessageId,
     proposed_text: draft.proposed_text,
@@ -499,8 +601,59 @@ async function saveDraft(
     tokens_input: tokensIn,
     tokens_output: tokensOut,
     tool_calls: rawResponse as Record<string, unknown>,
-  });
+  }).select("id").single();
   if (error) throw new Error(`saveDraft failed: ${error.message}`);
+  return data.id as string;
+}
+
+async function saveBookingAction(
+  supabase: SupabaseClient,
+  conversationId: string,
+  draftId: string,
+  draft: DraftFromClaude,
+) {
+  const action = draft.booking_action;
+  if (!action || action.action !== "create") return;
+  const validSlots = new Set(["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"]);
+  if (!validSlots.has(action.slot)) return;
+
+  const { data: dog } = await supabase
+    .from("dogs")
+    .select("id, size, human_id")
+    .eq("id", action.dog_id)
+    .maybeSingle();
+
+  if (!dog) return;
+
+  const { data: conversation } = await supabase
+    .from("whatsapp_conversations")
+    .select("human_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
+
+  const payload = {
+    dog_id: action.dog_id,
+    booking_date: action.booking_date,
+    slot: action.slot,
+    service: action.service,
+    size: action.size ?? dog.size ?? "small",
+    addons: [],
+    payment: "Due at Pick-up",
+    confirmed: true,
+    source: "whatsapp_ai",
+    notes: action.notes ?? null,
+  };
+
+  const { error } = await supabase.from("whatsapp_booking_actions").insert({
+    conversation_id: conversationId,
+    draft_id: draftId,
+    action: "create",
+    payload,
+    state: "pending",
+  });
+  if (error) throw new Error(`saveBookingAction failed: ${error.message}`);
 }
 
 // ── Delivery status handler ─────────────────────────────────
@@ -631,7 +784,8 @@ serve(async (req) => {
             context,
             text ?? "(customer sent a non-text message)",
           );
-          await saveDraft(supabase, conversation.id, event.id, draft, tokensIn, tokensOut, raw);
+          const draftId = await saveDraft(supabase, conversation.id, event.id, draft, tokensIn, tokensOut, raw);
+          await saveBookingAction(supabase, conversation.id, draftId, draft);
         }
 
         // Status updates on our previously-sent messages
