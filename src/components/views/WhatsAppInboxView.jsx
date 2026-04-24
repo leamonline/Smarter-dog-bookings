@@ -8,6 +8,7 @@
 //   - Conversations list with unread badges, pending-draft indicator
 //   - Thread view showing the full message history
 //   - Pending AI draft panel with Approve / Edit & Send / Reject
+//   - Pending AI booking-action panel with Apply / Reject
 //   - Compose box for free-form staff replies — always visible when a
 //     conversation is selected, disabled outside the 24h window
 //   - "Take over" toggle — switches the conversation to human_takeover
@@ -16,7 +17,6 @@
 //
 // Not yet:
 //   - Template picker for messages outside the 24h window
-//   - Booking-action approval (whatsapp_booking_actions) — separate screen
 // ============================================================
 
 import { useState, useEffect } from "react";
@@ -50,6 +50,26 @@ function confidenceLabel(c) {
   if (c >= 0.9) return "high";
   if (c >= 0.6) return "medium";
   return "low";
+}
+
+function serviceLabel(service) {
+  const labels = {
+    "full-groom": "Full groom",
+    "bath-and-brush": "Bath & brush",
+    "bath-and-deshed": "Bath & deshed",
+    "puppy-groom": "Puppy groom",
+  };
+  return labels[service] || service || "Service";
+}
+
+function formatDateLong(dateStr) {
+  if (!dateStr) return "No date";
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // Meta only lets us send free-form text within 24h of the customer's
@@ -104,6 +124,12 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
               title="AI draft pending review"
             />
           )}
+          {conv.has_pending_booking_action && (
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+              title="Booking proposal pending approval"
+            />
+          )}
           {unread && (
             <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-brand-purple text-white text-[10px] font-bold">
               {conv.unread_count}
@@ -117,6 +143,134 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
         </div>
       </div>
     </button>
+  );
+}
+
+function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
+  const [error, setError] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setError(null);
+    setRejectingId(null);
+    setReason("");
+  }, [actions.map((action) => action.id).join("|")]);
+
+  if (!actions?.length) return null;
+
+  async function handleApply(actionId) {
+    setError(null);
+    const res = await onApply(actionId);
+    if (!res.ok) setError(res.reason ?? "Could not apply booking action");
+  }
+
+  async function handleReject(actionId) {
+    setError(null);
+    const res = await onReject(actionId, reason);
+    if (res.ok) {
+      setRejectingId(null);
+      setReason("");
+    } else {
+      setError(res.reason ?? "Could not reject booking action");
+    }
+  }
+
+  return (
+    <div className="p-4 bg-emerald-50 border-t-2 border-emerald-300">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 mb-2">
+        Booking proposal
+      </div>
+
+      {error && (
+        <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {actions.map((action) => {
+          const payload = action.payload || {};
+          const isRejecting = rejectingId === action.id;
+          return (
+            <div key={action.id} className="bg-white border border-emerald-200 rounded-lg p-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[13px] text-slate-700">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Date</div>
+                  <div className="font-bold">{formatDateLong(payload.booking_date)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Time</div>
+                  <div className="font-bold">{payload.slot || "No time"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Service</div>
+                  <div className="font-bold">{serviceLabel(payload.service)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Size</div>
+                  <div className="font-bold capitalize">{payload.size || "small"}</div>
+                </div>
+              </div>
+
+              {payload.notes && (
+                <div className="mt-2 text-[12px] text-slate-500">{payload.notes}</div>
+              )}
+
+              {isRejecting && (
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Reason for rejecting (optional)"
+                  className="mt-3 w-full text-[13px] p-2 bg-white border border-emerald-200 rounded-lg font-[inherit] resize-y"
+                  rows={2}
+                  maxLength={500}
+                  autoFocus
+                />
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-3">
+                {isRejecting ? (
+                  <>
+                    <button
+                      onClick={() => handleReject(action.id)}
+                      disabled={inFlight}
+                      className="px-3 py-1.5 rounded-md bg-red-600 text-white text-[13px] font-bold disabled:opacity-50"
+                    >
+                      Confirm reject
+                    </button>
+                    <button
+                      onClick={() => { setRejectingId(null); setReason(""); }}
+                      disabled={inFlight}
+                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleApply(action.id)}
+                      disabled={inFlight}
+                      className="px-3 py-1.5 rounded-md bg-emerald-700 text-white text-[13px] font-bold disabled:opacity-50"
+                    >
+                      Add to diary
+                    </button>
+                    <button
+                      onClick={() => setRejectingId(action.id)}
+                      disabled={inFlight}
+                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 text-[13px]"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -394,11 +548,14 @@ export function WhatsAppInboxView() {
     selectedConversation,
     messages,
     draft,
+    bookingActions,
     loadingDetail,
     selectConversation,
     approveDraft,
     rejectDraft,
     sendManualReply,
+    applyBookingAction,
+    rejectBookingAction,
     takeoverConversation,
     releaseConversation,
     actionInFlight,
@@ -415,7 +572,8 @@ export function WhatsAppInboxView() {
         </h2>
         <div className="text-[12px] text-slate-500">
           {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread ·{" "}
-          {conversations.filter((c) => c.has_pending_draft).length} awaiting review
+          {conversations.filter((c) => c.has_pending_draft).length} drafts ·{" "}
+          {conversations.filter((c) => c.has_pending_booking_action).length} bookings
         </div>
       </div>
 
@@ -516,6 +674,13 @@ export function WhatsAppInboxView() {
                   inFlight={actionInFlight}
                 />
               )}
+
+              <BookingActionPanel
+                actions={bookingActions}
+                onApply={applyBookingAction}
+                onReject={rejectBookingAction}
+                inFlight={actionInFlight}
+              />
 
               {/* Free-form compose box — always available when a
                   conversation is selected, gated on the 24h window */}

@@ -60,8 +60,8 @@ export function useWaitlistSummary() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) return;
     refresh();
+    if (!supabase) return;
 
     const channel = supabase
       .channel("waitlist-dashboard-summary")
