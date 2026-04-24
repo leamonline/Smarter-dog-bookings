@@ -8,9 +8,13 @@ A booking and management dashboard for dog grooming salons. Built with React + V
 - **Capacity engine** — enforces the 2-2-1 rule for large dogs
 - **Booking workflow** — Not Arrived → Checked In → In Bath → Ready for Pick-up → Completed
 - **Dogs & Humans directories** — full contact management with alerts, notes, and trusted contacts
+- **WhatsApp inbox** — two-way customer messaging with AI-drafted replies and AI-proposed booking actions, staff-approved before anything goes live
+- **Waitlist** — track overflow requests and notify when slots open
+- **Calendar feeds** — per-user ICS feeds for staff and customers
+- **Groom photos** — before/after shots stored per booking
 - **Role-based auth** — owner vs staff access levels
 - **Offline mode** — works without Supabase using sample data
-- **Responsive** — optimized for tablet (front desk) and mobile
+- **Responsive** — optimised for tablet (front desk) and mobile
 
 ## Quick Start
 
@@ -57,9 +61,14 @@ These aren't expressible as migrations — set them once per project:
 - **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against HaveIBeenPwned, blocks compromised ones.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
 
-### Schema drift note
+### Migration history note
 
-The local `supabase/migrations/` folder ends at `023_secure_salon_todos.sql`. Production has a few additional migrations applied directly via the Supabase dashboard (`add_chain_id_to_bookings`, `add_deposit_amount_to_bookings`, `create_salon_todos_table`, `fix_staff_profiles_rls_recursion`, `fix_calendar_token_search_path`). The DDL exists in production; back-filling them as numbered files would risk re-deriving DDL that doesn't match what was actually applied. If you fork to a fresh Supabase project, dump the production schema and import it, rather than replaying the local migrations.
+`supabase/migrations/` is a near-complete record of prod schema history. Two small gaps remain:
+
+- `001_initial_schema.sql`, `002_auth_staff_profiles.sql`, `003_phase5_schema.sql` — applied before Supabase's migration-tracking table was in use, so they're in the repo but not in `supabase_migrations.schema_migrations` on prod.
+- `021_reminder_preferences.sql` — applied via the dashboard rather than as a tracked migration. The columns (`humans.reminder_hours`, `humans.reminder_channels`) exist on prod, but the file isn't in the migration history.
+
+Everything else matches. Files with letter suffixes (e.g. `012a_…`, `017a_…`) are backfills of migrations that were originally applied via the dashboard; they slot in alphabetically between the main-numbered files so `ls`-order still reflects apply-order. If you fork to a fresh Supabase project, run the files in filename order.
 
 ## Deploy
 
