@@ -366,6 +366,98 @@ async function insertInboundMessage(
   // 029) increments whatsapp_conversations.unread_count for us.
 }
 
+// ── Availability block ───────────────────────────────────────
+// Queries get_small_medium_availability (migration 034) and formats
+// the result as a prompt section. See the spec at
+// docs/superpowers/specs/2026-04-24-whatsapp-agent-availability-design.md
+//
+// Format example:
+//   --- Availability (next 30 days, small/medium dogs only) ---
+//   Mon 27 Apr: 08:30 09:00 10:30 11:00 12:30
+//   Tue 28 Apr: (all open)
+//   Wed 29 Apr: 09:00 10:30
+//   Mon 04 May: (closed)
+//
+// - "(all open)" when all 10 slots in active_slots() are free
+// - "(closed)" only for default-open days (Mon/Tue/Wed) where
+//   day_settings marks them closed; other closed days are omitted.
+// - On error, returns a block that tells the agent to defer to staff.
+const ACTIVE_SLOT_COUNT = 10; // matches active_slots() from migration 006
+const AVAILABILITY_WINDOW_DAYS = 30;
+
+function isDefaultOpenDay(isoDate: string): boolean {
+  // isoDate = "YYYY-MM-DD"; getUTCDay: Sun=0, Mon=1, ..., Sat=6
+  const dow = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+  return dow === 1 || dow === 2 || dow === 3;
+}
+
+function formatShortDate(isoDate: string): string {
+  // "Mon 27 Apr" — matches the UK audience's natural reading
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+async function buildAvailabilityBlock(
+  supabase: SupabaseClient,
+  todayIso: string,
+): Promise<string> {
+  const toIso = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 24 * 3600 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data, error } = await supabase.rpc("get_small_medium_availability", {
+    p_from: todayIso,
+    p_to: toIso,
+  });
+
+  if (error) {
+    console.warn("buildAvailabilityBlock RPC error:", error.message);
+    return `--- Availability ---\n(unavailable — tell the customer the team will check the diary)`;
+  }
+
+  // Group slots by date
+  const byDate = new Map<string, string[]>();
+  for (const row of (data ?? []) as Array<{ booking_date: string; slot: string }>) {
+    const list = byDate.get(row.booking_date) ?? [];
+    list.push(row.slot);
+    byDate.set(row.booking_date, list);
+  }
+
+  // Walk every day in the window so we can render "(closed)" for default-open days
+  const lines: string[] = [];
+  for (let offset = 0; offset <= AVAILABILITY_WINDOW_DAYS; offset++) {
+    const d = new Date(Date.now() + offset * 24 * 3600 * 1000);
+    const iso = d.toISOString().slice(0, 10);
+    const slots = byDate.get(iso);
+
+    if (slots && slots.length > 0) {
+      const label = formatShortDate(iso);
+      const slotList = slots.length >= ACTIVE_SLOT_COUNT
+        ? "(all open)"
+        : slots.join(" ");
+      lines.push(`${label}: ${slotList}`);
+      continue;
+    }
+
+    // No slots returned → either closed or fully booked.
+    // Only annotate "(closed)" for default-open days; otherwise skip as noise.
+    if (isDefaultOpenDay(iso)) {
+      const label = formatShortDate(iso);
+      lines.push(`${label}: (closed)`);
+    }
+  }
+
+  const header = `--- Availability (next ${AVAILABILITY_WINDOW_DAYS} days, small/medium dogs only) ---`;
+  if (lines.length === 0) {
+    return `${header}\n(no open days in the next ${AVAILABILITY_WINDOW_DAYS} days — tell the customer the team will check the diary)`;
+  }
+  return `${header}\n${lines.join("\n")}`;
+}
+
 // ── Context for Claude ───────────────────────────────────────
 // We inject this as the user-turn content so the model clearly sees
 // it as data rather than instruction. Keep it compact — Claude does
@@ -453,6 +545,11 @@ async function buildContext(
   } else {
     parts.push(`--- Customer ---\nUnknown (phone not matched to any existing customer record). Do NOT address by name.`);
   }
+
+  // Availability applies whether or not the customer is matched — the agent
+  // might still propose a slot for a matched dog attached to a different
+  // conversation, and unmatched customers will see it via staff approval anyway.
+  parts.push(await buildAvailabilityBlock(supabase, todayIso));
 
   return parts.join("\n\n");
 }
