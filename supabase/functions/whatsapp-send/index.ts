@@ -159,6 +159,7 @@ async function recordOutbound(
   raw: unknown,
 ) {
   if (!conversationId) return;
+  const sentAt = new Date().toISOString();
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
     direction: "outbound",
@@ -167,9 +168,15 @@ async function recordOutbound(
     content,
     raw,
     status: "sent",
-    sent_at: new Date().toISOString(),
+    sent_at: sentAt,
   });
   if (error) console.error("recordOutbound failed:", error);
+
+  const { error: convError } = await supabase
+    .from("whatsapp_conversations")
+    .update({ last_outbound_at: sentAt })
+    .eq("id", conversationId);
+  if (convError) console.error("recordOutbound conversation update failed:", convError);
 }
 
 function isWindowOpen(lastInboundAt: string | null | undefined): boolean {
