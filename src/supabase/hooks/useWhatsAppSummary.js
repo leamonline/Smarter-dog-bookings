@@ -12,15 +12,17 @@
 //
 // Returns:
 //   {
-//     awaitingReply,   // # conversations where last inbound is newer than
-//                      // last outbound (read/unread state is irrelevant).
+//     awaitingReply,   // # conversations whose most recent message is inbound
+//                      // AND has not yet been replied to by us.
+//                      // Proxied via unread_count > 0 (trigger-maintained).
 //     draftsPending,   // # rows in whatsapp_drafts where state = 'pending'
 //     conversationsToday, // # distinct conversations touched in last 24h
 //     loading,
 //   }
 //
-// Realtime: subscribes to conversations, drafts, and messages so all
-// three summary numbers stay current without a refresh.
+// Realtime: subscribes to whatsapp_conversations + whatsapp_drafts so
+// the dashboard updates without a refresh. Same pattern as
+// useWhatsAppUnread to stay consistent.
 // ============================================================
 
 import { useState, useEffect, useCallback } from "react";
@@ -49,13 +51,15 @@ export function useWhatsAppSummary() {
     const sinceIso = new Date(Date.now() - DAY_MS).toISOString();
 
     const [convs, drafts, recentMsgs] = await Promise.all([
-      // Conversations whose latest inbound customer message has not
-      // yet been followed by an outbound reply. This deliberately does
-      // not use unread_count because opening a thread marks it read.
+      // Conversations with unread_count > 0 is our proxy for
+      // "awaiting reply". It's maintained by the AFTER INSERT trigger
+      // (migration 029) and reset to 0 by mark_whatsapp_conversation_read.
+      // Imperfect — a staff member could mark-read without replying —
+      // but good enough for an at-a-glance number.
       supabase
         .from("whatsapp_conversations")
-        .select("id, last_inbound_at, last_outbound_at")
-        .not("last_inbound_at", "is", null),
+        .select("id", { count: "exact", head: true })
+        .gt("unread_count", 0),
 
       // Drafts waiting for a human to approve/reject.
       supabase
@@ -76,15 +80,10 @@ export function useWhatsAppSummary() {
     if (drafts.error) console.warn("useWhatsAppSummary drafts:", drafts.error.message);
     if (recentMsgs.error) console.warn("useWhatsAppSummary recent:", recentMsgs.error.message);
 
-    const awaitingReply = (convs.data ?? []).filter((conversation) => {
-      if (!conversation.last_inbound_at) return false;
-      if (!conversation.last_outbound_at) return true;
-      return new Date(conversation.last_inbound_at) > new Date(conversation.last_outbound_at);
-    }).length;
     const uniqueConvIds = new Set((recentMsgs.data ?? []).map((r) => r.conversation_id));
 
     setSummary({
-      awaitingReply,
+      awaitingReply: convs.count ?? 0,
       draftsPending: drafts.count ?? 0,
       conversationsToday: uniqueConvIds.size,
     });
@@ -92,9 +91,13 @@ export function useWhatsAppSummary() {
   }, []);
 
   useEffect(() => {
-    refresh();
     if (!supabase) return;
+    refresh();
 
+    // Only the three events that can change our numbers. We don't
+    // subscribe to whatsapp_messages inserts directly — the trigger
+    // will bump unread_count which comes through as an UPDATE on
+    // whatsapp_conversations, and that's enough.
     const channel = supabase
       .channel("whatsapp-dashboard-summary")
       .on(
@@ -115,11 +118,6 @@ export function useWhatsAppSummary() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_drafts" },
-        () => refresh(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "whatsapp_messages" },
         () => refresh(),
       )
       .subscribe();
