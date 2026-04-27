@@ -459,6 +459,63 @@ async function buildAvailabilityBlock(
   return `${header}\n${lines.join("\n")}`;
 }
 
+// ── Large-dog availability block ──────────────────────────────
+// Queries get_large_dog_day_availability (migration 035) and formats
+// the result as a compact prompt section. Day-level only: the agent
+// may name candidate days but never a time-of-day for a large dog.
+// Spec: docs/superpowers/specs/2026-04-27-whatsapp-agent-large-dog-availability-design.md
+//
+// Format example:
+//   --- Large-dog availability (next 30 days) ---
+//   Days with capacity: Mon 27 Apr, Wed 29 Apr, Tue 05 May
+//   Days fully booked: Tue 28 Apr, Mon 04 May, Wed 06 May
+//
+// - "Days fully booked" is omitted if every open day has capacity.
+// - Body is a single "(no large-dog capacity ...)" line if no day has capacity.
+// - On RPC error, returns an "(unavailable ...)" body and logs a warning.
+async function buildLargeDogAvailabilityBlock(
+  supabase: SupabaseClient,
+  todayIso: string,
+): Promise<string> {
+  const toIso = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 24 * 3600 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data, error } = await supabase.rpc("get_large_dog_day_availability", {
+    p_from: todayIso,
+    p_to: toIso,
+  });
+
+  const header = `--- Large-dog availability (next ${AVAILABILITY_WINDOW_DAYS} days) ---`;
+
+  if (error) {
+    console.warn("buildLargeDogAvailabilityBlock RPC error:", error.message);
+    return `${header}\n(unavailable — tell the customer the team will check the diary)`;
+  }
+
+  const daysWithCapacity: string[] = [];
+  const daysFullyBooked: string[] = [];
+
+  for (const row of (data ?? []) as Array<{ booking_date: string; has_capacity: boolean }>) {
+    const label = formatShortDate(row.booking_date);
+    if (row.has_capacity) {
+      daysWithCapacity.push(label);
+    } else {
+      daysFullyBooked.push(label);
+    }
+  }
+
+  if (daysWithCapacity.length === 0) {
+    return `${header}\n(no large-dog capacity in the next ${AVAILABILITY_WINDOW_DAYS} days — tell the customer the team will check the diary)`;
+  }
+
+  const lines = [`Days with capacity: ${daysWithCapacity.join(", ")}`];
+  if (daysFullyBooked.length > 0) {
+    lines.push(`Days fully booked: ${daysFullyBooked.join(", ")}`);
+  }
+  return `${header}\n${lines.join("\n")}`;
+}
+
 // ── Context for Claude ───────────────────────────────────────
 // We inject this as the user-turn content so the model clearly sees
 // it as data rather than instruction. Keep it compact — Claude does
@@ -551,6 +608,7 @@ async function buildContext(
   // might still propose a slot for a matched dog attached to a different
   // conversation, and unmatched customers will see it via staff approval anyway.
   parts.push(await buildAvailabilityBlock(supabase, todayIso));
+  parts.push(await buildLargeDogAvailabilityBlock(supabase, todayIso));
 
   return parts.join("\n\n");
 }
