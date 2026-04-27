@@ -328,7 +328,7 @@ EOF
 
 ## Task 2: Run a regression test asserting helper agrees with the trigger
 
-This is a one-off `DO $$` block run via MCP `execute_sql`. It seeds a test customer and dog, walks 10 deterministic diary states (covering the main rule branches), calls the helper, then probes the trigger via savepoint-INSERTs at each of the 5 large-dog slots, and asserts agreement. It cleans up after itself.
+This is a one-off `DO $$` block run via MCP `execute_sql`. It seeds a test customer and dog, walks 12 deterministic diary states (covering the main rule branches), calls the helper, then probes the trigger via savepoint-INSERTs at each of the 5 large-dog slots, and asserts agreement. It cleans up after itself.
 
 If it fails, the helper has drifted from the trigger — fix the helper before proceeding.
 
@@ -371,8 +371,8 @@ begin
     values (v_human_id, 'TestSmall', 'Test', 'small')
     returning id into v_dog_id_small;
 
-  -- Walk 10 deterministic diary states.
-  for v_case in 1..10 loop
+  -- Walk 12 deterministic diary states.
+  for v_case in 1..12 loop
     v_test_date := current_date + (v_case + 365);  -- far future, avoids real bookings
     v_total_cases := v_total_cases + 1;
 
@@ -449,6 +449,32 @@ begin
           values (v_test_date, '08:30', v_dog_id_large, 'large', v_service);
         insert into bookings (booking_date, slot, dog_id, size, service)
           values (v_test_date, '12:00', v_dog_id_large, 'large', v_service);
+      when 11 then
+        -- 2-2-1 rule binds at 12:30. 08:30, 12:00, 13:00 all hold 2 smalls
+        -- (basic capacity blocks larges there + 12:00 conditional fails since
+        -- 13:00 != 0). 09:00 blocked by 08:30 conditional. 12:30 itself is
+        -- empty, but 2-2-1 caps it at 1 (12:00=2 + 13:00=2), so a large needing
+        -- 2 seats can't fit. Helper expected: false. Trigger probe: every slot
+        -- rejects.
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '08:30', v_dog_id_small, 'small', v_service);
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '08:30', v_dog_id_small, 'small', v_service);
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '12:00', v_dog_id_small, 'small', v_service);
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '12:00', v_dog_id_small, 'small', v_service);
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '13:00', v_dog_id_small, 'small', v_service);
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '13:00', v_dog_id_small, 'small', v_service);
+      when 12 then
+        -- Enforcement disabled with a partially booked diary. Helper should
+        -- short-circuit to true on the safety flag even when the day is far
+        -- from full. Trigger should also fail open and accept every probe.
+        update salon_config set enforce_server_capacity = false;
+        insert into bookings (booking_date, slot, dog_id, size, service)
+          values (v_test_date, '08:30', v_dog_id_small, 'small', v_service);
     end case;
 
     -- Call the helper.
@@ -485,7 +511,7 @@ begin
   delete from day_settings where setting_date >= current_date + 366;
   delete from dogs where id in (v_dog_id_small, v_dog_id_large);
   delete from humans where id = v_human_id;
-  -- Restore enforcement flag in case Case 8 left it disabled and a later case raised.
+  -- Restore enforcement flag in case Case 8 or Case 12 left it disabled and a later case raised.
   update salon_config set enforce_server_capacity = true where coalesce(enforce_server_capacity, true) = false;
 
   raise notice 'REGRESSION SUMMARY: % disagreements / % cases', v_disagreements, v_total_cases;
@@ -496,7 +522,7 @@ end;
 $$;
 ```
 
-Expected output: 10 `Case N: agree …` notices and a `REGRESSION SUMMARY: 0 disagreements / 10 cases` notice. No exception raised.
+Expected output: 12 `Case N: agree …` notices and a `REGRESSION SUMMARY: 0 disagreements / 12 cases` notice. No exception raised.
 
 If any case disagrees, the trace shows which date/case failed. Read the trigger logic in `006_capacity_trigger.sql` for that slot's rules and reconcile with the helper in `035_whatsapp_agent_large_dog_availability.sql`. Fix the helper, re-apply the migration via MCP `apply_migration` (it's `create or replace`), and re-run this step.
 
