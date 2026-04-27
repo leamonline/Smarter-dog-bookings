@@ -343,7 +343,7 @@ Use `mcp__27bf0079-3c44-48ab-9bd8-774abbea16b6__execute_sql` with:
 ```sql
 do $$
 declare
-  v_customer_id     uuid;
+  v_human_id        uuid;
   v_dog_id_large    uuid;
   v_dog_id_small    uuid;
   v_service         text := 'Full Groom';
@@ -355,18 +355,20 @@ declare
   v_slot            text;
   v_phone           text := '+447000' || (floor(random() * 1000000)::int)::text;
   v_case            integer;
+  v_inserted_id     uuid;
+  v_surname         text := 'LARGE_' || (floor(random() * 1000000)::int)::text;
 begin
-  -- Test fixtures: a brand-new customer with one large dog and one small dog.
-  insert into customers (name, phone)
-    values ('TEST_REGRESSION_LARGE', v_phone)
-    returning id into v_customer_id;
+  -- Test fixtures: a brand-new human with one large dog and one small dog.
+  insert into humans (name, surname, phone)
+    values ('TEST_REGRESSION', v_surname, v_phone)
+    returning id into v_human_id;
 
-  insert into dogs (customer_id, name, size, breed)
-    values (v_customer_id, 'TestLarge', 'large', 'Test')
+  insert into dogs (human_id, name, breed, size)
+    values (v_human_id, 'TestLarge', 'Test', 'large')
     returning id into v_dog_id_large;
 
-  insert into dogs (customer_id, name, size, breed)
-    values (v_customer_id, 'TestSmall', 'small', 'Test')
+  insert into dogs (human_id, name, breed, size)
+    values (v_human_id, 'TestSmall', 'Test', 'small')
     returning id into v_dog_id_small;
 
   -- Walk 10 deterministic diary states.
@@ -452,18 +454,20 @@ begin
     -- Call the helper.
     v_helper_result := large_dog_can_fit_on_day(v_test_date);
 
-    -- Probe the trigger: try inserting a large dog at each slot inside savepoints.
+    -- Probe the trigger: try inserting a large dog at each slot. Each insert
+    -- runs inside an EXCEPTION block, which uses an implicit subtransaction;
+    -- on success we delete the row, on failure PL/pgSQL rolls it back.
     v_insert_ok := false;
     foreach v_slot in array array['08:30', '09:00', '12:00', '12:30', '13:00'] loop
       begin
-        savepoint sp;
         insert into bookings (booking_date, slot, dog_id, size, service)
-          values (v_test_date, v_slot, v_dog_id_large, 'large', v_service);
+          values (v_test_date, v_slot, v_dog_id_large, 'large', v_service)
+          returning id into v_inserted_id;
         v_insert_ok := true;
-        rollback to savepoint sp;
+        delete from bookings where id = v_inserted_id;
       exception
         when others then
-          rollback to savepoint sp;
+          null;  -- trigger rejected the insert; PL/pgSQL implicit savepoint rolls it back
       end;
     end loop;
 
@@ -480,7 +484,7 @@ begin
   delete from bookings where dog_id in (v_dog_id_small, v_dog_id_large);
   delete from day_settings where setting_date >= current_date + 366;
   delete from dogs where id in (v_dog_id_small, v_dog_id_large);
-  delete from customers where id = v_customer_id;
+  delete from humans where id = v_human_id;
   -- Restore enforcement flag in case Case 8 left it disabled and a later case raised.
   update salon_config set enforce_server_capacity = true where coalesce(enforce_server_capacity, true) = false;
 
@@ -501,8 +505,9 @@ If any case disagrees, the trace shows which date/case failed. Read the trigger 
 Run via `execute_sql`:
 ```sql
 select count(*) as orphan_test_data
-  from customers
- where name = 'TEST_REGRESSION_LARGE';
+  from humans
+ where name = 'TEST_REGRESSION'
+   and surname like 'LARGE_%';
 ```
 
 Expected: `[{"orphan_test_data": 0}]`. If the regression block raised mid-way, cleanup may not have run; manually delete leftover rows before continuing:
@@ -510,15 +515,15 @@ Expected: `[{"orphan_test_data": 0}]`. If the regression block raised mid-way, c
 ```sql
 -- Manual cleanup if needed:
 delete from bookings where dog_id in (
-  select id from dogs where customer_id in (
-    select id from customers where name = 'TEST_REGRESSION_LARGE'
+  select id from dogs where human_id in (
+    select id from humans where name = 'TEST_REGRESSION' and surname like 'LARGE_%'
   )
 );
 delete from day_settings where setting_date >= current_date + 366;
-delete from dogs where customer_id in (
-  select id from customers where name = 'TEST_REGRESSION_LARGE'
+delete from dogs where human_id in (
+  select id from humans where name = 'TEST_REGRESSION' and surname like 'LARGE_%'
 );
-delete from customers where name = 'TEST_REGRESSION_LARGE';
+delete from humans where name = 'TEST_REGRESSION' and surname like 'LARGE_%';
 update salon_config set enforce_server_capacity = true;
 ```
 
