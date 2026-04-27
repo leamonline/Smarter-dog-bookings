@@ -646,6 +646,52 @@ export function useHumans() {
     }
   }, []);
 
+  const deleteHuman = useCallback(
+    async (humanId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!humanId) return { ok: false, error: "Missing human id" };
+
+      const existing = humansById[humanId];
+      if (!existing) return { ok: false, error: "Human not found" };
+
+      const prevHumans = humans;
+      const prevHumansById = humansById;
+
+      // Optimistic remove
+      setHumansById((prev) => {
+        const next = { ...prev };
+        delete next[humanId];
+        return next;
+      });
+      setHumans((prev) => {
+        const next = { ...prev };
+        const entry = Object.entries(next).find(
+          ([, human]: [string, any]) => human.id === humanId,
+        );
+        if (entry) delete next[entry[0]];
+        return next;
+      });
+
+      if (!supabase) return { ok: true };
+
+      const { error: err } = await supabase.from("humans").delete().eq("id", humanId);
+
+      if (err) {
+        // Rollback on failure
+        setHumans(prevHumans);
+        setHumansById(prevHumansById);
+        const friendly =
+          err.code === "23503"
+            ? "This person can't be deleted — they're listed as the pickup contact on at least one booking. Reassign those bookings first."
+            : err.message || "Failed to delete human";
+        return { ok: false, error: friendly };
+      }
+
+      setTotalCount((c) => Math.max(0, c - 1));
+      return { ok: true };
+    },
+    [humans, humansById],
+  );
+
   return {
     humans,
     humansById,
@@ -653,6 +699,7 @@ export function useHumans() {
     error,
     updateHuman,
     addHuman,
+    deleteHuman,
     hasMore,
     totalCount,
     loadMore,

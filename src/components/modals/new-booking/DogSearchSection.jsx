@@ -225,19 +225,34 @@ export function DogSearchSection({
             {/* Dropdown results — one card per dog, humans nested inside */}
             {filteredEntries.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
-                {filteredEntries.map((entry, idx) => (
+                {filteredEntries.map((entry, idx) => {
+                  const primaryHuman = entry.humans[0];
+                  const selectPrimary = () =>
+                    onSelectEntry({
+                      dog: entry.dog,
+                      humanKey: primaryHuman?.key || "",
+                      humanPhone: primaryHuman?.phone || "",
+                      isTrusted: primaryHuman?.isTrusted || false,
+                      hasAlerts: entry.hasAlerts,
+                    });
+                  return (
                   <div
                     key={entry.dog.id}
                     className="px-3.5 py-2.5"
                     style={{ borderBottom: idx < filteredEntries.length - 1 ? "1px solid #E5E7EB" : "none" }}
                   >
-                    {/* Dog header */}
-                    <div className="flex items-center gap-1.5 min-w-0 mb-1.5">
+                    {/* Dog header — clickable, picks the primary owner by default */}
+                    <button
+                      type="button"
+                      onMouseDown={selectPrimary}
+                      aria-label={`Book ${titleCase(entry.dog.name)}${primaryHuman ? ` with ${titleCase(primaryHuman.key)}` : ""}`}
+                      className="flex items-center gap-1.5 min-w-0 mb-1.5 w-full text-left bg-transparent border-none cursor-pointer p-0 font-[inherit] rounded-md transition-colors hover:bg-slate-50"
+                    >
                       <span className="text-sm font-bold text-slate-800">{titleCase(entry.dog.name)}</span>
                       <span className="text-xs text-slate-400">—</span>
                       <span className="text-xs text-slate-500">{titleCase(entry.dog.breed)}</span>
                       {entry.hasAlerts && <span className="text-[13px]" aria-label="Has alerts">⚠️</span>}
-                    </div>
+                    </button>
 
                     {/* Humans — each row is clickable to pick that (dog, human) pair */}
                     {entry.humans.length === 0 ? (
@@ -278,7 +293,8 @@ export function DogSearchSection({
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

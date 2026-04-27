@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
+import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
 
 function waLink(phone) {
@@ -16,11 +18,25 @@ function sizeDot(size) {
   return t ? t.gradient[0] : "#94A3B8";
 }
 
-export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // { id, name, dogCount }
+  const toast = useToast();
 
   const sortedHumans = useMemo(() => Object.values(humans).sort((a, b) => a.name.localeCompare(b.name)), [humans]);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { id, name } = pendingDelete;
+    const result = await onDeleteHuman?.(id);
+    setPendingDelete(null);
+    if (result?.ok) {
+      toast.show(`Deleted ${titleCase(name)}`, "success");
+    } else if (result?.error) {
+      toast.show(result.error, "error");
+    }
+  };
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
@@ -71,8 +87,30 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog,
             <div
               key={human.id}
               onClick={() => onOpenHuman(human.id || fullName)}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
+              {onDeleteHuman && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDelete({
+                      id: human.id,
+                      name: fullName,
+                      dogCount: humanDogs.length,
+                    });
+                  }}
+                  aria-label={`Delete ${titleCase(fullName)}`}
+                  className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-md bg-white/95 border border-slate-200 text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-brand-coral hover:border-brand-coral transition-all flex items-center justify-center cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              )}
               <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594] shrink-0" />
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
@@ -175,6 +213,21 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog,
           dogs={dogs}
           humans={humans}
           onUpdateDog={onUpdateDog}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          title={`Delete ${titleCase(pendingDelete.name)}?`}
+          message="They'll be removed from the directory. WhatsApp threads will stay but lose their link to this person."
+          cascadeWarning={
+            pendingDelete.dogCount > 0
+              ? `This will also delete ${pendingDelete.dogCount} dog${pendingDelete.dogCount === 1 ? "" : "s"} owned by them, plus all of their booking history and groom photos.`
+              : null
+          }
+          confirmLabel="Delete person"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setPendingDelete(null)}
         />
       )}
     </div>

@@ -191,6 +191,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     error: he,
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
+    deleteHuman: sbDeleteHuman,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
     loadMore: humansLoadMore,
@@ -205,11 +206,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     error: de,
     updateDog: sbUpdateDog,
     addDog: sbAddDog,
+    deleteDog: sbDeleteDog,
     fetchDogById,
     hasMore: dogsHasMore,
     totalCount: dogsTotalCount,
     loadMore: dogsLoadMore,
     searchDogs: dogsSearchDogs,
+    clearSearch: dogsClearSearch,
     searchQuery: dogsSearchQuery,
     isSearching: dogsIsSearching,
   } = useDogs(humansById);
@@ -354,6 +357,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={setSelectedHumanId}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onDeleteHuman={sbDeleteHuman}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -369,6 +373,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenDog={setSelectedDogId}
                       onAddDog={addDog}
                       onAddHuman={addHuman}
+                      onDeleteDog={sbDeleteDog}
                       hasMore={dogsHasMore}
                       totalCount={dogsTotalCount}
                       loadMore={dogsLoadMore}
@@ -464,11 +469,15 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <NewBookingModal
-                  onClose={() => setShowNewBooking(null)}
+                  onClose={() => {
+                    setShowNewBooking(null);
+                    dogsClearSearch();
+                  }}
                   onAdd={(bookingOrArray, dateStr) => {
                     const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
                     list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
                     setShowNewBooking(null);
+                    dogsClearSearch();
                   }}
                   dogs={dogs}
                   humans={humans}

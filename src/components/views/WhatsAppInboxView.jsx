@@ -22,6 +22,7 @@
 import { useState, useEffect } from "react";
 import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
+import { titleCase } from "../../utils/text.js";
 
 // ── Formatting helpers ──────────────────────────────────────
 function formatWhen(iso) {
@@ -40,7 +41,9 @@ function formatWhen(iso) {
 
 function displayName(conv) {
   if (conv?.humans?.name) {
-    return `${conv.humans.name}${conv.humans.surname ? " " + conv.humans.surname : ""}`;
+    const name = titleCase(conv.humans.name);
+    const surname = conv.humans.surname ? " " + titleCase(conv.humans.surname) : "";
+    return `${name}${surname}`;
   }
   return conv?.phone_e164 ?? "Unknown";
 }

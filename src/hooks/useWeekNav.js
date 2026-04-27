@@ -12,6 +12,11 @@ export function useWeekNav() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(0);
   const initialised = useRef(false);
+  // Tracks whether internal (selectedDay/weekOffset) state has caught up to
+  // the URL's ?date= param. Until it has, the sync effect must NOT write to
+  // the URL — otherwise an early render captures stale `dates` and clobbers
+  // the URL with a wrong day before handleDatePick's setState calls land.
+  const initSynced = useRef(false);
 
   const weekStart = useMemo(() => {
     const today = new Date();
@@ -82,22 +87,37 @@ export function useWeekNav() {
     if (initialised.current) return;
     initialised.current = true;
     const dateParam = searchParams.get("date");
-    if (!dateParam) return;
+    if (!dateParam) {
+      // No URL date to honour — the sync effect can write freely.
+      initSynced.current = true;
+      return;
+    }
     const parsed = new Date(dateParam + "T00:00:00");
     if (!isNaN(parsed.getTime())) {
       handleDatePick(parsed);
+    } else {
+      initSynced.current = true;
     }
-  }, []);  
+  }, []);
 
-  // Sync current date to URL params
+  // Sync current date to URL params. Skipped while the URL is still being
+  // honoured — `initSynced` flips once the rendered dateStr matches the URL.
   useEffect(() => {
     const dateStr = dates[selectedDay]?.dateStr;
     if (!dateStr) return;
     const current = searchParams.get("date");
+
+    if (!initSynced.current) {
+      if (current && dateStr === current) {
+        initSynced.current = true;
+      }
+      return;
+    }
+
     if (current !== dateStr) {
       setSearchParams({ date: dateStr }, { replace: true });
     }
-  }, [selectedDay, dates]);  
+  }, [selectedDay, dates]);
 
   return {
     weekOffset,
