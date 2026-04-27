@@ -9,13 +9,13 @@ export const SAMPLE_HUMANS = {
 };
 
 export const SAMPLE_DOGS = {
-  "Bella": { id: "d1", name: "Bella", breed: "Cockapoo", age: "3 yrs", humanId: "Sarah Jones", alerts: ["Allergic to oatmeal shampoo"], groomNotes: "Teddy bear cut, short on ears." },
-  "Max": { id: "d2", name: "Max", breed: "Shih Tzu", age: "5 yrs", humanId: "Dave Smith", alerts: ["Bites / Nips"], groomNotes: "Leave tail long." },
-  "Luna": { id: "d3", name: "Luna", breed: "Cavapoo", age: "2 yrs", humanId: "Emma Wilson", alerts: [], groomNotes: "" },
-  "Charlie": { id: "d4", name: "Charlie", breed: "Bichon Frise", age: "4 yrs", humanId: "Tom Baker", alerts: [], groomNotes: "" },
-  "Daisy": { id: "d5", name: "Daisy", breed: "Poodle", age: "1 yr", humanId: "Lisa Brown" },
-  "Milo": { id: "d6", name: "Milo", breed: "Maltese", age: "6 yrs", humanId: "Jenny Taylor" },
-  "Rex": { id: "d7", name: "Rex", breed: "Labrador", age: "7 yrs", humanId: "Mark Johnson" },
+  "Bella": { id: "d1", name: "Bella", breed: "Cockapoo", age: "3 yrs", size: "medium", humanId: "Sarah Jones", alerts: ["Allergic to oatmeal shampoo"], groomNotes: "Teddy bear cut, short on ears." },
+  "Max": { id: "d2", name: "Max", breed: "Shih Tzu", age: "5 yrs", size: "small", humanId: "Dave Smith", alerts: ["Bites / Nips"], groomNotes: "Leave tail long." },
+  "Luna": { id: "d3", name: "Luna", breed: "Cavapoo", age: "2 yrs", size: "small", humanId: "Emma Wilson", alerts: [], groomNotes: "" },
+  "Charlie": { id: "d4", name: "Charlie", breed: "Bichon Frise", age: "4 yrs", size: "small", humanId: "Tom Baker", alerts: [], groomNotes: "" },
+  "Daisy": { id: "d5", name: "Daisy", breed: "Poodle", age: "1 yr", size: "medium", humanId: "Lisa Brown" },
+  "Milo": { id: "d6", name: "Milo", breed: "Maltese", age: "6 yrs", size: "small", humanId: "Jenny Taylor" },
+  "Rex": { id: "d7", name: "Rex", breed: "Labrador", age: "7 yrs", size: "large", humanId: "Mark Johnson" },
 };
 
 export const SAMPLE_BOOKINGS_BY_DAY = {
