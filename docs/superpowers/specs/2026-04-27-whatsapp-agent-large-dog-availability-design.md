@@ -51,10 +51,13 @@ Pseudocode for the per-slot check (every line maps to a check that exists in `va
 if salon_config.enforce_server_capacity = false:
     return true
 
--- Note: day_settings.overrides is NOT read. Overrides in this codebase
--- encode per-seat blocking flags ({"<slot>": {"<seat_idx>": "blocked"|"open"}})
--- and are enforced only by the frontend capacity engine. The 006 trigger
--- does not consult them, so neither does this helper.
+-- Note: day_settings.overrides ARE honoured for the "both seats blocked"
+-- case. Shape: {"<slot>": {"<seat_idx>": "blocked"|"open"}} (per slot,
+-- per seat-index 0/1). When BOTH seats of a slot are explicitly blocked
+-- by staff, treat that slot as cap=0 (skip). Single-seat blocks and
+-- "open" expansions are NOT honoured — staff approval at booking time
+-- catches those. The 006 trigger does NOT read overrides, so the agent
+-- view deliberately diverges from the trigger here.
 
 let seats_used   = get_seats_used(date, slot)
 let seats_array  = [get_seats_used(date, s) for s in active_slots()]

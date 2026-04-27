@@ -533,6 +533,23 @@ No file changes here; the regression test was transient. Skip the commit step fo
 
 ---
 
+## Task 2b: Migration 036 — honour seat-level overrides
+
+(See migration 036 for full SQL.) Reads `day_settings.overrides` in the
+real seat-level shape used by the frontend, and treats a slot as cap=0
+when both seats are explicitly blocked. Does NOT honour single-seat
+blocks or "open" expansions.
+
+- Migration: `supabase/migrations/036_whatsapp_agent_availability_honour_seat_overrides.sql`
+- Updates `get_small_medium_availability` (originally 034) and
+  `large_dog_can_fit_on_day` (originally 035) via `create or replace`.
+- Verified via 4 override-semantics tests; existing 10-case agreement
+  regression still passes (no override usage in those cases).
+- Spec note in `docs/superpowers/specs/2026-04-27-whatsapp-agent-large-dog-availability-design.md`
+  updated to describe the actual semantics.
+
+---
+
 ## Task 3: Add `buildLargeDogAvailabilityBlock` and wire into `buildContext`
 
 **Files:**
