@@ -51,9 +51,10 @@ Pseudocode for the per-slot check (every line maps to a check that exists in `va
 if salon_config.enforce_server_capacity = false:
     return true
 
--- per-slot soft cap from day_settings.overrides; default 2
-let slot_cap = (day_settings.overrides → date → slot)::int default 2
-if slot_cap = 0: skip slot
+-- Note: day_settings.overrides is NOT read. Overrides in this codebase
+-- encode per-seat blocking flags ({"<slot>": {"<seat_idx>": "blocked"|"open"}})
+-- and are enforced only by the frontend capacity engine. The 006 trigger
+-- does not consult them, so neither does this helper.
 
 let seats_used   = get_seats_used(date, slot)
 let seats_array  = [get_seats_used(date, s) for s in active_slots()]
@@ -206,7 +207,6 @@ Inbound WhatsApp message
    - Day with one large dog at 12:00 → helper returns `true` (08:30/09:00/12:30 still bookable; 13:00 is correctly excluded by early-close).
    - Day with large dogs at both 12:30 and 13:00 → helper returns `false` (back-to-back + remaining slots also rule-blocked).
    - Day with bookings at 08:30 (≥1) and 10:00 (≥2) → 09:00 conditional fails. With 12:00, 12:30, 13:00 also full/blocked, helper returns `false`.
-   - Day with `day_settings.overrides` setting 12:00 to capacity 0 plus other slots full or rule-blocked → helper returns `false`.
    - Day with `salon_config.enforce_server_capacity = false` → helper returns `true` even on a fully booked day.
 4. **Regression test against the trigger (CI-runnable):** for ~50 random booking permutations, call `large_dog_can_fit_on_day(date)`, then attempt one large-dog INSERT at each of the 5 allowed slots inside savepoints. Assert: helper returns `true` ⇔ at least one savepoint INSERT succeeds. Catches drift in either direction.
 

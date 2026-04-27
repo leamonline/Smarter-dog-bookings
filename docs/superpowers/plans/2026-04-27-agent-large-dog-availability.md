@@ -82,7 +82,6 @@ declare
   v_enforce       boolean;
   v_slots         text[];
   v_seats_array   integer[];
-  v_overrides     jsonb;
   v_large_slots   text[] := array['08:30', '09:00', '12:00', '12:30', '13:00'];
   v_slot          text;
   v_slot_index    integer;
@@ -92,7 +91,6 @@ declare
   v_has_large     boolean;
   v_can_share     boolean;
   v_seats_needed  integer;
-  v_slot_cap      integer;
   v_prev_slot     text;
   v_next_slot     text;
   i               integer;
@@ -107,12 +105,6 @@ begin
     return true;
   end if;
 
-  -- Pull day_settings.overrides once for the per-slot soft cap.
-  select ds.overrides into v_overrides
-    from day_settings ds
-   where ds.setting_date = p_date;
-  v_overrides := coalesce(v_overrides, '{}'::jsonb);
-
   -- Build seats_used array for ALL slots on this date (used by 2-2-1 rule).
   v_slots := active_slots();
   v_seats_array := array[]::integer[];
@@ -124,15 +116,6 @@ begin
 
   -- Try each large-dog allowed slot in order; return true on first that fits.
   foreach v_slot in array v_large_slots loop
-    -- Per-slot soft cap from day_settings.overrides; cap=0 means closed.
-    v_slot_cap := coalesce(
-      (v_overrides -> (p_date::text) ->> v_slot)::int,
-      2
-    );
-    if v_slot_cap = 0 then
-      continue;
-    end if;
-
     -- Find slot index in active_slots() for 2-2-1 lookup.
     v_slot_index := null;
     for i in 1..array_length(v_slots, 1) loop
@@ -327,7 +310,7 @@ feat(db): add large-dog day-level availability RPC for WhatsApp agent
 New helper large_dog_can_fit_on_day(date) walks the 5 large-dog allowed
 slots and returns true on the first that passes the same rules the 006
 trigger checks (09:00/12:00 conditionals, 13:00 early close, back-to-back,
-can-share/full-takeover capacity, 2-2-1 cap, day_settings overrides).
+can-share/full-takeover capacity, 2-2-1 cap).
 
 New RPC get_large_dog_day_availability(from, to) returns
 (date, has_capacity) per open day in the range, mirroring 034's
@@ -345,7 +328,7 @@ EOF
 
 ## Task 2: Run a regression test asserting helper agrees with the trigger
 
-This is a one-off `DO $$` block run via MCP `execute_sql`. It seeds a test customer and dog, walks 12 deterministic diary states (covering the main rule branches), calls the helper, then probes the trigger via savepoint-INSERTs at each of the 5 large-dog slots, and asserts agreement. It cleans up after itself.
+This is a one-off `DO $$` block run via MCP `execute_sql`. It seeds a test customer and dog, walks 10 deterministic diary states (covering the main rule branches), calls the helper, then probes the trigger via savepoint-INSERTs at each of the 5 large-dog slots, and asserts agreement. It cleans up after itself.
 
 If it fails, the helper has drifted from the trigger — fix the helper before proceeding.
 
@@ -386,8 +369,8 @@ begin
     values (v_customer_id, 'TestSmall', 'small', 'Test')
     returning id into v_dog_id_small;
 
-  -- Walk 12 deterministic diary states.
-  for v_case in 1..12 loop
+  -- Walk 10 deterministic diary states.
+  for v_case in 1..10 loop
     v_test_date := current_date + (v_case + 365);  -- far future, avoids real bookings
     v_total_cases := v_total_cases + 1;
 
@@ -456,26 +439,6 @@ begin
         -- Mark this date closed via day_settings → RPC will skip; helper still callable.
         insert into day_settings (setting_date, is_open) values (v_test_date, false);
       when 10 then
-        -- Empty day but with day_settings.overrides setting all 5 large slots to 0.
-        insert into day_settings (setting_date, overrides) values (
-          v_test_date,
-          jsonb_build_object(
-            v_test_date::text,
-            jsonb_build_object(
-              '08:30', 0, '09:00', 0, '12:00', 0, '12:30', 0, '13:00', 0
-            )
-          )
-        );
-      when 11 then
-        -- Override: 12:30 cap=0 only, otherwise empty day. Other 4 slots free → helper=true.
-        insert into day_settings (setting_date, overrides) values (
-          v_test_date,
-          jsonb_build_object(
-            v_test_date::text,
-            jsonb_build_object('12:30', 0)
-          )
-        );
-      when 12 then
         -- Two larges at 08:30 and 12:00 (both shareable slots, no second large allowed).
         -- 09:00 blocked by 08:30 conditional. 13:00 blocked by 12:00 early close.
         -- 12:30: back-to-back check from 12:00 is shareable so doesn't trigger; OK if empty.
@@ -529,7 +492,7 @@ end;
 $$;
 ```
 
-Expected output: 12 `Case N: agree …` notices and a `REGRESSION SUMMARY: 0 disagreements / 12 cases` notice. No exception raised.
+Expected output: 10 `Case N: agree …` notices and a `REGRESSION SUMMARY: 0 disagreements / 10 cases` notice. No exception raised.
 
 If any case disagrees, the trace shows which date/case failed. Read the trigger logic in `006_capacity_trigger.sql` for that slot's rules and reconcile with the helper in `035_whatsapp_agent_large_dog_availability.sql`. Fix the helper, re-apply the migration via MCP `apply_migration` (it's `create or replace`), and re-run this step.
 
@@ -876,7 +839,7 @@ Plan: [docs/superpowers/plans/2026-04-27-agent-large-dog-availability.md](docs/s
 ## Test plan
 
 - [x] Migration applied + helper/RPC sanity-checked (Task 1)
-- [x] Regression test: 12 deterministic diary states, helper agrees with trigger via savepoint-INSERT probe (Task 2)
+- [x] Regression test: 10 deterministic diary states, helper agrees with trigger via savepoint-INSERT probe (Task 2)
 - [x] Edge function deployed + logs clean (Task 5 Steps 1-2)
 - [x] Large-dog test produced no booking_action panel; reply named a day with no time-of-day (Task 5 Step 3)
 - [x] Small-dog regression: booking_action panel still works as in #58 (Task 5 Step 4)
@@ -899,7 +862,6 @@ Expected: a PR URL is returned. Paste it into your follow-up comment so the revi
 - New RPC `get_large_dog_day_availability(p_from, p_to)` with same open-day filter as 034: Task 1.1 ✓
 - Reuses `active_slots`, `get_seats_needed`, `get_seats_used`, `has_large_dog`, `is_large_dog_slot`, `large_dog_can_share`, `get_max_seats_for_slot`: Task 1.1 ✓
 - `enforce_server_capacity` fail-open: Task 1.1 (in helper) ✓
-- `day_settings.overrides` per-slot soft cap honoured: Task 1.1 ✓
 - 30-day window: Task 3.1 (reuses existing `AVAILABILITY_WINDOW_DAYS`) ✓
 - Compact "Days with capacity / Days fully booked" format: Task 3.1 ✓
 - "Days fully booked" omitted if empty; "no capacity" body if no day has capacity: Task 3.1 ✓

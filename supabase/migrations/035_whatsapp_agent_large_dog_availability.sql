@@ -31,7 +31,6 @@ declare
   v_enforce       boolean;
   v_slots         text[];
   v_seats_array   integer[];
-  v_overrides     jsonb;
   v_large_slots   text[] := array['08:30', '09:00', '12:00', '12:30', '13:00'];
   v_slot          text;
   v_slot_index    integer;
@@ -41,7 +40,6 @@ declare
   v_has_large     boolean;
   v_can_share     boolean;
   v_seats_needed  integer;
-  v_slot_cap      integer;
   v_prev_slot     text;
   v_next_slot     text;
   i               integer;
@@ -56,12 +54,6 @@ begin
     return true;
   end if;
 
-  -- Pull day_settings.overrides once for the per-slot soft cap.
-  select ds.overrides into v_overrides
-    from day_settings ds
-   where ds.setting_date = p_date;
-  v_overrides := coalesce(v_overrides, '{}'::jsonb);
-
   -- Build seats_used array for ALL slots on this date (used by 2-2-1 rule).
   v_slots := active_slots();
   v_seats_array := array[]::integer[];
@@ -73,15 +65,6 @@ begin
 
   -- Try each large-dog allowed slot in order; return true on first that fits.
   foreach v_slot in array v_large_slots loop
-    -- Per-slot soft cap from day_settings.overrides; cap=0 means closed.
-    v_slot_cap := coalesce(
-      (v_overrides -> (p_date::text) ->> v_slot)::int,
-      2
-    );
-    if v_slot_cap = 0 then
-      continue;
-    end if;
-
     -- Find slot index in active_slots() for 2-2-1 lookup.
     v_slot_index := null;
     for i in 1..array_length(v_slots, 1) loop
