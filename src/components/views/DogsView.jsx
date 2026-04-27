@@ -68,12 +68,13 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
       </div>
 
       {/* Size legend */}
-      <div className="flex items-center gap-4 mb-3 text-xs font-semibold text-slate-500">
+      <div className="flex items-center gap-4 mb-3 text-xs font-semibold text-slate-500 flex-wrap">
         <span className="text-slate-400 uppercase tracking-wide text-[10px] font-bold">Size:</span>
         {[
-          { label: "Small", colour: "#F5C518" },
-          { label: "Medium", colour: "#2D8B7A" },
-          { label: "Large", colour: "#E7546C" },
+          { label: "Small", colour: SIZE_THEME.small.gradient[0] },
+          { label: "Medium", colour: SIZE_THEME.medium.gradient[0] },
+          { label: "Large", colour: SIZE_THEME.large.gradient[0] },
+          { label: "Unset", colour: SIZE_FALLBACK.gradient[0] },
         ].map((s) => (
           <span key={s.label} className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.colour }} />
