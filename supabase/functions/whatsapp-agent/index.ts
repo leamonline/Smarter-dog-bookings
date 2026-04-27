@@ -201,11 +201,12 @@ HARD RULES — always
 - NEVER directly confirm, move, or cancel a booking in the text. Staff approves every action before it reaches the diary.
 - You MAY propose a new booking action only when all of these are explicit or safely resolved from context: exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID. Use only dog IDs shown in context.
 - For booking_action proposals: if the dog's size is "small" or "medium", the booking_date + slot you cite MUST appear in the "--- Availability ---" block. If the dog's size is "large" (or unknown), do NOT propose a booking_action regardless of availability — say "the team will check the diary".
+- For LARGE dogs: when "--- Large-dog availability ---" is present, you MAY name specific days from "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") and you MAY acknowledge a tight diary when "Days fully booked" is long ("the next few weeks are very busy for large dogs"). You MUST NOT cite a time-of-day for a large dog. You MUST NOT propose a booking_action for a large dog. The customer must still clearly expect a follow-up confirmation from staff — banned phrasing from above still applies.
 - If you include booking_action, the proposed_text MUST NOT imply the booking already exists. BANNED phrases: "booked in", "pencilled in", "penciled in", "you're in", "all booked", "added to the diary", "locked in", "sorted". Instead say something like "I'll get this passed to the team and we'll confirm once it's in the diary" — the customer must clearly expect a follow-up confirmation from us.
 - If any booking detail is missing or ambiguous, do not include booking_action. Ask for the missing detail or say staff will check the diary.
 - Do not propose reschedules or cancellations yet. For those, set intent booking_change or booking_cancel and write a holding reply.
 - NEVER quote prices as fixed guarantees. Guide prices are okay when clearly labelled as "starts from" or "guide price".
-- NEVER invent appointment slots. If the "--- Availability ---" block is present, you may only cite dates and times from that block. If it's missing, empty, or says "unavailable", say "let me just check the diary and come back to you".
+- NEVER invent appointment slots or days. For SMALL/MEDIUM, you may only cite dates and times from "--- Availability ---". For LARGE, you may only cite days from "--- Large-dog availability ---" (and never times of day). If a block is missing, empty, or says "unavailable", say "let me just check the diary and come back to you".
 - NEVER promise same-day turnaround or specific groomer assignments.
 - If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply ("thanks for letting me know, I'll make sure one of the team sees this straight away"). Don't attempt to resolve.
 - If a message seems medical or safety-related (dog unwell, injury, adverse reaction to grooming) → intent "escalate", brief holding reply, let staff handle.
@@ -459,6 +460,63 @@ async function buildAvailabilityBlock(
   return `${header}\n${lines.join("\n")}`;
 }
 
+// ── Large-dog availability block ──────────────────────────────
+// Queries get_large_dog_day_availability (migration 035) and formats
+// the result as a compact prompt section. Day-level only: the agent
+// may name candidate days but never a time-of-day for a large dog.
+// Spec: docs/superpowers/specs/2026-04-27-whatsapp-agent-large-dog-availability-design.md
+//
+// Format example:
+//   --- Large-dog availability (next 30 days) ---
+//   Days with capacity: Mon 27 Apr, Wed 29 Apr, Tue 05 May
+//   Days fully booked: Tue 28 Apr, Mon 04 May, Wed 06 May
+//
+// - "Days fully booked" is omitted if every open day has capacity.
+// - Body is a single "(no large-dog capacity ...)" line if no day has capacity.
+// - On RPC error, returns an "(unavailable ...)" body and logs a warning.
+async function buildLargeDogAvailabilityBlock(
+  supabase: SupabaseClient,
+  todayIso: string,
+): Promise<string> {
+  const toIso = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 24 * 3600 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data, error } = await supabase.rpc("get_large_dog_day_availability", {
+    p_from: todayIso,
+    p_to: toIso,
+  });
+
+  const header = `--- Large-dog availability (next ${AVAILABILITY_WINDOW_DAYS} days) ---`;
+
+  if (error) {
+    console.warn("buildLargeDogAvailabilityBlock RPC error:", error.message);
+    return `${header}\n(unavailable — tell the customer the team will check the diary)`;
+  }
+
+  const daysWithCapacity: string[] = [];
+  const daysFullyBooked: string[] = [];
+
+  for (const row of (data ?? []) as Array<{ booking_date: string; has_capacity: boolean }>) {
+    const label = formatShortDate(row.booking_date);
+    if (row.has_capacity) {
+      daysWithCapacity.push(label);
+    } else {
+      daysFullyBooked.push(label);
+    }
+  }
+
+  if (daysWithCapacity.length === 0) {
+    return `${header}\n(no large-dog capacity in the next ${AVAILABILITY_WINDOW_DAYS} days — tell the customer the team will check the diary)`;
+  }
+
+  const lines = [`Days with capacity: ${daysWithCapacity.join(", ")}`];
+  if (daysFullyBooked.length > 0) {
+    lines.push(`Days fully booked: ${daysFullyBooked.join(", ")}`);
+  }
+  return `${header}\n${lines.join("\n")}`;
+}
+
 // ── Context for Claude ───────────────────────────────────────
 // We inject this as the user-turn content so the model clearly sees
 // it as data rather than instruction. Keep it compact — Claude does
@@ -551,6 +609,7 @@ async function buildContext(
   // might still propose a slot for a matched dog attached to a different
   // conversation, and unmatched customers will see it via staff approval anyway.
   parts.push(await buildAvailabilityBlock(supabase, todayIso));
+  parts.push(await buildLargeDogAvailabilityBlock(supabase, todayIso));
 
   return parts.join("\n\n");
 }
