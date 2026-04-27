@@ -210,6 +210,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     totalCount: dogsTotalCount,
     loadMore: dogsLoadMore,
     searchDogs: dogsSearchDogs,
+    clearSearch: dogsClearSearch,
     searchQuery: dogsSearchQuery,
     isSearching: dogsIsSearching,
   } = useDogs(humansById);
@@ -464,11 +465,15 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <NewBookingModal
-                  onClose={() => setShowNewBooking(null)}
+                  onClose={() => {
+                    setShowNewBooking(null);
+                    dogsClearSearch();
+                  }}
                   onAdd={(bookingOrArray, dateStr) => {
                     const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
                     list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
                     setShowNewBooking(null);
+                    dogsClearSearch();
                   }}
                   dogs={dogs}
                   humans={humans}

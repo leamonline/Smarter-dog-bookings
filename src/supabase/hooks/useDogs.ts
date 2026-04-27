@@ -140,6 +140,40 @@ export function useDogs(humansById: Record<string, any>) {
     setHasMore(rows.length >= PAGE_SIZE);
   }, [dogsById, humansById]);
 
+  const clearSearch = useCallback(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    setSearchQuery("");
+    setIsSearching(false);
+
+    if (!supabase) return;
+
+    (async () => {
+      const { count } = await supabase!
+        .from("dogs")
+        .select("*", { count: "exact", head: true });
+
+      setTotalCount(count ?? 0);
+
+      const { data, error: err } = await supabase!
+        .from("dogs")
+        .select("*")
+        .order("name")
+        .limit(PAGE_SIZE);
+
+      if (err) {
+        setError(err.message);
+        return;
+      }
+
+      const rows = data || [];
+      setDogsById(buildDogsById(rows));
+      setDogs(dbDogsToMap(rows, humansById || {}));
+      setHasMore(rows.length >= PAGE_SIZE);
+    })();
+  }, [humansById]);
+
   const searchDogs = useCallback(
     (query: string) => {
       setSearchQuery(query);
@@ -149,36 +183,7 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       if (!query.trim()) {
-        // Clear search — re-fetch first page
-        if (!supabase) return;
-
-        setIsSearching(false);
-
-        async function refetch() {
-          const { count } = await supabase!
-            .from("dogs")
-            .select("*", { count: "exact", head: true });
-
-          setTotalCount(count ?? 0);
-
-          const { data, error: err } = await supabase!
-            .from("dogs")
-            .select("*")
-            .order("name")
-            .limit(PAGE_SIZE);
-
-          if (err) {
-            setError(err.message);
-            return;
-          }
-
-          const rows = data || [];
-          setDogsById(buildDogsById(rows));
-          setDogs(dbDogsToMap(rows, humansById || {}));
-          setHasMore(rows.length >= PAGE_SIZE);
-        }
-
-        refetch();
+        clearSearch();
         return;
       }
 
@@ -206,7 +211,7 @@ export function useDogs(humansById: Record<string, any>) {
         setHasMore(false);
       }, 300);
     },
-    [humansById],
+    [humansById, clearSearch],
   );
 
   const updateDog = useCallback(
@@ -482,6 +487,7 @@ export function useDogs(humansById: Record<string, any>) {
     totalCount,
     loadMore,
     searchDogs,
+    clearSearch,
     searchQuery,
     isSearching,
   };
