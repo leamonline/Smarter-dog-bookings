@@ -3,6 +3,8 @@ import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
+import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
 
 function computeAge(dog) {
@@ -26,11 +28,25 @@ function sizeDot(size) {
   return t.gradient[0];
 }
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDeleteDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // { id, name }
+  const toast = useToast();
 
   const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { id, name } = pendingDelete;
+    const result = await onDeleteDog?.(id);
+    setPendingDelete(null);
+    if (result?.ok) {
+      toast.show(`Deleted ${titleCase(name)}`, "success");
+    } else if (result?.error) {
+      toast.show(result.error, "error");
+    }
+  };
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
@@ -100,8 +116,26 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
             <div
               key={dog.id}
               onClick={() => onOpenDog(dog.id || dog.name)}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
+              {onDeleteDog && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDelete({ id: dog.id, name: dog.name });
+                  }}
+                  aria-label={`Delete ${titleCase(dog.name)}`}
+                  className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-md bg-white/95 border border-slate-200 text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-brand-coral hover:border-brand-coral transition-all flex items-center justify-center cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              )}
               <div className="h-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1] || t.gradient[0]})` }} />
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
@@ -178,6 +212,16 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           onAdd={onAddDog}
           onAddHuman={onAddHuman}
           humans={humans}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          title={`Delete ${titleCase(pendingDelete.name)}?`}
+          message="This will also remove their booking history and any groom photos."
+          confirmLabel="Delete dog"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setPendingDelete(null)}
         />
       )}
     </div>

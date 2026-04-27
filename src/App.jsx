@@ -191,6 +191,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     error: he,
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
+    deleteHuman: sbDeleteHuman,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
     loadMore: humansLoadMore,
@@ -205,6 +206,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     error: de,
     updateDog: sbUpdateDog,
     addDog: sbAddDog,
+    deleteDog: sbDeleteDog,
     fetchDogById,
     hasMore: dogsHasMore,
     totalCount: dogsTotalCount,
@@ -355,6 +357,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={setSelectedHumanId}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onDeleteHuman={sbDeleteHuman}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -370,6 +373,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenDog={setSelectedDogId}
                       onAddDog={addDog}
                       onAddHuman={addHuman}
+                      onDeleteDog={sbDeleteDog}
                       hasMore={dogsHasMore}
                       totalCount={dogsTotalCount}
                       loadMore={dogsLoadMore}

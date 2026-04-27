@@ -422,6 +422,52 @@ export function useDogs(humansById: Record<string, any>) {
     [humansById],
   );
 
+  const deleteDog = useCallback(
+    async (dogId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!dogId) return { ok: false, error: "Missing dog id" };
+
+      const existing = dogsById[dogId];
+      if (!existing) return { ok: false, error: "Dog not found" };
+
+      const prevDogs = dogs;
+      const prevDogsById = dogsById;
+
+      // Optimistic remove
+      setDogsById((prev) => {
+        const next = { ...prev };
+        delete next[dogId];
+        return next;
+      });
+      setDogs((prev) => {
+        const next = { ...prev };
+        const entry = Object.entries(next).find(
+          ([, dog]: [string, any]) => dog.id === dogId,
+        );
+        if (entry) delete next[entry[0]];
+        return next;
+      });
+
+      if (!supabase) return { ok: true };
+
+      const { error: err } = await supabase.from("dogs").delete().eq("id", dogId);
+
+      if (err) {
+        // Rollback on failure
+        setDogs(prevDogs);
+        setDogsById(prevDogsById);
+        const friendly =
+          err.code === "23503"
+            ? "This dog can't be deleted — it's still referenced by other records."
+            : err.message || "Failed to delete dog";
+        return { ok: false, error: friendly };
+      }
+
+      setTotalCount((c) => Math.max(0, c - 1));
+      return { ok: true };
+    },
+    [dogs, dogsById],
+  );
+
   const fetchDogById = useCallback(async (dogId: string) => {
     if (!dogId) return null;
 
@@ -482,6 +528,7 @@ export function useDogs(humansById: Record<string, any>) {
     error,
     updateDog,
     addDog,
+    deleteDog,
     fetchDogById,
     hasMore,
     totalCount,
