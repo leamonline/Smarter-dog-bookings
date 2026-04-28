@@ -61,6 +61,37 @@ These aren't expressible as migrations — set them once per project:
 - **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against HaveIBeenPwned, blocks compromised ones.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
 
+### WhatsApp AI receptionist
+
+The `whatsapp-agent` Edge Function is the brain of the WhatsApp inbox. It calls Claude with the full conversation context (recent messages + customer + dogs + availability + persisted state) and writes a draft reply for staff to review. It never sends a message to the customer directly and never mutates a booking — both of those go through guarded paths (`whatsapp-send` and the `apply_whatsapp_booking_action` RPC).
+
+**Defaults are deliberately conservative.** Every draft is held for human approval. Auto-send is plumbed but off everywhere unless you explicitly opt in.
+
+Set the function's secrets with `supabase secrets set NAME=value` (do NOT put them in `.env.local`):
+
+| Variable | Default | What it does |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | _required_ | Claude API key. Server-side only — never put behind a `VITE_` prefix. |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Model used by the agent. |
+| `AGENT_CALLBACK_SECRET` | _required_ | Shared secret between the `whatsapp_events` pg_net trigger and the function. |
+| `AI_ASSISTANT_ENABLED` | `true` | Kill switch. Set to `false` to bypass Claude (the agent then writes a brand-voiced "I'll get someone to look at this" fallback draft tagged for handoff). Useful during incidents. |
+| `AI_AUTO_SEND_LOW_RISK` | `false` | Global gate for auto-send. Even when `true`, a draft only auto-sends when **all** of the following are true: the conversation has `auto_send_enabled=true`, the draft's risk level is `low`, the draft does not require handoff, and the intent is in the auto-send allowlist (`faq`, `greeting`, `smalltalk`, `confirm_time`). |
+| `WHATSAPP_SEND_URL` | `${SUPABASE_URL}/functions/v1/whatsapp-send` | Where the agent posts approved-for-auto-send drafts. Override only if you've moved the function. |
+| `SEND_INTERNAL_SECRET` | _required for auto-send_ | Used by the agent to authenticate against `whatsapp-send` for auto-dispatch. Same value `whatsapp-send` already expects. |
+
+**Risk levels and handoff** (see `supabase/functions/_shared/agentRisk.ts`):
+
+- `low` — routine FAQ, greeting, "thanks", "on my way". Safe to auto-send when policy permits.
+- `medium` — booking proposals, reschedules, cancellations. Staff approves as usual.
+- `high` — medical / complaint / very-low-confidence. Always requires a human; the inbox shows a red dot on the conversation.
+
+**Turning auto-send on safely** (when you're ready, after a few weeks of monitoring drafts):
+
+1. Set `AI_AUTO_SEND_LOW_RISK=true` on the function.
+2. Pick a single trusted conversation in the inbox and flip its `auto_send_enabled` to `true` (currently this is a column on `whatsapp_conversations` — UI for it is a follow-up).
+3. Watch the drafts panel. Drafts that auto-send transition to state `auto_sent` and skip the approval step.
+4. Roll out to more conversations over time. Booking-touching intents are never auto-sent regardless of opt-in.
+
 ### Migration history note
 
 `supabase/migrations/` is a near-complete record of prod schema history. Two small gaps remain:

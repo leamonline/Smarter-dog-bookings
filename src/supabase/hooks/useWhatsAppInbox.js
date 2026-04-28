@@ -60,7 +60,7 @@ async function fetchConversationsList() {
       unread_count,
       auto_send_enabled,
       humans:human_id ( name, surname ),
-      whatsapp_drafts ( id, state ),
+      whatsapp_drafts ( id, state, risk_level, handoff_required ),
       whatsapp_booking_actions ( id, state )
       `,
     )
@@ -71,13 +71,23 @@ async function fetchConversationsList() {
 
   // Fold "has a pending draft" into a boolean so the list item can
   // render a badge without keeping the draft array around.
-  return (data ?? []).map((c) => ({
-    ...c,
-    has_pending_draft: Array.isArray(c.whatsapp_drafts) &&
-      c.whatsapp_drafts.some((d) => d.state === "pending"),
-    has_pending_booking_action: Array.isArray(c.whatsapp_booking_actions) &&
-      c.whatsapp_booking_actions.some((a) => a.state === "pending"),
-  }));
+  // Also surface a "needs_human_review" flag when any pending draft on
+  // the conversation is high-risk or has handoff_required set, so the
+  // list view can pin those to the top with a red marker.
+  return (data ?? []).map((c) => {
+    const pendingDrafts = Array.isArray(c.whatsapp_drafts)
+      ? c.whatsapp_drafts.filter((d) => d.state === "pending")
+      : [];
+    return {
+      ...c,
+      has_pending_draft: pendingDrafts.length > 0,
+      has_pending_booking_action: Array.isArray(c.whatsapp_booking_actions) &&
+        c.whatsapp_booking_actions.some((a) => a.state === "pending"),
+      needs_human_review: pendingDrafts.some(
+        (d) => d.handoff_required === true || d.risk_level === "high",
+      ),
+    };
+  });
 }
 
 async function fetchConversationDetail(conversationId) {
@@ -91,7 +101,7 @@ async function fetchConversationDetail(conversationId) {
     supabase
       .from("whatsapp_drafts")
       .select(
-        "id, proposed_text, intent, confidence, state, created_at, tokens_input, tokens_output, model",
+        "id, proposed_text, intent, confidence, state, created_at, tokens_input, tokens_output, model, risk_level, handoff_required, auto_send_eligible",
       )
       .eq("conversation_id", conversationId)
       .eq("state", "pending")

@@ -43,6 +43,25 @@
 //   CLAUDE_MODEL                (optional, default 'claude-sonnet-4-6')
 //   AGENT_CALLBACK_SECRET       (user-added, shared with migration 027)
 //
+// Optional env vars (added in migration 038 / receptionist foundation):
+//   AI_ASSISTANT_ENABLED        (default 'true')  — kill switch.
+//                                When 'false', the agent skips Claude
+//                                and writes a brand-voiced fallback
+//                                draft tagged escalate / handoff so
+//                                staff still see something to act on.
+//   AI_AUTO_SEND_LOW_RISK       (default 'false') — global gate for
+//                                auto-send. Even when 'true', drafts
+//                                only auto-send when the conversation
+//                                has auto_send_enabled=true AND the
+//                                draft is low-risk + handoff-free +
+//                                in the auto-send intent allowlist.
+//   WHATSAPP_SEND_URL           (optional) — full URL to the
+//                                whatsapp-send function. Defaults to
+//                                ${SUPABASE_URL}/functions/v1/whatsapp-send.
+//   SEND_INTERNAL_SECRET        (shared with whatsapp-send) — used to
+//                                authenticate the internal auto-send
+//                                call when the agent dispatches a draft.
+//
 // Deploy with:
 //   supabase functions deploy whatsapp-agent --no-verify-jwt
 //   --no-verify-jwt is fine because we authenticate the pg_net trigger
@@ -53,12 +72,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import {
+  AgentState,
+  canAutoSend,
+  classifyRisk,
+  fallbackReplyForIntent,
+  guessIntentFromText,
+  Intent,
+  mergeAgentState,
+  RiskLevel,
+  requiresHandoff,
+} from "../_shared/agentRisk.ts";
+
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") ?? "claude-sonnet-4-6";
 const AGENT_CALLBACK_SECRET = Deno.env.get("AGENT_CALLBACK_SECRET")!;
+
+// Receptionist foundation — see migration 038 and the header comment.
+// All defaults err on the safe side: kill switch defaults ON (we want
+// the agent to do something rather than nothing), auto-send defaults
+// OFF (we never silently text a customer without staff approval).
+const AI_ASSISTANT_ENABLED =
+  (Deno.env.get("AI_ASSISTANT_ENABLED") ?? "true").toLowerCase() !== "false";
+const AI_AUTO_SEND_LOW_RISK =
+  (Deno.env.get("AI_AUTO_SEND_LOW_RISK") ?? "false").toLowerCase() === "true";
+const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
+const WHATSAPP_SEND_URL =
+  Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
 
 // ── Types ───────────────────────────────────────────────────
 interface MetaMessage {
@@ -88,21 +131,14 @@ interface MetaChangeValue {
 }
 
 interface DraftFromClaude {
-  intent:
-    | "faq"
-    | "greeting"
-    | "booking_query"
-    | "booking_propose"
-    | "booking_confirm"
-    | "booking_change"
-    | "booking_cancel"
-    | "confirm_time"
-    | "smalltalk"
-    | "escalate"
-    | "other";
+  intent: Intent;
   confidence: number; // 0..1
   proposed_text: string;
   booking_action?: BookingActionFromClaude | null;
+  // Optional patch onto whatsapp_conversations.agent_state. Best-effort
+  // on Claude's part; the agent merges this into the existing state
+  // non-destructively (see mergeAgentState).
+  extracted_state?: Partial<AgentState> | null;
 }
 
 interface BookingActionFromClaude {
@@ -251,6 +287,18 @@ Report honestly. Staff reads this number.
 - Below 0.60 : you're guessing. Prefer an escalate with a holding reply.
 
 ────────────────────────────────────────────────────────
+WALK-IN SERVICES
+────────────────────────────────────────────────────────
+Nail clips, gland expression, and ear cleans are walk-in only — no booking needed. If a customer asks about any of these, classify intent="faq" and answer with: "These are walk-in only — just pop in anytime between 08:30 and 13:00 (Mon, Tue or Wed), done while you wait 😊 🎓🐶❤️ X". Do NOT propose a booking_action for walk-in services.
+
+────────────────────────────────────────────────────────
+KNOWN-STATE / NO RE-ASKING
+────────────────────────────────────────────────────────
+When you receive a "--- Known so far ---" block, that is what we have already learned about this customer (dog name, breed, preferred day, etc.). Do NOT ask again for anything already in that block. Use those facts directly. If the customer corrects something (e.g. "actually it's a Cockapoo not a Cocker"), update via extracted_state.
+
+After drafting your reply, include any newly-learned customer facts in the optional "extracted_state" field. Only include fields you are confident about from the latest message — leave a field out (or set null) if you don't know. The system merges your patch non-destructively.
+
+────────────────────────────────────────────────────────
 OUTPUT FORMAT
 ────────────────────────────────────────────────────────
 Reply with ONE JSON object, no prose, no markdown, no code fences:
@@ -267,6 +315,15 @@ Reply with ONE JSON object, no prose, no markdown, no code fences:
     "service": "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
     "size": "small" | "medium" | "large",
     "notes": "short reason, optional"
+  },
+  "extracted_state": null | {
+    "customerName": string | null,
+    "dogName":      string | null,
+    "breed":        string | null,
+    "dogSize":      "small" | "medium" | "large" | "unknown" | null,
+    "service":      "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null,
+    "preferredDay":  string | null,
+    "preferredTime": string | null
   }
 }
 
@@ -308,13 +365,21 @@ async function findHumanIdByPhone(
 }
 
 // ── Conversation + message writes ────────────────────────────
+interface ConversationRow {
+  id: string;
+  state: string;
+  human_id: string | null;
+  auto_send_enabled: boolean;
+  agent_state: AgentState;
+}
+
 async function upsertConversation(
   supabase: SupabaseClient,
   phoneE164: string,
   humanId: string | null,
   lastInboundAt: string,
   lastCustomerText: string | null,
-): Promise<{ id: string; state: string; human_id: string | null }> {
+): Promise<ConversationRow> {
   // UPSERT by phone_e164 (which has a UNIQUE constraint in the schema).
   // We update the denormalised "inbox preview" fields on every inbound.
   //
@@ -322,6 +387,10 @@ async function upsertConversation(
   // DB trigger on whatsapp_messages that increments atomically when the
   // inbound message row is inserted below. Writing to unread_count from
   // here causes double-counting (the bug fixed in 029).
+  //
+  // We also pull auto_send_enabled and agent_state on the same round
+  // trip so the agent can read them without an extra select. Both
+  // columns come from migrations 026 and 038 respectively.
   const { data, error } = await supabase
     .from("whatsapp_conversations")
     .upsert(
@@ -333,14 +402,30 @@ async function upsertConversation(
       },
       { onConflict: "phone_e164" },
     )
-    .select("id, state, human_id")
+    .select("id, state, human_id, auto_send_enabled, agent_state")
     .single();
 
   if (error || !data) {
     throw new Error(`upsertConversation failed: ${error?.message}`);
   }
 
-  return data as { id: string; state: string; human_id: string | null };
+  const row = data as {
+    id: string;
+    state: string;
+    human_id: string | null;
+    auto_send_enabled: boolean | null;
+    agent_state: unknown;
+  };
+
+  return {
+    id: row.id,
+    state: row.state,
+    human_id: row.human_id,
+    auto_send_enabled: row.auto_send_enabled === true,
+    agent_state: (row.agent_state && typeof row.agent_state === "object"
+      ? (row.agent_state as AgentState)
+      : {}) as AgentState,
+  };
 }
 
 async function insertInboundMessage(
@@ -520,6 +605,32 @@ async function buildLargeDogAvailabilityBlock(
   return `${header}\n${lines.join("\n")}`;
 }
 
+// ── Known-state renderer ─────────────────────────────────────
+// Compact one-block view of whatsapp_conversations.agent_state so
+// Claude can read what we have already collected. Empty/null fields
+// are skipped — a sparse block beats a dense one full of "unknown".
+function renderAgentStateBlock(state: AgentState | null): string | null {
+  if (!state) return null;
+  const labels: Array<[keyof AgentState, string]> = [
+    ["customerName", "Customer name"],
+    ["dogName", "Dog name"],
+    ["breed", "Breed"],
+    ["dogSize", "Size"],
+    ["service", "Service"],
+    ["preferredDay", "Preferred day"],
+    ["preferredTime", "Preferred time"],
+  ];
+  const lines: string[] = [];
+  for (const [key, label] of labels) {
+    const value = state[key];
+    if (typeof value === "string" && value.trim()) {
+      lines.push(`${label}: ${value}`);
+    }
+  }
+  if (lines.length === 0) return null;
+  return `--- Known so far ---\n${lines.join("\n")}`;
+}
+
 // ── Context for Claude ───────────────────────────────────────
 // We inject this as the user-turn content so the model clearly sees
 // it as data rather than instruction. Keep it compact — Claude does
@@ -528,6 +639,7 @@ async function buildContext(
   supabase: SupabaseClient,
   conversationId: string,
   humanId: string | null,
+  agentState: AgentState | null,
 ): Promise<string> {
   // Recent message history (last 20, oldest first)
   const { data: messages } = await supabase
@@ -551,6 +663,12 @@ async function buildContext(
   parts.push(`--- Today ---\n${dayName} ${todayIso} (UK time)`);
 
   parts.push(`--- Recent conversation (oldest first) ---\n${history || "(no prior messages)"}`);
+
+  // Persistent extracted state — what we already know. Lets Claude
+  // skip re-asking for things it has already collected. Only render
+  // non-null fields so the prompt stays tight.
+  const knownLines = renderAgentStateBlock(agentState);
+  if (knownLines) parts.push(knownLines);
 
   if (humanId) {
     const { data: human } = await supabase
@@ -654,7 +772,7 @@ async function callClaude(
   const textBlock = json.content?.find((c: any) => c.type === "text");
   if (!textBlock) throw new Error("Claude returned no text block");
 
-  const draft = parseClaudeJson(textBlock.text);
+  const draft = parseClaudeJson(textBlock.text, latestMessage);
 
   return {
     draft,
@@ -666,7 +784,7 @@ async function callClaude(
 
 // Best-effort JSON extractor. Claude occasionally wraps JSON in
 // ```json fences despite being told not to — strip them before parse.
-function parseClaudeJson(text: string): DraftFromClaude {
+function parseClaudeJson(text: string, latestMessage: string): DraftFromClaude {
   let t = text.trim();
   // Strip leading/trailing code fences
   t = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
@@ -679,25 +797,59 @@ function parseClaudeJson(text: string): DraftFromClaude {
       typeof parsed?.proposed_text === "string"
     ) {
       return {
-        intent: parsed.intent,
+        intent: parsed.intent as Intent,
         confidence: parsed.confidence,
         proposed_text: parsed.proposed_text,
         booking_action: parseBookingAction(parsed.booking_action),
-      } as DraftFromClaude;
+        extracted_state: parseExtractedState(parsed.extracted_state),
+      };
     }
   } catch {
     // fall through
   }
 
-  // Fallback: something came back that we can't structure. Return a
-  // low-confidence escalate draft so staff still get a poke.
-  console.warn("parseClaudeJson: could not parse, returning escalate fallback. Raw:", text);
+  // Fallback: something came back that we can't structure. Pick a
+  // brand-voiced template based on a regex sniff of the inbound — at
+  // least the customer gets a relevant holding reply rather than a
+  // generic apology.
+  console.warn("parseClaudeJson: could not parse, returning fallback. Raw:", text);
+  const guessedIntent = guessIntentFromText(latestMessage);
   return {
     intent: "escalate",
     confidence: 0.0,
-    proposed_text:
-      "Thanks for your message — I'll make sure one of the team sees this and gets back to you shortly. 🎓🐶❤️ X",
+    proposed_text: fallbackReplyForIntent(guessedIntent),
+    extracted_state: null,
   };
+}
+
+// Whitelist of state-patch keys we accept from Claude's JSON. Anything
+// else is silently dropped — keeps the column clean if a model decides
+// to invent fields.
+function parseExtractedState(value: unknown): Partial<AgentState> | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const out: Partial<AgentState> = {};
+  const stringKeys: (keyof AgentState)[] = [
+    "customerName",
+    "dogName",
+    "breed",
+    "service",
+    "preferredDay",
+    "preferredTime",
+  ];
+  for (const key of stringKeys) {
+    const raw = v[key];
+    if (typeof raw === "string" && raw.trim()) {
+      (out as Record<string, unknown>)[key] = raw.trim().slice(0, 200);
+    }
+  }
+  if (typeof v.dogSize === "string") {
+    const ds = v.dogSize.toLowerCase();
+    if (ds === "small" || ds === "medium" || ds === "large" || ds === "unknown") {
+      out.dogSize = ds;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 function parseBookingAction(value: unknown): BookingActionFromClaude | null {
@@ -724,11 +876,18 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
 }
 
 // ── Draft save ───────────────────────────────────────────────
+interface DraftPolicy {
+  riskLevel: RiskLevel;
+  handoffRequired: boolean;
+  autoSendEligible: boolean;
+}
+
 async function saveDraft(
   supabase: SupabaseClient,
   conversationId: string,
   triggerMessageEventId: string | null,
   draft: DraftFromClaude,
+  policy: DraftPolicy,
   tokensIn: number,
   tokensOut: number,
   rawResponse: unknown,
@@ -749,14 +908,22 @@ async function saveDraft(
     triggerMessageId = data?.id ?? null;
   }
 
+  // requires_approval is the legacy v1 flag (always true). The new
+  // handoff_required column is stricter — true only when human review
+  // is mandatory, not just preferred. They're orthogonal: high-risk
+  // sets both; routine medium-risk sets requires_approval=true and
+  // handoff_required=false (staff approves but it's not urgent).
   const { data, error } = await supabase.from("whatsapp_drafts").insert({
     conversation_id: conversationId,
     trigger_message_id: triggerMessageId,
     proposed_text: draft.proposed_text,
     intent: draft.intent,
     confidence: Math.max(0, Math.min(1, draft.confidence)), // clamp
-    requires_approval: true, // v1: always gated
+    requires_approval: true, // v1: always gated; auto-send fast-path runs after this row exists
     state: "pending",
+    risk_level: policy.riskLevel,
+    handoff_required: policy.handoffRequired,
+    auto_send_eligible: policy.autoSendEligible,
     model: CLAUDE_MODEL,
     tokens_input: tokensIn,
     tokens_output: tokensOut,
@@ -764,6 +931,56 @@ async function saveDraft(
   }).select("id").single();
   if (error) throw new Error(`saveDraft failed: ${error.message}`);
   return data.id as string;
+}
+
+// Persist a merged agent_state patch onto whatsapp_conversations.
+// Errors here are non-fatal — if state persistence fails, the draft
+// has already been saved and staff can act on it. The next inbound
+// will just see the previous state.
+async function persistAgentState(
+  supabase: SupabaseClient,
+  conversationId: string,
+  state: AgentState,
+): Promise<void> {
+  const { error } = await supabase
+    .from("whatsapp_conversations")
+    .update({ agent_state: state })
+    .eq("id", conversationId);
+  if (error) {
+    console.warn("persistAgentState failed (non-fatal):", error.message);
+  }
+}
+
+// Auto-dispatch hook. Calls whatsapp-send with mode:'draft' so the
+// existing pipeline handles the Meta call, the outbound message row,
+// and updating the draft state to 'auto_sent'. We do NOT short-circuit
+// any of that here — keeping a single send code path.
+async function dispatchIfEligible(
+  draftId: string,
+  policy: DraftPolicy,
+): Promise<void> {
+  if (!policy.autoSendEligible) return;
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("dispatchIfEligible: SEND_INTERNAL_SECRET is not set; skipping auto-send");
+    return;
+  }
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-internal-secret": SEND_INTERNAL_SECRET,
+      },
+      body: JSON.stringify({ mode: "draft", draft_id: draftId }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`dispatchIfEligible: whatsapp-send returned ${res.status}: ${errText}`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("dispatchIfEligible failed (non-fatal):", message);
+  }
 }
 
 async function saveBookingAction(
@@ -938,14 +1155,75 @@ serve(async (req) => {
             continue;
           }
 
+          const inboundText = text ?? "(customer sent a non-text message)";
+
+          // Kill switch — write a fallback draft tagged for handoff so
+          // staff still see a row in the inbox, but don't burn a
+          // Claude call when the assistant is intentionally off.
+          if (!AI_ASSISTANT_ENABLED) {
+            const policy: DraftPolicy = {
+              riskLevel: "high",
+              handoffRequired: true,
+              autoSendEligible: false,
+            };
+            const draft: DraftFromClaude = {
+              intent: "escalate",
+              confidence: 0,
+              proposed_text: fallbackReplyForIntent("handoff"),
+              extracted_state: null,
+            };
+            await saveDraft(
+              supabase,
+              conversation.id,
+              event.id,
+              draft,
+              policy,
+              0,
+              0,
+              { reason: "AI_ASSISTANT_ENABLED=false" },
+            );
+            continue;
+          }
+
           // Generate draft
-          const context = await buildContext(supabase, conversation.id, conversation.human_id ?? humanId);
-          const { draft, tokensIn, tokensOut, raw } = await callClaude(
-            context,
-            text ?? "(customer sent a non-text message)",
+          const context = await buildContext(
+            supabase,
+            conversation.id,
+            conversation.human_id ?? humanId,
+            conversation.agent_state,
           );
-          const draftId = await saveDraft(supabase, conversation.id, event.id, draft, tokensIn, tokensOut, raw);
+          const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText);
+
+          // Compute policy AFTER Claude returns so we can use the real
+          // intent + confidence. classifyRisk also looks at message
+          // content for medical/complaint keywords as a safety net.
+          const riskLevel = classifyRisk(draft.intent, inboundText, draft.confidence);
+          const handoffRequired = requiresHandoff(draft.intent, riskLevel, draft.confidence);
+          const autoSendEligible = canAutoSend(draft.intent, riskLevel, handoffRequired, {
+            envFlagEnabled: AI_AUTO_SEND_LOW_RISK,
+            conversationOptedIn: conversation.auto_send_enabled,
+          });
+          const policy: DraftPolicy = { riskLevel, handoffRequired, autoSendEligible };
+
+          // Persist learned state first — even if downstream writes
+          // fail, the next turn benefits.
+          if (draft.extracted_state) {
+            const merged = mergeAgentState(conversation.agent_state, draft.extracted_state);
+            await persistAgentState(supabase, conversation.id, merged);
+          }
+
+          const draftId = await saveDraft(
+            supabase,
+            conversation.id,
+            event.id,
+            draft,
+            policy,
+            tokensIn,
+            tokensOut,
+            raw,
+          );
           await saveBookingAction(supabase, conversation.id, draftId, draft);
+          await dispatchIfEligible(draftId, policy);
         }
 
         // Status updates on our previously-sent messages
