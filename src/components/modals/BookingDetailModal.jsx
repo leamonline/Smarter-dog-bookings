@@ -31,7 +31,10 @@ import {
   SectionCard,
   CardRow,
   MODAL_INPUT_CLS,
+  Row,
+  getStatusAccent,
 } from "./booking-detail/shared.jsx";
+import { IconMessage } from "../icons/index.jsx";
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
 import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
@@ -310,9 +313,15 @@ export function BookingDetailModal({
     <AccessibleModal
       onClose={handleCloseAttempt}
       titleId="booking-detail-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="relative bg-white rounded-2xl w-[min(460px,92vw)] max-h-[90vh] overflow-auto shadow-[0_30px_60px_-20px_rgba(15,23,42,0.35),_0_8px_20px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 animate-card-pop-in"
+      backdropClass="bg-slate-900/40 animate-overlay-fade"
       dismissOnEscape={false}
     >
+        <div
+          aria-hidden="true"
+          className={`absolute left-0 top-0 bottom-0 w-[1.5px] rounded-l-2xl ${getStatusAccent(booking.status || "No-show").stripe}`}
+        />
+
         <BookingHeader
           booking={booking}
           dogData={dogData}
@@ -330,10 +339,7 @@ export function BookingDetailModal({
           allergyText={hasAllergy && allergyInput ? allergyInput : ""}
         />
 
-        <div
-          className="px-4 pt-4 pb-2"
-          style={{ background: sizeTheme.light }}
-        >
+        <div className="px-4 pt-4 pb-2 bg-slate-50/80">
           <BookingStatusBar
             booking={booking}
             currentDateStr={currentDateStr}
@@ -422,22 +428,22 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <SectionCard>
-              <CardRow
-                label={<LogisticsLabel text="Time & Date" />}
-                value={`${booking.slot} on ${formatFullDate(currentDateObj)}`}
+            <div className="bg-white rounded-xl ring-1 ring-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] mb-3 px-4">
+              <Row
+                label="Time & Date"
+                value={`${booking.slot} · ${formatFullDate(currentDateObj)}`}
               />
-              <CardRow
-                label={<LogisticsLabel text="Owner" />}
+              <Row
+                label="Owner"
                 value={titleCase(booking.owner)}
                 onClick={() => onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner)}
               />
-              <CardRow
-                label={<LogisticsLabel text="Grooming Notes" />}
+              <Row
+                label="Grooming Notes"
                 value={editData.groomNotes || "Standard groom (no specific notes)"}
                 last
               />
-            </SectionCard>
+            </div>
           )}
 
           {/* ── Card 2: Services & Add-ons ── */}
@@ -475,40 +481,44 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <SectionCard>
-              <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                <LogisticsLabel text={serviceObj?.name || currentService} />
-                <span className="text-[13px] font-bold text-slate-800">{"\u00A3"}{activePrice}</span>
+            <div className="bg-emerald-50/60 rounded-xl ring-1 ring-emerald-100 mb-3 px-4 py-3">
+              <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
+                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
+                  {serviceObj?.name || currentService}
+                </span>
+                <span className="text-[13px] font-bold text-slate-900">{"\u00A3"}{activePrice}</span>
               </div>
               {activeAddons.map((addon) => (
-                <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                  <LogisticsLabel text={`${addon} — Add-on`} />
-                  <span className="text-[13px] font-bold text-slate-800">
-                    {getAddonPrice(addon) > 0 ? `\u00A3${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
+                <div key={addon} className="flex justify-between items-center py-2 border-b border-emerald-100/70">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
+                    {addon} <span className="text-emerald-500/80 font-semibold normal-case tracking-normal">{"\u2014 Add-on"}</span>
+                  </span>
+                  <span className="text-[13px] font-bold text-slate-900">
+                    {getAddonPrice(addon) > 0 ? `\u00A3${getAddonPrice(addon)}` : <span className="text-emerald-600/70 font-medium italic">Included</span>}
                   </span>
                 </div>
               ))}
               {activePayment === "Deposit Paid" && (
-                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                  <FinanceLabel text="Deposit Paid" />
-                  <span className="text-[13px] font-bold text-emerald-600">{"\u2212\u00A3"}{Number(activeDepositAmount || 0)}</span>
+                <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">Deposit Paid</span>
+                  <span className="text-[13px] font-bold text-emerald-700">{"\u2212\u00A3"}{Number(activeDepositAmount || 0)}</span>
                 </div>
               )}
               {activePayment === "Paid in Full" && (
-                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-                  <FinanceLabel text="Paid in Full" />
-                  <span className="text-[13px] font-bold text-emerald-600">
-                    {"\u2212\u00A3"}{pricing.subtotal}
-                  </span>
+                <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">Paid in Full</span>
+                  <span className="text-[13px] font-bold text-emerald-700">{"\u2212\u00A3"}{pricing.subtotal}</span>
                 </div>
               )}
               <div className="flex justify-between items-center pt-3 pb-1">
-                <FinanceLabel text={activePayment === "Paid in Full" ? "Paid" : "Total Due"} />
-                <span className="text-[15px] font-extrabold" style={{ color: amountDue > 0 ? "#C93D63" : "#16A34A" }}>
+                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
+                  {activePayment === "Paid in Full" ? "Paid" : "Total Due"}
+                </span>
+                <span className={`text-[20px] font-extrabold leading-none ${amountDue > 0 ? "text-emerald-800" : "text-emerald-700"}`}>
                   {"\u00A3"}{Math.max(0, amountDue)}
                 </span>
               </div>
-            </SectionCard>
+            </div>
           )}
 
           {/* ── Card 3: Actions & Payments ── */}
@@ -551,21 +561,23 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <SectionCard>
-              <CardRow label={<LogisticsLabel text="Pick-up Human" />} value={titleCase(booking.pickupBy || booking.owner)} last />
+            <div className="bg-white rounded-xl ring-1 ring-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] mb-3 px-4">
+              <Row
+                label="Pick-up Human"
+                value={titleCase(booking.pickupBy || booking.owner)}
+                last={!pickupHuman?.phone}
+              />
               {pickupHuman?.phone && (
                 <a
                   href={`sms:${pickupHuman.phone}?body=${encodeURIComponent(`Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon \uD83C\uDF93\uD83D\uDC36\u2764\uFE0F X`)}`}
-                  className="block mt-3 py-2.5 rounded-lg text-[13px] font-bold text-center transition-colors no-underline"
-                  style={{
-                    background: sizeTheme.gradient[0],
-                    color: sizeTheme.headerText,
-                  }}
+                  className="flex items-center justify-center gap-2 my-3 py-3 rounded-xl text-[14px] font-bold text-amber-900 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 no-underline transition-all duration-150 hover:-translate-y-0.5 shadow-[0_4px_10px_-2px_rgba(251,191,36,0.5)] hover:shadow-[0_8px_18px_-4px_rgba(251,191,36,0.55)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                  aria-label={`Send pickup-ready SMS to ${titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}`}
                 >
-                  Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}
+                  <IconMessage size={16} colour="#7C2D12" />
+                  <span>Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}</span>
                 </a>
               )}
-            </SectionCard>
+            </div>
           )}
 
           {saveError && (
