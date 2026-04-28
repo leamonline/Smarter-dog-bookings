@@ -28,6 +28,20 @@ import { supabase } from "../client.js";
 
 const SEND_FUNCTION_PATH = "whatsapp-send";
 
+// ── Pure helpers (exported for testing) ─────────────────────
+// Filters the bookingActions list down to the actions attached to the
+// current pending draft. An action is "attached" if its draft_id
+// matches the draft's id AND it's still pending. Used by the inbox
+// hook to gate the DraftPanel's Approve button on whether a booking
+// proposal is hanging off the same draft.
+export function filterAttachedActions(draft, bookingActions) {
+  if (!draft) return [];
+  if (!Array.isArray(bookingActions)) return [];
+  return bookingActions.filter(
+    (a) => a.draft_id === draft.id && a.state === "pending",
+  );
+}
+
 // ── Fetchers ─────────────────────────────────────────────────
 async function fetchConversationsList() {
   // We denormalise unread_count, last_customer_text, last_inbound_at
@@ -86,7 +100,7 @@ async function fetchConversationDetail(conversationId) {
       .maybeSingle(),
     supabase
       .from("whatsapp_booking_actions")
-      .select("id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
+      .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
       .eq("conversation_id", conversationId)
       .eq("state", "pending")
       .order("created_at", { ascending: false })
