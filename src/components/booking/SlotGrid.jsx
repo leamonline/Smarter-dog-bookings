@@ -1,5 +1,5 @@
 // src/components/booking/SlotGrid.jsx
-import { useState, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity.js";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
@@ -86,57 +86,17 @@ export function SlotGrid({
   const searchActive = searchQuery && searchQuery.trim().length > 0;
   const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
 
-  const [expandedBlocks, setExpandedBlocks] = useState({});
-
+  // Every active slot is its own row — no collapsing. The schedule
+  // is meant to stay full-height so the bookings column matches the
+  // sidebar; merging quiet stretches into a single "Free" pill made
+  // the column shrink and broke that.
   const rows = useMemo(() => {
-    const minCollapseCount = 2;
-    const result = [];
-    let currentEmptyBlock = null;
-
-    for (let i = 0; i < activeSlots.length; i++) {
-      const slot = activeSlots[i];
+    const result = activeSlots.map((slot, i) => {
       const slotOverrides = overrides?.[slot] || {};
       const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
-      
-      const allAvailable = seatStates.every((s) => s.type === "available");
-      
-      if (allAvailable) {
-        if (!currentEmptyBlock) {
-          currentEmptyBlock = { type: 'emptyBlock', startSlot: slot, startTime: slot, startIndex: i, count: 1, endSlot: slot, endIndex: i };
-        } else {
-          currentEmptyBlock.count++;
-          currentEmptyBlock.endSlot = slot;
-          currentEmptyBlock.endIndex = i;
-        }
-      } else {
-        if (currentEmptyBlock) {
-          if (currentEmptyBlock.count >= minCollapseCount) {
-            result.push(currentEmptyBlock);
-          } else {
-            for (let j = currentEmptyBlock.startIndex; j <= currentEmptyBlock.endIndex; j++) {
-              result.push({ type: 'slot', slot: activeSlots[j], index: j });
-            }
-          }
-          currentEmptyBlock = null;
-        }
-        result.push({ type: 'slot', slot, index: i, seatStates });
-      }
-    }
-    
-    if (currentEmptyBlock) {
-      if (currentEmptyBlock.count >= minCollapseCount) {
-        result.push(currentEmptyBlock);
-      } else {
-        for (let j = currentEmptyBlock.startIndex; j <= currentEmptyBlock.endIndex; j++) {
-          result.push({ type: 'slot', slot: activeSlots[j], index: j });
-        }
-      }
-    }
-
-    if (result.length > 0 && result[result.length - 1].type === 'slot') {
-      result[result.length - 1].isLast = true;
-    }
-
+      return { type: "slot", slot, index: i, seatStates };
+    });
+    if (result.length > 0) result[result.length - 1].isLast = true;
     return result;
   }, [activeSlots, bookings, overrides]);
 
@@ -267,61 +227,7 @@ export function SlotGrid({
 
   return (
     <div className="bg-white border border-slate-200 border-t-0 rounded-b-xl overflow-hidden">
-      {rows.map((row, i) => {
-        if (row.type === 'emptyBlock') {
-          const isExpanded = expandedBlocks[row.startSlot];
-          if (!isExpanded) {
-            const rangeLabel = `${formatSlotTime(row.startTime)} \u2013 ${formatSlotTime(activeSlots[row.endIndex] || row.endSlot)}`;
-            return (
-              <div
-                key={`empty-${row.startSlot}`}
-                className="group flex items-stretch border-b border-[#F1F3F5] bg-slate-50 hover:bg-brand-yellow/15 text-slate-500 min-h-[44px] md:min-h-[52px] transition-colors"
-              >
-                <button
-                  type="button"
-                  onClick={() => onOpenNewBooking(currentDateStr, row.startSlot)}
-                  aria-label={`Add a booking between ${rangeLabel}`}
-                  className="flex-1 flex items-center gap-2 p-3 text-sm font-bold text-left font-[inherit] bg-transparent border-none cursor-pointer text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-inset"
-                >
-                  <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 group-hover:bg-brand-yellow group-hover:text-brand-purple flex items-center justify-center text-sm font-bold transition-colors shrink-0">+</span>
-                  <span className="group-hover:text-brand-purple transition-colors">
-                    Free <span className="opacity-60 ml-1 font-semibold">({rangeLabel})</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Expand timeslots to see or block individual seats"
-                  onClick={() => setExpandedBlocks(prev => ({ ...prev, [row.startSlot]: true }))}
-                  className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 bg-transparent border-none cursor-pointer px-3 font-[inherit] focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-inset transition-colors"
-                >
-                  Expand
-                </button>
-              </div>
-            );
-          } else {
-            return (
-              <div key={`expanded-${row.startSlot}`} className="contents">
-                {Array.from({ length: row.endIndex - row.startIndex + 1 }).map((_, idx) => {
-                  const j = row.startIndex + idx;
-                  const subSlot = activeSlots[j];
-                  const subIsLast = j === activeSlots.length - 1;
-                  return renderSlot(subSlot, j, null, subIsLast);
-                })}
-                <div className="p-2 px-4 border-b border-[#F1F3F5] bg-slate-50/70 flex justify-end">
-                  <button 
-                    onClick={() => setExpandedBlocks(prev => ({ ...prev, [row.startSlot]: false }))} 
-                    className="text-[10px] font-bold text-slate-400 hover:text-slate-700 font-[inherit] uppercase tracking-wider py-1 cursor-pointer transition-colors flex items-center gap-1"
-                  >
-                    <span>Collapse</span><span>&#9650;</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }
-        }
-        
-        return renderSlot(row.slot, row.index, row.seatStates, row.isLast);
-      })}
+      {rows.map((row) => renderSlot(row.slot, row.index, row.seatStates, row.isLast))}
     </div>
   );
 }

@@ -3,12 +3,18 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 
 // ── Primary nav (always visible) ──────────────────────────────────
+// Each item carries its own brand accent so the active pill is
+// instantly recognisable — staff don't have to read the label to
+// know where they are. The mobile tab bar uses the same accents
+// for the active text colour.
 const PRIMARY_NAV = [
   {
     to: "/",
     label: "Bookings",
+    activeBg: "bg-brand-yellow text-brand-purple shadow-[0_2px_8px_rgba(254,204,19,0.5)]",
+    activeText: "text-brand-yellow",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" />
         <line x1="3" y1="10" x2="21" y2="10" />
         <line x1="9" y1="4" x2="9" y2="10" />
@@ -19,8 +25,10 @@ const PRIMARY_NAV = [
   {
     to: "/dogs",
     label: "Dogs",
+    activeBg: "bg-brand-cyan text-white shadow-[0_2px_8px_rgba(0,184,224,0.5)]",
+    activeText: "text-brand-cyan",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
         <circle cx="7.5" cy="5.5" r="2" />
         <circle cx="16.5" cy="5.5" r="2" />
         <circle cx="5" cy="11" r="1.8" />
@@ -32,8 +40,10 @@ const PRIMARY_NAV = [
   {
     to: "/humans",
     label: "Humans",
+    activeBg: "bg-[#2D8B7A] text-white shadow-[0_2px_8px_rgba(45,139,122,0.5)]",
+    activeText: "text-[#3BA594]",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
       </svg>
@@ -42,10 +52,12 @@ const PRIMARY_NAV = [
   {
     to: "/whatsapp",
     label: "WhatsApp",
+    activeBg: "bg-[#25D366] text-white shadow-[0_2px_8px_rgba(37,211,102,0.5)]",
+    activeText: "text-[#25D366]",
     // Generic speech-bubble; intentionally not the WhatsApp green logo
     // (trademark) — the path tells staff where they are, not the brand.
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
     ),
@@ -58,8 +70,10 @@ const MOBILE_NAV = [
   {
     to: "/reports",
     label: "Reports",
+    activeBg: "bg-brand-purple text-white",
+    activeText: "text-brand-purple",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="4" y="14" width="4" height="7" rx="1" />
         <rect x="10" y="9" width="4" height="12" rx="1" />
         <rect x="16" y="4" width="4" height="17" rx="1" />
@@ -68,7 +82,7 @@ const MOBILE_NAV = [
   },
 ];
 
-export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
+export function AppToolbar({ onSignOut, isOnline, user }) {
   const [menuOpen, setMenuOpen] = useState(false);
   // Two refs, one per toolbar variant (desktop xl+ / mobile below xl).
   // Both variants are always mounted — one is hidden via Tailwind breakpoints,
@@ -100,40 +114,47 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
   return (
     <>
       {/* ── Desktop header (xl+) — deep-purple brand band, full-bleed via -mx ── */}
-      <div className="hidden xl:flex gap-5 mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
-        {/* Left column — logo + week dots (above main content) */}
-        <div className="flex-1 min-w-0 flex items-center gap-4">
-          <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
-            <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-9 w-auto" />
-          </NavLink>
-          {weekNav && <div className="min-w-0">{weekNav}</div>}
-        </div>
+      <div className="hidden xl:flex items-center gap-4 mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
+        {/* Logo */}
+        <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
+          <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-9 w-auto" />
+        </NavLink>
 
-        {/* Right column — icon nav + hamburger (above sidebar) */}
-        <div className="w-72 shrink-0 flex items-center justify-end gap-1.5">
+        {/* Spacer pushes nav to the right */}
+        <div className="flex-1" />
+
+        {/* Primary nav — text+icon pills, each carries its section's
+            accent colour when active so the current section reads at
+            a glance without staff having to scan the labels. */}
+        <nav className="flex items-center gap-1.5">
           {PRIMARY_NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `relative w-10 h-10 rounded-full flex flex-col items-center justify-center gap-0.5 no-underline transition-all ${
+                `group relative inline-flex items-center gap-2 h-10 px-3.5 rounded-xl no-underline transition-all duration-150 ${
                   isActive
-                    ? "bg-brand-yellow text-brand-purple"
-                    : "text-white/70 hover:text-white hover:bg-white/10"
+                    ? `${item.activeBg} font-bold`
+                    : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white font-semibold"
                 }`
               }
               title={item.label}
             >
-              {item.icon}
-              <span className="text-[8px] font-bold leading-none">{item.label}</span>
+              <span className="transition-transform duration-150 group-hover:scale-110 shrink-0">
+                {item.icon}
+              </span>
+              <span className="text-sm leading-none tracking-tight">{item.label}</span>
               {item.to === "/whatsapp" && waBadge && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                <span className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
                   {waBadge}
                 </span>
               )}
             </NavLink>
           ))}
+
+          {/* Vertical divider between primary nav and the burger */}
+          <span className="w-px h-6 bg-white/15 mx-1" aria-hidden="true" />
 
           {/* Hamburger — Reports, Settings, Portal, Logout */}
           <div ref={desktopMenuRef} className="relative">
@@ -141,13 +162,13 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Menu"
               aria-expanded={menuOpen}
-              className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+              className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
                 menuOpen
                   ? "bg-brand-yellow text-brand-purple"
-                  : "text-white/80 hover:bg-white/10"
+                  : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"
               }`}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
             </button>
 
             {menuOpen && (
@@ -220,7 +241,7 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               </div>
             )}
           </div>
-        </div>
+        </nav>
       </div>
 
       {/* ── Mobile/tablet top bar (below xl) ── */}
@@ -292,17 +313,29 @@ export function AppToolbar({ onSignOut, isOnline, user, weekNav }) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `relative flex-1 flex flex-col items-center gap-0.5 py-2 no-underline transition-colors ${
-                  isActive ? "text-brand-purple" : "text-slate-400"
+                `relative flex-1 flex flex-col items-center gap-1 py-2 no-underline transition-colors ${
+                  isActive ? item.activeText : "text-slate-400 hover:text-slate-600"
                 }`
               }
             >
-              {item.icon}
-              <span className="text-[10px] font-bold">{item.label}</span>
-              {item.to === "/whatsapp" && waBadge && (
-                <span className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                  {waBadge}
-                </span>
+              {({ isActive }) => (
+                <>
+                  {/* Active dot above the icon — gives the tab bar a
+                      visual anchor that's clearer than colour alone. */}
+                  <span
+                    className={`absolute top-0 w-8 h-0.5 rounded-b-full transition-all ${
+                      isActive ? `${item.activeText.replace("text-", "bg-")}` : "bg-transparent"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {item.icon}
+                  <span className="text-[10px] font-bold">{item.label}</span>
+                  {item.to === "/whatsapp" && waBadge && (
+                    <span className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                      {waBadge}
+                    </span>
+                  )}
+                </>
               )}
             </NavLink>
           ))}

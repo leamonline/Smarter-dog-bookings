@@ -64,10 +64,10 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onClick={onClick}
         aria-label="Book this seat"
         title="Add booking"
-        className="group/book flex-1 min-h-[40px] rounded-full bg-brand-yellow/15 text-brand-purple border-none flex items-center justify-center gap-1 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-brand-yellow"
+        className="group/book flex-1 min-h-[40px] rounded-md bg-brand-yellow/15 text-brand-purple border border-brand-yellow/40 flex items-center justify-center gap-1 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-brand-yellow"
       >
-        <span className="text-sm font-bold transition-transform duration-200 group-hover/book:scale-125">+</span>
-        <span className="text-xs font-semibold">Book</span>
+        <span className="text-[11px] font-bold transition-transform duration-200 group-hover/book:scale-125">+</span>
+        <span className="text-[11px] font-bold">Book</span>
       </button>
 
       {/* Block button */}
