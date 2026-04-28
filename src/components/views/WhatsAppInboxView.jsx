@@ -112,6 +112,51 @@ function windowCountdown(lastInboundAt) {
 }
 
 // ── Components ──────────────────────────────────────────────
+
+// AutoSendToggle — flips whatsapp_conversations.auto_send_enabled
+// for the selected conversation. This is the per-conversation gate
+// described in the README's "Turning auto-send on safely" section.
+//
+// Important UX caveats baked into the title text (not enforced here —
+// staff need to be able to flip it on per-conversation BEFORE the
+// global env flag goes live so the rollout is gradual):
+//   - The global AI_AUTO_SEND_LOW_RISK env flag must also be 'true'
+//     on the function for any draft to actually auto-send.
+//   - Even when both are true, a draft only auto-sends when it's
+//     low-risk + handoff-free + in the auto-send intent allowlist.
+//   - human_takeover conversations don't get drafts at all, so the
+//     toggle is moot in that state. We disable it then.
+function AutoSendToggle({ conversation, onChange, disabled }) {
+  if (!conversation) return null;
+  const enabled = !!conversation.auto_send_enabled;
+  const inHumanTakeover = conversation.state === "human_takeover";
+  const isDisabled = !!disabled || inHumanTakeover;
+
+  const title = inHumanTakeover
+    ? "Auto-send is moot while staff have taken over the conversation."
+    : enabled
+      ? "Auto-send is on for this conversation. Low-risk drafts may send without staff approval (also requires AI_AUTO_SEND_LOW_RISK=true at function level)."
+      : "Auto-send is off. All drafts wait for staff approval.";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      disabled={isDisabled}
+      title={title}
+      aria-pressed={enabled}
+      className={`px-2.5 py-1.5 rounded-md text-[12px] font-bold border transition-colors disabled:opacity-50 ${
+        enabled
+          ? "bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200"
+          : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      <span aria-hidden="true" className="mr-1">{enabled ? "●" : "○"}</span>
+      Auto-send {enabled ? "on" : "off"}
+    </button>
+  );
+}
+
 function ConversationListItem({ conv, isSelected, onSelect }) {
   const unread = conv.unread_count > 0;
   return (
@@ -654,6 +699,7 @@ export function WhatsAppInboxView() {
     rejectBookingAction,
     takeoverConversation,
     releaseConversation,
+    setAutoSendEnabled,
     actionInFlight,
   } = useWhatsAppInbox();
 
@@ -749,7 +795,12 @@ export function WhatsAppInboxView() {
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
+                  <AutoSendToggle
+                    conversation={selectedConversation}
+                    onChange={setAutoSendEnabled}
+                    disabled={actionInFlight}
+                  />
                   {selectedConversation?.state === "ai_handling" ? (
                     <button
                       onClick={takeoverConversation}
