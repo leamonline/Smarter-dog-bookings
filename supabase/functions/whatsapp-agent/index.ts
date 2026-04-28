@@ -201,7 +201,7 @@ HARD RULES — always
 - NEVER directly confirm, move, or cancel a booking in the text. Staff approves every action before it reaches the diary.
 - You MAY propose a new booking action only when all of these are explicit or safely resolved from context: exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID. Use only dog IDs shown in context.
 - For booking_action proposals: if the dog's size is "small" or "medium", the booking_date + slot you cite MUST appear in the "--- Availability ---" block. If the dog's size is "large" (or unknown), do NOT propose a booking_action regardless of availability — say "the team will check the diary".
-- For LARGE dogs: when "--- Large-dog availability ---" is present, you MAY name specific days from "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") and you MAY acknowledge a tight diary when "Days fully booked" is long ("the next few weeks are very busy for large dogs"). You MUST NOT cite a time-of-day for a large dog. You MUST NOT propose a booking_action for a large dog. The customer must still clearly expect a follow-up confirmation from staff — banned phrasing from above still applies.
+- For LARGE dogs: when "--- Large-dog availability ---" is present, you MAY name specific days from "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") and you MAY acknowledge a tight diary when "Days fully booked" is long ("the next few weeks are very busy for large dogs"). You MUST NOT cite a time-of-day for a large dog. You MUST NOT propose a booking_action for a large dog. The "--- Availability ---" block is for SMALL/MEDIUM dogs only and does NOT apply to large dogs even when the date matches — never reuse a slot from it for a large dog. The customer must still clearly expect a follow-up confirmation from staff — banned phrasing from above still applies.
 - If you include booking_action, the proposed_text MUST NOT imply the booking already exists. BANNED phrases: "booked in", "pencilled in", "penciled in", "you're in", "all booked", "added to the diary", "locked in", "sorted". Instead say something like "I'll get this passed to the team and we'll confirm once it's in the diary" — the customer must clearly expect a follow-up confirmation from us.
 - If any booking detail is missing or ambiguous, do not include booking_action. Ask for the missing detail or say staff will check the diary.
 - Do not propose reschedules or cancellations yet. For those, set intent booking_change or booking_cancel and write a holding reply.
@@ -510,6 +510,9 @@ async function buildLargeDogAvailabilityBlock(
     return `${header}\n(no large-dog capacity in the next ${AVAILABILITY_WINDOW_DAYS} days — tell the customer the team will check the diary)`;
   }
 
+  // The "Days with capacity:" / "Days fully booked:" prefixes are anchors
+  // that the system prompt's HARD RULES block references verbatim. Keep
+  // them in sync with the rule for large-dog availability above.
   const lines = [`Days with capacity: ${daysWithCapacity.join(", ")}`];
   if (daysFullyBooked.length > 0) {
     lines.push(`Days fully booked: ${daysFullyBooked.join(", ")}`);
