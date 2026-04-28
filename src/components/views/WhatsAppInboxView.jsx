@@ -56,6 +56,30 @@ function confidenceLabel(c) {
   return "low";
 }
 
+// Risk-pill styling. Mirrors the deterministic risk values written by
+// the agent (see supabase/functions/_shared/agentRisk.ts):
+//   low    — neutral green; safe to auto-send when policy allows
+//   medium — amber; staff approves as usual
+//   high   — red; medical, complaint, or low-confidence — handle carefully
+const RISK_STYLES = {
+  low: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  medium: "bg-amber-100 text-amber-800 border-amber-200",
+  high: "bg-red-100 text-red-800 border-red-200",
+};
+
+function RiskPill({ risk }) {
+  if (!risk) return null;
+  const style = RISK_STYLES[risk] ?? RISK_STYLES.medium;
+  return (
+    <span
+      className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${style}`}
+      title={`Risk level: ${risk}`}
+    >
+      {risk} risk
+    </span>
+  );
+}
+
 function serviceLabel(service) {
   const labels = {
     "full-groom": "Full groom",
@@ -134,7 +158,13 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
           {conv.last_customer_text ?? "(no text)"}
         </span>
         <div className="flex items-center gap-1 shrink-0">
-          {conv.has_pending_draft && (
+          {conv.needs_human_review && (
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-red-500"
+              title="High-risk draft — needs human review"
+            />
+          )}
+          {conv.has_pending_draft && !conv.needs_human_review && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-amber-400"
               title="AI draft pending review"
@@ -360,14 +390,31 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
 
   return (
     <div className="p-4 bg-amber-50 border-t-2 border-amber-300">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-bold uppercase tracking-wide text-amber-800">
             AI Draft
           </span>
           <span className="text-[11px] text-amber-700">
             {draft.intent} · {confidenceLabel(draft.confidence)} confidence
           </span>
+          <RiskPill risk={draft.risk_level} />
+          {draft.handoff_required && (
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-red-100 text-red-800 border-red-200"
+              title="Conversation must be handled by a human"
+            >
+              Needs human review
+            </span>
+          )}
+          {draft.auto_send_eligible && (
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-sky-100 text-sky-800 border-sky-200"
+              title="Met all auto-send gates. Whether it actually sent automatically depends on AI_AUTO_SEND_LOW_RISK and the conversation's auto_send_enabled flag."
+            >
+              Auto-send eligible
+            </span>
+          )}
         </div>
         <span className="text-[11px] text-slate-400">{draft.model}</span>
       </div>
