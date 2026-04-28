@@ -23,10 +23,24 @@
 // RLS keeps it honest.
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
 
 const SEND_FUNCTION_PATH = "whatsapp-send";
+
+// ── Pure helpers (exported for testing) ─────────────────────
+// Filters the bookingActions list down to the actions attached to the
+// current pending draft. An action is "attached" if its draft_id
+// matches the draft's id AND it's still pending. Used by the inbox
+// hook to gate the DraftPanel's Approve button on whether a booking
+// proposal is hanging off the same draft.
+export function filterAttachedActions(draft, bookingActions) {
+  if (!draft) return [];
+  if (!Array.isArray(bookingActions)) return [];
+  return bookingActions.filter(
+    (a) => a.draft_id === draft.id && a.state === "pending",
+  );
+}
 
 // ── Fetchers ─────────────────────────────────────────────────
 async function fetchConversationsList() {
@@ -86,7 +100,7 @@ async function fetchConversationDetail(conversationId) {
       .maybeSingle(),
     supabase
       .from("whatsapp_booking_actions")
-      .select("id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
+      .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
       .eq("conversation_id", conversationId)
       .eq("state", "pending")
       .order("created_at", { ascending: false })
@@ -119,6 +133,15 @@ export function useWhatsAppInbox() {
   const [detailError, setDetailError] = useState(null);
 
   const [actionInFlight, setActionInFlight] = useState(false);
+
+  // Derived: actions attached to the currently-pending draft.
+  // The DraftPanel uses this to switch from single Approve to the
+  // Approve & Apply / Send reply only pair. See spec section
+  // "Architecture" in 2026-04-28-two-approval-ux-coupling-design.md.
+  const attachedActions = useMemo(
+    () => filterAttachedActions(draft, bookingActions),
+    [draft, bookingActions],
+  );
 
   const selectedIdRef = useRef(null);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
@@ -294,6 +317,87 @@ export function useWhatsAppInbox() {
       setActionInFlight(false);
     }
   }, [draft, actionInFlight]);
+
+  // Approve the draft AND apply each attached booking_action in one go.
+  // Order: apply each action sequentially (stop on first error), then
+  // send the reply only if all applies succeeded. If apply fails, no
+  // reply is sent and the error is surfaced. If apply succeeds and the
+  // subsequent send fails, the booking is real and the error message
+  // tells staff to send manually. See spec "Failure modes" table.
+  //
+  // Falls through to plain approveDraft when no actions are attached —
+  // keeps the call site agnostic about whether to call this or that.
+  const approveDraftAndApply = useCallback(async ({ editedText } = {}) => {
+    if (!draft || actionInFlight) {
+      return { ok: false, reason: "no draft or action in flight" };
+    }
+    if (attachedActions.length === 0) {
+      return approveDraft({ editedText });
+    }
+
+    setActionInFlight(true);
+    try {
+      // 1. Apply each attached action sequentially. Stop on first error.
+      const applied = [];
+      for (const action of attachedActions) {
+        const { data: bookingId, error: applyError } = await supabase.rpc(
+          "apply_whatsapp_booking_action",
+          { p_action_id: action.id },
+        );
+        if (applyError) {
+          const dogLabel = action.payload?.dog_name ?? "booking";
+          return {
+            ok: false,
+            reason: `Apply failed for ${dogLabel}: ${applyError.message}`,
+            appliedSoFar: applied,
+          };
+        }
+        applied.push({ actionId: action.id, bookingId });
+      }
+
+      // 2. Optimistic: clear applied actions from local state so the
+      //    BookingActionPanel doesn't briefly show them as pending.
+      setBookingActions((prev) =>
+        prev.filter((a) => !applied.some((x) => x.actionId === a.id)),
+      );
+
+      // 3. Send the reply via the whatsapp-send Edge Function.
+      const { data: sendData, error: sendError } = await supabase.functions
+        .invoke(SEND_FUNCTION_PATH, {
+          body: {
+            mode: "draft",
+            draft_id: draft.id,
+            ...(editedText ? { edited_text: editedText } : {}),
+          },
+        });
+      if (sendError || sendData?.error) {
+        const reason = sendError?.message ?? sendData?.error ?? "Send failed";
+        return {
+          ok: false,
+          reason: `${reason} (booking was applied — please send the reply manually)`,
+          appliedSoFar: applied,
+        };
+      }
+
+      // 4. Optimistic: clear the pending draft and flip both list-pane
+      //    badges off (mirrors approveDraft's optimistic update).
+      setDraft(null);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedIdRef.current
+            ? { ...c, has_pending_draft: false, has_pending_booking_action: false }
+            : c,
+        ),
+      );
+
+      return { ok: true, applied, sendResult: sendData };
+    } catch (err) {
+      console.error("approveDraftAndApply:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [draft, attachedActions, actionInFlight, approveDraft]);
 
   // rejectDraft accepts an optional free-text reason so we can learn
   // WHY the draft was wrong. Reason is stored on the draft row itself
@@ -485,11 +589,13 @@ export function useWhatsAppInbox() {
     messages,
     draft,
     bookingActions,
+    attachedActions,
     loadingDetail,
     detailError,
     // actions
     selectConversation,
     approveDraft,
+    approveDraftAndApply,
     rejectDraft,
     sendManualReply,
     applyBookingAction,

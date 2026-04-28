@@ -75,6 +75,18 @@ function formatDateLong(dateStr) {
   });
 }
 
+// Compact UK-style "Mon 27 Apr" used by the booking-attached banner.
+// Year is omitted because the banner is showing imminent bookings; the
+// full date is available in the BookingActionPanel below.
+function formatShortDate(dateStr) {
+  if (!dateStr) return "?";
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
 // Meta only lets us send free-form text within 24h of the customer's
 // last inbound message. Client-side check mirrors the backend check
 // in whatsapp-send so we can disable the compose box before the user
@@ -300,7 +312,7 @@ function MessageBubble({ message }) {
   );
 }
 
-function DraftPanel({ draft, onApprove, onReject, inFlight }) {
+function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply, onReject, inFlight }) {
   const [editing, setEditing] = useState(false);
   const [editedText, setEditedText] = useState(draft?.proposed_text ?? "");
   const [error, setError] = useState(null);
@@ -330,6 +342,12 @@ function DraftPanel({ draft, onApprove, onReject, inFlight }) {
   async function handleApprove(useEditedText) {
     setError(null);
     const res = await onApprove(useEditedText ? { editedText } : {});
+    if (!res.ok) setError(res.reason ?? "Send failed");
+  }
+
+  async function handleApproveAndApply(useEditedText) {
+    setError(null);
+    const res = await onApproveAndApply(useEditedText ? { editedText } : {});
     if (!res.ok) setError(res.reason ?? "Send failed");
   }
 
@@ -366,6 +384,21 @@ function DraftPanel({ draft, onApprove, onReject, inFlight }) {
         </div>
       )}
 
+      {attachedActions.length > 0 && !rejecting && (
+        <div className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded text-[12px] text-amber-900">
+          <div className="font-bold mb-1">📋 Booking attached:</div>
+          {attachedActions.map((action) => (
+            <div key={action.id}>
+              {action.payload?.dog_name ?? "<unnamed dog>"}
+              {" · "}
+              {formatShortDate(action.payload?.booking_date)}
+              {" · "}
+              {action.payload?.slot ?? "?"}
+            </div>
+          ))}
+        </div>
+      )}
+
       {rejecting && (
         <div className="mt-2">
           <label className="block text-[11px] font-bold uppercase tracking-wide text-amber-800 mb-1">
@@ -391,22 +424,48 @@ function DraftPanel({ draft, onApprove, onReject, inFlight }) {
 
       <div className="flex flex-wrap gap-2 mt-2">
         {editing ? (
-          <>
-            <button
-              onClick={() => handleApprove(true)}
-              disabled={inFlight || !editedText.trim()}
-              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
-            >
-              Send edit
-            </button>
-            <button
-              onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
-              disabled={inFlight}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-            >
-              Cancel edit
-            </button>
-          </>
+          attachedActions.length > 0 ? (
+            <>
+              <button
+                onClick={() => handleApproveAndApply(true)}
+                disabled={inFlight || !editedText.trim()}
+                className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+              >
+                Send edit &amp; Apply
+              </button>
+              <button
+                onClick={() => handleApprove(true)}
+                disabled={inFlight || !editedText.trim()}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              >
+                Send edit only
+              </button>
+              <button
+                onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
+                disabled={inFlight}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              >
+                Cancel edit
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => handleApprove(true)}
+                disabled={inFlight || !editedText.trim()}
+                className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+              >
+                Send edit
+              </button>
+              <button
+                onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
+                disabled={inFlight}
+                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+              >
+                Cancel edit
+              </button>
+            </>
+          )
         ) : rejecting ? (
           <>
             <button
@@ -422,6 +481,37 @@ function DraftPanel({ draft, onApprove, onReject, inFlight }) {
               className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
             >
               Cancel
+            </button>
+          </>
+        ) : attachedActions.length > 0 ? (
+          <>
+            <button
+              onClick={() => handleApproveAndApply(false)}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+            >
+              Approve &amp; Apply
+            </button>
+            <button
+              onClick={() => handleApprove(false)}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+            >
+              Send reply only
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+            >
+              Edit first
+            </button>
+            <button
+              onClick={() => setRejecting(true)}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-[13px]"
+            >
+              Reject
             </button>
           </>
         ) : (
@@ -552,9 +642,11 @@ export function WhatsAppInboxView() {
     messages,
     draft,
     bookingActions,
+    attachedActions,
     loadingDetail,
     selectConversation,
     approveDraft,
+    approveDraftAndApply,
     rejectDraft,
     sendManualReply,
     applyBookingAction,
@@ -672,7 +764,9 @@ export function WhatsAppInboxView() {
               {draft && (
                 <DraftPanel
                   draft={draft}
+                  attachedActions={attachedActions}
                   onApprove={approveDraft}
+                  onApproveAndApply={approveDraftAndApply}
                   onReject={rejectDraft}
                   inFlight={actionInFlight}
                 />
