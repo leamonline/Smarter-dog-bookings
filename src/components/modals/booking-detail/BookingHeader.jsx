@@ -1,10 +1,11 @@
-import { SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index.js";
+import { SERVICES } from "../../../constants/index.js";
 import {
   getNumericPrice,
   getServicePriceLabel,
 } from "../../../engine/bookingRules.js";
 import { IconEdit, IconCamera } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text.js";
+import { IconBtn, PawWatermark } from "./shared.jsx";
 
 export function BookingHeader({
   booking,
@@ -25,8 +26,6 @@ export function BookingHeader({
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
-  const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
-  const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
 
   const subtitle = [
     titleCase(booking.breed),
@@ -34,43 +33,29 @@ export function BookingHeader({
   ].filter(Boolean).join(" · ");
 
   return (
-    <div
-      className="px-6 py-6 rounded-t-2xl relative"
-      style={{ background: gradient }}
-    >
-      <div className="absolute top-5 right-5 flex items-center gap-2">
+    <div className="relative px-6 py-6 rounded-t-2xl bg-gradient-to-br from-amber-300 to-amber-400 overflow-hidden">
+      <PawWatermark className="absolute -top-3 -right-2 w-32 h-32 text-white/15 rotate-12" />
+      <PawWatermark className="absolute -bottom-4 left-4 w-20 h-20 text-white/10 -rotate-12" />
+
+      <div className="absolute top-5 right-5 flex items-center gap-2 z-10">
         {!isEditing && onOpenCamera && (
-          <button
-            onClick={onOpenCamera}
-            className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer shrink-0"
-            style={{ color: sizeTheme.headerText }}
-            aria-label="Add groom photo"
-          >
-            <IconCamera size={16} colour={sizeTheme.headerText} />
-          </button>
+          <IconBtn onClick={onOpenCamera} ariaLabel="Add groom photo">
+            <IconCamera size={16} colour="#7C2D12" />
+          </IconBtn>
         )}
         {!isEditing && onEnterEdit && (
-          <button
-            onClick={onEnterEdit}
-            className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer shrink-0"
-            style={{ color: sizeTheme.headerText }}
-          >
-            <IconEdit size={16} colour={sizeTheme.headerText} />
-          </button>
+          <IconBtn onClick={onEnterEdit} ariaLabel="Edit booking">
+            <IconEdit size={16} colour="#7C2D12" />
+          </IconBtn>
         )}
-        <button
-          onClick={onClose}
-          className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
-          style={{ color: sizeTheme.headerText }}
-        >
-          {"\u00D7"}
-        </button>
+        <IconBtn onClick={onClose} ariaLabel="Close booking details">
+          <span className="text-base font-bold leading-none text-amber-900">{"×"}</span>
+        </IconBtn>
       </div>
 
       <span
         id={titleId}
-        className="text-[28px] font-extrabold leading-tight cursor-pointer hover:underline"
-        style={{ color: sizeTheme.headerText }}
+        className="relative z-10 text-[28px] font-extrabold leading-tight cursor-pointer hover:underline text-amber-900 font-display"
         role="button"
         tabIndex={0}
         onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
@@ -80,15 +65,12 @@ export function BookingHeader({
       </span>
 
       {subtitle && (
-        <div
-          className="text-[15px] font-medium mt-1"
-          style={{ color: sizeTheme.headerTextSub }}
-        >
+        <div className="relative z-10 text-[14px] font-medium mt-1 text-amber-800/90">
           {subtitle}
         </div>
       )}
 
-      <div className="mt-2.5 flex justify-between items-end gap-2">
+      <div className="relative z-10 mt-2.5 flex justify-between items-end gap-2">
         <div>
           {isEditing ? (
             <select
@@ -106,8 +88,7 @@ export function BookingHeader({
                 }));
                 setSaveError("");
               }}
-              className="bg-white/20 border border-white/30 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit"
-              style={{ color: sizeTheme.headerText }}
+              className="bg-white/30 border border-white/40 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-amber-900"
             >
               {allowedServices.map((service) => (
                 <option
@@ -120,20 +101,14 @@ export function BookingHeader({
               ))}
             </select>
           ) : (
-            <span
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold"
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                color: sizeTheme.headerText,
-              }}
-            >
+            <span className="relative z-10 inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold bg-white/30 text-amber-900 ring-1 ring-white/40 backdrop-blur-sm">
               {serviceObj?.name}
             </span>
           )}
         </div>
 
         {!isEditing && (alerts.length > 0 || allergyText) && (
-          <div className="flex flex-wrap gap-1 justify-end max-w-[55%]">
+          <div className="relative z-10 flex flex-wrap gap-1 justify-end max-w-[55%]">
             {alerts
               .filter((a) => !a.startsWith("Allergic to "))
               .map((alertLabel) => (
