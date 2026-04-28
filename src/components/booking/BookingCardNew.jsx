@@ -25,6 +25,8 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 
 // Status palette — pulls from the brand: mustard for "still to come", teal for
 // "in the salon now", deep purple for "all done". Cancelled stays coral.
+// The "No-show" key is also the default state for newly created bookings
+// across the codebase, hence the "Booked" label (see constants/salon.ts).
 const STATUS_DISPLAY = {
   "No-show":            { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
   "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
@@ -64,12 +66,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const service = SERVICES.find((s) => s.id === booking.service);
   const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["No-show"];
 
-  const pickupText = booking.status === "Ready for pick-up"
-    ? `Collected${booking.pickup_time ? ` ${booking.pickup_time}` : ""}`
-    : booking.pickup_time
-      ? `Pick-up ${booking.pickup_time}`
-      : "";
-
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
 
@@ -100,13 +96,14 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     <>
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={searchDimmed ? -1 : 0}
+        aria-hidden={searchDimmed || undefined}
         draggable={draggable || undefined}
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-offset-1 ${searchDimmed ? "opacity-30" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-offset-1 ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
@@ -120,6 +117,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           <span
             className="w-3 h-3 rounded-full shrink-0 inline-block self-center"
             style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
+            role="img"
+            aria-label={SIZE_TOOLTIP[booking.size] || "Unknown size"}
             title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
           />
           <span className="text-sm md:text-[17px] font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
@@ -163,8 +162,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             {dogRecord?.alerts?.length > 0 && (
               <div className="flex flex-wrap justify-end gap-1 ml-auto shrink-0">
                 {dogRecord.alerts.map((alert, idx) => (
-                  <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
-                    <span className="text-[8px]">🔴</span> {alert}
+                  <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center shadow-sm">
+                    {alert}
                   </span>
                 ))}
               </div>
@@ -181,7 +180,15 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
           {/* Status pill / inline picker */}
           {statusOpen ? (
-            <div className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in"
+              role="listbox"
+              aria-label="Set booking status"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); }
+              }}
+            >
               {[
                 { id: "No-show", ...STATUS_DISPLAY["No-show"] },
                 { id: "Checked in", ...STATUS_DISPLAY["Checked in"] },
@@ -191,9 +198,16 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 return (
                   <button
                     key={s.id}
-                    onClick={() => {
+                    type="button"
+                    role="option"
+                    aria-selected={isCurrent}
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!isCurrent && onUpdate) onUpdate({ ...booking, status: s.id }, currentDateStr, currentDateStr);
                       setStatusOpen(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") e.stopPropagation();
                     }}
                     className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] ${
                       isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
@@ -202,7 +216,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       background: s.bg,
                       color: s.color,
                       borderColor: s.border,
-                      ...(isCurrent ? { ringColor: s.color } : {}),
+                      ...(isCurrent ? { "--tw-ring-color": s.color } : {}),
                     }}
                   >
                     {s.label}
@@ -211,14 +225,25 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               })}
             </div>
           ) : (
-            <span
+            <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); setStatusOpen(true); }}
-              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setStatusOpen(true);
+                }
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={statusOpen}
+              aria-label={`Change status, currently ${statusObj.label}`}
+              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5 font-[inherit]"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
               {statusObj.label}
-              <span className="text-[8px] opacity-60">{"\u25BE"}</span>
-            </span>
+              <span aria-hidden="true" className="text-[8px] opacity-60">{"\u25BE"}</span>
+            </button>
           )}
         </div>
         </div>
