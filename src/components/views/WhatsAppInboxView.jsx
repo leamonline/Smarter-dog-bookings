@@ -750,6 +750,18 @@ export function WhatsAppInboxView() {
     actionInFlight,
   } = useWhatsAppInbox();
 
+  // List filter: "all" or "needs_review". When "needs_review", only
+  // conversations whose latest pending draft is high-risk or has
+  // handoff_required surface in the list. Helps staff triage during
+  // a busy day — the same red-dot conversations bubble to a clean
+  // dedicated view without losing the "scroll the full inbox" mode.
+  const [listFilter, setListFilter] = useState("all");
+  const needsReviewCount = conversations.filter((c) => c.needs_human_review).length;
+  const filteredConversations =
+    listFilter === "needs_review"
+      ? conversations.filter((c) => c.needs_human_review)
+      : conversations;
+
   // Deep-link: open ?conversation=<id> on first load (and whenever
   // the URL changes externally, e.g. dashboard rows that navigate to
   // a specific chat). Wait until the list has loaded so we know the
@@ -777,14 +789,38 @@ export function WhatsAppInboxView() {
 
   return (
     <div className="py-2.5 flex flex-col gap-3 h-[calc(100vh-180px)]">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-3 flex-wrap">
         <h2 className="text-[22px] font-extrabold m-0 text-slate-800 font-display">
           WhatsApp
         </h2>
-        <div className="text-[12px] text-slate-500">
-          {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread ·{" "}
-          {conversations.filter((c) => c.has_pending_draft).length} drafts ·{" "}
-          {conversations.filter((c) => c.has_pending_booking_action).length} bookings
+        <div className="flex items-center gap-3">
+          <div className="text-[12px] text-slate-500">
+            {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread ·{" "}
+            {conversations.filter((c) => c.has_pending_draft).length} drafts ·{" "}
+            {conversations.filter((c) => c.has_pending_booking_action).length} bookings
+          </div>
+          {needsReviewCount > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setListFilter((prev) => (prev === "needs_review" ? "all" : "needs_review"))
+              }
+              aria-pressed={listFilter === "needs_review"}
+              title={
+                listFilter === "needs_review"
+                  ? "Showing only conversations whose latest draft is high-risk or marked for human review. Click to show all."
+                  : "Show only conversations whose latest draft is high-risk or marked for human review."
+              }
+              className={`px-2.5 py-1 rounded-md text-[12px] font-bold border transition-colors ${
+                listFilter === "needs_review"
+                  ? "bg-red-100 border-red-300 text-red-800 hover:bg-red-200"
+                  : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <span aria-hidden="true" className="mr-1">●</span>
+              Needs review ({needsReviewCount})
+            </button>
+          )}
         </div>
       </div>
 
@@ -801,9 +837,20 @@ export function WhatsAppInboxView() {
             <div className="p-6 text-center text-slate-400 text-[13px]">
               No WhatsApp conversations yet.
             </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 text-[13px]">
+              No high-risk conversations right now.{" "}
+              <button
+                type="button"
+                onClick={() => setListFilter("all")}
+                className="underline text-slate-500 hover:text-slate-700"
+              >
+                Show all
+              </button>
+            </div>
           ) : (
             <div className="overflow-y-auto flex-1">
-              {conversations.map((c) => (
+              {filteredConversations.map((c) => (
                 <ConversationListItem
                   key={c.id}
                   conv={c}
