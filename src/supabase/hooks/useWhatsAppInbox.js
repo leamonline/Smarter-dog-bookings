@@ -586,6 +586,40 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  // Per-conversation auto-send opt-in. The agent only auto-sends a
+  // draft when ALL of the following are true:
+  //   1. AI_AUTO_SEND_LOW_RISK env flag on the function is 'true'
+  //   2. This row's auto_send_enabled is true (set here)
+  //   3. The draft itself is low-risk + handoff-free + in the auto-send
+  //      intent allowlist (computed by the agent at draft time)
+  // Optimistic: flip the local list state immediately so the toggle
+  // feels instant; realtime subscription will reconcile.
+  const setAutoSendEnabled = useCallback(async (enabled) => {
+    if (!selectedId || actionInFlight) return { ok: false };
+    setActionInFlight(true);
+    const next = !!enabled;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: next } : c)),
+    );
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({ auto_send_enabled: next })
+        .eq("id", selectedId);
+      if (error) throw error;
+      return { ok: true };
+    } catch (err) {
+      console.error("setAutoSendEnabled:", err);
+      // Roll back the optimistic flip.
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: !next } : c)),
+      );
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight]);
+
   const selectedConversation = conversations.find((c) => c.id === selectedId) ?? null;
 
   return {
@@ -612,6 +646,7 @@ export function useWhatsAppInbox() {
     rejectBookingAction,
     takeoverConversation,
     releaseConversation,
+    setAutoSendEnabled,
     actionInFlight,
     // manual refresh (rarely needed)
     refreshList,
