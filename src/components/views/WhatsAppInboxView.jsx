@@ -20,6 +20,7 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { titleCase } from "../../utils/text.js";
@@ -655,6 +656,28 @@ export function WhatsAppInboxView() {
     releaseConversation,
     actionInFlight,
   } = useWhatsAppInbox();
+
+  // Deep-link: open ?conversation=<id> on first load (and whenever
+  // the URL changes externally, e.g. dashboard rows that navigate to
+  // a specific chat). Wait until the list has loaded so we know the
+  // id is real before selecting — otherwise selectConversation runs
+  // a fetch for a non-existent conversation and the list-pane shows
+  // an empty selection.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetConversationId = searchParams.get("conversation");
+  useEffect(() => {
+    if (!targetConversationId) return;
+    if (loadingList) return;
+    if (selectedId === targetConversationId) return;
+    const exists = conversations.some((c) => c.id === targetConversationId);
+    if (!exists) return;
+    selectConversation(targetConversationId);
+    // Clear the param so navigating back into /whatsapp manually
+    // doesn't keep snapping back to this conversation.
+    const next = new URLSearchParams(searchParams);
+    next.delete("conversation");
+    setSearchParams(next, { replace: true });
+  }, [targetConversationId, loadingList, conversations, selectedId, selectConversation, searchParams, setSearchParams]);
 
   // Mobile: show detail when a conversation is selected
   const showDetailOnMobile = !!selectedId;

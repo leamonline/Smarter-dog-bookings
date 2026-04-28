@@ -47,7 +47,7 @@ function formatFullDate(dateObj) {
   return { weekday, weekdayShort, day, dayShort, month, monthShort, year: dateObj.getFullYear() };
 }
 
-export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, onNavigateMonth, viewMode, setViewMode }) {
+export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar, onNavigateDay, viewMode, setViewMode, onOpenWaitlist, waitlistCount = 0, onOpenTodos, todoCount = 0 }) {
   const revenue = useMemo(() => computeRevenue(bookings || [], dogs), [bookings, dogs]);
   const bookingCount = (bookings || []).length;
   const { weekday, weekdayShort, day, dayShort, month, monthShort } = formatFullDate(currentDateObj);
@@ -57,12 +57,12 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
       {/* Date + month-navigation arrows. Compact inline layout.
           Short format on narrow mobile; full format from sm+. */}
       <div className="relative z-[1] min-w-0 basis-full sm:basis-auto flex items-center gap-2">
-        {onNavigateMonth && (
+        {onNavigateDay && (
           <button
             type="button"
-            onClick={() => onNavigateMonth(-1)}
-            aria-label="Previous month"
-            title="Previous month"
+            onClick={() => onNavigateDay(-1)}
+            aria-label="Previous day"
+            title="Previous day"
             className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -82,12 +82,12 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
           <span className="sm:hidden">{dayShort} {monthShort}</span>
           <span className="hidden sm:inline">{day} {month}</span>
         </div>
-        {onNavigateMonth && (
+        {onNavigateDay && (
           <button
             type="button"
-            onClick={() => onNavigateMonth(1)}
-            aria-label="Next month"
-            title="Next month"
+            onClick={() => onNavigateDay(1)}
+            aria-label="Next day"
+            title="Next day"
             className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all shrink-0 bg-white/15 text-white hover:bg-white/25"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -97,12 +97,14 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
         )}
       </div>
 
-      {/* Stats pills — desktop. Mustard chip on dog count for emphasis. */}
-      <div className="relative z-[1] hidden md:flex items-center gap-2 text-xs font-bold shrink-0">
-        <span className="bg-brand-yellow text-brand-purple rounded-full px-3 py-1 shadow-[0_2px_6px_rgba(254,204,19,0.3)]">
+      {/* Stats pills — show on every breakpoint so phones still see
+          dog count + revenue without needing the sidebar. Mustard chip
+          on dog count for emphasis. */}
+      <div className="relative z-[1] flex items-center gap-2 text-[11px] font-bold shrink-0">
+        <span className="bg-brand-yellow text-brand-purple rounded-md px-2 py-1 border border-brand-yellow/60 shadow-[0_2px_6px_rgba(254,204,19,0.3)]">
           {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
         </span>
-        <span className="bg-white/15 text-white rounded-full px-2.5 py-1">
+        <span className="bg-white/15 text-white rounded-md px-2 py-1 border border-white/30">
           £{revenue}
         </span>
       </div>
@@ -110,12 +112,49 @@ export function DashboardHeader({ currentDateObj, bookings, dogs, onOpenCalendar
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Mobile stats */}
-      <div className="relative z-[1] xl:hidden text-right shrink-0">
-        <div className="text-xs font-bold text-white/85">
-          <span className="text-brand-yellow">{bookingCount}</span> dogs · £{revenue}
-        </div>
-      </div>
+      {/* Waitlist + To-do buttons — both open modals, both show a
+          numbered badge when there's anything on the list. Sit
+          before the view-toggle so they're adjacent to the date
+          stats rather than buried among icon controls. */}
+      {onOpenWaitlist && (
+        <button
+          type="button"
+          onClick={onOpenWaitlist}
+          aria-label={`Open waitlist (${waitlistCount} waiting)`}
+          className="relative z-[1] flex items-center gap-1.5 text-[11px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-md px-2 py-1 border border-emerald-600 cursor-pointer transition-colors shrink-0"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          Waitlist
+          {waitlistCount > 0 && (
+            <span className="ml-0.5 bg-white text-emerald-700 rounded px-1 text-[10px] font-black tabular-nums">
+              {waitlistCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {onOpenTodos && (
+        <button
+          type="button"
+          onClick={onOpenTodos}
+          aria-label={`Open to-do list (${todoCount} ${todoCount === 1 ? "task" : "tasks"})`}
+          className="relative z-[1] flex items-center gap-1.5 text-[11px] font-bold text-brand-purple bg-brand-yellow hover:brightness-95 rounded-md px-2 py-1 border border-amber-500 cursor-pointer transition-all shrink-0"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="9 11 12 14 22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          To-do
+          {todoCount > 0 && (
+            <span className="ml-0.5 bg-brand-purple text-brand-yellow rounded px-1 text-[10px] font-black tabular-nums">
+              {todoCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Grid/list toggle */}
       {setViewMode && (

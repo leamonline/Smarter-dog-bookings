@@ -103,3 +103,99 @@ export function DetailRow({
     </div>
   );
 }
+
+/**
+ * Maps booking status IDs to Tailwind accent classes for the redesigned card.
+ * Status IDs come from BOOKING_STATUSES in src/constants/salon.ts and are
+ * used in the engine + DB — we don't rename them, only style them.
+ */
+export const STATUS_ACCENT = {
+  "No-show": {              // labelled "Booked" in the UI
+    stripe: "bg-amber-400",
+    fill: "bg-amber-50",
+    ring: "ring-amber-200",
+    text: "text-amber-700",
+    pillBg: "bg-amber-100",
+    pillText: "text-amber-800",
+  },
+  "Checked in": {
+    stripe: "bg-sky-400",
+    fill: "bg-sky-50",
+    ring: "ring-sky-200",
+    text: "text-sky-700",
+    pillBg: "bg-sky-100",
+    pillText: "text-sky-800",
+  },
+  "Ready for pick-up": {    // labelled "Finished" in the UI
+    stripe: "bg-emerald-400",
+    fill: "bg-emerald-50",
+    ring: "ring-emerald-200",
+    text: "text-emerald-700",
+    pillBg: "bg-emerald-100",
+    pillText: "text-emerald-800",
+  },
+};
+
+export function getStatusAccent(statusId) {
+  return STATUS_ACCENT[statusId] || STATUS_ACCENT["No-show"];
+}
+
+/**
+ * Single key-value row for the redesigned view-mode card.
+ * Uppercase slate-500 label + stronger slate-900 value + hairline divider.
+ */
+export function Row({ label, value, last = false, onClick }) {
+  return (
+    <div className={`flex justify-between items-start gap-3 py-3 ${last ? "" : "border-b border-slate-100"}`}>
+      <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500 shrink-0 pt-0.5">
+        {label}
+      </span>
+      <span
+        className={`text-[14px] font-semibold text-slate-900 text-right break-words leading-snug ${onClick ? "cursor-pointer hover:underline decoration-slate-300 underline-offset-2" : ""}`}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Circular ghost icon button used in the redesigned header.
+ * White/20 fill on coloured headers; lifts on hover.
+ */
+export function IconBtn({ children, onClick, ariaLabel, className = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={`w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-sm flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-1 focus-visible:ring-offset-amber-400 ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Faint paw print watermark for the header background. Pure decorative.
+ */
+export function PawWatermark({ className = "" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 64 64"
+      className={`pointer-events-none select-none ${className}`}
+      fill="currentColor"
+    >
+      <ellipse cx="20" cy="22" rx="5" ry="7" />
+      <ellipse cx="44" cy="22" rx="5" ry="7" />
+      <ellipse cx="10" cy="36" rx="5" ry="6.5" />
+      <ellipse cx="54" cy="36" rx="5" ry="6.5" />
+      <path d="M32 32c-9 0-16 7-16 14 0 5 4 8 9 8 3 0 5-1 7-1s4 1 7 1c5 0 9-3 9-8 0-7-7-14-16-14z" />
+    </svg>
+  );
+}

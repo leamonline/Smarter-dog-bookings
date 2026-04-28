@@ -9,19 +9,28 @@ import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { ClosedDayView } from "./ClosedDayView.jsx";
 import { AddBookingForm } from "../booking/AddBookingForm.jsx";
-import { WaitlistPanel } from "../booking/WaitlistPanel.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
 import { BookingList } from "../booking/BookingList.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { DashboardSidebar } from "./DashboardSidebar.jsx";
-import { SidebarTodos } from "./SidebarTodos.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
+import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 import { FloatingDecor } from "../decor/index.jsx";
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
     default: module.DatePickerModal,
+  })),
+);
+const WaitlistModal = lazy(() =>
+  import("../modals/WaitlistModal.jsx").then((module) => ({
+    default: module.WaitlistModal,
+  })),
+);
+const TodoModal = lazy(() =>
+  import("../modals/TodoModal.jsx").then((module) => ({
+    default: module.TodoModal,
   })),
 );
 
@@ -221,7 +230,16 @@ export function WeekCalendarView({
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
   const [confirmDayToggle, setConfirmDayToggle] = useState(null); // "open" | "close" | null
-  const { addTodos } = useTodos();
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showTodos, setShowTodos] = useState(false);
+  // Pull the todos count up here so the header badge is always
+  // accurate without the modal having to mount when closed. The
+  // modal still uses its own useTodos call for actions.
+  const { todos, addTodos } = useTodos();
+  const openTodoCount = todos.filter((t) => !t.done).length;
+  // Lifted to the parent so the header button can show the count
+  // without the modal having to mount when closed.
+  const { waitlist, error: waitlistError, joinWaitlist, leaveWaitlist } = useWaitlist(currentDateObj);
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -271,7 +289,8 @@ export function WeekCalendarView({
       {/* Brand decor — silhouettes + soft circles, behind everything */}
       <FloatingDecor />
 
-      {/* Calendar tabs — hidden on xl where toolbar has them */}
+      {/* Calendar tabs — hidden on xl where the top app toolbar
+          renders them inline with the logo. */}
       <div className="xl:hidden">
         <CalendarTabs
           dates={dates}
@@ -283,10 +302,13 @@ export function WeekCalendarView({
         />
       </div>
 
-      {/* Two-column layout: main content + sidebar on xl+ */}
-      <div className="flex gap-5 relative">
+      {/* Two-column layout: main content + sidebar on xl+. On xl
+          screens we pin the layout to a viewport-anchored height so
+          both columns are always the same height — main scrolls if
+          its content overflows, sidebar holds its natural shape. */}
+      <div className="flex gap-5 relative xl:h-[calc(100vh-140px)]">
         {/* Main content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 xl:min-h-0 xl:overflow-y-auto">
           {/* Day view */}
           {calendarMode === "day" && (
             <PullToRefresh onRefresh={onRefresh}>
@@ -296,14 +318,17 @@ export function WeekCalendarView({
                 bookings={dayBookings}
                 dogs={dogs}
                 onOpenCalendar={() => setShowDatePicker(true)}
-                onNavigateMonth={(delta) => {
-                  const target = new Date(currentDateObj.getFullYear(), currentDateObj.getMonth() + delta, 1);
-                  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-                  target.setDate(Math.min(currentDateObj.getDate(), lastDay));
+                onNavigateDay={(delta) => {
+                  const target = new Date(currentDateObj);
+                  target.setDate(target.getDate() + delta);
                   handleDatePick(target);
                 }}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                onOpenWaitlist={() => setShowWaitlist(true)}
+                waitlistCount={waitlist.length}
+                onOpenTodos={() => setShowTodos(true)}
+                todoCount={openTodoCount}
               />
 
               {isOpen ? (
@@ -335,7 +360,10 @@ export function WeekCalendarView({
                       searchQuery={searchQuery}
                     />
                   )}
-                  {/* Add/Remove extra slot + close day buttons */}
+                  {/* Add/Remove extra slot + close day buttons. The two
+                      common actions sit side-by-side; the conditional
+                      remove-slot button stays full-width above so it
+                      doesn't fight for visual weight when present. */}
                   <div className="p-[12px_16px] border-t border-slate-200 bg-white flex flex-col gap-2">
                     {(currentSettings.extraSlots || []).length > 0 && (() => {
                       const lastSlot = currentSettings.extraSlots[currentSettings.extraSlots.length - 1];
@@ -352,37 +380,24 @@ export function WeekCalendarView({
                         </button>
                       );
                     })()}
-                    <button
-                      onClick={handleAddSlot}
-                      className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-cyan hover:text-brand-cyan"
-                    >
-                      + Add another timeslot
-                    </button>
-                    <button
-                      onClick={() => setConfirmDayToggle("close")}
-                      className="w-full py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
-                    >
-                      Close this day
-                    </button>
-                  </div>
-                  <WaitlistPanel
-                    currentDateObj={currentDateObj}
-                    humans={humans}
-                    dogs={dogs}
-                    onOpenHuman={onOpenHuman}
-                  />
-                  {/* To-do list — shown below waitlist on smaller screens, hidden on xl where sidebar has it */}
-                  <div className="xl:hidden mt-4 mb-2 px-1">
-                    <SidebarTodos />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAddSlot}
+                        className="flex-1 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-transparent text-slate-500 text-[13px] font-semibold cursor-pointer font-[inherit] transition-all hover:border-brand-cyan hover:text-brand-cyan"
+                      >
+                        + Add another timeslot
+                      </button>
+                      <button
+                        onClick={() => setConfirmDayToggle("close")}
+                        className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-[inherit] transition-all hover:border-brand-coral hover:text-brand-coral"
+                      >
+                        Close this day
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
-                <>
-                  <ClosedDayView onOpen={() => setConfirmDayToggle("open")} />
-                  <div className="xl:hidden mt-4 mb-2 px-1">
-                    <SidebarTodos />
-                  </div>
-                </>
+                <ClosedDayView onOpen={() => setConfirmDayToggle("open")} />
               )}
             </PullToRefresh>
           )}
@@ -399,12 +414,14 @@ export function WeekCalendarView({
           )}
         </div>
 
-        {/* Desktop sidebar — hidden below xl */}
-        <div className="hidden xl:block w-72 shrink-0">
+        {/* Desktop sidebar — hidden below xl. Scrolls independently
+            if its own content overflows the matched column height. */}
+        <div className="hidden xl:block w-72 shrink-0 xl:min-h-0 xl:overflow-y-auto">
           <DashboardSidebar
             currentDateObj={currentDateObj}
-            bookings={dayBookings}
-            dogs={dogs}
+            dates={dates}
+            bookingsByDate={bookingsByDate}
+            dayOpenState={dayOpenState}
             onSelectDate={(date) => {
               handleDatePick(date);
               setCalendarMode("day");
@@ -422,6 +439,30 @@ export function WeekCalendarView({
             onSelectDate={handleDatePick}
             onClose={() => setShowDatePicker(false)}
           />
+        </Suspense>
+      )}
+
+      {/* Waitlist modal — opened from the dashboard header */}
+      {showWaitlist && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <WaitlistModal
+            currentDateObj={currentDateObj}
+            humans={humans}
+            dogs={dogs}
+            onOpenHuman={onOpenHuman}
+            waitlist={waitlist}
+            error={waitlistError}
+            joinWaitlist={joinWaitlist}
+            leaveWaitlist={leaveWaitlist}
+            onClose={() => setShowWaitlist(false)}
+          />
+        </Suspense>
+      )}
+
+      {/* To-do modal — opened from the dashboard header */}
+      {showTodos && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <TodoModal onClose={() => setShowTodos(false)} />
         </Suspense>
       )}
 

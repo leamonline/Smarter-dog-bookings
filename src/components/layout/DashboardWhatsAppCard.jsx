@@ -13,6 +13,9 @@
 //   calendar for sidebar real estate.
 // - Skeleton on loading, not a spinner — avoids the card
 //   jumping in height on initial paint.
+// - Each conversation row deep-links into its own chat via
+//   ?conversation=<id> on /whatsapp, so the card is a div with
+//   nested button rows rather than one big button.
 // ============================================================
 
 import { useNavigate } from "react-router-dom";
@@ -33,69 +36,126 @@ function WhatsAppGlyph({ className = "" }) {
   );
 }
 
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const sent = new Date(iso).getTime();
+  const diffMs = Date.now() - sent;
+  if (Number.isNaN(diffMs) || diffMs < 0) return "";
+  const m = Math.floor(diffMs / 60000);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 export function DashboardWhatsAppCard() {
   const navigate = useNavigate();
-  const { awaitingReply, draftsPending, conversationsToday, loading } =
+  const { awaitingReply, draftsPending, conversationsToday, recentConversations, loading } =
     useWhatsAppSummary();
 
   const hasAwaiting = awaitingReply > 0;
 
   return (
-    <button
-      type="button"
-      onClick={() => navigate("/whatsapp")}
-      className="w-full text-left bg-white border border-slate-200 rounded-xl p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] cursor-pointer transition-all hover:border-slate-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:ring-offset-2"
+    <div
+      className="bg-white border border-slate-200 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden"
       aria-label={`WhatsApp: ${awaitingReply} awaiting reply, ${draftsPending} drafts pending`}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          WhatsApp
-        </div>
-        <span
-          className={hasAwaiting ? "text-[#25D366]" : "text-slate-300"}
-          aria-hidden="true"
-        >
-          <WhatsAppGlyph />
-        </span>
-      </div>
-
-      <div className="flex items-baseline gap-2">
-        {loading ? (
-          <div className="h-8 w-10 rounded bg-slate-100 animate-pulse" />
-        ) : (
-          <div
-            className={`text-3xl font-black font-display leading-none ${
-              hasAwaiting ? "text-[#25D366]" : "text-slate-400"
-            }`}
+      {/* Summary header — clickable to /whatsapp inbox root. Matches
+          the calendar/capacity cards' typographic style; the green
+          stays as an accent on the glyph and on the awaiting-reply
+          number so urgency still reads at a glance. */}
+      <button
+        type="button"
+        onClick={() => navigate("/whatsapp")}
+        className="w-full text-left p-4 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:ring-inset"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            WhatsApp
+          </div>
+          <span
+            className={hasAwaiting ? "text-[#25D366]" : "text-slate-300"}
+            aria-hidden="true"
           >
-            {awaitingReply}
-          </div>
-        )}
-        <div className="text-xs font-semibold text-slate-500">
-          awaiting reply
+            <WhatsAppGlyph />
+          </span>
         </div>
-      </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
-        <div>
-          <div className="text-sm font-bold text-slate-700">
-            {loading ? "—" : draftsPending}
-          </div>
-          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-            Drafts
+        <div className="flex items-baseline gap-2">
+          {loading ? (
+            <div className="h-8 w-10 rounded bg-slate-100 animate-pulse" />
+          ) : (
+            <div
+              className={`text-3xl font-black font-display leading-none ${
+                hasAwaiting ? "text-[#25D366]" : "text-slate-400"
+              }`}
+            >
+              {awaitingReply}
+            </div>
+          )}
+          <div className="text-xs font-semibold text-slate-500">
+            awaiting reply
           </div>
         </div>
-        <div>
-          <div className="text-sm font-bold text-slate-700">
-            {loading ? "—" : conversationsToday}
-          </div>
-          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-            Today
-          </div>
-        </div>
-      </div>
 
-      <div className="mt-3 flex items-center justify-end gap-1 text-[11px] font-semibold text-slate-500">
+        <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+          <div>
+            <div className="text-sm font-bold text-slate-700">
+              {loading ? "—" : draftsPending}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+              Drafts
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-slate-700">
+              {loading ? "—" : conversationsToday}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+              Today
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {/* Recent conversations — one row per person, ordered by latest
+          inbound message. Each is its own button so it can deep-link
+          into that specific chat. */}
+      {recentConversations && recentConversations.length > 0 && (
+        <ul className="border-t border-slate-100 flex flex-col">
+          {recentConversations.map((conv) => (
+            <li key={conv.conversationId}>
+              <button
+                type="button"
+                onClick={() => navigate(`/whatsapp?conversation=${conv.conversationId}`)}
+                aria-label={`Open conversation with ${conv.displayName}`}
+                className="w-full text-left flex items-baseline gap-2 px-4 py-2 min-w-0 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:bg-slate-50 border-none bg-transparent font-[inherit]"
+              >
+                <span className="text-[11px] font-bold text-slate-800 truncate shrink-0 max-w-[40%]">
+                  {conv.displayName}
+                </span>
+                <span className="text-[11px] text-slate-500 truncate flex-1 min-w-0">
+                  {conv.lastText}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400 shrink-0 tabular-nums">
+                  {formatRelativeTime(conv.lastAt)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* View inbox footer — separate button so the recent rows can
+          have their own click targets without nested-button issues. */}
+      <button
+        type="button"
+        onClick={() => navigate("/whatsapp")}
+        className="w-full px-4 py-2 border-t border-slate-100 flex items-center justify-end gap-1 text-[11px] font-semibold text-slate-500 cursor-pointer transition-colors hover:bg-slate-50 hover:text-slate-700 bg-transparent border-l-0 border-r-0 border-b-0 font-[inherit]"
+      >
         View inbox
         <svg
           width="12"
@@ -110,7 +170,7 @@ export function DashboardWhatsAppCard() {
         >
           <polyline points="9 18 15 12 9 6" />
         </svg>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconTick } from "../../icons/index.jsx";
+import { IconTick, IconReopen } from "../../icons/index.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 
@@ -55,31 +55,28 @@ export function BookingActions({
   }
 
   return (
-    <div
-      className="px-4 pt-1 pb-5 flex gap-2.5"
-      style={{ background: sizeTheme.light }}
-    >
+    <div className="px-4 pt-2 pb-5 flex gap-2.5 bg-slate-50/80">
       {onReschedule && (
         <button
           onClick={onReschedule}
-          className="flex-1 py-3 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center transition-all bg-white"
-          style={{
-            borderColor: sizeTheme.primary,
-            color: sizeTheme.primary,
-          }}
+          aria-label="Reschedule booking"
+          className="flex-1 py-3 rounded-xl border-[1.5px] border-amber-300 text-[13px] font-bold text-amber-800 bg-white hover:bg-amber-50 active:bg-amber-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_10px_-2px_rgba(251,191,36,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1"
         >
-          Reschedule
+          <IconReopen size={14} colour="#92400E" />
+          <span>Reschedule</span>
         </button>
       )}
       <button
         onClick={() => setShowCancelConfirm(true)}
-        className="flex-1 py-3 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center transition-all bg-white hover:bg-brand-coral-light"
-        style={{
-          borderColor: "#E7546C",
-          color: "#E7546C",
-        }}
+        aria-label="Cancel booking"
+        className="flex-1 py-3 rounded-xl border-[1.5px] border-rose-300 text-[13px] font-bold text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_10px_-2px_rgba(244,63,94,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
       >
-        Cancel Booking
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9F1239" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" />
+          <line x1="5" y1="5" x2="11" y2="11" />
+          <line x1="11" y1="5" x2="5" y2="11" />
+        </svg>
+        <span>Cancel Booking</span>
       </button>
 
       {showCancelConfirm && (
