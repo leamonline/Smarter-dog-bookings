@@ -1,10 +1,12 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
-export function SidebarTodos() {
+export function TodoModal({ onClose }) {
   const { todos, loading, addTodo, toggleTodo, removeTodo, moveTodo } = useTodos();
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
+  const titleId = "todo-modal-title";
 
   const handleAdd = async () => {
     const text = input.trim();
@@ -14,21 +16,33 @@ export function SidebarTodos() {
     inputRef.current?.focus();
   };
 
-  // Sticky-note treatment: warm cream paper, slight rotation, mustard tape header.
   return (
-    <div
-      className="bg-[#FFFDF2] rounded-2xl overflow-hidden shadow-md border border-amber-100"
-      style={{ transform: "rotate(-0.4deg)" }}
+    <AccessibleModal
+      onClose={onClose}
+      titleId={titleId}
+      className="bg-[#FFFDF2] rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-[0_8px_32px_rgba(0,0,0,0.18)] overflow-hidden border border-amber-100"
     >
-      <div className="bg-brand-yellow px-4 py-2.5 border-b border-amber-200">
-        <div className="text-sm font-bold text-brand-purple font-display tracking-wide">To-Do List</div>
+      <div className="bg-brand-yellow px-4 py-3 border-b border-amber-200 flex items-center justify-between">
+        <div id={titleId} className="text-base font-bold text-brand-purple font-display tracking-wide">
+          To-Do List
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close to-do list"
+          className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/20"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
-      <div className="p-3">
-        {/* Add input */}
+      <div className="p-4">
         <form
           onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-          className="flex gap-1.5 mb-2"
+          className="flex gap-1.5 mb-3"
         >
           <input
             ref={inputRef}
@@ -46,7 +60,6 @@ export function SidebarTodos() {
           </button>
         </form>
 
-        {/* Todo list */}
         {loading ? (
           <div className="text-center text-xs text-slate-400 py-3">Loading...</div>
         ) : todos.length === 0 ? (
@@ -56,10 +69,10 @@ export function SidebarTodos() {
             {todos.map((todo, i) => (
               <li
                 key={todo.id}
-                className={`group flex items-start gap-1.5 py-1.5 px-2 rounded-lg transition-colors hover:bg-slate-50 ${todo.done ? "opacity-50" : ""}`}
+                className={`group flex items-start gap-1.5 py-1.5 px-2 rounded-lg transition-colors hover:bg-amber-100/40 ${todo.done ? "opacity-50" : ""}`}
               >
-                {/* Checkbox */}
                 <button
+                  type="button"
                   onClick={() => toggleTodo(todo.id)}
                   aria-label={todo.done ? "Mark as not done" : "Mark as done"}
                   className={`w-4 h-4 mt-0.5 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
@@ -75,15 +88,14 @@ export function SidebarTodos() {
                   )}
                 </button>
 
-                {/* Text */}
                 <span className={`flex-1 text-xs leading-relaxed break-words ${todo.done ? "line-through text-slate-400" : "text-slate-700"}`}>
                   {todo.text}
                 </span>
 
-                {/* Actions — visible on hover */}
                 <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   {i > 0 && (
                     <button
+                      type="button"
                       onClick={() => moveTodo(i, -1)}
                       aria-label="Move up"
                       title="Move up"
@@ -94,6 +106,7 @@ export function SidebarTodos() {
                   )}
                   {i < todos.length - 1 && (
                     <button
+                      type="button"
                       onClick={() => moveTodo(i, 1)}
                       aria-label="Move down"
                       title="Move down"
@@ -103,6 +116,7 @@ export function SidebarTodos() {
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={() => removeTodo(todo.id)}
                     aria-label="Delete"
                     title="Delete"
@@ -116,6 +130,6 @@ export function SidebarTodos() {
           </ul>
         )}
       </div>
-    </div>
+    </AccessibleModal>
   );
 }

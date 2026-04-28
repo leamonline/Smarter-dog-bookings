@@ -58,6 +58,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   const [showDetail, setShowDetail] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
@@ -130,6 +131,27 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               </span>
             )}
           </span>
+          {/* Warning chip — sits inline with the name so a single
+              glance shows whether the dog has anything flagged.
+              Click toggles the full alert list below. */}
+          {dogRecord?.alerts?.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setAlertsOpen((o) => !o); }}
+              aria-expanded={alertsOpen}
+              aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
+              className="self-center inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] rounded-md px-1.5 py-0.5 cursor-pointer transition-colors hover:bg-[#FEE2E2] font-[inherit] shrink-0"
+              title={alertsOpen ? "Hide notes" : "Show notes"}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              {dogRecord.alerts.length}
+              <span className="ml-0.5 text-[8px] opacity-70">{alertsOpen ? "▲" : "▾"}</span>
+            </button>
+          )}
           {pricing.isPaidInFull ? (
             <span
               className="text-[10px] md:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md ml-auto shrink-0"
@@ -152,30 +174,40 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           ) : null}
         </div>
 
-        {/* Row 2: owner + alerts */}
-        {(displayOwner || dogRecord?.alerts?.length > 0) && (
-          <div className="flex items-center gap-2 pl-4 md:pl-5">
-            {displayOwner && (
-              <div className="text-xs md:text-sm font-semibold text-brand-teal min-w-0 truncate">
-                {displayOwner}
-              </div>
-            )}
-            {dogRecord?.alerts?.length > 0 && (
-              <div className="flex flex-wrap justify-end gap-1 ml-auto shrink-0">
-                {dogRecord.alerts.map((alert, idx) => (
-                  <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm">
-                    <span className="text-[8px]">🔴</span> {alert}
-                  </span>
-                ))}
-              </div>
-            )}
+        {/* Row 2: owner — muted secondary text under the dog name. */}
+        {displayOwner && (
+          <div className="text-[11px] md:text-xs font-medium text-slate-500 pl-4 md:pl-5 min-w-0 truncate">
+            {displayOwner}
           </div>
+        )}
+
+        {/* Expanded alert list — only when the row-1 warning chip is
+            open. Each alert gets its own coloured note line. */}
+        {dogRecord?.alerts?.length > 0 && alertsOpen && (
+          <ul
+            onClick={(e) => e.stopPropagation()}
+            className="list-none m-0 p-0 pl-4 md:pl-5 mt-0.5 flex flex-col gap-1 animate-pop-in"
+          >
+            {dogRecord.alerts.map((alert, idx) => (
+              <li
+                key={idx}
+                className="flex items-start gap-1.5 text-[11px] font-medium text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] rounded-md px-2 py-1"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span className="break-words">{alert}</span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* Row 4: service + status pill row */}
         <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
           {/* Service pill — stretches to match status picker height */}
-          <span className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold px-1.5 rounded-md text-center bg-slate-100 text-slate-700 flex items-center justify-center">
+          <span className="flex-1 min-w-0 text-[11px] font-bold px-2 py-1 rounded-md text-center bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center">
             {service?.name || booking.service || "\u2014"}
           </span>
 
@@ -195,7 +227,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       if (!isCurrent && onUpdate) onUpdate({ ...booking, status: s.id }, currentDateStr, currentDateStr);
                       setStatusOpen(false);
                     }}
-                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] ${
+                    className={`w-full text-[11px] font-bold px-2 py-1 rounded-md text-center border cursor-pointer transition-all font-[inherit] ${
                       isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
                     }`}
                     style={{
@@ -213,7 +245,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           ) : (
             <span
               onClick={(e) => { e.stopPropagation(); setStatusOpen(true); }}
-              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
+              className="flex-1 min-w-0 text-[11px] font-bold px-2 py-1 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
               {statusObj.label}

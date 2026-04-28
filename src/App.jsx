@@ -31,7 +31,6 @@ import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
-import { CalendarTabs } from "./components/layout/CalendarTabs.jsx";
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -309,16 +308,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onSignOut={signOut}
           isOnline={isOnline}
           user={user}
-          weekNav={location.pathname === "/" ? (
-            <CalendarTabs
-              dates={dates}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              bookingsByDate={bookingsByDate}
-              dayOpenState={dayOpenState}
-              calendarMode="day"
-            />
-          ) : null}
         />
 
         <SalonProvider
