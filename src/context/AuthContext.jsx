@@ -101,16 +101,19 @@ export function AuthProvider({ children }) {
         if (data) setState((prev) => ({ ...prev, human: data }));
     }, [state.session]);
 
-    const signIn = useCallback(async (phoneE164) => {
-        const { error } = await supabase.auth.signInWithOtp({ phone: phoneE164 });
+    const signIn = useCallback(async (phoneE164, channel = 'whatsapp') => {
+        const { error } = await supabase.auth.signInWithOtp({ phone: phoneE164, channel });
         if (error) throw error;
     }, []);
 
-    const verifyOtp = useCallback(async (phoneE164, code, hints) => {
+    const verifyOtp = useCallback(async (phoneE164, code, hints = {}) => {
+        // type must match the channel the OTP was actually delivered on,
+        // otherwise Supabase rejects with token mismatch.
+        const type = hints.channel === 'sms' ? 'sms' : 'whatsapp';
         const { data, error } = await supabase.auth.verifyOtp({
             phone: phoneE164,
             token: code,
-            type: 'sms',
+            type,
         });
         if (error) throw error;
         if (data.session) await linkOrCreateHuman(data.session, hints);

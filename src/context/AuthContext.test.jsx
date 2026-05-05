@@ -144,11 +144,27 @@ describe('AuthProvider linking', () => {
         const ctx = captured[captured.length - 1];
 
         await ctx.signIn('+447111111111');
-        expect(signInWithOtpMock).toHaveBeenCalledWith({ phone: '+447111111111' });
+        expect(signInWithOtpMock).toHaveBeenCalledWith({
+            phone: '+447111111111',
+            channel: 'whatsapp',
+        });
 
+        await ctx.signIn('+447111111111', 'sms');
+        expect(signInWithOtpMock).toHaveBeenLastCalledWith({
+            phone: '+447111111111',
+            channel: 'sms',
+        });
+
+        // verifyOtp without channel hint defaults to whatsapp.
         await ctx.verifyOtp('+447111111111', '123456', { name: 'Anon' });
-        expect(verifyOtpMock).toHaveBeenCalledWith(
-            expect.objectContaining({ phone: '+447111111111', token: '123456', type: 'sms' }),
+        expect(verifyOtpMock).toHaveBeenLastCalledWith(
+            expect.objectContaining({ phone: '+447111111111', token: '123456', type: 'whatsapp' }),
+        );
+
+        // verifyOtp with channel:'sms' passes type='sms' to Supabase.
+        await ctx.verifyOtp('+447111111111', '654321', { channel: 'sms' });
+        expect(verifyOtpMock).toHaveBeenLastCalledWith(
+            expect.objectContaining({ token: '654321', type: 'sms' }),
         );
 
         await ctx.signOut();
