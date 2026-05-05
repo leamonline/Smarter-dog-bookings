@@ -4,6 +4,7 @@ import SmarterDogHomepage from './components/SmarterDogHomepage';
 import CookieConsent from './components/CookieConsent';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollRestoration from './components/ScrollRestoration';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import { useRouteSeo } from './hooks/useRouteSeo';
@@ -20,6 +21,10 @@ const BookingPage = lazy(() => import('./components/pages/BookingPage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const NotFoundPage = lazy(() => import('./components/pages/NotFoundPage'));
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
+const AccountPage = lazy(() => import('./components/pages/AccountPage'));
+const AccountProfilePage = lazy(() => import('./components/pages/AccountProfilePage'));
+const AccountDogsPage = lazy(() => import('./components/pages/AccountDogsPage'));
+const AccountBookingsPage = lazy(() => import('./components/pages/AccountBookingsPage'));
 
 // Lightweight loading fallback
 const PageFallback = () => (
@@ -58,6 +63,22 @@ function App() {
               <Route path="/book" element={<BookingPage />} />
               <Route path="/community" element={<CommunityPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/account"
+                element={<ProtectedRoute><AccountPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/account/profile"
+                element={<ProtectedRoute><AccountProfilePage /></ProtectedRoute>}
+              />
+              <Route
+                path="/account/dogs"
+                element={<ProtectedRoute><AccountDogsPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/account/bookings"
+                element={<ProtectedRoute><AccountBookingsPage /></ProtectedRoute>}
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
