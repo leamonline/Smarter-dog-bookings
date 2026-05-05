@@ -199,6 +199,8 @@ export function WeekCalendarView({
   daySettings,
   dayOpenState,
   dogs,
+  dogsByHumanId,
+  ensureDogsForHumans,
   humans,
   // Current day settings (pre-computed in App.jsx)
   currentSettings,
@@ -449,6 +451,8 @@ export function WeekCalendarView({
             currentDateObj={currentDateObj}
             humans={humans}
             dogs={dogs}
+            dogsByHumanId={dogsByHumanId}
+            ensureDogsForHumans={ensureDogsForHumans}
             onOpenHuman={onOpenHuman}
             waitlist={waitlist}
             error={waitlistError}

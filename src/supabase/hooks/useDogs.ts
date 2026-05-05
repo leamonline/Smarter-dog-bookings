@@ -11,6 +11,7 @@ const PAGE_SIZE = 50;
 export function useDogs(humansById: Record<string, any>) {
   const [dogs, setDogs] = useState<Record<string, any>>({});
   const [dogsById, setDogsById] = useState<Record<string, any>>({});
+  const [dogsByHumanId, setDogsByHumanId] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -19,6 +20,20 @@ export function useDogs(humansById: Record<string, any>) {
   const [isSearching, setIsSearching] = useState(false);
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchedHumanIdsRef = useRef<Set<string>>(new Set());
+  const inflightHumanIdsRef = useRef<Set<string>>(new Set());
+
+  const invalidateHuman = useCallback((humanId: string | null | undefined) => {
+    if (!humanId) return;
+    fetchedHumanIdsRef.current.delete(humanId);
+    inflightHumanIdsRef.current.delete(humanId);
+    setDogsByHumanId((prev) => {
+      if (!(humanId in prev)) return prev;
+      const next = { ...prev };
+      delete next[humanId];
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -80,6 +95,8 @@ export function useDogs(humansById: Record<string, any>) {
           if (!oldRow.id) return;
           setDogsById((prev) => {
             const next = { ...prev };
+            const cached = next[oldRow.id];
+            invalidateHuman(oldRow.human_id ?? cached?.human_id);
             delete next[oldRow.id];
             return next;
           });
@@ -93,14 +110,17 @@ export function useDogs(humansById: Record<string, any>) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "dogs" },
-        () => {
+        (payload: any) => {
+          invalidateHuman(payload.new?.human_id);
           fetchDogs();
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "dogs" },
-        () => {
+        (payload: any) => {
+          invalidateHuman(payload.old?.human_id);
+          invalidateHuman(payload.new?.human_id);
           fetchDogs();
         },
       )
@@ -313,10 +333,12 @@ export function useDogs(humansById: Record<string, any>) {
 
       setDogsById((prev) => ({ ...prev, [savedRow.id]: savedRow }));
       setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
+      invalidateHuman(prevDogsById[existingDog.id]?.human_id);
+      invalidateHuman(savedRow.human_id);
 
       return savedDog;
     },
-    [dogs, dogsById, humansById],
+    [dogs, dogsById, humansById, invalidateHuman],
   );
 
   const addDog = useCallback(
@@ -360,6 +382,7 @@ export function useDogs(humansById: Record<string, any>) {
             custom_price: undefined,
           },
         }));
+        invalidateHuman(owner.id);
         return offlineDog;
       }
 
@@ -399,10 +422,11 @@ export function useDogs(humansById: Record<string, any>) {
 
       setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
       setDogsById((prev) => ({ ...prev, [data.id]: data }));
+      invalidateHuman(data.human_id);
 
       return savedDog;
     },
-    [humansById],
+    [humansById, invalidateHuman],
   );
 
   const deleteDog = useCallback(
@@ -443,9 +467,10 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       setTotalCount((c) => Math.max(0, c - 1));
+      invalidateHuman(existing.human_id);
       return { ok: true };
     },
-    [dogs, dogsById],
+    [dogs, dogsById, invalidateHuman],
   );
 
   const fetchDogById = useCallback(async (dogId: string) => {
@@ -501,9 +526,63 @@ export function useDogs(humansById: Record<string, any>) {
     return dogObj;
   }, [dogsById, humansById]);
 
+  const ensureDogsForHumans = useCallback(async (humanIds: string[]) => {
+    if (!supabase || !humanIds?.length) return;
+    const missing = humanIds.filter(
+      (id) =>
+        id &&
+        !fetchedHumanIdsRef.current.has(id) &&
+        !inflightHumanIdsRef.current.has(id),
+    );
+    if (missing.length === 0) return;
+
+    missing.forEach((id) => inflightHumanIdsRef.current.add(id));
+
+    const { data, error: err } = await supabase
+      .from("dogs")
+      .select("*")
+      .in("human_id", missing);
+
+    missing.forEach((id) => {
+      inflightHumanIdsRef.current.delete(id);
+      fetchedHumanIdsRef.current.add(id);
+    });
+
+    if (err) {
+      console.error("ensureDogsForHumans failed:", err);
+      missing.forEach((id) => fetchedHumanIdsRef.current.delete(id));
+      return;
+    }
+
+    const rows = data || [];
+    const grouped: Record<string, any[]> = {};
+    for (const id of missing) grouped[id] = [];
+    for (const row of rows) {
+      const hid = row.human_id;
+      if (!hid) continue;
+      const dog = {
+        id: row.id,
+        name: row.name,
+        breed: row.breed,
+        age: row.age || "",
+        size: row.size || null,
+        humanId: humansById?.[hid]?.fullName || hid,
+        _humanId: hid,
+        alerts: row.alerts || [],
+        groomNotes: row.groom_notes || "",
+        customPrice: row.custom_price,
+      };
+      (grouped[hid] = grouped[hid] || []).push(dog);
+    }
+
+    setDogsByHumanId((prev) => ({ ...prev, ...grouped }));
+  }, [humansById]);
+
   return {
     dogs,
     dogsById,
+    dogsByHumanId,
+    ensureDogsForHumans,
     loading,
     error,
     updateDog,

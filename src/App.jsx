@@ -201,6 +201,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const {
     dogs: sbDogs,
     dogsById,
+    dogsByHumanId,
+    ensureDogsForHumans,
     loading: dl,
     error: de,
     updateDog: sbUpdateDog,
@@ -343,6 +345,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <HumansView
                       humans={humans}
                       dogs={dogs}
+                      dogsByHumanId={dogsByHumanId}
+                      ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={setSelectedHumanId}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
@@ -388,6 +392,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       daySettings={daySettings}
                       dayOpenState={dayOpenState}
                       dogs={dogs}
+                      dogsByHumanId={dogsByHumanId}
+                      ensureDogsForHumans={ensureDogsForHumans}
                       humans={humans}
                       currentSettings={currentSettings}
                       handleAdd={handleAdd}
