@@ -4,6 +4,8 @@ import emailjs from '@emailjs/browser';
 import { colors } from '../constants/colors';
 import { trackEvent } from '../utils/analytics';
 import { validatePhone, validateEmail } from '../utils/validation';
+import { useAuth } from '../hooks/useAuth';
+import AuthenticatedBookingForm from './AuthenticatedBookingForm';
 
 const TIME_SLOTS = [
     { id: 'mon-am', label: 'Monday Morning' },
@@ -80,7 +82,7 @@ const buildInitialFormState = (initialFormData = {}) => {
  * @param {Object} [props.initialFormData] - Optional prefill values for the booking form
  * @param {string} [props.prefillSummary] - Optional summary copy to show when prefilled
  */
-const BookingForm = ({
+const AnonymousBookingForm = ({
     headingTag = 'h2',
     headingId,
     onSuccess,
@@ -516,6 +518,17 @@ const BookingForm = ({
             )}
         </div>
     );
+};
+
+const BookingForm = (props) => {
+    const { session, human } = useAuth();
+
+    // Two distinct submit paths, branched at the top — the anonymous EmailJS
+    // flow stays unchanged for v1; only signed-in customers hit the DB.
+    if (session && human) {
+        return <AuthenticatedBookingForm {...props} human={human} />;
+    }
+    return <AnonymousBookingForm {...props} />;
 };
 
 export default BookingForm;
