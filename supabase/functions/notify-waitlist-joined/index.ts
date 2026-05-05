@@ -1,16 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendWhatsAppBoolean } from "../_shared/twilio.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TWILIO_SID = Deno.env.get("TWILIO_ACCOUNT_SID")!;
-const TWILIO_AUTH = Deno.env.get("TWILIO_AUTH_TOKEN")!;
-const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM")!;
-const TWILIO_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM")!;
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+// Twilio creds are read inside ../_shared/twilio.ts.
 
 // The salon's own alert destination — set to owner's email or WhatsApp
 const SALON_ALERT_EMAIL = Deno.env.get("SALON_ALERT_EMAIL");
@@ -26,21 +24,6 @@ function sanitise(str: string): string {
     .replace(/\n/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": "Basic " + btoa(`${TWILIO_SID}:${TWILIO_AUTH}`),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ To: to, From: from, Body: body }),
-    },
-  );
-  return res.ok;
 }
 
 async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
@@ -135,9 +118,7 @@ serve(async (req) => {
     let sent = false;
 
     if (SALON_ALERT_WHATSAPP) {
-      const to = `whatsapp:${SALON_ALERT_WHATSAPP}`;
-      const from = `whatsapp:${TWILIO_WHATSAPP_FROM}`;
-      sent = await sendTwilio(to, from, alertMessage);
+      sent = await sendWhatsAppBoolean(SALON_ALERT_WHATSAPP, alertMessage);
       channel = "whatsapp";
     } else if (SALON_ALERT_EMAIL) {
       const subject = `Waitlist joined — ${humanName} for ${dateFormatted}`;

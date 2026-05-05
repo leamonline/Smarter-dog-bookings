@@ -1,16 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TWILIO_SID = Deno.env.get("TWILIO_ACCOUNT_SID")!;
-const TWILIO_AUTH = Deno.env.get("TWILIO_AUTH_TOKEN")!;
-const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM")!;
-const TWILIO_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM")!;
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+// Twilio creds are read inside ../_shared/twilio.ts.
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -22,21 +20,6 @@ function sanitise(str: string): string {
     .replace(/\n/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": "Basic " + btoa(`${TWILIO_SID}:${TWILIO_AUTH}`),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ To: to, From: from, Body: body }),
-    },
-  );
-  return res.ok;
 }
 
 async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
@@ -104,7 +87,7 @@ serve(async (req) => {
     // 2. Look up the customer
     const { data: human, error: humanError } = await supabase
       .from("humans")
-      .select("id, name, phone, whatsapp, sms, email")
+      .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
       .eq("id", dog.human_id)
       .single();
 
@@ -129,39 +112,65 @@ serve(async (req) => {
       "Smarter Dog Grooming",
     ].join("\n");
 
-    // 4. Send via preferred channel
+    // 4. Pick channel BEFORE we send (we need to record it in the pending row).
+    //    Preference: WhatsApp → SMS → email. Skip any channel the customer has
+    //    opted out of (PECR compliance, mig 041).
     let channel: "whatsapp" | "sms" | "email";
-    let sent = false;
-
-    if (human.whatsapp && human.phone) {
+    if (human.whatsapp && human.phone && !human.whatsapp_opted_out) {
       channel = "whatsapp";
-      const to = `whatsapp:${human.phone}`;
-      const from = `whatsapp:${TWILIO_WHATSAPP_FROM}`;
-      sent = await sendTwilio(to, from, message);
-    } else if (human.sms && human.phone) {
+    } else if (human.sms && human.phone && !human.sms_opted_out) {
       channel = "sms";
-      sent = await sendTwilio(human.phone, TWILIO_SMS_FROM, message);
-    } else if (human.email) {
+    } else if (human.email && !human.email_opted_out) {
       channel = "email";
-      const subject = `Your ${dogName} appointment has been cancelled`;
-      sent = await sendEmail(human.email, subject, message);
     } else {
-      return new Response("No contact method available for this customer", { status: 200 });
+      return new Response("No contact method available (or all opted out) for this customer", { status: 200 });
     }
 
-    // 5. Log to notification_log
-    //    booking_id will be null because the row has been deleted — that's fine,
-    //    the column is nullable (ON DELETE SET NULL).
-    await supabase.from("notification_log").insert({
-      booking_id: null,
-      group_id: booking.group_id ?? null,
-      human_id: human.id,
-      channel,
-      trigger_type: "cancelled",
-      status: sent ? "sent" : "failed",
-      error_message: sent ? null : "Delivery failed — check provider logs",
-      sent_at: sent ? new Date().toISOString() : null,
-    });
+    // 5. IDEMPOTENCY: insert pending log row up front. The partial unique
+    //    index `(booking_id, trigger_type) WHERE status IN ('pending','sent')`
+    //    (mig 042) prevents double-sends if the trigger fires twice.
+    //    Cancellation is an UPDATE (status='Cancelled') not a DELETE in this
+    //    app — the booking row still exists, so booking_id is valid.
+    const { data: pendingRow, error: pendingError } = await supabase
+      .from("notification_log")
+      .insert({
+        booking_id: booking.id,
+        group_id: booking.group_id ?? null,
+        human_id: human.id,
+        channel,
+        trigger_type: "cancelled",
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (pendingError) {
+      if (pendingError.code === "23505") {
+        return new Response("Skipped: cancellation already notified", { status: 200 });
+      }
+      return new Response(`Pending log insert failed: ${pendingError.message}`, { status: 500 });
+    }
+
+    // 6. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+    let sent = false;
+    if (channel === "whatsapp") {
+      sent = await sendWhatsAppBoolean(human.phone, message);
+    } else if (channel === "sms") {
+      sent = await sendSmsBoolean(human.phone, message);
+    } else {
+      const subject = `Your ${dogName} appointment has been cancelled`;
+      sent = await sendEmail(human.email, subject, message);
+    }
+
+    // 7. Update the pending row with the outcome.
+    await supabase
+      .from("notification_log")
+      .update({
+        status: sent ? "sent" : "failed",
+        sent_at: sent ? new Date().toISOString() : null,
+        error_message: sent ? null : "Delivery failed — check provider logs",
+      })
+      .eq("id", pendingRow.id);
 
     return new Response(
       JSON.stringify({ success: sent, channel, dogName }),

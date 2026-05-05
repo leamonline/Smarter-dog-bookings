@@ -1,16 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TWILIO_SID = Deno.env.get("TWILIO_ACCOUNT_SID")!;
-const TWILIO_AUTH = Deno.env.get("TWILIO_AUTH_TOKEN")!;
-const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM")!;
-const TWILIO_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM")!;
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
+// Twilio creds are read inside ../_shared/twilio.ts.
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -22,21 +20,6 @@ function sanitise(str: string): string {
     .replace(/\n/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-async function sendTwilio(to: string, from: string, body: string): Promise<boolean> {
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": "Basic " + btoa(`${TWILIO_SID}:${TWILIO_AUTH}`),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ To: to, From: from, Body: body }),
-    },
-  );
-  return res.ok;
 }
 
 async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
@@ -96,24 +79,10 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Group dedup: when several dogs from the same household finish together,
-    // we only want to send one "ready" message. Wait briefly, then check if a
-    // sibling already triggered this notification.
-    if (booking.group_id) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const { data: existingLog } = await supabase
-        .from("notification_log")
-        .select("id")
-        .eq("group_id", booking.group_id)
-        .eq("trigger_type", "ready")
-        .in("status", ["sent", "pending"])
-        .maybeSingle();
-
-      if (existingLog) {
-        return new Response("Skipped: group notification already dispatched", { status: 200 });
-      }
-    }
+    // Group dedup is now handled by the partial unique index on
+    // notification_log (mig 042) — see step 6 below. The previous
+    // 2-second-wait + select-by-group_id pattern was racy; the index is
+    // atomic.
 
     const { data: dog, error: dogError } = await supabase
       .from("dogs")
@@ -127,7 +96,7 @@ serve(async (req) => {
 
     const { data: human, error: humanError } = await supabase
       .from("humans")
-      .select("id, name, phone, whatsapp, sms, email")
+      .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
       .eq("id", dog.human_id)
       .single();
 
@@ -175,37 +144,65 @@ serve(async (req) => {
       "Smarter Dog Grooming",
     ].join("\n");
 
+    // 5. Pick channel BEFORE we send. Preference: WhatsApp → SMS → email.
+    //    Skip any channel the customer has opted out of (PECR, mig 041).
     let channel: "whatsapp" | "sms" | "email";
-    let sent = false;
-
-    if (human.whatsapp && human.phone) {
+    if (human.whatsapp && human.phone && !human.whatsapp_opted_out) {
       channel = "whatsapp";
-      const to = `whatsapp:${human.phone}`;
-      const from = `whatsapp:${TWILIO_WHATSAPP_FROM}`;
-      sent = await sendTwilio(to, from, message);
-    } else if (human.sms && human.phone) {
+    } else if (human.sms && human.phone && !human.sms_opted_out) {
       channel = "sms";
-      sent = await sendTwilio(human.phone, TWILIO_SMS_FROM, message);
-    } else if (human.email) {
+    } else if (human.email && !human.email_opted_out) {
       channel = "email";
-      const subject = `${dogNames} is ready for collection — Smarter Dog Grooming`;
-      sent = await sendEmail(human.email, subject, message);
     } else {
-      return new Response("No contact method available for this customer", { status: 200 });
+      return new Response("No contact method available (or all opted out) for this customer", { status: 200 });
     }
 
-    const logEntries = bookingIds.map((bid) => ({
+    // 6. IDEMPOTENCY: insert pending log rows for ALL bookings in the group
+    //    atomically. Partial unique index (mig 042) prevents a second
+    //    invocation — if any booking already has a pending or sent row, the
+    //    whole INSERT fails with code 23505 and we return early.
+    const pendingEntries = bookingIds.map((bid) => ({
       booking_id: bid,
       group_id: booking.group_id ?? null,
       human_id: human.id,
       channel,
       trigger_type: "ready",
-      status: sent ? "sent" : "failed",
-      error_message: sent ? null : "Delivery failed — check provider logs",
-      sent_at: sent ? new Date().toISOString() : null,
+      status: "pending",
     }));
 
-    await supabase.from("notification_log").insert(logEntries);
+    const { data: pendingRows, error: pendingError } = await supabase
+      .from("notification_log")
+      .insert(pendingEntries)
+      .select("id");
+
+    if (pendingError) {
+      if (pendingError.code === "23505") {
+        return new Response("Skipped: ready notification already dispatched", { status: 200 });
+      }
+      return new Response(`Pending log insert failed: ${pendingError.message}`, { status: 500 });
+    }
+
+    // 7. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+    let sent = false;
+    if (channel === "whatsapp") {
+      sent = await sendWhatsAppBoolean(human.phone, message);
+    } else if (channel === "sms") {
+      sent = await sendSmsBoolean(human.phone, message);
+    } else {
+      const subject = `${dogNames} is ready for collection — Smarter Dog Grooming`;
+      sent = await sendEmail(human.email, subject, message);
+    }
+
+    // 8. Update the pending rows with the outcome.
+    const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
+    await supabase
+      .from("notification_log")
+      .update({
+        status: sent ? "sent" : "failed",
+        sent_at: sent ? new Date().toISOString() : null,
+        error_message: sent ? null : "Delivery failed — check provider logs",
+      })
+      .in("id", pendingIds);
 
     return new Response(
       JSON.stringify({ success: sent, channel, dogNames }),
