@@ -15,7 +15,6 @@
 //     so the AI stops drafting for it
 //   - Auto-refreshes via realtime subscriptions in the hook
 //
-// Not yet:
 //   - Template picker for messages outside the 24h window
 // ============================================================
 
@@ -24,6 +23,7 @@ import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { titleCase } from "../../utils/text.js";
+import { WHATSAPP_TEMPLATES } from "../../constants/whatsappTemplates.js";
 
 // ── Formatting helpers ──────────────────────────────────────
 function formatWhen(iso) {
@@ -641,7 +641,7 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
 // conversation is selected. Disabled outside the 24h window with a
 // hint that the template picker is coming. Enter sends, Shift+Enter
 // inserts a newline — matches WhatsApp and most chat apps.
-function ComposePanel({ conversation, onSend, inFlight }) {
+function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight }) {
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
 
@@ -677,12 +677,12 @@ function ComposePanel({ conversation, onSend, inFlight }) {
 
   if (!windowOpen) {
     return (
-      <div className="p-4 bg-slate-50 border-t border-slate-200">
-        <div className="text-[13px] text-slate-600">
-          <span className="font-bold">24h window closed.</span>{" "}
-          Can't send a free-form reply — the customer hasn't messaged us in the last 24 hours.
-          Template picker coming soon; for now, use the WhatsApp consumer app on your phone if it's urgent.
-        </div>
+      <div className="p-3 bg-white border-t border-slate-200">
+        <TemplatePicker
+          conversation={conversation}
+          dogNames={dogNames ?? []}
+          onSend={onSendTemplate}
+        />
       </div>
     );
   }
@@ -725,6 +725,128 @@ function ComposePanel({ conversation, onSend, inFlight }) {
   );
 }
 
+// ── Template picker ─────────────────────────────────────────
+// Shown in ComposePanel when the 24h free-form text window is closed.
+// Lets staff pick a Meta-approved template, fill in any params, preview
+// the message, then send it via whatsapp-send (mode:"template").
+function TemplatePicker({ conversation, dogNames, onSend }) {
+  const [selectedTemplateName, setSelectedTemplateName] = useState(WHATSAPP_TEMPLATES[0].name);
+  const [paramValues, setParamValues] = useState({});
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+  const [sent, setSent] = useState(false);
+
+  const template = WHATSAPP_TEMPLATES.find((t) => t.name === selectedTemplateName);
+
+  // Auto-fill known params from conversation context whenever the selected
+  // template or conversation changes.
+  useEffect(() => {
+    const autoFilled = {};
+    const customerFirstName = conversation?.humans?.name ?? "";
+    const firstDog = (dogNames ?? [])[0] ?? "";
+
+    for (const param of template.params) {
+      if (param.autoFill === "customer_first_name") autoFilled[param.key] = customerFirstName;
+      else if (param.autoFill === "dog_name_select") autoFilled[param.key] = firstDog;
+    }
+    setParamValues(autoFilled);
+    setSent(false);
+    setError(null);
+  }, [selectedTemplateName, conversation?.id, dogNames, template]);
+
+  const allFilled = template.params.every((p) => (paramValues[p.key] ?? "").trim() !== "");
+  const preview = template.preview(paramValues);
+
+  async function handleSend() {
+    setSending(true);
+    setError(null);
+    try {
+      await onSend(template, paramValues);
+      setSent(true);
+    } catch (err) {
+      setError(err.message ?? "Failed to send template");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="p-3 text-sm text-green-700 bg-green-50 rounded-lg border border-green-200">
+        ✓ Template sent. The customer will receive the message shortly.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+      <p className="text-xs font-medium text-amber-800">
+        24h window closed — send a template message instead
+      </p>
+
+      <div>
+        <label className="block text-xs text-slate-600 mb-1">Template</label>
+        <select
+          className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 bg-white"
+          value={selectedTemplateName}
+          onChange={(e) => setSelectedTemplateName(e.target.value)}
+        >
+          {WHATSAPP_TEMPLATES.map((t) => (
+            <option key={t.name} value={t.name}>{t.label}</option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-500 mt-1">{template.description}</p>
+      </div>
+
+      {template.params.map((param) => {
+        if (param.autoFill === "dog_name_select" && (dogNames ?? []).length > 1) {
+          return (
+            <div key={param.key}>
+              <label className="block text-xs text-slate-600 mb-1">{param.label}</label>
+              <select
+                className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 bg-white"
+                value={paramValues[param.key] ?? ""}
+                onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
+              >
+                <option value="">Select a dog…</option>
+                {dogNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+        return (
+          <div key={param.key}>
+            <label className="block text-xs text-slate-600 mb-1">{param.label}</label>
+            <input
+              type="text"
+              className="w-full text-sm border border-slate-300 rounded px-2 py-1.5"
+              value={paramValues[param.key] ?? ""}
+              onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
+              placeholder={`Enter ${param.label.toLowerCase()}…`}
+            />
+          </div>
+        );
+      })}
+
+      <div className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 whitespace-pre-wrap">
+        {preview}
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <button
+        onClick={handleSend}
+        disabled={!allFilled || sending}
+        className="self-end px-4 py-2 text-sm font-medium rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {sending ? "Sending…" : "Send Template"}
+      </button>
+    </div>
+  );
+}
+
 // ── Main view ───────────────────────────────────────────────
 export function WhatsAppInboxView() {
   const {
@@ -747,6 +869,8 @@ export function WhatsAppInboxView() {
     takeoverConversation,
     releaseConversation,
     setAutoSendEnabled,
+    sendTemplate,
+    dogNames,
     actionInFlight,
   } = useWhatsAppInbox();
 
@@ -952,6 +1076,8 @@ export function WhatsAppInboxView() {
               <ComposePanel
                 conversation={selectedConversation}
                 onSend={sendManualReply}
+                onSendTemplate={sendTemplate}
+                dogNames={dogNames}
                 inFlight={actionInFlight}
               />
             </>
