@@ -6,6 +6,9 @@ const rpcMock = vi.fn();
 const getSessionMock = vi.fn();
 const onAuthStateChangeMock = vi.fn();
 const fromMock = vi.fn();
+const signInWithOtpMock = vi.fn();
+const verifyOtpMock = vi.fn();
+const signOutMock = vi.fn();
 
 let authChangeCallback = null;
 
@@ -18,9 +21,9 @@ vi.mock('../lib/supabase', () => ({
                 onAuthStateChangeMock(cb);
                 return { data: { subscription: { unsubscribe: vi.fn() } } };
             },
-            signInWithOtp: vi.fn(),
-            verifyOtp: vi.fn(),
-            signOut: vi.fn(),
+            signInWithOtp: (...args) => signInWithOtpMock(...args),
+            verifyOtp: (...args) => verifyOtpMock(...args),
+            signOut: (...args) => signOutMock(...args),
         },
         rpc: (...args) => rpcMock(...args),
         from: (...args) => fromMock(...args),
@@ -45,6 +48,9 @@ describe('AuthProvider linking', () => {
         getSessionMock.mockReset();
         onAuthStateChangeMock.mockReset();
         fromMock.mockReset();
+        signInWithOtpMock.mockReset();
+        verifyOtpMock.mockReset();
+        signOutMock.mockReset();
         authChangeCallback = null;
     });
 
@@ -119,5 +125,50 @@ describe('AuthProvider linking', () => {
         authChangeCallback('SIGNED_IN', session);
 
         await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(2));
+    });
+
+    it('exposes signIn / verifyOtp / signOut handlers that delegate to supabase.auth', async () => {
+        getSessionMock.mockResolvedValue({ data: { session: null } });
+        signInWithOtpMock.mockResolvedValue({ error: null });
+        verifyOtpMock.mockResolvedValue({ data: { session: null }, error: null });
+        signOutMock.mockResolvedValue({ error: null });
+
+        const captured = [];
+        render(
+            <AuthProvider>
+                <Consumer onValue={(v) => captured.push(v)} />
+            </AuthProvider>,
+        );
+
+        await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+        const ctx = captured[captured.length - 1];
+
+        await ctx.signIn('+447111111111');
+        expect(signInWithOtpMock).toHaveBeenCalledWith({ phone: '+447111111111' });
+
+        await ctx.verifyOtp('+447111111111', '123456', { name: 'Anon' });
+        expect(verifyOtpMock).toHaveBeenCalledWith(
+            expect.objectContaining({ phone: '+447111111111', token: '123456', type: 'sms' }),
+        );
+
+        await ctx.signOut();
+        expect(signOutMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('signIn surfaces supabase errors as thrown exceptions', async () => {
+        getSessionMock.mockResolvedValue({ data: { session: null } });
+        signInWithOtpMock.mockResolvedValue({ error: { message: 'rate limited' } });
+
+        const captured = [];
+        render(
+            <AuthProvider>
+                <Consumer onValue={(v) => captured.push(v)} />
+            </AuthProvider>,
+        );
+
+        await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+        const ctx = captured[captured.length - 1];
+
+        await expect(ctx.signIn('+447111111111')).rejects.toMatchObject({ message: 'rate limited' });
     });
 });
