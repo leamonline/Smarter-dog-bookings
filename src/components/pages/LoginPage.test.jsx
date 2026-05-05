@@ -34,21 +34,37 @@ describe('LoginPage', () => {
     it('rejects an invalid UK number without sending an OTP', async () => {
         const ctx = renderWith();
         fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '12345' } });
-        fireEvent.click(screen.getByRole('button', { name: /text me a code/i }));
+        fireEvent.click(screen.getByRole('button', { name: /send me a code on whatsapp/i }));
         await waitFor(() => {
             expect(screen.getByRole('alert')).toHaveTextContent(/valid UK mobile/i);
         });
         expect(ctx.signIn).not.toHaveBeenCalled();
     });
 
-    it('sends an OTP for a valid UK mobile and advances to the code step', async () => {
+    it('sends a WhatsApp OTP by default and advances to the code step', async () => {
         const ctx = renderWith();
         fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '07507 731487' } });
-        fireEvent.click(screen.getByRole('button', { name: /text me a code/i }));
+        fireEvent.click(screen.getByRole('button', { name: /send me a code on whatsapp/i }));
         await waitFor(() => {
-            expect(ctx.signIn).toHaveBeenCalledWith('+447507731487');
+            expect(ctx.signIn).toHaveBeenCalledWith('+447507731487', 'whatsapp');
         });
         expect(await screen.findByLabelText(/6-digit code/i)).toBeInTheDocument();
+        expect(screen.getByText(/on whatsapp/i)).toBeInTheDocument();
+    });
+
+    it('falls back to SMS when the customer clicks "Send by SMS instead"', async () => {
+        const ctx = renderWith();
+        fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '07507 731487' } });
+        fireEvent.click(screen.getByRole('button', { name: /send me a code on whatsapp/i }));
+        await waitFor(() =>
+            expect(ctx.signIn).toHaveBeenCalledWith('+447507731487', 'whatsapp'),
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /send by sms instead/i }));
+        await waitFor(() => {
+            expect(ctx.signIn).toHaveBeenCalledWith('+447507731487', 'sms');
+        });
+        expect(await screen.findByText(/texted a code .*via sms/i)).toBeInTheDocument();
     });
 
     it('shows the ambiguous-match conflict state when the RPC returns ambiguous', () => {
