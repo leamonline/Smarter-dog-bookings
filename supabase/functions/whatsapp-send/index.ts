@@ -37,7 +37,9 @@
 //
 // CORS:
 //   Browser callers (staff inbox) need a preflight OPTIONS response.
-//   All responses include Access-Control-Allow-* headers.
+//   Origins are restricted to the staging dashboard and localhost dev
+//   ports via ALLOWED_ORIGINS. Server-to-server callers (no Origin
+//   header, x-internal-secret auth) are unaffected.
 //
 // Env vars required:
 //   SUPABASE_URL                (auto)
@@ -65,13 +67,31 @@ const META_GRAPH_VERSION = "v22.0";
 // to protect against accidental paste-the-whole-document disasters.
 const MAX_MANUAL_TEXT_LEN = 2000;
 
-const CORS_HEADERS: HeadersInit = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-internal-secret",
-  "Access-Control-Max-Age": "86400",
-};
+// Browser origins permitted to invoke this function. Server-to-server
+// callers (pg_net triggers, scripts using x-internal-secret) don't send
+// an Origin header and are unaffected. When the origin is not in this
+// set we omit Access-Control-Allow-Origin entirely so the browser blocks
+// the response — that's the correct CORS-deny behaviour.
+const ALLOWED_ORIGINS = new Set([
+  "https://smarterdog.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+]);
+
+function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") ?? "";
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-internal-secret",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+  if (ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
 
 interface DraftMode {
   mode: "draft";
@@ -222,6 +242,7 @@ async function authorise(req: Request): Promise<
 }
 
 async function handleDraftMode(
+  req: Request,
   supabase: SupabaseClient,
   body: DraftMode,
   userId: string | undefined,
@@ -235,11 +256,12 @@ async function handleDraftMode(
     .single();
 
   if (draftErr || !draft) {
-    return json({ error: "draft not found", detail: draftErr?.message }, 404);
+    return json(req, { error: "draft not found", detail: draftErr?.message }, 404);
   }
 
   if (draft.state !== "pending") {
     return json(
+      req,
       { error: `draft is ${draft.state}, not pending`, draft_id: draft.id },
       409,
     );
@@ -253,6 +275,7 @@ async function handleDraftMode(
 
   if (!isWindowOpen(conv.last_inbound_at)) {
     return json(
+      req,
       {
         error: "24h window closed",
         detail:
@@ -265,7 +288,7 @@ async function handleDraftMode(
 
   const textToSend = body.edited_text?.trim() || draft.proposed_text;
   if (!textToSend) {
-    return json({ error: "empty message body" }, 400);
+    return json(req, { error: "empty message body" }, 400);
   }
 
   const { data: claimed, error: claimErr } = await supabase
@@ -283,6 +306,7 @@ async function handleDraftMode(
 
   if (claimErr || !claimed) {
     return json(
+      req,
       { error: "draft already claimed by another request", detail: claimErr?.message },
       409,
     );
@@ -308,6 +332,7 @@ async function handleDraftMode(
       .eq("id", draft.id);
 
     return json(
+      req,
       {
         error: "Meta send failed",
         detail: err instanceof Error ? err.message : String(err),
@@ -320,7 +345,7 @@ async function handleDraftMode(
 
   await recordOutbound(supabase, conv.id, metaMessageId, textToSend, metaRes);
 
-  return json({
+  return json(req, {
     ok: true,
     meta_message_id: metaMessageId,
     sent_text: textToSend,
@@ -334,19 +359,21 @@ async function handleDraftMode(
 // window rule as draft mode — Meta won't allow non-template text
 // outside that window, so we reject early with a clear message.
 async function handleManualMode(
+  req: Request,
   supabase: SupabaseClient,
   body: ManualMode,
 ): Promise<Response> {
   if (!body.conversation_id) {
-    return json({ error: "conversation_id is required" }, 400);
+    return json(req, { error: "conversation_id is required" }, 400);
   }
 
   const text = (body.text ?? "").trim();
   if (!text) {
-    return json({ error: "empty message body" }, 400);
+    return json(req, { error: "empty message body" }, 400);
   }
   if (text.length > MAX_MANUAL_TEXT_LEN) {
     return json(
+      req,
       {
         error: "message too long",
         detail: `Manual messages are capped at ${MAX_MANUAL_TEXT_LEN} characters.`,
@@ -363,11 +390,12 @@ async function handleManualMode(
     .single();
 
   if (convErr || !conv) {
-    return json({ error: "conversation not found", detail: convErr?.message }, 404);
+    return json(req, { error: "conversation not found", detail: convErr?.message }, 404);
   }
 
   if (!isWindowOpen(conv.last_inbound_at)) {
     return json(
+      req,
       {
         error: "24h window closed",
         detail:
@@ -388,6 +416,7 @@ async function handleManualMode(
     });
   } catch (err) {
     return json(
+      req,
       {
         error: "Meta send failed",
         detail: err instanceof Error ? err.message : String(err),
@@ -400,7 +429,7 @@ async function handleManualMode(
 
   await recordOutbound(supabase, conv.id, metaMessageId, text, metaRes);
 
-  return json({
+  return json(req, {
     ok: true,
     meta_message_id: metaMessageId,
     sent_text: text,
@@ -409,11 +438,12 @@ async function handleManualMode(
 }
 
 async function handleTemplateMode(
+  req: Request,
   supabase: SupabaseClient,
   body: TemplateMode,
 ): Promise<Response> {
   if (!body.to || !body.template_name) {
-    return json({ error: "to and template_name are required" }, 400);
+    return json(req, { error: "to and template_name are required" }, 400);
   }
 
   const lang = body.language ?? "en_GB";
@@ -442,6 +472,7 @@ async function handleTemplateMode(
     });
   } catch (err) {
     return json(
+      req,
       {
         error: "Meta send failed",
         detail: err instanceof Error ? err.message : String(err),
@@ -465,7 +496,7 @@ async function handleTemplateMode(
   const content = `[template:${body.template_name}] ${params.join(" · ")}`.trim();
   await recordOutbound(supabase, conversationId, metaMessageId, content, metaRes);
 
-  return json({
+  return json(req, {
     ok: true,
     meta_message_id: metaMessageId,
     template: body.template_name,
@@ -473,11 +504,11 @@ async function handleTemplateMode(
   });
 }
 
-function json(body: unknown, status = 200): Response {
+function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...CORS_HEADERS,
+      ...buildCorsHeaders(req),
       "Content-Type": "application/json",
     },
   });
@@ -485,44 +516,44 @@ function json(body: unknown, status = 200): Response {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
   }
 
   if (req.method !== "POST") {
-    return json({ error: "method not allowed" }, 405);
+    return json(req, { error: "method not allowed" }, 405);
   }
 
   const auth = await authorise(req);
   if (!auth.ok) {
-    return json({ error: auth.reason }, auth.status);
+    return json(req, { error: auth.reason }, auth.status);
   }
 
   let parsed: SendBody;
   try {
     parsed = await req.json();
   } catch {
-    return json({ error: "bad json" }, 400);
+    return json(req, { error: "bad json" }, 400);
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json({ error: "mode is required ('draft' | 'manual' | 'template')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
     if (parsed.mode === "draft") {
-      return await handleDraftMode(supabase, parsed, auth.userId);
+      return await handleDraftMode(req, supabase, parsed, auth.userId);
     } else if (parsed.mode === "manual") {
-      return await handleManualMode(supabase, parsed);
+      return await handleManualMode(req, supabase, parsed);
     } else if (parsed.mode === "template") {
-      return await handleTemplateMode(supabase, parsed);
+      return await handleTemplateMode(req, supabase, parsed);
     } else {
-      return json({ error: `unknown mode: ${(parsed as any).mode}` }, 400);
+      return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("whatsapp-send unhandled error:", message);
-    return json({ error: "internal error", detail: message }, 500);
+    return json(req, { error: "internal error", detail: message }, 500);
   }
 });
