@@ -25,6 +25,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
+import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
 
 const SEND_FUNCTION_PATH = "whatsapp-send";
 
@@ -132,6 +133,7 @@ async function fetchConversationDetail(conversationId) {
 // ── The hook ─────────────────────────────────────────────────
 export function useWhatsAppInbox() {
   const [conversations, setConversations] = useState([]);
+  const [dogNames, setDogNames] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState(null);
 
@@ -249,6 +251,19 @@ export function useWhatsAppInbox() {
       });
 
     await refreshDetail(conversationId);
+
+    // Fetch dog names for template picker auto-fill
+    const humanId = conversations.find((c) => c.id === conversationId)?.human_id;
+    if (humanId) {
+      const { data: dogsData } = await supabase
+        .from("dogs")
+        .select("name")
+        .eq("human_id", humanId)
+        .order("name");
+      setDogNames((dogsData ?? []).map((d) => d.name));
+    } else {
+      setDogNames([]);
+    }
   }, [refreshDetail]);
 
   // Realtime for the currently-selected conversation
@@ -620,6 +635,33 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  const sendTemplate = useCallback(
+    async (template, paramValues) => {
+      const conversation = conversations.find((c) => c.id === selectedId);
+      if (!conversation) return;
+
+      const params = buildTemplateParams(template, paramValues);
+
+      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+        body: {
+          mode: "template",
+          to: conversation.phone_e164,
+          template_name: template.name,
+          language: template.language,
+          params,
+          conversation_id: conversation.id,
+        },
+      });
+
+      if (error) throw new Error(error.message ?? "Template send failed");
+
+      // Refresh the thread so the sent message appears immediately.
+      // The realtime subscription will also pick this up.
+      await refreshDetail(selectedId);
+    },
+    [conversations, selectedId, refreshDetail],
+  );
+
   const selectedConversation = conversations.find((c) => c.id === selectedId) ?? null;
 
   return {
@@ -647,6 +689,8 @@ export function useWhatsAppInbox() {
     takeoverConversation,
     releaseConversation,
     setAutoSendEnabled,
+    sendTemplate,
+    dogNames,
     actionInFlight,
     // manual refresh (rarely needed)
     refreshList,
