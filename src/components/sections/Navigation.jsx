@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
+import { useAuth } from '../../hooks/useAuth';
 
 const Navigation = ({ isLoaded, onBookClick }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -10,6 +11,8 @@ const Navigation = ({ isLoaded, onBookClick }) => {
     const prefersReducedMotion = usePrefersReducedMotion();
     const navLinkColor = scrolled ? colors.teal : colors.plum;
     const hasBookHandler = typeof onBookClick === 'function';
+    const { session, human, signOut } = useAuth();
+    const firstName = human?.name?.split(' ')[0] ?? '';
 
     const closeMenu = React.useCallback(() => setIsMenuOpen(false), []);
     const menuRef = useFocusTrap(isMenuOpen, closeMenu);
@@ -105,7 +108,25 @@ const Navigation = ({ isLoaded, onBookClick }) => {
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
                     </Link>
 
-                    <div className="ml-6">
+                    {session ? (
+                        <Link
+                            to="/account"
+                            className="ml-3 px-3 py-2 rounded-full text-sm font-medium hover-wiggle"
+                            style={{ color: navLinkColor }}
+                        >
+                            {firstName ? `Hi, ${firstName}` : 'My account'}
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className="ml-3 px-3 py-2 rounded-full text-sm font-medium hover-wiggle"
+                            style={{ color: navLinkColor }}
+                        >
+                            Sign in
+                        </Link>
+                    )}
+
+                    <div className="ml-3">
                         {hasBookHandler ? (
                             <button
                                 onClick={() => onBookClick('Navigation')}
@@ -196,6 +217,41 @@ const Navigation = ({ isLoaded, onBookClick }) => {
                     >
                         FAQ
                     </Link>
+                    {session ? (
+                        <>
+                            <Link
+                                to="/account"
+                                className="text-lg font-medium py-2 border-b border-gray-50"
+                                style={{ color: colors.teal }}
+                                onClick={closeMenu}
+                                role="menuitem"
+                            >
+                                My account
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    closeMenu();
+                                    signOut();
+                                }}
+                                className="text-lg font-medium py-2 border-b border-gray-50 text-left"
+                                style={{ color: colors.teal }}
+                                role="menuitem"
+                            >
+                                Sign out
+                            </button>
+                        </>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className="text-lg font-medium py-2 border-b border-gray-50"
+                            style={{ color: colors.teal }}
+                            onClick={closeMenu}
+                            role="menuitem"
+                        >
+                            Sign in
+                        </Link>
+                    )}
                     {hasBookHandler ? (
                         <button
                             onClick={() => {

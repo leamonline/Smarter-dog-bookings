@@ -4,6 +4,7 @@ import SmarterDogHomepage from './components/SmarterDogHomepage';
 import CookieConsent from './components/CookieConsent';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollRestoration from './components/ScrollRestoration';
+import { AuthProvider } from './context/AuthContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import { useRouteSeo } from './hooks/useRouteSeo';
 
@@ -18,6 +19,7 @@ const MattedCoatPolicyPage = lazy(() => import('./components/pages/MattedCoatPol
 const BookingPage = lazy(() => import('./components/pages/BookingPage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const NotFoundPage = lazy(() => import('./components/pages/NotFoundPage'));
+const LoginPage = lazy(() => import('./components/pages/LoginPage'));
 
 // Lightweight loading fallback
 const PageFallback = () => (
@@ -40,25 +42,28 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <PageTracker />
-        <ScrollRestoration />
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
-            <Route path="/" element={<SmarterDogHomepage />} />
-            <Route path="/services" element={<ServicesPage />} />
-            <Route path="/houndsly" element={<HoundslyPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/approach" element={<OurApproachPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/matted-coat-policy" element={<MattedCoatPolicyPage />} />
-            <Route path="/book" element={<BookingPage />} />
-            <Route path="/community" element={<CommunityPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
-        <CookieConsent />
-        <div className="noise-overlay" />
+        <AuthProvider>
+          <PageTracker />
+          <ScrollRestoration />
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<SmarterDogHomepage />} />
+              <Route path="/services" element={<ServicesPage />} />
+              <Route path="/houndsly" element={<HoundslyPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/approach" element={<OurApproachPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/matted-coat-policy" element={<MattedCoatPolicyPage />} />
+              <Route path="/book" element={<BookingPage />} />
+              <Route path="/community" element={<CommunityPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+          <CookieConsent />
+          <div className="noise-overlay" />
+        </AuthProvider>
       </Router>
     </ErrorBoundary>
   );
