@@ -268,13 +268,13 @@ describe("buildHumansById", () => {
 // 4. dbDogsToMap
 // ============================================================
 describe("dbDogsToMap", () => {
-  it("converts rows to a name-keyed map with camelCase fields", () => {
+  it("converts rows to an id-keyed map with camelCase fields", () => {
     const humansById = buildHumansById([humanRow()]);
     const map = dbDogsToMap([dogRow()], humansById);
 
-    expect(map["Biscuit"]).toBeDefined();
-    const d = map["Biscuit"];
-    expect(d.id).toBe("d-1");
+    expect(map["d-1"]).toBeDefined();
+    const d = map["d-1"];
+    expect(d.name).toBe("Biscuit");
     expect(d.breed).toBe("Cockapoo");
     expect(d.age).toBe("3");
     expect(d.size).toBe("small");
@@ -286,13 +286,13 @@ describe("dbDogsToMap", () => {
     const humansById = buildHumansById([humanRow()]);
     const map = dbDogsToMap([dogRow()], humansById);
 
-    expect(map["Biscuit"].humanId).toBe("Jane Smith");
-    expect(map["Biscuit"]._humanId).toBe("h-1");
+    expect(map["d-1"].humanId).toBe("Jane Smith");
+    expect(map["d-1"]._humanId).toBe("h-1");
   });
 
   it("falls back to raw human_id when owner not found in humansById", () => {
     const map = dbDogsToMap([dogRow()], {});
-    expect(map["Biscuit"].humanId).toBe("h-1");
+    expect(map["d-1"].humanId).toBe("h-1");
   });
 
   it("defaults null fields to empty strings / arrays", () => {
@@ -305,7 +305,7 @@ describe("dbDogsToMap", () => {
       groom_notes: null,
     });
     const map = dbDogsToMap([row], {});
-    const d = map["Biscuit"];
+    const d = map["d-1"];
 
     expect(d.age).toBe("");
     expect(d.size).toBeNull();
@@ -317,13 +317,24 @@ describe("dbDogsToMap", () => {
   it("preserves customPrice", () => {
     const humansById = buildHumansById([humanRow2()]);
     const map = dbDogsToMap([dogRow2()], humansById);
-    expect(map["Rex"].customPrice).toBe(55);
+    expect(map["d-2"].customPrice).toBe(55);
   });
 
   it("handles multiple dogs", () => {
     const humansById = buildHumansById([humanRow(), humanRow2()]);
     const map = dbDogsToMap([dogRow(), dogRow2()], humansById);
-    expect(Object.keys(map)).toEqual(["Biscuit", "Rex"]);
+    expect(Object.keys(map)).toEqual(["d-1", "d-2"]);
+  });
+
+  it("keeps dogs with the same name linked to their own owners", () => {
+    const humansById = buildHumansById([humanRow(), humanRow2()]);
+    const sameName = dogRow2({ id: "d-3", name: "Biscuit", human_id: "h-2" });
+    const map = dbDogsToMap([dogRow(), sameName], humansById);
+
+    expect(map["d-1"]._humanId).toBe("h-1");
+    expect(map["d-3"]._humanId).toBe("h-2");
+    expect(map["d-1"].humanId).toBe("Jane Smith");
+    expect(map["d-3"].humanId).toBe(humansById["h-2"].fullName);
   });
 });
 

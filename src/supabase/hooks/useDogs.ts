@@ -85,10 +85,7 @@ export function useDogs(humansById: Record<string, any>) {
           });
           setDogs((prev) => {
             const next = { ...prev };
-            const entry = Object.entries(next).find(
-              ([, dog]: [string, any]) => dog.id === oldRow.id,
-            );
-            if (entry) delete next[entry[0]];
+            delete next[oldRow.id];
             return next;
           });
         },
@@ -217,8 +214,8 @@ export function useDogs(humansById: Record<string, any>) {
   const updateDog = useCallback(
     async (dogIdentifier: string, updates: Record<string, any>) => {
       const existingDog =
-        dogs[dogIdentifier] ||
         dogsById[dogIdentifier] ||
+        dogs[dogIdentifier] ||
         Object.values(dogs).find(
           (dog: any) => dog.id === dogIdentifier || dog.name === dogIdentifier,
         );
@@ -233,22 +230,13 @@ export function useDogs(humansById: Record<string, any>) {
         ...updates,
       };
 
-      setDogs((prev) => {
-        const next = { ...prev };
-        const previousKey = existingDog.name;
-        const nextKey = updatedDog.name || existingDog.name;
-
-        if (previousKey !== nextKey) {
-          delete next[previousKey];
-        }
-
-        next[nextKey] = {
-          ...(next[previousKey] || existingDog),
+      setDogs((prev) => ({
+        ...prev,
+        [existingDog.id]: {
+          ...(prev[existingDog.id] || existingDog),
           ...updates,
-        };
-
-        return next;
-      });
+        },
+      }));
 
       setDogsById((prev) => ({
         ...prev,
@@ -324,12 +312,7 @@ export function useDogs(humansById: Record<string, any>) {
       };
 
       setDogsById((prev) => ({ ...prev, [savedRow.id]: savedRow }));
-      setDogs((prev) => {
-        const next = { ...prev };
-        delete next[existingDog.name];
-        next[savedDog.name] = savedDog;
-        return next;
-      });
+      setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
 
       return savedDog;
     },
@@ -362,7 +345,7 @@ export function useDogs(humansById: Record<string, any>) {
           ...optimisticDog,
           _humanId: owner.id,
         };
-        setDogs((prev) => ({ ...prev, [offlineDog.name]: offlineDog }));
+        setDogs((prev) => ({ ...prev, [offlineDog.id]: offlineDog }));
         setDogsById((prev) => ({
           ...prev,
           [offlineDog.id]: {
@@ -414,7 +397,7 @@ export function useDogs(humansById: Record<string, any>) {
         customPrice: data.custom_price,
       };
 
-      setDogs((prev) => ({ ...prev, [savedDog.name]: savedDog }));
+      setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
       setDogsById((prev) => ({ ...prev, [data.id]: data }));
 
       return savedDog;
@@ -440,10 +423,7 @@ export function useDogs(humansById: Record<string, any>) {
       });
       setDogs((prev) => {
         const next = { ...prev };
-        const entry = Object.entries(next).find(
-          ([, dog]: [string, any]) => dog.id === dogId,
-        );
-        if (entry) delete next[entry[0]];
+        delete next[dogId];
         return next;
       });
 
@@ -516,7 +496,7 @@ export function useDogs(humansById: Record<string, any>) {
       customPrice: data.custom_price,
       dob: data.dob || "",
     };
-    setDogs((prev) => ({ ...prev, [data.name]: dogObj }));
+    setDogs((prev) => ({ ...prev, [data.id]: dogObj }));
 
     return dogObj;
   }, [dogsById, humansById]);

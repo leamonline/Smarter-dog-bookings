@@ -111,7 +111,5 @@ export function getHumanByIdOrName(humans: Record<string, Human>, idOrName: stri
 export function getDogByIdOrName(dogs: Record<string, Dog>, idOrName: string): Dog | null {
   if (!dogs || !idOrName) return null;
 
-  if (dogs[idOrName]) return dogs[idOrName];
-
   return Object.values(dogs).find((dog) => dog.id === idOrName || dog.name === idOrName) || null;
 }

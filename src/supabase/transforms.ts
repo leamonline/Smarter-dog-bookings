@@ -229,7 +229,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
   const map: Record<string, Dog> = {};
   for (const row of rows) {
     const owner = humansById[row.human_id || ""];
-    map[row.name] = {
+    map[row.id] = {
       id: row.id,
       name: row.name,
       breed: row.breed,
