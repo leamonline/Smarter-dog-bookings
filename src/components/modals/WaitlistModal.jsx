@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
@@ -8,6 +8,8 @@ export function WaitlistModal({
   currentDateObj,
   humans,
   dogs,
+  dogsByHumanId,
+  ensureDogsForHumans,
   onOpenHuman,
   waitlist,
   error,
@@ -21,6 +23,20 @@ export function WaitlistModal({
 
   const humanList = Object.values(humans || {}).sort((a, b) => a.name.localeCompare(b.name));
   const titleId = "waitlist-modal-title";
+
+  const waitlistHumanIdsKey = useMemo(
+    () =>
+      (waitlist || [])
+        .map((entry) => entry?.humans?.id)
+        .filter(Boolean)
+        .join(","),
+    [waitlist],
+  );
+
+  useEffect(() => {
+    if (!ensureDogsForHumans || !waitlistHumanIdsKey) return;
+    ensureDogsForHumans(waitlistHumanIdsKey.split(","));
+  }, [ensureDogsForHumans, waitlistHumanIdsKey]);
 
   const dateLabel = currentDateObj.toLocaleDateString("en-GB", {
     weekday: "short",
@@ -105,7 +121,9 @@ export function WaitlistModal({
           <ul className="list-none m-0 p-0 flex flex-col gap-1">
             {waitlist.map((entry) => {
               const h = entry.humans;
-              const theirDogs = Object.values(dogs || {}).filter((d) => d._humanId === h.id);
+              const theirDogs =
+                dogsByHumanId?.[h.id] ||
+                Object.values(dogs || {}).filter((d) => d._humanId === h.id);
               const dogNames = theirDogs.map((d) => d.name).join(", ") || "No dogs";
               return (
                 <li

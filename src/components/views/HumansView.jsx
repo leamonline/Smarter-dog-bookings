@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
@@ -18,13 +18,23 @@ function sizeDot(size) {
   return t ? t.gradient[0] : "#94A3B8";
 }
 
-export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { id, name, dogCount }
   const toast = useToast();
 
   const sortedHumans = useMemo(() => Object.values(humans).sort((a, b) => a.name.localeCompare(b.name)), [humans]);
+
+  const visibleHumanIdsKey = useMemo(
+    () => sortedHumans.map((h) => h.id).filter(Boolean).join(","),
+    [sortedHumans],
+  );
+
+  useEffect(() => {
+    if (!ensureDogsForHumans || !visibleHumanIdsKey) return;
+    ensureDogsForHumans(visibleHumanIdsKey.split(","));
+  }, [ensureDogsForHumans, visibleHumanIdsKey]);
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
@@ -77,9 +87,11 @@ export function HumansView({ humans, dogs, onOpenHuman, onAddHuman, onUpdateDog,
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedHumans.map((human) => {
           const fullName = human.fullName || `${human.name} ${human.surname}`;
-          const humanDogs = Object.values(dogs).filter(
-            (dog) => dog._humanId === human.id || dog.humanId === fullName,
-          );
+          const humanDogs =
+            dogsByHumanId?.[human.id] ||
+            Object.values(dogs).filter(
+              (dog) => dog._humanId === human.id || dog.humanId === fullName,
+            );
           const visibleDogs = humanDogs.slice(0, 4);
           const overflow = humanDogs.length - visibleDogs.length;
 
