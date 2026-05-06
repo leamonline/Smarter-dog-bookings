@@ -10,6 +10,7 @@ import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 
 import { supabase } from "./supabase/client.js";
+import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils.js";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans.js";
@@ -102,6 +103,7 @@ const appLoadingShell = (
 // Data hooks live in <AuthedApp /> so they don't fire pre-auth (which used to
 // produce 406 noise on /login because RLS denied salon_config to anon callers).
 export default function App() {
+  const location = useLocation();
   const {
     user,
     staffProfile,
@@ -112,17 +114,44 @@ export default function App() {
     isOwner,
   } = useAuth();
   const isOnline = !!supabase;
+  const from = location.state?.from;
+  const authRoute = getStaffAuthRouteState({
+    isOnline,
+    loading: authLoading,
+    user,
+    staffProfile,
+    location: {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+    },
+    from,
+  });
 
-  if (authLoading) {
+  if (authRoute.status === "loading") {
     return appLoadingShell;
   }
 
-  if (isOnline && !user) {
+  if (authRoute.status === "redirect") {
+    return (
+      <Navigate
+        to={authRoute.to}
+        state={authRoute.state}
+        replace
+      />
+    );
+  }
+
+  if (authRoute.status === "login") {
     return (
       <Suspense fallback={appLoadingShell}>
         <LoginPage onSignIn={signIn} error={authError} isOffline={false} />
       </Suspense>
     );
+  }
+
+  if (authRoute.status === "denied") {
+    return <StaffAccessDeniedPage user={user} onSignOut={signOut} />;
   }
 
   return (
@@ -133,6 +162,37 @@ export default function App() {
       signOut={signOut}
       isOnline={isOnline}
     />
+  );
+}
+
+function StaffAccessDeniedPage({ user, onSignOut }) {
+  return (
+    <AppFrame>
+      <div className="max-w-[420px] mx-auto mt-20 px-5 font-sans">
+        <div className="text-center mb-8">
+          <div className="text-[28px] font-display font-bold text-brand-purple">
+            Smarter<span className="text-brand-yellow">Dog</span>
+          </div>
+          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
+          <div className="text-lg font-extrabold text-brand-purple mb-2">
+            Staff access needed
+          </div>
+          <div className="text-[13px] text-slate-500 mb-5 leading-relaxed">
+            {user?.email || "This account"} is signed in with Supabase Auth, but it does not have a staff profile for this salon.
+          </div>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    </AppFrame>
   );
 }
 

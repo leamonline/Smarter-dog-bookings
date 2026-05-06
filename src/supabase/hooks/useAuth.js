@@ -132,19 +132,32 @@ export function useAuth() {
     }
 
     setError(null);
+    setLoading(true);
 
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (err) {
-      setError("Invalid email or password");
+      if (err) {
+        setError("Invalid email or password");
+        return { error: err };
+      }
+
+      const profile = await fetchProfile(data?.user?.id);
+      setUser(data?.user ?? null);
+      setStaffProfile(profile);
+
+      return { data };
+    } catch (err) {
+      console.error("Sign in error:", err);
+      setError("Could not sign in. Please try again.");
       return { error: err };
+    } finally {
+      setLoading(false);
     }
-
-    return { data };
-  }, []);
+  }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
     if (!supabase) return;

@@ -23,10 +23,10 @@ A booking and management dashboard for dog grooming salons. Built with React + V
 npm install
 
 # Create .env.local with your Supabase credentials
-# (get these from supabase.com → Your Project → Settings → API)
+# (get these from Supabase → Your Project → Connect)
 cat > .env.local <<'EOF'
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
 EOF
 
 # Start dev server
@@ -37,16 +37,16 @@ npm run dev
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run every numbered file in `supabase/migrations/` against the SQL Editor, in order
-3. Fill in `.env.local` with your project URL and anon key
+3. Fill in `.env.local` with your project URL and publishable key. `VITE_SUPABASE_ANON_KEY` is still supported for older projects.
 4. (Optional) Seed sample data: `npm run seed`
 
 ### Provisioning the first owner
 
-`002_auth_staff_profiles.sql` lets a new user create their own `staff_profiles` row defaulted to `role = 'staff'`, and `005_restrict_role_escalation.sql` then prevents self-promotion. So the very first user can't promote themselves to owner — you have to seed it once via the service-role key:
+Staff access is intentionally sign-in only. Create or invite staff users in Supabase Auth first, then link them to `staff_profiles`. The first owner has to be seeded once via the service-role key:
 
 ```bash
-# 1. Sign up via the app's normal login screen (creates the auth.users row)
-# 2. Add to .env.local (service-role key from Supabase → Settings → API):
+# 1. Create or invite the owner user in Supabase → Auth → Users
+# 2. Add to .env.local (service-role key from Supabase → Project Settings → API):
 #    SUPABASE_SERVICE_ROLE_KEY=<the long secret key — do NOT commit>
 # 3. Run once:
 node scripts/seed-first-owner.mjs <your-email>
@@ -58,6 +58,8 @@ After this, the new owner can promote/demote others by editing the `staff_profil
 
 These aren't expressible as migrations — set them once per project:
 
+- **Auth → URL Configuration**: set Site URL to your production URL. Add redirect URLs for local development and previews, e.g. `http://localhost:5173/**`, your production `https://.../**`, and any Vercel preview wildcard you use.
+- **Auth → Sign In / Providers**: enable Email for staff password login. Enable Phone/SMS if you use the customer portal OTP flow.
 - **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against HaveIBeenPwned, blocks compromised ones.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
 
@@ -104,7 +106,7 @@ Everything else matches. Files with letter suffixes (e.g. `012a_…`, `017a_…`
 ## Deploy
 
 ### Vercel
-Connect this repo — Vercel auto-detects Vite. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables.
+Connect this repo — Vercel auto-detects Vite. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` as environment variables.
 
 ### Manual
 ```bash

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
+import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
@@ -12,6 +13,7 @@ import "./customer-portal.css";
 
 export default function CustomerApp() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     user,
     humanRecord,
@@ -56,6 +58,17 @@ export default function CustomerApp() {
 
   const activeHuman = demoMode ? demoHuman : humanRecord;
   const handleSignOut = demoMode ? exitDemo : signOut;
+  const authRoute = getCustomerAuthRouteState({
+    loading,
+    user,
+    location: {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+    },
+    from: location.state?.from,
+    demoMode,
+  });
 
   if (demoMode && demoHuman) {
     return (
@@ -125,8 +138,7 @@ export default function CustomerApp() {
     );
   }
 
-  // Loading state
-  if (loading) {
+  if (authRoute.status === "loading") {
     return (
       <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
         <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
@@ -139,8 +151,17 @@ export default function CustomerApp() {
     );
   }
 
-  // Not authenticated
-  if (!user) {
+  if (authRoute.status === "redirect") {
+    return (
+      <Navigate
+        to={authRoute.to}
+        state={authRoute.state}
+        replace
+      />
+    );
+  }
+
+  if (authRoute.status === "login") {
     return (
       <CustomerLoginPage
         onRequestOtp={requestOtp}

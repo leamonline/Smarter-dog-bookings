@@ -72,7 +72,7 @@ async function main() {
   if (listErr) throw listErr;
   const user = list.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
   if (!user) {
-    console.error(`No auth user found with email '${email}'. Have they signed up via the app first?`);
+    console.error(`No auth user found with email '${email}'. Create or invite this user in Supabase Auth first.`);
     process.exit(1);
   }
 

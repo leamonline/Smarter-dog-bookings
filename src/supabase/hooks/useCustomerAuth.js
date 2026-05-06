@@ -62,7 +62,6 @@ export function useCustomerAuth() {
     return data[0];
   }, []);
 
-  // On mount: restore any existing session
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -71,12 +70,52 @@ export function useCustomerAuth() {
 
     let cancelled = false;
     let initialDone = false;
+    let sessionRun = 0;
 
     const finish = () => {
       if (!initialDone && !cancelled) {
         initialDone = true;
         setLoading(false);
       }
+    };
+
+    const applySession = (session) => {
+      if (cancelled) return;
+
+      const run = ++sessionRun;
+      const phoneNum = session?.user?.phone;
+
+      if (!session?.user) {
+        setUser(null);
+        setHumanRecord(null);
+        finish();
+        setLoading(false);
+        return;
+      }
+
+      setUser(session.user);
+      setLoading(true);
+
+      if (!phoneNum) {
+        setHumanRecord(null);
+        finish();
+        setLoading(false);
+        return;
+      }
+
+      setTimeout(async () => {
+        try {
+          const human = await linkHumanRecord(phoneNum);
+          if (!cancelled && run === sessionRun) setHumanRecord(human);
+        } catch (err) {
+          console.error("useCustomerAuth: error linking human record:", err);
+        } finally {
+          if (!cancelled && run === sessionRun) {
+            finish();
+            setLoading(false);
+          }
+        }
+      }, 0);
     };
 
     // Safety net: never block the UI indefinitely
@@ -90,34 +129,29 @@ export function useCustomerAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return;
-
-      // Supabase holds the auth lock while firing subscribers, so awaiting
-      // another Supabase API here deadlocks the client during TOKEN_REFRESHED.
-      // Sync state inline and defer the RPC lookup to a fresh task.
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        setUser(null);
-        setHumanRecord(null);
-      }
-      finish();
-
-      const phoneNum = session?.user?.phone;
-      if (phoneNum) {
-        setTimeout(async () => {
-          try {
-            const human = await linkHumanRecord(phoneNum);
-            if (!cancelled) setHumanRecord(human);
-          } catch (err) {
-            console.error("useCustomerAuth: error linking human record:", err);
-          }
-        }, 0);
-      }
+      // Supabase holds the auth lock while firing subscribers, so any RPC
+      // lookup is deferred inside applySession rather than awaited here.
+      applySession(session);
     });
+
+    supabase.auth
+      .getSession()
+      .then(({ data, error: sessionErr }) => {
+        if (sessionErr) {
+          console.error("useCustomerAuth: failed to get initial session:", sessionErr);
+          finish();
+          return;
+        }
+        applySession(data?.session ?? null);
+      })
+      .catch((err) => {
+        console.error("useCustomerAuth: unexpected getSession error:", err);
+        finish();
+      });
 
     return () => {
       cancelled = true;
+      sessionRun += 1;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
@@ -165,9 +199,20 @@ export function useCustomerAuth() {
         return { error: err };
       }
 
+      if (data?.user?.phone) {
+        setLoading(true);
+        try {
+          const human = await linkHumanRecord(data.user.phone);
+          setUser(data.user);
+          setHumanRecord(human);
+        } finally {
+          setLoading(false);
+        }
+      }
+
       return { data };
     },
-    [phone],
+    [linkHumanRecord, phone],
   );
 
   // Sign out
