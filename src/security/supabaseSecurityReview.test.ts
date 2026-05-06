@@ -11,10 +11,10 @@ function readProjectFile(path: string): string {
 function fixMigration(): string {
   const migrationsDir = join(root, "supabase/migrations");
   const candidates = readdirSync(migrationsDir)
-    .filter((file) => file.endsWith(".sql"))
+    .filter((file: string) => file.endsWith(".sql"))
     .sort()
-    .map((file) => readFileSync(join(migrationsDir, file), "utf8"))
-    .filter((sql) => sql.includes("bookings_status_check") && sql.includes("demo_add_dog"));
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
+    .filter((sql: string) => sql.includes("bookings_status_check") && sql.includes("demo_add_dog"));
 
   expect(candidates).toHaveLength(1);
   return candidates[0];
