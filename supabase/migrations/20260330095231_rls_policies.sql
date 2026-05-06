@@ -59,7 +59,20 @@ $$;
 -- SECURITY DEFINER so it can bypass RLS for the lookup/update.
 -- ============================================================
 create or replace function link_customer_to_human(p_phone text)
-returns setof humans
+returns table (
+  id uuid,
+  name text,
+  surname text,
+  phone text,
+  sms boolean,
+  whatsapp boolean,
+  email text,
+  fb text,
+  insta text,
+  tiktok text,
+  address text,
+  customer_user_id uuid
+)
 language plpgsql
 security definer
 set search_path = public
@@ -68,7 +81,12 @@ declare
   v_human     humans%rowtype;
   v_normalised text;
   v_alt        text;
+  v_uid        uuid := (select auth.uid());
 begin
+  if v_uid is null then
+    raise exception 'not_authenticated' using errcode = '28000';
+  end if;
+
   -- Normalise: strip spaces
   v_normalised := replace(p_phone, ' ', '');
   -- UK alternate format: +447xxx → 07xxx
@@ -89,23 +107,39 @@ begin
 
   -- Already claimed by a different auth user → deny silently
   if v_human.customer_user_id is not null
-     and v_human.customer_user_id <> auth.uid() then
+     and v_human.customer_user_id is distinct from v_uid then
     return;
   end if;
 
   -- Claim the record on first login
   if v_human.customer_user_id is null then
     update humans
-    set    customer_user_id = (select auth.uid())
+    set    customer_user_id = v_uid
     where  id = v_human.id
     returning * into v_human;
   end if;
 
-  return next v_human;
+  return query
+    select
+      v_human.id,
+      v_human.name,
+      v_human.surname,
+      v_human.phone,
+      v_human.sms,
+      v_human.whatsapp,
+      v_human.email,
+      v_human.fb,
+      v_human.insta,
+      v_human.tiktok,
+      v_human.address,
+      v_human.customer_user_id;
 end;
 $$;
 
 -- Allow authenticated (customer) sessions to call this RPC
+revoke all on function link_customer_to_human(text) from public;
+revoke all on function link_customer_to_human(text) from anon;
+revoke all on function link_customer_to_human(text) from authenticated;
 grant execute on function link_customer_to_human(text) to authenticated;
 
 -- ============================================================

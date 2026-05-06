@@ -23,11 +23,10 @@ create policy "Staff can view all profiles"
   to authenticated
   using (true);
 
--- Users can only insert their own profile
-create policy "Users can insert own profile"
-  on staff_profiles for insert
-  to authenticated
-  with check (auth.uid() = user_id);
+-- Staff profile creation is deliberately service-role only.
+-- Authenticated users, including customer portal users, must not be able
+-- to mint their own staff row because is_staff() trusts row existence.
+revoke insert on table staff_profiles from anon, authenticated;
 
 -- Users can update their own profile
 create policy "Users can update own profile"

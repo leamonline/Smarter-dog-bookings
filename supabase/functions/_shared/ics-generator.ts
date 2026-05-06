@@ -12,6 +12,8 @@ const SERVICE_LABELS: Record<string, string> = {
 /** Escape text per RFC 5545 §3.3.11 */
 export function escapeIcsText(text: string): string {
   return text
+    .replace(/\r\n?|\n/g, "\n")
+    .replace(/[\u0000-\u0009\u000B\u000C\u000E-\u001F\u007F]/g, "")
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")

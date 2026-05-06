@@ -41,7 +41,7 @@ $$;
 
 -- staff_profiles
 DROP POLICY IF EXISTS "Users can insert own profile" ON staff_profiles;
-CREATE POLICY "Users can insert own profile" ON staff_profiles FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = user_id);
+REVOKE INSERT ON TABLE staff_profiles FROM anon, authenticated;
 
 DROP POLICY IF EXISTS "Users can update own profile" ON staff_profiles;
 CREATE POLICY "Users can update own profile" ON staff_profiles FOR UPDATE TO authenticated USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id AND role = (select sp.role from staff_profiles sp where sp.user_id = (select auth.uid())));

@@ -20,6 +20,27 @@ function fixMigration(): string {
   return candidates[0];
 }
 
+function allMigrationSql(): string {
+  const migrationsDir = join(root, "supabase/migrations");
+  return readdirSync(migrationsDir)
+    .filter((file: string) => file.endsWith(".sql"))
+    .sort()
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
+    .join("\n\n");
+}
+
+function codexScanFixMigration(): string {
+  const migrationsDir = join(root, "supabase/migrations");
+  const candidates = readdirSync(migrationsDir)
+    .filter((file: string) => file.endsWith(".sql"))
+    .sort()
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
+    .filter((sql: string) => sql.includes("Fix Codex Security scan findings"));
+
+  expect(candidates).toHaveLength(1);
+  return candidates[0];
+}
+
 describe("Supabase security review regressions", () => {
   it("removes the demo RPC bypass from the database and customer dog form", () => {
     const migration = fixMigration();
@@ -59,5 +80,47 @@ describe("Supabase security review regressions", () => {
     expect(confirmed).not.toContain('"Not Arrived"');
     expect(reminder).toContain('"Booked"');
     expect(reminder).not.toContain('"Not Arrived"');
+  });
+
+  it("keeps staff profile creation out of customer-authenticated sessions", () => {
+    const allSql = allMigrationSql();
+    const migration = codexScanFixMigration();
+
+    expect(allSql).not.toMatch(
+      /create\s+policy\s+"Users can insert own profile"[\s\S]{0,180}for\s+insert\s+to\s+authenticated/i,
+    );
+    expect(migration).toMatch(
+      /drop\s+policy\s+if\s+exists\s+"Users can insert own profile"\s+on\s+public\.staff_profiles/i,
+    );
+    expect(migration).toMatch(
+      /revoke\s+insert\s+on\s+table\s+public\.staff_profiles\s+from\s+anon,\s*authenticated/i,
+    );
+  });
+
+  it("hardens link_customer_to_human against anonymous full-row reads", () => {
+    const migration = codexScanFixMigration();
+
+    expect(migration).toMatch(/drop\s+function\s+if\s+exists\s+public\.link_customer_to_human\(text\)/i);
+    expect(migration).toMatch(/returns\s+table\s*\(/i);
+    expect(migration).not.toMatch(/returns\s+setof\s+(?:public\.)?humans/i);
+    expect(migration).toMatch(/v_uid\s+uuid\s*:=\s*\(select\s+auth\.uid\(\)\)/i);
+    expect(migration).toMatch(/if\s+v_uid\s+is\s+null\s+then\s+raise\s+exception\s+'not_authenticated'/i);
+    expect(migration).toMatch(/customer_user_id\s+is\s+distinct\s+from\s+v_uid/i);
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.link_customer_to_human\(text\)\s+from\s+public/i,
+    );
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.link_customer_to_human\(text\)\s+from\s+anon/i,
+    );
+    expect(migration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.link_customer_to_human\(text\)\s+to\s+authenticated/i,
+    );
+  });
+
+  it("does not runtime-cache authenticated Supabase API traffic in the PWA", () => {
+    const viteConfig = readProjectFile("vite.config.js");
+
+    expect(viteConfig).not.toContain('cacheName: "supabase-api"');
+    expect(viteConfig).not.toMatch(/urlPattern:\s*\/\^https:\\\/\\\/\.\*\\\.supabase\\\.co/);
   });
 });

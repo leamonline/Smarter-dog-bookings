@@ -50,7 +50,7 @@ export function useCustomerAuth() {
       return null;
     }
 
-    // The RPC returns SETOF humans — Supabase surfaces this as an array.
+    // The RPC returns customer-safe human fields — Supabase surfaces this as an array.
     if (!data || data.length === 0) {
       console.warn(
         "No human record found or already claimed for phone:",
