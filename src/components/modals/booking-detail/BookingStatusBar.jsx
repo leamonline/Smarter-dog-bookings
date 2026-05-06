@@ -3,7 +3,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { getStatusAccent } from "./shared.jsx";
 
 const STATUS_ICON = {
-  "No-show": (
+  "Booked": (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
       <line x1="2.5" y1="6.5" x2="13.5" y2="6.5" />
@@ -27,7 +27,7 @@ const STATUS_ICON = {
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   const toast = useToast();
-  const currentStatus = booking.status || "No-show";
+  const currentStatus = booking.status || "Booked";
   const currentIdx = BOOKING_STATUSES.findIndex((s) => s.id === currentStatus);
   const safeIdx = currentIdx < 0 ? 0 : currentIdx;
 

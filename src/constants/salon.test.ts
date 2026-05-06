@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AVAILABLE_ADDONS, getAddonPrice, getAddonsTotal } from "./salon.js";
+import { AVAILABLE_ADDONS, BOOKING_STATUSES, getAddonPrice, getAddonsTotal } from "./salon.js";
 
 describe("Add-on pricing helpers", () => {
   it("Flea Bath is £10", () => {
@@ -34,5 +34,12 @@ describe("Add-on pricing helpers", () => {
     expect(AVAILABLE_ADDONS).toContain("Flea Bath");
     expect(AVAILABLE_ADDONS).toContain("Sensitive Shampoo");
     expect(AVAILABLE_ADDONS).toContain("Anal Glands");
+  });
+
+  it("uses Booked as the canonical awaiting-arrival status", () => {
+    const statusIds = BOOKING_STATUSES.map((status) => status.id);
+    expect(statusIds).toContain("Booked");
+    expect(statusIds).not.toContain("No-show");
+    expect(statusIds).not.toContain("Not Arrived");
   });
 });

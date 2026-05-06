@@ -156,7 +156,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           dog_id: dog.dogId,
           size: dog.size,
           service: services[dog.dogId],
-          status: "No-show",
+          status: "Booked",
           confirmed: false,
           addons: [],
           payment: "Due at Pick-up",

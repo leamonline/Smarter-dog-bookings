@@ -55,21 +55,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         .select()
         .single();
 
-      if (err) {
-        if (err.message?.includes("row-level security")) {
-          const { data: rpcData, error: rpcErr } = await supabase.rpc("demo_add_dog", {
-            p_name: name.trim(),
-            p_breed: finalBreed || "",
-            p_size: dogSize || "medium",
-            p_human_id: humanId,
-          });
-          if (rpcErr) throw rpcErr;
-          const d = rpcData as any;
-          onDogAdded({ id: d.id, name: d.name, breed: d.breed || "", size: d.size || null });
-          return;
-        }
-        throw err;
-      }
+      if (err) throw err;
 
       onDogAdded({
         id: data.id,

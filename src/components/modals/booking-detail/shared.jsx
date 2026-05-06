@@ -110,7 +110,7 @@ export function DetailRow({
  * used in the engine + DB — we don't rename them, only style them.
  */
 export const STATUS_ACCENT = {
-  "No-show": {              // labelled "Booked" in the UI
+  "Booked": {
     stripe: "bg-amber-400",
     fill: "bg-amber-50",
     ring: "ring-amber-200",
@@ -134,10 +134,18 @@ export const STATUS_ACCENT = {
     pillBg: "bg-emerald-100",
     pillText: "text-emerald-800",
   },
+  "Cancelled": {
+    stripe: "bg-rose-400",
+    fill: "bg-rose-50",
+    ring: "ring-rose-200",
+    text: "text-rose-700",
+    pillBg: "bg-rose-100",
+    pillText: "text-rose-800",
+  },
 };
 
 export function getStatusAccent(statusId) {
-  return STATUS_ACCENT[statusId] || STATUS_ACCENT["No-show"];
+  return STATUS_ACCENT[statusId] || STATUS_ACCENT["Booked"];
 }
 
 /**

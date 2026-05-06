@@ -225,17 +225,17 @@ export function useReportsData(days: number) {
       slots[0],
     );
 
-    // Status breakdown (past bookings only -- future "No-show" = awaiting arrival)
+    // Status breakdown (past bookings only -- future "Booked" = awaiting arrival)
     const pastCur = cur.filter((b: any) => b.booking_date < todayStr);
     const statusAcc: Record<string, number> = {};
     pastCur.forEach((b: any) => {
       statusAcc[b.status] = (statusAcc[b.status] || 0) + 1;
     });
     const totalPast = pastCur.length;
-    const noShowN = statusAcc["No-show"] || 0;
+    const noShowN = statusAcc["Booked"] || 0;
     const noShowRate = totalPast > 0 ? (noShowN / totalPast) * 100 : 0;
     const prevPastNoShow = prev.filter(
-      (b: any) => b.status === "No-show" && b.booking_date < cutoffStr,
+      (b: any) => b.status === "Booked" && b.booking_date < cutoffStr,
     ).length;
     const prevPast = prev.filter((b: any) => b.booking_date < cutoffStr).length;
     const prevNoShowRate =

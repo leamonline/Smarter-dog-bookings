@@ -90,9 +90,9 @@ serve(async (req) => {
       return new Response("No record in payload", { status: 400 });
     }
 
-    // 1. Only process bookings in "Not Arrived" status
-    if (booking.status !== "Not Arrived") {
-      return new Response("Skipped: status is not 'Not Arrived'", { status: 200 });
+    // 1. Only process active booked appointments.
+    if (booking.status !== "Booked") {
+      return new Response("Skipped: status is not 'Booked'", { status: 200 });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

@@ -490,7 +490,7 @@ export function DogCardModal({
                 ownerName: owner
                   ? `${owner.name || ""} ${owner.surname || ""}`.trim()
                   : "",
-                status: "No-show",
+                status: "Booked",
                 group_id: chainId,
               }, link.dateStr);
             }

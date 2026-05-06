@@ -233,7 +233,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         dog_id: dogId,
         size: booking.size,
         service: booking.service,
-        status: booking.status || "No-show",
+        status: booking.status || "Booked",
         addons: booking.addons || [],
         pickup_by_id: pickupHumanId || null,
         payment: booking.payment || "Due at Pick-up",
@@ -383,7 +383,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         pickup_by_id: pickupHumanId || null,
         payment: updatedBooking.payment || "Due at Pick-up",
         deposit_amount: updatedBooking.depositAmount ?? null,
-        status: updatedBooking.status || "No-show",
+        status: updatedBooking.status || "Booked",
         confirmed: updatedBooking.confirmed ?? false,
       };
 

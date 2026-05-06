@@ -25,10 +25,9 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 
 // Status palette — pulls from the brand: mustard for "still to come", teal for
 // "in the salon now", deep purple for "all done". Cancelled stays coral.
-// The "No-show" key is also the default state for newly created bookings
-// across the codebase, hence the "Booked" label (see constants/salon.ts).
+// "Booked" is the default state for newly created bookings.
 const STATUS_DISPLAY = {
-  "No-show":            { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
+  "Booked":             { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
   "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
   "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Finished" },
   "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E7546C", label: "Cancelled" },
@@ -65,7 +64,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
   const service = SERVICES.find((s) => s.id === booking.service);
-  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["No-show"];
+  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["Booked"];
 
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
   const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
@@ -235,7 +234,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               }}
             >
               {[
-                { id: "No-show", ...STATUS_DISPLAY["No-show"] },
+                { id: "Booked", ...STATUS_DISPLAY["Booked"] },
                 { id: "Checked in", ...STATUS_DISPLAY["Checked in"] },
                 { id: "Ready for pick-up", ...STATUS_DISPLAY["Ready for pick-up"] },
               ].map((s) => {

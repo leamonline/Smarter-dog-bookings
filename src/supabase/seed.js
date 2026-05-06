@@ -53,7 +53,7 @@ const SAMPLE_DOGS = {
 const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
     { slot: "08:30", dogName: "Bella", size: "small", service: "full-groom", status: "Checked in", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
-    { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: "No-show", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: "Booked", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
     { slot: "09:00", dogName: "Luna", size: "small", service: "full-groom" },
     { slot: "09:00", dogName: "Charlie", size: "medium", service: "bath-and-deshed" },
     { slot: "10:00", dogName: "Daisy", size: "small", service: "full-groom" },
@@ -152,7 +152,7 @@ async function seed() {
       const { error } = await supabase.from("bookings").insert({
         booking_date: dateStr, slot: b.slot, dog_id: dogUuid,
         size: b.size, service: b.service,
-        status: b.status || "No-show",
+        status: b.status || "Booked",
         addons: b.addons || [],
         pickup_by_id: pickupUuid,
         payment: b.payment || "Due at Pick-up",
