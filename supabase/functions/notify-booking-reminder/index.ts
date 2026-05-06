@@ -40,13 +40,13 @@ async function sendEmail(to: string, subject: string, text: string): Promise<boo
 }
 
 /** Format a date string (YYYY-MM-DD) as "Monday 29 March 2026" */
+/** Short form "Mon 29 Mar" — keeps SMS in a single GSM-7 segment. */
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-GB", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
   });
 }
 
@@ -186,12 +186,13 @@ serve(async (req) => {
       const timeFormatted = formatTime(ref.slot);
       const serviceName = ref.service;
 
-      const message = [
-        `Just a friendly reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} tomorrow (${dateFormatted}) at ${timeFormatted}.`,
-        "",
-        "See you then! 🐾",
-        "Smarter Dog Grooming",
-      ].join("\n");
+      // Tight — single GSM-7 segment, no emoji, no em-dash. £0.04 per send.
+      // The reminder is for someone who knows they have a booking; we only
+      // need to confirm the time and which dog(s).
+      const firstName = sanitise(human.name.split(" ")[0]);
+      const message =
+        `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} ` +
+        `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
 
       // 6. Pick channel BEFORE we send. WhatsApp → SMS → email. Skip any
       //    channel the customer has opted out of (PECR, mig 041).

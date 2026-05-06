@@ -40,13 +40,13 @@ async function sendEmail(to: string, subject: string, text: string): Promise<boo
 }
 
 /** Format a date string (YYYY-MM-DD) as "Monday 29 March 2026" */
+/** Short form "Mon 29 Mar" — keeps SMS in a single GSM-7 segment. */
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-GB", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
   });
 }
 
@@ -102,15 +102,10 @@ serve(async (req) => {
     const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
-    const message = [
-      `Hi ${firstName},`,
-      "",
-      `We've cancelled your appointment for ${dogName} on ${dateFormatted}. You can rebook anytime through your account.`,
-      "",
-      "If you have any questions, don't hesitate to get in touch — we're always happy to help. 🐾",
-      "",
-      "Smarter Dog Grooming",
-    ].join("\n");
+    // Tight — single GSM-7 segment to keep SMS cost at £0.04 per send.
+    const message =
+      `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. ` +
+      `Rebook anytime.`;
 
     // 4. Pick channel BEFORE we send (we need to record it in the pending row).
     //    Preference: WhatsApp → SMS → email. Skip any channel the customer has

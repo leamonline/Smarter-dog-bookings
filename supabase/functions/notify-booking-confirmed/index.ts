@@ -41,14 +41,16 @@ async function sendEmail(to: string, subject: string, text: string): Promise<boo
   return res.status >= 200 && res.status < 300;
 }
 
-/** Format a date string (YYYY-MM-DD) as "Monday 29 March 2026" */
+/** Format a date string (YYYY-MM-DD) as "Mon 29 Mar".
+ *  Short form (no year, abbreviated weekday + month) — keeps SMS messages
+ *  inside a single GSM-7 segment to save 4× cost per send. Customers know
+ *  what year their booking is in from the context. */
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-GB", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
   });
 }
 
@@ -158,23 +160,19 @@ serve(async (req) => {
     }
 
     // 5. Format the message
+    //    Kept tight — fits a single GSM-7 SMS segment for customers without
+    //    WhatsApp/email. Emojis and em-dashes force UCS-2 encoding (70 chars
+    //    per segment vs 160) and cost 4x more per send. Sender ID
+    //    "Smarter Dog" already brands the message, so no signature needed.
     const firstName = sanitise(human.name.split(" ")[0]);
     const isPlural = dogNames.includes(" and ");
-    const them = isPlural ? "them" : dogNames;
     const dateFormatted = formatDate(booking.booking_date);
     const timeFormatted = formatTime(booking.slot);
     const serviceName = booking.service;
 
-    const message = [
-      `Hey ${firstName}! 🐾`,
-      "",
-      `Great news — ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} on ${dateFormatted} at ${timeFormatted}.`,
-      "",
-      `We can't wait to see ${them}! If anything changes, you can manage your booking through your account.`,
-      "",
-      "See you soon! 💛",
-      "Smarter Dog Grooming",
-    ].join("\n");
+    const message =
+      `Hi ${firstName}, ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} on ${dateFormatted} at ${timeFormatted}. ` +
+      `See you then!`;
 
     // 6. IDEMPOTENCY: insert pending log rows for ALL bookings in the group
     //    atomically. The partial unique index `(booking_id, trigger_type)

@@ -130,19 +130,12 @@ serve(async (req) => {
       dogNames = sanitise(dog.name);
     }
 
+    // Tight — single GSM-7 segment, no emoji, no em-dash. £0.04 per send.
     const firstName = sanitise(human.name.split(" ")[0]);
     const isPlural = dogNames.includes(" and ");
-    const them = isPlural ? "them" : dogNames;
 
-    const message = [
-      `Hey ${firstName}! 🐾`,
-      "",
-      `${dogNames} ${isPlural ? "are" : "is"} all done and ready for collection whenever you're ready.`,
-      "",
-      `We can't wait for you to see ${them}!`,
-      "",
-      "Smarter Dog Grooming",
-    ].join("\n");
+    const message =
+      `Hi ${firstName}, ${dogNames} ${isPlural ? "are" : "is"} all done and ready for collection whenever you are!`;
 
     // 5. Pick channel BEFORE we send. Preference: WhatsApp → SMS → email.
     //    Skip any channel the customer has opted out of (PECR, mig 041).
