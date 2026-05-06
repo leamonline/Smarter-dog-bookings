@@ -36,6 +36,39 @@ const TWILIO_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM");
 // WhatsApp sender — always From=whatsapp:NUMBER
 const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM");
 
+/**
+ * Normalise a UK phone number to E.164 (+44...).
+ *
+ * Twilio rejects anything that isn't E.164 with error 21211 ("Invalid 'To'
+ * phone number"). Customers enter their phones in all sorts of formats —
+ * "07540 550564", "+447540550564", "447540550564", "(0)7540 550564". This
+ * function turns all of them into "+447540550564".
+ *
+ * UK-only by design: the salon serves UK customers. If we ever expand
+ * internationally we'll need to widen this (or store country code on the
+ * humans row and key off that).
+ *
+ * Returns the input unchanged if it doesn't look like a UK number — e.g.
+ * an already-E.164 non-UK number ("+33...") or something we can't parse.
+ * The Twilio API will then either accept it (if it's valid E.164) or reject
+ * it with 21211 again, surfacing the bad data in notification_log.
+ */
+export function normaliseUkPhone(raw: string): string {
+  if (!raw) return raw;
+  // Strip whitespace, dashes, parens, dots — Twilio doesn't want them anyway
+  const stripped = raw.replace(/[\s\-().]/g, "");
+  // Already E.164 (any country) — pass through
+  if (stripped.startsWith("+")) return stripped;
+  // 00-prefixed international (UK convention) — convert to +
+  if (stripped.startsWith("00")) return "+" + stripped.slice(2);
+  // UK 11-digit national format starting with 07 — strip leading 0, prepend +44
+  if (/^07\d{9}$/.test(stripped)) return "+44" + stripped.slice(1);
+  // 12-digit format starting with 447 (no plus) — just prepend +
+  if (/^447\d{9}$/.test(stripped)) return "+" + stripped;
+  // Unrecognised — return as-is and let Twilio reject loudly
+  return stripped;
+}
+
 function authHeader(): string {
   // API key path: user=KeySid, password=KeySecret. The URL still uses the
   // Account SID; the API key just changes the Authorization header.
@@ -102,7 +135,7 @@ export async function sendSms(
   to: string,
   body: string,
 ): Promise<TwilioPostResult> {
-  const params: Record<string, string> = { To: to, Body: body };
+  const params: Record<string, string> = { To: normaliseUkPhone(to), Body: body };
   if (TWILIO_MESSAGING_SERVICE_SID) {
     params.MessagingServiceSid = TWILIO_MESSAGING_SERVICE_SID;
   } else if (TWILIO_SMS_FROM) {
@@ -129,9 +162,13 @@ export async function sendWhatsApp(
   if (!TWILIO_WHATSAPP_FROM) {
     throw new Error("WhatsApp sender not configured: set TWILIO_WHATSAPP_FROM");
   }
+  // The TWILIO_WHATSAPP_FROM env var SHOULD be a bare E.164 number, but
+  // historical data shows it's sometimes been set as "whatsapp:+1..." too —
+  // strip any leading "whatsapp:" so we don't double-prefix.
+  const fromNumber = TWILIO_WHATSAPP_FROM.replace(/^whatsapp:/, "");
   return postMessage({
-    To: `whatsapp:${to}`,
-    From: `whatsapp:${TWILIO_WHATSAPP_FROM}`,
+    To: `whatsapp:${normaliseUkPhone(to)}`,
+    From: `whatsapp:${fromNumber}`,
     Body: body,
   });
 }
