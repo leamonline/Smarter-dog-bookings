@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
 import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
 import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
-import { customerSupabase as supabase } from "./supabase/customerClient.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
@@ -27,37 +25,6 @@ export default function CustomerApp() {
     resetOtp,
   } = useCustomerAuth();
 
-  const [demoMode, setDemoMode] = useState(false);
-  const [demoHuman, setDemoHuman] = useState(null);
-  const [demoList, setDemoList] = useState([]);
-  const [demoLoading, setDemoLoading] = useState(false);
-
-  const loadDemoList = async () => {
-    if (!import.meta.env.DEV || !supabase) return;
-    setDemoLoading(true);
-    const { data } = await supabase.rpc("get_demo_customers");
-    setDemoList(data || []);
-    setDemoLoading(false);
-  };
-
-  const handleDemoSelect = async (humanId) => {
-    if (!import.meta.env.DEV || !supabase) return;
-    setDemoLoading(true);
-    const { data } = await supabase.rpc("get_demo_customer", { p_human_id: humanId }).single();
-    if (data) {
-      setDemoHuman(data);
-    }
-    setDemoLoading(false);
-  };
-
-  const exitDemo = () => {
-    setDemoMode(false);
-    setDemoHuman(null);
-    setDemoList([]);
-  };
-
-  const activeHuman = demoMode ? demoHuman : humanRecord;
-  const handleSignOut = demoMode ? exitDemo : signOut;
   const authRoute = getCustomerAuthRouteState({
     loading,
     user,
@@ -67,76 +34,7 @@ export default function CustomerApp() {
       hash: location.hash,
     },
     from: location.state?.from,
-    demoMode,
   });
-
-  if (demoMode && demoHuman) {
-    return (
-      <ErrorBoundary>
-        <Routes>
-          <Route path="book" element={
-            <BookingWizard
-              humanRecord={activeHuman}
-              onComplete={() => navigate("/customer")}
-              onCancel={() => navigate("/customer")}
-            />
-          } />
-          <Route path="*" element={
-            <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
-          } />
-        </Routes>
-      </ErrorBoundary>
-    );
-  }
-
-  // Demo mode — customer picker
-  if (demoMode) {
-    return (
-      <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
-        <PortalCard className="rounded-xl shadow-sm">
-          <div className="text-lg font-bold text-brand-cyan-dark font-['Montserrat',sans-serif] mb-1 text-center">
-            Demo Mode
-          </div>
-          <div className="text-[13px] text-slate-500 mb-5 text-center font-medium">
-            Pick a customer to view their dashboard
-          </div>
-
-          {demoLoading ? (
-            <div className="text-center text-slate-500 py-5 text-sm">Loading...</div>
-          ) : demoList.length === 0 ? (
-            <div className="text-center text-slate-500 py-5 text-sm">No customers found</div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {demoList.map((h) => (
-                <button
-                  key={h.id}
-                  onClick={() => handleDemoSelect(h.id)}
-                  className="flex justify-between items-center py-3 px-3.5 rounded-lg border-2 border-slate-200 bg-white cursor-pointer font-[inherit] transition-all text-left hover:border-brand-cyan-dark hover:bg-cyan-50"
-                >
-                  <div>
-                    <div className="text-sm font-bold text-brand-cyan-dark">
-                      {h.name} {h.surname}
-                    </div>
-                    <div className="text-xs text-slate-500 font-medium">
-                      {h.phone}
-                    </div>
-                  </div>
-                  <span className="text-lg text-brand-cyan-dark">{"\u2192"}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={exitDemo}
-            className="portal-btn portal-btn--secondary w-full mt-4 text-[13px]"
-          >
-            Back to login
-          </button>
-        </PortalCard>
-      </CenteredScreen>
-    );
-  }
 
   if (authRoute.status === "loading") {
     return (
@@ -170,14 +68,6 @@ export default function CustomerApp() {
         otpSent={otpSent}
         phone={phone}
         error={error}
-        onDemoMode={
-          import.meta.env.DEV
-            ? () => {
-                setDemoMode(true);
-                loadDemoList();
-              }
-            : undefined
-        }
       />
     );
   }
@@ -225,13 +115,13 @@ export default function CustomerApp() {
       <Routes>
         <Route path="book" element={
           <BookingWizard
-            humanRecord={activeHuman}
+            humanRecord={humanRecord}
             onComplete={() => navigate("/customer")}
             onCancel={() => navigate("/customer")}
           />
         } />
         <Route path="*" element={
-          <CustomerDashboard humanRecord={activeHuman} onSignOut={handleSignOut} />
+          <CustomerDashboard humanRecord={humanRecord} onSignOut={signOut} />
         } />
       </Routes>
     </ErrorBoundary>

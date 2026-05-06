@@ -12,11 +12,10 @@ import { Calendar, ClipboardList, ChevronDown, ChevronUp, PawPrint, Scissors } f
 
 function customerStatusLabel(status) {
   const statusMap = {
-    "No-show": "Awaiting confirmation",
+    "Booked": "Awaiting confirmation",
     "Checked in": "Checked in",
     "Ready for pick-up": "Finished",
     "Completed": "Completed",
-    "Finished": "Completed",
     "Cancelled": "Cancelled",
   };
   return statusMap[status] || status;
@@ -67,8 +66,8 @@ export function AppointmentsSection({
           </div>
         ) : (
           upcomingBookings.map(b => {
-            const sc = STATUS_STYLES[b.status] || STATUS_STYLES["No-show"];
-            const canCancel = b.status === "No-show";
+            const sc = STATUS_STYLES[b.status] || STATUS_STYLES["Booked"];
+            const canCancel = b.status === "Booked";
 
             return (
               <div key={b.id} className="py-3 border-b border-slate-100 last:border-b-0">
@@ -147,14 +146,14 @@ export function AppointmentsSection({
       </div>
 
       {/* ---- REBOOK PROMPT ---- */}
-      {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Ready for pick-up" || b.status === "Finished") && (
+      {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Ready for pick-up") && (
         <div className="portal-card portal-card--yellow" style={cardAnim(0.25)}>
           <div className="text-center py-2">
             <Scissors size={28} className="text-brand-cyan-dark mx-auto mb-2" aria-hidden="true" />
             <h3 className="text-base font-bold text-brand-cyan-dark font-[Montserrat] m-0 mb-1">Time for another groom?</h3>
             <p className="text-sm text-slate-500 font-medium m-0 mb-4">
               Your last visit was {(() => {
-                const lastCompleted = pastBookings.find(b => b.status === "Ready for pick-up" || b.status === "Finished");
+                const lastCompleted = pastBookings.find(b => b.status === "Ready for pick-up");
                 if (!lastCompleted) return "a while ago";
                 const diff = Math.round((new Date() - new Date(lastCompleted.booking_date + "T00:00:00")) / (7 * 24 * 60 * 60 * 1000));
                 return diff <= 1 ? "last week" : `${diff} weeks ago`;

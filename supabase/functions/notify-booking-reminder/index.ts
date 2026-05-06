@@ -127,12 +127,12 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const tomorrow = tomorrowDateString();
 
-    // 1. Fetch all tomorrow's bookings that are "Not Arrived"
+    // 1. Fetch all tomorrow's active booked appointments.
     const { data: bookings, error: bookingsError } = await supabase
       .from("bookings")
       .select("id, booking_date, slot, dog_id, service, group_id")
       .eq("booking_date", tomorrow)
-      .eq("status", "Not Arrived");
+      .eq("status", "Booked");
 
     if (bookingsError) {
       return new Response(`Bookings query failed: ${bookingsError.message}`, { status: 500 });

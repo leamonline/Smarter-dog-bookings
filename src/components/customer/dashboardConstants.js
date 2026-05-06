@@ -16,11 +16,10 @@ export const SERVICE_ICON_NAMES = {
 };
 
 export const STATUS_STYLES = {
-  "No-show":          { background: "#F1F5F9", color: "#475569" },
+  "Booked":           { background: "#F1F5F9", color: "#475569" },
   "Checked in":       { background: "#ECFDF5", color: "#065F46" },
   "Drying":           { background: "#F3E8FF", color: "#6B21A8" },
   "On the Table":     { background: "#F3E8FF", color: "#7C3AED" },
-  "Finished":         { background: "#ECFDF5", color: "#065F46" },
   "Ready for pick-up":{ background: "#F1F5F9", color: "#475569" },
   "Cancelled":        { background: "#FEF2F2", color: "#DC2626" },
 };

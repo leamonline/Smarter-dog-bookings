@@ -59,7 +59,7 @@ export function getAddonsTotal(addons: string[] | null | undefined): number {
 }
 
 export const BOOKING_STATUSES = [
-  { id: "No-show", label: "Booked", color: "#475569", bg: "#F1F5F9" },
+  { id: "Booked", label: "Booked", color: "#475569", bg: "#F1F5F9" },
   { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
   { id: "Ready for pick-up", label: "Finished", color: "#7C3AED", bg: "#EDE9FE" },
 ];

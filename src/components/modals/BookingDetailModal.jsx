@@ -319,7 +319,7 @@ export function BookingDetailModal({
     >
         <div
           aria-hidden="true"
-          className={`absolute left-0 top-0 bottom-0 w-[1.5px] rounded-l-2xl ${getStatusAccent(booking.status || "No-show").stripe}`}
+          className={`absolute left-0 top-0 bottom-0 w-[1.5px] rounded-l-2xl ${getStatusAccent(booking.status || "Booked").stripe}`}
         />
 
         <BookingHeader

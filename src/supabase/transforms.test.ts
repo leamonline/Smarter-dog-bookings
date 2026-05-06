@@ -393,12 +393,12 @@ describe("dbBookingsToArray", () => {
     expect(bookings[0].owner).toBe("Unknown");
   });
 
-  it("defaults status to 'No-show' when null", () => {
+  it("defaults status to 'Booked' when null", () => {
     const dogsById = buildDogsById([dogRow()]);
     const humansById = buildHumansById([humanRow()]);
     const row = bookingRow({ status: null });
     const bookings = dbBookingsToArray([row], dogsById, humansById);
-    expect(bookings[0].status).toBe("No-show");
+    expect(bookings[0].status).toBe("Booked");
   });
 
   it("defaults addons to empty array when null", () => {
