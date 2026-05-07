@@ -59,9 +59,26 @@ After this, the new owner can promote/demote others by editing the `staff_profil
 These aren't expressible as migrations — set them once per project:
 
 - **Auth → URL Configuration**: set Site URL to your production URL. Add redirect URLs for local development and previews, e.g. `http://localhost:5173/**`, your production `https://.../**`, and any Vercel preview wildcard you use.
-- **Auth → Sign In / Providers**: enable Email for staff password login. Enable Phone/SMS if you use the customer portal OTP flow.
+- **Auth → Sign In / Providers**: enable Email for staff password login. Enable Phone for the customer portal OTP flow.
 - **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against HaveIBeenPwned, blocks compromised ones.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
+
+### Customer portal login with Twilio Verify
+
+The customer portal uses Supabase Auth sessions and RLS. Twilio Verify is only the code-delivery provider behind Supabase phone OTP; the browser never calls Twilio directly and no Twilio secret should be added to a `VITE_` variable.
+
+1. In Twilio, create a Verify Service for Smarter Dog. Copy the Verify Service SID, which starts with `VA`.
+2. In Supabase, go to **Authentication → Providers → Phone**.
+3. Enable the Phone provider.
+4. Set the SMS provider to **Twilio Verify**.
+5. Add the Twilio Account SID, Twilio Auth Token, and the Verify Service SID. Some Supabase config screens/docs label this field as `message_service_sid`; for Twilio Verify, use the `VA...` Verify Service SID.
+6. Keep the app flow as SMS OTP. The frontend calls `signInWithOtp({ phone })`, then `verifyOtp({ phone, token, type: "sms" })`.
+
+Production checks:
+
+- Keep Supabase OTP/rate limits conservative. The customer login UI uses a 60-second resend cooldown.
+- Test with a real `humans.phone` value before sharing the portal link.
+- After login, the `link_customer_to_human(p_phone)` RPC binds the verified Supabase user to the matching human record. Unknown or already-claimed numbers must not expose customer data.
 
 ### WhatsApp AI receptionist
 
