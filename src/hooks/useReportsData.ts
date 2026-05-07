@@ -74,6 +74,17 @@ export function useReportsData(days: number) {
         ]);
 
         if (cancelled) return;
+        if (bk.error || dg.error || hm.error) {
+          throw new Error(
+            [
+              bk.error?.message,
+              dg.error?.message,
+              hm.error?.message,
+            ]
+              .filter(Boolean)
+              .join(" | "),
+          );
+        }
         setBookings(bk.data || []);
 
         const dm: Record<string, { humanId: string; customPrice: number | null }> = {};
@@ -90,7 +101,7 @@ export function useReportsData(days: number) {
       } catch (err) {
         console.error("ReportsView: failed to load data", err);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
     load();
     return () => {
