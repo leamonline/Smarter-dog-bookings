@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
-import { PawPrint } from "lucide-react";
-import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_RESEND_SECONDS = 60;
 const PHONE_FORMAT_ERROR = "Please enter your number in +44xxxxxxxxxx format, for example +447700900123.";
+
+// Mirrors the smarterdog.co.uk brand palette so the customer portal login
+// reads as the same site to a returning customer.
+const websiteColors = {
+  plum: "#2D004B",
+  teal: "#2A6F6B",
+  warmBeige: "#FDFBF7",
+  green: "#00D94A",
+};
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
@@ -17,7 +24,10 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     if (otpCooldown <= 0) return;
     const timer = setInterval(() => {
       setOtpCooldown((prev) => {
-        if (prev <= 1) { clearInterval(timer); return 0; }
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -60,130 +70,140 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     }
   };
 
-  const handlePhoneInputChange = (e) => {
-    setPhoneInput(e.target.value);
-    setLocalError("");
-  };
+  const errorText = localError || error;
 
   return (
-    <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
-      <div className="w-full max-w-[400px]">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <PawPrint size={28} className="text-brand-cyan-dark" aria-hidden="true" />
-          </div>
-          <div className="text-[28px] font-[800] text-brand-purple font-display tracking-tight">
-            Smarter<span className="text-brand-yellow">Dog</span>
-          </div>
-          <div className="text-sm text-slate-500 mt-1 font-medium">Customer Portal</div>
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
+      style={{ backgroundColor: websiteColors.warmBeige }}
+    >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg p-8">
+        <div className="text-center mb-6">
+          <a
+            href="https://smarterdog.co.uk"
+            className="text-sm font-medium"
+            style={{ color: websiteColors.teal }}
+          >
+            ← Back to smarterdog.co.uk
+          </a>
         </div>
+        <h1
+          className="font-display font-bold text-3xl mb-2 text-center"
+          style={{ color: websiteColors.teal, letterSpacing: "0.02em" }}
+        >
+          {!otpSent ? "Sign in to your account" : "Enter your code"}
+        </h1>
+        <p className="text-sm text-center text-gray-600 mb-6">
+          {!otpSent
+            ? "Pop in your mobile number — we'll text you a 6-digit code."
+            : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
+        </p>
 
-        <PortalCard className="rounded-xl shadow-sm">
-          {!otpSent ? (
-            <>
-              <div className="text-lg font-bold text-brand-purple font-display mb-1">
-                Hi there
-              </div>
-              <div className="text-[13px] text-slate-500 mb-5 font-medium">
-                Pop your mobile number in and we&apos;ll text you a login code.
-              </div>
-              <form onSubmit={handleRequestOtp} noValidate>
-                <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Mobile Number</label>
-                <input
-                  type="tel"
-                  value={phoneInput}
-                  onChange={handlePhoneInputChange}
-                  placeholder="+447700900123"
-                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-base font-[inherit] box-border outline-none text-brand-cyan-dark transition-colors focus:border-brand-cyan-dark"
-                  autoFocus
-                  autoComplete="tel"
-                  inputMode="tel"
-                  pattern="\\+447[0-9]{9}"
-                  required
-                  title={PHONE_FORMAT_ERROR}
-                  aria-invalid={Boolean(localError || error)}
-                />
-                {(localError || error) && (
-                  <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-pink-50 py-2 px-3 rounded-lg mt-2">
-                    {localError || error}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={submitting || otpCooldown > 0}
-                  className={`portal-btn w-full py-3.5 text-[15px] mt-3 ${
-                    submitting || otpCooldown > 0
-                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : "portal-btn--primary"
-                  }`}
-                >
-                  {submitting
-                    ? "Just a sec\u2026"
-                    : otpCooldown > 0
-                      ? `Try again in ${otpCooldown}s`
-                      : "Send login code"}
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <div className="text-lg font-bold text-brand-purple font-display mb-1">
-                Check your phone
-              </div>
-              <div className="text-[13px] text-slate-500 mb-5 font-medium">
-                We&apos;ve sent a 6-digit code to <strong className="text-brand-purple">{phone}</strong>.
-              </div>
-              <form onSubmit={handleVerifyOtp}>
-                <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Verification Code</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={code}
-                  onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setLocalError(""); }}
-                  placeholder="000000"
-                  className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-2xl font-[inherit] box-border outline-none text-brand-cyan-dark transition-colors text-center tracking-[8px] font-bold focus:border-brand-cyan-dark"
-                  autoFocus
-                  autoComplete="one-time-code"
-                />
-                {(localError || error) && (
-                  <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-pink-50 py-2 px-3 rounded-lg mt-2">
-                    {localError || error}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={`portal-btn w-full py-3.5 text-[15px] mt-3 ${
-                    submitting
-                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : "portal-btn--primary"
-                  }`}
-                >
-                  {submitting ? "Just a sec\u2026" : "Sign me in"}
-                </button>
-              </form>
-              <button
-                onClick={onResetOtp}
-                className="portal-btn portal-btn--secondary w-full mt-3 text-[13px]"
+        {errorText && (
+          <div className="mb-5 p-3 rounded-lg bg-red-50 text-red-600 text-sm" role="alert">
+            {errorText}
+          </div>
+        )}
+
+        {!otpSent ? (
+          <form onSubmit={handleRequestOtp} className="space-y-4" noValidate>
+            <div>
+              <label
+                htmlFor="phone"
+                className="block text-sm font-bold mb-1"
+                style={{ color: websiteColors.teal }}
               >
-                Use a different number
-              </button>
-            </>
-          )}
-        </PortalCard>
+                Mobile number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                required
+                value={phoneInput}
+                onChange={(e) => {
+                  setPhoneInput(e.target.value);
+                  setLocalError("");
+                }}
+                placeholder="+447700900123"
+                pattern="\+447[0-9]{9}"
+                title={PHONE_FORMAT_ERROR}
+                aria-invalid={Boolean(errorText)}
+                className="w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-100 focus:border-cyan-400 focus:outline-none text-base"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting || otpCooldown > 0}
+              className="w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70"
+              style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
+            >
+              {submitting
+                ? "Sending…"
+                : otpCooldown > 0
+                  ? `Try again in ${otpCooldown}s`
+                  : "Text me a code"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div>
+              <label
+                htmlFor="code"
+                className="block text-sm font-bold mb-1"
+                style={{ color: websiteColors.teal }}
+              >
+                6-digit code
+              </label>
+              <input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                required
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.replace(/\D/g, ""));
+                  setLocalError("");
+                }}
+                placeholder="123456"
+                className="w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-100 focus:border-cyan-400 focus:outline-none text-base tracking-widest text-center"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70"
+              style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
+            >
+              {submitting ? "Checking…" : "Sign in"}
+            </button>
+            <button
+              type="button"
+              onClick={onResetOtp}
+              className="w-full text-sm font-medium underline"
+              style={{ color: websiteColors.teal }}
+            >
+              Use a different number
+            </button>
+          </form>
+        )}
 
-        {/* Demo mode button */}
-        {onDemoMode && (
+        {onDemoMode && !otpSent && (
           <button
             onClick={onDemoMode}
-            className="w-full mt-4 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-transparent text-[13px] font-semibold text-slate-500 cursor-pointer font-[inherit] transition-all hover:border-brand-cyan-dark hover:text-brand-cyan-dark"
+            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed text-sm font-semibold transition-colors hover:bg-gray-50"
+            style={{ borderColor: "#cbd5e1", color: "#64748b" }}
           >
             Demo Mode — Preview as a customer
           </button>
         )}
       </div>
-    </CenteredScreen>
+    </div>
   );
 }
