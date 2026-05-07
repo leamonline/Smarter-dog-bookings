@@ -50,12 +50,29 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const email = process.argv[2];
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env / .env.local.");
+if (!SUPABASE_URL) {
+  console.error(
+    "Missing SUPABASE_URL (or VITE_SUPABASE_URL as fallback).\n" +
+    "  Set it in .env.local or export it in your shell before running this script.\n" +
+    "  Example: export SUPABASE_URL=https://your-project-ref.supabase.co"
+  );
   process.exit(1);
 }
-if (!email) {
-  console.error("Usage: node scripts/seed-first-owner.mjs <email>");
+if (!SERVICE_ROLE_KEY) {
+  console.error(
+    "Missing SUPABASE_SERVICE_ROLE_KEY.\n" +
+    "  Get it from Supabase \u2192 Project Settings \u2192 API \u2192 service_role.\n" +
+    "  Set it in .env.local or export it in your shell (unset it immediately after use).\n" +
+    "  NEVER prefix it with VITE_ and NEVER commit it."
+  );
+  process.exit(1);
+}
+if (!email || !email.includes("@")) {
+  console.error(
+    "Usage: node scripts/seed-first-owner.mjs <email>\n" +
+    "  e.g.   node scripts/seed-first-owner.mjs owner@example.com\n" +
+    "  The email must match an existing user in Supabase Auth."
+  );
   process.exit(1);
 }
 

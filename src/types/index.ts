@@ -207,7 +207,7 @@ export interface NotificationLog {
   groupId: string | null;
   humanId: string;
   channel: "whatsapp" | "sms" | "email";
-  triggerType: "confirmed" | "reminder" | "cancelled";
+  triggerType: "confirmed" | "reminder" | "cancelled" | "waitlist_joined" | "ready";
   status: "sent" | "failed" | "pending";
   errorMessage: string | null;
   sentAt: string | null;

@@ -37,22 +37,108 @@ npm run dev
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run every numbered file in `supabase/migrations/` against the SQL Editor, in order
-3. Fill in `.env.local` with your project URL and publishable key. `VITE_SUPABASE_ANON_KEY` is still supported for older projects.
+3. Fill in `.env.local` with your project URL and publishable key (see [Frontend env vars](#frontend-env-vars) below)
 4. (Optional) Seed sample data: `npm run seed`
+
+---
+
+### Frontend env vars
+
+Vite exposes **every variable prefixed `VITE_`** to the browser at build time. Use only non-secret, publicly safe values here.
+
+```bash
+# .env.local (git-ignored)
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
+```
+
+Get both from **Supabase → Project Settings → API**.
+
+`VITE_SUPABASE_ANON_KEY` is still accepted as a fallback (`src/supabase/client.js` checks it after `VITE_SUPABASE_PUBLISHABLE_KEY`). Prefer the publishable key for new projects.
+
+> **⚠️ `SUPABASE_SERVICE_ROLE_KEY` must never be prefixed `VITE_`.**
+> Doing so would embed the service-role key in the browser bundle and bypass Row Level Security entirely. Use it only in trusted local scripts or server-side code.
+
+---
 
 ### Provisioning the first owner
 
 Staff access is intentionally sign-in only. Create or invite staff users in Supabase Auth first, then link them to `staff_profiles`. The first owner has to be seeded once via the service-role key:
 
+#### What the script reads
+
+`scripts/seed-first-owner.mjs` looks for these env vars (in order):
+
+| Variable | Required | Notes |
+|---|---|---|
+| `SUPABASE_URL` | ✓ (primary) | Plain, **no** `VITE_` prefix. Falls back to `VITE_SUPABASE_URL` if unset. |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✓ | Server/admin only. Bypasses RLS. |
+
+The script loads `.env.local` automatically if present, then reads `process.env`. Shell exports take priority over `.env.local`.
+
+#### Safe provisioning flow
+
+1. **Create or invite the owner** in **Supabase → Auth → Users** before running the script.
+2. **Get the service-role key** from **Supabase → Project Settings → API → service_role**.
+3. **Pre-run checklist** — run these before touching secrets:
+   ```bash
+   git status                  # confirm no uncommitted secret files
+   cat .gitignore | grep env   # confirm .env.local is ignored
+   ```
+   Avoid `git add .` whenever secrets are present locally.
+4. **Provide the key** using one of the two methods below, then run the script.
+5. **Unset / remove the service-role key** immediately after.
+6. **Verify** the new owner record in the `staff_profiles` table.
+
+#### Option A — terminal-only (preferred)
+
+No file ever touches disk:
+
 ```bash
-# 1. Create or invite the owner user in Supabase → Auth → Users
-# 2. Add to .env.local (service-role key from Supabase → Project Settings → API):
-#    SUPABASE_SERVICE_ROLE_KEY=<the long secret key — do NOT commit>
-# 3. Run once:
-node scripts/seed-first-owner.mjs <your-email>
+export SUPABASE_URL="https://your-project-ref.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+
+node scripts/seed-first-owner.mjs your-email@example.com
+
+unset SUPABASE_SERVICE_ROLE_KEY
 ```
 
-After this, the new owner can promote/demote others by editing the `staff_profiles.role` column directly in the Supabase dashboard.
+#### Option B — `.env.local` (acceptable, extra care required)
+
+`.env.local` is git-ignored, but the key is at rest on disk until you remove it:
+
+```bash
+# .env.local — confirmed in .gitignore
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
+
+# Add temporarily for the one-off script, then delete this line:
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Run the script:
+```bash
+node scripts/seed-first-owner.mjs your-email@example.com
+```
+
+Then **remove `SUPABASE_SERVICE_ROLE_KEY` from `.env.local` immediately**.
+
+#### After seeding
+
+The new owner can promote or demote others by editing `staff_profiles.role` directly in the Supabase dashboard.
+
+---
+
+### 🛑 Security rules — service-role key
+
+- **Never** commit `.env`, `.env.local`, or any file containing a service-role key.
+- **Never** add `SUPABASE_SERVICE_ROLE_KEY` as a Vercel frontend environment variable.
+- **Never** use `VITE_SUPABASE_SERVICE_ROLE_KEY` — that prefix makes it browser-visible.
+- **Never** paste the service-role key into GitHub issues, PR descriptions, screenshots, log output, or client-side code.
+- **Only** use the service-role key in: trusted local admin scripts, server-side code, or Supabase Edge Function secrets (`supabase secrets set`).
+- **Rotate immediately** via Supabase → Project Settings → API if the key is ever exposed.
+
+---
 
 ### Manual Supabase dashboard settings
 
@@ -115,10 +201,12 @@ Set the function's secrets with `supabase secrets set NAME=value` (do NOT put th
 
 `supabase/migrations/` is a near-complete record of prod schema history. Two small gaps remain:
 
-- `001_initial_schema.sql`, `002_auth_staff_profiles.sql`, `003_phase5_schema.sql` — applied before Supabase's migration-tracking table was in use, so they're in the repo but not in `supabase_migrations.schema_migrations` on prod.
-- `021_reminder_preferences.sql` — applied via the dashboard rather than as a tracked migration. The columns (`humans.reminder_hours`, `humans.reminder_channels`) exist on prod, but the file isn't in the migration history.
+- `20260330095121_initial_schema.sql`, `20260330095135_auth_staff_profiles.sql`, `20260330095217_phase5_schema.sql` — applied before Supabase's migration-tracking table was in use, so they're in the repo but not in `supabase_migrations.schema_migrations` on prod.
+- `20260422004157_reminder_preferences.sql` — applied via the dashboard rather than as a tracked migration. The columns (`humans.reminder_hours`, `humans.reminder_channels`) exist on prod, but the file isn't in the migration history table.
 
-Everything else matches. Files with letter suffixes (e.g. `012a_…`, `017a_…`) are backfills of migrations that were originally applied via the dashboard; they slot in alphabetically between the main-numbered files so `ls`-order still reflects apply-order. If you fork to a fresh Supabase project, run the files in filename order.
+Everything else matches. Files with letter suffixes (e.g. `012a_…`, `017a_…`) are backfills of migrations that were originally applied via the dashboard; they slot in alphabetically between the main-numbered files so `ls`-order still reflects apply-order.
+
+**Fresh project?** Run the files in filename order. **Do not blindly re-run old migrations against production** — some are not idempotent.
 
 ## Deploy
 
