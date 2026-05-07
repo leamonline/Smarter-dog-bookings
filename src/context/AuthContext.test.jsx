@@ -146,25 +146,25 @@ describe('AuthProvider linking', () => {
         await ctx.signIn('+447111111111');
         expect(signInWithOtpMock).toHaveBeenCalledWith({
             phone: '+447111111111',
-            channel: 'whatsapp',
-        });
-
-        await ctx.signIn('+447111111111', 'sms');
-        expect(signInWithOtpMock).toHaveBeenLastCalledWith({
-            phone: '+447111111111',
             channel: 'sms',
         });
 
-        // verifyOtp without channel hint defaults to whatsapp.
+        await ctx.signIn('+447111111111', 'whatsapp');
+        expect(signInWithOtpMock).toHaveBeenLastCalledWith({
+            phone: '+447111111111',
+            channel: 'whatsapp',
+        });
+
+        // verifyOtp without channel hint defaults to sms.
         await ctx.verifyOtp('+447111111111', '123456', { name: 'Anon' });
         expect(verifyOtpMock).toHaveBeenLastCalledWith(
-            expect.objectContaining({ phone: '+447111111111', token: '123456', type: 'whatsapp' }),
+            expect.objectContaining({ phone: '+447111111111', token: '123456', type: 'sms' }),
         );
 
-        // verifyOtp with channel:'sms' passes type='sms' to Supabase.
-        await ctx.verifyOtp('+447111111111', '654321', { channel: 'sms' });
+        // verifyOtp with channel:'whatsapp' passes type='whatsapp' to Supabase.
+        await ctx.verifyOtp('+447111111111', '654321', { channel: 'whatsapp' });
         expect(verifyOtpMock).toHaveBeenLastCalledWith(
-            expect.objectContaining({ token: '654321', type: 'sms' }),
+            expect.objectContaining({ token: '654321', type: 'whatsapp' }),
         );
 
         await ctx.signOut();
