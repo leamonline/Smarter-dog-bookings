@@ -49,9 +49,7 @@ export default function LoginPage() {
     const [error, setError] = useState(null);
     // Track which channel actually delivered the latest code so the verify
     // call can pass the correct OTP type ("whatsapp" vs "sms") to Supabase.
-    const [activeChannel, setActiveChannel] = useState('whatsapp');
-    const [resending, setResending] = useState(false);
-    const [resendNotice, setResendNotice] = useState(null);
+    const [activeChannel, setActiveChannel] = useState('sms');
 
     const search = new URLSearchParams(location.search);
     const next = search.get('next') || '/account';
@@ -69,7 +67,6 @@ export default function LoginPage() {
     const handleSendCode = async (e) => {
         e.preventDefault();
         setError(null);
-        setResendNotice(null);
 
         if (!validatePhone(phoneInput)) {
             setError('Please enter a valid UK mobile number.');
@@ -83,31 +80,14 @@ export default function LoginPage() {
 
         setSubmitting(true);
         try {
-            await signIn(e164, 'whatsapp');
+            await signIn(e164, 'sms');
             setPhoneE164(e164);
-            setActiveChannel('whatsapp');
+            setActiveChannel('sms');
             setStep('code');
         } catch (err) {
             setError(err?.message || 'Could not send code. Please try again.');
         } finally {
             setSubmitting(false);
-        }
-    };
-
-    const handleResendViaSms = async () => {
-        if (!phoneE164) return;
-        setError(null);
-        setResendNotice(null);
-        setResending(true);
-        try {
-            await signIn(phoneE164, 'sms');
-            setActiveChannel('sms');
-            setCode('');
-            setResendNotice('We\'ve just texted a fresh code via SMS — use that one.');
-        } catch (err) {
-            setError(err?.message || 'Could not switch to SMS. Try again in a minute.');
-        } finally {
-            setResending(false);
         }
     };
 
@@ -155,10 +135,8 @@ export default function LoginPage() {
                 </h1>
                 <p className="body-font text-sm text-center text-gray-600 mb-6">
                     {step === 'phone'
-                        ? 'Pop in your mobile number — we\'ll send a 6-digit code on WhatsApp.'
-                        : activeChannel === 'whatsapp'
-                            ? `We just sent a code to ${phoneE164} on WhatsApp. Codes expire after a few minutes.`
-                            : `We just texted a code to ${phoneE164} via SMS. Codes expire after a few minutes.`}
+                        ? 'Pop in your mobile number — we\'ll text you a 6-digit code.'
+                        : `We just texted a code to ${phoneE164}. Codes expire after a few minutes.`}
                 </p>
 
                 {linkConflict && (
@@ -240,7 +218,7 @@ export default function LoginPage() {
                             className="w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70"
                             style={{ backgroundColor: colors.green, color: colors.plum }}
                         >
-                            {submitting ? 'Sending…' : 'Send me a code on WhatsApp'}
+                            {submitting ? 'Sending…' : 'Text me a code'}
                         </button>
                     </form>
                 )}
@@ -273,53 +251,13 @@ export default function LoginPage() {
                         >
                             {submitting ? 'Checking…' : 'Sign in'}
                         </button>
-                        {resendNotice && (
-                            <p
-                                className="text-xs text-center"
-                                style={{ color: colors.teal }}
-                                role="status"
-                            >
-                                {resendNotice}
-                            </p>
-                        )}
-                        {activeChannel === 'whatsapp' ? (
-                            <button
-                                type="button"
-                                onClick={handleResendViaSms}
-                                disabled={resending}
-                                className="w-full text-sm font-medium underline disabled:opacity-70"
-                                style={{ color: colors.teal }}
-                            >
-                                {resending ? 'Switching to SMS…' : "Don't have WhatsApp? Send by SMS instead"}
-                            </button>
-                        ) : (
-                            <p className="text-xs text-center text-gray-500">
-                                Sent via SMS. WhatsApp didn't work? You can{' '}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setStep('phone');
-                                        setCode('');
-                                        setError(null);
-                                        setResendNotice(null);
-                                        setActiveChannel('whatsapp');
-                                    }}
-                                    className="underline"
-                                    style={{ color: colors.teal }}
-                                >
-                                    start again
-                                </button>
-                                .
-                            </p>
-                        )}
                         <button
                             type="button"
                             onClick={() => {
                                 setStep('phone');
                                 setCode('');
                                 setError(null);
-                                setResendNotice(null);
-                                setActiveChannel('whatsapp');
+                                setActiveChannel('sms');
                             }}
                             className="w-full text-sm font-medium underline"
                             style={{ color: colors.teal }}
