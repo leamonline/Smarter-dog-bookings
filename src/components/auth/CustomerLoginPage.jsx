@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { PawPrint } from "lucide-react";
 import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
+import { normaliseUkMobile } from "../../utils/phone.js";
+
+const OTP_RESEND_SECONDS = 60;
+const PHONE_FORMAT_ERROR = "Please enter your number in +44xxxxxxxxxx format, for example +447700900123.";
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
   const [phoneInput, setPhoneInput] = useState("");
@@ -20,30 +24,25 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     return () => clearInterval(timer);
   }, [otpCooldown]);
 
-  const normalisePhone = (raw) => {
-    let p = raw.replace(/\s+/g, "").replace(/[^0-9+]/g, "");
-    if (p.startsWith("07")) p = "+44" + p.slice(1);
-    if (p.startsWith("44") && !p.startsWith("+44")) p = "+" + p;
-    if (!p.startsWith("+44")) return "";
-    return p;
-  };
-
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     if (otpCooldown > 0) {
       setLocalError(`Please wait ${otpCooldown}s before requesting another code.`);
       return;
     }
-    const normalised = normalisePhone(phoneInput);
-    if (normalised.length < 12) {
-      setLocalError("Please enter a valid UK mobile number.");
+    const normalised = normaliseUkMobile(phoneInput);
+    if (!normalised) {
+      setLocalError(PHONE_FORMAT_ERROR);
       return;
     }
     setLocalError("");
     setSubmitting(true);
-    await onRequestOtp(normalised);
-    setSubmitting(false);
-    setOtpCooldown(60);
+    try {
+      const result = await onRequestOtp(normalised);
+      if (!result?.error) setOtpCooldown(OTP_RESEND_SECONDS);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleVerifyOtp = async (e) => {
@@ -54,8 +53,16 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     }
     setLocalError("");
     setSubmitting(true);
-    await onVerifyOtp(code);
-    setSubmitting(false);
+    try {
+      await onVerifyOtp(code);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePhoneInputChange = (e) => {
+    setPhoneInput(e.target.value);
+    setLocalError("");
   };
 
   return (
@@ -81,16 +88,21 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               <div className="text-[13px] text-slate-500 mb-5 font-medium">
                 Pop your mobile number in and we&apos;ll text you a login code.
               </div>
-              <form onSubmit={handleRequestOtp}>
+              <form onSubmit={handleRequestOtp} noValidate>
                 <label className="text-[11px] font-bold text-brand-cyan-dark uppercase tracking-wider block mb-1.5 font-['Montserrat',sans-serif]">Mobile Number</label>
                 <input
                   type="tel"
                   value={phoneInput}
-                  onChange={e => { setPhoneInput(e.target.value); setLocalError(""); }}
-                  placeholder="07700 900000"
+                  onChange={handlePhoneInputChange}
+                  placeholder="+447700900123"
                   className="w-full py-3.5 px-4 rounded-lg border-2 border-slate-200 text-base font-[inherit] box-border outline-none text-brand-cyan-dark transition-colors focus:border-brand-cyan-dark"
                   autoFocus
                   autoComplete="tel"
+                  inputMode="tel"
+                  pattern="\\+447[0-9]{9}"
+                  required
+                  title={PHONE_FORMAT_ERROR}
+                  aria-invalid={Boolean(localError || error)}
                 />
                 {(localError || error) && (
                   <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-pink-50 py-2 px-3 rounded-lg mt-2">
@@ -99,14 +111,18 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 )}
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || otpCooldown > 0}
                   className={`portal-btn w-full py-3.5 text-[15px] mt-3 ${
-                    submitting
+                    submitting || otpCooldown > 0
                       ? "bg-slate-200 text-slate-500 cursor-not-allowed"
                       : "portal-btn--primary"
                   }`}
                 >
-                  {submitting ? "Just a sec\u2026" : "Send login code"}
+                  {submitting
+                    ? "Just a sec\u2026"
+                    : otpCooldown > 0
+                      ? `Try again in ${otpCooldown}s`
+                      : "Send login code"}
                 </button>
               </form>
             </>

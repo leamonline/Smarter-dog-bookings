@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
+import { normaliseUkMobile } from "../../utils/phone.js";
+
+const OTP_SEND_ERROR =
+  "Could not send your login code. Please check your number and try again.";
+const OTP_VERIFY_ERROR =
+  "That code did not work. Please check it and try again.";
+const PHONE_FORMAT_ERROR =
+  "Please enter your number in +44xxxxxxxxxx format, for example +447700900123.";
 
 /**
  * Customer authentication via phone OTP.
@@ -38,7 +46,8 @@ export function useCustomerAuth() {
 
     // Normalise before sending to the RPC (RPC also normalises, but
     // sending a clean value avoids edge-case whitespace issues).
-    const normalised = phoneNum.replace(/\s+/g, "");
+    const normalised = normaliseUkMobile(phoneNum);
+    if (!normalised) return null;
 
     const { data, error: rpcErr } = await supabase.rpc(
       "link_customer_to_human",
@@ -163,15 +172,21 @@ export function useCustomerAuth() {
       setError("Not connected.");
       return { error: { message: "Offline" } };
     }
+    const normalisedPhone = normaliseUkMobile(phoneNumber);
+    if (!normalisedPhone) {
+      setError(PHONE_FORMAT_ERROR);
+      return { error: { message: "Invalid phone number" } };
+    }
     setError(null);
-    setPhone(phoneNumber);
+    setPhone(normalisedPhone);
 
     const { error: err } = await supabase.auth.signInWithOtp({
-      phone: phoneNumber,
+      phone: normalisedPhone,
     });
 
     if (err) {
-      setError("Could not send verification code. Please check your number and try again.");
+      console.error("Customer OTP send failed:", err);
+      setError(OTP_SEND_ERROR);
       return { error: err };
     }
 
@@ -195,7 +210,8 @@ export function useCustomerAuth() {
       });
 
       if (err) {
-        setError("Invalid code. Please try again.");
+        console.error("Customer OTP verification failed:", err);
+        setError(OTP_VERIFY_ERROR);
         return { error: err };
       }
 
