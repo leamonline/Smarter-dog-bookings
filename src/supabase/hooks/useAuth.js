@@ -125,7 +125,7 @@ export function useAuth() {
       subscription.unsubscribe();
     };
   }, [fetchProfile]);
-  const signIn = useCallback(async (email, password) => {
+  const signIn = useCallback(async (email, password, captchaToken) => {
     if (!supabase) {
       setError("Supabase not configured. Running in offline mode.");
       return { error: { message: "Offline mode" } };
@@ -138,6 +138,7 @@ export function useAuth() {
       const { data, error: err } = await supabase.auth.signInWithPassword({
         email,
         password,
+        ...(captchaToken ? { options: { captchaToken } } : {}),
       });
 
       if (err) {
