@@ -85,7 +85,8 @@ serve(async (req) => {
       .single();
 
     if (humanError || !human) {
-      return new Response(`Human lookup failed: ${humanError?.message}`, { status: 500 });
+      console.error("Human lookup failed:", humanError?.message);
+      return new Response("Human lookup failed", { status: 500 });
     }
 
     // 2. Look up their dogs
@@ -155,7 +156,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("notify-waitlist-joined error:", err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "internal error" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

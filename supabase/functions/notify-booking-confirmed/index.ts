@@ -105,7 +105,8 @@ serve(async (req) => {
       .single();
 
     if (dogError || !dog) {
-      return new Response(`Dog lookup failed: ${dogError?.message}`, { status: 500 });
+      console.error("Dog lookup failed:", dogError?.message);
+      return new Response("Dog lookup failed", { status: 500 });
     }
 
     const { data: human, error: humanError } = await supabase
@@ -115,7 +116,8 @@ serve(async (req) => {
       .single();
 
     if (humanError || !human) {
-      return new Response(`Human lookup failed: ${humanError?.message}`, { status: 500 });
+      console.error("Human lookup failed:", humanError?.message);
+      return new Response("Human lookup failed", { status: 500 });
     }
 
     // 3. Resolve dog names + booking IDs (all dogs in the group, or just this one)
@@ -199,7 +201,8 @@ serve(async (req) => {
       if (pendingError.code === "23505") {
         return new Response("Skipped: duplicate (already pending or sent)", { status: 200 });
       }
-      return new Response(`Pending log insert failed: ${pendingError.message}`, { status: 500 });
+      console.error("Pending log insert failed:", pendingError.message);
+      return new Response("Pending log insert failed", { status: 500 });
     }
 
     // 7. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
@@ -234,7 +237,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("notify-booking-confirmed error:", err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "internal error" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
