@@ -1,5 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { supabase } from "../../supabase/client.js";
+
+// Cloudflare's published test key — always passes, no real challenge.
+// Supabase accepts it when the project's Turnstile secret key is also the
+// matching test secret (0x4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA).
+const TURNSTILE_SITE_KEY =
+  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
 
 /**
  * Staff login page — sign-in only.
@@ -20,16 +27,29 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState("");
 
+  // Captcha tokens — separate widgets per form, refs to avoid re-renders.
+  const signInCaptchaRef = useRef(null);
+  const signInTurnstileRef = useRef(null);
+  const resetCaptchaRef = useRef(null);
+  const resetTurnstileRef = useRef(null);
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!resetEmail.trim()) { setResetError("Please enter your email address."); return; }
     setResetSending(true);
     setResetError("");
+    const captchaToken = resetCaptchaRef.current;
     const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
     setResetSending(false);
-    if (err) { setResetError(err.message); return; }
+    if (err) {
+      resetTurnstileRef.current?.reset();
+      resetCaptchaRef.current = null;
+      setResetError(err.message);
+      return;
+    }
     setResetSent(true);
   };
 
@@ -46,9 +66,15 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     setLocalError("");
     setSubmitting(true);
     try {
-      const result = await onSignIn(email.trim(), password);
-      if (result?.error) setSubmitting(false);
+      const result = await onSignIn(email.trim(), password, signInCaptchaRef.current);
+      if (result?.error) {
+        signInTurnstileRef.current?.reset();
+        signInCaptchaRef.current = null;
+        setSubmitting(false);
+      }
     } catch {
+      signInTurnstileRef.current?.reset();
+      signInCaptchaRef.current = null;
       setSubmitting(false);
     }
   };
@@ -121,6 +147,14 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                     {resetError}
                   </div>
                 )}
+                <Turnstile
+                  ref={resetTurnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => { resetCaptchaRef.current = token; }}
+                  onExpire={() => { resetCaptchaRef.current = null; }}
+                  onError={() => { resetCaptchaRef.current = null; }}
+                  options={{ theme: "light", size: "normal" }}
+                />
                 <button
                   type="submit"
                   disabled={resetSending}
@@ -180,6 +214,15 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               {localError || error}
             </div>
           )}
+
+          <Turnstile
+            ref={signInTurnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={(token) => { signInCaptchaRef.current = token; }}
+            onExpire={() => { signInCaptchaRef.current = null; }}
+            onError={() => { signInCaptchaRef.current = null; }}
+            options={{ theme: "light", size: "normal" }}
+          />
 
           <button
             type="submit"
