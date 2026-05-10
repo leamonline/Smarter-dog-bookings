@@ -159,7 +159,7 @@ export function useCustomerAuth() {
   }, [linkHumanRecord]);
 
   // Request OTP — sends SMS to the phone number
-  const requestOtp = useCallback(async (phoneNumber) => {
+  const requestOtp = useCallback(async (phoneNumber, captchaToken) => {
     if (!supabase) {
       setError("Not connected.");
       return { error: { message: "Offline" } };
@@ -172,8 +172,10 @@ export function useCustomerAuth() {
     setError(null);
     setPhone(normalisedPhone);
 
+    const otpOptions = captchaToken ? { options: { captchaToken } } : {};
     const { error: err } = await supabase.auth.signInWithOtp({
       phone: normalisedPhone,
+      ...otpOptions,
     });
 
     if (err) {
