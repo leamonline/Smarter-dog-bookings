@@ -81,12 +81,7 @@ export function getCustomerAuthRouteState({
   user,
   location,
   from,
-  demoMode = false,
 }) {
-  if (demoMode) {
-    return { status: "allow" };
-  }
-
   if (loading) {
     return { status: "loading" };
   }
