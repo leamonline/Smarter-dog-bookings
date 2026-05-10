@@ -13,7 +13,7 @@ const websiteColors = {
   green: "#00D94A",
 };
 
-export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error, onDemoMode }) {
+export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -192,16 +192,6 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               Use a different number
             </button>
           </form>
-        )}
-
-        {onDemoMode && !otpSent && (
-          <button
-            onClick={onDemoMode}
-            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed text-sm font-semibold transition-colors hover:bg-gray-50"
-            style={{ borderColor: "#cbd5e1", color: "#64748b" }}
-          >
-            Demo Mode — Preview as a customer
-          </button>
         )}
       </div>
     </div>

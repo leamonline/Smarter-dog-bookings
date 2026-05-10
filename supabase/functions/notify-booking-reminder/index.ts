@@ -135,7 +135,8 @@ serve(async (req) => {
       .eq("status", "Booked");
 
     if (bookingsError) {
-      return new Response(`Bookings query failed: ${bookingsError.message}`, { status: 500 });
+      console.error("Bookings query failed:", bookingsError.message);
+      return new Response("Bookings query failed", { status: 500 });
     }
 
     if (!bookings || bookings.length === 0) {
@@ -279,7 +280,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("notify-booking-reminder error:", err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "internal error" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
