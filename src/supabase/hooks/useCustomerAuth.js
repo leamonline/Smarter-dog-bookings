@@ -17,9 +17,11 @@ const PHONE_FORMAT_ERROR =
  * Flow: enter phone → requestOtp() → enter code → verifyOtp()
  *
  * After a successful OTP verification, we call the database-side RPC
- * `link_customer_to_human(p_phone)` instead of querying the humans
+ * `link_customer_to_human()` (no args) instead of querying the humans
  * table directly.  The RPC:
  *   • runs as SECURITY DEFINER (bypasses RLS for the lookup)
+ *   • derives the lookup phone from auth.users.phone for the calling
+ *     auth.uid() — never trusts caller-supplied input (issue #92)
  *   • finds the human row by phone number (normalises +44 ↔ 07)
  *   • sets humans.customer_user_id = auth.uid() on first login
  *   • returns empty if the number is unclaimed by any salon record,
@@ -39,20 +41,14 @@ export function useCustomerAuth() {
   /**
    * Look up — and permanently link — the human record for the
    * authenticated user.  Uses the server-side RPC so the binding
-   * is atomic and cannot be replicated from the client.
+   * is atomic and cannot be replicated from the client. The RPC
+   * derives the lookup phone from auth.users.phone for the calling
+   * auth.uid(); it takes no arguments.
    */
-  const linkHumanRecord = useCallback(async (phoneNum) => {
-    if (!supabase || !phoneNum) return null;
+  const linkHumanRecord = useCallback(async () => {
+    if (!supabase) return null;
 
-    // Normalise before sending to the RPC (RPC also normalises, but
-    // sending a clean value avoids edge-case whitespace issues).
-    const normalised = normaliseUkMobile(phoneNum);
-    if (!normalised) return null;
-
-    const { data, error: rpcErr } = await supabase.rpc(
-      "link_customer_to_human",
-      { p_phone: normalised },
-    );
+    const { data, error: rpcErr } = await supabase.rpc("link_customer_to_human");
 
     if (rpcErr) {
       console.error("link_customer_to_human RPC error:", rpcErr);
@@ -61,10 +57,7 @@ export function useCustomerAuth() {
 
     // The RPC returns customer-safe human fields — Supabase surfaces this as an array.
     if (!data || data.length === 0) {
-      console.warn(
-        "No human record found or already claimed for phone:",
-        normalised,
-      );
+      console.warn("No human record found or already claimed for current user");
       return null;
     }
 
@@ -92,7 +85,6 @@ export function useCustomerAuth() {
       if (cancelled) return;
 
       const run = ++sessionRun;
-      const phoneNum = session?.user?.phone;
 
       if (!session?.user) {
         setUser(null);
@@ -105,7 +97,7 @@ export function useCustomerAuth() {
       setUser(session.user);
       setLoading(true);
 
-      if (!phoneNum) {
+      if (!session.user.phone) {
         setHumanRecord(null);
         finish();
         setLoading(false);
@@ -114,7 +106,7 @@ export function useCustomerAuth() {
 
       setTimeout(async () => {
         try {
-          const human = await linkHumanRecord(phoneNum);
+          const human = await linkHumanRecord();
           if (!cancelled && run === sessionRun) setHumanRecord(human);
         } catch (err) {
           console.error("useCustomerAuth: error linking human record:", err);
@@ -218,7 +210,7 @@ export function useCustomerAuth() {
       if (data?.user?.phone) {
         setLoading(true);
         try {
-          const human = await linkHumanRecord(data.user.phone);
+          const human = await linkHumanRecord();
           setUser(data.user);
           setHumanRecord(human);
         } finally {
