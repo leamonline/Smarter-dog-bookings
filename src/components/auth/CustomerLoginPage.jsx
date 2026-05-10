@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { normaliseUkMobile } from "../../utils/phone.js";
+
+// Cloudflare's published test key — always passes, no real challenge.
+// Supabase accepts it as long as the project's Turnstile secret key is also
+// the matching test secret (0x4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA).
+const TURNSTILE_SITE_KEY =
+  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
 
 const OTP_RESEND_SECONDS = 60;
 const PHONE_FORMAT_ERROR = "Please enter a valid UK mobile number, for example 07700 900123.";
@@ -25,6 +32,8 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
 
   const phoneInputRef = useRef(null);
   const codeInputRef = useRef(null);
+  const captchaTokenRef = useRef(null);
+  const turnstileRef = useRef(null);
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -59,8 +68,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     setLocalError("");
     setSubmitting(true);
     try {
-      const result = await onRequestOtp(normalised);
-      if (!result?.error) setOtpCooldown(OTP_RESEND_SECONDS);
+      const result = await onRequestOtp(normalised, captchaTokenRef.current);
+      if (!result?.error) {
+        setOtpCooldown(OTP_RESEND_SECONDS);
+      } else {
+        // Reset widget so a fresh token is available for the next attempt
+        turnstileRef.current?.reset();
+        captchaTokenRef.current = null;
+      }
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +175,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 className={`w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 focus:border-[#2A6F6B] text-base ${focusRing}`}
               />
             </div>
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onSuccess={(token) => { captchaTokenRef.current = token; }}
+              onExpire={() => { captchaTokenRef.current = null; }}
+              onError={() => { captchaTokenRef.current = null; }}
+              options={{ theme: "light", size: "normal" }}
+            />
             <button
               type="submit"
               disabled={submitting || otpCooldown > 0}
