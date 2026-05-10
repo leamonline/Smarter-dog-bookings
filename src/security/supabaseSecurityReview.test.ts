@@ -161,4 +161,52 @@ describe("Supabase security review regressions", () => {
     expect(viteConfig).not.toContain('cacheName: "supabase-api"');
     expect(viteConfig).not.toMatch(/urlPattern:\s*\/\^https:\\\/\\\/\.\*\\\.supabase\\\.co/);
   });
+
+  it("verifies webhook secrets via constant-time compare in all notify-* functions", () => {
+    const helper = readProjectFile("supabase/functions/_shared/webhook-auth.ts");
+
+    expect(helper).toMatch(/function\s+timingSafeEqual\b/);
+    expect(helper).toMatch(/mismatch\s*\|=\s*[^;]*\^/);
+    expect(helper).toMatch(/export\s+function\s+isAuthorizedWebhook\b/);
+
+    const notifyFns = [
+      "supabase/functions/notify-booking-confirmed/index.ts",
+      "supabase/functions/notify-booking-cancelled/index.ts",
+      "supabase/functions/notify-booking-ready/index.ts",
+      "supabase/functions/notify-booking-reminder/index.ts",
+      "supabase/functions/notify-waitlist-joined/index.ts",
+    ];
+
+    for (const path of notifyFns) {
+      const fn = readProjectFile(path);
+      expect(fn, `${path} imports the timing-safe helper`).toMatch(
+        /import\s*{\s*isAuthorizedWebhook\s*}\s*from\s*"\.\.\/_shared\/webhook-auth\.ts"/,
+      );
+      expect(fn, `${path} uses the helper to check auth`).toMatch(
+        /if\s*\(\s*!isAuthorizedWebhook\(/,
+      );
+      expect(fn, `${path} no longer compares WEBHOOK_SECRET with !==`).not.toMatch(
+        /authHeader\s*!==\s*`Bearer\s*\$\{WEBHOOK_SECRET\}`/,
+      );
+    }
+  });
+
+  it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
+    const clientFacingFns = [
+      "supabase/functions/calendar-feed/index.ts",
+      "supabase/functions/calendar-ics/index.ts",
+      "supabase/functions/whatsapp-register/index.ts",
+      "supabase/functions/whatsapp-admin/index.ts",
+    ];
+
+    for (const path of clientFacingFns) {
+      const fn = readProjectFile(path);
+      expect(fn, `${path} should not stringify err into the response body`).not.toMatch(
+        /error:\s*String\(err\)/,
+      );
+      expect(fn, `${path} should still log the actual error server-side`).toMatch(
+        /console\.error\([^)]*err/,
+      );
+    }
+  });
 });

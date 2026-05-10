@@ -7,7 +7,7 @@ const OTP_SEND_ERROR =
 const OTP_VERIFY_ERROR =
   "That code did not work. Please check it and try again.";
 const PHONE_FORMAT_ERROR =
-  "Please enter your number in +44xxxxxxxxxx format, for example +447700900123.";
+  "Please enter a valid UK mobile number, for example 07700 900123.";
 
 /**
  * Customer authentication via phone OTP.
