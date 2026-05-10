@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_RESEND_SECONDS = 60;
@@ -13,12 +13,18 @@ const websiteColors = {
   green: "#00D94A",
 };
 
+const focusRing =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2A6F6B]";
+
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
+
+  const phoneInputRef = useRef(null);
+  const codeInputRef = useRef(null);
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -33,6 +39,11 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     }, 1000);
     return () => clearInterval(timer);
   }, [otpCooldown]);
+
+  useEffect(() => {
+    const target = otpSent ? codeInputRef.current : phoneInputRef.current;
+    target?.focus();
+  }, [otpSent]);
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
@@ -81,29 +92,44 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         <div className="text-center mb-6">
           <a
             href="https://smarterdog.co.uk"
-            className="text-sm font-medium"
+            className={`text-sm font-medium underline rounded ${focusRing}`}
             style={{ color: websiteColors.teal }}
           >
-            ← Back to smarterdog.co.uk
+            <span aria-hidden="true">← </span>
+            Back to smarterdog.co.uk
           </a>
         </div>
-        <h1
-          className="font-display font-bold text-3xl mb-2 text-center"
-          style={{ color: websiteColors.teal, letterSpacing: "0.02em" }}
-        >
-          {!otpSent ? "Sign in to your account" : "Enter your code"}
-        </h1>
-        <p className="text-sm text-center text-gray-600 mb-6">
-          {!otpSent
-            ? "Pop in your mobile number — we'll text you a 6-digit code."
-            : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
-        </p>
 
-        {errorText && (
-          <div className="mb-5 p-3 rounded-lg bg-red-50 text-red-600 text-sm" role="alert">
-            {errorText}
-          </div>
-        )}
+        {/* aria-live wrapper announces the stage change (heading + instruction)
+            to screen readers when otpSent flips. */}
+        <div aria-live="polite">
+          <h1
+            className="font-display font-bold text-3xl mb-2 text-center"
+            style={{ color: websiteColors.teal, letterSpacing: "0.02em" }}
+          >
+            {!otpSent ? "Sign in to your account" : "Enter your code"}
+          </h1>
+          <p id="login-instruction" className="text-sm text-center text-gray-600 mb-6">
+            {!otpSent
+              ? "Pop in your mobile number — we'll text you a 6-digit code."
+              : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
+          </p>
+        </div>
+
+        {/* Error region is always present in the DOM so role=alert + aria-live
+            announce reliably across SR/browser combos. Visually empty when
+            there's no error. */}
+        <div
+          role="alert"
+          aria-live="assertive"
+          className={
+            errorText
+              ? "mb-5 p-3 rounded-lg bg-red-50 text-red-700 text-sm"
+              : "sr-only"
+          }
+        >
+          {errorText}
+        </div>
 
         {!otpSent ? (
           <form onSubmit={handleRequestOtp} className="space-y-4" noValidate>
@@ -116,6 +142,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 Mobile number
               </label>
               <input
+                ref={phoneInputRef}
                 id="phone"
                 type="tel"
                 inputMode="tel"
@@ -128,15 +155,16 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 }}
                 placeholder="07700 900123"
                 title={PHONE_FORMAT_ERROR}
-                aria-invalid={Boolean(errorText)}
-                className="w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-100 focus:border-cyan-400 focus:outline-none text-base"
-                autoFocus
+                aria-invalid={!otpSent && Boolean(errorText)}
+                aria-describedby="login-instruction"
+                className={`w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 focus:border-[#2A6F6B] text-base ${focusRing}`}
               />
             </div>
             <button
               type="submit"
               disabled={submitting || otpCooldown > 0}
-              className="w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70"
+              aria-busy={submitting}
+              className={`w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70 ${focusRing}`}
               style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
             >
               {submitting
@@ -157,6 +185,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 6-digit code
               </label>
               <input
+                ref={codeInputRef}
                 id="code"
                 type="text"
                 inputMode="numeric"
@@ -170,14 +199,16 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   setLocalError("");
                 }}
                 placeholder="123456"
-                className="w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-100 focus:border-cyan-400 focus:outline-none text-base tracking-widest text-center"
-                autoFocus
+                aria-invalid={otpSent && Boolean(errorText)}
+                aria-describedby="login-instruction"
+                className={`w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 focus:border-[#2A6F6B] text-base tracking-widest text-center ${focusRing}`}
               />
             </div>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70"
+              aria-busy={submitting}
+              className={`w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70 ${focusRing}`}
               style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
             >
               {submitting ? "Checking…" : "Sign in"}
@@ -185,7 +216,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             <button
               type="button"
               onClick={onResetOtp}
-              className="w-full text-sm font-medium underline"
+              className={`w-full text-sm font-medium underline rounded ${focusRing}`}
               style={{ color: websiteColors.teal }}
             >
               Use a different number
