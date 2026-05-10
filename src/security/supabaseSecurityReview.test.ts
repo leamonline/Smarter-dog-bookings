@@ -41,6 +41,18 @@ function codexScanFixMigration(): string {
   return candidates[0];
 }
 
+function linkCustomerSessionOnlyMigration(): string {
+  const migrationsDir = join(root, "supabase/migrations");
+  const candidates = readdirSync(migrationsDir)
+    .filter((file: string) => file.endsWith(".sql"))
+    .sort()
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
+    .filter((sql: string) => sql.includes("link_customer_to_human_session_only"));
+
+  expect(candidates).toHaveLength(1);
+  return candidates[0];
+}
+
 describe("Supabase security review regressions", () => {
   it("removes the demo RPC bypass from the database and customer dog form", () => {
     const migration = fixMigration();
@@ -115,6 +127,32 @@ describe("Supabase security review regressions", () => {
     expect(migration).toMatch(
       /grant\s+execute\s+on\s+function\s+public\.link_customer_to_human\(text\)\s+to\s+authenticated/i,
     );
+  });
+
+  it("derives the lookup phone from auth.users in link_customer_to_human (issue #92)", () => {
+    const migration = linkCustomerSessionOnlyMigration();
+
+    // Old (text) overload is dropped, new no-arg signature created
+    expect(migration).toMatch(/drop\s+function\s+if\s+exists\s+public\.link_customer_to_human\(text\)/i);
+    expect(migration).toMatch(/create\s+function\s+public\.link_customer_to_human\(\)\s*\nreturns\s+table/i);
+
+    // Phone is sourced from auth.users for the calling auth.uid(), not from a parameter
+    expect(migration).toMatch(/select\s+phone\s+into\s+v_phone\s+from\s+auth\.users\s+where\s+id\s*=\s*v_uid/i);
+
+    // Auth + verified-phone guards
+    expect(migration).toMatch(/if\s+v_uid\s+is\s+null\s+then\s+raise\s+exception\s+'not_authenticated'/i);
+    expect(migration).toMatch(/raise\s+exception\s+'no_verified_phone'/i);
+
+    // Grants on the new no-arg signature
+    expect(migration).toMatch(/revoke\s+all\s+on\s+function\s+public\.link_customer_to_human\(\)\s+from\s+anon/i);
+    expect(migration).toMatch(/grant\s+execute\s+on\s+function\s+public\.link_customer_to_human\(\)\s+to\s+authenticated/i);
+  });
+
+  it("does not pass a phone argument from the customer portal RPC call", () => {
+    const useCustomerAuth = readProjectFile("src/supabase/hooks/useCustomerAuth.js");
+
+    expect(useCustomerAuth).toMatch(/supabase\.rpc\("link_customer_to_human"\)/);
+    expect(useCustomerAuth).not.toMatch(/link_customer_to_human["'][^)]*p_phone/);
   });
 
   it("does not runtime-cache authenticated Supabase API traffic in the PWA", () => {
