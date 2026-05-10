@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_RESEND_SECONDS = 60;
-const PHONE_FORMAT_ERROR = "Please enter your number in +44xxxxxxxxxx format, for example +447700900123.";
+const PHONE_FORMAT_ERROR = "Please enter a valid UK mobile number, for example 07700 900123.";
 
 // Mirrors the smarterdog.co.uk brand palette so the customer portal login
 // reads as the same site to a returning customer.
@@ -126,8 +126,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   setPhoneInput(e.target.value);
                   setLocalError("");
                 }}
-                placeholder="+447700900123"
-                pattern="\+447[0-9]{9}"
+                placeholder="07700 900123"
                 title={PHONE_FORMAT_ERROR}
                 aria-invalid={Boolean(errorText)}
                 className="w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-100 focus:border-cyan-400 focus:outline-none text-base"

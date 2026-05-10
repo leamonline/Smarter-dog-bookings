@@ -108,7 +108,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("calendar-ics error:", err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "Internal error" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

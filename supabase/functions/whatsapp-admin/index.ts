@@ -71,6 +71,9 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("whatsapp-admin error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
+    return new Response(
+      JSON.stringify({ error: "Internal error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 });

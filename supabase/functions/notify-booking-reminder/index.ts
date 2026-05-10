@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
+import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -119,8 +120,7 @@ serve(async (req) => {
       console.error("WEBHOOK_SECRET is not configured");
       return new Response("Server misconfiguration: WEBHOOK_SECRET not set", { status: 500 });
     }
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+    if (!isAuthorizedWebhook(req.headers.get("Authorization"), WEBHOOK_SECRET)) {
       return new Response("Unauthorized", { status: 401 });
     }
 
