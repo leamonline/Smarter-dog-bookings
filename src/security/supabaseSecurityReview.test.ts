@@ -191,6 +191,37 @@ describe("Supabase security review regressions", () => {
     }
   });
 
+  it("hardens customer-phone-on-file against IP spoofing and origin-* CORS", () => {
+    const fn = readProjectFile(
+      "supabase/functions/customer-phone-on-file/index.ts",
+    );
+
+    // cf-connecting-ip is set by the Cloudflare ingress and is not caller-
+    // controllable; x-forwarded-for is forgeable. The function must read
+    // cf-connecting-ip *before* x-forwarded-for so an attacker rotating
+    // the forwarded header can't slice the per-IP rate-limit bucket.
+    const cfIdx = fn.indexOf('cf-connecting-ip');
+    const xfwdIdx = fn.indexOf('x-forwarded-for');
+    expect(cfIdx, "cf-connecting-ip must appear before x-forwarded-for").toBeGreaterThan(-1);
+    expect(xfwdIdx).toBeGreaterThan(-1);
+    expect(cfIdx).toBeLessThan(xfwdIdx);
+
+    // CORS must not be wide-open: an Access-Control-Allow-Origin of "*"
+    // would mean any site can poke the membership oracle from a victim's
+    // browser. Use an allowlist instead.
+    expect(fn).not.toMatch(/"Access-Control-Allow-Origin"\s*:\s*"\*"/);
+
+    // A second, global rate-limit bucket protects against horizontal
+    // enumeration even if per-IP buckets get sliced finely.
+    expect(fn).toMatch(/customer_phone_lookup_rate_limit/);
+    expect(
+      fn,
+      "function should call the rate-limit RPC at least twice (per-IP + global)",
+    ).toMatch(
+      /customer_phone_lookup_rate_limit[\s\S]+customer_phone_lookup_rate_limit/,
+    );
+  });
+
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
     const clientFacingFns = [
       "supabase/functions/calendar-feed/index.ts",
