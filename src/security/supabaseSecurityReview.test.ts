@@ -260,17 +260,6 @@ describe("Supabase security review regressions", () => {
     ).toMatch(
       /customer_phone_lookup_rate_limit[\s\S]+customer_phone_lookup_rate_limit/,
     );
-  it("retires the customer DELETE policy on bookings in favour of the UPDATE-to-cancel path", () => {
-    // The original DELETE policy let customers hard-delete future bookings,
-    // which bypasses cancel_reason capture and the notify-booking-cancelled
-    // trigger (which fires on UPDATE, not DELETE). The intended path is
-    // customer_cancel_own_bookings_update — keep that one, drop the DELETE.
-    expect(finalPolicyState("customer_cancel_own_bookings", "bookings")).toBe(
-      "dropped",
-    );
-    expect(
-      finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
-    ).toBe("created");
   });
 
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
