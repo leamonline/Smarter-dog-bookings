@@ -260,6 +260,8 @@ describe("Supabase security review regressions", () => {
     ).toMatch(
       /customer_phone_lookup_rate_limit[\s\S]+customer_phone_lookup_rate_limit/,
     );
+  });
+
   it("retires the customer DELETE policy on bookings in favour of the UPDATE-to-cancel path", () => {
     // The original DELETE policy let customers hard-delete future bookings,
     // which bypasses cancel_reason capture and the notify-booking-cancelled
