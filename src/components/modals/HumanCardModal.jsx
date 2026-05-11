@@ -93,13 +93,24 @@ export function HumanCardModal({
   onUpdateHuman,
   onAddHuman,
   bookingsByDate,
+  fetchHumanById,
 }) {
   const toast = useToast();
 
+  // If the requested human isn't in the local map (e.g. their row
+  // sits past the initial PAGE_SIZE pagination boundary), fetch
+  // them on demand so the card doesn't fall back to showing the
+  // raw UUID. Re-fires whenever the lookup key changes.
+  useEffect(() => {
+    if (!humanId || !fetchHumanById) return;
+    if (humans?.[humanId]) return;
+    fetchHumanById(humanId);
+  }, [humanId, humans, fetchHumanById]);
+
   const human = getHumanByIdOrName(humans, humanId) || {
     id: humanId,
-    fullName: humanId,
-    name: humanId,
+    fullName: "",
+    name: "",
     surname: "",
     phone: "",
     sms: false,

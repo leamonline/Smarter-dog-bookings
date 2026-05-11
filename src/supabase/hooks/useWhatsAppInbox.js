@@ -503,10 +503,22 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
-  const applyBookingAction = useCallback(async (actionId) => {
+  const applyBookingAction = useCallback(async (actionId, editedPayload = null) => {
     if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
     setActionInFlight(true);
     try {
+      // If the staff member edited the proposal (e.g. moved the date,
+      // changed the slot, or fixed the service), persist the new
+      // payload onto the action row before running the RPC. The RPC
+      // reads payload from the row, so this is the contract.
+      if (editedPayload) {
+        const { error: upErr } = await supabase
+          .from("whatsapp_booking_actions")
+          .update({ payload: editedPayload })
+          .eq("id", actionId)
+          .eq("state", "pending");
+        if (upErr) throw upErr;
+      }
       const { data, error } = await supabase.rpc("apply_whatsapp_booking_action", {
         p_action_id: actionId,
       });

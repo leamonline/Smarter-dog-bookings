@@ -24,7 +24,10 @@ const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2A6F6B]";
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
-  const [phoneInput, setPhoneInput] = useState("");
+  // Phone is split into a locked +44 prefix and the local-number digits
+  // the customer types. Storing only the digits keeps the field tidy
+  // and makes it impossible to delete the country code.
+  const [localDigits, setLocalDigits] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -60,7 +63,10 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
       setLocalError(`Please wait ${otpCooldown}s before requesting another code.`);
       return;
     }
-    const normalised = normaliseUkMobile(phoneInput);
+    // Glue the locked +44 prefix onto whatever the customer typed.
+    // normaliseUkMobile handles spaces / leading-zero strip / validation.
+    const candidate = `+44${localDigits}`;
+    const normalised = normaliseUkMobile(candidate);
     if (!normalised) {
       setLocalError(PHONE_FORMAT_ERROR);
       return;
@@ -156,24 +162,43 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               >
                 Mobile number
               </label>
-              <input
-                ref={phoneInputRef}
-                id="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                required
-                value={phoneInput}
-                onChange={(e) => {
-                  setPhoneInput(e.target.value);
-                  setLocalError("");
-                }}
-                placeholder="07700 900123"
-                title={PHONE_FORMAT_ERROR}
-                aria-invalid={!otpSent && Boolean(errorText)}
-                aria-describedby="login-instruction"
-                className={`w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 focus:border-[#2A6F6B] text-base ${focusRing}`}
-              />
+              {/* Locked +44 prefix on the left, digits-only input on the
+                  right. The bordered wrapper shows the focus ring so the
+                  field reads as one control. */}
+              <div className="flex items-stretch rounded-xl border-2 border-gray-200 focus-within:border-[#2A6F6B] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[#2A6F6B] overflow-hidden bg-white">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center px-3 min-h-[48px] bg-gray-50 text-base font-bold border-r border-gray-200 select-none"
+                  style={{ color: websiteColors.teal }}
+                >
+                  +44
+                </span>
+                <input
+                  ref={phoneInputRef}
+                  id="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  required
+                  value={localDigits}
+                  onChange={(e) => {
+                    // Accept only digits, strip a leading 0 (UK mobile
+                    // typed in 07… form), cap at 10 digits.
+                    const digits = e.target.value
+                      .replace(/\D/g, "")
+                      .replace(/^0+/, "")
+                      .slice(0, 10);
+                    setLocalDigits(digits);
+                    setLocalError("");
+                  }}
+                  placeholder="7700 900123"
+                  pattern="7[0-9]{9}"
+                  title={PHONE_FORMAT_ERROR}
+                  aria-invalid={!otpSent && Boolean(errorText)}
+                  aria-describedby="login-instruction"
+                  className="flex-1 px-3 py-3 min-h-[48px] focus:outline-none text-base bg-transparent"
+                />
+              </div>
             </div>
             <Turnstile
               ref={turnstileRef}

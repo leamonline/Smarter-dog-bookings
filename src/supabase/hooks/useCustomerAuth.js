@@ -8,6 +8,10 @@ const OTP_VERIFY_ERROR =
   "That code did not work. Please check it and try again.";
 const PHONE_FORMAT_ERROR =
   "Please enter a valid UK mobile number, for example 07700 900123.";
+const PHONE_NOT_ON_FILE_ERROR =
+  "We don't have that number on file. Please contact the salon to register before logging in.";
+const PHONE_RATE_LIMITED_ERROR =
+  "Too many attempts. Please wait a minute and try again.";
 
 /**
  * Customer authentication via phone OTP.
@@ -158,7 +162,14 @@ export function useCustomerAuth() {
     };
   }, [linkHumanRecord]);
 
-  // Request OTP — sends SMS to the phone number
+  // Request OTP — sends SMS to the phone number.
+  // Pre-flight: ask the salon's database (via a rate-limited Edge
+  // Function) whether the phone is on file before calling
+  // signInWithOtp. Twilio charges per SMS, so we don't want to spend
+  // money texting numbers that aren't ours, and a legit customer who
+  // mis-types their number gets a clearer error.
+  // captchaToken comes from the Cloudflare Turnstile widget and is
+  // attached to the OTP request so Supabase's bot-protection passes.
   const requestOtp = useCallback(async (phoneNumber, captchaToken) => {
     if (!supabase) {
       setError("Not connected.");
@@ -171,6 +182,61 @@ export function useCustomerAuth() {
     }
     setError(null);
     setPhone(normalisedPhone);
+
+    // Pre-auth lookup via the customer-phone-on-file Edge Function.
+    // The function applies per-IP rate limiting (5 attempts / 60s)
+    // and then delegates to the SECURITY DEFINER RPC. Going through
+    // the function rather than calling the RPC directly is what lets
+    // us enforce the rate cap — the raw RPC is not granted to anon.
+    const { data: lookupData, error: lookupErr } = await supabase.functions
+      .invoke("customer-phone-on-file", {
+        body: { phone: normalisedPhone },
+      });
+
+    if (lookupErr) {
+      // Supabase wraps non-2xx responses in FunctionsHttpError. Pull
+      // the JSON body off so we can show a tailored message for the
+      // rate-limit case instead of a generic "failed to send".
+      let errPayload = null;
+      try {
+        errPayload = await lookupErr.context?.json?.();
+      } catch {
+        // ignore — fall through to status check below
+      }
+      if (errPayload?.error === "rate_limited") {
+        setError(PHONE_RATE_LIMITED_ERROR);
+        return { error: { message: "Rate limited" } };
+      }
+      // Common deployment slip: the Edge Function is not deployed yet
+      // (Supabase returns 404 / FunctionsRelayError). Surface that
+      // clearly so the operator can fix it rather than chasing a
+      // generic "could not send".
+      const status = lookupErr.context?.status;
+      const name = lookupErr.name || "";
+      const looksLikeMissingFn =
+        status === 404 ||
+        name === "FunctionsRelayError" ||
+        name === "FunctionsFetchError";
+      if (looksLikeMissingFn) {
+        console.error(
+          "customer-phone-on-file Edge Function not reachable. Did you run `supabase functions deploy customer-phone-on-file`?",
+          lookupErr,
+          errPayload,
+        );
+        setError(
+          "Login service isn't available right now. Please contact the salon.",
+        );
+        return { error: lookupErr };
+      }
+      console.error("customer-phone-on-file function error:", lookupErr, errPayload);
+      setError(OTP_SEND_ERROR);
+      return { error: lookupErr };
+    }
+
+    if (!lookupData?.on_file) {
+      setError(PHONE_NOT_ON_FILE_ERROR);
+      return { error: { message: "Phone not on file" } };
+    }
 
     const otpOptions = captchaToken ? { options: { captchaToken } } : {};
     const { error: err } = await supabase.auth.signInWithOtp({
