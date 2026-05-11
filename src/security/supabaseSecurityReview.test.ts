@@ -53,6 +53,46 @@ function linkCustomerSessionOnlyMigration(): string {
   return candidates[0];
 }
 
+// Walk migrations in filename order and return the final state of a named
+// RLS policy on a given table: 'created' if the most recent statement is a
+// CREATE POLICY, 'dropped' if it's a DROP POLICY, 'absent' if never seen.
+function finalPolicyState(
+  policyName: string,
+  table: string,
+): "created" | "dropped" | "absent" {
+  const migrationsDir = join(root, "supabase/migrations");
+  const sqls = readdirSync(migrationsDir)
+    .filter((file: string) => file.endsWith(".sql"))
+    .sort()
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"));
+
+  const tablePat = `(?:public\\.)?${table}`;
+  const createRe = new RegExp(
+    `create\\s+policy\\s+"${policyName}"\\s+on\\s+${tablePat}`,
+    "gi",
+  );
+  const dropRe = new RegExp(
+    `drop\\s+policy(?:\\s+if\\s+exists)?\\s+"${policyName}"\\s+on\\s+${tablePat}`,
+    "gi",
+  );
+
+  let state: "created" | "dropped" | "absent" = "absent";
+  for (const sql of sqls) {
+    const events: Array<{ index: number; kind: "created" | "dropped" }> = [];
+    for (const m of sql.matchAll(createRe)) {
+      events.push({ index: m.index ?? 0, kind: "created" });
+    }
+    for (const m of sql.matchAll(dropRe)) {
+      events.push({ index: m.index ?? 0, kind: "dropped" });
+    }
+    events.sort((a, b) => a.index - b.index);
+    for (const ev of events) {
+      state = ev.kind;
+    }
+  }
+  return state;
+}
+
 describe("Supabase security review regressions", () => {
   it("removes the demo RPC bypass from the database and customer dog form", () => {
     const migration = fixMigration();
@@ -220,6 +260,17 @@ describe("Supabase security review regressions", () => {
     ).toMatch(
       /customer_phone_lookup_rate_limit[\s\S]+customer_phone_lookup_rate_limit/,
     );
+  it("retires the customer DELETE policy on bookings in favour of the UPDATE-to-cancel path", () => {
+    // The original DELETE policy let customers hard-delete future bookings,
+    // which bypasses cancel_reason capture and the notify-booking-cancelled
+    // trigger (which fires on UPDATE, not DELETE). The intended path is
+    // customer_cancel_own_bookings_update — keep that one, drop the DELETE.
+    expect(finalPolicyState("customer_cancel_own_bookings", "bookings")).toBe(
+      "dropped",
+    );
+    expect(
+      finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
+    ).toBe("created");
   });
 
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
