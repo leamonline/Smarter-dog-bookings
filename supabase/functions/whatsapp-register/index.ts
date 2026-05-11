@@ -22,6 +22,7 @@
 // Deregister is a separate call if needed.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID")!;
@@ -32,7 +33,12 @@ const GRAPH_API_VERSION = "v22.0";
 serve(async (req) => {
   try {
     // Internal auth — same pattern as whatsapp-send's x-internal-secret path.
-    if (req.headers.get("x-internal-secret") !== SEND_INTERNAL_SECRET) {
+    if (
+      !timingSafeEqualHeader(
+        req.headers.get("x-internal-secret"),
+        SEND_INTERNAL_SECRET,
+      )
+    ) {
       return new Response("Unauthorized", { status: 401 });
     }
 

@@ -17,6 +17,7 @@
 //     GET /{phone-number-id} — returns registration + verification state for the phone number
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID")!;
@@ -40,7 +41,12 @@ async function metaFetch(path: string, method: "GET" | "POST"): Promise<{ status
 
 serve(async (req) => {
   try {
-    if (req.headers.get("x-internal-secret") !== SEND_INTERNAL_SECRET) {
+    if (
+      !timingSafeEqualHeader(
+        req.headers.get("x-internal-secret"),
+        SEND_INTERNAL_SECRET,
+      )
+    ) {
       return new Response("Unauthorized", { status: 401 });
     }
     if (req.method !== "POST") {

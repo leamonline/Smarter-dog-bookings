@@ -28,3 +28,15 @@ export function isAuthorizedWebhook(
   if (!authHeader) return false;
   return timingSafeEqual(authHeader, `Bearer ${secret}`);
 }
+
+// Generic constant-time check for a header that should equal a stored
+// secret (e.g. x-internal-secret, x-agent-secret). Returns false on
+// any missing/empty input — including an empty `expected`, which would
+// otherwise match an attacker who simply sent an empty header.
+export function timingSafeEqualHeader(
+  provided: string | null | undefined,
+  expected: string | null | undefined,
+): boolean {
+  if (!provided || !expected) return false;
+  return timingSafeEqual(provided, expected);
+}

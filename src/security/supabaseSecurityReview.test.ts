@@ -191,6 +191,40 @@ describe("Supabase security review regressions", () => {
     }
   });
 
+  it("verifies the internal/agent secrets via timing-safe compare in all whatsapp-* functions", () => {
+    const helper = readProjectFile("supabase/functions/_shared/webhook-auth.ts");
+    expect(helper).toMatch(/export\s+function\s+timingSafeEqualHeader\b/);
+
+    const wsFns = [
+      "supabase/functions/whatsapp-send/index.ts",
+      "supabase/functions/whatsapp-admin/index.ts",
+      "supabase/functions/whatsapp-register/index.ts",
+      "supabase/functions/whatsapp-agent/index.ts",
+    ];
+
+    for (const path of wsFns) {
+      const fn = readProjectFile(path);
+      expect(fn, `${path} imports the timing-safe header helper`).toMatch(
+        /import\s*{[^}]*timingSafeEqualHeader[^}]*}\s*from\s*"[^"]*_shared\/webhook-auth\.ts"/,
+      );
+      // No remaining direct `!==` / `===` comparisons against the secret env vars.
+      expect(
+        fn,
+        `${path} no longer compares SEND_INTERNAL_SECRET with !==/===`,
+      ).not.toMatch(/!==\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*!==/);
+      expect(
+        fn,
+        `${path} no longer compares SEND_INTERNAL_SECRET with ===`,
+      ).not.toMatch(/===\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*===/);
+      expect(
+        fn,
+        `${path} no longer compares AGENT_CALLBACK_SECRET with !==/===`,
+      ).not.toMatch(
+        /!==\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*!==|===\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*===/,
+      );
+    }
+  });
+
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
     const clientFacingFns = [
       "supabase/functions/calendar-feed/index.ts",

@@ -71,6 +71,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 import {
   AgentState,
@@ -1065,8 +1066,12 @@ serve(async (req) => {
 
   // Shared-secret auth. Migration 027's trigger sends this header.
   // Without it we'd be processing whatever any random caller POSTs.
-  const providedSecret = req.headers.get("x-agent-secret");
-  if (!providedSecret || providedSecret !== AGENT_CALLBACK_SECRET) {
+  if (
+    !timingSafeEqualHeader(
+      req.headers.get("x-agent-secret"),
+      AGENT_CALLBACK_SECRET,
+    )
+  ) {
     return new Response("unauthorized", { status: 401 });
   }
 

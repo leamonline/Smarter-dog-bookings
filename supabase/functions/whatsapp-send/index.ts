@@ -52,6 +52,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -209,8 +210,14 @@ async function authorise(req: Request): Promise<
   | { ok: true; userId?: string; internal?: boolean }
   | { ok: false; reason: string; status: number }
 > {
-  const internalHeader = req.headers.get("x-internal-secret");
-  if (SEND_INTERNAL_SECRET && internalHeader === SEND_INTERNAL_SECRET) {
+  // timingSafeEqualHeader returns false if either side is empty, so the
+  // original `SEND_INTERNAL_SECRET && …` guard is preserved.
+  if (
+    timingSafeEqualHeader(
+      req.headers.get("x-internal-secret"),
+      SEND_INTERNAL_SECRET,
+    )
+  ) {
     return { ok: true, internal: true };
   }
 
