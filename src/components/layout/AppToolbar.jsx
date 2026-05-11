@@ -117,34 +117,44 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
 
         {/* Primary nav — sits inline next to the logo to keep the
             right side clear for the + New booking CTA. */}
-        <nav className="flex items-center gap-1 ml-3">
-          {PRIMARY_NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                `group relative inline-flex items-center gap-1.5 h-10 px-3 rounded-xl no-underline transition-all duration-150 ${
-                  isActive
-                    ? `${item.activeBg} font-bold`
-                    : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white font-semibold"
-                }`
-              }
-              title={item.label}
-            >
-              <span className="transition-transform duration-150 group-hover:scale-110 shrink-0">
-                {item.icon}
-              </span>
-              <span className="text-sm leading-none tracking-tight hidden 2xl:inline">
-                {item.label}
-              </span>
-              {item.to === "/whatsapp" && waBadge && (
-                <span className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
-                  {waBadge}
+        <nav className="flex items-center gap-1 ml-3" aria-label="Primary">
+          {PRIMARY_NAV.map((item) => {
+            const ariaLabel =
+              item.to === "/whatsapp" && waUnread > 0
+                ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
+                : item.label;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                aria-label={ariaLabel}
+                className={({ isActive }) =>
+                  `group relative inline-flex items-center gap-1.5 h-10 px-3 rounded-xl no-underline transition-all duration-150 ${
+                    isActive
+                      ? `${item.activeBg} font-bold`
+                      : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white font-semibold"
+                  }`
+                }
+                title={item.label}
+              >
+                <span className="transition-transform duration-150 group-hover:scale-110 shrink-0" aria-hidden="true">
+                  {item.icon}
                 </span>
-              )}
-            </NavLink>
-          ))}
+                <span className="text-sm leading-none tracking-tight hidden 2xl:inline">
+                  {item.label}
+                </span>
+                {item.to === "/whatsapp" && waBadge && (
+                  <span
+                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
+                    aria-hidden="true"
+                  >
+                    {waBadge}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="flex-1" />
@@ -312,38 +322,51 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
       </div>
 
       {/* ── Mobile bottom tab bar (below md) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+        aria-label="Primary"
+      >
         <div className="flex">
-          {MOBILE_NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                `relative flex-1 flex flex-col items-center gap-1 py-2 no-underline transition-colors ${
-                  isActive ? item.activeText : "text-slate-400 hover:text-slate-600"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`absolute top-0 w-8 h-0.5 rounded-b-full transition-all ${
-                      isActive ? `${item.activeText.replace("text-", "bg-")}` : "bg-transparent"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {item.icon}
-                  <span className="text-[10px] font-bold">{item.label}</span>
-                  {item.to === "/whatsapp" && waBadge && (
-                    <span className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                      {waBadge}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {MOBILE_NAV.map((item) => {
+            const ariaLabel =
+              item.to === "/whatsapp" && waUnread > 0
+                ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
+                : item.label;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                aria-label={ariaLabel}
+                className={({ isActive }) =>
+                  `relative flex-1 flex flex-col items-center gap-1 py-2 no-underline transition-colors ${
+                    isActive ? item.activeText : "text-slate-500 hover:text-slate-700"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`absolute top-0 w-8 h-0.5 rounded-b-full transition-all ${
+                        isActive ? `${item.activeText.replace("text-", "bg-")}` : "bg-transparent"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {item.icon}
+                    <span className="text-[10px] font-bold">{item.label}</span>
+                    {item.to === "/whatsapp" && waBadge && (
+                      <span
+                        className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none"
+                        aria-hidden="true"
+                      >
+                        {waBadge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
     </>

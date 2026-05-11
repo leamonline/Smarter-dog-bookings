@@ -33,10 +33,10 @@ describe("buildTemplateParams", () => {
     );
   });
 
-  it("preview falls back to placeholder syntax for missing values", () => {
+  it("preview falls back to friendly placeholders for missing values", () => {
     const template = WHATSAPP_TEMPLATES[0];
     expect(template.preview({})).toBe(
-      "Hi {{1}}, just a quick reminder that {{2}} has a grooming appointment with us on {{3}} at {{4}}. We're looking forward to seeing you both! 🐾"
+      "Hi [their name], just a quick reminder that [dog's name] has a grooming appointment with us on [date] at [time]. We're looking forward to seeing you both! 🐾"
     );
   });
 });
