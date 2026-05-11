@@ -10,6 +10,18 @@
  * `preview(values)` renders the message with the given param values for the
  *   UI preview — must match the exact wording registered with Meta.
  */
+// Friendly placeholder rendered in the preview when a param hasn't been
+// filled in yet. We deliberately avoid Meta's raw {{N}} syntax here —
+// the preview is for staff, not Meta, so "[date]" reads as a missing
+// value much more clearly than "{{3}}". The actual outbound payload
+// still uses the ordered param array built by buildTemplateParams.
+const PLACEHOLDER = {
+  customer_first_name: "[their name]",
+  dog_name: "[dog's name]",
+  date: "[date]",
+  time: "[time]",
+};
+
 export const WHATSAPP_TEMPLATES = [
   {
     name: "smarter_appointment_reminder",
@@ -23,7 +35,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "time", label: "Time (e.g. 9:00am)", autoFill: null },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || "{{1}}"}, just a quick reminder that ${values.dog_name || "{{2}}"} has a grooming appointment with us on ${values.date || "{{3}}"} at ${values.time || "{{4}}"}. We're looking forward to seeing you both! 🐾`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, just a quick reminder that ${values.dog_name || PLACEHOLDER.dog_name} has a grooming appointment with us on ${values.date || PLACEHOLDER.date} at ${values.time || PLACEHOLDER.time}. We're looking forward to seeing you both! 🐾`,
   },
   {
     name: "smarter_general_contact",
@@ -34,7 +46,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || "{{1}}"}, it's the Smarter Dog Grooming team here! We just wanted to reach out — could you reply here when you get a chance? Thanks so much! 🐾`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, it's the Smarter Dog Grooming team here! We just wanted to reach out — could you reply here when you get a chance? Thanks so much! 🐾`,
   },
   {
     name: "smarter_rebook_invite",
@@ -46,7 +58,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || "{{1}}"}, it was lovely seeing ${values.dog_name || "{{2}}"} recently! 🐾 Would you like to book their next groom? Just reply here and we'll sort something out.`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, it was lovely seeing ${values.dog_name || PLACEHOLDER.dog_name} recently! 🐾 Would you like to book their next groom? Just reply here and we'll sort something out.`,
   },
 ];
 
