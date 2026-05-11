@@ -323,3 +323,4 @@ describe("Supabase security review regressions", () => {
     }
   });
 });
+}
