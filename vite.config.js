@@ -12,6 +12,21 @@ export default defineConfig({
       manifest: false, // use public/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // When a new SW activates, evict precache entries from
+        // previous deployments. Without this, an old SW holding
+        // stale precached chunks can serve the SPA fallback HTML
+        // for renamed chunk URLs, which the browser then rejects
+        // with "'text/html' is not a valid JavaScript MIME type".
+        cleanupOutdatedCaches: true,
+        // Apply the new SW immediately rather than waiting for all
+        // existing tabs to close. autoUpdate + these two together
+        // mean a single hard refresh is enough to pick up a deploy.
+        skipWaiting: true,
+        clientsClaim: true,
+        // Don't let the SW intercept Supabase function calls — the
+        // customer-phone-on-file invoke uses POST and we never want
+        // a cached response served back for an auth-adjacent call.
+        navigateFallbackDenylist: [/^\/api/, /^\/functions\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
