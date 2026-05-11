@@ -9,12 +9,10 @@ describe('TrustSection', () => {
 
     expect(screen.getByText('Since 1982')).toBeInTheDocument();
     expect(screen.getByText('Serving Ashton')).toBeInTheDocument();
-    expect(screen.getByText('10,000+')).toBeInTheDocument();
-    expect(screen.getByText('Happy Pups')).toBeInTheDocument();
+    expect(screen.getByText('Thousands')).toBeInTheDocument();
+    expect(screen.getByText('of happy pups')).toBeInTheDocument();
     expect(screen.getByText('4.9★')).toBeInTheDocument();
-    expect(screen.getByText('Google Rating')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(screen.getByText('Tail Wags')).toBeInTheDocument();
+    expect(screen.getByText('Google rating')).toBeInTheDocument();
   });
 
   it('uses white background and pink transition', () => {

@@ -28,9 +28,9 @@ describe('SmarterDogHomepage integration', () => {
     renderHomepage();
 
     expect(screen.getByText('Since 1982')).toBeInTheDocument();
-    expect(screen.getByText('10,000+')).toBeInTheDocument();
+    expect(screen.getByText('Thousands')).toBeInTheDocument();
     expect(screen.getByText('4.9★')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getByText('of happy pups')).toBeInTheDocument();
   });
 
   it('renders key navigation links', () => {

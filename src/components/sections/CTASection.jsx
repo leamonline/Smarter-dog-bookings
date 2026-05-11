@@ -7,7 +7,7 @@ import FadeIn from '../FadeIn';
 const BOOKING_STEPS = [
     {
         title: '1) Send your request',
-        detail: 'Tell us your dog, service, and best times in about 2 minutes.',
+        detail: 'Tell us your dog, service, and best times in about two minutes.',
     },
     {
         title: '2) We confirm a slot',
@@ -15,7 +15,7 @@ const BOOKING_STEPS = [
     },
     {
         title: '3) Easy drop-off',
-        detail: 'Bring them in on the day and we will handle the rest.',
+        detail: "Bring them in on the day and we'll handle the rest.",
     },
 ];
 
@@ -54,7 +54,7 @@ const CTASection = ({ onBookClick }) => {
                             className="body-font text-lg mb-8"
                             style={{ color: colors.plum }}
                         >
-                            We're open Monday to Wednesday, 8:30am–3pm in Ashton-under-Lyne. Slots go fast — get yours booked in.
+                            We're open Monday to Wednesday, 8:30am – 3:00pm in Ashton-under-Lyne. Slots go fast — get yours booked in.
                         </p>
                         <div className="flex flex-wrap justify-center gap-4 mb-10">
                             <button

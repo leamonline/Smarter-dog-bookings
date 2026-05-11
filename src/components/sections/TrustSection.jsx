@@ -14,9 +14,8 @@ const TrustSection = () => {
                     {
                         [
                             { number: 'Since 1982', label: 'Serving Ashton' },
-                            { number: '10,000+', label: 'Happy Pups' },
-                            { number: '4.9★', label: 'Google Rating' },
-                            { number: '100%', label: 'Tail Wags' }
+                            { number: 'Thousands', label: 'of happy pups' },
+                            { number: '4.9★', label: 'Google rating' }
                         ].map((stat, i) => (
                             <FadeIn key={i} delay={i * 100}>
                                 <div className="text-center">

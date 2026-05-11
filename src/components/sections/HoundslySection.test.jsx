@@ -7,7 +7,7 @@ describe('HoundslySection', () => {
     render(<HoundslySection />);
 
     expect(screen.getByText('Handmade with love')).toBeInTheDocument();
-    expect(screen.getByText('Made for Sensitive Skin')).toBeInTheDocument();
+    expect(screen.getByText('Made for sensitive skin')).toBeInTheDocument();
   });
 
   it('renders brand and product visuals', () => {

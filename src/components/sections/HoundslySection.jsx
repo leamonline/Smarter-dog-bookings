@@ -78,15 +78,15 @@ const HoundslySection = () => {
                                 </div>
 
                                 <h2 className="heading-font font-bold text-4xl mb-6" style={{ color: colors.plum }}>
-                                    Made for Sensitive Skin
+                                    Made for sensitive skin
                                 </h2>
                                 <p className="body-font text-xl mb-6 leading-relaxed" style={{ color: colors.teal }}>
-                                    We couldn't find products we actually wanted to use on our dogs, so we made our own.
-                                    100% natural, vegan, and properly gentle — even on the fussiest skin.
+                                    We couldn't find shampoos we were happy putting on our own dogs, so we made our own.
+                                    Naturally derived ingredients, no animal products, and properly gentle — even on the fussiest skin.
                                 </p>
 
                                 <p className="body-font text-xl mb-8 leading-relaxed" style={{ color: colors.teal }}>
-                                    Handmade in small batches, because your dog deserves better than whatever's on offer at the supermarket.
+                                    Handmade in small batches, because that's the only way we'd want our dogs washed.
                                 </p>
 
                                 {/* Badges Grid */}

@@ -21,7 +21,7 @@ describe('FooterSection', () => {
   it('renders opening hours and address', () => {
     renderFooter();
 
-    expect(screen.getByRole('heading', { name: 'Opening Hours' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Opening hours' })).toBeInTheDocument();
     expect(screen.getByText('Mon–Wed')).toBeInTheDocument();
     expect(screen.getByText('Thu–Sun')).toBeInTheDocument();
     expect(screen.getByText('183 Kings Road')).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe('FooterSection', () => {
     renderFooter();
 
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
-    expect(screen.getByRole('link', { name: 'Matted Coats' })).toHaveAttribute('href', '/matted-coat-policy');
+    expect(screen.getByRole('link', { name: 'Matted coats' })).toHaveAttribute('href', '/matted-coat-policy');
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
   });
 });
