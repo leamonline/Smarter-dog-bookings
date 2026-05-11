@@ -260,6 +260,8 @@ describe("Supabase security review regressions", () => {
         /!==\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*!==|===\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*===/,
       );
     }
+  });
+
   it("hardens customer-phone-on-file against IP spoofing and origin-* CORS", () => {
     const fn = readProjectFile(
       "supabase/functions/customer-phone-on-file/index.ts",
@@ -323,6 +325,3 @@ describe("Supabase security review regressions", () => {
     }
   });
 });
-}
-        , }
-)
