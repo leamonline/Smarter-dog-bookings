@@ -3,10 +3,19 @@ import { supabase } from "../client.js";
 import {
   dbDogsToMap,
   buildDogsById,
+  buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
 
 const PAGE_SIZE = 50;
+
+function mergeRowsById(rows: any[][]) {
+  const map = new Map<string, any>();
+  rows.flat().forEach((row) => {
+    if (row?.id) map.set(row.id, row);
+  });
+  return Array.from(map.values());
+}
 
 export function useDogs(humansById: Record<string, any>) {
   const [dogs, setDogs] = useState<Record<string, any>>({});
@@ -209,22 +218,69 @@ export function useDogs(humansById: Record<string, any>) {
 
         setIsSearching(true);
 
-        const { data, error: err } = await supabase
-          .from("dogs")
-          .select("*")
-          .ilike("name", `%${query}%`)
-          .order("name");
+        const term = query.trim();
+        const likeTerm = `%${term}%`;
+        const [
+          dogNameResult,
+          dogBreedResult,
+          ownerNameResult,
+          ownerSurnameResult,
+          ownerPhoneResult,
+        ] = await Promise.all([
+          supabase.from("dogs").select("*").ilike("name", likeTerm),
+          supabase.from("dogs").select("*").ilike("breed", likeTerm),
+          supabase.from("humans").select("*").ilike("name", likeTerm),
+          supabase.from("humans").select("*").ilike("surname", likeTerm),
+          supabase.from("humans").select("*").ilike("phone", likeTerm),
+        ]);
 
-        setIsSearching(false);
+        const firstError =
+          dogNameResult.error ||
+          dogBreedResult.error ||
+          ownerNameResult.error ||
+          ownerSurnameResult.error ||
+          ownerPhoneResult.error;
 
-        if (err) {
-          setError(err.message);
+        if (firstError) {
+          setIsSearching(false);
+          setError(firstError.message);
           return;
         }
 
-        const rows = data || [];
+        const ownerRows = mergeRowsById([
+          ownerNameResult.data || [],
+          ownerSurnameResult.data || [],
+          ownerPhoneResult.data || [],
+        ]);
+        const ownerIds = ownerRows.map((row) => row.id).filter(Boolean);
+        let ownerDogRows: any[] = [];
+
+        if (ownerIds.length > 0) {
+          const { data, error: ownerDogErr } = await supabase
+            .from("dogs")
+            .select("*")
+            .in("human_id", ownerIds);
+
+          if (ownerDogErr) {
+            setIsSearching(false);
+            setError(ownerDogErr.message);
+            return;
+          }
+
+          ownerDogRows = data || [];
+        }
+
+        setIsSearching(false);
+
+        const rows = mergeRowsById([
+          dogNameResult.data || [],
+          dogBreedResult.data || [],
+          ownerDogRows,
+        ]).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        const ownerHumansById = buildHumansById(ownerRows);
         setDogsById(buildDogsById(rows));
-        setDogs(dbDogsToMap(rows, humansById || {}));
+        setDogs(dbDogsToMap(rows, { ...(humansById || {}), ...ownerHumansById }));
+        setTotalCount(rows.length);
         setHasMore(false);
       }, 300);
     },

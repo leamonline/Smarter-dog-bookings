@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useReportsData } from "../../hooks/useReportsData.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { Kpi, PERIODS } from "./reports/ReportWidgets.jsx";
@@ -9,10 +9,20 @@ import { ScheduleCharts } from "./reports/ScheduleCharts.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
 import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
+import { useSalon } from "../../contexts/SalonContext.js";
 
 export function ReportsView() {
   const [days, setDays] = useState(30);
-  const { loading, stats, chartLabels, insights } = useReportsData(days);
+  const { bookingsByDate, dogs, humans } = useSalon();
+  const reportSource = useMemo(
+    () => ({
+      bookingsByDate,
+      dogs,
+      humans,
+    }),
+    [bookingsByDate, dogs, humans],
+  );
+  const { loading, stats, chartLabels, insights } = useReportsData(days, reportSource);
 
   return (
     <div className="py-2.5 flex flex-col gap-4">
@@ -20,14 +30,14 @@ export function ReportsView() {
       <WeeklySnapshot />
 
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <h2 className="text-[22px] font-extrabold m-0 text-slate-800 font-display">Overview & Analytics</h2>
-        <div className="flex bg-slate-100 p-1 rounded-lg">
+      <div className="flex justify-between items-center gap-3">
+        <h2 className="text-base sm:text-lg md:text-[22px] font-extrabold m-0 text-slate-800 font-display">Overview &amp; Analytics</h2>
+        <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
           {PERIODS.map((p) => (
             <button
               key={p.v}
               onClick={() => setDays(p.v)}
-              className={`px-3 py-1.5 rounded-md text-[12px] font-bold border-none cursor-pointer transition-all font-[inherit] ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-[12px] font-bold border-none cursor-pointer transition-all font-[inherit] ${
                 days === p.v
                   ? "bg-white text-slate-800 shadow-sm"
                   : "bg-transparent text-slate-500 hover:text-slate-700"

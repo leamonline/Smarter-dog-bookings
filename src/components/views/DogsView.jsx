@@ -6,6 +6,7 @@ import { AddDogModal } from "../modals/AddDogModal.jsx";
 import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
+import { filterDogsForDirectory } from "../../utils/directorySearch.js";
 
 function computeAge(dog) {
   if (dog.dob) {
@@ -28,13 +29,29 @@ function sizeDot(size) {
   return t.gradient[0];
 }
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDeleteDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDeleteDog, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { id, name }
   const toast = useToast();
 
-  const sortedDogs = useMemo(() => Object.values(dogs).sort((a, b) => a.name.localeCompare(b.name)), [dogs]);
+  const hasSearchQuery = Boolean(searchQuery?.trim());
+  const sortedDogs = useMemo(() => {
+    const visibleDogs =
+      hasSearchQuery && !isOnline
+        ? filterDogsForDirectory(dogs, humans, searchQuery)
+        : Object.values(dogs);
+    return visibleDogs.sort((a, b) => a.name.localeCompare(b.name));
+  }, [dogs, humans, hasSearchQuery, isOnline, searchQuery]);
+  const registeredTotal = hasSearchQuery
+    ? sortedDogs.length
+    : Math.max(Number(totalCount) || 0, Object.keys(dogs).length);
+  const headerCountText = hasSearchQuery
+    ? `${sortedDogs.length} matching dog${sortedDogs.length !== 1 ? "s" : ""}`
+    : `${registeredTotal} dog${registeredTotal !== 1 ? "s" : ""} registered`;
+  const footerText = hasSearchQuery
+    ? `${sortedDogs.length} match${sortedDogs.length !== 1 ? "es" : ""} for "${searchQuery.trim()}"`
+    : `Showing ${sortedDogs.length} of ${registeredTotal} dogs`;
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
@@ -57,7 +74,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDele
           <div>
             <div className="text-xl md:text-2xl font-black text-white font-display">Dogs Directory</div>
             <div className="text-sm font-semibold text-white/70 mt-0.5">
-              {totalCount} dog{totalCount !== 1 ? "s" : ""} registered
+              {headerCountText}
             </div>
           </div>
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
@@ -192,10 +209,10 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDele
           {isSearching ? (
             <span className="italic">Searching...</span>
           ) : (
-            <span>Showing {sortedDogs.length} of {totalCount} dogs</span>
+            <span>{footerText}</span>
           )}
         </div>
-        {hasMore && !isSearching && (
+        {hasMore && !isSearching && !hasSearchQuery && (
           <button
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
             disabled={loadingMore}

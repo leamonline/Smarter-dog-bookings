@@ -103,7 +103,7 @@ export function WeeklySnapshot() {
       {/* Toggle header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-3.5 bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark border-none cursor-pointer font-[inherit]"
+        className="w-full flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark border-none cursor-pointer font-[inherit]"
       >
         <div className="flex items-center gap-2">
           <span className="text-base font-extrabold text-white">This Week at a Glance</span>
@@ -127,16 +127,16 @@ export function WeeklySnapshot() {
       </button>
 
       {open && (
-        <div className="p-5 px-6">
+        <div className="p-4 sm:p-5 sm:px-6">
           {/* Revenue hero + bar chart */}
-          <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-[28px] font-black text-slate-800 font-display">
+          <div className="flex items-baseline gap-2 mb-3 sm:mb-4">
+            <span className="text-2xl sm:text-[28px] font-black text-slate-800 font-display">
               £{thisWeekTotal}
             </span>
             <span className="text-sm font-semibold text-slate-500">this week</span>
           </div>
 
-          <div className="flex gap-2 items-end h-[100px] mb-4">
+          <div className="flex gap-2 items-end h-[88px] sm:h-[100px] mb-3 sm:mb-4">
             {thisWeekData.map((day) => (
               <div key={day.label} className="flex-1 text-center flex flex-col items-center justify-end h-full">
                 <div

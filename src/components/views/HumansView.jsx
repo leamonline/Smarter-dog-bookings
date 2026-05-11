@@ -5,6 +5,7 @@ import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
+import { filterHumansForDirectory } from "../../utils/directorySearch.js";
 
 function waLink(phone) {
   if (!phone) return "#";
@@ -18,13 +19,29 @@ function sizeDot(size) {
   return t ? t.gradient[0] : "#94A3B8";
 }
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { id, name, dogCount }
   const toast = useToast();
 
-  const sortedHumans = useMemo(() => Object.values(humans).sort((a, b) => a.name.localeCompare(b.name)), [humans]);
+  const hasSearchQuery = Boolean(searchQuery?.trim());
+  const sortedHumans = useMemo(() => {
+    const visibleHumans =
+      hasSearchQuery && !isOnline
+        ? filterHumansForDirectory(humans, dogs, dogsByHumanId, searchQuery)
+        : Object.values(humans);
+    return visibleHumans.sort((a, b) => a.name.localeCompare(b.name));
+  }, [dogs, dogsByHumanId, hasSearchQuery, humans, isOnline, searchQuery]);
+  const registeredTotal = hasSearchQuery
+    ? sortedHumans.length
+    : Math.max(Number(totalCount) || 0, Object.keys(humans).length);
+  const headerCountText = hasSearchQuery
+    ? `${sortedHumans.length} matching human${sortedHumans.length !== 1 ? "s" : ""}`
+    : `${registeredTotal} human${registeredTotal !== 1 ? "s" : ""} registered`;
+  const footerText = hasSearchQuery
+    ? `${sortedHumans.length} match${sortedHumans.length !== 1 ? "es" : ""} for "${searchQuery.trim()}"`
+    : `Showing ${sortedHumans.length} of ${registeredTotal} humans`;
 
   const visibleHumanIdsKey = useMemo(
     () => sortedHumans.map((h) => h.id).filter(Boolean).join(","),
@@ -57,7 +74,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           <div>
             <div className="text-xl md:text-2xl font-black text-white font-display">Humans Directory</div>
             <div className="text-sm font-semibold text-white/70 mt-0.5">
-              {totalCount} human{totalCount !== 1 ? "s" : ""} registered
+              {headerCountText}
             </div>
           </div>
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
@@ -204,10 +221,10 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           {isSearching ? (
             <span className="italic">Searching...</span>
           ) : (
-            <span>Showing {sortedHumans.length} of {totalCount} humans</span>
+            <span>{footerText}</span>
           )}
         </div>
-        {hasMore && !isSearching && (
+        {hasMore && !isSearching && !hasSearchQuery && (
           <button
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
             disabled={loadingMore}

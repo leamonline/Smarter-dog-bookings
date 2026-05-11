@@ -424,6 +424,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      isOnline={isOnline}
                     />
                   } />
                   <Route path="/dogs" element={
@@ -440,6 +441,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      isOnline={isOnline}
                     />
                   } />
                   <Route path="/reports" element={<ReportsView />} />

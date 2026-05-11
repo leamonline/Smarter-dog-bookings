@@ -1,6 +1,39 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
 import { PRICING, SERVICES, SALON_SLOTS } from "../constants/index.js";
+import type { BookingsByDate, Dog, Human } from "../types/index.js";
+
+type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
+type ReportHumanMap = Record<string, string>;
+
+interface ReportBookingRow {
+  id: string;
+  booking_date: string;
+  service: string;
+  size: string;
+  status: string;
+  payment: string;
+  slot: string;
+  dog_id: string;
+}
+
+interface ReportSourceData {
+  bookings: ReportBookingRow[];
+  dogMap: ReportDogMap;
+  humanMap: ReportHumanMap;
+}
+
+interface SalonReportSource {
+  bookingsByDate?: BookingsByDate;
+  dogs?: Record<string, Dog>;
+  humans?: Record<string, Human>;
+}
+
+const EMPTY_REPORT_SOURCE: ReportSourceData = {
+  bookings: [],
+  dogMap: {},
+  humanMap: {},
+};
 
 // -- Utility functions -------------------------------------------------------
 
@@ -20,12 +53,12 @@ export function fmtSlot(slot: string): string {
   return `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
-function datesInRange(n: number): string[] {
+function datesInRange(n: number, today: Date): string[] {
   const out: string[] = [];
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    out.push(d.toISOString().split("T")[0]);
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    out.push(toLocal(d));
   }
   return out;
 }
@@ -41,19 +74,399 @@ function toLocal(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function fullName(human: Partial<Human> | null | undefined): string {
+  if (!human) return "";
+  return (
+    human.fullName ||
+    `${human.name || ""} ${human.surname || ""}`.trim()
+  );
+}
+
+function stableFallbackId(prefix: string, ...parts: unknown[]): string {
+  const key = parts
+    .map((part) => String(part ?? ""))
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${prefix}:${key || "unknown"}`;
+}
+
+function findHuman(
+  humans: Record<string, Human>,
+  value: unknown,
+): Human | null {
+  const target = String(value ?? "").trim();
+  if (!target) return null;
+  if (humans[target]) return humans[target];
+
+  return (
+    Object.values(humans).find((human) => {
+      const name = fullName(human);
+      return human.id === target || name === target;
+    }) || null
+  );
+}
+
+function findDog(dogs: Record<string, Dog>, value: unknown): Dog | null {
+  const target = String(value ?? "").trim();
+  if (!target) return null;
+  if (dogs[target]) return dogs[target];
+
+  return (
+    Object.values(dogs).find(
+      (dog) => dog.id === target || dog.name === target,
+    ) || null
+  );
+}
+
+export function buildReportSourceFromSalon(
+  source: SalonReportSource = {},
+): ReportSourceData {
+  const bookingsByDate = source.bookingsByDate || {};
+  const dogs = source.dogs || {};
+  const humans = source.humans || {};
+  const dogMap: ReportDogMap = {};
+  const humanMap: ReportHumanMap = {};
+  const bookings: ReportBookingRow[] = [];
+
+  Object.values(humans).forEach((human) => {
+    if (human.id) humanMap[human.id] = fullName(human) || "Unknown";
+  });
+
+  Object.values(dogs).forEach((dog) => {
+    const owner = findHuman(humans, dog._humanId || dog.humanId);
+    const humanId =
+      dog._humanId ||
+      owner?.id ||
+      stableFallbackId("human", dog.humanId || "unknown");
+    const dogId = dog.id || stableFallbackId("dog", dog.name);
+    dogMap[dogId] = {
+      humanId,
+      customPrice: dog.customPrice ?? null,
+    };
+    if (!humanMap[humanId]) {
+      humanMap[humanId] = fullName(owner) || dog.humanId || "Unknown";
+    }
+  });
+
+  Object.entries(bookingsByDate).forEach(([dateStr, dayBookings]) => {
+    (dayBookings || []).forEach((booking: any, index) => {
+      const dog = findDog(dogs, booking._dogId || booking.dog_id || booking.dogName);
+      const owner = findHuman(
+        humans,
+        booking._ownerId || booking.owner || dog?._humanId || dog?.humanId,
+      );
+      const dogId =
+        booking._dogId ||
+        booking.dog_id ||
+        dog?.id ||
+        stableFallbackId("dog", dateStr, booking.id ?? index, booking.dogName);
+      const humanId =
+        booking._ownerId ||
+        dog?._humanId ||
+        owner?.id ||
+        stableFallbackId("human", booking.owner || dog?.humanId || "unknown");
+
+      dogMap[dogId] = {
+        humanId,
+        customPrice: dog?.customPrice ?? dogMap[dogId]?.customPrice ?? null,
+      };
+      if (!humanMap[humanId]) {
+        humanMap[humanId] = fullName(owner) || booking.owner || dog?.humanId || "Unknown";
+      }
+
+      bookings.push({
+        id: String(booking.id ?? `${dateStr}-${index}`),
+        booking_date: booking.booking_date || booking._bookingDate || dateStr,
+        service: booking.service || "full-groom",
+        size: booking.size || dog?.size || "small",
+        status: booking.status || "Booked",
+        payment: booking.payment || "",
+        slot: booking.slot || "",
+        dog_id: dogId,
+      });
+    });
+  });
+
+  return { bookings, dogMap, humanMap };
+}
+
+export function computeReportStats(
+  days: number,
+  bookings: ReportBookingRow[],
+  dogMap: ReportDogMap,
+  humanMap: ReportHumanMap,
+  today: Date = new Date(),
+) {
+  const todayStr = toLocal(today);
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = toLocal(cutoff);
+
+  const cur = bookings.filter((b) => b.booking_date > cutoffStr);
+  const prev = bookings.filter((b) => b.booking_date <= cutoffStr);
+
+  const rev = (list: ReportBookingRow[]) =>
+    list.reduce(
+      (s, b) => s + estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice),
+      0,
+    );
+
+  const curRev = rev(cur);
+  const prevRev = rev(prev);
+  const curN = cur.length;
+  const prevN = prev.length;
+  const avgPer = curN > 0 ? curRev / curN : 0;
+  const prevAvgPer = prevN > 0 ? prevRev / prevN : 0;
+
+  const openDays = new Set(cur.map((b) => b.booking_date)).size;
+  const totalSeats = openDays * SALON_SLOTS.length * 2;
+  const util = totalSeats > 0 ? Math.min((curN / totalSeats) * 100, 100) : 0;
+
+  const allDates = datesInRange(days, today);
+  const dailyRev: Record<string, number> = {};
+  const dailyCount: Record<string, number> = {};
+  cur.forEach((b) => {
+    dailyRev[b.booking_date] =
+      (dailyRev[b.booking_date] || 0) +
+      estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+    dailyCount[b.booking_date] = (dailyCount[b.booking_date] || 0) + 1;
+  });
+
+  const chart =
+    days <= 30
+      ? allDates.map((d) => ({
+        date: d,
+        rev: dailyRev[d] || 0,
+        count: dailyCount[d] || 0,
+      }))
+      : Array.from({ length: Math.ceil(allDates.length / 7) }, (_, i) => {
+        const week = allDates.slice(i * 7, i * 7 + 7);
+        return {
+          date: week[0],
+          rev: week.reduce((s, d) => s + (dailyRev[d] || 0), 0),
+          count: week.reduce((s, d) => s + (dailyCount[d] || 0), 0),
+        };
+      });
+  const maxChartRev = Math.max(...chart.map((d) => d.rev), 1);
+
+  const svcAcc: Record<string, { n: number; rev: number }> = {};
+  cur.forEach((b) => {
+    if (!svcAcc[b.service]) svcAcc[b.service] = { n: 0, rev: 0 };
+    svcAcc[b.service].n++;
+    svcAcc[b.service].rev += estPrice(
+      b.service,
+      b.size,
+      dogMap[b.dog_id]?.customPrice,
+    );
+  });
+  const svcs = SERVICES.map((s: any) => ({
+    ...s,
+    n: svcAcc[s.id]?.n || 0,
+    rev: svcAcc[s.id]?.rev || 0,
+  })).sort((a: any, b: any) => b.rev - a.rev);
+  const maxSvcRev = Math.max(...svcs.map((s: any) => s.rev), 1);
+
+  const szAcc: Record<string, { n: number; rev: number }> = {};
+  cur.forEach((b) => {
+    const sz = b.size || "small";
+    if (!szAcc[sz]) szAcc[sz] = { n: 0, rev: 0 };
+    szAcc[sz].n++;
+    szAcc[sz].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+  });
+  const sizes = ["small", "medium", "large"].map((s) => ({
+    size: s,
+    label: s.charAt(0).toUpperCase() + s.slice(1),
+    n: szAcc[s]?.n || 0,
+    rev: szAcc[s]?.rev || 0,
+    pct: curN > 0 ? ((szAcc[s]?.n || 0) / curN) * 100 : 0,
+  }));
+
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const dayAcc = Array.from({ length: 7 }, () => ({ n: 0, rev: 0 }));
+  cur.forEach((b) => {
+    const d = new Date(b.booking_date + "T00:00:00").getDay();
+    const idx = d === 0 ? 6 : d - 1;
+    dayAcc[idx].n++;
+    dayAcc[idx].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+  });
+  const dow = dayAcc.map((d, i) => ({ label: dayLabels[i], ...d }));
+  const maxDowN = Math.max(...dow.map((d) => d.n), 1);
+  const busiestDay = dow.reduce(
+    (best, d) => (d.n > best.n ? d : best),
+    dow[0],
+  );
+
+  const slotAcc: Record<string, number> = {};
+  cur.forEach((b) => {
+    if (b.slot) slotAcc[b.slot] = (slotAcc[b.slot] || 0) + 1;
+  });
+  const slots = SALON_SLOTS.map((s: any) => ({
+    slot: s,
+    label: fmtSlot(s),
+    n: slotAcc[s] || 0,
+  }));
+  const maxSlotN = Math.max(...slots.map((s) => s.n), 1);
+  const busiestSlot = slots.reduce(
+    (best, s) => (s.n > best.n ? s : best),
+    slots[0],
+  );
+
+  const pastCur = cur.filter((b) => b.booking_date < todayStr);
+  const statusAcc: Record<string, number> = {};
+  pastCur.forEach((b) => {
+    statusAcc[b.status] = (statusAcc[b.status] || 0) + 1;
+  });
+  const totalPast = pastCur.length;
+  const noShowN = statusAcc.Booked || 0;
+  const noShowRate = totalPast > 0 ? (noShowN / totalPast) * 100 : 0;
+  const prevPastNoShow = prev.filter(
+    (b) => b.status === "Booked" && b.booking_date < cutoffStr,
+  ).length;
+  const prevPast = prev.filter((b) => b.booking_date < cutoffStr).length;
+  const prevNoShowRate = prevPast > 0 ? (prevPastNoShow / prevPast) * 100 : 0;
+
+  const custAcc: Record<string, { n: number; rev: number; dogs: Set<string> }> = {};
+  cur.forEach((b) => {
+    const hId = dogMap[b.dog_id]?.humanId;
+    if (!hId) return;
+    if (!custAcc[hId]) custAcc[hId] = { n: 0, rev: 0, dogs: new Set() };
+    custAcc[hId].n++;
+    custAcc[hId].rev += estPrice(
+      b.service,
+      b.size,
+      dogMap[b.dog_id]?.customPrice,
+    );
+    custAcc[hId].dogs.add(b.dog_id);
+  });
+  const topCusts = Object.entries(custAcc)
+    .sort(([, a], [, b]) => b.rev - a.rev)
+    .slice(0, 5)
+    .map(([id, d]) => ({
+      name: humanMap[id] || "Unknown",
+      n: d.n,
+      rev: d.rev,
+      dogs: d.dogs.size,
+    }));
+  const uniqueCusts = Object.keys(custAcc).length;
+  const revPerCust = uniqueCusts > 0 ? curRev / uniqueCusts : 0;
+  const prevCustAcc: Record<string, boolean> = {};
+  prev.forEach((b) => {
+    const hId = dogMap[b.dog_id]?.humanId;
+    if (hId) prevCustAcc[hId] = true;
+  });
+  const prevUniqueCusts = Object.keys(prevCustAcc).length;
+
+  return {
+    curRev,
+    prevRev,
+    curN,
+    prevN,
+    avgPer,
+    prevAvgPer,
+    util,
+    openDays,
+    chart,
+    maxChartRev,
+    svcs,
+    maxSvcRev,
+    sizes,
+    dow,
+    maxDowN,
+    busiestDay,
+    slots,
+    maxSlotN,
+    busiestSlot,
+    statusAcc,
+    totalPast,
+    noShowN,
+    noShowRate,
+    prevNoShowRate,
+    topCusts,
+    uniqueCusts,
+    prevUniqueCusts,
+    revPerCust,
+  };
+}
+
+export function buildChartLabels(chart: Array<unknown>, days: number): number[] {
+  const len = chart.length;
+  if (!len) return [];
+  if (days <= 7) return chart.map((_, i) => i);
+  const step = Math.max(Math.floor(len / 5), 1);
+  const indices: number[] = [];
+  for (let i = 0; i < len; i += step) indices.push(i);
+  if (indices[indices.length - 1] !== len - 1) indices.push(len - 1);
+  return indices;
+}
+
+export function buildReportInsights(stats: ReturnType<typeof computeReportStats>) {
+  const out: Record<string, string> = {};
+
+  if (stats.svcs.length > 0 && stats.curRev > 0) {
+    const top = stats.svcs[0];
+    const pct = ((top.rev / stats.curRev) * 100).toFixed(0);
+    out.service = `${top.name} drives ${pct}% of your revenue (\u00A3${top.rev.toFixed(0)} from ${top.n} bookings).`;
+  }
+
+  const large = stats.sizes.find((s) => s.size === "large");
+  if (large && large.pct > 0 && stats.curRev > 0) {
+    const revPct = ((large.rev / stats.curRev) * 100).toFixed(0);
+    if (parseFloat(revPct) > large.pct + 5) {
+      out.size = `Large dogs are ${large.pct.toFixed(0)}% of bookings but ${revPct}% of revenue \u2014 high-value appointments.`;
+    }
+  }
+
+  if (stats.busiestDay.n > 0) {
+    const quietest = stats.dow.reduce(
+      (q, d) => (d.n < q.n && d.n > 0 ? d : q),
+      stats.busiestDay,
+    );
+    if (quietest.label !== stats.busiestDay.label) {
+      out.day = `${stats.busiestDay.label} is your busiest day. ${quietest.label} is quietest \u2014 a good candidate for promotions.`;
+    } else {
+      out.day = `${stats.busiestDay.label} is your busiest day with ${stats.busiestDay.n} bookings.`;
+    }
+  }
+
+  if (stats.totalPast > 5) {
+    if (stats.noShowRate > 15) {
+      out.health = `${stats.noShowRate.toFixed(0)}% no-show rate is high. Booking reminders could recover significant lost revenue.`;
+    } else if (stats.noShowRate < 5) {
+      out.health =
+        "Strong attendance \u2014 your no-show rate is well below the industry average of 10-15%.";
+    }
+  }
+
+  if (stats.util > 0) {
+    if (stats.util < 50 && stats.openDays > 3) {
+      out.capacity = `Running at ${stats.util.toFixed(0)}% capacity \u2014 room to grow without adding hours or staff.`;
+    } else if (stats.util > 85) {
+      out.capacity = `At ${stats.util.toFixed(0)}% capacity \u2014 consider adding slots or opening an extra day.`;
+    }
+  }
+
+  return out;
+}
+
 // -- Hook --------------------------------------------------------------------
 
-export function useReportsData(days: number) {
+export function useReportsData(days: number, source?: SalonReportSource) {
   const [loading, setLoading] = useState(true);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [dogMap, setDogMap] = useState<Record<string, { humanId: string; customPrice: number | null }>>({});
-  const [humanMap, setHumanMap] = useState<Record<string, string>>({});
+  const [reportSource, setReportSource] =
+    useState<ReportSourceData>(EMPTY_REPORT_SOURCE);
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       if (!supabase) {
-        setLoading(false);
+        const offlineSource = buildReportSourceFromSalon(source);
+        if (!cancelled) {
+          setReportSource(offlineSource);
+          setLoading(false);
+        }
         return;
       }
 
@@ -85,300 +498,49 @@ export function useReportsData(days: number) {
               .join(" | "),
           );
         }
-        setBookings(bk.data || []);
 
-        const dm: Record<string, { humanId: string; customPrice: number | null }> = {};
+        const dogMap: ReportDogMap = {};
         (dg.data || []).forEach((d: any) => {
-          dm[d.id] = { humanId: d.human_id, customPrice: d.custom_price };
+          dogMap[d.id] = { humanId: d.human_id, customPrice: d.custom_price };
         });
-        setDogMap(dm);
 
-        const hm2: Record<string, string> = {};
+        const humanMap: ReportHumanMap = {};
         (hm.data || []).forEach((h: any) => {
-          hm2[h.id] = `${h.name || ""} ${h.surname || ""}`.trim();
+          humanMap[h.id] = `${h.name || ""} ${h.surname || ""}`.trim();
         });
-        setHumanMap(hm2);
+
+        setReportSource({
+          bookings: (bk.data || []) as ReportBookingRow[],
+          dogMap,
+          humanMap,
+        });
       } catch (err) {
         console.error("ReportsView: failed to load data", err);
       }
       if (!cancelled) setLoading(false);
     }
+
     load();
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, source]);
 
-  // -- Analytics computation -------------------------------------------------
-
-  const stats = useMemo(() => {
-    const todayStr = toLocal(new Date());
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = toLocal(cutoff);
-
-    const cur = bookings.filter((b) => b.booking_date > cutoffStr);
-    const prev = bookings.filter((b) => b.booking_date <= cutoffStr);
-
-    const rev = (list: any[]) =>
-      list.reduce(
-        (s, b) => s + estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice),
-        0,
-      );
-
-    // KPIs
-    const curRev = rev(cur);
-    const prevRev = rev(prev);
-    const curN = cur.length;
-    const prevN = prev.length;
-    const avgPer = curN > 0 ? curRev / curN : 0;
-    const prevAvgPer = prevN > 0 ? prevRev / prevN : 0;
-
-    // Utilisation (seats used / seats available on open days)
-    const openDays = new Set(cur.map((b: any) => b.booking_date)).size;
-    const totalSeats = openDays * SALON_SLOTS.length * 2;
-    const util = totalSeats > 0 ? Math.min((curN / totalSeats) * 100, 100) : 0;
-
-    // Revenue trend chart
-    const allDates = datesInRange(days);
-    const dailyRev: Record<string, number> = {};
-    const dailyCount: Record<string, number> = {};
-    cur.forEach((b: any) => {
-      dailyRev[b.booking_date] =
-        (dailyRev[b.booking_date] || 0) +
-        estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
-      dailyCount[b.booking_date] = (dailyCount[b.booking_date] || 0) + 1;
-    });
-
-    let chart: { date: string; rev: number; count: number }[];
-    if (days <= 30) {
-      chart = allDates.map((d) => ({
-        date: d,
-        rev: dailyRev[d] || 0,
-        count: dailyCount[d] || 0,
-      }));
-    } else {
-      chart = [];
-      for (let i = 0; i < allDates.length; i += 7) {
-        const week = allDates.slice(i, i + 7);
-        chart.push({
-          date: week[0],
-          rev: week.reduce((s, d) => s + (dailyRev[d] || 0), 0),
-          count: week.reduce((s, d) => s + (dailyCount[d] || 0), 0),
-        });
-      }
-    }
-    const maxChartRev = Math.max(...chart.map((d) => d.rev), 1);
-
-    // Service breakdown
-    const svcAcc: Record<string, { n: number; rev: number }> = {};
-    cur.forEach((b: any) => {
-      if (!svcAcc[b.service]) svcAcc[b.service] = { n: 0, rev: 0 };
-      svcAcc[b.service].n++;
-      svcAcc[b.service].rev += estPrice(
-        b.service,
-        b.size,
-        dogMap[b.dog_id]?.customPrice,
-      );
-    });
-    const svcs = SERVICES.map((s: any) => ({
-      ...s,
-      n: svcAcc[s.id]?.n || 0,
-      rev: svcAcc[s.id]?.rev || 0,
-    })).sort((a: any, b: any) => b.rev - a.rev);
-    const maxSvcRev = Math.max(...svcs.map((s: any) => s.rev), 1);
-
-    // Size breakdown
-    const szAcc: Record<string, { n: number; rev: number }> = {};
-    cur.forEach((b: any) => {
-      const sz = b.size || "small";
-      if (!szAcc[sz]) szAcc[sz] = { n: 0, rev: 0 };
-      szAcc[sz].n++;
-      szAcc[sz].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
-    });
-    const sizes = ["small", "medium", "large"].map((s) => ({
-      size: s,
-      label: s.charAt(0).toUpperCase() + s.slice(1),
-      n: szAcc[s]?.n || 0,
-      rev: szAcc[s]?.rev || 0,
-      pct: curN > 0 ? ((szAcc[s]?.n || 0) / curN) * 100 : 0,
-    }));
-
-    // Day of week
-    const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const dayAcc = Array.from({ length: 7 }, () => ({ n: 0, rev: 0 }));
-    cur.forEach((b: any) => {
-      const d = new Date(b.booking_date + "T00:00:00").getDay();
-      const idx = d === 0 ? 6 : d - 1;
-      dayAcc[idx].n++;
-      dayAcc[idx].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
-    });
-    const dow = dayAcc.map((d, i) => ({ label: dayLabels[i], ...d }));
-    const maxDowN = Math.max(...dow.map((d) => d.n), 1);
-    const busiestDay = dow.reduce(
-      (best, d) => (d.n > best.n ? d : best),
-      dow[0],
-    );
-
-    // Slot popularity
-    const slotAcc: Record<string, number> = {};
-    cur.forEach((b: any) => {
-      if (b.slot) slotAcc[b.slot] = (slotAcc[b.slot] || 0) + 1;
-    });
-    const slots = SALON_SLOTS.map((s: any) => ({
-      slot: s,
-      label: fmtSlot(s),
-      n: slotAcc[s] || 0,
-    }));
-    const maxSlotN = Math.max(...slots.map((s) => s.n), 1);
-    const busiestSlot = slots.reduce(
-      (best, s) => (s.n > best.n ? s : best),
-      slots[0],
-    );
-
-    // Status breakdown (past bookings only -- future "Booked" = awaiting arrival)
-    const pastCur = cur.filter((b: any) => b.booking_date < todayStr);
-    const statusAcc: Record<string, number> = {};
-    pastCur.forEach((b: any) => {
-      statusAcc[b.status] = (statusAcc[b.status] || 0) + 1;
-    });
-    const totalPast = pastCur.length;
-    const noShowN = statusAcc["Booked"] || 0;
-    const noShowRate = totalPast > 0 ? (noShowN / totalPast) * 100 : 0;
-    const prevPastNoShow = prev.filter(
-      (b: any) => b.status === "Booked" && b.booking_date < cutoffStr,
-    ).length;
-    const prevPast = prev.filter((b: any) => b.booking_date < cutoffStr).length;
-    const prevNoShowRate =
-      prevPast > 0 ? (prevPastNoShow / prevPast) * 100 : 0;
-
-    // Customers
-    const custAcc: Record<string, { n: number; rev: number; dogs: Set<string> }> = {};
-    cur.forEach((b: any) => {
-      const hId = dogMap[b.dog_id]?.humanId;
-      if (!hId) return;
-      if (!custAcc[hId]) custAcc[hId] = { n: 0, rev: 0, dogs: new Set() };
-      custAcc[hId].n++;
-      custAcc[hId].rev += estPrice(
-        b.service,
-        b.size,
-        dogMap[b.dog_id]?.customPrice,
-      );
-      custAcc[hId].dogs.add(b.dog_id);
-    });
-    const topCusts = Object.entries(custAcc)
-      .sort(([, a], [, b]) => b.rev - a.rev)
-      .slice(0, 5)
-      .map(([id, d]) => ({
-        name: humanMap[id] || "Unknown",
-        n: d.n,
-        rev: d.rev,
-        dogs: d.dogs.size,
-      }));
-    const uniqueCusts = Object.keys(custAcc).length;
-
-    // Revenue per customer
-    const revPerCust = uniqueCusts > 0 ? curRev / uniqueCusts : 0;
-    const prevCustAcc: Record<string, boolean> = {};
-    prev.forEach((b: any) => {
-      const hId = dogMap[b.dog_id]?.humanId;
-      if (hId) prevCustAcc[hId] = true;
-    });
-    const prevUniqueCusts = Object.keys(prevCustAcc).length;
-
-    return {
-      curRev,
-      prevRev,
-      curN,
-      prevN,
-      avgPer,
-      prevAvgPer,
-      util,
-      openDays,
-      chart,
-      maxChartRev,
-      svcs,
-      maxSvcRev,
-      sizes,
-      dow,
-      maxDowN,
-      busiestDay,
-      slots,
-      maxSlotN,
-      busiestSlot,
-      statusAcc,
-      totalPast,
-      noShowN,
-      noShowRate,
-      prevNoShowRate,
-      topCusts,
-      uniqueCusts,
-      prevUniqueCusts,
-      revPerCust,
-    };
-  }, [bookings, dogMap, humanMap, days]);
-
-  // Chart label positions
-  const chartLabels = useMemo(() => {
-    const len = stats.chart.length;
-    if (!len) return [] as number[];
-    if (days <= 7) return stats.chart.map((_: any, i: number) => i);
-    const step = Math.max(Math.floor(len / 5), 1);
-    const indices: number[] = [];
-    for (let i = 0; i < len; i += step) indices.push(i);
-    if (indices[indices.length - 1] !== len - 1) indices.push(len - 1);
-    return indices;
-  }, [stats.chart, days]);
-
-  // Auto-generated insights
-  const insights = useMemo(() => {
-    const out: Record<string, string> = {};
-
-    if (stats.svcs.length > 0 && stats.curRev > 0) {
-      const top = stats.svcs[0];
-      const pct = ((top.rev / stats.curRev) * 100).toFixed(0);
-      out.service = `${top.name} drives ${pct}% of your revenue (\u00A3${top.rev.toFixed(0)} from ${top.n} bookings).`;
-    }
-
-    const large = stats.sizes.find((s) => s.size === "large");
-    if (large && large.pct > 0 && stats.curRev > 0) {
-      const revPct = ((large.rev / stats.curRev) * 100).toFixed(0);
-      if (parseFloat(revPct) > large.pct + 5) {
-        out.size = `Large dogs are ${large.pct.toFixed(0)}% of bookings but ${revPct}% of revenue \u2014 high-value appointments.`;
-      }
-    }
-
-    if (stats.busiestDay.n > 0) {
-      const quietest = stats.dow.reduce(
-        (q, d) => (d.n < q.n && d.n > 0 ? d : q),
-        stats.busiestDay,
-      );
-      if (quietest.label !== stats.busiestDay.label) {
-        out.day = `${stats.busiestDay.label} is your busiest day. ${quietest.label} is quietest \u2014 a good candidate for promotions.`;
-      } else {
-        out.day = `${stats.busiestDay.label} is your busiest day with ${stats.busiestDay.n} bookings.`;
-      }
-    }
-
-    if (stats.totalPast > 5) {
-      if (stats.noShowRate > 15) {
-        out.health = `${stats.noShowRate.toFixed(0)}% no-show rate is high. Booking reminders could recover significant lost revenue.`;
-      } else if (stats.noShowRate < 5) {
-        out.health =
-          "Strong attendance \u2014 your no-show rate is well below the industry average of 10-15%.";
-      }
-    }
-
-    if (stats.util > 0) {
-      if (stats.util < 50 && stats.openDays > 3) {
-        out.capacity = `Running at ${stats.util.toFixed(0)}% capacity \u2014 room to grow without adding hours or staff.`;
-      } else if (stats.util > 85) {
-        out.capacity = `At ${stats.util.toFixed(0)}% capacity \u2014 consider adding slots or opening an extra day.`;
-      }
-    }
-
-    return out;
-  }, [stats]);
+  const stats = useMemo(
+    () =>
+      computeReportStats(
+        days,
+        reportSource.bookings,
+        reportSource.dogMap,
+        reportSource.humanMap,
+      ),
+    [days, reportSource],
+  );
+  const chartLabels = useMemo(
+    () => buildChartLabels(stats.chart, days),
+    [stats.chart, days],
+  );
+  const insights = useMemo(() => buildReportInsights(stats), [stats]);
 
   return { loading, stats, chartLabels, insights };
 }

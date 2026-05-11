@@ -247,15 +247,13 @@ describe("Supabase security review regressions", () => {
       // No remaining direct `!==` / `===` comparisons against the secret env vars.
       expect(
         fn,
-        `${path} no longer compares SEND_INTERNAL_SECRET with !==/===`,
-      ).not.toMatch(/!==\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*!==/);
+        `${path} no longer compares SEND_INTERNAL_SECRET with ===/!==`,
+      ).not.toMatch(
+        /!==\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*!==|===\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*===/,
+      );
       expect(
         fn,
-        `${path} no longer compares SEND_INTERNAL_SECRET with ===`,
-      ).not.toMatch(/===\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*===/);
-      expect(
-        fn,
-        `${path} no longer compares AGENT_CALLBACK_SECRET with !==/===`,
+        `${path} no longer compares AGENT_CALLBACK_SECRET with ===/!==`,
       ).not.toMatch(
         /!==\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*!==|===\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*===/,
       );
