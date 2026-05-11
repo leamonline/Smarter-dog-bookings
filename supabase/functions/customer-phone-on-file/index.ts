@@ -36,29 +36,58 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Global cap across all IPs in the same window. An attacker can
+// rotate IPs (or spoof X-Forwarded-For if our proxy ever stops
+// stripping it), making the per-IP bucket trivial to bypass. A
+// global ceiling means horizontal enumeration of which numbers
+// are on file stays uneconomic regardless of source IP.
+const GLOBAL_RATE_LIMIT_MAX_ATTEMPTS = 200;
+const GLOBAL_BUCKET_KEY = "__global__";
+
+// Browser origins permitted to invoke this function. A wide-open
+// Access-Control-Allow-Origin would let any site call the function
+// from a victim's browser and use it as a "is this number a Smarter
+// Dog customer?" oracle. Keep this list in sync with whatsapp-send's
+// ALLOWED_ORIGINS — both functions are called by the same SPA.
+const ALLOWED_ORIGINS = new Set([
+  "https://smarterdog.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+]);
+
+function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") ?? "";
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+  if (ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
 function getClientIp(req: Request): string {
-  // Supabase Edge Functions sit behind a proxy that sets
-  // x-forwarded-for and cf-connecting-ip. Either is acceptable for
-  // rate limiting — we fall back to "unknown" if neither is present.
+  // Supabase Edge Functions sit behind a Cloudflare-fronted proxy
+  // that sets `cf-connecting-ip` to the real client IP. Prefer it:
+  // an attacker can forge `x-forwarded-for` (browsers and curl both
+  // pass it through verbatim), and using it first lets them rotate
+  // the per-IP rate-limit bucket on every request.
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) {
     // x-forwarded-for is a comma-separated list — the first entry is
     // the original client. Trim and take the leftmost.
     return fwd.split(",")[0]!.trim();
   }
-  const cf = req.headers.get("cf-connecting-ip");
-  if (cf) return cf.trim();
   return "unknown";
 }
 
@@ -88,6 +117,25 @@ async function checkAndRecordAttempt(ip: string): Promise<boolean> {
   return data === true;
 }
 
+// Global cap across every IP in the same window. Sits next to the
+// per-IP bucket so that even a perfectly rotated source IP can't
+// turn the endpoint into a high-throughput enumeration oracle.
+async function checkAndRecordGlobalAttempt(): Promise<boolean> {
+  const { data, error } = await supabase.rpc(
+    "customer_phone_lookup_rate_limit",
+    {
+      p_ip: GLOBAL_BUCKET_KEY,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+      p_max_attempts: GLOBAL_RATE_LIMIT_MAX_ATTEMPTS,
+    },
+  );
+  if (error) {
+    console.error("global rate-limit RPC error:", error);
+    return false;
+  }
+  return data === true;
+}
+
 async function lookupPhoneOnFile(phone: string): Promise<boolean> {
   const { data, error } = await supabase.rpc("customer_phone_on_file", {
     p_phone: phone,
@@ -101,13 +149,13 @@ async function lookupPhoneOnFile(phone: string): Promise<boolean> {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
   }
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {
       status: 405,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
     });
   }
 
@@ -117,7 +165,7 @@ serve(async (req) => {
   } catch {
     return new Response(JSON.stringify({ error: "invalid_json" }), {
       status: 400,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
     });
   }
 
@@ -129,14 +177,17 @@ serve(async (req) => {
   if (!phone || phone.length < 7 || phone.length > 20) {
     return new Response(JSON.stringify({ error: "invalid_phone" }), {
       status: 400,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
     });
   }
 
   const ip = getClientIp(req);
 
-  const allowed = await checkAndRecordAttempt(ip);
-  if (!allowed) {
+  // Two-tier rate limit: per-IP bucket catches a single fat-fingering
+  // user, the global bucket catches horizontal enumeration that
+  // rotates IPs to bypass the per-IP cap.
+  const perIpAllowed = await checkAndRecordAttempt(ip);
+  if (!perIpAllowed) {
     return new Response(
       JSON.stringify({
         error: "rate_limited",
@@ -145,7 +196,25 @@ serve(async (req) => {
       {
         status: 429,
         headers: {
-          ...corsHeaders,
+          ...buildCorsHeaders(req),
+          "content-type": "application/json",
+          "retry-after": String(RATE_LIMIT_WINDOW_SECONDS),
+        },
+      },
+    );
+  }
+
+  const globalAllowed = await checkAndRecordGlobalAttempt();
+  if (!globalAllowed) {
+    return new Response(
+      JSON.stringify({
+        error: "rate_limited",
+        message: "Service busy — please try again shortly.",
+      }),
+      {
+        status: 429,
+        headers: {
+          ...buildCorsHeaders(req),
           "content-type": "application/json",
           "retry-after": String(RATE_LIMIT_WINDOW_SECONDS),
         },
@@ -157,12 +226,12 @@ serve(async (req) => {
     const onFile = await lookupPhoneOnFile(phone);
     return new Response(JSON.stringify({ on_file: onFile }), {
       status: 200,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
     });
   } catch {
     return new Response(JSON.stringify({ error: "internal" }), {
       status: 500,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
     });
   }
 });
