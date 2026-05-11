@@ -18,7 +18,7 @@
 //   - Template picker for messages outside the 24h window
 // ============================================================
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
@@ -78,6 +78,103 @@ function RiskPill({ risk }) {
     >
       {risk} risk
     </span>
+  );
+}
+
+// Status-pill styling. Mirrors the conversation.state enum
+// (whatsapp_conversations.state in migration 20260424001635):
+//   ai_handling    — neutral default; the agent drafts replies
+//   human_takeover — staff are driving; the agent stays out
+//   snoozed        — paused without closing
+//   closed         — archived
+// Used in both the list row (replaces the bare "human" body text)
+// and the detail header (replaces the raw enum subtitle).
+const STATE_LABELS = {
+  ai_handling: "AI handling",
+  human_takeover: "Handled by staff",
+  snoozed: "Snoozed",
+  closed: "Closed",
+};
+const STATE_STYLES = {
+  ai_handling: "bg-slate-100 text-slate-700 border-slate-200",
+  human_takeover: "bg-brand-purple/10 text-brand-purple border-brand-purple/20",
+  snoozed: "bg-sky-100 text-sky-800 border-sky-200",
+  closed: "bg-slate-100 text-slate-500 border-slate-200",
+};
+
+function StatusPill({ state, size = "sm" }) {
+  if (!state) return null;
+  const label = STATE_LABELS[state] ?? state.replace(/_/g, " ");
+  const style = STATE_STYLES[state] ?? STATE_STYLES.ai_handling;
+  const sizing =
+    size === "xs"
+      ? "text-[10px] px-1.5 py-0 leading-[1.4]"
+      : "text-[11px] px-2 py-0.5";
+  return (
+    <span
+      className={`inline-flex items-center font-bold uppercase tracking-wide rounded-full border ${sizing} ${style}`}
+      title={`Conversation state: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+// Header filter chip. Mirrors the existing Needs review chip but is
+// reused for unread / drafts / bookings so the inbox title row reads
+// like a control surface rather than static text. Only one chip can
+// be active at a time — clicking the active chip clears the filter.
+function InboxFilterChip({ label, count, active, color, onClick, hint }) {
+  // color: "purple" | "amber" | "emerald" | "rose"
+  const palette = {
+    purple: {
+      dot: "bg-brand-purple",
+      active: "bg-brand-purple/10 border-brand-purple/30 text-brand-purple",
+      idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-purple/40 hover:text-brand-purple",
+    },
+    amber: {
+      dot: "bg-amber-500",
+      active: "bg-amber-100 border-amber-300 text-amber-900",
+      idle: "bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-800",
+    },
+    emerald: {
+      dot: "bg-emerald-500",
+      active: "bg-emerald-100 border-emerald-300 text-emerald-900",
+      idle: "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-800",
+    },
+    rose: {
+      dot: "bg-rose-500",
+      active: "bg-rose-100 border-rose-300 text-rose-900",
+      idle: "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700",
+    },
+  }[color] ?? {
+    dot: "bg-slate-400",
+    active: "bg-slate-100 border-slate-300 text-slate-700",
+    idle: "bg-white border-slate-200 text-slate-600",
+  };
+  const isEmpty = count === 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isEmpty}
+      aria-pressed={active}
+      aria-label={
+        active
+          ? `${label}: ${count}. Filter is on, click to clear.`
+          : isEmpty
+            ? `${label}: 0. No conversations match.`
+            : `${label}: ${count}. Click to filter.`
+      }
+      title={hint}
+      className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold border transition-colors font-[inherit] ${
+        active ? palette.active : palette.idle
+      } ${isEmpty ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+    >
+      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${palette.dot}`} />
+      {label}
+      <span className="ml-0.5 tabular-nums opacity-90">· {count}</span>
+    </button>
   );
 }
 
@@ -158,25 +255,38 @@ function AutoSendToggle({ conversation, onChange, disabled }) {
   const isDisabled = !!disabled || inHumanTakeover;
 
   const title = inHumanTakeover
-    ? "Auto-send is moot while staff have taken over the conversation."
+    ? "Auto-send is paused — staff are handling this conversation. Hand it back to the AI to re-enable."
     : enabled
       ? "Auto-send is on for this conversation. Low-risk drafts may send without staff approval (also requires AI_AUTO_SEND_LOW_RISK=true at function level)."
-      : "Auto-send is off. All drafts wait for staff approval.";
+      : "Auto-send is off. Every AI draft waits for staff approval.";
 
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={`Auto-send AI drafts ${enabled ? "on" : "off"} for this conversation`}
       onClick={() => onChange(!enabled)}
       disabled={isDisabled}
       title={title}
-      aria-pressed={enabled}
-      className={`px-2.5 py-1.5 rounded-md text-[12px] font-bold border transition-colors disabled:opacity-50 ${
+      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit] ${
         enabled
-          ? "bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200"
-          : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+          ? "bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200"
+          : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
       }`}
     >
-      <span aria-hidden="true" className="mr-1">{enabled ? "●" : "○"}</span>
+      <span
+        aria-hidden="true"
+        className={`relative inline-block w-7 h-4 rounded-full transition-colors ${
+          enabled ? "bg-emerald-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
+            enabled ? "translate-x-3" : "translate-x-0"
+          }`}
+        />
+      </span>
       Auto-send {enabled ? "on" : "off"}
     </button>
   );
@@ -187,9 +297,10 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(conv.id)}
-      className={`relative w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors cursor-pointer font-[inherit] border-l-2 ${
+      aria-current={isSelected ? "true" : undefined}
+      className={`relative w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors cursor-pointer font-[inherit] border-l-[3px] ${
         isSelected
-          ? "bg-brand-yellow/10 border-l-brand-yellow"
+          ? "bg-brand-yellow/20 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
           : "bg-white hover:bg-slate-50 border-l-transparent"
       }`}
     >
@@ -197,42 +308,46 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
         <span className={`text-[13px] truncate ${unread ? "font-bold text-brand-purple" : "font-semibold text-brand-purple/90"}`}>
           {displayName(conv)}
         </span>
-        <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
+        <span className="text-[10px] text-slate-500 shrink-0 tabular-nums">
           {formatWhen(conv.last_inbound_at)}
         </span>
       </div>
       <div className="flex justify-between items-center gap-2">
-        <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-500"}`}>
+        <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-600"}`}>
           {conv.last_customer_text ?? "(no text)"}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {conv.needs_human_review && (
             <span
-              className="inline-block w-2 h-2 rounded-full bg-red-500"
+              className="inline-block w-2 h-2 rounded-full bg-rose-500"
               title="High-risk draft — needs human review"
+              aria-label="Needs human review"
             />
           )}
           {conv.has_pending_draft && !conv.needs_human_review && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-amber-400"
               title="AI draft pending review"
+              aria-label="AI draft pending review"
             />
           )}
           {conv.has_pending_booking_action && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-emerald-500"
               title="Booking proposal pending approval"
+              aria-label="Booking proposal pending approval"
             />
           )}
           {unread && (
-            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-brand-purple text-white text-[10px] font-bold">
+            <span
+              className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-brand-purple text-white text-[10px] font-bold"
+              aria-label={`${conv.unread_count} unread`}
+            >
               {conv.unread_count}
             </span>
           )}
           {conv.state === "human_takeover" && (
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-              human
-            </span>
+            <StatusPill state="human_takeover" size="xs" />
           )}
         </div>
       </div>
@@ -475,8 +590,8 @@ function MessageBubble({ message }) {
             : "bg-green-100 text-slate-800 rounded-br-sm"
         }`}
       >
-        {message.content ?? <span className="italic text-slate-400">(non-text message)</span>}
-        <div className="text-[10px] text-slate-400 mt-1 text-right">
+        {message.content ?? <span className="italic text-slate-500">(non-text message)</span>}
+        <div className="text-[10px] text-slate-500 mt-1 text-right">
           {formatWhen(message.sent_at)}
           {!isInbound && message.status && message.status !== "sent" && (
             <span className="ml-1">· {message.status}</span>
@@ -813,11 +928,13 @@ function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight
         </button>
       </div>
       <div className="flex justify-between items-center mt-1">
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11px] text-slate-500">
           Enter to send · Shift+Enter for new line
         </span>
         {countdown && (
-          <span className="text-[11px] text-slate-400">{countdown}</span>
+          <span className="text-[11px] text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
+            {countdown}
+          </span>
         )}
       </div>
     </div>
@@ -877,16 +994,35 @@ function TemplatePicker({ conversation, dogNames, onSend }) {
     );
   }
 
+  // Surface which params are still missing so the disabled Send button
+  // has a concrete reason next to it. Labels come from the template
+  // definition so the prompt matches the field's input above.
+  const missingLabels = template.params
+    .filter((p) => (paramValues[p.key] ?? "").trim() === "")
+    .map((p) => p.label.replace(/\s*\(.+\)\s*$/, "").toLowerCase());
+
   return (
     <div className="flex flex-col gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-      <p className="text-xs font-medium text-amber-800">
-        24h window closed — send a template message instead
-      </p>
+      <div className="flex items-start gap-2">
+        <span aria-hidden="true" className="mt-0.5 text-amber-700">⏱</span>
+        <div className="text-[12px] leading-snug text-amber-900">
+          <p className="font-bold">24-hour reply window closed</p>
+          <p className="text-amber-800">
+            Meta only allows free-form WhatsApp replies within 24 hours of the
+            customer&apos;s last message. Choose a Meta-approved template below
+            to reopen the conversation — once they reply, you&apos;ll be back to
+            free-form messaging.
+          </p>
+        </div>
+      </div>
 
       <div>
-        <label className="block text-xs text-slate-600 mb-1">Template</label>
+        <label htmlFor="wa-template-select" className="block text-xs font-semibold text-slate-700 mb-1">
+          Template
+        </label>
         <select
-          className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 bg-white"
+          id="wa-template-select"
+          className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-brand-yellow"
           value={selectedTemplateName}
           onChange={(e) => setSelectedTemplateName(e.target.value)}
         >
@@ -894,16 +1030,29 @@ function TemplatePicker({ conversation, dogNames, onSend }) {
             <option key={t.name} value={t.name}>{t.label}</option>
           ))}
         </select>
-        <p className="text-xs text-slate-500 mt-1">{template.description}</p>
+        <p className="text-xs text-slate-600 mt-1">{template.description}</p>
       </div>
 
       {template.params.map((param) => {
+        const fieldId = `wa-template-${param.key}`;
+        const isAutoFilled =
+          param.autoFill && (paramValues[param.key] ?? "").trim() !== "";
+        const helper = isAutoFilled
+          ? "Pre-filled — edit if needed"
+          : param.autoFill === "customer_first_name"
+            ? "No customer name on file yet — type one to send"
+            : param.autoFill === "dog_name_select"
+              ? "No dog on file yet — type the name to send"
+              : null;
         if (param.autoFill === "dog_name_select" && (dogNames ?? []).length > 1) {
           return (
             <div key={param.key}>
-              <label className="block text-xs text-slate-600 mb-1">{param.label}</label>
+              <label htmlFor={fieldId} className="block text-xs font-semibold text-slate-700 mb-1">
+                {param.label}
+              </label>
               <select
-                className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 bg-white"
+                id={fieldId}
+                className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-brand-yellow"
                 value={paramValues[param.key] ?? ""}
                 onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
               >
@@ -912,36 +1061,62 @@ function TemplatePicker({ conversation, dogNames, onSend }) {
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Pick from this customer&apos;s dogs
+              </p>
             </div>
           );
         }
         return (
           <div key={param.key}>
-            <label className="block text-xs text-slate-600 mb-1">{param.label}</label>
+            <label htmlFor={fieldId} className="block text-xs font-semibold text-slate-700 mb-1">
+              {param.label}
+            </label>
             <input
+              id={fieldId}
               type="text"
-              className="w-full text-sm border border-slate-300 rounded px-2 py-1.5"
+              className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-yellow"
               value={paramValues[param.key] ?? ""}
               onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
               placeholder={`Enter ${param.label.toLowerCase()}…`}
             />
+            {helper && (
+              <p className="text-[11px] text-slate-500 mt-0.5">{helper}</p>
+            )}
           </div>
         );
       })}
 
-      <div className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 whitespace-pre-wrap">
-        {preview}
+      <div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+          Preview
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
+          {preview}
+        </div>
       </div>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
 
-      <button
-        onClick={handleSend}
-        disabled={!allFilled || sending}
-        className="self-end px-4 py-2 text-sm font-medium rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {sending ? "Sending…" : "Send Template"}
-      </button>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[11px] text-slate-600 flex-1 min-w-[160px]">
+          {allFilled
+            ? "All set — sending will reopen the conversation."
+            : `Fill in ${missingLabels.join(", ")} to enable sending.`}
+        </p>
+        <button
+          onClick={handleSend}
+          disabled={!allFilled || sending}
+          aria-label={
+            !allFilled
+              ? `Send template (disabled — missing ${missingLabels.join(", ")})`
+              : "Send template"
+          }
+          className="inline-flex items-center h-9 px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+        >
+          {sending ? "Sending…" : "Send template"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -973,17 +1148,55 @@ export function WhatsAppInboxView() {
     actionInFlight,
   } = useWhatsAppInbox();
 
-  // List filter: "all" or "needs_review". When "needs_review", only
-  // conversations whose latest pending draft is high-risk or has
-  // handoff_required surface in the list. Helps staff triage during
-  // a busy day — the same red-dot conversations bubble to a clean
-  // dedicated view without losing the "scroll the full inbox" mode.
+  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review".
+  // "all" is the default and shows every conversation. The other modes
+  // pre-filter the list to a specific subset so staff can triage in
+  // focused sweeps without losing the "scroll the full inbox" mode.
+  // Clicking the active chip clears the filter (returns to "all").
   const [listFilter, setListFilter] = useState("all");
-  const needsReviewCount = conversations.filter((c) => c.needs_human_review).length;
-  const filteredConversations =
-    listFilter === "needs_review"
-      ? conversations.filter((c) => c.needs_human_review)
-      : conversations;
+  const unreadCount = useMemo(
+    () => conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+    [conversations],
+  );
+  const draftsCount = useMemo(
+    () => conversations.filter((c) => c.has_pending_draft).length,
+    [conversations],
+  );
+  const bookingsCount = useMemo(
+    () => conversations.filter((c) => c.has_pending_booking_action).length,
+    [conversations],
+  );
+  const needsReviewCount = useMemo(
+    () => conversations.filter((c) => c.needs_human_review).length,
+    [conversations],
+  );
+
+  const filteredConversations = useMemo(() => {
+    switch (listFilter) {
+      case "unread":
+        return conversations.filter((c) => (c.unread_count || 0) > 0);
+      case "drafts":
+        return conversations.filter((c) => c.has_pending_draft);
+      case "bookings":
+        return conversations.filter((c) => c.has_pending_booking_action);
+      case "needs_review":
+        return conversations.filter((c) => c.needs_human_review);
+      case "all":
+      default:
+        return conversations;
+    }
+  }, [conversations, listFilter]);
+
+  const toggleFilter = useCallback((next) => {
+    setListFilter((prev) => (prev === next ? "all" : next));
+  }, []);
+
+  const FILTER_LABELS = {
+    unread: "unread",
+    drafts: "pending drafts",
+    bookings: "pending booking proposals",
+    needs_review: "high-risk drafts",
+  };
 
   // Deep-link: open ?conversation=<id> on first load (and whenever
   // the URL changes externally, e.g. dashboard rows that navigate to
@@ -1012,7 +1225,7 @@ export function WhatsAppInboxView() {
 
   return (
     <div className="py-2.5 flex flex-col gap-3 h-[calc(100vh-180px)]">
-      <div className="flex justify-between items-center gap-3 flex-wrap">
+      <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1023,38 +1236,50 @@ export function WhatsAppInboxView() {
             <h2 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
               WhatsApp inbox
             </h2>
-            <div className="text-[11px] text-slate-500 mt-0.5">
-              {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread
-              <span className="text-slate-300"> · </span>
-              {conversations.filter((c) => c.has_pending_draft).length} drafts
-              <span className="text-slate-300"> · </span>
-              {conversations.filter((c) => c.has_pending_booking_action).length} bookings
+            <div className="text-[11px] text-slate-600 mt-0.5">
+              {listFilter === "all"
+                ? `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`
+                : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${conversations.length}`}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {needsReviewCount > 0 && (
-            <button
-              type="button"
-              onClick={() =>
-                setListFilter((prev) => (prev === "needs_review" ? "all" : "needs_review"))
-              }
-              aria-pressed={listFilter === "needs_review"}
-              title={
-                listFilter === "needs_review"
-                  ? "Showing only conversations whose latest draft is high-risk or marked for human review. Click to show all."
-                  : "Show only conversations whose latest draft is high-risk or marked for human review."
-              }
-              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold border transition-colors font-[inherit] ${
-                listFilter === "needs_review"
-                  ? "bg-rose-100 border-rose-200 text-rose-800 hover:bg-rose-200"
-                  : "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700"
-              }`}
-            >
-              <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              Needs review · {needsReviewCount}
-            </button>
-          )}
+        <div
+          className="flex items-center gap-2 flex-wrap"
+          role="group"
+          aria-label="Filter conversations"
+        >
+          <InboxFilterChip
+            label="Unread"
+            count={unreadCount}
+            active={listFilter === "unread"}
+            onClick={() => toggleFilter("unread")}
+            color="purple"
+            hint="Show only conversations with unread customer messages."
+          />
+          <InboxFilterChip
+            label="Drafts"
+            count={draftsCount}
+            active={listFilter === "drafts"}
+            onClick={() => toggleFilter("drafts")}
+            color="amber"
+            hint="Show only conversations with a pending AI draft waiting for staff approval."
+          />
+          <InboxFilterChip
+            label="Bookings"
+            count={bookingsCount}
+            active={listFilter === "bookings"}
+            onClick={() => toggleFilter("bookings")}
+            color="emerald"
+            hint="Show only conversations with a pending AI booking proposal."
+          />
+          <InboxFilterChip
+            label="Needs review"
+            count={needsReviewCount}
+            active={listFilter === "needs_review"}
+            onClick={() => toggleFilter("needs_review")}
+            color="rose"
+            hint="Show only conversations whose latest draft is high-risk or marked for human review."
+          />
         </div>
       </div>
 
@@ -1068,18 +1293,23 @@ export function WhatsAppInboxView() {
           {loadingList ? (
             <div className="p-4"><LoadingSpinner /></div>
           ) : conversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-400 text-[13px]">
-              No WhatsApp conversations yet.
+            <div className="p-6 text-center text-slate-600 text-[13px]">
+              <p className="font-semibold text-brand-purple mb-1">No WhatsApp conversations yet</p>
+              <p className="text-[12px] text-slate-500">
+                When a customer messages your WhatsApp number, their thread will appear here.
+              </p>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-400 text-[13px]">
-              No high-risk conversations right now.{" "}
+            <div className="p-6 text-center text-slate-600 text-[13px]">
+              <p className="mb-1">
+                No conversations match <span className="font-semibold">{FILTER_LABELS[listFilter] ?? listFilter}</span>.
+              </p>
               <button
                 type="button"
                 onClick={() => setListFilter("all")}
-                className="underline text-slate-500 hover:text-slate-700"
+                className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
               >
-                Show all
+                Show all conversations
               </button>
             </div>
           ) : (
@@ -1101,60 +1331,78 @@ export function WhatsAppInboxView() {
           className={`flex-1 flex flex-col ${showDetailOnMobile ? "flex" : "hidden md:flex"}`}
         >
           {!selectedId ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400 text-[14px]">
-              Select a conversation to see the thread.
+            <div className="flex-1 flex items-center justify-center text-slate-500 text-[14px] px-6 text-center">
+              Select a conversation on the left to see the thread.
             </div>
           ) : (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-brand-paper">
-                <div className="flex items-center gap-3 min-w-0">
-                  <button
-                    onClick={() => selectConversation(null)}
-                    className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
-                    aria-label="Back to inbox"
-                  >←</button>
-                  <div className="min-w-0">
-                    <div className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate">
-                      {displayName(selectedConversation)}
-                    </div>
-                    <div className="text-[11px] text-slate-500 truncate">
-                      {selectedConversation?.phone_e164} · {selectedConversation?.state}
+              <div className="flex flex-col gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-brand-paper">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      onClick={() => selectConversation(null)}
+                      className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
+                      aria-label="Back to inbox"
+                    >←</button>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
+                          {displayName(selectedConversation)}
+                        </span>
+                        {selectedConversation?.state && (
+                          <StatusPill state={selectedConversation.state} size="xs" />
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-600 truncate">
+                        {selectedConversation?.phone_e164}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AutoSendToggle
-                    conversation={selectedConversation}
-                    onChange={setAutoSendEnabled}
-                    disabled={actionInFlight}
-                  />
-                  {selectedConversation?.state === "ai_handling" ? (
-                    <button
-                      onClick={takeoverConversation}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <AutoSendToggle
+                      conversation={selectedConversation}
+                      onChange={setAutoSendEnabled}
                       disabled={actionInFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                    >
-                      Take over
-                    </button>
-                  ) : selectedConversation?.state === "human_takeover" ? (
-                    <button
-                      onClick={releaseConversation}
-                      disabled={actionInFlight}
-                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                    >
-                      Hand back to AI
-                    </button>
-                  ) : null}
+                    />
+                    {selectedConversation?.state === "ai_handling" ? (
+                      <button
+                        onClick={takeoverConversation}
+                        disabled={actionInFlight}
+                        title="Take this conversation off the AI so you can drive it directly. Stops fresh AI drafts until you hand it back."
+                        className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                      >
+                        Take over
+                      </button>
+                    ) : selectedConversation?.state === "human_takeover" ? (
+                      <button
+                        onClick={releaseConversation}
+                        disabled={actionInFlight}
+                        title="Hand control back to the AI. New customer messages will get fresh AI drafts again."
+                        className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                      >
+                        Hand back to AI
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  {selectedConversation?.state === "human_takeover"
+                    ? "Staff are handling this chat — the AI won't draft replies until you hand it back."
+                    : selectedConversation?.auto_send_enabled
+                      ? "AI is drafting and low-risk replies may auto-send. Take over to pause."
+                      : "AI is drafting; every reply waits for your approval. Auto-send is off."}
+                </p>
               </div>
 
-              {/* Thread */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 bg-brand-paper">
+              {/* Thread — kept visible above any draft / booking / template
+                  panels via min-h, so staff can always read history while
+                  deciding how to reply. */}
+              <div className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper">
                 {loadingDetail ? (
                   <LoadingSpinner />
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-slate-400 text-[13px] py-8">
+                  <div className="text-center text-slate-500 text-[13px] py-8">
                     No messages yet.
                   </div>
                 ) : (

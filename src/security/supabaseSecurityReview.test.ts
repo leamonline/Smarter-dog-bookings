@@ -8,49 +8,45 @@ function readProjectFile(path: string): string {
   return readFileSync(join(root, path), "utf8");
 }
 
-function fixMigration(): string {
+function getAllMigrationSqls(): string[] {
   const migrationsDir = join(root, "supabase/migrations");
-  const candidates = readdirSync(migrationsDir)
-    .filter((file: string) => file.endsWith(".sql"))
-    .sort()
-    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
-    .filter((sql: string) => sql.includes("bookings_status_check") && sql.includes("demo_add_dog"));
 
-  expect(candidates).toHaveLength(1);
-  return candidates[0];
-}
-
-function allMigrationSql(): string {
-  const migrationsDir = join(root, "supabase/migrations");
   return readdirSync(migrationsDir)
     .filter((file: string) => file.endsWith(".sql"))
     .sort()
-    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
-    .join("\n\n");
+    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"));
+}
+
+function getMigrationBySql(predicate: (sql: string) => boolean): string {
+  const candidates = getAllMigrationSqls().filter(predicate);
+
+  expect(candidates).toHaveLength(1);
+
+  return candidates[0];
+}
+
+function fixMigration(): string {
+  return getMigrationBySql(
+    (sql: string) =>
+      sql.includes("bookings_status_check") &&
+      sql.includes("demo_add_dog"),
+  );
+}
+
+function allMigrationSql(): string {
+  return getAllMigrationSqls().join("\n\n");
 }
 
 function codexScanFixMigration(): string {
-  const migrationsDir = join(root, "supabase/migrations");
-  const candidates = readdirSync(migrationsDir)
-    .filter((file: string) => file.endsWith(".sql"))
-    .sort()
-    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
-    .filter((sql: string) => sql.includes("Fix Codex Security scan findings"));
-
-  expect(candidates).toHaveLength(1);
-  return candidates[0];
+  return getMigrationBySql((sql: string) =>
+    sql.includes("Fix Codex Security scan findings"),
+  );
 }
 
 function linkCustomerSessionOnlyMigration(): string {
-  const migrationsDir = join(root, "supabase/migrations");
-  const candidates = readdirSync(migrationsDir)
-    .filter((file: string) => file.endsWith(".sql"))
-    .sort()
-    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"))
-    .filter((sql: string) => sql.includes("link_customer_to_human_session_only"));
-
-  expect(candidates).toHaveLength(1);
-  return candidates[0];
+  return getMigrationBySql((sql: string) =>
+    sql.includes("link_customer_to_human_session_only"),
+  );
 }
 
 // Walk migrations in filename order and return the final state of a named
@@ -60,36 +56,37 @@ function finalPolicyState(
   policyName: string,
   table: string,
 ): "created" | "dropped" | "absent" {
-  const migrationsDir = join(root, "supabase/migrations");
-  const sqls = readdirSync(migrationsDir)
-    .filter((file: string) => file.endsWith(".sql"))
-    .sort()
-    .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"));
-
   const tablePat = `(?:public\\.)?${table}`;
+
   const createRe = new RegExp(
     `create\\s+policy\\s+"${policyName}"\\s+on\\s+${tablePat}`,
     "gi",
   );
+
   const dropRe = new RegExp(
     `drop\\s+policy(?:\\s+if\\s+exists)?\\s+"${policyName}"\\s+on\\s+${tablePat}`,
     "gi",
   );
 
   let state: "created" | "dropped" | "absent" = "absent";
-  for (const sql of sqls) {
-    const events: Array<{ index: number; kind: "created" | "dropped" }> = [];
-    for (const m of sql.matchAll(createRe)) {
-      events.push({ index: m.index ?? 0, kind: "created" });
-    }
-    for (const m of sql.matchAll(dropRe)) {
-      events.push({ index: m.index ?? 0, kind: "dropped" });
-    }
-    events.sort((a, b) => a.index - b.index);
-    for (const ev of events) {
-      state = ev.kind;
+
+  for (const sql of getAllMigrationSqls()) {
+    const events = [
+      ...Array.from(sql.matchAll(createRe), (match) => ({
+        index: match.index ?? 0,
+        kind: "created" as const,
+      })),
+      ...Array.from(sql.matchAll(dropRe), (match) => ({
+        index: match.index ?? 0,
+        kind: "dropped" as const,
+      })),
+    ].sort((a, b) => a.index - b.index);
+
+    for (const { kind } of events) {
+      state = kind;
     }
   }
+
   return state;
 }
 
@@ -260,6 +257,19 @@ describe("Supabase security review regressions", () => {
     ).toMatch(
       /customer_phone_lookup_rate_limit[\s\S]+customer_phone_lookup_rate_limit/,
     );
+  });
+
+  it("retires the customer DELETE policy on bookings in favour of the UPDATE-to-cancel path", () => {
+    // The original DELETE policy let customers hard-delete future bookings,
+    // which bypasses cancel_reason capture and the notify-booking-cancelled
+    // trigger (which fires on UPDATE, not DELETE). The intended path is
+    // customer_cancel_own_bookings_update — keep that one, drop the DELETE.
+    expect(finalPolicyState("customer_cancel_own_bookings", "bookings")).toBe(
+      "dropped",
+    );
+    expect(
+      finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
+    ).toBe("created");
   });
 
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {
