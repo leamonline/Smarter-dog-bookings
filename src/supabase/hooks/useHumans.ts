@@ -692,6 +692,37 @@ export function useHumans() {
     [humans, humansById],
   );
 
+  /**
+   * On-demand human fetch. The initial useHumans load is paginated
+   * (PAGE_SIZE = 50, ordered alphabetically). When a booking or modal
+   * needs a human whose row is past the page boundary, the local
+   * `humans` map won't have them and the UI falls back to showing
+   * the raw UUID. This helper fetches that human directly and folds
+   * them into the local cache so subsequent lookups are instant.
+   */
+  const fetchHumanById = useCallback(
+    async (humanId: string) => {
+      if (!humanId) return null;
+      if (humans[humanId]) return humans[humanId];
+      if (humansById[humanId]) return humansById[humanId];
+      if (!supabase) return null;
+
+      const { data, error: err } = await supabase
+        .from("humans")
+        .select("*")
+        .eq("id", humanId)
+        .single();
+
+      if (err || !data) return null;
+
+      const entry = buildHumanMapEntry(data);
+      setHumansById((prev) => ({ ...prev, [data.id]: entry }));
+      setHumans((prev) => ({ ...prev, [data.id]: entry }));
+      return entry;
+    },
+    [humans, humansById],
+  );
+
   return {
     humans,
     humansById,
@@ -700,6 +731,7 @@ export function useHumans() {
     updateHuman,
     addHuman,
     deleteHuman,
+    fetchHumanById,
     hasMore,
     totalCount,
     loadMore,

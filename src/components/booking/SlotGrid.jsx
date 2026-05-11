@@ -5,16 +5,9 @@ import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
 import { SkeletonCard } from "../shared/SkeletonCard.jsx";
+import { SlotRowMenu } from "./SlotRowMenu.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop.js";
-
-function formatSlotTime(slot) {
-  const [hourStr, minStr] = slot.split(":");
-  const hour = parseInt(hourStr, 10);
-  const suffix = hour < 12 ? "am" : "pm";
-  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-  return `${displayHour}:${minStr}${suffix}`;
-}
 
 export function SlotGrid({
   bookings,
@@ -86,10 +79,6 @@ export function SlotGrid({
   const searchActive = searchQuery && searchQuery.trim().length > 0;
   const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
 
-  // Every active slot is its own row — no collapsing. The schedule
-  // is meant to stay full-height so the bookings column matches the
-  // sidebar; merging quiet stretches into a single "Free" pill made
-  // the column shrink and broke that.
   const rows = useMemo(() => {
     const result = activeSlots.map((slot, i) => {
       const slotOverrides = overrides?.[slot] || {};
@@ -112,14 +101,20 @@ export function SlotGrid({
       <div
         key={slot}
         className={[
-          `grid grid-cols-[56px_1fr] sm:grid-cols-[56px_1fr_1fr] md:grid-cols-[72px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
+          `grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr_1fr] md:grid-cols-[52px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
           hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
-          !hasBooking ? "opacity-60 hover:opacity-100 transition-opacity" : "",
+          !hasBooking ? "opacity-70 hover:opacity-100 transition-opacity" : "",
         ].filter(Boolean).join(" ")}
       >
-        <div className={`text-sm font-extrabold text-center border-r-2 border-slate-200 pr-2 md:pr-2.5 self-stretch flex items-center justify-center ${hasBooking ? "text-slate-800" : "text-slate-400"}`}>
-          {formatSlotTime(slot)}
+        <div className="border-r-2 border-slate-200 pr-1 md:pr-1.5 self-stretch flex items-center justify-center">
+          <SlotRowMenu
+            slot={slot}
+            seatStates={seatStates}
+            onBlockSeat={onOverride ? (idx) => block(slot, idx) : undefined}
+            disabled={loading}
+            hasBooking={hasBooking}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5 sm:contents">
@@ -132,7 +127,6 @@ export function SlotGrid({
           <>
             <GhostSeat
               onClick={() => onOpenNewBooking(currentDateStr, slot)}
-              onBlock={onOverride ? () => block(slot, 0) : undefined}
               onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
               onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
               onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
@@ -140,7 +134,6 @@ export function SlotGrid({
             />
             <GhostSeat
               onClick={() => onOpenNewBooking(currentDateStr, slot)}
-              onBlock={onOverride ? () => block(slot, 1) : undefined}
               onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
               onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
               onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
@@ -149,12 +142,8 @@ export function SlotGrid({
           </>
         ) : allBlockedByStaff ? (
           <>
-            <BlockedSeatCell
-              onClick={() => unblock(slot, 0)}
-            />
-            <BlockedSeatCell
-              onClick={() => unblock(slot, 1)}
-            />
+            <BlockedSeatCell onClick={() => unblock(slot, 0)} />
+            <BlockedSeatCell onClick={() => unblock(slot, 1)} />
           </>
         ) : (
           <>
@@ -210,7 +199,6 @@ export function SlotGrid({
                 <GhostSeat
                   key={seat.seatIndex}
                   onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                  onBlock={onOverride ? () => block(slot, seat.seatIndex) : undefined}
                   onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
                   onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
                   onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
@@ -223,10 +211,10 @@ export function SlotGrid({
         </div>
       </div>
     );
-  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride]);
+  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride, onMoveBooking, dnd]);
 
   return (
-    <div className="bg-white border border-slate-200 border-t-0 rounded-b-xl overflow-hidden">
+    <div>
       {rows.map((row) => renderSlot(row.slot, row.index, row.seatStates, row.isLast))}
     </div>
   );

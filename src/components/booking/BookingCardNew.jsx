@@ -1,5 +1,6 @@
 // src/components/booking/BookingCardNew.jsx
-import { useState, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { SERVICES } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
 import {
@@ -39,6 +40,92 @@ const SIZE_TOOLTIP = {
   large: "Large dog",
 };
 
+/**
+ * AlertsPopover — small popup that lists every alert on a dog.
+ * Rendered via portal so it escapes the booking card's overflow:
+ * hidden and the surrounding grid. Positioned next to its anchor
+ * with a soft drop-shadow.
+ */
+function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
+  const popRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onDown = (e) => {
+      if (!popRef.current?.contains(e.target)) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    // Use timeout so the click that opened the popover doesn't
+    // immediately close it.
+    const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+      clearTimeout(t);
+    };
+  }, [onClose]);
+
+  if (!anchorRect) return null;
+
+  // Position below the icon, aligned to its left edge. Clamp to
+  // viewport so it never sits half-off-screen.
+  const POPUP_WIDTH = 260;
+  const margin = 8;
+  const top = Math.min(
+    anchorRect.bottom + 6,
+    window.innerHeight - margin - 60,
+  );
+  let left = anchorRect.left;
+  if (left + POPUP_WIDTH > window.innerWidth - margin) {
+    left = window.innerWidth - margin - POPUP_WIDTH;
+  }
+  if (left < margin) left = margin;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-label={`Notes on ${dogName}`}
+      ref={popRef}
+      onClick={(e) => e.stopPropagation()}
+      style={{ position: "fixed", top, left, width: POPUP_WIDTH, zIndex: 1100 }}
+      className="bg-white border border-[#FCA5A5] rounded-2xl shadow-elevated p-3 animate-pop-in"
+    >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#B91C1C]">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Notes on {dogName}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close notes"
+          className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer border-none bg-transparent font-[inherit]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+        {alerts.map((alert, idx) => (
+          <li
+            key={idx}
+            className="text-[12px] font-medium text-[#7F1D1D] bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg px-2.5 py-1.5 leading-snug break-words"
+          >
+            {alert}
+          </li>
+        ))}
+      </ul>
+    </div>,
+    document.body,
+  );
+}
+
 export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDragStart, onDragEnd, isBeingDragged }) {
   const {
     dogs,
@@ -59,7 +146,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   const [showDetail, setShowDetail] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [alertsAnchor, setAlertsAnchor] = useState(null);
+  const alertsButtonRef = useRef(null);
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
@@ -111,7 +199,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         {/* Gradient top accent bar */}
         <div className="h-[3px]" style={{ background: sizeTheme.gradient }} />
 
-        <div className="p-2.5 md:p-3.5 flex flex-col gap-1">
+        <div className="p-2 md:p-3 flex flex-col gap-0.5 md:gap-1">
         {/* Row 1: size dot + dog name (breed) + price */}
         <div className="flex items-baseline gap-2">
           <span
@@ -121,33 +209,36 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             aria-label={SIZE_TOOLTIP[booking.size] || "Unknown size"}
             title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
           />
-          <span className="text-sm md:text-[17px] font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+          <span className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
             {displayDogName}
-            {displayBreed && (
-              <span className="font-normal text-slate-400 ml-1 font-sans">
-                ({displayBreed})
-              </span>
-            )}
           </span>
-          {/* Warning chip — sits inline with the name so a single
-              glance shows whether the dog has anything flagged.
-              Click toggles the full alert list below. */}
+          {/* Alert icon — single click target that opens a popup
+              listing every note on the dog. No count or label so the
+              card stays uncluttered; the icon's job is just to flag. */}
           {dogRecord?.alerts?.length > 0 && (
             <button
+              ref={alertsButtonRef}
               type="button"
-              onClick={(e) => { e.stopPropagation(); setAlertsOpen((o) => !o); }}
-              aria-expanded={alertsOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (alertsAnchor) {
+                  setAlertsAnchor(null);
+                } else {
+                  const rect = alertsButtonRef.current?.getBoundingClientRect();
+                  if (rect) setAlertsAnchor(rect);
+                }
+              }}
+              aria-expanded={!!alertsAnchor}
+              aria-haspopup="dialog"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
-              className="self-center inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] rounded-md px-1.5 py-0.5 cursor-pointer transition-colors hover:bg-[#FEE2E2] font-[inherit] shrink-0"
-              title={alertsOpen ? "Hide notes" : "Show notes"}
+              title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
+              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
-              {dogRecord.alerts.length}
-              <span className="ml-0.5 text-[8px] opacity-70">{alertsOpen ? "▲" : "▾"}</span>
             </button>
           )}
           {pricing.isPaidInFull ? (
@@ -159,7 +250,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             </span>
           ) : pricing.subtotal > 0 ? (
             <span
-              className="text-sm md:text-[17px] font-black text-[#1E6B5C] ml-auto shrink-0"
+              className="text-[10px] md:text-[11px] font-bold text-slate-500 ml-auto shrink-0 tabular-nums"
               title={pricing.isDepositPaid ? `£${pricing.amountDue} due (deposit of £${pricing.depositPaid} paid)` : undefined}
             >
               {"\u00A3"}{pricing.amountDue}
@@ -172,57 +263,26 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           ) : null}
         </div>
 
-        {/* Row 2: owner + alerts */}
-        {(displayOwner || dogRecord?.alerts?.length > 0) && (
+        {/* Row 2: service — what we're doing today */}
+        <div className="pl-4 md:pl-5 text-[11px] md:text-[12px] font-semibold text-brand-purple/80 truncate">
+          {service?.name || booking.service || "—"}
+        </div>
+
+        {/* Row 3: owner + breed (subtle, tertiary). Alert pills moved
+            into the popover so they don't crowd the card. */}
+        {(displayOwner || displayBreed) && (
           <div className="flex items-center gap-2 pl-4 md:pl-5">
-            {displayOwner && (
-              <div className="text-xs md:text-sm font-semibold text-brand-teal min-w-0 truncate">
-                {displayOwner}
-              </div>
-            )}
-            {dogRecord?.alerts?.length > 0 && (
-              <div className="flex flex-wrap justify-end gap-1 ml-auto shrink-0">
-                {dogRecord.alerts.map((alert, idx) => (
-                  <span key={idx} className="bg-[#FEF2F2] text-[#B91C1C] border border-[#FCA5A5] text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center shadow-sm">
-                    {alert}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="text-[10px] md:text-[11px] font-medium text-slate-500 min-w-0 truncate">
+              {displayOwner}
+              {displayOwner && displayBreed && <span className="text-slate-300"> · </span>}
+              {displayBreed}
+            </div>
           </div>
         )}
 
-        {/* Expanded alert list — only when the row-1 warning chip is
-            open. Each alert gets its own coloured note line. */}
-        {dogRecord?.alerts?.length > 0 && alertsOpen && (
-          <ul
-            onClick={(e) => e.stopPropagation()}
-            className="list-none m-0 p-0 pl-4 md:pl-5 mt-0.5 flex flex-col gap-1 animate-pop-in"
-          >
-            {dogRecord.alerts.map((alert, idx) => (
-              <li
-                key={idx}
-                className="flex items-start gap-1.5 text-[11px] font-medium text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] rounded-md px-2 py-1"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <span className="break-words">{alert}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Row 4: service + status pill row */}
-        <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1 md:mt-1.5">
-          {/* Service pill — stretches to match status picker height */}
-          <span className="flex-1 min-w-0 text-[11px] font-bold px-2 py-1 rounded-md text-center bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center">
-            {service?.name || booking.service || "\u2014"}
-          </span>
-
-          {/* Status pill / inline picker */}
+        {/* Row 4: status pill */}
+        <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-0.5 md:mt-1">
+          {/* Status pill / inline picker (service moved to row 2) */}
           {statusOpen ? (
             <div
               className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in"
@@ -292,6 +352,15 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         </div>
         </div>
       </div>
+
+      {alertsAnchor && dogRecord?.alerts?.length > 0 && (
+        <AlertsPopover
+          alerts={dogRecord.alerts}
+          anchorRect={alertsAnchor}
+          onClose={() => setAlertsAnchor(null)}
+          dogName={displayDogName}
+        />
+      )}
 
       {showDetail && (
         <Suspense fallback={null}>

@@ -18,12 +18,13 @@
 //   - Template picker for messages outside the 24h window
 // ============================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { titleCase } from "../../utils/text.js";
 import { WHATSAPP_TEMPLATES } from "../../constants/whatsappTemplates.js";
+import { SALON_SLOTS, SERVICES } from "../../constants/index.ts";
 
 // ── Formatting helpers ──────────────────────────────────────
 function formatWhen(iso) {
@@ -186,20 +187,22 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(conv.id)}
-      className={`w-full text-left px-3 py-3 border-b border-slate-100 transition-colors ${
-        isSelected ? "bg-slate-100" : "hover:bg-slate-50"
+      className={`relative w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors cursor-pointer font-[inherit] border-l-2 ${
+        isSelected
+          ? "bg-brand-yellow/10 border-l-brand-yellow"
+          : "bg-white hover:bg-slate-50 border-l-transparent"
       }`}
     >
-      <div className="flex justify-between items-start gap-2 mb-1">
-        <span className={`text-[14px] ${unread ? "font-bold" : "font-semibold"} text-slate-800 truncate`}>
+      <div className="flex justify-between items-start gap-2 mb-0.5">
+        <span className={`text-[13px] truncate ${unread ? "font-bold text-brand-purple" : "font-semibold text-brand-purple/90"}`}>
           {displayName(conv)}
         </span>
-        <span className="text-[11px] text-slate-400 shrink-0">
+        <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
           {formatWhen(conv.last_inbound_at)}
         </span>
       </div>
       <div className="flex justify-between items-center gap-2">
-        <span className={`text-[12px] truncate ${unread ? "text-slate-700" : "text-slate-500"}`}>
+        <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-500"}`}>
           {conv.last_customer_text ?? "(no text)"}
         </span>
         <div className="flex items-center gap-1 shrink-0">
@@ -241,18 +244,47 @@ function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   const [error, setError] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [reason, setReason] = useState("");
+  // Edited values keyed by action.id. Lets staff fix the date / slot /
+  // service / size the AI proposed before adding it to the diary.
+  const [edits, setEdits] = useState({});
 
   useEffect(() => {
     setError(null);
     setRejectingId(null);
     setReason("");
+    setEdits({});
   }, [actions.map((action) => action.id).join("|")]);
 
   if (!actions?.length) return null;
 
-  async function handleApply(actionId) {
+  const getValue = (action, field) => {
+    const e = edits[action.id]?.[field];
+    if (e !== undefined) return e;
+    return action.payload?.[field] ?? "";
+  };
+
+  const setValue = (actionId, field, value) => {
+    setEdits((prev) => ({
+      ...prev,
+      [actionId]: { ...(prev[actionId] || {}), [field]: value },
+    }));
+  };
+
+  const buildEditedPayload = (action) => {
+    const e = edits[action.id];
+    if (!e) return null;
+    const merged = { ...(action.payload || {}), ...e };
+    // Only send if at least one field actually differs.
+    const changed = Object.keys(e).some(
+      (k) => (action.payload || {})[k] !== e[k],
+    );
+    return changed ? merged : null;
+  };
+
+  async function handleApply(action) {
     setError(null);
-    const res = await onApply(actionId);
+    const editedPayload = buildEditedPayload(action);
+    const res = await onApply(action.id, editedPayload);
     if (!res.ok) setError(res.reason ?? "Could not apply booking action");
   }
 
@@ -268,72 +300,101 @@ function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   }
 
   return (
-    <div className="p-4 bg-emerald-50 border-t-2 border-emerald-300">
-      <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 mb-2">
+    <div className="px-4 pt-3 pb-2 bg-emerald-50/60 border-t border-emerald-200">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/80 mb-2">
         Booking proposal
       </div>
 
       {error && (
-        <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
+        <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 mb-2">
           {error}
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {actions.map((action) => {
-          const payload = action.payload || {};
           const isRejecting = rejectingId === action.id;
+          const date = getValue(action, "booking_date");
+          const slot = getValue(action, "slot");
+          const service = getValue(action, "service");
+          const size = getValue(action, "size") || "small";
+
+          // Build the slot list — SALON_SLOTS plus any value already
+          // on the action that isn't in the standard set (e.g. an
+          // extra slot the AI suggested). Keeps the dropdown honest.
+          const slotOptions = Array.from(
+            new Set([...SALON_SLOTS, slot].filter(Boolean)),
+          );
+
           return (
-            <div key={action.id} className="bg-white border border-emerald-200 rounded-lg p-3">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[13px] text-slate-700">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Date</div>
-                  <div className="font-bold">{formatDateLong(payload.booking_date)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Time</div>
-                  <div className="font-bold">{payload.slot || "No time"}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Service</div>
-                  <div className="font-bold">{serviceLabel(payload.service)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Size</div>
-                  <div className="font-bold capitalize">{payload.size || "small"}</div>
-                </div>
-              </div>
-
-              {payload.notes && (
-                <div className="mt-2 text-[12px] text-slate-500">{payload.notes}</div>
-              )}
-
-              {isRejecting && (
+            <div
+              key={action.id}
+              className="bg-white border border-emerald-200 rounded-2xl px-3 py-2.5 shadow-[0_1px_3px_rgba(16,185,129,0.06)]"
+            >
+              {isRejecting ? (
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Reason for rejecting (optional)"
-                  className="mt-3 w-full text-[13px] p-2 bg-white border border-emerald-200 rounded-lg font-[inherit] resize-y"
+                  className="w-full text-[13px] p-2 bg-white border border-emerald-200 rounded-lg font-[inherit] resize-y mb-2"
                   rows={2}
                   maxLength={500}
                   autoFocus
                 />
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <FieldDate
+                    label="Date"
+                    value={date}
+                    onChange={(v) => setValue(action.id, "booking_date", v)}
+                  />
+                  <FieldSelect
+                    label="Time"
+                    value={slot}
+                    onChange={(v) => setValue(action.id, "slot", v)}
+                    options={slotOptions.map((s) => ({ value: s, label: s }))}
+                    placeholder="Slot"
+                  />
+                  <FieldSelect
+                    label="Service"
+                    value={service}
+                    onChange={(v) => setValue(action.id, "service", v)}
+                    options={SERVICES.map((s) => ({ value: s.id, label: s.name }))}
+                    placeholder="Service"
+                  />
+                  <FieldSelect
+                    label="Size"
+                    value={size}
+                    onChange={(v) => setValue(action.id, "size", v)}
+                    options={[
+                      { value: "small", label: "Small" },
+                      { value: "medium", label: "Medium" },
+                      { value: "large", label: "Large" },
+                    ]}
+                  />
+                </div>
               )}
 
-              <div className="flex flex-wrap gap-2 mt-3">
+              {action.payload?.notes && !isRejecting && (
+                <div className="mt-1.5 text-[11px] text-slate-500 line-clamp-2">
+                  {action.payload.notes}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-2">
                 {isRejecting ? (
                   <>
                     <button
                       onClick={() => handleReject(action.id)}
                       disabled={inFlight}
-                      className="px-3 py-1.5 rounded-md bg-red-600 text-white text-[13px] font-bold disabled:opacity-50"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-coral text-white text-[12px] font-bold cursor-pointer disabled:opacity-50 font-[inherit]"
                     >
                       Confirm reject
                     </button>
                     <button
                       onClick={() => { setRejectingId(null); setReason(""); }}
                       disabled={inFlight}
-                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-700 text-[12px] font-semibold cursor-pointer disabled:opacity-50 font-[inherit]"
                     >
                       Cancel
                     </button>
@@ -341,16 +402,16 @@ function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                 ) : (
                   <>
                     <button
-                      onClick={() => handleApply(action.id)}
+                      onClick={() => handleApply(action)}
                       disabled={inFlight}
-                      className="px-3 py-1.5 rounded-md bg-emerald-700 text-white text-[13px] font-bold disabled:opacity-50"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors font-[inherit]"
                     >
                       Add to diary
                     </button>
                     <button
                       onClick={() => setRejectingId(action.id)}
                       disabled={inFlight}
-                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 text-[13px]"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-slate-600 text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-coral/60 hover:text-brand-coral transition-colors font-[inherit]"
                     >
                       Reject
                     </button>
@@ -362,6 +423,44 @@ function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
         })}
       </div>
     </div>
+  );
+}
+
+function FieldDate({ label, value, onChange }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+        {label}
+      </span>
+      <input
+        type="date"
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full text-[13px] font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+      />
+    </label>
+  );
+}
+
+function FieldSelect({ label, value, onChange, options, placeholder }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+        {label}
+      </span>
+      <select
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full text-[13px] font-semibold text-brand-purple bg-white border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-brand-yellow font-[inherit] min-h-[36px]"
+      >
+        {placeholder && !value && <option value="">{placeholder}…</option>}
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -703,12 +802,12 @@ function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight
           disabled={inFlight}
           rows={2}
           maxLength={2000}
-          className="flex-1 text-[14px] p-2 bg-white border border-slate-300 rounded-lg font-[inherit] resize-y disabled:opacity-50"
+          className="flex-1 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-y disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <button
           onClick={handleSend}
           disabled={inFlight || !text.trim()}
-          className="px-4 py-2 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50 shrink-0"
+          className="self-stretch inline-flex items-center px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
         >
           Send
         </button>
@@ -914,15 +1013,26 @@ export function WhatsAppInboxView() {
   return (
     <div className="py-2.5 flex flex-col gap-3 h-[calc(100vh-180px)]">
       <div className="flex justify-between items-center gap-3 flex-wrap">
-        <h2 className="text-[22px] font-extrabold m-0 text-slate-800 font-display">
-          WhatsApp
-        </h2>
-        <div className="flex items-center gap-3">
-          <div className="text-[12px] text-slate-500">
-            {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread ·{" "}
-            {conversations.filter((c) => c.has_pending_draft).length} drafts ·{" "}
-            {conversations.filter((c) => c.has_pending_booking_action).length} bookings
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
+              WhatsApp inbox
+            </h2>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)} unread
+              <span className="text-slate-300"> · </span>
+              {conversations.filter((c) => c.has_pending_draft).length} drafts
+              <span className="text-slate-300"> · </span>
+              {conversations.filter((c) => c.has_pending_booking_action).length} bookings
+            </div>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
           {needsReviewCount > 0 && (
             <button
               type="button"
@@ -935,20 +1045,20 @@ export function WhatsAppInboxView() {
                   ? "Showing only conversations whose latest draft is high-risk or marked for human review. Click to show all."
                   : "Show only conversations whose latest draft is high-risk or marked for human review."
               }
-              className={`px-2.5 py-1 rounded-md text-[12px] font-bold border transition-colors ${
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold border transition-colors font-[inherit] ${
                 listFilter === "needs_review"
-                  ? "bg-red-100 border-red-300 text-red-800 hover:bg-red-200"
-                  : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+                  ? "bg-rose-100 border-rose-200 text-rose-800 hover:bg-rose-200"
+                  : "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700"
               }`}
             >
-              <span aria-hidden="true" className="mr-1">●</span>
-              Needs review ({needsReviewCount})
+              <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Needs review · {needsReviewCount}
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="flex-1 flex bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
         {/* List pane */}
         <div
           className={`w-full md:w-[320px] border-r border-slate-200 flex flex-col ${
@@ -997,19 +1107,19 @@ export function WhatsAppInboxView() {
           ) : (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-brand-paper">
+                <div className="flex items-center gap-3 min-w-0">
                   <button
                     onClick={() => selectConversation(null)}
-                    className="md:hidden text-slate-500 text-[18px]"
+                    className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
                     aria-label="Back to inbox"
                   >←</button>
-                  <div>
-                    <div className="text-[15px] font-bold text-slate-800">
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate">
                       {displayName(selectedConversation)}
                     </div>
-                    <div className="text-[11px] text-slate-500">
-                      {selectedConversation?.phone_e164} · state: {selectedConversation?.state}
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {selectedConversation?.phone_e164} · {selectedConversation?.state}
                     </div>
                   </div>
                 </div>
@@ -1023,7 +1133,7 @@ export function WhatsAppInboxView() {
                     <button
                       onClick={takeoverConversation}
                       disabled={actionInFlight}
-                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[12px] font-bold"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
                       Take over
                     </button>
@@ -1031,7 +1141,7 @@ export function WhatsAppInboxView() {
                     <button
                       onClick={releaseConversation}
                       disabled={actionInFlight}
-                      className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[12px] font-bold"
+                      className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
                       Hand back to AI
                     </button>
@@ -1040,7 +1150,7 @@ export function WhatsAppInboxView() {
               </div>
 
               {/* Thread */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 bg-slate-50">
+              <div className="flex-1 overflow-y-auto px-4 py-3 bg-brand-paper">
                 {loadingDetail ? (
                   <LoadingSpinner />
                 ) : messages.length === 0 ? (

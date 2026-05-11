@@ -251,6 +251,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
+    fetchHumanById: sbFetchHumanById,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
     loadMore: humansLoadMore,
@@ -370,6 +371,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onSignOut={signOut}
           isOnline={isOnline}
           user={user}
+          onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
+          onOpenOverview={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("smarterdog:open-overview"));
+            }
+          }}
         />
 
         <SalonProvider
@@ -494,6 +501,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onUpdateHuman={updateHuman}
                   onAddHuman={addHuman}
                   bookingsByDate={bookingsByDate}
+                  fetchHumanById={sbFetchHumanById}
                 />
               </Suspense>
             </ErrorBoundary>
