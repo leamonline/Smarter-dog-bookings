@@ -1,29 +1,30 @@
 // Shared presentational widgets used by all report sub-components.
 
-function pctChange(cur, prev) {
-  if (prev === 0) return cur > 0 ? 100 : 0;
-  return ((cur - prev) / prev) * 100;
-}
+import { formatDelta } from "../../../utils/intl.js";
 
 export function Trend({ cur, prev, invert }) {
-  const p = pctChange(cur, prev);
+  // formatDelta returns "\u2014" when the previous period was zero \u2014 there's
+  // no meaningful percentage to display in that case, so the badge is
+  // suppressed entirely (rendered as a small em-dash placeholder).
+  const delta = formatDelta(cur, prev);
+  if (delta === "\u2014") return <span className="text-[11px] font-bold text-slate-400 px-1.5">\u2014</span>;
   if (prev === 0 && cur === 0) return null;
-  const up = p > 0;
+  const up = delta.startsWith("+");
   const good = invert ? !up : up;
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${good ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"}`}>
-      {up ? "\u2191" : "\u2193"} {Math.abs(p).toFixed(0)}%
+      {up ? "\u2191" : "\u2193"} {delta.replace(/^[+-]/, "")}
     </span>
   );
 }
 
-export function Kpi({ label, value, sub, cur, prev, color = "#2D8B7A", invert }) {
+export function Kpi({ label, value, sub, cur, prev, color = "#2D8B7A", invert, hideDelta }) {
   return (
     <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
       <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">{label}</div>
       <div className="flex items-baseline gap-1.5 flex-wrap">
         <span className="text-xl sm:text-2xl md:text-[28px] font-black leading-none font-display" style={{ color }}>{value}</span>
-        {cur != null && prev != null && <Trend cur={cur} prev={prev} invert={invert} />}
+        {!hideDelta && cur != null && prev != null && <Trend cur={cur} prev={prev} invert={invert} />}
       </div>
       {sub && <div className="text-[11px] text-slate-400 font-medium mt-0.5 md:mt-1">{sub}</div>}
     </div>
