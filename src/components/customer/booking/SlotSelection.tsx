@@ -64,6 +64,8 @@ export function SlotSelection({
           pickupBy: "",
           payment: row.payment || "",
           confirmed: row.confirmed || false,
+          breedSnapshot: null,
+          ownerNameSnapshot: null,
           _dogId: row.dog_id,
           _ownerId: null,
           _pickupById: row.pickup_by_id || null,

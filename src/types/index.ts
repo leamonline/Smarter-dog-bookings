@@ -78,6 +78,8 @@ export interface Booking {
   payment: string;
   depositAmount?: number | null;
   confirmed: boolean;
+  breedSnapshot: string | null;
+  ownerNameSnapshot: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

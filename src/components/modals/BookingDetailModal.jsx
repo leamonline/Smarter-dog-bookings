@@ -325,6 +325,8 @@ export function BookingDetailModal({
         <BookingHeader
           booking={booking}
           dogData={dogData}
+          dogs={dogs}
+          humans={humans}
           isEditing={isEditing}
           editData={editData}
           setEditData={setEditData}

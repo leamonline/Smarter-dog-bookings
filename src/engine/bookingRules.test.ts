@@ -10,6 +10,8 @@ import {
   getHumanByIdOrName,
   getDogByIdOrName,
   computeBookingPricing,
+  resolveBookingDisplay,
+  looksLikeUuid,
 } from "./bookingRules.js";
 
 // ── isServiceSupportedForSize ───────────────────────────────────
@@ -234,5 +236,123 @@ describe("computeBookingPricing", () => {
   it("normalizes invalid service+size combo via PRICING fallback", () => {
     const result = computeBookingPricing({ service: "puppy-groom", size: "large" });
     expect(result.basePrice).toBeGreaterThan(0);
+  });
+});
+
+// ── looksLikeUuid ──────────────────────────────────────────────
+
+describe("looksLikeUuid", () => {
+  it("matches v4-shaped UUIDs", () => {
+    expect(looksLikeUuid("a3f1c2e0-7b89-4d3a-9c1e-1234567890ab")).toBe(true);
+  });
+  it("rejects names and free text", () => {
+    expect(looksLikeUuid("Alfie")).toBe(false);
+    expect(looksLikeUuid("Cavalier King Charles Spaniel")).toBe(false);
+  });
+  it("rejects non-strings", () => {
+    expect(looksLikeUuid(123 as unknown as string)).toBe(false);
+    expect(looksLikeUuid(null as unknown as string)).toBe(false);
+  });
+});
+
+// ── resolveBookingDisplay ─────────────────────────────────────
+
+describe("resolveBookingDisplay", () => {
+  const dog = {
+    id: "d-1",
+    name: "Alfie",
+    breed: "Cockapoo",
+    age: "3",
+    size: "small" as const,
+    humanId: "Jane Smith",
+    _humanId: "h-1",
+    alerts: [],
+    groomNotes: "",
+    customPrice: undefined,
+  };
+  const human = {
+    id: "h-1",
+    fullName: "Jane Smith",
+    name: "Jane",
+    surname: "Smith",
+    phone: "07700900001",
+    sms: true,
+    whatsapp: true,
+    email: "",
+    fb: "",
+    insta: "",
+    tiktok: "",
+    address: "",
+    notes: "",
+    historyFlag: "",
+    reminderHours: 24,
+    reminderChannels: [],
+    trustedIds: [],
+    trustedContacts: [],
+  };
+  const booking = {
+    id: "bk-1",
+    dogName: "Alfie",
+    breed: "Boston Terrier",                  // stale value to ensure live join wins
+    size: "small" as const,
+    service: "full-groom" as const,
+    owner: "Old Owner",                       // stale
+    status: "Booked" as const,
+    slot: "09:30",
+    addons: [],
+    pickupBy: "",
+    payment: "Due at Pick-up",
+    confirmed: false,
+    breedSnapshot: "Boston Terrier",
+    ownerNameSnapshot: "Old Owner",
+    _dogId: "d-1",
+    _ownerId: "h-1",
+    _pickupById: null,
+    _bookingDate: "2026-05-11",
+    _groupId: null,
+  };
+
+  it("prefers live join over snapshot when dog and human exist", () => {
+    const result = resolveBookingDisplay(
+      booking,
+      { Alfie: dog },
+      { "Jane Smith": human },
+    );
+    expect(result.breed).toBe("Cockapoo");
+    expect(result.owner).toBe("Jane Smith");
+    expect(result.dogMissing).toBe(false);
+    expect(result.ownerMissing).toBe(false);
+  });
+
+  it("falls back to snapshot when dog row is missing", () => {
+    const result = resolveBookingDisplay(booking, {}, { "Jane Smith": human });
+    expect(result.breed).toBe("Boston Terrier");
+    expect(result.dogMissing).toBe(true);
+  });
+
+  it("renders 'Unknown owner' rather than a UUID-shaped string", () => {
+    const result = resolveBookingDisplay(
+      { ...booking, owner: "a3f1c2e0-7b89-4d3a-9c1e-1234567890ab", ownerNameSnapshot: null },
+      {},
+      {},
+    );
+    expect(result.owner).toBe("Unknown owner");
+  });
+
+  it("handles a null booking gracefully", () => {
+    const result = resolveBookingDisplay(null, {}, {});
+    expect(result.dogName).toBe("Unknown");
+    expect(result.owner).toBe("Unknown owner");
+    expect(result.dogMissing).toBe(true);
+    expect(result.ownerMissing).toBe(true);
+  });
+
+  it("editing a dog's breed flows through to the joined display (task 1 acceptance)", () => {
+    const before = resolveBookingDisplay(booking, { Alfie: dog }, { "Jane Smith": human });
+    expect(before.breed).toBe("Cockapoo");
+
+    const updatedDog = { ...dog, breed: "Cavalier King Charles Spaniel" };
+    const after = resolveBookingDisplay(booking, { Alfie: updatedDog }, { "Jane Smith": human });
+    expect(after.breed).toBe("Cavalier King Charles Spaniel");
   });
 });

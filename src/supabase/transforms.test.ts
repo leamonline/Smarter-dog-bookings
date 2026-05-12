@@ -464,6 +464,45 @@ describe("dbBookingsToArray", () => {
     expect(bookings).toHaveLength(2);
     expect(bookings[1].dogName).toBe("Rex");
   });
+
+  // ──────────────────────────────────────────────────────────
+  // Snapshot fallback (task 1 of the May 2026 review pass).
+  // Display layer prefers live join, falls back to snapshot only
+  // when the joined dog/owner row is missing.
+  // ──────────────────────────────────────────────────────────
+  it("prefers live joined breed/owner over snapshot when dog and human exist", () => {
+    const humansById = buildHumansById([humanRow({ name: "Jane", surname: "Smith" })]);
+    const dogsById = buildDogsById([dogRow({ breed: "Cockapoo" })]);
+    const row = bookingRow({
+      breed_snapshot: "Boston Terrier",
+      owner_name_snapshot: "Old Name",
+    });
+    const bookings = dbBookingsToArray([row], dogsById, humansById);
+    expect(bookings[0].breed).toBe("Cockapoo");
+    expect(bookings[0].owner).toBe("Jane Smith");
+    expect(bookings[0].breedSnapshot).toBe("Boston Terrier");
+    expect(bookings[0].ownerNameSnapshot).toBe("Old Name");
+  });
+
+  it("falls back to breed_snapshot when the dog row is missing", () => {
+    const humansById = buildHumansById([humanRow()]);
+    const row = bookingRow({
+      breed_snapshot: "Boston Terrier",
+      owner_name_snapshot: "Jane Smith",
+    });
+    // Empty dogsById simulates the dog having been deleted after booking creation.
+    const bookings = dbBookingsToArray([row], {}, humansById);
+    expect(bookings[0].breed).toBe("Boston Terrier");
+    expect(bookings[0].owner).toBe("Jane Smith");
+  });
+
+  it("returns null snapshot fields when the booking row carries none", () => {
+    const humansById = buildHumansById([humanRow()]);
+    const dogsById = buildDogsById([dogRow()]);
+    const bookings = dbBookingsToArray([bookingRow()], dogsById, humansById);
+    expect(bookings[0].breedSnapshot).toBeNull();
+    expect(bookings[0].ownerNameSnapshot).toBeNull();
+  });
 });
 
 // ============================================================

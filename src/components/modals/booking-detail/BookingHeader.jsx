@@ -2,6 +2,7 @@ import { SERVICES } from "../../../constants/index.js";
 import {
   getNumericPrice,
   getServicePriceLabel,
+  resolveBookingDisplay,
 } from "../../../engine/bookingRules.js";
 import { IconEdit, IconCamera } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text.js";
@@ -10,6 +11,8 @@ import { IconBtn, PawWatermark } from "./shared.jsx";
 export function BookingHeader({
   booking,
   dogData,
+  dogs,
+  humans,
   isEditing,
   editData,
   setEditData,
@@ -27,8 +30,14 @@ export function BookingHeader({
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
 
+  // Use the shared selector so the modal header can never disagree with
+  // the grid card on dog/breed/owner. resolveBookingDisplay prefers the
+  // live join and falls back to bookings.breed_snapshot when the dog
+  // row is missing.
+  const display = resolveBookingDisplay(booking, dogs, humans);
+
   const subtitle = [
-    titleCase(booking.breed),
+    titleCase(display.breed),
     ageYo,
   ].filter(Boolean).join(" · ");
 
@@ -61,7 +70,7 @@ export function BookingHeader({
         onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
       >
-        {titleCase(booking.dogName)}
+        {titleCase(display.dogName)}
       </span>
 
       {subtitle && (

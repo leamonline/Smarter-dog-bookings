@@ -7,6 +7,7 @@ import {
   getDogByIdOrName,
   getHumanByIdOrName,
   computeBookingPricing,
+  resolveBookingDisplay,
 } from "../../engine/bookingRules.js";
 import { titleCase } from "../../utils/text.js";
 
@@ -154,8 +155,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const service = SERVICES.find((s) => s.id === booking.service);
   const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["Booked"];
 
-  const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
-  const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
+  const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking._dogId || booking.dogName);
+  // Single source of truth (matches BookingHeader + transforms.ts): live join,
+  // falling back to bookings.*_snapshot only when the dog/owner row is missing.
+  const display = resolveBookingDisplay(booking, dogs, humans);
 
   // Total owed at pick-up (service + add-ons, minus deposit or paid-in-full).
   // Shared with BookingDetailModal so card and modal can't drift.
@@ -168,15 +171,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     customPrice: dogRecord?.customPrice,
   });
 
-  const displayDogName = titleCase(
-    dogRecord?.name || booking.dogName || "Unknown Dog"
-  );
-  const displayBreed = titleCase(
-    dogRecord?.breed || booking.breed || ""
-  );
-  const displayOwner = titleCase(
-    humanRecord?.fullName || booking.owner || booking.ownerName || ""
-  );
+  const displayDogName = titleCase(display.dogName);
+  const displayBreed = titleCase(display.breed);
+  const displayOwner = titleCase(display.owner === "Unknown owner" ? "" : display.owner);
 
   const handleCardClick = onClick || (() => setShowDetail(true));
 
