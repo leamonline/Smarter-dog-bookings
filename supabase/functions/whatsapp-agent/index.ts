@@ -626,10 +626,13 @@ async function buildLargeDogAvailabilityBlock(
 function renderAgentStateBlock(state: AgentState | null): string | null {
   if (!state) return null;
   const labels: Array<[keyof AgentState, string]> = [
-    ["customerName", "Customer name"],
+    ["customerName", "Customer first name"],
+    ["customerSurname", "Customer surname"],
     ["dogName", "Dog name"],
     ["breed", "Breed"],
     ["dogSize", "Size"],
+    ["dogAge", "Dog age"],
+    ["coatCondition", "Coat condition"],
     ["service", "Service"],
     ["preferredDay", "Preferred day"],
     ["preferredTime", "Preferred time"],
@@ -640,6 +643,9 @@ function renderAgentStateBlock(state: AgentState | null): string | null {
     if (typeof value === "string" && value.trim()) {
       lines.push(`${label}: ${value}`);
     }
+  }
+  if (Array.isArray(state.alerts) && state.alerts.length > 0) {
+    lines.push(`Alerts: ${state.alerts.join(", ")}`);
   }
   if (lines.length === 0) return null;
   return `--- Known so far ---\n${lines.join("\n")}`;
@@ -845,8 +851,11 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
   const out: Partial<AgentState> = {};
   const stringKeys: (keyof AgentState)[] = [
     "customerName",
+    "customerSurname",
     "dogName",
     "breed",
+    "dogAge",
+    "coatCondition",
     "service",
     "preferredDay",
     "preferredTime",
@@ -862,6 +871,13 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
     if (ds === "small" || ds === "medium" || ds === "large" || ds === "unknown") {
       out.dogSize = ds;
     }
+  }
+  if (Array.isArray(v.alerts)) {
+    const alerts = v.alerts
+      .filter((a): a is string => typeof a === "string" && a.trim().length > 0)
+      .map((a) => a.trim().slice(0, 100))
+      .slice(0, 10);
+    if (alerts.length > 0) out.alerts = alerts;
   }
   return Object.keys(out).length > 0 ? out : null;
 }

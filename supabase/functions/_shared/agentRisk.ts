@@ -316,10 +316,14 @@ export type AgentStateStatus =
  */
 export interface AgentState {
   customerName?: string | null;
+  customerSurname?: string | null;
   dogName?: string | null;
   breed?: string | null;
   dogSize?: DogSize | null;
-  service?: string | null;
+  dogAge?: string | null;
+  alerts?: string[] | null;
+  coatCondition?: string | null;
+  service?: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null;
   preferredDay?: string | null;
   preferredTime?: string | null;
   status?: AgentStateStatus | null;
@@ -328,9 +332,13 @@ export interface AgentState {
 
 const KNOWN_AGENT_STATE_KEYS: readonly (keyof AgentState)[] = [
   "customerName",
+  "customerSurname",
   "dogName",
   "breed",
   "dogSize",
+  "dogAge",
+  "alerts",
+  "coatCondition",
   "service",
   "preferredDay",
   "preferredTime",
@@ -361,6 +369,12 @@ export function mergeAgentState(
     if (key === "missingFields") {
       if (Array.isArray(value)) {
         next.missingFields = value.filter((v): v is string => typeof v === "string");
+      }
+      continue;
+    }
+    if (key === "alerts") {
+      if (Array.isArray(value)) {
+        next.alerts = value.filter((v): v is string => typeof v === "string");
       }
       continue;
     }
