@@ -367,4 +367,51 @@ describe("Supabase security review regressions", () => {
     // Match 'whatsapp_ai' as a whole token — avoid matching as a prefix of 'whatsapp_ai_auto'.
     expect(migration).toMatch(/'whatsapp_ai'(?!_auto)/);
   });
+
+  it("apply-customer-confirm requires the internal secret and only acts on awaiting_customer_confirm", () => {
+    const fn = readProjectFile("supabase/functions/apply-customer-confirm/index.ts");
+
+    expect(fn).toMatch(/timingSafeEqualHeader\(\s*req\.headers\.get\("x-internal-secret"\)/);
+    expect(fn).toMatch(/APPLY_CONFIRM_INTERNAL_SECRET/);
+    expect(fn).toMatch(/state\s*!==\s*"awaiting_customer_confirm"/);
+    expect(fn).toMatch(/customer_confirm_expires_at/);
+    // Capacity is enforced via the validate_booking_capacity trigger; the
+    // function detects its exceptions through isCapacityError rather than
+    // pre-checking with an isSlotFree helper.
+    expect(fn).toMatch(/isCapacityError\b/);
+    // Fall back to pending on apply failure so leads aren't lost.
+    expect(fn).toMatch(/state:\s*"pending"/);
+  });
+
+  it("whatsapp-agent only calls apply-customer-confirm with shared secret", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+
+    expect(fn).toMatch(/apply-customer-confirm/);
+    expect(fn).toMatch(/x-internal-secret/);
+    expect(fn).toMatch(/APPLY_CONFIRM_INTERNAL_SECRET/);
+    // canAutoBook gate present before dispatchConfirmButtons.
+    expect(fn).toMatch(/canAutoBook\(/);
+    expect(fn).toMatch(/dispatchConfirmButtons\(/);
+  });
+
+  it("whatsapp-send confirm_buttons mode posts Meta interactive buttons and writes message id", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-send/index.ts");
+    // The interactive-button payload and state-transition logic live in the
+    // shared confirmButtons.ts helper (imported by whatsapp-send at runtime).
+    const helper = readProjectFile("supabase/functions/_shared/confirmButtons.ts");
+
+    expect(fn).toMatch(/"confirm_buttons"/);
+    expect(helper).toMatch(/type:\s*"interactive"/);
+    expect(helper).toMatch(/customer_confirm_message_id/);
+    expect(helper).toMatch(/awaiting_customer_confirm/);
+  });
+
+  it("AI-onboarded humans are tagged source=whatsapp_ai for the correction path", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+
+    expect(fn).toMatch(/source:\s*"whatsapp_ai"/);
+    expect(fn).toMatch(/applyPostCreationCorrections\b/);
+    expect(fn).toMatch(/HUMAN_UPDATE_WHITELIST/);
+    expect(fn).toMatch(/DOG_UPDATE_WHITELIST/);
+  });
 });
