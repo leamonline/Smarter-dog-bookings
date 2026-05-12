@@ -14,7 +14,9 @@ export interface Service {
 export type BookingStatusId =
   | "Booked"
   | "Checked in"
+  | "In bath"
   | "Ready for pick-up"
+  | "Completed"
   | "Cancelled";
 
 export interface BookingStatus {

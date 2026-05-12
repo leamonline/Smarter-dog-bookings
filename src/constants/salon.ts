@@ -58,10 +58,18 @@ export function getAddonsTotal(addons: string[] | null | undefined): number {
   return addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
 }
 
+// The five-step status progression for a booking. The card's
+// inline segmented control walks staff through these in order; the
+// detail modal still allows arbitrary jumps for edge cases.
+//   Booked → Checked in → In bath → Ready for pick-up → Completed
+// "Cancelled" is a terminal status reached via the detail modal —
+// it never appears in the inline progression.
 export const BOOKING_STATUSES = [
   { id: "Booked", label: "Booked", color: "#475569", bg: "#F1F5F9" },
   { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
-  { id: "Ready for pick-up", label: "Finished", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: "In bath", label: "In bath", color: "#0E7490", bg: "#CFFAFE" },
+  { id: "Ready for pick-up", label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: "Completed", label: "Completed", color: "#2D004B", bg: "#E2D9F0" },
 ];
 
 export const ALERT_OPTIONS = [
