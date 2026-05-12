@@ -298,6 +298,40 @@ serve(async (req) => {
         return new Response("not_movable", { status: 200 });
       }
 
+      // Apply-time recency check: even though the AI's propose-time gate
+      // requires the ORIGINAL booking to be ≥24h away, the customer can
+      // sit on the confirm message for up to 24h before tapping. By then
+      // the new slot may be hours away — too tight for staff prep. Block
+      // any reschedule whose NEW slot is less than 4 hours from now and
+      // hand off to staff instead.
+      //
+      // Times are stored as local UK clock time (date + "HH:MM"). We
+      // interpret them as Europe/London by hardcoding +01:00 (BST). In
+      // winter (GMT, +00:00) this treats bookings as 1h earlier than
+      // real, which is the conservative direction — we'll reject a few
+      // minutes more eagerly, never accept a sub-4h slot incorrectly.
+      const APPLY_TIME_MIN_HOURS = 4;
+      const newBookingMs = Date.parse(`${newDate}T${newSlot}:00+01:00`);
+      const earliestAllowedMs = Date.now() + APPLY_TIME_MIN_HOURS * 60 * 60 * 1000;
+      if (Number.isFinite(newBookingMs) && newBookingMs < earliestAllowedMs) {
+        const { data: rejectedRows } = await supabase
+          .from("whatsapp_booking_actions")
+          .update({
+            state: "rejected_by_customer",
+            rejection_reason: `too_close_at_apply_time_${APPLY_TIME_MIN_HOURS}h`,
+          })
+          .eq("id", action.id)
+          .eq("state", "awaiting_customer_confirm")
+          .select("id");
+        if (rejectedRows && rejectedRows.length > 0) {
+          await sendAckText(
+            action.conversation_id,
+            "That's getting close to the appointment — one of the team will sort the move shortly. 🎓🐶❤️ X",
+          );
+        }
+        return new Response("too_close", { status: 200 });
+      }
+
       // Optimistic-lock the action transition. From here on, only this
       // caller owns the row.
       const { data: confirmedRows } = await supabase
