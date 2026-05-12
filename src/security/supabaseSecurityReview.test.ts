@@ -322,4 +322,47 @@ describe("Supabase security review regressions", () => {
       );
     }
   });
+
+  it("constrains whatsapp_booking_actions.state to the autonomous-booking state set", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("whatsapp_booking_actions_state_check") &&
+      sql.includes("awaiting_customer_confirm")
+    );
+
+    // The replacement CHECK must list all four new autonomous states alongside the legacy six.
+    expect(migration).toMatch(/awaiting_customer_confirm/);
+    expect(migration).toMatch(/'confirmed'/);
+    expect(migration).toMatch(/auto_applied/);
+    expect(migration).toMatch(/rejected_by_customer/);
+    // Legacy states still present
+    expect(migration).toMatch(/'pending'/);
+    expect(migration).toMatch(/'applied'/);
+  });
+
+  it("adds the confirm-tracking columns and lead-collection columns", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("customer_confirm_message_id") &&
+      sql.includes("lead_status")
+    );
+
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_message_id text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_expires_at timestamptz/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_status text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_payload jsonb/i);
+    expect(migration).toMatch(/add column (?:if not exists )?autonomous_booking_enabled boolean not null default false/i);
+    expect(migration).toMatch(/alter table humans\s+add column\s+(?:if not exists\s+)?source text/i);
+  });
+
+  it("keeps the staff-only is_staff() check on the legacy pending application path", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("create or replace function apply_whatsapp_booking_action") &&
+      sql.includes("not pending or confirmed")
+    );
+
+    // Autonomous path uses state='confirmed' (set under service-role) and skips is_staff.
+    // Staff path keeps is_staff() — verify the conditional gate is present.
+    expect(migration).toMatch(/state = 'pending' and not is_staff\(\)/);
+    expect(migration).toMatch(/'whatsapp_ai_auto'/);
+    expect(migration).toMatch(/'whatsapp_ai'/);
+  });
 });
