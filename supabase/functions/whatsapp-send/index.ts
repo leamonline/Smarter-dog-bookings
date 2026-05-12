@@ -61,6 +61,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import {
+  type ConfirmButtonsBody,
+  type ConfirmButtonsResult,
+  runConfirmButtons,
+} from "../_shared/confirmButtons.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -528,160 +533,54 @@ async function handleTemplateMode(
 }
 
 // ── Confirm-buttons mode handler ──────────────────────────────
-// Sends a Meta interactive button message asking the customer to
-// confirm a booking action. Called by whatsapp-agent (Task 13) after
-// autonomy gates pass. On success transitions the booking action row
-// to 'awaiting_customer_confirm'; on failure leaves it at 'pending'
-// so staff can handle it via the inbox (graceful degrade).
+// Thin wrapper around runConfirmButtons in _shared/confirmButtons.ts.
+// The orchestration (validate → claim → send → record → tag) lives
+// in the shared helper so it can be tested under vitest; this wrapper
+// only injects Deno-runtime dependencies and maps the structured
+// result back to an HTTP Response.
 async function handleConfirmButtons(
   req: Request,
   supabase: SupabaseClient,
   body: ConfirmButtonsMode,
 ): Promise<Response> {
-  const { conversation_id, booking_action_id, summary_text, action_kind } = body;
-
-  if (!conversation_id) {
-    return json(req, { ok: false, reason: "conversation_id is required" }, 400);
-  }
-  if (!booking_action_id) {
-    return json(req, { ok: false, reason: "booking_action_id is required" }, 400);
-  }
-  if (!summary_text) {
-    return json(req, { ok: false, reason: "summary_text is required" }, 400);
-  }
-  if (!action_kind || !["book", "reschedule", "cancel"].includes(action_kind)) {
-    return json(req, { ok: false, reason: "action_kind must be 'book', 'reschedule', or 'cancel'" }, 400);
-  }
-
-  // Pre-check: only send buttons for actions still in the 'pending'
-  // staging state. This guards against (a) double-send on retry, and
-  // (b) racing with a concurrent send for the same action. Matches the
-  // claim-row pattern used by handleDraftMode in this same file.
-  const { data: actionRow, error: actionFetchErr } = await supabase
-    .from("whatsapp_booking_actions")
-    .select("id, conversation_id, state")
-    .eq("id", booking_action_id)
-    .single();
-
-  if (actionFetchErr || !actionRow) {
-    return json(req, { ok: false, reason: "booking action not found" }, 404);
-  }
-  if (actionRow.conversation_id !== conversation_id) {
-    return json(req, { ok: false, reason: "booking action does not belong to this conversation" }, 422);
-  }
-  if (actionRow.state !== "pending") {
-    return json(req, { ok: false, reason: `booking action is ${actionRow.state}, not pending` }, 409);
-  }
-
-  // Look up the conversation's phone number.
-  const { data: conv, error: convErr } = await supabase
-    .from("whatsapp_conversations")
-    .select("id, phone_e164")
-    .eq("id", conversation_id)
-    .single();
-
-  if (convErr || !conv) {
-    return json(req, { ok: false, reason: "conversation not found" }, 404);
-  }
-  if (!conv.phone_e164) {
-    return json(req, { ok: false, reason: "conversation has no phone number" }, 422);
-  }
-
-  const yesLabel =
-    action_kind === "book"
-      ? "Yes, book it"
-      : action_kind === "reschedule"
-      ? "Yes, move it"
-      : "Yes, cancel";
-
-  // Build the Meta interactive buttons payload.
-  // Meta caps: body.text at 1024 chars, button title at 20 chars.
-  const metaBody = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: toMetaTo(conv.phone_e164),
-    type: "interactive",
-    interactive: {
-      type: "button",
-      body: { text: summary_text.slice(0, 1024) },
-      action: {
-        buttons: [
-          {
-            type: "reply",
-            reply: {
-              id: `${booking_action_id}:yes`,
-              title: yesLabel.slice(0, 20),
-            },
-          },
-          {
-            type: "reply",
-            reply: {
-              id: `${booking_action_id}:no`,
-              title: "No, change".slice(0, 20),
-            },
-          },
-        ],
-      },
-    },
+  const inputBody: ConfirmButtonsBody = {
+    conversation_id: body.conversation_id,
+    booking_action_id: body.booking_action_id,
+    summary_text: body.summary_text,
+    action_kind: body.action_kind,
   };
 
-  let metaRes: MetaSendSuccess;
-  try {
-    metaRes = await callMeta(metaBody);
-  } catch (err) {
-    // On Meta failure: leave the booking action at 'pending' for staff
-    // to handle via the inbox (graceful degrade — no state transition).
-    return json(req, {
-      ok: false,
-      reason: err instanceof Error ? err.message : String(err),
-    }, 502);
+  const result: ConfirmButtonsResult = await runConfirmButtons(
+    {
+      supabase,
+      callMeta,
+      recordOutbound: (conversationId, metaMessageId, content, raw) =>
+        recordOutbound(supabase, conversationId, metaMessageId, content, raw),
+      now: () => new Date(),
+    },
+    inputBody,
+  );
+
+  if (!result.ok) {
+    return json(req, { ok: false, reason: result.reason }, result.status);
   }
 
-  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
-
-  // Record the outbound message in whatsapp_messages.
-  await recordOutbound(supabase, conv.id, metaMessageId, summary_text, metaBody);
-
-  // Transition the booking action row: set confirm message details and
-  // move state to 'awaiting_customer_confirm' with a 24h expiry.
-  // Optimistic-lock on state='pending' so a concurrent caller that
-  // raced past the pre-check still can't double-transition the row.
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const { data: updatedRows, error: actionErr } = await supabase
-    .from("whatsapp_booking_actions")
-    .update({
-      customer_confirm_message_id: metaMessageId,
-      customer_confirm_expires_at: expiresAt,
-      state: "awaiting_customer_confirm",
-    })
-    .eq("id", booking_action_id)
-    .eq("state", "pending")
-    .select("id");
-
-  if (actionErr) {
-    console.error("handleConfirmButtons: booking action update failed:", actionErr);
-    return json(req, {
-      ok: true,
-      meta_message_id: metaMessageId,
-      warning: "state_update_failed",
-    });
-  }
-
-  if (!updatedRows || updatedRows.length === 0) {
-    // Lost the race: another caller already transitioned the row. The
-    // Meta message is in the customer's hands, but the state matches
-    // whoever won the race. Surface a warning so the caller can log.
-    console.warn(
-      `handleConfirmButtons: booking action ${booking_action_id} no longer pending; state update skipped`,
+  if (result.warning === "state_update_failed") {
+    console.error(
+      `handleConfirmButtons: booking action ${body.booking_action_id} state update failed`,
     );
-    return json(req, {
-      ok: true,
-      meta_message_id: metaMessageId,
-      warning: "state_transition_skipped",
-    });
+  } else if (result.warning === "state_transition_skipped") {
+    console.warn(
+      `handleConfirmButtons: booking action ${body.booking_action_id} no longer pending; state update skipped`,
+    );
   }
 
-  return json(req, { ok: true, meta_message_id: metaMessageId });
+  return json(
+    req,
+    result.warning
+      ? { ok: true, meta_message_id: result.meta_message_id, warning: result.warning }
+      : { ok: true, meta_message_id: result.meta_message_id },
+  );
 }
 
 function json(req: Request, body: unknown, status = 200): Response {
