@@ -286,12 +286,12 @@ Add at the end of the existing `describe("Supabase security review regressions",
       sql.includes("lead_status")
     );
 
-    expect(migration).toMatch(/add column customer_confirm_message_id text/i);
-    expect(migration).toMatch(/add column customer_confirm_expires_at timestamptz/i);
-    expect(migration).toMatch(/add column lead_status text/i);
-    expect(migration).toMatch(/add column lead_payload jsonb/i);
-    expect(migration).toMatch(/add column autonomous_booking_enabled boolean not null default false/i);
-    expect(migration).toMatch(/alter table humans\s+add column source text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_message_id text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_expires_at timestamptz/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_status text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_payload jsonb/i);
+    expect(migration).toMatch(/add column (?:if not exists )?autonomous_booking_enabled boolean not null default false/i);
+    expect(migration).toMatch(/alter table humans\s+add column\s+(?:if not exists\s+)?source text/i);
   });
 
   it("keeps the staff-only is_staff() check on the legacy pending application path", () => {
