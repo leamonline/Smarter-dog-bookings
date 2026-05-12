@@ -28,23 +28,57 @@ function sizeDot(size) {
   return t.gradient[0];
 }
 
+/**
+ * A dog has an "incomplete profile" when any of the three core
+ * fields is missing — surfaced as a yellow badge on the card and
+ * profile page so staff can spot records that need attention.
+ */
+export function isIncompleteDogProfile(dog, humans) {
+  if (!dog) return true;
+  if (!dog.size) return true;
+  if (!dog.breed || !dog.breed.trim()) return true;
+  const owner = formatOwnerLabel(dog, humans);
+  return owner.missing;
+}
+
+const SIZE_FILTERS = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "unset", label: "Unset" },
+];
+
 export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [sizeFilter, setSizeFilter] = useState(null); // "small" | "medium" | "large" | "unset" | null
+  const [alertFilter, setAlertFilter] = useState(false); // true → only dogs with alerts
+  const [incompleteFilter, setIncompleteFilter] = useState(false);
   useToast(); // wired for child modals; cards no longer surface toasts directly
 
   const hasSearchQuery = Boolean(searchQuery?.trim());
   const sortedDogs = useMemo(() => {
-    const visibleDogs =
+    const baseDogs =
       hasSearchQuery && !isOnline
         ? filterDogsForDirectory(dogs, humans, searchQuery)
         : Object.values(dogs);
-    return visibleDogs.sort((a, b) => a.name.localeCompare(b.name));
-  }, [dogs, humans, hasSearchQuery, isOnline, searchQuery]);
-  const registeredTotal = hasSearchQuery
+    const filtered = baseDogs.filter((dog) => {
+      if (sizeFilter) {
+        const dogSize = dog.size || "unset";
+        if (dogSize !== sizeFilter) return false;
+      }
+      if (alertFilter && !(dog.alerts?.length)) return false;
+      if (incompleteFilter && !isIncompleteDogProfile(dog, humans)) return false;
+      return true;
+    });
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }, [dogs, humans, hasSearchQuery, isOnline, searchQuery, sizeFilter, alertFilter, incompleteFilter]);
+
+  const anyFilterActive = sizeFilter || alertFilter || incompleteFilter;
+  const registeredTotal = hasSearchQuery || anyFilterActive
     ? sortedDogs.length
     : Math.max(Number(totalCount) || 0, Object.keys(dogs).length);
-  const headerCountText = hasSearchQuery
+  const headerCountText = hasSearchQuery || anyFilterActive
     ? `${sortedDogs.length} matching dog${sortedDogs.length !== 1 ? "s" : ""}`
     : `${registeredTotal} dog${registeredTotal !== 1 ? "s" : ""} registered`;
   const footerText = hasSearchQuery
@@ -70,7 +104,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
               </div>
               <input
                 type="text"
-                placeholder="Search dogs..."
+                placeholder="Search by name, breed or owner..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
                 className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
@@ -86,20 +120,64 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         </div>
       </div>
 
-      {/* Size legend */}
-      <div className="flex items-center gap-4 mb-3 text-xs font-semibold text-slate-500 flex-wrap">
+      {/* Filters — size chips + alert/incomplete chips. Click an active
+          chip again to clear it. */}
+      <div className="flex items-center gap-3 mb-3 flex-wrap" role="group" aria-label="Filter dogs">
         <span className="text-slate-400 uppercase tracking-wide text-[10px] font-bold">Size:</span>
-        {[
-          { label: "Small", colour: SIZE_THEME.small.gradient[0] },
-          { label: "Medium", colour: SIZE_THEME.medium.gradient[0] },
-          { label: "Large", colour: SIZE_THEME.large.gradient[0] },
-          { label: "Unset", colour: SIZE_FALLBACK.gradient[0] },
-        ].map((s) => (
-          <span key={s.label} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.colour }} />
-            {s.label}
-          </span>
-        ))}
+        {SIZE_FILTERS.map((s) => {
+          const active = sizeFilter === s.value;
+          const colour = s.value === "unset" ? SIZE_FALLBACK.gradient[0] : SIZE_THEME[s.value].gradient[0];
+          return (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setSizeFilter(active ? null : s.value)}
+              aria-pressed={active}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer border ${
+                active
+                  ? "bg-slate-800 text-white border-slate-800"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: colour }} aria-hidden="true" />
+              {s.label}
+            </button>
+          );
+        })}
+        <span className="text-slate-300 mx-1">·</span>
+        <button
+          type="button"
+          onClick={() => setAlertFilter((v) => !v)}
+          aria-pressed={alertFilter}
+          className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer border ${
+            alertFilter
+              ? "bg-rose-50 text-rose-800 border-rose-300"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+          }`}
+        >
+          {"⚠️"} Has alert
+        </button>
+        <button
+          type="button"
+          onClick={() => setIncompleteFilter((v) => !v)}
+          aria-pressed={incompleteFilter}
+          className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer border ${
+            incompleteFilter
+              ? "bg-amber-50 text-amber-900 border-amber-300"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+          }`}
+        >
+          Incomplete profile
+        </button>
+        {anyFilterActive && (
+          <button
+            type="button"
+            onClick={() => { setSizeFilter(null); setAlertFilter(false); setIncompleteFilter(false); }}
+            className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Card grid */}
@@ -112,6 +190,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           const alertCount = (dog.alerts || []).length;
           const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
           const age = computeAge(dog);
+          const incomplete = isIncompleteDogProfile(dog, humans);
 
           return (
             <div
@@ -125,7 +204,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
               <div className="h-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1] || t.gradient[0]})` }} />
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
-                {/* Name + alert */}
+                {/* Name + alert + incomplete badge */}
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex items-center gap-1.5 truncate">
                     <span
@@ -136,16 +215,26 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                       {titleCase(dog.name)}
                     </span>
                   </div>
-                  {alertCount > 0 && (
-                    <span className="text-[11px] font-bold text-brand-coral shrink-0">
-                      {"\u26A0\uFE0F"} {alertCount}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {incomplete && (
+                      <span
+                        className="text-[9px] font-extrabold uppercase tracking-wide text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full"
+                        title="Missing size, breed or owner"
+                      >
+                        Incomplete
+                      </span>
+                    )}
+                    {alertCount > 0 && (
+                      <span className="text-[11px] font-bold text-brand-coral">
+                        {"⚠️"} {alertCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Breed + age */}
                 <div className="text-[13px] text-slate-500 font-semibold leading-snug mt-0.5 truncate">
-                  {titleCase(dog.breed)}{age ? ` \u00B7 ${age}` : ""}
+                  {titleCase(dog.breed) || <span className="italic text-slate-400">No breed</span>}{age ? ` · ${age}` : ""}
                 </div>
 
                 {/* Owner — pushed to bottom. Italic when we don't know who the owner is. */}
@@ -161,13 +250,17 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
 
         {sortedDogs.length === 0 && !isSearching && (
           <div className="col-span-full text-center py-16 px-5 text-slate-500">
-            <div className="text-[32px] mb-3">{"\uD83D\uDC3E"}</div>
+            <div className="text-[32px] mb-3">{"🐾"}</div>
             <div className="text-[15px] font-semibold">
-              {searchQuery ? `No dogs found matching "${searchQuery}"` : "No dogs yet."}
+              {searchQuery
+                ? `No dogs found matching "${searchQuery}"`
+                : anyFilterActive
+                  ? "No dogs match the active filters."
+                  : "No dogs yet."}
             </div>
-            {searchQuery && (
+            {(searchQuery || anyFilterActive) && (
               <div className="text-[13px] mt-1.5">
-                Try searching by breed or owner name instead.
+                Try clearing some filters or searching by breed or owner name.
               </div>
             )}
           </div>
@@ -183,7 +276,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
             <span>{footerText}</span>
           )}
         </div>
-        {hasMore && !isSearching && !hasSearchQuery && (
+        {hasMore && !isSearching && !hasSearchQuery && !anyFilterActive && (
           <button
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
             disabled={loadingMore}

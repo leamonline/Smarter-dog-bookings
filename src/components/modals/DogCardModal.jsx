@@ -378,6 +378,12 @@ export function DogCardModal({
           onClose={onClose}
           onEnterEdit={() => setIsEditing(true)}
           onOpenGallery={() => setShowGallery(true)}
+          incomplete={
+            !resolvedDog.size ||
+            !resolvedDog.breed ||
+            !resolvedDog.breed.trim() ||
+            !owner
+          }
         />
 
         <div
