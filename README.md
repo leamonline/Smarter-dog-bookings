@@ -193,9 +193,11 @@ Set the function's secrets with `supabase secrets set NAME=value` (do NOT put th
 **Turning auto-send on safely** (when you're ready, after a few weeks of monitoring drafts):
 
 1. Set `AI_AUTO_SEND_LOW_RISK=true` on the function.
-2. Pick a single trusted conversation in the inbox and flip its `auto_send_enabled` to `true` (currently this is a column on `whatsapp_conversations` — UI for it is a follow-up).
+2. Pick a single trusted conversation in the inbox and flip its "Auto-send off" toggle to on (column: `whatsapp_conversations.auto_send_enabled`). The toggle prompts for confirmation before turning auto-send on; turning it off is one click.
 3. Watch the drafts panel. Drafts that auto-send transition to state `auto_sent` and skip the approval step.
 4. Roll out to more conversations over time. Booking-touching intents are never auto-sent regardless of opt-in.
+
+Note: `auto_send_enabled` defaults to `false` at the column level (set in migration `20260424001635_whatsapp_schema.sql`, re-asserted in `20260513130000_whatsapp_auto_send_default_off.sql`). The inbox UI reads its initial state from the row, never defaulting to on in the component.
 
 ### Migration history note
 
