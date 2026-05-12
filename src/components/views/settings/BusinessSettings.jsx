@@ -1,9 +1,21 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
 
+const PLACEHOLDER_BIZ_NAME = "Smarter Dog Grooming";
+
 export function BusinessSettings({ config, onUpdateConfig }) {
+  // Track whether the salon has actively configured its details so we
+  // can warn that customers are seeing the default placeholders rather
+  // than real values. The default name doubles as a placeholder; phone,
+  // email and address have no defaults.
+  const isUnconfigured =
+    !config?.businessPhone &&
+    !config?.businessEmail &&
+    !config?.businessAddress &&
+    (!config?.businessName || config?.businessName === PLACEHOLDER_BIZ_NAME);
+
   const [business, setBusiness] = useState({
-    name: config?.businessName || "Smarter Dog Grooming",
+    name: config?.businessName || PLACEHOLDER_BIZ_NAME,
     phone: config?.businessPhone || "",
     email: config?.businessEmail || "",
     address: config?.businessAddress || "",
@@ -29,13 +41,25 @@ export function BusinessSettings({ config, onUpdateConfig }) {
     <Card id="settings-business">
       <CardHead variant="teal" title="Your Business" desc="Details shown to customers on the booking portal" />
       <CardBody>
+        {isUnconfigured && (
+          <div
+            role="status"
+            className="mb-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-[12px] font-medium px-3 py-2"
+          >
+            <strong className="font-bold">Salon not yet configured</strong> —
+            customers will see default placeholders. Fill in the fields below
+            and tap Save.
+          </div>
+        )}
         <div className="mb-3">
           <label className={LABEL_CLS}>Salon Name</label>
           <input
             type="text"
             value={business.name}
             onChange={(e) => setBusiness((b) => ({ ...b, name: e.target.value }))}
-            className={INPUT_CLS}
+            className={`${INPUT_CLS} ${
+              business.name === PLACEHOLDER_BIZ_NAME ? "italic text-slate-500/60" : ""
+            }`}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-3">

@@ -4,6 +4,7 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
+  looksLikeUuid,
 } from "../../engine/bookingRules.js";
 import {
   GroomingHistory,
@@ -31,11 +32,13 @@ export function DogCardModal({
   onUpdateDog,
   onUpdateHuman,
   onAddHuman,
+  onDeleteDog,
   bookingsByDate,
   fetchBookingHistoryForDog,
   fetchDogById,
   handleAdd,
 }) {
+  const [pendingDelete, setPendingDelete] = useState(false);
   const fallback = {
     id: dogId,
     name: dogId,
@@ -69,7 +72,11 @@ export function DogCardModal({
     getHumanByIdOrName(humans, resolvedDog._humanId || resolvedDog.humanId) ||
     null;
 
-  const ownerLabel = owner?.fullName || resolvedDog.humanId || "";
+  // ownerLabel is visible text in the card title row, so it can never
+  // be a raw UUID. ownerOpenValue is an internal id passed to onOpenHuman
+  // and is allowed to be a UUID.
+  const rawOwnerLabel = owner?.fullName || resolvedDog.humanId || "";
+  const ownerLabel = looksLikeUuid(rawOwnerLabel) ? "" : rawOwnerLabel;
   const ownerOpenValue =
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
@@ -371,6 +378,12 @@ export function DogCardModal({
           onClose={onClose}
           onEnterEdit={() => setIsEditing(true)}
           onOpenGallery={() => setShowGallery(true)}
+          incomplete={
+            !resolvedDog.size ||
+            !resolvedDog.breed ||
+            !resolvedDog.breed.trim() ||
+            !owner
+          }
         />
 
         <div
@@ -467,7 +480,41 @@ export function DogCardModal({
           sizeTheme={sizeTheme}
           headerTextColour={headerTextColour}
         />
+
+        {/* Delete moved here in task 4 of the May 2026 review pass —
+            bulk delete from the /dogs grid was too easy to mis-fire. */}
+        {isEditing && onDeleteDog && (
+          <div className="px-6 pb-5 -mt-2 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setPendingDelete(true)}
+              className="text-[12px] font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+            >
+              Delete this dog…
+            </button>
+          </div>
+        )}
     </AccessibleModal>
+
+    {pendingDelete && (
+      <ConfirmDialog
+        title={`Delete ${resolvedDog.name}?`}
+        message="This removes the dog from the salon — booking history and groom photos go with them. Cannot be undone."
+        confirmLabel="Delete dog"
+        variant="danger"
+        onConfirm={async () => {
+          const result = await onDeleteDog?.(resolvedDog.id);
+          setPendingDelete(false);
+          if (result?.ok) {
+            toast.show(`Deleted ${resolvedDog.name}`, "success");
+            onClose?.();
+          } else if (result?.error) {
+            toast.show(result.error, "error");
+          }
+        }}
+        onCancel={() => setPendingDelete(false)}
+      />
+    )}
 
     {showChainBooking && lastBooking && (
       <Suspense fallback={null}>

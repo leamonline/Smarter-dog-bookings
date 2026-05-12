@@ -785,6 +785,66 @@ export function useHumans() {
     [humans, humansById],
   );
 
+  // Bulk-load any humans referenced by ids that aren't yet in the
+  // local map. The /dogs and /bookings pages can show records owned
+  // by humans whose row sits past the current humans pagination
+  // window — without this, formatOwnerLabel collapses every such
+  // owner to "Unknown owner" because dog.humanId is the raw UUID.
+  //
+  // The in-flight set deduplicates concurrent calls (one per visible
+  // page) and the fetched set caches the resolution so we don't
+  // re-hit Supabase after the first paint.
+  const inflightHumanIdsRef = useRef<Set<string>>(new Set());
+  const fetchedHumanIdsRef = useRef<Set<string>>(new Set());
+
+  const ensureHumansByIds = useCallback(
+    async (ids: (string | null | undefined)[]) => {
+      if (!supabase || !ids?.length) return;
+      const missing = Array.from(
+        new Set(
+          ids.filter(
+            (id): id is string =>
+              typeof id === "string" &&
+              id.length > 0 &&
+              !humansById[id] &&
+              !humans[id] &&
+              !inflightHumanIdsRef.current.has(id) &&
+              !fetchedHumanIdsRef.current.has(id),
+          ),
+        ),
+      );
+      if (missing.length === 0) return;
+
+      missing.forEach((id) => inflightHumanIdsRef.current.add(id));
+
+      const { data, error: err } = await supabase
+        .from("humans")
+        .select("*")
+        .in("id", missing);
+
+      missing.forEach((id) => {
+        inflightHumanIdsRef.current.delete(id);
+        fetchedHumanIdsRef.current.add(id);
+      });
+
+      if (err) {
+        console.error("ensureHumansByIds failed:", err);
+        return;
+      }
+
+      const rows = data || [];
+      if (rows.length === 0) return;
+
+      const additions: Record<string, any> = {};
+      for (const row of rows) {
+        additions[row.id] = buildHumanMapEntry(row);
+      }
+      setHumansById((prev) => ({ ...prev, ...additions }));
+      setHumans((prev) => ({ ...prev, ...additions }));
+    },
+    [humans, humansById],
+  );
+
   return {
     humans,
     humansById,
@@ -794,6 +854,7 @@ export function useHumans() {
     addHuman,
     deleteHuman,
     fetchHumanById,
+    ensureHumansByIds,
     hasMore,
     totalCount,
     loadMore,

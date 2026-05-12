@@ -14,7 +14,9 @@ export interface Service {
 export type BookingStatusId =
   | "Booked"
   | "Checked in"
+  | "In bath"
   | "Ready for pick-up"
+  | "Completed"
   | "Cancelled";
 
 export interface BookingStatus {
@@ -78,6 +80,10 @@ export interface Booking {
   payment: string;
   depositAmount?: number | null;
   confirmed: boolean;
+  breedSnapshot: string | null;
+  ownerNameSnapshot: string | null;
+  whatsappConversationId: string | null;
+  whatsappMessageId: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

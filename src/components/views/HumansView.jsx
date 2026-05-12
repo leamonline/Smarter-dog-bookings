@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
-import { SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
+import { getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
-import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
-import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
+import { CardGridSkeleton } from "../ui/Skeleton.jsx";
+import { SizeDot } from "../ui/SizeDot.jsx";
 
 function waLink(phone) {
   if (!phone) return "#";
@@ -14,16 +14,9 @@ function waLink(phone) {
   return `https://wa.me/${intl}`;
 }
 
-function sizeDot(size) {
-  const t = SIZE_THEME[size];
-  return t ? t.gradient[0] : "#94A3B8";
-}
-
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, onUpdateDog, onDeleteHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState(null); // { id, name, dogCount }
-  const toast = useToast();
 
   const hasSearchQuery = Boolean(searchQuery?.trim());
   const sortedHumans = useMemo(() => {
@@ -52,18 +45,6 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
     if (!ensureDogsForHumans || !visibleHumanIdsKey) return;
     ensureDogsForHumans(visibleHumanIdsKey.split(","));
   }, [ensureDogsForHumans, visibleHumanIdsKey]);
-
-  const handleConfirmDelete = async () => {
-    if (!pendingDelete) return;
-    const { id, name } = pendingDelete;
-    const result = await onDeleteHuman?.(id);
-    setPendingDelete(null);
-    if (result?.ok) {
-      toast.show(`Deleted ${titleCase(name)}`, "success");
-    } else if (result?.error) {
-      toast.show(result.error, "error");
-    }
-  };
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
@@ -100,7 +81,10 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
         </div>
       </div>
 
-      {/* Card grid */}
+      {/* Card grid — skeleton during the initial fetch. */}
+      {isInitialLoading && sortedHumans.length === 0 ? (
+        <CardGridSkeleton rows={3} cols={3} />
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedHumans.map((human) => {
           const fullName = human.fullName || `${human.name} ${human.surname}`;
@@ -118,28 +102,8 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
               onClick={() => onOpenHuman(human.id || fullName)}
               className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
             >
-              {onDeleteHuman && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingDelete({
-                      id: human.id,
-                      name: fullName,
-                      dogCount: humanDogs.length,
-                    });
-                  }}
-                  aria-label={`Delete ${titleCase(fullName)}`}
-                  className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-md bg-white/95 border border-slate-200 text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-brand-coral hover:border-brand-coral transition-all flex items-center justify-center cursor-pointer"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
-                </button>
-              )}
+              {/* Trash icon removed in task 4 of the May 2026 review pass.
+                  Delete now lives inside the human profile. */}
               <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594] shrink-0" />
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
@@ -153,17 +117,30 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                   )}
                 </div>
 
-                {/* Phone */}
+                {/* Phone — tel: lets desktop dial via FaceTime / Skype /
+                    Android pair-up, and on mobile it triggers the dialer.
+                    WhatsApp deep-link kept as a second icon button. */}
                 {human.phone ? (
-                  <a
-                    href={waLink(human.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <div
+                    className="flex items-center gap-2 leading-snug"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal leading-snug"
                   >
-                    {human.phone}
-                  </a>
+                    <a
+                      href={`tel:${human.phone.replace(/[\s-()]/g, "")}`}
+                      className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal"
+                    >
+                      {human.phone}
+                    </a>
+                    <a
+                      href={waLink(human.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in WhatsApp"
+                      className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100"
+                    >
+                      WA
+                    </a>
+                  </div>
                 ) : (
                   <div className="text-[13px] text-slate-400 italic leading-snug">No phone</div>
                 )}
@@ -176,10 +153,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                         const dogSize = dog.size || getSizeForBreed(dog.breed);
                         return (
                           <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ background: sizeDot(dogSize), boxShadow: `0 0 0 2px ${sizeDot(dogSize)}33` }}
-                            />
+                            <SizeDot size={dogSize} dim={10} />
                             <span className="text-[12px] font-semibold text-slate-600">
                               {titleCase(dog.name)}
                               {dog.breed && <span className="font-medium text-slate-400"> ({titleCase(dog.breed)})</span>}
@@ -214,6 +188,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           </div>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
@@ -241,22 +216,6 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           onAdd={onAddHuman}
           dogs={dogs}
           humans={humans}
-          onUpdateDog={onUpdateDog}
-        />
-      )}
-
-      {pendingDelete && (
-        <ConfirmDeleteModal
-          title={`Delete ${titleCase(pendingDelete.name)}?`}
-          message="They'll be removed from the directory. WhatsApp threads will stay but lose their link to this person."
-          cascadeWarning={
-            pendingDelete.dogCount > 0
-              ? `This will also delete ${pendingDelete.dogCount} dog${pendingDelete.dogCount === 1 ? "" : "s"} owned by them, plus all of their booking history and groom photos.`
-              : null
-          }
-          confirmLabel="Delete person"
-          onConfirm={handleConfirmDelete}
-          onClose={() => setPendingDelete(null)}
         />
       )}
     </div>

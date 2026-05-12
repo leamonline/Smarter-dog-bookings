@@ -3,10 +3,12 @@ import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { SERVICES } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
   computeBookingPricing,
+  resolveBookingDisplay,
 } from "../../engine/bookingRules.js";
 import { titleCase } from "../../utils/text.js";
 
@@ -30,9 +32,15 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 const STATUS_DISPLAY = {
   "Booked":             { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
   "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
-  "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Finished" },
+  "In bath":            { bg: "#CFFAFE", color: "#0E7490", border: "#22D3EE", label: "In bath" },
+  "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Ready" },
+  "Completed":          { bg: "#E2D9F0", color: "#2D004B", border: "#5B3D80", label: "Completed" },
   "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E7546C", label: "Cancelled" },
 };
+
+// The five-step inline progression. Cancelled is terminal and only
+// reachable via the detail modal — never appears here.
+const STATUS_PROGRESSION = ["Booked", "Checked in", "In bath", "Ready for pick-up", "Completed"];
 
 const SIZE_TOOLTIP = {
   small: "Small dog",
@@ -148,14 +156,31 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const [statusOpen, setStatusOpen] = useState(false);
   const [alertsAnchor, setAlertsAnchor] = useState(null);
   const alertsButtonRef = useRef(null);
+  const toast = useToast();
+
+  const changeStatus = (nextStatus) => {
+    if (!nextStatus || nextStatus === booking.status) return;
+    const previous = booking.status || "Booked";
+    if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
+    // Undo toast — gives staff 5s to back out of a mis-tap. The toast
+    // module clears itself after its timeout; the undo handler just
+    // re-applies the previous status via the same update path.
+    toast.show(
+      `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
+      "info",
+      () => onUpdate?.({ ...booking, status: previous }, currentDateStr, currentDateStr),
+    );
+  };
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
   const service = SERVICES.find((s) => s.id === booking.service);
   const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["Booked"];
 
-  const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking.dogName);
-  const humanRecord = getHumanByIdOrName(humans, booking._ownerId || booking.owner || booking.ownerName);
+  const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking._dogId || booking.dogName);
+  // Single source of truth (matches BookingHeader + transforms.ts): live join,
+  // falling back to bookings.*_snapshot only when the dog/owner row is missing.
+  const display = resolveBookingDisplay(booking, dogs, humans);
 
   // Total owed at pick-up (service + add-ons, minus deposit or paid-in-full).
   // Shared with BookingDetailModal so card and modal can't drift.
@@ -168,15 +193,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     customPrice: dogRecord?.customPrice,
   });
 
-  const displayDogName = titleCase(
-    dogRecord?.name || booking.dogName || "Unknown Dog"
-  );
-  const displayBreed = titleCase(
-    dogRecord?.breed || booking.breed || ""
-  );
-  const displayOwner = titleCase(
-    humanRecord?.fullName || booking.owner || booking.ownerName || ""
-  );
+  const displayDogName = titleCase(display.dogName);
+  const displayBreed = titleCase(display.breed);
+  const displayOwner = titleCase(display.owner === "Unknown owner" ? "" : display.owner);
 
   const handleCardClick = onClick || (() => setShowDetail(true));
 
@@ -293,11 +312,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); }
               }}
             >
-              {[
-                { id: "Booked", ...STATUS_DISPLAY["Booked"] },
-                { id: "Checked in", ...STATUS_DISPLAY["Checked in"] },
-                { id: "Ready for pick-up", ...STATUS_DISPLAY["Ready for pick-up"] },
-              ].map((s) => {
+              {STATUS_PROGRESSION.map((id) => {
+                const s = { id, ...STATUS_DISPLAY[id] };
                 const isCurrent = s.id === booking.status;
                 return (
                   <button
@@ -307,7 +323,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     aria-selected={isCurrent}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!isCurrent && onUpdate) onUpdate({ ...booking, status: s.id }, currentDateStr, currentDateStr);
+                      if (!isCurrent) changeStatus(s.id);
                       setStatusOpen(false);
                     }}
                     onKeyDown={(e) => {

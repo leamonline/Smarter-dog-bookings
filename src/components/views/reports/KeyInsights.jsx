@@ -1,4 +1,5 @@
 import { Section, SIZE_COLORS } from "./ReportWidgets.jsx";
+import { pluralCount } from "../../../utils/intl.js";
 
 function buildSizeSummary(sizes, curRev) {
   const active = sizes.filter((s) => s.n > 0);
@@ -21,7 +22,7 @@ function fillRateInsight(util, openDays) {
   if (openDays === 0) return null;
   if (util < 30) return `Seat fill is ${util.toFixed(0)}% — availability is wide open.`;
   if (util > 85) return `Seat fill is ${util.toFixed(0)}% — capacity is nearly maxed.`;
-  return `Seat fill is ${util.toFixed(0)}% across ${openDays} open day${openDays !== 1 ? "s" : ""}.`;
+  return `Seat fill is ${util.toFixed(0)}% across ${pluralCount(openDays, "open day", "open days")}.`;
 }
 
 export function KeyInsights({ stats, insights }) {
@@ -32,7 +33,7 @@ export function KeyInsights({ stats, insights }) {
     const top = stats.svcs[0];
     items.push({
       key: "service",
-      text: `${top.name} drives the period (£${top.rev.toFixed(0)} from ${top.n} booking${top.n !== 1 ? "s" : ""}).`,
+      text: `${top.name} drives the period (£${top.rev.toFixed(0)} from ${pluralCount(top.n, "booking", "bookings")}).`,
     });
   }
 
@@ -40,7 +41,7 @@ export function KeyInsights({ stats, insights }) {
   else if (stats.busiestDay.n > 0) {
     items.push({
       key: "day",
-      text: `${stats.busiestDay.label} is the busiest day (${stats.busiestDay.n} booking${stats.busiestDay.n !== 1 ? "s" : ""}).`,
+      text: `${stats.busiestDay.label} is the busiest day (${pluralCount(stats.busiestDay.n, "booking", "bookings")}).`,
     });
   }
 

@@ -567,12 +567,17 @@ export function guessIntentFromText(messageText: string | null | undefined): Int
   }
   if (isWalkInService(text)) return "faq";
   if (/\b(price|cost|how much|£)\b/.test(text)) return "faq";
+  // Salon-info FAQs: hours/opening, address/parking, payment methods.
+  // Kept narrow so it doesn't swallow the explicit booking phrases below.
+  if (/\b(open|opening|close|closing|hours|when (?:are|do) you|what time|address|parking|where are you|do you take|card or cash|payment)\b/.test(text)) {
+    return "faq";
+  }
   // Order matters: cancel/reschedule must run before the broad
   // booking_propose pattern, otherwise "cancel today's appointment"
   // hits "appointment" and routes to booking_propose.
   if (/\bcancel\w*\b/.test(text)) return "booking_cancel";
   if (/\b(reschedul\w*|move|change|swap)\b/.test(text)) return "booking_change";
-  if (/\b(book|appointment|slot|available|availability)\b/.test(text)) return "booking_propose";
+  if (/\b(book|booking|appointment|slot|available|availability)\b/.test(text)) return "booking_propose";
   if (/\b(thanks|thank you|cheers|on my way|coming|omw)\b/.test(text)) return "smalltalk";
   if (/\b(hi|hey|hello|morning|afternoon)\b/.test(text)) return "greeting";
   return "other";

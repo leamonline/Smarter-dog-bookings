@@ -33,6 +33,35 @@ export function CapacitySettings({ config, onUpdateConfig }) {
     <Card id="settings-capacity">
       <CardHead variant="coral" title="Capacity Engine" desc="The 2-2-1 rule controls how many dogs can be booked at once" />
       <CardBody>
+        <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-700 leading-relaxed">
+          <p className="m-0 mb-1.5 font-semibold text-slate-800">
+            What the 2-2-1 rule means
+          </p>
+          <p className="m-0 mb-1.5">
+            Up to <strong>2 small dogs</strong>, <strong>2 medium dogs</strong>,
+            and <strong>1 large dog</strong> can be in the salon in the same
+            time block. Large dogs may only be booked into the approved slots
+            listed below.
+          </p>
+          <p className="m-0 mb-1.5 text-slate-600">
+            <em>Worked example:</em> at 09:00 with two cockapoos already booked,
+            a third small dog is blocked, a standard poodle (medium) is allowed,
+            and a labrador is allowed only if 09:00 is in the approved-slot
+            list.
+          </p>
+          <p className="m-0 text-slate-600">
+            Full details + the underlying check function are in{" "}
+            <a
+              href="https://github.com/leamonline/Smarter-dog-bookings/blob/main/docs/capacity-engine.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-teal underline"
+            >
+              docs/capacity-engine.md
+            </a>
+            .
+          </p>
+        </div>
         <SettingRow
           label="Enforce 2-2-1 strict capacity"
           sublabel="Prevents overbooking beyond safe limits"

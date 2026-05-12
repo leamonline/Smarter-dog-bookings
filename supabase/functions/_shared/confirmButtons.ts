@@ -191,10 +191,16 @@ export function validateConfirmButtonsBody(
 //
 // State the row can be in if the function dies between (4) and a
 // successful (5)/(7): 'awaiting_customer_confirm' with null
-// message_id and a fresh expires_at. The TTL sweeper in
-// apply-customer-confirm/index.ts will eventually flip it to
-// 'rejected_by_customer (expired)' — safe degrade, no customer
-// ever saw a button so no double-message risk.
+// message_id and a fresh expires_at. apply-customer-confirm has
+// a TTL check, but it only fires on an inbound button tap — and
+// the customer never received a button for an orphan row, so no
+// tap can ever come. The expires_at field is therefore lazy at
+// time of writing: nothing actively sweeps stale rows. This is
+// a subset of a broader pattern that also affects any non-tapped
+// row (customer simply doesn't reply), tracked separately. The
+// failure mode is dead data, not a customer-facing block — a
+// later booking attempt creates a fresh row at state='pending'
+// and proceeds normally. No double-message risk either way.
 
 export async function runConfirmButtons(
   deps: ConfirmButtonsDeps,

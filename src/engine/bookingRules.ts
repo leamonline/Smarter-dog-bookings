@@ -1,6 +1,16 @@
 import { PRICING, SERVICES } from "../constants/index.js";
 import { getAddonsTotal } from "../constants/salon.js";
-import type { Service, Human, Dog } from "../types/index.js";
+import type { Service, Human, Dog, Booking } from "../types/index.js";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * True if `value` is shaped like a UUID. Used by display helpers to
+ * refuse rendering raw IDs as customer-visible text.
+ */
+export function looksLikeUuid(value: unknown): boolean {
+  return typeof value === "string" && UUID_RE.test(value);
+}
 
 export const DEFAULT_DEPOSIT_AMOUNT = 10;
 
@@ -112,4 +122,73 @@ export function getDogByIdOrName(dogs: Record<string, Dog>, idOrName: string): D
   if (!dogs || !idOrName) return null;
 
   return Object.values(dogs).find((dog) => dog.id === idOrName || dog.name === idOrName) || null;
+}
+
+export interface BookingDisplay {
+  dogName: string;
+  breed: string;
+  owner: string;
+  ownerPhone: string;
+  dogMissing: boolean;
+  ownerMissing: boolean;
+}
+
+/**
+ * The single selector for booking display text. Every surface that
+ * renders a booking (Grid card, List card, Booking detail modal,
+ * Reports) must go through this so they never disagree.
+ *
+ * Policy (also enforced server-side via trg_bookings_set_snapshots):
+ *   1. Prefer the live joined value from `dogs` / `humans`.
+ *   2. Fall back to `booking.breedSnapshot` / `booking.ownerNameSnapshot`
+ *      only when the dog or human row is missing or has been deleted.
+ *   3. Never render a UUID as customer-visible text. If the input
+ *      somehow resolves to a UUID-shape, the helper substitutes the
+ *      "Unknown" sentinel and (in dev) emits a warning so the leak is
+ *      caught in code review rather than in production.
+ */
+export function resolveBookingDisplay(
+  booking: Booking | null | undefined,
+  dogs: Record<string, Dog> | null | undefined,
+  humans: Record<string, Human> | null | undefined,
+): BookingDisplay {
+  if (!booking) {
+    return {
+      dogName: "Unknown",
+      breed: "",
+      owner: "Unknown owner",
+      ownerPhone: "",
+      dogMissing: true,
+      ownerMissing: true,
+    };
+  }
+
+  const dog = getDogByIdOrName(dogs ?? {}, booking._dogId || booking.dogName || "");
+  const owner = dog
+    ? getHumanByIdOrName(humans ?? {}, dog._humanId || dog.humanId || "")
+    : booking._ownerId
+      ? getHumanByIdOrName(humans ?? {}, booking._ownerId)
+      : null;
+
+  const rawDogName = dog?.name || booking.dogName || "";
+  const rawBreed = dog?.breed || booking.breedSnapshot || booking.breed || "";
+  const rawOwnerName = owner?.fullName || booking.ownerNameSnapshot || booking.owner || "";
+
+  const dogName = looksLikeUuid(rawDogName) ? "Unknown" : (rawDogName || "Unknown");
+  const breed = looksLikeUuid(rawBreed) ? "" : rawBreed;
+  const owner_label = looksLikeUuid(rawOwnerName) || !rawOwnerName ? "Unknown owner" : rawOwnerName;
+
+  if (import.meta.env?.DEV) {
+    if (looksLikeUuid(rawDogName)) console.warn("resolveBookingDisplay: dog name looked like a UUID", booking.id);
+    if (looksLikeUuid(rawOwnerName)) console.warn("resolveBookingDisplay: owner name looked like a UUID", booking.id);
+  }
+
+  return {
+    dogName,
+    breed,
+    owner: owner_label,
+    ownerPhone: owner?.phone || "",
+    dogMissing: !dog,
+    ownerMissing: !owner,
+  };
 }

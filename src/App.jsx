@@ -6,7 +6,7 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 
 import { supabase } from "./supabase/client.js";
@@ -198,6 +198,7 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
 
 function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     selectedHumanId, setSelectedHumanId,
     selectedDogId, setSelectedDogId,
@@ -209,6 +210,53 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showRebookDatePicker, setShowRebookDatePicker,
     openNewBooking,
   } = useModalState();
+
+  // ── Profile-page routing (task 4 of the May 2026 review) ───────
+  // /dogs/:id and /humans/:id are shareable URLs that open the dog
+  // or human profile. The route is the source of truth; the modal
+  // state mirrors it for backward compat with non-URL callers (the
+  // inbox customer context, the booking detail modal, etc.).
+  useEffect(() => {
+    const dogMatch = location.pathname.match(/^\/dogs\/([^/]+)$/);
+    const humanMatch = location.pathname.match(/^\/humans\/([^/]+)$/);
+    if (dogMatch && selectedDogId !== dogMatch[1]) {
+      setSelectedDogId(dogMatch[1]);
+    } else if (!dogMatch && location.pathname.startsWith("/dogs") && selectedDogId) {
+      // /dogs (index) — close any modal that was opened from a profile URL
+      setSelectedDogId(null);
+    }
+    if (humanMatch && selectedHumanId !== humanMatch[1]) {
+      setSelectedHumanId(humanMatch[1]);
+    } else if (!humanMatch && location.pathname.startsWith("/humans") && selectedHumanId) {
+      setSelectedHumanId(null);
+    }
+  }, [location.pathname]);
+
+  const handleOpenDog = useCallback(
+    (id) => {
+      if (!id) return;
+      // Profile pages get a URL — call sites still pass through here so
+      // direct navigation (e.g. /dogs/abc123 from a Slack share) and
+      // in-app clicks land on the same modal.
+      navigate(`/dogs/${id}`);
+    },
+    [navigate],
+  );
+  const handleOpenHuman = useCallback(
+    (id) => {
+      if (!id) return;
+      navigate(`/humans/${id}`);
+    },
+    [navigate],
+  );
+  const handleCloseDogProfile = useCallback(() => {
+    setSelectedDogId(null);
+    if (/^\/dogs\/[^/]+$/.test(location.pathname)) navigate("/dogs");
+  }, [navigate, location.pathname]);
+  const handleCloseHumanProfile = useCallback(() => {
+    setSelectedHumanId(null);
+    if (/^\/humans\/[^/]+$/.test(location.pathname)) navigate("/humans");
+  }, [navigate, location.pathname]);
 
   const {
     weekStart,
@@ -252,6 +300,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
     fetchHumanById: sbFetchHumanById,
+    ensureHumansByIds: sbEnsureHumansByIds,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
     loadMore: humansLoadMore,
@@ -302,6 +351,33 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     removeExtraSlot: sbRemoveExtraSlot,
   } = useDaySettings(weekStart);
 
+  // ── Owner pre-fetch ────────────────────────────────────────────
+  // useHumans paginates so the local map only holds the first page.
+  // Without pre-fetching, every dog or booking whose owner sits past
+  // the page boundary renders as "Unknown owner" because dog.humanId
+  // falls back to the raw UUID and formatOwnerLabel refuses to render
+  // that. ensureHumansByIds dedupes + caches so re-renders are cheap.
+  useEffect(() => {
+    if (!sbEnsureHumansByIds) return;
+    const ids = new Set();
+    for (const d of Object.values(sbDogs || {})) {
+      if (d?._humanId) ids.add(d._humanId);
+    }
+    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
+  }, [sbDogs, sbEnsureHumansByIds]);
+
+  useEffect(() => {
+    if (!sbEnsureHumansByIds) return;
+    const ids = new Set();
+    for (const list of Object.values(sbBookings || {})) {
+      for (const b of list || []) {
+        if (b?._ownerId) ids.add(b._ownerId);
+        if (b?._pickupById) ids.add(b._pickupById);
+      }
+    }
+    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
+  }, [sbBookings, sbEnsureHumansByIds]);
+
   const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
 
   const {
@@ -349,10 +425,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     setRebookData, setShowRebookDatePicker,
   });
 
-  if (isLoading) {
-    return appLoadingShell;
-  }
-
+  // Task 11 of the May 2026 review pass: don't return a full-screen
+  // overlay during the initial data fetch. Render the toolbar and
+  // routes immediately; each view shows a skeleton when its own data
+  // is still loading. Old behaviour blocked every navigation behind a
+  // big spinner.
   return (
     <ToastProvider>
       <AppFrame className="text-slate-800 pb-20 md:pb-5">
@@ -391,8 +468,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onUpdate={handleUpdate}
           onRemove={handleRemove}
           onUpdateDog={updateDog}
-          onOpenHuman={setSelectedHumanId}
-          onOpenDog={setSelectedDogId}
+          onOpenHuman={handleOpenHuman}
+          onOpenDog={handleOpenDog}
           onRebook={handleOpenRebook}
         >
           <ErrorBoundary>
@@ -414,16 +491,37 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogs={dogs}
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
-                      onOpenHuman={setSelectedHumanId}
+                      onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
-                      onDeleteHuman={sbDeleteHuman}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      isInitialLoading={isLoading}
+                      isOnline={isOnline}
+                    />
+                  } />
+                  {/* Profile route: shows the same HumansView underneath with the
+                      profile modal opened by the URL → state effect. */}
+                  <Route path="/humans/:id" element={
+                    <HumansView
+                      humans={humans}
+                      dogs={dogs}
+                      dogsByHumanId={dogsByHumanId}
+                      ensureDogsForHumans={ensureDogsForHumans}
+                      onOpenHuman={handleOpenHuman}
+                      onAddHuman={addHuman}
+                      onUpdateDog={updateDog}
+                      hasMore={humansHasMore}
+                      totalCount={humansTotalCount}
+                      loadMore={humansLoadMore}
+                      onSearch={humansSearchHumans}
+                      searchQuery={humansSearchQuery}
+                      isSearching={humansIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
@@ -431,24 +529,41 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <DogsView
                       dogs={dogs}
                       humans={humans}
-                      onOpenDog={setSelectedDogId}
+                      onOpenDog={handleOpenDog}
                       onAddDog={addDog}
                       onAddHuman={addHuman}
-                      onDeleteDog={sbDeleteDog}
                       hasMore={dogsHasMore}
                       totalCount={dogsTotalCount}
                       loadMore={dogsLoadMore}
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      isInitialLoading={isLoading}
+                      isOnline={isOnline}
+                    />
+                  } />
+                  <Route path="/dogs/:id" element={
+                    <DogsView
+                      dogs={dogs}
+                      humans={humans}
+                      onOpenDog={handleOpenDog}
+                      onAddDog={addDog}
+                      onAddHuman={addHuman}
+                      hasMore={dogsHasMore}
+                      totalCount={dogsTotalCount}
+                      loadMore={dogsLoadMore}
+                      onSearch={dogsSearchDogs}
+                      searchQuery={dogsSearchQuery}
+                      isSearching={dogsIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
                   <Route path="/reports" element={<ReportsView />} />
                   <Route path="/inbox" element={
                     <InboxView
-                      onOpenHuman={setSelectedHumanId}
-                      onOpenDog={setSelectedDogId}
+                      onOpenHuman={handleOpenHuman}
+                      onOpenDog={handleOpenDog}
                     />
                   } />
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
@@ -486,7 +601,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       showRebookDatePicker={showRebookDatePicker}
                       setShowRebookDatePicker={setShowRebookDatePicker}
                       setShowNewBooking={setShowNewBooking}
-                      onOpenHuman={setSelectedHumanId}
+                      onOpenHuman={handleOpenHuman}
                       onRefresh={refetchBookings}
                     />
                   } />
@@ -501,13 +616,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
               <Suspense fallback={<LoadingSpinner />}>
                 <HumanCardModal
                   humanId={selectedHumanId}
-                  onClose={() => setSelectedHumanId(null)}
-                  onOpenHuman={setSelectedHumanId}
-                  onOpenDog={setSelectedDogId}
+                  onClose={handleCloseHumanProfile}
+                  onOpenHuman={handleOpenHuman}
+                  onOpenDog={handleOpenDog}
                   humans={humans}
                   dogs={dogs}
                   onUpdateHuman={updateHuman}
                   onAddHuman={addHuman}
+                  onDeleteHuman={sbDeleteHuman}
                   bookingsByDate={bookingsByDate}
                   fetchHumanById={sbFetchHumanById}
                 />
@@ -520,13 +636,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
               <Suspense fallback={<LoadingSpinner />}>
                 <DogCardModal
                   dogId={selectedDogId}
-                  onClose={() => setSelectedDogId(null)}
-                  onOpenHuman={setSelectedHumanId}
+                  onClose={handleCloseDogProfile}
+                  onOpenHuman={handleOpenHuman}
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
                   onUpdateHuman={updateHuman}
                   onAddHuman={addHuman}
+                  onDeleteDog={sbDeleteDog}
                   bookingsByDate={bookingsByDate}
                   fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
                   fetchDogById={fetchDogById}

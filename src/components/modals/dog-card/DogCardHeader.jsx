@@ -20,6 +20,7 @@ export function DogCardHeader({
   onEnterEdit,
   onOpenGallery,
   titleId,
+  incomplete = false,
 }) {
   const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
   const subtitle = [
@@ -120,8 +121,8 @@ export function DogCardHeader({
               {subtitle}
             </div>
           )}
-          {resolvedDog.size && (
-            <div className="mt-2.5">
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            {resolvedDog.size && (
               <span
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold"
                 style={{
@@ -131,8 +132,16 @@ export function DogCardHeader({
               >
                 {titleCase(resolvedDog.size)}
               </span>
-            </div>
-          )}
+            )}
+            {incomplete && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300"
+                title="Missing size, breed or owner — please complete this profile"
+              >
+                Incomplete profile
+              </span>
+            )}
+          </div>
         </>
       )}
     </div>

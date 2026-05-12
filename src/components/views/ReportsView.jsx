@@ -48,6 +48,11 @@ export function ReportsView() {
   const { loading, stats, chartLabels, insights } = useReportsData(days, reportSource);
 
   const activePeriod = PERIODS.find((p) => p.v === days) ?? PERIODS[1];
+  // Below this threshold, period-over-period deltas read like noise —
+  // a single booking can swing a percentage by hundreds of points. Hide
+  // them across the page and tell the user why.
+  const LOW_N_THRESHOLD = 5;
+  const isLowN = stats.curN > 0 && stats.curN < LOW_N_THRESHOLD;
 
   return (
     <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
@@ -91,6 +96,16 @@ export function ReportsView() {
       {/* Band 2 — This-week hero (own data fetch, independent of period filter) */}
       <WeeklySnapshot />
 
+      {isLowN && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-[12px] font-medium px-3 py-2"
+        >
+          Insufficient data for reliable comparisons — showing absolute values only.
+          Period-over-period deltas hidden below {LOW_N_THRESHOLD} bookings.
+        </div>
+      )}
+
       {loading ? (
         <LoadingSpinner />
       ) : stats.curN === 0 ? (
@@ -108,14 +123,16 @@ export function ReportsView() {
               sub={`vs £${stats.prevRev.toFixed(0)} prev period`}
               cur={stats.curRev}
               prev={stats.prevRev}
+              hideDelta={isLowN}
               color="#2D8B7A"
             />
             <Kpi
               label="Bookings"
               value={stats.curN}
-              sub={`${stats.uniqueCusts} customer${stats.uniqueCusts !== 1 ? "s" : ""}`}
+              sub={`${stats.uniqueCusts} ${stats.uniqueCusts === 1 ? "customer" : "customers"}`}
               cur={stats.curN}
               prev={stats.prevN}
+              hideDelta={isLowN}
               color="#10C2FC"
             />
             <Kpi
@@ -124,12 +141,13 @@ export function ReportsView() {
               sub="estimated from base prices"
               cur={stats.avgPer}
               prev={stats.prevAvgPer}
+              hideDelta={isLowN}
               color="#7C3AED"
             />
             <Kpi
               label="Seat Fill Rate"
               value={`${stats.util.toFixed(0)}%`}
-              sub={`across ${stats.openDays} open day${stats.openDays !== 1 ? "s" : ""}`}
+              sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"}`}
               color="#E7546C"
             />
           </div>

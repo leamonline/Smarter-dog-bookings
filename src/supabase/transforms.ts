@@ -54,6 +54,10 @@ interface DbBookingRow {
   pickup_by_id: string | null;
   booking_date: string;
   group_id: string | null;
+  breed_snapshot?: string | null;
+  owner_name_snapshot?: string | null;
+  whatsapp_conversation_id?: string | null;
+  whatsapp_message_id?: string | null;
 }
 
 interface DbConfigRow {
@@ -266,20 +270,33 @@ export function dbBookingsToArray(
       ? findHumanByIdOrName(humansById, humans, row.pickup_by_id)
       : null;
 
+    // Single source of truth: prefer live joined values, fall back to the
+    // snapshot columns (set at insert time by trg_bookings_set_snapshots)
+    // only when the linked dog or owner row is missing. resolveBookingDisplay
+    // in engine/bookingRules.ts mirrors this logic for downstream consumers.
+    const breedSnapshot = row.breed_snapshot ?? null;
+    const ownerSnapshot = row.owner_name_snapshot ?? null;
+    const breed = dog.breed || breedSnapshot || "";
+    const owner = ownerHuman?.fullName || ownerSnapshot || "Unknown";
+
     return {
       id: row.id,
       slot: row.slot,
       dogName: dog.name || "Unknown",
-      breed: dog.breed || "",
+      breed,
       size: row.size as Booking["size"],
       service: row.service as Booking["service"],
-      owner: ownerHuman?.fullName || "Unknown",
+      owner,
       status: (row.status || "Booked") as Booking["status"],
       addons: row.addons || [],
-      pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || "",
+      pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || ownerSnapshot || "",
       payment: row.payment || "Due at Pick-up",
       depositAmount: row.deposit_amount ?? null,
       confirmed: row.confirmed === true,
+      breedSnapshot,
+      ownerNameSnapshot: ownerSnapshot,
+      whatsappConversationId: row.whatsapp_conversation_id ?? null,
+      whatsappMessageId: row.whatsapp_message_id ?? null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

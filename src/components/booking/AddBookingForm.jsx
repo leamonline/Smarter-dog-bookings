@@ -216,7 +216,14 @@ export function AddBookingForm({
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {dog.humanId}
+                    {(() => {
+                      // Never render the raw human_id UUID as visible text —
+                      // dog.humanId can fall back to the UUID when the humans
+                      // map hasn't loaded the owner row.
+                      const key = dog.humanId || "";
+                      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+                      return isUuid ? "Unknown owner" : key;
+                    })()}
                     {dog.size ? ` · ${dog.size}` : ""}
                   </div>
                 </div>
