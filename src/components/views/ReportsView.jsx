@@ -1,18 +1,41 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useReportsData } from "../../hooks/useReportsData.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { Kpi, PERIODS } from "./reports/ReportWidgets.jsx";
 import { RevenueTrend } from "./reports/RevenueTrend.jsx";
 import { ServiceMix } from "./reports/ServiceMix.jsx";
-import { SizeSplit } from "./reports/SizeSplit.jsx";
-import { ScheduleCharts } from "./reports/ScheduleCharts.jsx";
+import { DemandPattern } from "./reports/DemandPattern.jsx";
+import { KeyInsights } from "./reports/KeyInsights.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
 import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
 import { useSalon } from "../../contexts/SalonContext.js";
 
+const ALLOWED_PERIODS = [7, 30, 90];
+const DEFAULT_PERIOD = 30;
+
+function parsePeriod(value) {
+  const n = Number(value);
+  return ALLOWED_PERIODS.includes(n) ? n : null;
+}
+
 export function ReportsView() {
-  const [days, setDays] = useState(30);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const days = parsePeriod(searchParams.get("period")) ?? DEFAULT_PERIOD;
+  const setDays = useCallback(
+    (v) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("period", String(v));
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const { bookingsByDate, dogs, humans } = useSalon();
   const reportSource = useMemo(
     () => ({
@@ -24,46 +47,65 @@ export function ReportsView() {
   );
   const { loading, stats, chartLabels, insights } = useReportsData(days, reportSource);
 
-  return (
-    <div className="py-2.5 flex flex-col gap-4">
-      {/* Weekly Snapshot */}
-      <WeeklySnapshot />
+  const activePeriod = PERIODS.find((p) => p.v === days) ?? PERIODS[1];
 
-      {/* Header */}
-      <div className="flex justify-between items-center gap-3">
-        <h2 className="text-base sm:text-lg md:text-[22px] font-extrabold m-0 text-slate-800 font-display">Overview &amp; Analytics</h2>
-        <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
-          {PERIODS.map((p) => (
-            <button
-              key={p.v}
-              onClick={() => setDays(p.v)}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-[12px] font-bold border-none cursor-pointer transition-all font-[inherit] ${
-                days === p.v
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "bg-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {p.l}
-            </button>
-          ))}
+  return (
+    <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
+      {/* Band 1 — Page title + period control */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
+            Reports
+          </h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
+            Showing last {activePeriod.l.toLowerCase()}
+          </p>
+        </div>
+        <div
+          className="flex bg-slate-100 p-1 rounded-lg shrink-0"
+          role="group"
+          aria-label="Reporting period"
+        >
+          {PERIODS.map((p) => {
+            const selected = days === p.v;
+            return (
+              <button
+                key={p.v}
+                onClick={() => setDays(p.v)}
+                type="button"
+                aria-pressed={selected}
+                aria-label={`Show last ${p.l}`}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-[12px] font-bold border-none cursor-pointer transition-all font-[inherit] ${
+                  selected
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "bg-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {p.l}
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {/* Band 2 — This-week hero (own data fetch, independent of period filter) */}
+      <WeeklySnapshot />
 
       {loading ? (
         <LoadingSpinner />
       ) : stats.curN === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
           <div className="text-lg font-bold text-slate-400 mb-1">No bookings in this period</div>
           <div className="text-sm text-slate-400">Try selecting a longer time range.</div>
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* Band 3 — KPI row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi
               label="Revenue"
-              value={`\u00A3${stats.curRev.toFixed(0)}`}
-              sub={`vs \u00A3${stats.prevRev.toFixed(0)} prev period`}
+              value={`£${stats.curRev.toFixed(0)}`}
+              sub={`vs £${stats.prevRev.toFixed(0)} prev period`}
               cur={stats.curRev}
               prev={stats.prevRev}
               color="#2D8B7A"
@@ -78,7 +120,7 @@ export function ReportsView() {
             />
             <Kpi
               label="Avg per Dog"
-              value={`\u00A3${stats.avgPer.toFixed(0)}`}
+              value={`£${stats.avgPer.toFixed(0)}`}
               sub="estimated from base prices"
               cur={stats.avgPer}
               prev={stats.prevAvgPer}
@@ -92,34 +134,34 @@ export function ReportsView() {
             />
           </div>
 
-          {/* Revenue Trend */}
-          <RevenueTrend
-            days={days}
-            chart={stats.chart}
-            maxChartRev={stats.maxChartRev}
-            chartLabels={chartLabels}
-            insight={insights.capacity}
-          />
-
-          {/* Service Mix + Size Split */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ServiceMix svcs={stats.svcs} maxSvcRev={stats.maxSvcRev} insight={insights.service} />
-            <SizeSplit sizes={stats.sizes} insight={insights.size} />
+          {/* Band 4 — Trend + Key Insights */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <RevenueTrend
+              days={days}
+              chart={stats.chart}
+              maxChartRev={stats.maxChartRev}
+              chartLabels={chartLabels}
+              insight={insights.capacity}
+            />
+            <KeyInsights stats={stats} insights={insights} />
           </div>
 
-          {/* Schedule: Days + Slots */}
-          <ScheduleCharts
-            dow={stats.dow}
-            maxDowN={stats.maxDowN}
-            busiestDay={stats.busiestDay}
-            slots={stats.slots}
-            maxSlotN={stats.maxSlotN}
-            busiestSlot={stats.busiestSlot}
-            dayInsight={insights.day}
-          />
+          {/* Band 5 — Service Mix + Demand Pattern */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <ServiceMix svcs={stats.svcs} maxSvcRev={stats.maxSvcRev} insight={insights.service} />
+            <DemandPattern
+              dow={stats.dow}
+              maxDowN={stats.maxDowN}
+              busiestDay={stats.busiestDay}
+              slots={stats.slots}
+              maxSlotN={stats.maxSlotN}
+              busiestSlot={stats.busiestSlot}
+              dayInsight={insights.day}
+            />
+          </div>
 
-          {/* Customers + Booking Health */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Band 6 — Customers + Booking Health */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <CustomerRanking
               topCusts={stats.topCusts}
               uniqueCusts={stats.uniqueCusts}
