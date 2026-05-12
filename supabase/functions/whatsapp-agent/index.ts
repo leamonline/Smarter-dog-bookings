@@ -142,15 +142,28 @@ interface DraftFromClaude {
   extracted_state?: Partial<AgentState> | null;
 }
 
-interface BookingActionFromClaude {
-  action: "create";
-  dog_id: string;
-  booking_date: string;
-  slot: string;
-  service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
-  size?: "small" | "medium" | "large";
-  notes?: string;
-}
+type BookingActionFromClaude =
+  | {
+      action: "create";
+      dog_id: string;
+      booking_date: string;
+      slot: string;
+      service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
+      size?: "small" | "medium" | "large";
+      notes?: string;
+    }
+  | {
+      action: "reschedule";
+      old_booking_id: string;
+      new_date: string;
+      new_slot: string;
+      notes?: string;
+    }
+  | {
+      action: "cancel";
+      old_booking_id: string;
+      reason: string;
+    };
 
 // ── System prompt ────────────────────────────────────────────
 // This prompt is the production voice of Smarter Dog Grooming on
@@ -855,25 +868,62 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
 
 function parseBookingAction(value: unknown): BookingActionFromClaude | null {
   if (!value || typeof value !== "object") return null;
-  const action = value as Record<string, unknown>;
-  const validServices = new Set(["full-groom", "bath-and-brush", "bath-and-deshed", "puppy-groom"]);
-  const validSizes = new Set(["small", "medium", "large"]);
+  const obj = value as Record<string, unknown>;
+  const action = obj.action;
 
-  if (action.action !== "create") return null;
-  if (typeof action.dog_id !== "string" || !action.dog_id) return null;
-  if (typeof action.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(action.booking_date)) return null;
-  if (typeof action.slot !== "string" || !/^\d{2}:\d{2}$/.test(action.slot)) return null;
-  if (typeof action.service !== "string" || !validServices.has(action.service)) return null;
+  if (action === "create") {
+    const validServices = new Set([
+      "full-groom",
+      "bath-and-brush",
+      "bath-and-deshed",
+      "puppy-groom",
+    ]);
+    const validSizes = new Set(["small", "medium", "large"]);
+    if (typeof obj.dog_id !== "string" || !obj.dog_id) return null;
+    if (typeof obj.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.booking_date)) return null;
+    if (typeof obj.slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.slot)) return null;
+    if (typeof obj.service !== "string" || !validServices.has(obj.service)) return null;
+    return {
+      action: "create",
+      dog_id: obj.dog_id,
+      booking_date: obj.booking_date,
+      slot: obj.slot,
+      service: obj.service as "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
+      ...(typeof obj.size === "string" && validSizes.has(obj.size)
+        ? { size: obj.size as "small" | "medium" | "large" }
+        : {}),
+      ...(typeof obj.notes === "string" && obj.notes.trim()
+        ? { notes: obj.notes.trim().slice(0, 300) }
+        : {}),
+    };
+  }
 
-  return {
-    action: "create",
-    dog_id: action.dog_id,
-    booking_date: action.booking_date,
-    slot: action.slot,
-    service: action.service as BookingActionFromClaude["service"],
-    ...(typeof action.size === "string" && validSizes.has(action.size) ? { size: action.size as BookingActionFromClaude["size"] } : {}),
-    ...(typeof action.notes === "string" && action.notes.trim() ? { notes: action.notes.trim().slice(0, 300) } : {}),
-  };
+  if (action === "reschedule") {
+    if (typeof obj.old_booking_id !== "string" || !obj.old_booking_id) return null;
+    if (typeof obj.new_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.new_date)) return null;
+    if (typeof obj.new_slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.new_slot)) return null;
+    return {
+      action: "reschedule",
+      old_booking_id: obj.old_booking_id,
+      new_date: obj.new_date,
+      new_slot: obj.new_slot,
+      ...(typeof obj.notes === "string" && obj.notes.trim()
+        ? { notes: obj.notes.trim().slice(0, 300) }
+        : {}),
+    };
+  }
+
+  if (action === "cancel") {
+    if (typeof obj.old_booking_id !== "string" || !obj.old_booking_id) return null;
+    if (typeof obj.reason !== "string" || !obj.reason.trim()) return null;
+    return {
+      action: "cancel",
+      old_booking_id: obj.old_booking_id,
+      reason: obj.reason.trim().slice(0, 300),
+    };
+  }
+
+  return null;
 }
 
 // ── Draft save ───────────────────────────────────────────────
