@@ -212,12 +212,22 @@ export function useWhatsAppInbox() {
   const refreshDetail = useCallback(async (conversationId) => {
     if (!conversationId) return;
     try {
-      const { messages: m, draft: d, bookingActions: a } = await fetchConversationDetail(conversationId);
+      // 10-second timeout so a stalled Supabase request can't leave
+      // the thread spinner spinning forever (task 11 of the May 2026
+      // review pass). The timeout fires a sentinel error that's
+      // mapped to a friendly "Couldn't load — retry?" state below.
+      const TIMEOUT_MS = 10_000;
+      const detail = await Promise.race([
+        fetchConversationDetail(conversationId),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("conversation-detail-timeout")), TIMEOUT_MS),
+        ),
+      ]);
       // Guard against race: user may have moved on.
       if (selectedIdRef.current !== conversationId) return;
-      setMessages(m);
-      setDraft(d);
-      setBookingActions(a);
+      setMessages(detail.messages);
+      setDraft(detail.draft);
+      setBookingActions(detail.bookingActions);
       setDetailError(null);
     } catch (err) {
       console.error("useWhatsAppInbox refreshDetail:", err);

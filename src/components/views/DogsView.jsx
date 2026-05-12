@@ -6,6 +6,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch.js";
+import { CardGridSkeleton } from "../ui/Skeleton.jsx";
 
 function computeAge(dog) {
   if (dog.dob) {
@@ -48,7 +49,7 @@ const SIZE_FILTERS = [
   { value: "unset", label: "Unset" },
 ];
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [sizeFilter, setSizeFilter] = useState(null); // "small" | "medium" | "large" | "unset" | null
@@ -180,7 +181,11 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         )}
       </div>
 
-      {/* Card grid */}
+      {/* Card grid — skeleton during the initial fetch so the page
+          settles into shape before the data arrives. */}
+      {isInitialLoading && sortedDogs.length === 0 ? (
+        <CardGridSkeleton rows={3} cols={3} />
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedDogs.map((dog) => {
           // formatOwnerLabel refuses to render a UUID-shaped string —
@@ -266,6 +271,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           </div>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">

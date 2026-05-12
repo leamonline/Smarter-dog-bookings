@@ -31,6 +31,7 @@ import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import { displayName } from "./helpers.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
 import { StatusPill } from "./StatusPill.jsx";
+import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
 import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
 import { AutoSendToggle } from "./thread/AutoSendToggle.jsx";
 import { AutonomousBookingToggle } from "./thread/AutonomousBookingToggle.jsx";
@@ -54,6 +55,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     bookingActions,
     attachedActions,
     loadingDetail,
+    detailError,
     selectConversation,
     approveDraft,
     approveDraftAndApply,
@@ -412,7 +414,18 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   link, so staff can follow the loop both ways. */}
               <div className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper">
                 {loadingDetail ? (
-                  <LoadingSpinner />
+                  <ThreadSkeleton bubbles={5} />
+                ) : detailError ? (
+                  <div className="text-center text-slate-600 text-[13px] py-8">
+                    Couldn&apos;t load the thread.
+                    <button
+                      type="button"
+                      onClick={() => selectConversation(selectedId)}
+                      className="ml-2 underline text-brand-purple font-semibold cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 ) : messages.length === 0 ? (
                   <div className="text-center text-slate-500 text-[13px] py-8">
                     No messages yet.

@@ -4,6 +4,7 @@ import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
+import { CardGridSkeleton } from "../ui/Skeleton.jsx";
 
 function waLink(phone) {
   if (!phone) return "#";
@@ -17,7 +18,7 @@ function sizeDot(size) {
   return t ? t.gradient[0] : "#94A3B8";
 }
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isOnline = true }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -84,7 +85,10 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
         </div>
       </div>
 
-      {/* Card grid */}
+      {/* Card grid — skeleton during the initial fetch. */}
+      {isInitialLoading && sortedHumans.length === 0 ? (
+        <CardGridSkeleton rows={3} cols={3} />
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedHumans.map((human) => {
           const fullName = human.fullName || `${human.name} ${human.surname}`;
@@ -178,6 +182,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           </div>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">

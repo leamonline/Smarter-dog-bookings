@@ -397,10 +397,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     setRebookData, setShowRebookDatePicker,
   });
 
-  if (isLoading) {
-    return appLoadingShell;
-  }
-
+  // Task 11 of the May 2026 review pass: don't return a full-screen
+  // overlay during the initial data fetch. Render the toolbar and
+  // routes immediately; each view shows a skeleton when its own data
+  // is still loading. Old behaviour blocked every navigation behind a
+  // big spinner.
   return (
     <ToastProvider>
       <AppFrame className="text-slate-800 pb-20 md:pb-5">
@@ -465,13 +466,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
-                      onDeleteHuman={sbDeleteHuman}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
@@ -486,13 +487,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
-                      onDeleteHuman={sbDeleteHuman}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
@@ -503,13 +504,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenDog={handleOpenDog}
                       onAddDog={addDog}
                       onAddHuman={addHuman}
-                      onDeleteDog={sbDeleteDog}
                       hasMore={dogsHasMore}
                       totalCount={dogsTotalCount}
                       loadMore={dogsLoadMore}
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
@@ -520,13 +521,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenDog={handleOpenDog}
                       onAddDog={addDog}
                       onAddHuman={addHuman}
-                      onDeleteDog={sbDeleteDog}
                       hasMore={dogsHasMore}
                       totalCount={dogsTotalCount}
                       loadMore={dogsLoadMore}
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
                   } />
