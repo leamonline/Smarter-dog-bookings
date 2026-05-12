@@ -313,11 +313,12 @@ serve(async (req) => {
 
       // Apply the move. The validate_booking_capacity trigger runs on
       // UPDATE and will raise on slot conflicts / capacity rules.
-      const { error: updateErr } = await supabase
+      const { data: updatedRows, error: updateErr } = await supabase
         .from("bookings")
         .update({ booking_date: newDate, slot: newSlot })
         .eq("id", oldBookingId)
-        .eq("status", "Booked");
+        .eq("status", "Booked")
+        .select("id");
       if (updateErr) {
         const msg = updateErr.message;
         if (isCapacityError(msg)) {
@@ -336,6 +337,26 @@ serve(async (req) => {
           return new Response("slot_gone", { status: 200 });
         }
         throw new Error(msg);
+      }
+      // Status changed between the fetch and the UPDATE (e.g. groomer
+      // checked the dog in on the salon tablet at the same moment the
+      // customer tapped Yes). The status='Booked' filter matched zero
+      // rows — UPDATE returns no error but didn't apply. Hand off to
+      // staff so they can sort it out face-to-face.
+      if (!updatedRows || updatedRows.length === 0) {
+        await supabase
+          .from("whatsapp_booking_actions")
+          .update({
+            state: "rejected_by_customer",
+            rejection_reason: "not_movable_at_apply_time",
+          })
+          .eq("id", action.id)
+          .eq("state", "confirmed");
+        await sendAckText(
+          action.conversation_id,
+          "I can't move that booking automatically — one of the team will be in touch shortly. 🎓🐶❤️ X",
+        );
+        return new Response("not_movable_at_apply", { status: 200 });
       }
 
       // Transition the action row to auto_applied. applied_booking_id
