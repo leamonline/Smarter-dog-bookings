@@ -422,7 +422,116 @@ serve(async (req) => {
       return new Response("rescheduled", { status: 200 });
     }
 
-    // cancel branch lands in Task 11
+    if (action.action === "cancel") {
+      const oldBookingId =
+        (action.target_booking_id as string | null) ??
+        (action.payload.old_booking_id as string | undefined) ??
+        null;
+      const reason =
+        (action.payload.reason as string | undefined)?.trim() ||
+        "customer requested via WhatsApp";
+
+      if (!oldBookingId) {
+        throw new Error("cancel payload missing booking id");
+      }
+
+      // Re-fetch the booking. Only 'Booked' status is cancellable
+      // autonomously — Checked-in / Ready-for-pick-up bookings are
+      // mid-service and need staff to handle (refunds, partial work,
+      // etc.).
+      const { data: existing, error: bookErr } = await supabase
+        .from("bookings")
+        .select("id, status, booking_date, slot, dog_id")
+        .eq("id", oldBookingId)
+        .single();
+      if (bookErr || !existing) {
+        throw new Error(`original booking not found: ${oldBookingId}`);
+      }
+      if (existing.status !== "Booked") {
+        const { data: rejectedRows } = await supabase
+          .from("whatsapp_booking_actions")
+          .update({
+            state: "rejected_by_customer",
+            rejection_reason: `not_cancellable_status_${existing.status}`,
+          })
+          .eq("id", action.id)
+          .eq("state", "awaiting_customer_confirm")
+          .select("id");
+        if (rejectedRows && rejectedRows.length > 0) {
+          await sendAckText(
+            action.conversation_id,
+            "I can't cancel that one automatically — one of the team will be in touch. 🎓🐶❤️ X",
+          );
+        }
+        return new Response("not_cancellable", { status: 200 });
+      }
+
+      // Optimistic-lock the action.
+      const { data: confirmedRows } = await supabase
+        .from("whatsapp_booking_actions")
+        .update({ state: "confirmed", decided_at: new Date().toISOString() })
+        .eq("id", action.id)
+        .eq("state", "awaiting_customer_confirm")
+        .select("id");
+      if (!confirmedRows || confirmedRows.length === 0) {
+        console.warn(`apply-customer-confirm: action ${action.id} cancel confirm transition skipped (raced)`);
+        return new Response("already_processed", { status: 200 });
+      }
+
+      // Apply the cancellation. UPDATE-to-cancel fires the existing
+      // notify-booking-cancelled trigger (migration history). Filter on
+      // status='Booked' to catch the check-in race window.
+      const { data: updatedRows, error: updateErr } = await supabase
+        .from("bookings")
+        .update({
+          status: "Cancelled",
+          cancel_reason: reason.slice(0, 500),
+        })
+        .eq("id", oldBookingId)
+        .eq("status", "Booked")
+        .select("id");
+      if (updateErr) {
+        // Capacity isn't relevant to cancellation — any error here is
+        // a real failure. Fall through to staff queue via outer catch.
+        throw new Error(updateErr.message);
+      }
+      if (!updatedRows || updatedRows.length === 0) {
+        // Status changed between fetch and UPDATE (e.g. groomer just
+        // checked the dog in). Hand off to staff.
+        await supabase
+          .from("whatsapp_booking_actions")
+          .update({
+            state: "rejected_by_customer",
+            rejection_reason: "not_cancellable_at_apply_time",
+          })
+          .eq("id", action.id)
+          .eq("state", "confirmed");
+        await sendAckText(
+          action.conversation_id,
+          "I can't cancel that one automatically — one of the team will be in touch. 🎓🐶❤️ X",
+        );
+        return new Response("not_cancellable_at_apply", { status: 200 });
+      }
+
+      // Auto-applied transition.
+      await supabase
+        .from("whatsapp_booking_actions")
+        .update({
+          state: "auto_applied",
+          applied_booking_id: oldBookingId,
+          applied_at: new Date().toISOString(),
+        })
+        .eq("id", action.id)
+        .eq("state", "confirmed");
+
+      await sendAckText(
+        action.conversation_id,
+        "All cancelled ✓ Hope to see you another time. 🎓🐶❤️ X",
+      );
+      return new Response("cancelled", { status: 200 });
+    }
+
+    // Defensive: unknown action kind from a future schema bump
     return new Response(`unsupported action kind: ${action.action}`, { status: 501 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
