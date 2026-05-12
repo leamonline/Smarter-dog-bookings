@@ -168,47 +168,30 @@ Production checks:
 
 ### WhatsApp AI receptionist
 
-The `whatsapp-agent` Edge Function is the brain of the WhatsApp inbox. It calls Claude with the full conversation context (recent messages + customer + dogs + availability + persisted state) and writes a draft reply for staff to review. It never sends a message to the customer directly and never mutates a booking — both of those go through guarded paths (`whatsapp-send` and the `apply_whatsapp_booking_action` RPC).
+The `whatsapp-agent` Edge Function calls Claude with the full
+conversation context and writes draft replies for staff to review.
+It never sends a message to the customer directly and never mutates
+a booking — both go through guarded paths (`whatsapp-send` and the
+`apply_whatsapp_booking_action` RPC).
 
-**Defaults are deliberately conservative.** Every draft is held for human approval. Auto-send is plumbed but off everywhere unless you explicitly opt in.
+**Defaults are deliberately conservative.** Every draft is held for
+human approval. Auto-send is off everywhere unless you opt in.
 
-Set the function's secrets with `supabase secrets set NAME=value` (do NOT put them in `.env.local`):
+Full operational details — function secrets, intent vocabulary,
+risk levels, the auto-send allowlist, the kill switch, and the safe
+rollout procedure — live in [docs/whatsapp-agent.md](docs/whatsapp-agent.md).
 
-| Variable | Default | What it does |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | _required_ | Claude API key. Server-side only — never put behind a `VITE_` prefix. |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Model used by the agent. |
-| `AGENT_CALLBACK_SECRET` | _required_ | Shared secret between the `whatsapp_events` pg_net trigger and the function. |
-| `AI_ASSISTANT_ENABLED` | `true` | Kill switch. Set to `false` to bypass Claude (the agent then writes a brand-voiced "I'll get someone to look at this" fallback draft tagged for handoff). Useful during incidents. |
-| `AI_AUTO_SEND_LOW_RISK` | `false` | Global gate for auto-send. Even when `true`, a draft only auto-sends when **all** of the following are true: the conversation has `auto_send_enabled=true`, the draft's risk level is `low`, the draft does not require handoff, and the intent is in the auto-send allowlist (`faq`, `greeting`, `smalltalk`, `confirm_time`). |
-| `WHATSAPP_SEND_URL` | `${SUPABASE_URL}/functions/v1/whatsapp-send` | Where the agent posts approved-for-auto-send drafts. Override only if you've moved the function. |
-| `SEND_INTERNAL_SECRET` | _required for auto-send_ | Used by the agent to authenticate against `whatsapp-send` for auto-dispatch. Same value `whatsapp-send` already expects. |
+### Capacity engine (2-2-1)
 
-**Risk levels and handoff** (see `supabase/functions/_shared/agentRisk.ts`):
+See [docs/capacity-engine.md](docs/capacity-engine.md) for what the
+rule does, a worked example, where it lives in code, and the
+`salon_config.large_dog_slots` shape.
 
-- `low` — routine FAQ, greeting, "thanks", "on my way". Safe to auto-send when policy permits.
-- `medium` — booking proposals, reschedules, cancellations. Staff approves as usual.
-- `high` — medical / complaint / very-low-confidence. Always requires a human; the inbox shows a red dot on the conversation.
+### Migration history
 
-**Turning auto-send on safely** (when you're ready, after a few weeks of monitoring drafts):
-
-1. Set `AI_AUTO_SEND_LOW_RISK=true` on the function.
-2. Pick a single trusted conversation in the inbox and flip its "Auto-send off" toggle to on (column: `whatsapp_conversations.auto_send_enabled`). The toggle prompts for confirmation before turning auto-send on; turning it off is one click.
-3. Watch the drafts panel. Drafts that auto-send transition to state `auto_sent` and skip the approval step.
-4. Roll out to more conversations over time. Booking-touching intents are never auto-sent regardless of opt-in.
-
-Note: `auto_send_enabled` defaults to `false` at the column level (set in migration `20260424001635_whatsapp_schema.sql`, re-asserted in `20260513130000_whatsapp_auto_send_default_off.sql`). The inbox UI reads its initial state from the row, never defaulting to on in the component.
-
-### Migration history note
-
-`supabase/migrations/` is a near-complete record of prod schema history. Two small gaps remain:
-
-- `20260330095121_initial_schema.sql`, `20260330095135_auth_staff_profiles.sql`, `20260330095217_phase5_schema.sql` — applied before Supabase's migration-tracking table was in use, so they're in the repo but not in `supabase_migrations.schema_migrations` on prod.
-- `20260422004157_reminder_preferences.sql` — applied via the dashboard rather than as a tracked migration. The columns (`humans.reminder_hours`, `humans.reminder_channels`) exist on prod, but the file isn't in the migration history table.
-
-Everything else matches. Files with letter suffixes (e.g. `012a_…`, `017a_…`) are backfills of migrations that were originally applied via the dashboard; they slot in alphabetically between the main-numbered files so `ls`-order still reflects apply-order.
-
-**Fresh project?** Run the files in filename order. **Do not blindly re-run old migrations against production** — some are not idempotent.
+See [docs/migrations.md](docs/migrations.md). The short version:
+run files in filename order against a fresh project; don't blindly
+re-run old migrations against prod.
 
 ## Deploy
 
