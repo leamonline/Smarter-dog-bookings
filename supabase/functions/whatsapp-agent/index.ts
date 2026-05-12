@@ -898,8 +898,10 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
     };
   }
 
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   if (action === "reschedule") {
-    if (typeof obj.old_booking_id !== "string" || !obj.old_booking_id) return null;
+    if (typeof obj.old_booking_id !== "string" || !uuidRe.test(obj.old_booking_id)) return null;
     if (typeof obj.new_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.new_date)) return null;
     if (typeof obj.new_slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.new_slot)) return null;
     return {
@@ -914,8 +916,10 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
   }
 
   if (action === "cancel") {
-    if (typeof obj.old_booking_id !== "string" || !obj.old_booking_id) return null;
-    if (typeof obj.reason !== "string" || !obj.reason.trim()) return null;
+    if (typeof obj.old_booking_id !== "string" || !uuidRe.test(obj.old_booking_id)) return null;
+    // reason must be a meaningful explanation (>= 3 chars after trim) so the
+    // cancel_reason column carries something legible, not just punctuation.
+    if (typeof obj.reason !== "string" || obj.reason.trim().length < 3) return null;
     return {
       action: "cancel",
       old_booking_id: obj.old_booking_id,
