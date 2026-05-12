@@ -32,6 +32,12 @@ const WHATSAPP_SEND_URL =
 interface ConfirmInput {
   booking_action_id: string;
   choice: "yes" | "no";
+  // Optional but recommended: the agent passes this so we can assert
+  // the action belongs to the conversation the button_reply came from.
+  // Guards against a customer crafting a button payload with another
+  // customer's action id. Missing → log a warning but accept (allows
+  // legacy / direct callers, e.g. one-off staff retries).
+  caller_conversation_id?: string;
 }
 
 async function sendAckText(conversation_id: string, text: string) {
@@ -141,6 +147,23 @@ serve(async (req) => {
     .single();
 
   if (actionErr || !action) {
+    return new Response("action not found", { status: 404 });
+  }
+
+  // Ownership check: when the caller passes caller_conversation_id, the
+  // action MUST belong to that conversation. Stops a customer crafting
+  // a button_reply for someone else's action UUID. We allow callers to
+  // omit the field (legacy / staff retries) but log a warning so the
+  // unauthenticated path is observable.
+  if (input.caller_conversation_id == null) {
+    console.warn(
+      `apply-customer-confirm: caller_conversation_id absent for action ${action.id} — accepting under legacy path`,
+    );
+  } else if (input.caller_conversation_id !== action.conversation_id) {
+    console.warn(
+      `apply-customer-confirm: caller ${input.caller_conversation_id} does not own action ${action.id} (owner: ${action.conversation_id})`,
+    );
+    // Return 404 rather than 403 to avoid disclosing that the id exists.
     return new Response("action not found", { status: 404 });
   }
 

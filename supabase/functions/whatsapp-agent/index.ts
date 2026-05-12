@@ -115,7 +115,11 @@ interface MetaMessage {
   timestamp?: string;
   text?: { body?: string };
   button?: { text?: string; payload?: string };
-  interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
+  // button_reply.id is the round-tripped payload set by whatsapp-send
+  // confirm_buttons mode — e.g. "<booking_action_id>:yes". Task 12's
+  // detector keys off this field, so it must be on the type, not just
+  // the runtime payload.
+  interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
 }
 
 interface MetaStatus {
@@ -1104,6 +1108,14 @@ async function dispatchIfEligible(
   }
 }
 
+// Slot values the autonomous create path will write. Used as a final
+// guard in case parseBookingAction lets through a parseable-but-not-real
+// HH:MM. Reschedule's new_slot is validated against the same set.
+const VALID_SLOTS = new Set([
+  "08:30", "09:00", "09:30", "10:00", "10:30",
+  "11:00", "11:30", "12:00", "12:30", "13:00",
+]);
+
 async function saveBookingAction(
   supabase: SupabaseClient,
   conversationId: string,
@@ -1111,47 +1123,106 @@ async function saveBookingAction(
   draft: DraftFromClaude,
 ) {
   const action = draft.booking_action;
-  if (!action || action.action !== "create") return;
-  const validSlots = new Set(["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"]);
-  if (!validSlots.has(action.slot)) return;
+  if (!action) return;
 
-  const { data: dog } = await supabase
-    .from("dogs")
-    .select("id, size, human_id")
-    .eq("id", action.dog_id)
-    .maybeSingle();
+  if (action.action === "create") {
+    if (!VALID_SLOTS.has(action.slot)) return;
 
-  if (!dog) return;
+    const { data: dog } = await supabase
+      .from("dogs")
+      .select("id, size, human_id")
+      .eq("id", action.dog_id)
+      .maybeSingle();
+    if (!dog) return;
 
-  const { data: conversation } = await supabase
-    .from("whatsapp_conversations")
-    .select("human_id")
-    .eq("id", conversationId)
-    .maybeSingle();
+    const { data: conversation } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
 
-  if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
+    const payload = {
+      dog_id: action.dog_id,
+      booking_date: action.booking_date,
+      slot: action.slot,
+      service: action.service,
+      size: action.size ?? dog.size ?? "small",
+      addons: [],
+      payment: "Due at Pick-up",
+      confirmed: true,
+      source: "whatsapp_ai",
+      notes: action.notes ?? null,
+    };
 
-  const payload = {
-    dog_id: action.dog_id,
-    booking_date: action.booking_date,
-    slot: action.slot,
-    service: action.service,
-    size: action.size ?? dog.size ?? "small",
-    addons: [],
-    payment: "Due at Pick-up",
-    confirmed: true,
-    source: "whatsapp_ai",
-    notes: action.notes ?? null,
-  };
+    const { error } = await supabase.from("whatsapp_booking_actions").insert({
+      conversation_id: conversationId,
+      draft_id: draftId,
+      action: "create",
+      payload,
+      state: "pending",
+    });
+    if (error) throw new Error(`saveBookingAction(create) failed: ${error.message}`);
+    return;
+  }
 
-  const { error } = await supabase.from("whatsapp_booking_actions").insert({
-    conversation_id: conversationId,
-    draft_id: draftId,
-    action: "create",
-    payload,
-    state: "pending",
-  });
-  if (error) throw new Error(`saveBookingAction failed: ${error.message}`);
+  // For reschedule and cancel, the action references an existing booking
+  // via old_booking_id. Validate ownership by checking dogs.human_id of
+  // the bookings target against the conversation's human_id before
+  // staging the row — same safety the create branch applies to dog_id.
+  if (action.action === "reschedule" || action.action === "cancel") {
+    if (action.action === "reschedule" && !VALID_SLOTS.has(action.new_slot)) return;
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, dogs!inner(human_id)")
+      .eq("id", action.old_booking_id)
+      .maybeSingle();
+    if (!booking) return;
+
+    const bookingHumanId = (booking as { dogs?: { human_id?: string } | null })
+      .dogs?.human_id ?? null;
+
+    const { data: conversation } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (
+      conversation?.human_id &&
+      bookingHumanId &&
+      conversation.human_id !== bookingHumanId
+    ) {
+      // Conversation customer doesn't own this booking — silently drop
+      // the proposal. apply-customer-confirm has its own ownership
+      // check, but defence-in-depth here keeps the staging table clean.
+      return;
+    }
+
+    const payload =
+      action.action === "reschedule"
+        ? {
+            old_booking_id: action.old_booking_id,
+            new_date: action.new_date,
+            new_slot: action.new_slot,
+            notes: action.notes ?? null,
+          }
+        : {
+            old_booking_id: action.old_booking_id,
+            reason: action.reason,
+          };
+
+    const { error } = await supabase.from("whatsapp_booking_actions").insert({
+      conversation_id: conversationId,
+      draft_id: draftId,
+      action: action.action,
+      payload,
+      target_booking_id: action.old_booking_id,
+      state: "pending",
+    });
+    if (error) throw new Error(`saveBookingAction(${action.action}) failed: ${error.message}`);
+    return;
+  }
 }
 
 // ── Delivery status handler ─────────────────────────────────
@@ -1407,7 +1478,15 @@ serve(async (req) => {
                       "content-type": "application/json",
                       "x-internal-secret": applySecret,
                     },
-                    body: JSON.stringify({ booking_action_id: actionId, choice }),
+                    // Pass caller_conversation_id so apply-customer-confirm
+                    // can assert the action belongs to the sender's
+                    // conversation — guards against a customer crafting
+                    // a button_reply for another customer's action id.
+                    body: JSON.stringify({
+                      booking_action_id: actionId,
+                      choice,
+                      caller_conversation_id: conversation.id,
+                    }),
                   });
                   if (!res.ok) {
                     const errText = await res.text();
