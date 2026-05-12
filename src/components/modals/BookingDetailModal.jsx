@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
@@ -68,6 +69,7 @@ export function BookingDetailModal({
   onRebook,
   daySettings = {},
 }) {
+  const navigate = useNavigate();
   const dogData = useMemo(
     () => getDogByIdOrName(dogs, booking._dogId || booking.dogName) || {},
     [dogs, booking._dogId, booking.dogName],
@@ -443,8 +445,26 @@ export function BookingDetailModal({
               <Row
                 label="Grooming Notes"
                 value={editData.groomNotes || "Standard groom (no specific notes)"}
-                last
+                last={!booking.whatsappConversationId}
               />
+              {booking.whatsappConversationId && (
+                <Row
+                  label="Source"
+                  value={
+                    <a
+                      href={`/inbox?conversation=${booking.whatsappConversationId}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/inbox?conversation=${booking.whatsappConversationId}`);
+                      }}
+                      className="text-emerald-700 underline font-semibold hover:text-emerald-900"
+                    >
+                      Created from WhatsApp · open thread
+                    </a>
+                  }
+                  last
+                />
+              )}
             </div>
           )}
 

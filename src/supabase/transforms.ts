@@ -56,6 +56,8 @@ interface DbBookingRow {
   group_id: string | null;
   breed_snapshot?: string | null;
   owner_name_snapshot?: string | null;
+  whatsapp_conversation_id?: string | null;
+  whatsapp_message_id?: string | null;
 }
 
 interface DbConfigRow {
@@ -293,6 +295,8 @@ export function dbBookingsToArray(
       confirmed: row.confirmed === true,
       breedSnapshot,
       ownerNameSnapshot: ownerSnapshot,
+      whatsappConversationId: row.whatsapp_conversation_id ?? null,
+      whatsappMessageId: row.whatsapp_message_id ?? null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

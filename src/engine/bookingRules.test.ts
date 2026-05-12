@@ -305,6 +305,8 @@ describe("resolveBookingDisplay", () => {
     confirmed: false,
     breedSnapshot: "Boston Terrier",
     ownerNameSnapshot: "Old Owner",
+    whatsappConversationId: null,
+    whatsappMessageId: null,
     _dogId: "d-1",
     _ownerId: "h-1",
     _pickupById: null,

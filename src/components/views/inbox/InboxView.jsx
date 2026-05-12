@@ -35,6 +35,7 @@ import { ConversationListItem } from "./conversation-list/ConversationListItem.j
 import { AutoSendToggle } from "./thread/AutoSendToggle.jsx";
 import { AutonomousBookingToggle } from "./thread/AutonomousBookingToggle.jsx";
 import { MessageBubble } from "./thread/MessageBubble.jsx";
+import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
 import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
 import { ComposePanel } from "./thread/ComposePanel.jsx";
@@ -404,7 +405,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
               {/* Thread — kept visible above any draft / booking / template
                   panels via min-h, so staff can always read history while
-                  deciding how to reply. */}
+                  deciding how to reply.
+                  Inline "Booking created" cards are interleaved with the
+                  messages at the timestamp the action was applied — the
+                  inverse of the booking detail's "Created from WhatsApp"
+                  link, so staff can follow the loop both ways. */}
               <div className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper">
                 {loadingDetail ? (
                   <LoadingSpinner />
@@ -413,7 +418,34 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     No messages yet.
                   </div>
                 ) : (
-                  messages.map((m) => <MessageBubble key={m.id} message={m} />)
+                  [
+                    ...messages.map((m) => ({
+                      kind: "message",
+                      at: m.sent_at,
+                      key: `m-${m.id}`,
+                      data: m,
+                    })),
+                    ...bookingActions
+                      .filter((a) => a.state === "applied" || a.state === "auto_applied")
+                      .map((a) => ({
+                        kind: "booking_created",
+                        at: a.applied_at || a.created_at,
+                        key: `a-${a.id}`,
+                        data: a,
+                      })),
+                  ]
+                    .sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")))
+                    .map((item) =>
+                      item.kind === "message" ? (
+                        <MessageBubble key={item.key} message={item.data} />
+                      ) : (
+                        <BookingCreatedCard
+                          key={item.key}
+                          action={item.data}
+                          dogNames={dogNames}
+                        />
+                      ),
+                    )
                 )}
               </div>
 
@@ -430,7 +462,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               )}
 
               <BookingActionPanel
-                actions={bookingActions}
+                actions={bookingActions.filter((a) => a.state === "pending")}
                 onApply={handleApplyBookingAction}
                 onReject={handleRejectBookingAction}
                 inFlight={actionInFlight}

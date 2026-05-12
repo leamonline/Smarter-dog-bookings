@@ -80,6 +80,8 @@ export interface Booking {
   confirmed: boolean;
   breedSnapshot: string | null;
   ownerNameSnapshot: string | null;
+  whatsappConversationId: string | null;
+  whatsappMessageId: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

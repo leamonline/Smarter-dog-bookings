@@ -407,6 +407,8 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     confirmed: false,
     breedSnapshot: null,
     ownerNameSnapshot: null,
+    whatsappConversationId: null,
+    whatsappMessageId: null,
     _dogId: dog.id,
     _ownerId: null,
     _pickupById: null,

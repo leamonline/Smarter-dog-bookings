@@ -114,11 +114,15 @@ async function fetchConversationDetail(conversationId) {
       .maybeSingle(),
     supabase
       .from("whatsapp_booking_actions")
-      .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, error_message, created_at")
+      .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, applied_at, error_message, created_at")
       .eq("conversation_id", conversationId)
-      .eq("state", "pending")
+      // Include applied + auto_applied so the thread can render inline
+      // "Booking created" cards (task 5 of the May 2026 review pass).
+      // BookingActionPanel pre-filters to state='pending' so it only
+      // renders the queue waiting on staff approval.
+      .in("state", ["pending", "applied", "auto_applied"])
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(50),
   ]);
 
   if (messagesRes.error) throw messagesRes.error;

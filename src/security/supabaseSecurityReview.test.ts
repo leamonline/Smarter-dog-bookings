@@ -355,17 +355,26 @@ describe("Supabase security review regressions", () => {
   });
 
   it("keeps the staff-only is_staff() check on the legacy pending application path", () => {
-    const migration = getMigrationBySql((sql) =>
-      sql.includes("create or replace function apply_whatsapp_booking_action") &&
-      sql.includes("state not in ('pending', 'confirmed')")
+    // apply_whatsapp_booking_action has been re-issued by multiple
+    // migrations (autonomous booking, then the whatsapp_conversation_id
+    // link in May 2026). Every replacement must preserve the security
+    // gates, so we assert against ALL of them rather than a single
+    // canonical one.
+    const candidates = getAllMigrationSqls().filter(
+      (sql) =>
+        sql.includes("create or replace function apply_whatsapp_booking_action") &&
+        sql.includes("state not in ('pending', 'confirmed')")
     );
+    expect(candidates.length).toBeGreaterThanOrEqual(1);
 
-    // Autonomous path uses state='confirmed' (set under service-role) and skips is_staff.
-    // Staff path keeps is_staff() — verify the conditional gate is present.
-    expect(migration).toMatch(/state = 'pending' and not is_staff\(\)/);
-    expect(migration).toMatch(/'whatsapp_ai_auto'/);
-    // Match 'whatsapp_ai' as a whole token — avoid matching as a prefix of 'whatsapp_ai_auto'.
-    expect(migration).toMatch(/'whatsapp_ai'(?!_auto)/);
+    for (const migration of candidates) {
+      // Autonomous path uses state='confirmed' (set under service-role) and skips is_staff.
+      // Staff path keeps is_staff() — verify the conditional gate is present.
+      expect(migration).toMatch(/state = 'pending' and not is_staff\(\)/);
+      expect(migration).toMatch(/'whatsapp_ai_auto'/);
+      // Match 'whatsapp_ai' as a whole token — avoid matching as a prefix of 'whatsapp_ai_auto'.
+      expect(migration).toMatch(/'whatsapp_ai'(?!_auto)/);
+    }
   });
 
   it("apply-customer-confirm requires the internal secret and only acts on awaiting_customer_confirm", () => {

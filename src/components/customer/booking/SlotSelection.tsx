@@ -66,6 +66,8 @@ export function SlotSelection({
           confirmed: row.confirmed || false,
           breedSnapshot: null,
           ownerNameSnapshot: null,
+          whatsappConversationId: null,
+          whatsappMessageId: null,
           _dogId: row.dog_id,
           _ownerId: null,
           _pickupById: row.pickup_by_id || null,
