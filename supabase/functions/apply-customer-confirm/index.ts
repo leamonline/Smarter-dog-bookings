@@ -254,7 +254,120 @@ serve(async (req) => {
       return new Response("auto_applied", { status: 200 });
     }
 
-    // reschedule and cancel branches land in Tasks 10–11
+    if (action.action === "reschedule") {
+      const newDate = action.payload.new_date as string | undefined;
+      const newSlot = action.payload.new_slot as string | undefined;
+      // Action row may carry the booking id either on target_booking_id
+      // (the structured column) or on payload.old_booking_id (the
+      // round-trip from Claude). Prefer the structured column.
+      const oldBookingId =
+        (action.target_booking_id as string | null) ??
+        (action.payload.old_booking_id as string | undefined) ??
+        null;
+
+      if (!oldBookingId || !newDate || !newSlot) {
+        throw new Error("reschedule payload missing booking id / new_date / new_slot");
+      }
+
+      // Re-fetch the booking — needs to still be in 'Booked' status
+      // (post check-in or pick-up the customer cannot move it themselves).
+      const { data: existing, error: bookErr } = await supabase
+        .from("bookings")
+        .select("id, status, booking_date, slot, dog_id")
+        .eq("id", oldBookingId)
+        .single();
+      if (bookErr || !existing) {
+        throw new Error(`original booking not found: ${oldBookingId}`);
+      }
+      if (existing.status !== "Booked") {
+        const { data: rejectedRows } = await supabase
+          .from("whatsapp_booking_actions")
+          .update({
+            state: "rejected_by_customer",
+            rejection_reason: `not_movable_status_${existing.status}`,
+          })
+          .eq("id", action.id)
+          .eq("state", "awaiting_customer_confirm")
+          .select("id");
+        if (rejectedRows && rejectedRows.length > 0) {
+          await sendAckText(
+            action.conversation_id,
+            "I can't move that booking automatically — one of the team will be in touch shortly. 🎓🐶❤️ X",
+          );
+        }
+        return new Response("not_movable", { status: 200 });
+      }
+
+      // Optimistic-lock the action transition. From here on, only this
+      // caller owns the row.
+      const { data: confirmedRows } = await supabase
+        .from("whatsapp_booking_actions")
+        .update({ state: "confirmed", decided_at: new Date().toISOString() })
+        .eq("id", action.id)
+        .eq("state", "awaiting_customer_confirm")
+        .select("id");
+      if (!confirmedRows || confirmedRows.length === 0) {
+        console.warn(`apply-customer-confirm: action ${action.id} reschedule confirm transition skipped (raced)`);
+        return new Response("already_processed", { status: 200 });
+      }
+
+      // Apply the move. The validate_booking_capacity trigger runs on
+      // UPDATE and will raise on slot conflicts / capacity rules.
+      const { error: updateErr } = await supabase
+        .from("bookings")
+        .update({ booking_date: newDate, slot: newSlot })
+        .eq("id", oldBookingId)
+        .eq("status", "Booked");
+      if (updateErr) {
+        const msg = updateErr.message;
+        if (isCapacityError(msg)) {
+          await supabase
+            .from("whatsapp_booking_actions")
+            .update({
+              state: "rejected_by_customer",
+              rejection_reason: `capacity_gone: ${msg}`.slice(0, 500),
+            })
+            .eq("id", action.id)
+            .eq("state", "confirmed");
+          await sendAckText(
+            action.conversation_id,
+            "Ah, that new slot just went — let me check what else is open. 🎓🐶❤️ X",
+          );
+          return new Response("slot_gone", { status: 200 });
+        }
+        throw new Error(msg);
+      }
+
+      // Transition the action row to auto_applied. applied_booking_id
+      // points at the same booking we moved (no new bookings.id).
+      await supabase
+        .from("whatsapp_booking_actions")
+        .update({
+          state: "auto_applied",
+          applied_booking_id: oldBookingId,
+          applied_at: new Date().toISOString(),
+        })
+        .eq("id", action.id)
+        .eq("state", "confirmed");
+
+      const dogName = await fetchDogName(supabase, existing.dog_id as string | undefined);
+      const summary = formatBookingSummary(
+        { booking_date: newDate, slot: newSlot, service: "" },
+        dogName,
+      );
+      // formatBookingSummary uses service for the trailing label; when
+      // service is empty we strip the dash form and just keep the name.
+      // For reschedule we don't change the service — the ack focuses on
+      // the new date/slot.
+      const cleanedSummary = summary.replace(/ — $/, "").replace(/ for (.+)'s $/, " for $1");
+      await sendAckText(
+        action.conversation_id,
+        `All moved ✓ ${cleanedSummary} (same service as before). 🎓🐶❤️ X`,
+      );
+      return new Response("rescheduled", { status: 200 });
+    }
+
+    // cancel branch lands in Task 11
     return new Response(`unsupported action kind: ${action.action}`, { status: 501 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
