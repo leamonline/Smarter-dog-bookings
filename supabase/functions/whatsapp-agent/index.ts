@@ -1547,12 +1547,21 @@ async function applyPostCreationCorrections(
   if (humanErr || !human) return;
   if (human.source !== "whatsapp_ai") return;
 
+  // AgentState key → humans column mapping. Iterating the whitelist
+  // gives the constant its intended effect: removing an entry from
+  // HUMAN_UPDATE_WHITELIST genuinely suppresses writes for that key.
+  const HUMAN_KEY_TO_COLUMN: Partial<Record<keyof AgentState, string>> = {
+    customerName: "name",
+    customerSurname: "surname",
+  };
   const humanUpdate: Record<string, string> = {};
-  if (HUMAN_UPDATE_WHITELIST.includes("customerName") && patch.customerName && patch.customerName !== current?.customerName) {
-    humanUpdate.name = patch.customerName;
-  }
-  if (HUMAN_UPDATE_WHITELIST.includes("customerSurname") && patch.customerSurname && patch.customerSurname !== current?.customerSurname) {
-    humanUpdate.surname = patch.customerSurname;
+  for (const key of HUMAN_UPDATE_WHITELIST) {
+    const column = HUMAN_KEY_TO_COLUMN[key];
+    if (!column) continue;
+    const newValue = patch[key];
+    if (typeof newValue !== "string" || !newValue) continue;
+    if (newValue === current?.[key]) continue;
+    humanUpdate[column] = newValue;
   }
   if (Object.keys(humanUpdate).length > 0) {
     const { error: updateErr } = await supabase
@@ -1577,33 +1586,47 @@ async function applyPostCreationCorrections(
 
   const dogId = dogs[0].id;
 
+  // dogAge has no DB column today — the lead flow doesn't persist it
+  // into dogs. Whitelisted for forward-compat but produces no write.
+  // dogs.alerts is jsonb (string[]); handled separately below.
+  // Note on groom_notes: at onboarding-time createNewCustomerRecords
+  // writes the coat condition string into groom_notes verbatim, so the
+  // column starts as exactly the coat value. A subsequent correction
+  // here OVERWRITES that value. If staff have manually appended notes
+  // to an AI-onboarded dog before a correction lands, those notes will
+  // be lost. Acceptable trade-off given source='whatsapp_ai' rows are
+  // primarily owned by the AI's onboarding pipeline; a richer schema
+  // (separate coat_condition column) would solve this properly.
+  const DOG_KEY_TO_COLUMN: Partial<Record<keyof AgentState, string>> = {
+    dogName: "name",
+    coatCondition: "groom_notes",
+  };
   const dogUpdate: Record<string, unknown> = {};
-  if (DOG_UPDATE_WHITELIST.includes("dogName") && patch.dogName && patch.dogName !== current?.dogName) {
-    dogUpdate.name = patch.dogName;
+  for (const key of DOG_UPDATE_WHITELIST) {
+    const column = DOG_KEY_TO_COLUMN[key];
+    if (!column) continue;
+    const newValue = patch[key];
+    if (typeof newValue !== "string" || !newValue) continue;
+    if (newValue === current?.[key]) continue;
+    dogUpdate[column] = newValue;
   }
-  if (
-    DOG_UPDATE_WHITELIST.includes("coatCondition") &&
-    patch.coatCondition &&
-    patch.coatCondition !== current?.coatCondition
-  ) {
-    // coatCondition lives in dogs.groom_notes (single text column).
-    // Preserve any non-coat content that's already there by prefixing
-    // with the new value rather than overwriting blindly.
-    dogUpdate.groom_notes = patch.coatCondition;
-  }
+  // Alerts (string[]) — non-string-keyed; only fires when patch differs
+  // from the current value by structure. parseExtractedState already
+  // drops empty arrays so patch.alerts === [] is unreachable via the
+  // normal AI path; if a future caller bypasses the parser the diff
+  // still catches no-op patches.
   if (Array.isArray(patch.alerts) && JSON.stringify(patch.alerts) !== JSON.stringify(current?.alerts ?? [])) {
     dogUpdate.alerts = patch.alerts;
   }
-  // dogAge: the schema has no dedicated column; the lead flow doesn't
-  // persist it directly into dogs. Patches on dogAge update agent_state
-  // (handled by mergeAgentState/persistAgentState) but don't touch dogs
-  // here. Whitelist entry is kept for symmetry / future schema work.
 
   if (Object.keys(dogUpdate).length > 0) {
+    // Ownership belt-and-braces: filter on human_id at UPDATE time so
+    // even a stale dogId can't land a write on the wrong dog.
     const { error: updateErr } = await supabase
       .from("dogs")
       .update(dogUpdate)
-      .eq("id", dogId);
+      .eq("id", dogId)
+      .eq("human_id", humanId);
     if (updateErr) {
       console.warn(`applyPostCreationCorrections(dogs) failed: ${updateErr.message}`);
     }
