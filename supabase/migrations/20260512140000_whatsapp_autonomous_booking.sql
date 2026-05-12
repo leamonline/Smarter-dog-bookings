@@ -24,28 +24,35 @@ alter table whatsapp_booking_actions
   ));
 
 alter table whatsapp_booking_actions
-  add column customer_confirm_message_id text,
-  add column customer_confirm_expires_at timestamptz;
+  add column if not exists customer_confirm_message_id text,
+  add column if not exists customer_confirm_expires_at timestamptz;
 
-create index idx_whatsapp_booking_actions_confirm_msg
+create index if not exists idx_whatsapp_booking_actions_confirm_msg
   on whatsapp_booking_actions(customer_confirm_message_id)
   where customer_confirm_message_id is not null;
 
-create index idx_whatsapp_booking_actions_awaiting_confirm
+create index if not exists idx_whatsapp_booking_actions_awaiting_confirm
   on whatsapp_booking_actions(state, customer_confirm_expires_at)
   where state = 'awaiting_customer_confirm';
 
 -- 2. whatsapp_conversations: lead-collection state + per-conversation opt-in
 alter table whatsapp_conversations
-  add column lead_status text
+  add column if not exists lead_status text
     check (lead_status in ('collecting', 'awaiting_summary_confirm', 'records_created')),
-  add column lead_payload jsonb,
-  add column autonomous_booking_enabled boolean not null default false;
+  add column if not exists lead_payload jsonb,
+  add column if not exists autonomous_booking_enabled boolean not null default false;
 
 -- 3. humans: provenance for the post-creation correction path
-alter table humans add column source text;
+alter table humans add column if not exists source text;
 
--- 4. Update existing apply_whatsapp_booking_action() function to accept the
+-- 4. bookings: source + notes columns used by the autonomous-booking insert path.
+--    'source' distinguishes whatsapp_ai (staff-approved AI proposal) from
+--    whatsapp_ai_auto (customer-confirmed autonomous booking). 'notes' carries
+--    a short free-text reason from the AI's booking_action payload.
+alter table bookings add column if not exists source text;
+alter table bookings add column if not exists notes text;
+
+-- 5. Update existing apply_whatsapp_booking_action() function to accept the
 --    new 'confirmed' state from the autonomous path (in addition to the
 --    legacy 'pending' state from staff approval). The autonomous flow
 --    transitions awaiting_customer_confirm → confirmed → calls this fn.
@@ -114,33 +121,53 @@ begin
   end if;
 
   insert into bookings (
-    dog_id, booking_date, slot, service, size,
-    addons, payment, confirmed, source, notes, status
-  ) values (
-    (v_action.payload->>'dog_id')::uuid,
+    booking_date,
+    slot,
+    dog_id,
+    size,
+    service,
+    status,
+    addons,
+    pickup_by_id,
+    payment,
+    confirmed,
+    source,
+    notes
+  )
+  values (
     (v_action.payload->>'booking_date')::date,
     v_action.payload->>'slot',
+    (v_action.payload->>'dog_id')::uuid,
+    coalesce(nullif(v_action.payload->>'size', ''), 'small'),
     v_action.payload->>'service',
-    coalesce(v_action.payload->>'size', 'small'),
-    coalesce((v_action.payload->'addons')::jsonb, '[]'::jsonb),
-    coalesce(v_action.payload->>'payment', 'Due at Pick-up'),
+    coalesce(nullif(v_action.payload->>'status', ''), 'Booked'),
+    coalesce(
+      array(select jsonb_array_elements_text(coalesce(v_action.payload->'addons', '[]'::jsonb))),
+      '{}'::text[]
+    ),
+    nullif(v_action.payload->>'pickup_by_id', '')::uuid,
+    coalesce(nullif(v_action.payload->>'payment', ''), 'Due at Pick-up'),
     coalesce((v_action.payload->>'confirmed')::boolean, true),
     case when v_action.state = 'confirmed' then 'whatsapp_ai_auto' else 'whatsapp_ai' end,
-    v_action.payload->>'notes',
-    'Booked'
-  ) returning id into v_booking_id;
+    nullif(v_action.payload->>'notes', '')
+  )
+  returning id into v_booking_id;
 
   update whatsapp_booking_actions
      set state = case when v_action.state = 'confirmed' then 'auto_applied' else 'applied' end,
          applied_booking_id = v_booking_id,
          applied_at = now(),
          decided_by = case when v_action.state = 'pending' then auth.uid() else null end,
-         decided_at = now()
+         decided_at = now(),
+         error_message = null
    where id = p_action_id;
 
   return v_booking_id;
 end;
 $$;
+
+comment on function apply_whatsapp_booking_action(uuid) is
+  'Applies a WhatsApp booking action. Pending state requires is_staff() (legacy staff-approval path, bookings.source = ''whatsapp_ai''). Confirmed state is service-role only and represents the customer-confirmed autonomous booking path (bookings.source = ''whatsapp_ai_auto'').';
 
 comment on column whatsapp_booking_actions.customer_confirm_message_id is
   'Meta wa_id of the [Yes]/[No] button message we sent. Used to route button_reply events back to this action row.';
@@ -159,3 +186,9 @@ comment on column whatsapp_conversations.autonomous_booking_enabled is
 
 comment on column humans.source is
   'How this record was created. ''whatsapp_ai'' for AI-onboarded customers; NULL or app-specific values for existing customers. Used by the post-creation correction path to gate which rows the AI may update.';
+
+comment on column bookings.source is
+  'How this booking was created. ''whatsapp_ai_auto'' = customer-confirmed via the autonomous path. ''whatsapp_ai'' = staff-approved AI proposal. NULL = legacy / app-direct.';
+
+comment on column bookings.notes is
+  'Short free-text reason from the booking proposer (currently only populated by the WhatsApp AI auto-booking flow).';
