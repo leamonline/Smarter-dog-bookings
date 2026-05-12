@@ -1269,6 +1269,42 @@ serve(async (req) => {
             sentAt,
           );
 
+          // Button-reply routing: if this inbound is a Yes/No tap on a
+          // confirm_buttons message we sent (id matches <uuid>:yes|no),
+          // dispatch to apply-customer-confirm and skip the Claude draft
+          // for this turn. The apply function fires its own ack text via
+          // whatsapp-send.
+          const buttonReply = msg.interactive?.button_reply;
+          if (buttonReply?.id) {
+            const buttonReplyMatch = buttonReply.id.match(/^([0-9a-f-]{36}):(yes|no)$/i);
+            if (buttonReplyMatch) {
+              const [, actionId, choice] = buttonReplyMatch;
+              const applySecret = Deno.env.get("APPLY_CONFIRM_INTERNAL_SECRET") ?? "";
+              if (!applySecret) {
+                console.warn("button_reply received but APPLY_CONFIRM_INTERNAL_SECRET not set; skipping");
+              } else {
+                const applyUrl = `${SUPABASE_URL}/functions/v1/apply-customer-confirm`;
+                try {
+                  const res = await fetch(applyUrl, {
+                    method: "POST",
+                    headers: {
+                      "content-type": "application/json",
+                      "x-internal-secret": applySecret,
+                    },
+                    body: JSON.stringify({ booking_action_id: actionId, choice }),
+                  });
+                  if (!res.ok) {
+                    const errText = await res.text();
+                    console.warn(`apply-customer-confirm returned ${res.status}: ${errText}`);
+                  }
+                } catch (err) {
+                  console.warn("apply-customer-confirm dispatch failed:", err);
+                }
+              }
+              continue; // skip Claude draft for this turn
+            }
+          }
+
           // If staff has taken over, skip AI draft entirely.
           if (conversation.state !== "ai_handling") {
             continue;
