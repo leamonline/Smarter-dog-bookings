@@ -38,8 +38,11 @@ import { MessageBubble } from "./thread/MessageBubble.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
 import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
 import { ComposePanel } from "./thread/ComposePanel.jsx";
+import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
+import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
+import { useCustomerContext } from "./hooks/useCustomerContext.js";
 
-export function InboxView() {
+export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
     conversations,
     loadingList,
@@ -119,6 +122,18 @@ export function InboxView() {
     if (res?.ok) toast.show("AI is back in the loop.", "info");
     return res;
   }, [releaseConversation, toast]);
+
+  // Customer-context panel: docked third column at xl, slide-over below xl.
+  // Track openness separately so the slide-over can close without
+  // resetting the docked view. The docked column is purely CSS — it
+  // shows whenever a conversation is selected.
+  const [contextOpen, setContextOpen] = useState(false);
+  // Close the slide-over when switching conversations so a half-open
+  // panel doesn't follow staff around.
+  useEffect(() => {
+    setContextOpen(false);
+  }, [selectedId]);
+  const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
   // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review".
   // "all" is the default and shows every conversation. The other modes
@@ -361,6 +376,21 @@ export function InboxView() {
                         Hand back to AI
                       </button>
                     ) : null}
+                    {/* Customer info — slide-over below xl, redundant
+                        at xl (the docked column is already visible). */}
+                    <button
+                      type="button"
+                      onClick={() => setContextOpen(true)}
+                      title="Show this customer's dogs, last groom, and trusted contacts."
+                      className="xl:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                      Customer info
+                    </button>
                   </div>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-snug">
@@ -418,7 +448,44 @@ export function InboxView() {
             </>
           )}
         </div>
+
+        {/* Customer context — docked third column at xl+. Hidden on
+            smaller breakpoints (the slide-over below replaces it). */}
+        {selectedId && (
+          <div className="hidden xl:flex xl:w-[300px] xl:flex-col border-l border-slate-200 bg-white">
+            <CustomerContextPanel
+              context={customerContext}
+              conversation={selectedConversation}
+              onOpenHuman={onOpenHuman}
+              onOpenDog={onOpenDog}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Slide-over for below xl. Mounted only when open so the
+          backdrop and focus trap don't sit dormant in the tree. */}
+      {selectedId && contextOpen && (
+        <SlideOverPanel
+          onClose={() => setContextOpen(false)}
+          titleId="inbox-customer-context-title"
+        >
+          <CustomerContextPanel
+            context={customerContext}
+            conversation={selectedConversation}
+            onOpenHuman={(id) => {
+              setContextOpen(false);
+              onOpenHuman?.(id);
+            }}
+            onOpenDog={(id) => {
+              setContextOpen(false);
+              onOpenDog?.(id);
+            }}
+            onClose={() => setContextOpen(false)}
+            titleId="inbox-customer-context-title"
+          />
+        </SlideOverPanel>
+      )}
     </div>
   );
 }
