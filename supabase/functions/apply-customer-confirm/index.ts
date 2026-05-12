@@ -427,12 +427,17 @@ serve(async (req) => {
         (action.target_booking_id as string | null) ??
         (action.payload.old_booking_id as string | undefined) ??
         null;
-      const reason =
-        (action.payload.reason as string | undefined)?.trim() ||
-        "customer requested via WhatsApp";
+      // The parser at whatsapp-agent enforces reason >=3 chars at propose
+      // time; an empty reason at apply time means the row was authored
+      // outside the normal flow. Don't silently fabricate a fallback —
+      // throw so it lands in the staff queue for inspection.
+      const reason = (action.payload.reason as string | undefined)?.trim();
 
       if (!oldBookingId) {
         throw new Error("cancel payload missing booking id");
+      }
+      if (!reason) {
+        throw new Error("cancel payload missing reason");
       }
 
       // Re-fetch the booking. Only 'Booked' status is cancellable
