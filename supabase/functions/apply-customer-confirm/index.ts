@@ -50,34 +50,27 @@ async function sendAckText(conversation_id: string, text: string) {
   }
 }
 
-async function isSlotFree(
+async function fetchDogName(
   supabase: SupabaseClient,
-  payload: Record<string, unknown>,
-): Promise<boolean> {
-  const bookingDate = payload.booking_date as string;
-  const slot = payload.slot as string;
-  const dogId = payload.dog_id as string;
-
+  dogId: string | undefined,
+): Promise<string | null> {
+  if (!dogId) return null;
   const { data, error } = await supabase
-    .from("bookings")
-    .select("id, dog_id")
-    .eq("booking_date", bookingDate)
-    .eq("slot", slot)
-    .neq("status", "Cancelled");
-
+    .from("dogs")
+    .select("name")
+    .eq("id", dogId)
+    .maybeSingle();
   if (error) {
-    console.warn("isSlotFree query failed; failing closed:", error.message);
-    return false;
+    console.warn(`fetchDogName(${dogId}) failed (non-fatal):`, error.message);
+    return null;
   }
-
-  // If the customer's own dog is already in this slot (e.g. retry), treat
-  // that as "free" so we don't reject our own race against ourselves.
-  if (!data || data.length === 0) return true;
-  if (data.length === 1 && data[0].dog_id === dogId) return true;
-  return false;
+  return data?.name ?? null;
 }
 
-function formatBookingSummary(payload: Record<string, unknown>): string {
+function formatBookingSummary(
+  payload: Record<string, unknown>,
+  dogName: string | null,
+): string {
   const date = payload.booking_date as string;
   const slot = payload.slot as string;
   const service = payload.service as string;
@@ -94,7 +87,31 @@ function formatBookingSummary(payload: Record<string, unknown>): string {
     month: "short",
     timeZone: "UTC",
   });
+  // "Mon 18 May at 09:30 for Alfie's full groom" when we have a dog name,
+  // a generic dash form otherwise.
+  if (dogName) {
+    return `${formattedDate} at ${slot} for ${dogName}'s ${label}`;
+  }
   return `${formattedDate} at ${slot} — ${label}`;
+}
+
+// Substrings of the validate_booking_capacity trigger's exception messages
+// (migration 20260331083432_capacity_trigger.sql). When the RPC fails with
+// one of these, the slot has been taken since the agent built context —
+// we surface the "slot just went" UX instead of the generic staff fallback.
+const CAPACITY_ERROR_HINTS = [
+  "Not enough capacity",
+  "fills this slot",
+  "share this slot",
+  "back-to-back large dogs",
+  "13:00 is closed",
+  "must be empty",
+  "must have 0-1 seats used",
+];
+
+function isCapacityError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return CAPACITY_ERROR_HINTS.some((hint) => lower.includes(hint.toLowerCase()));
 }
 
 serve(async (req) => {
@@ -168,31 +185,17 @@ serve(async (req) => {
   // choice === 'yes' — run the action
   try {
     if (action.action === "create") {
-      // Re-check slot availability before booking (the agent built
-      // context up to ~60s earlier; staff or another customer may have
-      // taken the slot since). Fails closed on query error.
-      const slotFree = await isSlotFree(supabase, action.payload);
-      if (!slotFree) {
-        const { data: rejectedRows } = await supabase
-          .from("whatsapp_booking_actions")
-          .update({ state: "rejected_by_customer", rejection_reason: "slot_gone" })
-          .eq("id", action.id)
-          .eq("state", "awaiting_customer_confirm")
-          .select("id");
-        if (rejectedRows && rejectedRows.length > 0) {
-          await sendAckText(
-            action.conversation_id,
-            "Ah, that slot just went — let me check what else is open. 🎓🐶❤️ X",
-          );
-        }
-        return new Response("slot_gone", { status: 200 });
-      }
-
-      // Transition to 'confirmed' so apply_whatsapp_booking_action treats
-      // this as the autonomous path: no is_staff() check, and stamps
-      // bookings.source = 'whatsapp_ai_auto'. The optimistic lock on
-      // state='awaiting_customer_confirm' guards against double-apply
-      // if Meta delivers the button_reply twice.
+      // Capacity is enforced by validate_booking_capacity (BEFORE INSERT on
+      // bookings — migration 20260331083432). We don't pre-check here:
+      //   - The trigger is the canonical gate (multi-seat slots via
+      //     get_max_seats_for_slot, large-dog rules, back-to-back rules).
+      //   - Any pre-check has a TOCTOU race against the actual INSERT.
+      // We catch the trigger's exception below and surface a "slot just
+      // went" ack on capacity-style failures.
+      //
+      // Optimistic-lock transition to 'confirmed' so
+      // apply_whatsapp_booking_action treats this as the autonomous path
+      // (no is_staff() check, bookings.source = 'whatsapp_ai_auto').
       const { data: confirmedRows } = await supabase
         .from("whatsapp_booking_actions")
         .update({ state: "confirmed", decided_at: new Date().toISOString() })
@@ -210,9 +213,40 @@ serve(async (req) => {
         "apply_whatsapp_booking_action",
         { p_action_id: action.id },
       );
-      if (applyErr) throw new Error(applyErr.message);
+      if (applyErr) {
+        const msg = applyErr.message;
+        // Concurrent-retry case: another caller already applied. The
+        // apply_whatsapp_booking_action function raises this when state
+        // is no longer pending or confirmed. Idempotent no-op, clean log.
+        if (msg.includes("not pending or confirmed")) {
+          console.warn(`apply-customer-confirm: action ${action.id} already applied (retry)`);
+          return new Response("already_applied", { status: 200 });
+        }
+        // Capacity gone: slot filled between context-build and apply. Send
+        // a "slot just went" ack so the customer gets a coherent UX, not
+        // silent staff-queue handoff.
+        if (isCapacityError(msg)) {
+          await supabase
+            .from("whatsapp_booking_actions")
+            .update({
+              state: "rejected_by_customer",
+              rejection_reason: `capacity_gone: ${msg}`.slice(0, 500),
+            })
+            .eq("id", action.id)
+            .eq("state", "confirmed");
+          await sendAckText(
+            action.conversation_id,
+            "Ah, that slot just went — let me check what else is open. 🎓🐶❤️ X",
+          );
+          return new Response("slot_gone", { status: 200 });
+        }
+        // Anything else: real failure — fall through to the catch's
+        // staff-queue fallback so the lead isn't lost.
+        throw new Error(msg);
+      }
 
-      const summary = formatBookingSummary(action.payload);
+      const dogName = await fetchDogName(supabase, action.payload?.dog_id as string | undefined);
+      const summary = formatBookingSummary(action.payload, dogName);
       await sendAckText(
         action.conversation_id,
         `You're booked in ✓ ${summary}. See you then! 🎓🐶❤️ X`,
