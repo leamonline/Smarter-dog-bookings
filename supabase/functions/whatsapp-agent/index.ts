@@ -961,6 +961,8 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
   const obj = value as Record<string, unknown>;
   const action = obj.action;
 
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   if (action === "create") {
     const validServices = new Set([
       "full-groom",
@@ -973,7 +975,7 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
     // a model that ignores the prompt can't sneak a large-dog booking
     // through to apply.
     const validSizes = new Set(["small", "medium"]);
-    if (typeof obj.dog_id !== "string" || !obj.dog_id) return null;
+    if (typeof obj.dog_id !== "string" || !uuidRe.test(obj.dog_id)) return null;
     if (typeof obj.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.booking_date)) return null;
     if (typeof obj.slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.slot)) return null;
     if (typeof obj.service !== "string" || !validServices.has(obj.service)) return null;
@@ -991,8 +993,6 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
         : {}),
     };
   }
-
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   if (action === "reschedule") {
     if (typeof obj.old_booking_id !== "string" || !uuidRe.test(obj.old_booking_id)) return null;
