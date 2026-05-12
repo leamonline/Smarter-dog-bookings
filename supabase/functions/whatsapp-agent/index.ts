@@ -1522,6 +1522,94 @@ async function createNewCustomerRecords(
   return { ok: true, humanId, dogId: dogRow.id };
 }
 
+// ── Post-creation correction helper ─────────────────────────
+// Columns the AI is allowed to update on humans/dogs after onboarding.
+// Breed is deliberately excluded — changing breed re-derives size and
+// needs staff review. Service / preferredDay / preferredTime aren't
+// stored on humans or dogs (they're agent_state only).
+const HUMAN_UPDATE_WHITELIST: (keyof AgentState)[] = ["customerName", "customerSurname"];
+const DOG_UPDATE_WHITELIST: (keyof AgentState)[] = ["dogName", "dogAge", "coatCondition"];
+
+async function applyPostCreationCorrections(
+  supabase: SupabaseClient,
+  humanId: string,
+  current: AgentState | null,
+  patch: Partial<AgentState>,
+): Promise<void> {
+  // Only apply when the humans row is the one the AI itself created.
+  // Manually-entered customers (source NULL or other) must never be
+  // edited by the AI — staff use the dashboard for those.
+  const { data: human, error: humanErr } = await supabase
+    .from("humans")
+    .select("id, source, name, surname")
+    .eq("id", humanId)
+    .single();
+  if (humanErr || !human) return;
+  if (human.source !== "whatsapp_ai") return;
+
+  const humanUpdate: Record<string, string> = {};
+  if (HUMAN_UPDATE_WHITELIST.includes("customerName") && patch.customerName && patch.customerName !== current?.customerName) {
+    humanUpdate.name = patch.customerName;
+  }
+  if (HUMAN_UPDATE_WHITELIST.includes("customerSurname") && patch.customerSurname && patch.customerSurname !== current?.customerSurname) {
+    humanUpdate.surname = patch.customerSurname;
+  }
+  if (Object.keys(humanUpdate).length > 0) {
+    const { error: updateErr } = await supabase
+      .from("humans")
+      .update(humanUpdate)
+      .eq("id", humanId)
+      .eq("source", "whatsapp_ai"); // defence-in-depth — still scoped
+    if (updateErr) {
+      console.warn(`applyPostCreationCorrections(humans) failed: ${updateErr.message}`);
+    }
+  }
+
+  // Dogs — find the AI-owned dog(s) for this human and apply the diff.
+  // Multi-dog new-customer onboarding is out of scope (the lead flow
+  // captures one dog only), so we operate on the first dog row.
+  const { data: dogs } = await supabase
+    .from("dogs")
+    .select("id, name")
+    .eq("human_id", humanId)
+    .order("created_at", { ascending: true });
+  if (!dogs || dogs.length === 0) return;
+
+  const dogId = dogs[0].id;
+
+  const dogUpdate: Record<string, unknown> = {};
+  if (DOG_UPDATE_WHITELIST.includes("dogName") && patch.dogName && patch.dogName !== current?.dogName) {
+    dogUpdate.name = patch.dogName;
+  }
+  if (
+    DOG_UPDATE_WHITELIST.includes("coatCondition") &&
+    patch.coatCondition &&
+    patch.coatCondition !== current?.coatCondition
+  ) {
+    // coatCondition lives in dogs.groom_notes (single text column).
+    // Preserve any non-coat content that's already there by prefixing
+    // with the new value rather than overwriting blindly.
+    dogUpdate.groom_notes = patch.coatCondition;
+  }
+  if (Array.isArray(patch.alerts) && JSON.stringify(patch.alerts) !== JSON.stringify(current?.alerts ?? [])) {
+    dogUpdate.alerts = patch.alerts;
+  }
+  // dogAge: the schema has no dedicated column; the lead flow doesn't
+  // persist it directly into dogs. Patches on dogAge update agent_state
+  // (handled by mergeAgentState/persistAgentState) but don't touch dogs
+  // here. Whitelist entry is kept for symmetry / future schema work.
+
+  if (Object.keys(dogUpdate).length > 0) {
+    const { error: updateErr } = await supabase
+      .from("dogs")
+      .update(dogUpdate)
+      .eq("id", dogId);
+    if (updateErr) {
+      console.warn(`applyPostCreationCorrections(dogs) failed: ${updateErr.message}`);
+    }
+  }
+}
+
 // ── Main handler ─────────────────────────────────────────────
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -1772,6 +1860,24 @@ serve(async (req) => {
                 })
                 .eq("id", conversation.id);
             }
+          }
+
+          // Post-creation corrections: when the conversation is linked
+          // (records created) and the AI extracted a patch, apply the
+          // diff to humans/dogs. Restricted to AI-onboarded records via
+          // applyPostCreationCorrections's source guard. Non-blocking
+          // (warns on failure, doesn't fail the turn).
+          if (
+            conversation.human_id &&
+            draft.extracted_state &&
+            conversation.lead_status === "records_created"
+          ) {
+            await applyPostCreationCorrections(
+              supabase,
+              conversation.human_id,
+              conversation.agent_state,
+              draft.extracted_state,
+            );
           }
 
           const draftId = await saveDraft(
