@@ -374,7 +374,13 @@ export function mergeAgentState(
     }
     if (key === "alerts") {
       if (Array.isArray(value)) {
-        next.alerts = value.filter((v): v is string => typeof v === "string");
+        // Apply the same caps as parseExtractedState so non-parser callers
+        // (tests, dashboard mutations, future RPCs) can't push oversized
+        // entries through. Defence-in-depth — the parser sanitises today.
+        next.alerts = value
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+          .map((v) => v.trim().slice(0, 100))
+          .slice(0, 10);
       }
       continue;
     }
