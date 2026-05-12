@@ -1,8 +1,9 @@
 // ============================================================
-// src/components/views/WhatsAppInboxView.jsx
+// src/components/views/inbox/InboxView.jsx
 //
-// The staff WhatsApp inbox. Two-pane layout on desktop (list + detail),
-// stacked on mobile. Uses the useWhatsAppInbox hook for all data/actions.
+// The staff customer-comms cockpit (WhatsApp today; SMS / others later).
+// Two-pane layout on desktop (list + detail), stacked on mobile.
+// Uses the useWhatsAppInbox hook for all data/actions.
 //
 // Feature set:
 //   - Conversations list with unread badges, pending-draft indicator
@@ -20,11 +21,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useWhatsAppInbox } from "../../supabase/hooks/useWhatsAppInbox.js";
-import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
-import { titleCase } from "../../utils/text.js";
-import { WHATSAPP_TEMPLATES } from "../../constants/whatsappTemplates.js";
-import { SALON_SLOTS, SERVICES } from "../../constants/index.ts";
+import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
+import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
+import { titleCase } from "../../../utils/text.js";
+import { WHATSAPP_TEMPLATES } from "../../../constants/whatsappTemplates.js";
+import { SALON_SLOTS, SERVICES } from "../../../constants/index.ts";
 
 // ── Formatting helpers ──────────────────────────────────────
 function formatWhen(iso) {
@@ -1181,7 +1182,7 @@ function TemplatePicker({ conversation, dogNames, onSend }) {
 }
 
 // ── Main view ───────────────────────────────────────────────
-export function WhatsAppInboxView() {
+export function InboxView() {
   const {
     conversations,
     loadingList,
