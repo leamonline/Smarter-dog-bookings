@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
-import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
 import { ConfirmDeleteModal } from "../modals/ConfirmDeleteModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
+import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch.js";
 
 function computeAge(dog) {
@@ -119,12 +119,10 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDele
       {/* Card grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedDogs.map((dog) => {
-          const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
-          const ownerName =
-            owner?.fullName ||
-            (owner
-              ? `${owner.name} ${owner.surname}`.trim()
-              : dog.humanId || "");
+          // formatOwnerLabel refuses to render a UUID-shaped string —
+          // when the human row isn't in the loaded map, the card shows
+          // "Unknown owner" rather than the raw humans.id from the dog.
+          const { label: ownerName, missing: ownerMissing } = formatOwnerLabel(dog, humans);
           const alertCount = (dog.alerts || []).length;
           const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
           const age = computeAge(dog);
@@ -179,9 +177,11 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, onDele
                   {titleCase(dog.breed)}{age ? ` \u00B7 ${age}` : ""}
                 </div>
 
-                {/* Owner — pushed to bottom */}
+                {/* Owner — pushed to bottom. Italic when we don't know who the owner is. */}
                 <div className="mt-auto text-[12px] font-semibold text-slate-400 truncate">
-                  {ownerName ? titleCase(ownerName) : <span className="italic">No owner</span>}
+                  {ownerMissing
+                    ? <span className="italic">{ownerName}</span>
+                    : titleCase(ownerName)}
                 </div>
               </div>
             </div>

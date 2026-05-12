@@ -9,7 +9,7 @@ describe("buildSearchEntries", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].dog.id).toBe("d1");
     expect(entries[0].humans).toEqual([
-      { key: "Sarah Jones", phone: "07700 900111", isTrusted: false },
+      { key: "Sarah Jones", phone: "07700 900111", isTrusted: false, missing: false },
     ]);
   });
 
@@ -23,9 +23,9 @@ describe("buildSearchEntries", () => {
     const entries = buildSearchEntries(dogs, humans);
     expect(entries).toHaveLength(1);
     expect(entries[0].humans).toEqual([
-      { key: "Sarah Jones", phone: "07700 900111", isTrusted: false },
-      { key: "Dave Smith", phone: "07700 900112", isTrusted: true },
-      { key: "Emma Wilson", phone: "07700 900113", isTrusted: true },
+      { key: "Sarah Jones", phone: "07700 900111", isTrusted: false, missing: false },
+      { key: "Dave Smith", phone: "07700 900112", isTrusted: true, missing: false },
+      { key: "Emma Wilson", phone: "07700 900113", isTrusted: true, missing: false },
     ]);
   });
 
@@ -39,13 +39,29 @@ describe("buildSearchEntries", () => {
     expect(entries[0].humans.map((h) => h.key)).toEqual(["Sarah Jones", "Dave Smith"]);
   });
 
-  it("keeps a dog even when the owner lookup fails but humanId is set", () => {
+  it("renders 'Unknown owner' rather than a UUID when the human row hasn't loaded", () => {
+    const dogs = {
+      Mystery: {
+        id: "d-1",
+        name: "Mystery",
+        humanId: "a3f1c2e0-7b89-4d3a-9c1e-1234567890ab",
+      },
+    };
+    const entries = buildSearchEntries(dogs, {});
+    expect(entries[0].humans).toEqual([
+      { key: "Unknown owner", phone: "", isTrusted: false, missing: true },
+    ]);
+  });
+
+  it("keeps the owner name when the lookup fails but humanId is name-shaped", () => {
     const dogs = { Orphan: { id: "d2", name: "Orphan", humanId: "Missing Owner" } };
     const humans = {};
     const entries = buildSearchEntries(dogs, humans);
     expect(entries).toHaveLength(1);
+    // humanId is name-shaped (not a UUID) so we preserve the fetch-time
+    // owner name rather than collapsing to "Unknown owner".
     expect(entries[0].humans).toEqual([
-      { key: "Missing Owner", phone: "", isTrusted: false },
+      { key: "Missing Owner", phone: "", isTrusted: false, missing: false },
     ]);
   });
 

@@ -1,5 +1,7 @@
 // ─── helpers shared across NewBookingModal sub-components ─────────────────
 
+import { looksLikeUuid } from "../../../utils/formatOwnerLabel.js";
+
 export function getHumanPhone(humans, humanKey) {
   const h = humans?.[humanKey];
   return h?.phone || "";
@@ -7,35 +9,47 @@ export function getHumanPhone(humans, humanKey) {
 
 /**
  * One entry per dog, with the owner and trusted humans grouped inside.
- * Shape: { dog, hasAlerts, humans: [{ key, phone, isTrusted }] }.
+ * Shape: { dog, hasAlerts, humans: [{ key, phone, isTrusted, missing }] }.
  * Owner is always first in the humans array; trusted follow in the order
  * they appear on the owner.
+ *
+ * "Key" is the display string for the OWNER column in the dropdown.
+ * Never a UUID — when the humans map hasn't loaded the owner row yet,
+ * the entry is marked `missing` with key "Unknown owner".
  */
 export function buildSearchEntries(dogs, humans) {
   const entries = [];
   for (const dog of Object.values(dogs || {})) {
     const ownerKey = dog.humanId || "";
-    const owner = ownerKey ? humans?.[ownerKey] : null;
+    const ownerIsUuid = looksLikeUuid(ownerKey);
+    const owner = ownerKey && !ownerIsUuid ? humans?.[ownerKey] : null;
     const hasAlerts = Boolean(dog.alerts?.length);
 
     const humansForDog = [];
 
     if (ownerKey) {
+      // Only swap in "Unknown owner" when the key looks like a UUID —
+      // a name-shaped key still carries the owner name we saw at fetch
+      // time even if the human row has since been evicted from the map.
+      const displayKey = ownerIsUuid ? "Unknown owner" : ownerKey;
       humansForDog.push({
-        key: ownerKey,
+        key: displayKey,
         phone: owner?.phone || "",
         isTrusted: false,
+        missing: ownerIsUuid && !owner,
       });
     }
 
     if (owner?.trustedIds?.length) {
       for (const trustedKey of owner.trustedIds) {
+        if (looksLikeUuid(trustedKey)) continue;
         const trusted = humans?.[trustedKey];
         if (trusted) {
           humansForDog.push({
             key: trustedKey,
             phone: trusted.phone || "",
             isTrusted: true,
+            missing: false,
           });
         }
       }

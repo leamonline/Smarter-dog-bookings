@@ -4,6 +4,7 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
+  looksLikeUuid,
 } from "../../engine/bookingRules.js";
 import {
   GroomingHistory,
@@ -69,7 +70,11 @@ export function DogCardModal({
     getHumanByIdOrName(humans, resolvedDog._humanId || resolvedDog.humanId) ||
     null;
 
-  const ownerLabel = owner?.fullName || resolvedDog.humanId || "";
+  // ownerLabel is visible text in the card title row, so it can never
+  // be a raw UUID. ownerOpenValue is an internal id passed to onOpenHuman
+  // and is allowed to be a UUID.
+  const rawOwnerLabel = owner?.fullName || resolvedDog.humanId || "";
+  const ownerLabel = looksLikeUuid(rawOwnerLabel) ? "" : rawOwnerLabel;
   const ownerOpenValue =
     owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
 
