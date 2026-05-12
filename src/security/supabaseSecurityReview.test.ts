@@ -325,6 +325,7 @@ describe("Supabase security review regressions", () => {
 
   it("constrains whatsapp_booking_actions.state to the autonomous-booking state set", () => {
     const migration = getMigrationBySql((sql) =>
+      sql.includes("Customer-confirmed autonomous booking") &&
       sql.includes("whatsapp_booking_actions_state_check") &&
       sql.includes("awaiting_customer_confirm")
     );
@@ -356,13 +357,14 @@ describe("Supabase security review regressions", () => {
   it("keeps the staff-only is_staff() check on the legacy pending application path", () => {
     const migration = getMigrationBySql((sql) =>
       sql.includes("create or replace function apply_whatsapp_booking_action") &&
-      sql.includes("not pending or confirmed")
+      sql.includes("state not in ('pending', 'confirmed')")
     );
 
     // Autonomous path uses state='confirmed' (set under service-role) and skips is_staff.
     // Staff path keeps is_staff() — verify the conditional gate is present.
     expect(migration).toMatch(/state = 'pending' and not is_staff\(\)/);
     expect(migration).toMatch(/'whatsapp_ai_auto'/);
-    expect(migration).toMatch(/'whatsapp_ai'/);
+    // Match 'whatsapp_ai' as a whole token — avoid matching as a prefix of 'whatsapp_ai_auto'.
+    expect(migration).toMatch(/'whatsapp_ai'(?!_auto)/);
   });
 });
