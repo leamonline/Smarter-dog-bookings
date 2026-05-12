@@ -149,7 +149,10 @@ type BookingActionFromClaude =
       booking_date: string;
       slot: string;
       service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
-      size?: "small" | "medium" | "large";
+      // Large dogs use day-only availability and defer to staff (see HARD
+      // RULES in SYSTEM_PROMPT). The parser rejects "large" so the type
+      // and runtime invariant stay aligned.
+      size?: "small" | "medium";
       notes?: string;
     }
   | {
@@ -250,7 +253,7 @@ HARD RULES — always
 ────────────────────────────────────────────────────────
 - NEVER directly confirm, move, or cancel a booking in the text. The system follows up with a tap-to-confirm message; your text MUST end with a question prompting the customer's confirmation (e.g. "Shall I book that in for you?", "Want me to move it to Wednesday at 11:00?", "Are you sure you want to cancel?"). Banned phrasing: "booked in", "pencilled in", "penciled in", "you're in", "all booked", "added to the diary", "locked in", "sorted". Phrasing alternatives: "shall I book it?", "want me to set that up?", "happy to lock that in if you like".
 - You MAY propose a booking_action only when all of these are explicit or safely resolved from context: action kind (create | reschedule | cancel); for create — exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID; for reschedule — exact old_booking_id from the "Upcoming bookings" block, exact new_date + new_slot; for cancel — exact old_booking_id, plus a reason quoted from the customer's message. Use only dog IDs and booking IDs shown in context.
-- For booking_action.create with size "small" or "medium", the booking_date + slot MUST appear in the "--- Availability ---" block. Large dogs (size "large" or unknown size from breed): do NOT propose any booking_action — say "the team will check the diary". The "--- Large-dog availability ---" block is informational only; never reuse a slot from "--- Availability ---" for a large dog.
+- For booking_action.create with size "small" or "medium", the booking_date + slot MUST appear in the "--- Availability ---" block. Large dogs (size "large" or unknown size from breed): do NOT propose any booking_action — say "the team will check the diary". For large dogs you MAY name candidate days from "--- Large-dog availability ---" "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") but NEVER a time of day. The "--- Large-dog availability ---" block is informational only; never reuse a slot from "--- Availability ---" for a large dog.
 - For booking_action.reschedule, only propose if the original booking is at least 24 hours from today. Anything inside that window: hold and let staff handle (intent "booking_change", no booking_action).
 - For booking_action.cancel, only propose if the booking is in "Booked" status (not yet checked in or finished). Mid-service or finished bookings: hold and let staff handle.
 - If a breed is mentioned that you do not recognise (not a common UK breed name and not in the customer's "Dogs" context block), do NOT propose booking_action. Ask another natural question, populate extracted_state with the breed string for staff to confirm, and tell the customer "the team will confirm what size that breed is".
@@ -761,17 +764,19 @@ async function buildContext(
 
     const { data: bookings } = await supabase
       .from("bookings")
-      .select("booking_date, slot, service, status, confirmed, dogs!inner(name, human_id)")
+      .select("id, booking_date, slot, service, status, confirmed, dogs!inner(name, human_id)")
       .eq("dogs.human_id", humanId)
       .gte("booking_date", todayIso)
       .lte("booking_date", in14)
       .order("booking_date", { ascending: true });
 
     if (bookings?.length) {
+      // booking_id rendered so the agent can populate old_booking_id for
+      // reschedule / cancel booking_actions (see HARD RULES in SYSTEM_PROMPT).
       const bookingLines = bookings.map((b: any) =>
         `  - ${b.dogs?.name ?? "?"}: ${b.booking_date} at ${b.slot} — ${b.service}${
           b.confirmed ? " (confirmed)" : " (unconfirmed)"
-        }`
+        } [booking_id: ${b.id}]`
       ).join("\n");
       parts.push(`--- Upcoming bookings (next 14 days) ---\n${bookingLines}`);
     } else {
@@ -929,7 +934,11 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
       "bath-and-deshed",
       "puppy-groom",
     ]);
-    const validSizes = new Set(["small", "medium", "large"]);
+    // Large dogs go through the day-only availability + staff path —
+    // see HARD RULES in SYSTEM_PROMPT. Reject "large" at the parser so
+    // a model that ignores the prompt can't sneak a large-dog booking
+    // through to apply.
+    const validSizes = new Set(["small", "medium"]);
     if (typeof obj.dog_id !== "string" || !obj.dog_id) return null;
     if (typeof obj.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.booking_date)) return null;
     if (typeof obj.slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.slot)) return null;
@@ -941,7 +950,7 @@ function parseBookingAction(value: unknown): BookingActionFromClaude | null {
       slot: obj.slot,
       service: obj.service as "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
       ...(typeof obj.size === "string" && validSizes.has(obj.size)
-        ? { size: obj.size as "small" | "medium" | "large" }
+        ? { size: obj.size as "small" | "medium" }
         : {}),
       ...(typeof obj.notes === "string" && obj.notes.trim()
         ? { notes: obj.notes.trim().slice(0, 300) }
