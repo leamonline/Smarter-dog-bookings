@@ -553,6 +553,26 @@ async function handleConfirmButtons(
     return json(req, { ok: false, reason: "action_kind must be 'book', 'reschedule', or 'cancel'" }, 400);
   }
 
+  // Pre-check: only send buttons for actions still in the 'pending'
+  // staging state. This guards against (a) double-send on retry, and
+  // (b) racing with a concurrent send for the same action. Matches the
+  // claim-row pattern used by handleDraftMode in this same file.
+  const { data: actionRow, error: actionFetchErr } = await supabase
+    .from("whatsapp_booking_actions")
+    .select("id, conversation_id, state")
+    .eq("id", booking_action_id)
+    .single();
+
+  if (actionFetchErr || !actionRow) {
+    return json(req, { ok: false, reason: "booking action not found" }, 404);
+  }
+  if (actionRow.conversation_id !== conversation_id) {
+    return json(req, { ok: false, reason: "booking action does not belong to this conversation" }, 422);
+  }
+  if (actionRow.state !== "pending") {
+    return json(req, { ok: false, reason: `booking action is ${actionRow.state}, not pending` }, 409);
+  }
+
   // Look up the conversation's phone number.
   const { data: conv, error: convErr } = await supabase
     .from("whatsapp_conversations")
@@ -562,6 +582,9 @@ async function handleConfirmButtons(
 
   if (convErr || !conv) {
     return json(req, { ok: false, reason: "conversation not found" }, 404);
+  }
+  if (!conv.phone_e164) {
+    return json(req, { ok: false, reason: "conversation has no phone number" }, 422);
   }
 
   const yesLabel =
@@ -576,7 +599,7 @@ async function handleConfirmButtons(
   const metaBody = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to: conv.phone_e164.replace(/^\+/, ""),
+    to: toMetaTo(conv.phone_e164),
     type: "interactive",
     interactive: {
       type: "button",
@@ -621,20 +644,41 @@ async function handleConfirmButtons(
 
   // Transition the booking action row: set confirm message details and
   // move state to 'awaiting_customer_confirm' with a 24h expiry.
+  // Optimistic-lock on state='pending' so a concurrent caller that
+  // raced past the pre-check still can't double-transition the row.
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const { error: actionErr } = await supabase
+  const { data: updatedRows, error: actionErr } = await supabase
     .from("whatsapp_booking_actions")
     .update({
       customer_confirm_message_id: metaMessageId,
       customer_confirm_expires_at: expiresAt,
       state: "awaiting_customer_confirm",
     })
-    .eq("id", booking_action_id);
+    .eq("id", booking_action_id)
+    .eq("state", "pending")
+    .select("id");
 
   if (actionErr) {
-    // Message was sent successfully — log the DB error but don't fail
-    // the caller; the message is already in the customer's hands.
     console.error("handleConfirmButtons: booking action update failed:", actionErr);
+    return json(req, {
+      ok: true,
+      meta_message_id: metaMessageId,
+      warning: "state_update_failed",
+    });
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    // Lost the race: another caller already transitioned the row. The
+    // Meta message is in the customer's hands, but the state matches
+    // whoever won the race. Surface a warning so the caller can log.
+    console.warn(
+      `handleConfirmButtons: booking action ${booking_action_id} no longer pending; state update skipped`,
+    );
+    return json(req, {
+      ok: true,
+      meta_message_id: metaMessageId,
+      warning: "state_transition_skipped",
+    });
   }
 
   return json(req, { ok: true, meta_message_id: metaMessageId });
