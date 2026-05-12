@@ -87,21 +87,33 @@ serve(async (req) => {
 
   // TTL: expire stale awaiting_customer_confirm rows.
   if (action.customer_confirm_expires_at && new Date(action.customer_confirm_expires_at) < new Date()) {
-    await supabase
+    const { data: expiredRows } = await supabase
       .from("whatsapp_booking_actions")
       .update({ state: "rejected_by_customer", rejection_reason: "expired" })
       .eq("id", action.id)
-      .eq("state", "awaiting_customer_confirm");
+      .eq("state", "awaiting_customer_confirm")
+      .select("id");
+    if (!expiredRows || expiredRows.length === 0) {
+      // Lost the race: someone else transitioned the row first. Don't
+      // double-fire the ack — the winning caller's response covers it.
+      console.warn(`apply-customer-confirm: action ${action.id} TTL transition skipped (raced)`);
+      return new Response("already_processed", { status: 200 });
+    }
     await sendAckText(action.conversation_id, "Sorry, that confirmation expired — want me to find a slot again? 🎓🐶❤️ X");
     return new Response("expired", { status: 200 });
   }
 
   if (input.choice === "no") {
-    await supabase
+    const { data: rejectedRows } = await supabase
       .from("whatsapp_booking_actions")
       .update({ state: "rejected_by_customer", rejection_reason: "customer_no" })
       .eq("id", action.id)
-      .eq("state", "awaiting_customer_confirm");
+      .eq("state", "awaiting_customer_confirm")
+      .select("id");
+    if (!rejectedRows || rejectedRows.length === 0) {
+      console.warn(`apply-customer-confirm: action ${action.id} No transition skipped (raced)`);
+      return new Response("already_processed", { status: 200 });
+    }
     // No ack here — the agent will re-engage on the next inbound turn.
     return new Response("rejected by customer", { status: 200 });
   }
