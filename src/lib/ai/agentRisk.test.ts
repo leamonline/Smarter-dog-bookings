@@ -559,6 +559,11 @@ describe("canAutoBook", () => {
     expect(canAutoBook({ ...base, dogSize: "large" })).toBe(false);
   });
 
+  it("returns false when dog size is unknown or null", () => {
+    expect(canAutoBook({ ...base, dogSize: "unknown" })).toBe(false);
+    expect(canAutoBook({ ...base, dogSize: null })).toBe(false);
+  });
+
   it("returns false when breed is unknown", () => {
     expect(canAutoBook({ ...base, breedKnown: false })).toBe(false);
   });
@@ -567,13 +572,20 @@ describe("canAutoBook", () => {
     expect(canAutoBook({ ...base, conversationState: "human_takeover" })).toBe(false);
   });
 
+  it("returns false when conversation is snoozed or closed", () => {
+    expect(canAutoBook({ ...base, conversationState: "snoozed" })).toBe(false);
+    expect(canAutoBook({ ...base, conversationState: "closed" })).toBe(false);
+  });
+
   it("allows booking_change and booking_cancel intents", () => {
     expect(canAutoBook({ ...base, intent: "booking_change" })).toBe(true);
     expect(canAutoBook({ ...base, intent: "booking_cancel" })).toBe(true);
   });
 
-  it("rejects other intents (faq, smalltalk, escalate)", () => {
+  it("rejects non-booking intents (faq, smalltalk, escalate, booking_confirm)", () => {
     expect(canAutoBook({ ...base, intent: "faq" })).toBe(false);
+    expect(canAutoBook({ ...base, intent: "smalltalk" })).toBe(false);
     expect(canAutoBook({ ...base, intent: "escalate" })).toBe(false);
+    expect(canAutoBook({ ...base, intent: "booking_confirm" })).toBe(false);
   });
 });
