@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { IconSearch, IconEdit, IconTick } from "../icons/index.jsx";
 import {
   getDogByIdOrName,
@@ -92,10 +93,12 @@ export function HumanCardModal({
   dogs,
   onUpdateHuman,
   onAddHuman,
+  onDeleteHuman,
   bookingsByDate,
   fetchHumanById,
 }) {
   const toast = useToast();
+  const [pendingDelete, setPendingDelete] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row
   // sits past the initial PAGE_SIZE pagination boundary), fetch
@@ -413,6 +416,7 @@ export function HumanCardModal({
   };
 
   return (
+    <>
     <AccessibleModal
       onClose={onClose}
       titleId="human-card-title"
@@ -845,6 +849,41 @@ export function HumanCardModal({
             </button>
           </div>
         )}
+
+        {/* Delete moved here in task 4 of the May 2026 review pass —
+            bulk delete from the /humans grid was too easy to mis-fire. */}
+        {isEditing && onDeleteHuman && (
+          <div className="px-6 pb-5 -mt-2 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setPendingDelete(true)}
+              className="text-[12px] font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+            >
+              Delete this person…
+            </button>
+          </div>
+        )}
     </AccessibleModal>
+
+    {pendingDelete && (
+      <ConfirmDialog
+        title="Delete this person?"
+        message="They will be removed from the directory. Any dogs registered to them, their booking history, and groom photos will be deleted. WhatsApp threads stay but lose their link to this person. Cannot be undone."
+        confirmLabel="Delete person"
+        variant="danger"
+        onConfirm={async () => {
+          const result = await onDeleteHuman?.(humanId);
+          setPendingDelete(false);
+          if (result?.ok) {
+            toast.show("Deleted", "success");
+            onClose?.();
+          } else if (result?.error) {
+            toast.show(result.error, "error");
+          }
+        }}
+        onCancel={() => setPendingDelete(false)}
+      />
+    )}
+    </>
   );
 }

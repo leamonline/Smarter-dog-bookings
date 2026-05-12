@@ -32,11 +32,13 @@ export function DogCardModal({
   onUpdateDog,
   onUpdateHuman,
   onAddHuman,
+  onDeleteDog,
   bookingsByDate,
   fetchBookingHistoryForDog,
   fetchDogById,
   handleAdd,
 }) {
+  const [pendingDelete, setPendingDelete] = useState(false);
   const fallback = {
     id: dogId,
     name: dogId,
@@ -472,7 +474,41 @@ export function DogCardModal({
           sizeTheme={sizeTheme}
           headerTextColour={headerTextColour}
         />
+
+        {/* Delete moved here in task 4 of the May 2026 review pass —
+            bulk delete from the /dogs grid was too easy to mis-fire. */}
+        {isEditing && onDeleteDog && (
+          <div className="px-6 pb-5 -mt-2 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setPendingDelete(true)}
+              className="text-[12px] font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+            >
+              Delete this dog…
+            </button>
+          </div>
+        )}
     </AccessibleModal>
+
+    {pendingDelete && (
+      <ConfirmDialog
+        title={`Delete ${resolvedDog.name}?`}
+        message="This removes the dog from the salon — booking history and groom photos go with them. Cannot be undone."
+        confirmLabel="Delete dog"
+        variant="danger"
+        onConfirm={async () => {
+          const result = await onDeleteDog?.(resolvedDog.id);
+          setPendingDelete(false);
+          if (result?.ok) {
+            toast.show(`Deleted ${resolvedDog.name}`, "success");
+            onClose?.();
+          } else if (result?.error) {
+            toast.show(result.error, "error");
+          }
+        }}
+        onCancel={() => setPendingDelete(false)}
+      />
+    )}
 
     {showChainBooking && lastBooking && (
       <Suspense fallback={null}>
