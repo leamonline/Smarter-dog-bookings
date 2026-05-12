@@ -1,21 +1,17 @@
 import { useState, useMemo, useEffect } from "react";
-import { SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
+import { getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton } from "../ui/Skeleton.jsx";
+import { SizeDot } from "../ui/SizeDot.jsx";
 
 function waLink(phone) {
   if (!phone) return "#";
   const digits = phone.replace(/[\s\-()]/g, "");
   const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
   return `https://wa.me/${intl}`;
-}
-
-function sizeDot(size) {
-  const t = SIZE_THEME[size];
-  return t ? t.gradient[0] : "#94A3B8";
 }
 
 export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
@@ -121,17 +117,30 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                   )}
                 </div>
 
-                {/* Phone */}
+                {/* Phone — tel: lets desktop dial via FaceTime / Skype /
+                    Android pair-up, and on mobile it triggers the dialer.
+                    WhatsApp deep-link kept as a second icon button. */}
                 {human.phone ? (
-                  <a
-                    href={waLink(human.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <div
+                    className="flex items-center gap-2 leading-snug"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal leading-snug"
                   >
-                    {human.phone}
-                  </a>
+                    <a
+                      href={`tel:${human.phone.replace(/[\s-()]/g, "")}`}
+                      className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal"
+                    >
+                      {human.phone}
+                    </a>
+                    <a
+                      href={waLink(human.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in WhatsApp"
+                      className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100"
+                    >
+                      WA
+                    </a>
+                  </div>
                 ) : (
                   <div className="text-[13px] text-slate-400 italic leading-snug">No phone</div>
                 )}
@@ -144,10 +153,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                         const dogSize = dog.size || getSizeForBreed(dog.breed);
                         return (
                           <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ background: sizeDot(dogSize), boxShadow: `0 0 0 2px ${sizeDot(dogSize)}33` }}
-                            />
+                            <SizeDot size={dogSize} dim={10} />
                             <span className="text-[12px] font-semibold text-slate-600">
                               {titleCase(dog.name)}
                               {dog.breed && <span className="font-medium text-slate-400"> ({titleCase(dog.breed)})</span>}

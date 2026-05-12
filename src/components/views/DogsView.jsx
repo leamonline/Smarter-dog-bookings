@@ -7,6 +7,7 @@ import { titleCase } from "../../utils/text.js";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton } from "../ui/Skeleton.jsx";
+import { SizeDot } from "../ui/SizeDot.jsx";
 
 function computeAge(dog) {
   if (dog.dob) {
@@ -22,11 +23,6 @@ function computeAge(dog) {
   const raw = dog.age || "";
   if (/^\d+$/.test(raw.trim())) return `${raw.trim()} yrs`;
   return raw || "";
-}
-
-function sizeDot(size) {
-  const t = SIZE_THEME[size] || SIZE_FALLBACK;
-  return t.gradient[0];
 }
 
 /**
@@ -127,7 +123,6 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         <span className="text-slate-400 uppercase tracking-wide text-[10px] font-bold">Size:</span>
         {SIZE_FILTERS.map((s) => {
           const active = sizeFilter === s.value;
-          const colour = s.value === "unset" ? SIZE_FALLBACK.gradient[0] : SIZE_THEME[s.value].gradient[0];
           return (
             <button
               key={s.value}
@@ -140,7 +135,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                   : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
               }`}
             >
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: colour }} aria-hidden="true" />
+              <SizeDot size={s.value === "unset" ? null : s.value} dim={12} />
               {s.label}
             </button>
           );
@@ -212,10 +207,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                 {/* Name + alert + incomplete badge */}
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ background: sizeDot(dog.size), boxShadow: `0 0 0 2px ${sizeDot(dog.size)}33` }}
-                    />
+                    <SizeDot size={dog.size} dim={14} />
                     <span className="text-[15px] font-extrabold text-slate-800 truncate">
                       {titleCase(dog.name)}
                     </span>

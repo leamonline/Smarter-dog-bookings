@@ -466,6 +466,23 @@ export function HumanCardModal({
                     >
                       {human.phone}
                     </a>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText(human.phone);
+                          toast.show(`Copied ${human.phone}`, "success");
+                        } else {
+                          toast.show("Clipboard not available", "error");
+                        }
+                      }}
+                      aria-label={`Copy phone number ${human.phone}`}
+                      title="Copy to clipboard"
+                      className="text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white border-none rounded px-1.5 py-0.5 cursor-pointer transition-colors font-[inherit]"
+                    >
+                      Copy
+                    </button>
                     <a
                       href={waLink(human.phone)}
                       target="_blank"
