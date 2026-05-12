@@ -6,7 +6,7 @@
 // through here. whatsapp-webhook is the "ears", whatsapp-agent is
 // the "brain", this is the "mouth".
 //
-// Three modes:
+// Four modes:
 //
 //   mode: "draft"
 //     Sends a free-form text message based on an approved AI draft.
@@ -23,6 +23,14 @@
 //     Sends a pre-approved Meta template message. Used for
 //     appointment reminders and for re-engaging outside the 24h
 //     customer service window.
+//
+//   mode: "confirm_buttons"
+//     Sends an interactive button message asking the customer to
+//     confirm a booking action (book / reschedule / cancel). Called
+//     by whatsapp-agent after autonomy gates pass. On success the
+//     whatsapp_booking_actions row transitions to
+//     'awaiting_customer_confirm' with a 24h TTL. On Meta failure
+//     the row stays at 'pending' for staff to handle via the inbox.
 //
 // Auth:
 //   Gateway JWT verification is DISABLED (verify_jwt=false) because
@@ -115,7 +123,15 @@ interface TemplateMode {
   conversation_id?: string;
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode;
+interface ConfirmButtonsMode {
+  mode: "confirm_buttons";
+  conversation_id: string;
+  booking_action_id: string;
+  summary_text: string;
+  action_kind: "book" | "reschedule" | "cancel";
+}
+
+type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -511,6 +527,119 @@ async function handleTemplateMode(
   });
 }
 
+// ── Confirm-buttons mode handler ──────────────────────────────
+// Sends a Meta interactive button message asking the customer to
+// confirm a booking action. Called by whatsapp-agent (Task 13) after
+// autonomy gates pass. On success transitions the booking action row
+// to 'awaiting_customer_confirm'; on failure leaves it at 'pending'
+// so staff can handle it via the inbox (graceful degrade).
+async function handleConfirmButtons(
+  req: Request,
+  supabase: SupabaseClient,
+  body: ConfirmButtonsMode,
+): Promise<Response> {
+  const { conversation_id, booking_action_id, summary_text, action_kind } = body;
+
+  if (!conversation_id) {
+    return json(req, { ok: false, reason: "conversation_id is required" }, 400);
+  }
+  if (!booking_action_id) {
+    return json(req, { ok: false, reason: "booking_action_id is required" }, 400);
+  }
+  if (!summary_text) {
+    return json(req, { ok: false, reason: "summary_text is required" }, 400);
+  }
+  if (!action_kind || !["book", "reschedule", "cancel"].includes(action_kind)) {
+    return json(req, { ok: false, reason: "action_kind must be 'book', 'reschedule', or 'cancel'" }, 400);
+  }
+
+  // Look up the conversation's phone number.
+  const { data: conv, error: convErr } = await supabase
+    .from("whatsapp_conversations")
+    .select("id, phone_e164")
+    .eq("id", conversation_id)
+    .single();
+
+  if (convErr || !conv) {
+    return json(req, { ok: false, reason: "conversation not found" }, 404);
+  }
+
+  const yesLabel =
+    action_kind === "book"
+      ? "Yes, book it"
+      : action_kind === "reschedule"
+      ? "Yes, move it"
+      : "Yes, cancel";
+
+  // Build the Meta interactive buttons payload.
+  // Meta caps: body.text at 1024 chars, button title at 20 chars.
+  const metaBody = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: conv.phone_e164.replace(/^\+/, ""),
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: summary_text.slice(0, 1024) },
+      action: {
+        buttons: [
+          {
+            type: "reply",
+            reply: {
+              id: `${booking_action_id}:yes`,
+              title: yesLabel.slice(0, 20),
+            },
+          },
+          {
+            type: "reply",
+            reply: {
+              id: `${booking_action_id}:no`,
+              title: "No, change".slice(0, 20),
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  let metaRes: MetaSendSuccess;
+  try {
+    metaRes = await callMeta(metaBody);
+  } catch (err) {
+    // On Meta failure: leave the booking action at 'pending' for staff
+    // to handle via the inbox (graceful degrade — no state transition).
+    return json(req, {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+    }, 502);
+  }
+
+  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+
+  // Record the outbound message in whatsapp_messages.
+  await recordOutbound(supabase, conv.id, metaMessageId, summary_text, metaBody);
+
+  // Transition the booking action row: set confirm message details and
+  // move state to 'awaiting_customer_confirm' with a 24h expiry.
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const { error: actionErr } = await supabase
+    .from("whatsapp_booking_actions")
+    .update({
+      customer_confirm_message_id: metaMessageId,
+      customer_confirm_expires_at: expiresAt,
+      state: "awaiting_customer_confirm",
+    })
+    .eq("id", booking_action_id);
+
+  if (actionErr) {
+    // Message was sent successfully — log the DB error but don't fail
+    // the caller; the message is already in the customer's hands.
+    console.error("handleConfirmButtons: booking action update failed:", actionErr);
+  }
+
+  return json(req, { ok: true, meta_message_id: metaMessageId });
+}
+
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -543,7 +672,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json(req, { error: "mode is required ('draft' | 'manual' | 'template')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -555,6 +684,8 @@ serve(async (req) => {
       return await handleManualMode(req, supabase, parsed);
     } else if (parsed.mode === "template") {
       return await handleTemplateMode(req, supabase, parsed);
+    } else if (parsed.mode === "confirm_buttons") {
+      return await handleConfirmButtons(req, supabase, parsed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }
