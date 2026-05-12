@@ -3,8 +3,22 @@
  * Run: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node src/supabase/seed.js
  *
  * ⚠️  Uses the service_role key to bypass RLS. Never expose this key client-side.
+ * ⚠️  ONLY run against a local Supabase project. Do NOT point this at staging
+ *     or production — it inserts duplicate fixtures.
  * Requires: npm install @supabase/supabase-js (already installed)
+ *
+ * Note: this script uses static fixtures (no faker), so the "Null surnames"
+ * bug flagged in the May 2026 review can't come from here. The defensive
+ * substitution below is belt-and-braces — if an upstream caller ever pipes
+ * faker output through, a null lastName won't reach the database.
  */
+
+function safeSurname(value) {
+  if (value === null || value === undefined) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed || ["null", "undefined"].includes(trimmed.toLowerCase())) return "";
+  return trimmed;
+}
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -91,7 +105,7 @@ async function seed() {
   const humanNameToUuid = {};
   for (const [fullName, h] of Object.entries(SAMPLE_HUMANS)) {
     const { data, error } = await supabase.from("humans").insert({
-      name: h.name, surname: h.surname, phone: h.phone,
+      name: h.name, surname: safeSurname(h.surname), phone: h.phone,
       sms: h.sms, whatsapp: h.whatsapp, email: h.email,
       fb: h.fb, insta: h.insta, tiktok: h.tiktok,
       address: h.address, notes: h.notes, history_flag: h.historyFlag,

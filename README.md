@@ -38,7 +38,7 @@ npm run dev
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run every numbered file in `supabase/migrations/` against the SQL Editor, in order
 3. Fill in `.env.local` with your project URL and publishable key (see [Frontend env vars](#frontend-env-vars) below)
-4. (Optional) Seed sample data: `npm run seed`
+4. (Optional) Seed sample data: `npm run seed`. The script uses static fixtures only — it never produces "Null" surnames. **Run only against a local Supabase project.** If your dataset has rows with surname literally "Null" (from an external faker pipeline), migration `20260513150000_fix_null_surnames.sql` resets them and adds a CHECK constraint preventing reintroduction.
 
 ---
 
