@@ -75,6 +75,7 @@ import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 import {
   AgentState,
+  canAutoBook,
   canAutoSend,
   classifyRisk,
   fallbackReplyForIntent,
@@ -100,6 +101,8 @@ const AI_ASSISTANT_ENABLED =
   (Deno.env.get("AI_ASSISTANT_ENABLED") ?? "true").toLowerCase() !== "false";
 const AI_AUTO_SEND_LOW_RISK =
   (Deno.env.get("AI_AUTO_SEND_LOW_RISK") ?? "false").toLowerCase() === "true";
+const AI_AUTONOMOUS_BOOKING_ENABLED =
+  (Deno.env.get("AI_AUTONOMOUS_BOOKING_ENABLED") ?? "false").toLowerCase() === "true";
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -422,6 +425,7 @@ interface ConversationRow {
   state: string;
   human_id: string | null;
   auto_send_enabled: boolean;
+  autonomous_booking_enabled: boolean;
   agent_state: AgentState;
 }
 
@@ -454,7 +458,7 @@ async function upsertConversation(
       },
       { onConflict: "phone_e164" },
     )
-    .select("id, state, human_id, auto_send_enabled, agent_state")
+    .select("id, state, human_id, auto_send_enabled, autonomous_booking_enabled, agent_state")
     .single();
 
   if (error || !data) {
@@ -466,6 +470,7 @@ async function upsertConversation(
     state: string;
     human_id: string | null;
     auto_send_enabled: boolean | null;
+    autonomous_booking_enabled: boolean | null;
     agent_state: unknown;
   };
 
@@ -474,6 +479,7 @@ async function upsertConversation(
     state: row.state,
     human_id: row.human_id,
     auto_send_enabled: row.auto_send_enabled === true,
+    autonomous_booking_enabled: row.autonomous_booking_enabled === true,
     agent_state: (row.agent_state && typeof row.agent_state === "object"
       ? (row.agent_state as AgentState)
       : {}) as AgentState,
@@ -1172,6 +1178,116 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
   if (error) console.error("handleStatus update failed:", error);
 }
 
+// ── Autonomous booking helpers ───────────────────────────────
+function inferDogSize(
+  breed: string | null,
+  bookingAction: BookingActionFromClaude,
+): "small" | "medium" | "large" | "unknown" | null {
+  // For create actions, the action carries an explicit size — use it.
+  if (bookingAction.action === "create" && bookingAction.size) return bookingAction.size;
+  // Otherwise resolve from breed. Reschedule/cancel actions don't carry
+  // size — we trust that the original booking already had the right
+  // size and the gate doesn't need to redo the check at this stage.
+  if (!breed) return null;
+  // Mirror src/constants/breeds.ts. Edge functions can't import from
+  // src/, so this is a curated inline subset of the most common UK
+  // breeds. Unknown breed returns "unknown" → canAutoBook fails.
+  const small = ["king charles cavalier","cavalier king charles spaniel","maltese","bichon frise","shih tzu","yorkshire terrier","yorkie","pomeranian","chihuahua","mini dachshund","miniature dachshund","toy poodle","lhasa apso","french bulldog","frenchie","pug","boston terrier","havanese","papillon","italian greyhound","japanese chin","brussels griffon","affenpinscher","miniature pinscher","min pin","chinese crested","pekingese","scottish terrier","scottie","west highland terrier","west highland white terrier","westie","cairn terrier","norfolk terrier","norwich terrier","toy fox terrier","silky terrier","dandie dinmont terrier","english toy terrier"];
+  const medium = ["cocker spaniel","cockapoo","spaniel","springer spaniel","english springer spaniel","border collie","bearded collie","standard poodle","poodle","sheltie","shetland sheepdog","whippet","corgi","welsh corgi","pembroke welsh corgi","cardigan welsh corgi","staffordshire bull terrier","staffy","jack russell","jack russell terrier","beagle","basset hound","border terrier","bichon","tibetan terrier","schnauzer","miniature schnauzer","standard schnauzer","keeshond","american eskimo","brittany","wheaten terrier","soft coated wheaten terrier"];
+  const large = ["husky","siberian husky","alaskan malamute","labrador","labrador retriever","golden retriever","german shepherd","alsatian","rottweiler","doberman","doberman pinscher","great dane","newfoundland","bernese mountain dog","saint bernard","st bernard","irish setter","english setter","gordon setter","dalmatian","weimaraner","vizsla","rhodesian ridgeback","akita","mastiff","old english sheepdog","bullmastiff","leonberger","greater swiss mountain dog","standard bernedoodle","bernedoodle","goldendoodle","labradoodle"];
+  const b = breed.toLowerCase().trim();
+  if (small.includes(b)) return "small";
+  if (medium.includes(b)) return "medium";
+  if (large.includes(b)) return "large";
+  return "unknown";
+}
+
+function buildConfirmSummary(action: BookingActionFromClaude): string {
+  if (action.action === "create") {
+    return `Confirm ${formatDateShort(action.booking_date)} at ${action.slot} — ${serviceLabel(action.service)}?`;
+  }
+  if (action.action === "reschedule") {
+    return `Confirm move to ${formatDateShort(action.new_date)} at ${action.new_slot}?`;
+  }
+  // cancel
+  return `Cancel this booking? (${action.reason.slice(0, 60)})`;
+}
+
+function formatDateShort(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+function serviceLabel(s: string): string {
+  const map: Record<string, string> = {
+    "full-groom": "full groom",
+    "bath-and-brush": "bath & brush",
+    "bath-and-deshed": "bath & deshed",
+    "puppy-groom": "puppy groom",
+  };
+  return map[s] ?? s;
+}
+
+async function dispatchConfirmButtons(
+  supabase: SupabaseClient,
+  conversationId: string,
+  draftId: string,
+  bookingAction: BookingActionFromClaude,
+): Promise<void> {
+  // The action row was just inserted by saveBookingAction. Find it by
+  // draft_id + state='pending' (the staging state). After whatsapp-send
+  // succeeds, the action row transitions to 'awaiting_customer_confirm'.
+  const { data: actionRow } = await supabase
+    .from("whatsapp_booking_actions")
+    .select("id")
+    .eq("draft_id", draftId)
+    .eq("state", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!actionRow) return;
+
+  const summaryText = buildConfirmSummary(bookingAction);
+  const actionKind =
+    bookingAction.action === "create"
+      ? "book"
+      : bookingAction.action === "reschedule"
+      ? "reschedule"
+      : "cancel";
+
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("dispatchConfirmButtons: SEND_INTERNAL_SECRET not set; skipping");
+    return;
+  }
+
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-internal-secret": SEND_INTERNAL_SECRET,
+      },
+      body: JSON.stringify({
+        mode: "confirm_buttons",
+        conversation_id: conversationId,
+        booking_action_id: actionRow.id,
+        summary_text: summaryText,
+        action_kind: actionKind,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`dispatchConfirmButtons: whatsapp-send returned ${res.status}: ${errText}`);
+    }
+  } catch (err) {
+    console.warn("dispatchConfirmButtons failed (non-fatal):", err);
+  }
+}
+
 // ── Main handler ─────────────────────────────────────────────
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -1378,6 +1494,31 @@ serve(async (req) => {
             raw,
           );
           await saveBookingAction(supabase, conversation.id, draftId, draft);
+          // Autonomous booking: if every gate passes (env flag, per-conv
+          // opt-in, known customer, low risk, high confidence, small/medium
+          // recognised breed, booking-related intent, ai_handling state),
+          // send the confirm-buttons message. Otherwise the action stays
+          // at 'pending' and the staff inbox handles it via the legacy
+          // BookingActionPanel.
+          if (draft.booking_action) {
+            const breed = conversation.agent_state?.breed ?? null;
+            const dogSize = inferDogSize(breed, draft.booking_action);
+            const breedKnown = dogSize !== "unknown" && dogSize !== null;
+            const eligible = canAutoBook({
+              intent: draft.intent,
+              riskLevel,
+              confidence: draft.confidence,
+              dogSize,
+              customerIsKnown: !!conversation.human_id,
+              conversationState: conversation.state,
+              envFlagEnabled: AI_AUTONOMOUS_BOOKING_ENABLED,
+              conversationOptedIn: conversation.autonomous_booking_enabled,
+              breedKnown,
+            });
+            if (eligible) {
+              await dispatchConfirmButtons(supabase, conversation.id, draftId, draft.booking_action);
+            }
+          }
           await dispatchIfEligible(draftId, policy);
         }
 
