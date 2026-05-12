@@ -33,6 +33,7 @@ import {
   MEDICAL_KEYWORDS,
   RISK_LEVELS,
   WALKIN_KEYWORDS,
+  canAutoBook,
   canAutoSend,
   classifyRisk,
   extractMissingFields,
@@ -511,5 +512,68 @@ describe("invariants", () => {
     expect(MEDICAL_KEYWORDS.length).toBeGreaterThan(0);
     expect(COMPLAINT_KEYWORDS.length).toBeGreaterThan(0);
     expect(WALKIN_KEYWORDS.length).toBeGreaterThan(0);
+  });
+});
+
+// ── canAutoBook ───────────────────────────────────────────────
+
+describe("canAutoBook", () => {
+  const base = {
+    intent: "booking_propose" as const,
+    riskLevel: "low" as const,
+    confidence: 0.9,
+    dogSize: "small" as const,
+    customerIsKnown: true,
+    conversationState: "ai_handling" as const,
+    envFlagEnabled: true,
+    conversationOptedIn: true,
+    breedKnown: true,
+  };
+
+  it("returns true when every gate passes", () => {
+    expect(canAutoBook(base)).toBe(true);
+  });
+
+  it("returns false when env flag is off", () => {
+    expect(canAutoBook({ ...base, envFlagEnabled: false })).toBe(false);
+  });
+
+  it("returns false when the conversation hasn't opted in", () => {
+    expect(canAutoBook({ ...base, conversationOptedIn: false })).toBe(false);
+  });
+
+  it("returns false for unknown customer", () => {
+    expect(canAutoBook({ ...base, customerIsKnown: false })).toBe(false);
+  });
+
+  it("returns false when confidence is below 0.85", () => {
+    expect(canAutoBook({ ...base, confidence: 0.84 })).toBe(false);
+  });
+
+  it("returns false for medium or high risk", () => {
+    expect(canAutoBook({ ...base, riskLevel: "medium" })).toBe(false);
+    expect(canAutoBook({ ...base, riskLevel: "high" })).toBe(false);
+  });
+
+  it("returns false for large dogs", () => {
+    expect(canAutoBook({ ...base, dogSize: "large" })).toBe(false);
+  });
+
+  it("returns false when breed is unknown", () => {
+    expect(canAutoBook({ ...base, breedKnown: false })).toBe(false);
+  });
+
+  it("returns false when human has taken over", () => {
+    expect(canAutoBook({ ...base, conversationState: "human_takeover" })).toBe(false);
+  });
+
+  it("allows booking_change and booking_cancel intents", () => {
+    expect(canAutoBook({ ...base, intent: "booking_change" })).toBe(true);
+    expect(canAutoBook({ ...base, intent: "booking_cancel" })).toBe(true);
+  });
+
+  it("rejects other intents (faq, smalltalk, escalate)", () => {
+    expect(canAutoBook({ ...base, intent: "faq" })).toBe(false);
+    expect(canAutoBook({ ...base, intent: "escalate" })).toBe(false);
   });
 });

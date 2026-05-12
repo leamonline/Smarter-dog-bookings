@@ -499,6 +499,40 @@ function intentToFallbackKind(input: Intent | FallbackKind): FallbackKind {
   }
 }
 
+export interface CanAutoBookInput {
+  intent: Intent;
+  riskLevel: RiskLevel;
+  confidence: number;
+  dogSize: "small" | "medium" | "large" | "unknown" | null;
+  customerIsKnown: boolean;
+  conversationState: "ai_handling" | "human_takeover" | "snoozed" | "closed" | string;
+  envFlagEnabled: boolean;
+  conversationOptedIn: boolean;
+  breedKnown: boolean;
+}
+
+/**
+ * Returns true iff every autonomy gate passes for an autonomous booking
+ * action (create / reschedule / cancel). The agent calls this once it
+ * has Claude's draft + classifier output; on true it emits the
+ * awaiting_customer_confirm flow, on false it emits a legacy `pending`
+ * action that the staff inbox can approve.
+ */
+export function canAutoBook(input: CanAutoBookInput): boolean {
+  if (!input.envFlagEnabled) return false;
+  if (!input.conversationOptedIn) return false;
+  if (!input.customerIsKnown) return false;
+  if (input.confidence < 0.85) return false;
+  if (input.riskLevel !== "low") return false;
+  if (input.conversationState !== "ai_handling") return false;
+  if (!input.breedKnown) return false;
+  const okSizes = new Set(["small", "medium"]);
+  if (!input.dogSize || !okSizes.has(input.dogSize)) return false;
+  const okIntents = new Set<Intent>(["booking_propose", "booking_change", "booking_cancel"]);
+  if (!okIntents.has(input.intent)) return false;
+  return true;
+}
+
 /**
  * Best-effort intent detection from a raw message. Used only when the
  * Claude response is unparseable, to choose a sensible fallback. Order
