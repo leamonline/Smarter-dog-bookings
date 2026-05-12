@@ -300,6 +300,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
     fetchHumanById: sbFetchHumanById,
+    ensureHumansByIds: sbEnsureHumansByIds,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
     loadMore: humansLoadMore,
@@ -349,6 +350,33 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addExtraSlot: sbAddExtraSlot,
     removeExtraSlot: sbRemoveExtraSlot,
   } = useDaySettings(weekStart);
+
+  // ── Owner pre-fetch ────────────────────────────────────────────
+  // useHumans paginates so the local map only holds the first page.
+  // Without pre-fetching, every dog or booking whose owner sits past
+  // the page boundary renders as "Unknown owner" because dog.humanId
+  // falls back to the raw UUID and formatOwnerLabel refuses to render
+  // that. ensureHumansByIds dedupes + caches so re-renders are cheap.
+  useEffect(() => {
+    if (!sbEnsureHumansByIds) return;
+    const ids = new Set();
+    for (const d of Object.values(sbDogs || {})) {
+      if (d?._humanId) ids.add(d._humanId);
+    }
+    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
+  }, [sbDogs, sbEnsureHumansByIds]);
+
+  useEffect(() => {
+    if (!sbEnsureHumansByIds) return;
+    const ids = new Set();
+    for (const list of Object.values(sbBookings || {})) {
+      for (const b of list || []) {
+        if (b?._ownerId) ids.add(b._ownerId);
+        if (b?._pickupById) ids.add(b._pickupById);
+      }
+    }
+    if (ids.size > 0) sbEnsureHumansByIds([...ids]);
+  }, [sbBookings, sbEnsureHumansByIds]);
 
   const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
 
