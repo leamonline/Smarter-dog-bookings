@@ -474,6 +474,61 @@ describe("guessIntentFromText", () => {
     expect(guessIntentFromText(null)).toBe("other");
     expect(guessIntentFromText("xyzzy")).toBe("other");
   });
+
+  // Fixture-based regression tests (task 6 of the May 2026 review pass).
+  // The brief's mapping uses external names (book_appointment, cancel_appointment,
+  // medical) which translate to our internal intent vocabulary:
+  //   book_appointment   -> booking_propose
+  //   cancel_appointment -> booking_cancel
+  //   medical            -> escalate (high risk via medical keyword path)
+  describe("brief fixtures (May 2026 review)", () => {
+    it("classifies 'Can I book Bella for Tuesday?' as booking_propose", () => {
+      expect(guessIntentFromText("Can I book Bella for Tuesday?")).toBe("booking_propose");
+    });
+    it("classifies the live-app failure case as booking_propose", () => {
+      const msg = "He's small, can you book him in on the 11th at 09:30am?";
+      expect(guessIntentFromText(msg)).toBe("booking_propose");
+    });
+    it("classifies 'Thanks!' as smalltalk", () => {
+      expect(guessIntentFromText("Thanks!")).toBe("smalltalk");
+    });
+    it("classifies 'What time do you open?' as faq", () => {
+      expect(guessIntentFromText("What time do you open?")).toBe("faq");
+    });
+    it("classifies medical wording as escalate (high risk via classifyRisk)", () => {
+      const msg = "He's got a lump on his ear, should I still bring him?";
+      expect(guessIntentFromText(msg)).toBe("escalate");
+      // The risk classifier should also lift this to high regardless of the
+      // surrounding intent — defence-in-depth against a future regression
+      // in guessIntentFromText.
+      expect(classifyRisk("escalate", msg, 0.9)).toBe("high");
+      expect(requiresHandoff("escalate", "high", 0.9)).toBe(true);
+    });
+    it("classifies 'Need to cancel tomorrow's slot' as booking_cancel", () => {
+      expect(guessIntentFromText("Need to cancel tomorrow's slot")).toBe("booking_cancel");
+    });
+  });
+
+  // Locked-down allowlist: the README documents exactly these four
+  // intents. If a future change adds a fifth (especially a booking_*
+  // one), this test fails until the README, the function env docs,
+  // and this test all agree.
+  describe("auto-send allowlist stability", () => {
+    it("contains exactly the documented intents — never grows silently", () => {
+      expect([...AUTO_SENDABLE_INTENTS].sort()).toEqual(
+        ["confirm_time", "faq", "greeting", "smalltalk"],
+      );
+    });
+    it("never includes booking_propose (or any booking-touching intent)", () => {
+      for (const i of AUTO_SENDABLE_INTENTS) {
+        expect(i).not.toBe("booking_propose");
+        expect(i).not.toBe("booking_query");
+        expect(i).not.toBe("booking_confirm");
+        expect(i).not.toBe("booking_change");
+        expect(i).not.toBe("booking_cancel");
+      }
+    });
+  });
 });
 
 // ── Sanity invariants ─────────────────────────────────────────
