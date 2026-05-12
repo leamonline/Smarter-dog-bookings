@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { SALON_SLOTS, SERVICES } from "../../../../constants/index.ts";
+import { BookingCapacityPreview } from "./BookingCapacityPreview.jsx";
 
 export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   const [error, setError] = useState(null);
@@ -151,6 +152,10 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
                 <div className="mt-1.5 text-[11px] text-slate-500 line-clamp-2">
                   {action.payload.notes}
                 </div>
+              )}
+
+              {!isRejecting && action.action === "create" && (
+                <BookingCapacityPreview date={date} slot={slot} size={size} />
               )}
 
               <div className="flex flex-wrap gap-2 mt-2">
