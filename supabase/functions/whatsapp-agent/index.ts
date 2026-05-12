@@ -454,15 +454,24 @@ async function upsertConversation(
   // We also pull auto_send_enabled and agent_state on the same round
   // trip so the agent can read them without an extra select. Both
   // columns come from migrations 026 and 038 respectively.
+  // Important: only include human_id in the upsert body when humanId is
+  // non-null. Supabase upsert with onConflict updates every column in
+  // the body, so writing human_id: null would silently clobber a value
+  // previously set by createNewCustomerRecords (in which case the agent
+  // would re-onboard the customer next turn). humanId is only ever set
+  // from findHumanIdByPhone which already returns existing links.
+  const upsertBody: Record<string, unknown> = {
+    phone_e164: phoneE164,
+    last_inbound_at: lastInboundAt,
+    last_customer_text: lastCustomerText ?? undefined,
+  };
+  if (humanId !== null) {
+    upsertBody.human_id = humanId;
+  }
   const { data, error } = await supabase
     .from("whatsapp_conversations")
     .upsert(
-      {
-        phone_e164: phoneE164,
-        human_id: humanId, // only used on insert; we don't clobber an existing link
-        last_inbound_at: lastInboundAt,
-        last_customer_text: lastCustomerText ?? undefined,
-      },
+      upsertBody,
       { onConflict: "phone_e164" },
     )
     .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, lead_status, lead_payload")
@@ -1401,8 +1410,11 @@ function isLeadComplete(payload: AgentState | null): boolean {
 // confirmation of the AI's summary? False positives are worse than
 // false negatives — bias strict. Token must match the start of the
 // trimmed message.
+// Deliberately omits "ye" — matches Irish/UK colloquial "ye" (= "you")
+// which is unambiguously not a confirmation. The "yeh"/"yep"/"yup"/"yeah"
+// entries cover the genuine phonetic variants.
 const POSITIVE_TOKENS = [
-  "yes", "yeah", "yep", "yup", "yeh", "ye",
+  "yes", "yeah", "yep", "yup", "yeh",
   "that's right", "thats right", "thats it", "that's it",
   "correct", "perfect", "all good", "sounds good", "sounds right",
   "looks good", "go ahead", "all correct",
@@ -1426,26 +1438,45 @@ async function createNewCustomerRecords(
   if (payload.coatCondition) notesParts.push(`Coat (at signup): ${payload.coatCondition}`);
   if (payload.preferredDay) notesParts.push(`Preferred day: ${payload.preferredDay}`);
 
-  const { data: humanRow, error: humanErr } = await supabase
+  // Idempotency check: if a previous attempt left a humans row for this
+  // phone tagged source='whatsapp_ai' (because the dogs insert or
+  // rollback failed last time), reuse it instead of inserting a second.
+  // The partial unique index from migration 20260512160000 is the DB-
+  // level backstop that catches the concurrent-retry race between
+  // this SELECT and the INSERT below.
+  const { data: existingHuman } = await supabase
     .from("humans")
-    .insert({
-      name: payload.customerName,
-      surname: payload.customerSurname,
-      phone: phoneE164,
-      notes: notesParts.length > 0 ? notesParts.join(" · ") : null,
-      source: "whatsapp_ai",
-    })
     .select("id")
-    .single();
-  if (humanErr || !humanRow) {
-    return { ok: false, reason: `humans insert failed: ${humanErr?.message}` };
+    .eq("phone", phoneE164)
+    .eq("source", "whatsapp_ai")
+    .maybeSingle();
+
+  let humanId: string;
+  if (existingHuman?.id) {
+    humanId = existingHuman.id;
+  } else {
+    const { data: humanRow, error: humanErr } = await supabase
+      .from("humans")
+      .insert({
+        name: payload.customerName,
+        surname: payload.customerSurname,
+        phone: phoneE164,
+        notes: notesParts.length > 0 ? notesParts.join(" · ") : null,
+        source: "whatsapp_ai",
+      })
+      .select("id")
+      .single();
+    if (humanErr || !humanRow) {
+      return { ok: false, reason: `humans insert failed: ${humanErr?.message}` };
+    }
+    humanId = humanRow.id;
   }
 
   const dogSize = payload.dogSize ?? "unknown";
   const { data: dogRow, error: dogErr } = await supabase
     .from("dogs")
     .insert({
-      human_id: humanRow.id,
+      human_id: humanId,
       name: payload.dogName,
       breed: payload.breed,
       size: dogSize === "unknown" ? null : dogSize,
@@ -1455,26 +1486,40 @@ async function createNewCustomerRecords(
     .select("id")
     .single();
   if (dogErr || !dogRow) {
-    // Rollback humans insert so we don't leave a half-onboarded ghost
-    // record. Best-effort — log the rollback error but report the
-    // original dogErr to the caller.
-    const { error: rollbackErr } = await supabase
-      .from("humans")
-      .delete()
-      .eq("id", humanRow.id)
-      .eq("source", "whatsapp_ai");
-    if (rollbackErr) {
-      console.warn(`createNewCustomerRecords rollback failed (non-fatal): ${rollbackErr.message}`);
+    // Rollback only the humans row we just created (not a pre-existing
+    // reused row from the idempotency SELECT). If existingHuman matched,
+    // we don't own the row and shouldn't delete it.
+    if (!existingHuman?.id) {
+      const { error: rollbackErr } = await supabase
+        .from("humans")
+        .delete()
+        .eq("id", humanId)
+        .eq("source", "whatsapp_ai");
+      if (rollbackErr) {
+        console.warn(`createNewCustomerRecords rollback failed (non-fatal): ${rollbackErr.message}`);
+      }
     }
     return { ok: false, reason: `dogs insert failed: ${dogErr?.message}` };
   }
 
-  await supabase
+  const { error: convUpdateErr } = await supabase
     .from("whatsapp_conversations")
-    .update({ human_id: humanRow.id, lead_status: "records_created" })
+    .update({ human_id: humanId, lead_status: "records_created" })
     .eq("id", conversationId);
+  if (convUpdateErr) {
+    // Records exist (humans + dogs) but the conversation didn't get
+    // linked. Surface the inconsistency loudly — next inbound turn
+    // would re-enter the onboarding FSM (still sees human_id as null
+    // on the conversation row) and the idempotency SELECT above would
+    // reuse the same humans row, but the dogs row would conflict on
+    // duplicate. Staff need to fix the link manually.
+    console.error(
+      `createNewCustomerRecords: humans+dogs created but conversation update failed for conv ${conversationId}: ${convUpdateErr.message}`,
+    );
+    return { ok: false, reason: `conversation link failed: ${convUpdateErr.message}` };
+  }
 
-  return { ok: true, humanId: humanRow.id, dogId: dogRow.id };
+  return { ok: true, humanId, dogId: dogRow.id };
 }
 
 // ── Main handler ─────────────────────────────────────────────
@@ -1708,7 +1753,8 @@ serve(async (req) => {
               }
             } else if (
               isLeadComplete(mergedPayload) &&
-              conversation.lead_status !== "awaiting_summary_confirm"
+              conversation.lead_status !== "awaiting_summary_confirm" &&
+              conversation.lead_status !== "records_created"
             ) {
               await supabase
                 .from("whatsapp_conversations")
