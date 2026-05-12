@@ -26,6 +26,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import { displayName } from "./helpers.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
@@ -64,6 +65,60 @@ export function InboxView() {
     dogNames,
     actionInFlight,
   } = useWhatsAppInbox();
+  const toast = useToast();
+
+  // Wrap the hook actions with success toasts so screen-reader users
+  // hear confirmation (errors stay inline in the panels — they need
+  // the surrounding context to make sense). Toasts go through the
+  // aria-live region inside ToastProvider so they're announced
+  // without stealing focus.
+  const handleApproveDraft = useCallback(async (opts) => {
+    const res = await approveDraft(opts);
+    if (res?.ok) toast.show("Reply sent.", "success");
+    return res;
+  }, [approveDraft, toast]);
+
+  const handleApproveAndApply = useCallback(async (opts) => {
+    const res = await approveDraftAndApply(opts);
+    if (res?.ok) toast.show("Reply sent and booking added to the diary.", "success");
+    return res;
+  }, [approveDraftAndApply, toast]);
+
+  const handleRejectDraft = useCallback(async (opts) => {
+    const res = await rejectDraft(opts);
+    if (res?.ok) toast.show("Draft rejected.", "info");
+    return res;
+  }, [rejectDraft, toast]);
+
+  const handleSendManualReply = useCallback(async (opts) => {
+    const res = await sendManualReply(opts);
+    if (res?.ok) toast.show("Reply sent.", "success");
+    return res;
+  }, [sendManualReply, toast]);
+
+  const handleApplyBookingAction = useCallback(async (actionId, editedPayload) => {
+    const res = await applyBookingAction(actionId, editedPayload);
+    if (res?.ok) toast.show("Booking added to the diary.", "success");
+    return res;
+  }, [applyBookingAction, toast]);
+
+  const handleRejectBookingAction = useCallback(async (actionId, reason) => {
+    const res = await rejectBookingAction(actionId, reason);
+    if (res?.ok) toast.show("Booking proposal rejected.", "info");
+    return res;
+  }, [rejectBookingAction, toast]);
+
+  const handleTakeover = useCallback(async () => {
+    const res = await takeoverConversation();
+    if (res?.ok) toast.show("You're handling this chat — AI paused.", "info");
+    return res;
+  }, [takeoverConversation, toast]);
+
+  const handleRelease = useCallback(async () => {
+    const res = await releaseConversation();
+    if (res?.ok) toast.show("AI is back in the loop.", "info");
+    return res;
+  }, [releaseConversation, toast]);
 
   // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review".
   // "all" is the default and shows every conversation. The other modes
@@ -289,7 +344,7 @@ export function InboxView() {
                     />
                     {selectedConversation?.state === "ai_handling" ? (
                       <button
-                        onClick={takeoverConversation}
+                        onClick={handleTakeover}
                         disabled={actionInFlight}
                         title="Take this conversation off the AI so you can drive it directly. Stops fresh AI drafts until you hand it back."
                         className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
@@ -298,7 +353,7 @@ export function InboxView() {
                       </button>
                     ) : selectedConversation?.state === "human_takeover" ? (
                       <button
-                        onClick={releaseConversation}
+                        onClick={handleRelease}
                         disabled={actionInFlight}
                         title="Hand control back to the AI. New customer messages will get fresh AI drafts again."
                         className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
@@ -312,7 +367,7 @@ export function InboxView() {
                   {selectedConversation?.state === "human_takeover"
                     ? "Staff are handling this chat — the AI won't draft replies until you hand it back."
                     : selectedConversation?.auto_send_enabled
-                      ? "AI is drafting and low-risk replies may auto-send. Take over to pause."
+                      ? "Auto-send on: low-risk replies (FAQ, greetings, smalltalk, time confirmations) may go without your nod. Anything booking-related still waits for you."
                       : "AI is drafting; every reply waits for your approval. Auto-send is off."}
                 </p>
               </div>
@@ -337,17 +392,17 @@ export function InboxView() {
                 <DraftPanel
                   draft={draft}
                   attachedActions={attachedActions}
-                  onApprove={approveDraft}
-                  onApproveAndApply={approveDraftAndApply}
-                  onReject={rejectDraft}
+                  onApprove={handleApproveDraft}
+                  onApproveAndApply={handleApproveAndApply}
+                  onReject={handleRejectDraft}
                   inFlight={actionInFlight}
                 />
               )}
 
               <BookingActionPanel
                 actions={bookingActions}
-                onApply={applyBookingAction}
-                onReject={rejectBookingAction}
+                onApply={handleApplyBookingAction}
+                onReject={handleRejectBookingAction}
                 inFlight={actionInFlight}
               />
 
@@ -355,7 +410,7 @@ export function InboxView() {
                   conversation is selected, gated on the 24h window */}
               <ComposePanel
                 conversation={selectedConversation}
-                onSend={sendManualReply}
+                onSend={handleSendManualReply}
                 onSendTemplate={sendTemplate}
                 dogNames={dogNames}
                 inFlight={actionInFlight}

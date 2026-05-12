@@ -48,8 +48,8 @@ const PRIMARY_NAV = [
     ),
   },
   {
-    to: "/whatsapp",
-    label: "WhatsApp",
+    to: "/inbox",
+    label: "Inbox",
     activeBg: "bg-[#25D366] text-white shadow-[0_2px_8px_rgba(37,211,102,0.5)]",
     activeText: "text-[#25D366]",
     icon: (
@@ -120,7 +120,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
         <nav className="flex items-center gap-1 ml-3" aria-label="Primary">
           {PRIMARY_NAV.map((item) => {
             const ariaLabel =
-              item.to === "/whatsapp" && waUnread > 0
+              item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
                 : item.label;
             return (
@@ -144,7 +144,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                 <span className="text-sm leading-none tracking-tight hidden 2xl:inline">
                   {item.label}
                 </span>
-                {item.to === "/whatsapp" && waBadge && (
+                {item.to === "/inbox" && waBadge && (
                   <span
                     className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-coral text-white text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
                     aria-hidden="true"
@@ -329,7 +329,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
         <div className="flex">
           {MOBILE_NAV.map((item) => {
             const ariaLabel =
-              item.to === "/whatsapp" && waUnread > 0
+              item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
                 : item.label;
             return (
@@ -354,7 +354,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                     />
                     {item.icon}
                     <span className="text-[10px] font-bold">{item.label}</span>
-                    {item.to === "/whatsapp" && waBadge && (
+                    {item.to === "/inbox" && waBadge && (
                       <span
                         className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-coral text-white text-[9px] font-bold flex items-center justify-center leading-none"
                         aria-hidden="true"

@@ -445,7 +445,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     />
                   } />
                   <Route path="/reports" element={<ReportsView />} />
-                  <Route path="/whatsapp" element={<InboxView />} />
+                  <Route path="/inbox" element={<InboxView />} />
+                  <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
                   <Route path="/" element={
                     <WeekCalendarView
                       selectedDay={selectedDay}
