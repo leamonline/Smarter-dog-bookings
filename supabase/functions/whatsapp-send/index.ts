@@ -6,7 +6,7 @@
 // through here. whatsapp-webhook is the "ears", whatsapp-agent is
 // the "brain", this is the "mouth".
 //
-// Three modes:
+// Four modes:
 //
 //   mode: "draft"
 //     Sends a free-form text message based on an approved AI draft.
@@ -23,6 +23,14 @@
 //     Sends a pre-approved Meta template message. Used for
 //     appointment reminders and for re-engaging outside the 24h
 //     customer service window.
+//
+//   mode: "confirm_buttons"
+//     Sends an interactive button message asking the customer to
+//     confirm a booking action (book / reschedule / cancel). Called
+//     by whatsapp-agent after autonomy gates pass. On success the
+//     whatsapp_booking_actions row transitions to
+//     'awaiting_customer_confirm' with a 24h TTL. On Meta failure
+//     the row stays at 'pending' for staff to handle via the inbox.
 //
 // Auth:
 //   Gateway JWT verification is DISABLED (verify_jwt=false) because
@@ -53,6 +61,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import {
+  type ConfirmButtonsBody,
+  type ConfirmButtonsResult,
+  runConfirmButtons,
+} from "../_shared/confirmButtons.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -115,7 +128,15 @@ interface TemplateMode {
   conversation_id?: string;
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode;
+interface ConfirmButtonsMode {
+  mode: "confirm_buttons";
+  conversation_id: string;
+  booking_action_id: string;
+  summary_text: string;
+  action_kind: "book" | "reschedule" | "cancel";
+}
+
+type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -511,6 +532,57 @@ async function handleTemplateMode(
   });
 }
 
+// ── Confirm-buttons mode handler ──────────────────────────────
+// Thin wrapper around runConfirmButtons in _shared/confirmButtons.ts.
+// The orchestration (validate → claim → send → record → tag) lives
+// in the shared helper so it can be tested under vitest; this wrapper
+// only injects Deno-runtime dependencies and maps the structured
+// result back to an HTTP Response.
+async function handleConfirmButtons(
+  req: Request,
+  supabase: SupabaseClient,
+  body: ConfirmButtonsMode,
+): Promise<Response> {
+  const inputBody: ConfirmButtonsBody = {
+    conversation_id: body.conversation_id,
+    booking_action_id: body.booking_action_id,
+    summary_text: body.summary_text,
+    action_kind: body.action_kind,
+  };
+
+  const result: ConfirmButtonsResult = await runConfirmButtons(
+    {
+      supabase,
+      callMeta,
+      recordOutbound: (conversationId, metaMessageId, content, raw) =>
+        recordOutbound(supabase, conversationId, metaMessageId, content, raw),
+      now: () => new Date(),
+    },
+    inputBody,
+  );
+
+  if (!result.ok) {
+    return json(req, { ok: false, reason: result.reason }, result.status);
+  }
+
+  if (result.warning === "state_update_failed") {
+    console.error(
+      `handleConfirmButtons: booking action ${body.booking_action_id} state update failed`,
+    );
+  } else if (result.warning === "state_transition_skipped") {
+    console.warn(
+      `handleConfirmButtons: booking action ${body.booking_action_id} no longer pending; state update skipped`,
+    );
+  }
+
+  return json(
+    req,
+    result.warning
+      ? { ok: true, meta_message_id: result.meta_message_id, warning: result.warning }
+      : { ok: true, meta_message_id: result.meta_message_id },
+  );
+}
+
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -543,7 +615,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json(req, { error: "mode is required ('draft' | 'manual' | 'template')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -555,6 +627,8 @@ serve(async (req) => {
       return await handleManualMode(req, supabase, parsed);
     } else if (parsed.mode === "template") {
       return await handleTemplateMode(req, supabase, parsed);
+    } else if (parsed.mode === "confirm_buttons") {
+      return await handleConfirmButtons(req, supabase, parsed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }

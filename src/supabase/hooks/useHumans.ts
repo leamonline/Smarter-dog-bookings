@@ -8,6 +8,14 @@ import {
 
 const PAGE_SIZE = 50;
 
+function mergeRowsById(rows: any[][]) {
+  const map = new Map<string, any>();
+  rows.flat().forEach((row) => {
+    if (row?.id) map.set(row.id, row);
+  });
+  return Array.from(map.values());
+}
+
 function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
   const trustedMap: Record<string, string[]> = {};
   const trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
@@ -280,21 +288,74 @@ export function useHumans() {
 
       setIsSearching(true);
 
-      const { data: humanRows, error: err } = await supabase
-        .from("humans")
-        .select("*")
-        .or(`name.ilike.%${query}%,surname.ilike.%${query}%`)
-        .order("name")
-        .order("surname");
+      const term = query.trim();
+      const likeTerm = `%${term}%`;
+      const [
+        nameResult,
+        surnameResult,
+        phoneResult,
+        emailResult,
+        dogNameResult,
+        dogBreedResult,
+      ] = await Promise.all([
+        supabase.from("humans").select("*").ilike("name", likeTerm),
+        supabase.from("humans").select("*").ilike("surname", likeTerm),
+        supabase.from("humans").select("*").ilike("phone", likeTerm),
+        supabase.from("humans").select("*").ilike("email", likeTerm),
+        supabase.from("dogs").select("human_id").ilike("name", likeTerm),
+        supabase.from("dogs").select("human_id").ilike("breed", likeTerm),
+      ]);
 
-      setIsSearching(false);
+      const firstError =
+        nameResult.error ||
+        surnameResult.error ||
+        phoneResult.error ||
+        emailResult.error ||
+        dogNameResult.error ||
+        dogBreedResult.error;
 
-      if (err) {
-        setError(err.message);
+      if (firstError) {
+        setIsSearching(false);
+        setError(firstError.message);
         return;
       }
 
-      const rows = humanRows || [];
+      const dogHumanIds = Array.from(
+        new Set(
+          [...(dogNameResult.data || []), ...(dogBreedResult.data || [])]
+            .map((row: any) => row.human_id)
+            .filter(Boolean),
+        ),
+      );
+      let dogOwnerRows: any[] = [];
+
+      if (dogHumanIds.length > 0) {
+        const { data, error: dogOwnerErr } = await supabase
+          .from("humans")
+          .select("*")
+          .in("id", dogHumanIds);
+
+        if (dogOwnerErr) {
+          setIsSearching(false);
+          setError(dogOwnerErr.message);
+          return;
+        }
+
+        dogOwnerRows = data || [];
+      }
+
+      setIsSearching(false);
+
+      const rows = mergeRowsById([
+        nameResult.data || [],
+        surnameResult.data || [],
+        phoneResult.data || [],
+        emailResult.data || [],
+        dogOwnerRows,
+      ]).sort((a, b) => {
+        const nameCompare = (a.name || "").localeCompare(b.name || "");
+        return nameCompare || (a.surname || "").localeCompare(b.surname || "");
+      });
       const byId = buildHumansById(rows);
 
       const ids = rows.map((r: any) => r.id);
@@ -314,6 +375,7 @@ export function useHumans() {
 
       setHumansById(byId);
       setHumans(dbHumansToMap(rows, trustedMap, trustedContactsMap));
+      setTotalCount(rows.length);
       setHasMore(false);
     }, 300);
   }, []);

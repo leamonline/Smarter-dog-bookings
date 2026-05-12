@@ -75,6 +75,7 @@ import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 import {
   AgentState,
+  canAutoBook,
   canAutoSend,
   classifyRisk,
   fallbackReplyForIntent,
@@ -100,6 +101,8 @@ const AI_ASSISTANT_ENABLED =
   (Deno.env.get("AI_ASSISTANT_ENABLED") ?? "true").toLowerCase() !== "false";
 const AI_AUTO_SEND_LOW_RISK =
   (Deno.env.get("AI_AUTO_SEND_LOW_RISK") ?? "false").toLowerCase() === "true";
+const AI_AUTONOMOUS_BOOKING_ENABLED =
+  (Deno.env.get("AI_AUTONOMOUS_BOOKING_ENABLED") ?? "false").toLowerCase() === "true";
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -112,7 +115,11 @@ interface MetaMessage {
   timestamp?: string;
   text?: { body?: string };
   button?: { text?: string; payload?: string };
-  interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
+  // button_reply.id is the round-tripped payload set by whatsapp-send
+  // confirm_buttons mode — e.g. "<booking_action_id>:yes". Task 12's
+  // detector keys off this field, so it must be on the type, not just
+  // the runtime payload.
+  interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
 }
 
 interface MetaStatus {
@@ -142,15 +149,31 @@ interface DraftFromClaude {
   extracted_state?: Partial<AgentState> | null;
 }
 
-interface BookingActionFromClaude {
-  action: "create";
-  dog_id: string;
-  booking_date: string;
-  slot: string;
-  service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
-  size?: "small" | "medium" | "large";
-  notes?: string;
-}
+type BookingActionFromClaude =
+  | {
+      action: "create";
+      dog_id: string;
+      booking_date: string;
+      slot: string;
+      service: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
+      // Large dogs use day-only availability and defer to staff (see HARD
+      // RULES in SYSTEM_PROMPT). The parser rejects "large" so the type
+      // and runtime invariant stay aligned.
+      size?: "small" | "medium";
+      notes?: string;
+    }
+  | {
+      action: "reschedule";
+      old_booking_id: string;
+      new_date: string;
+      new_slot: string;
+      notes?: string;
+    }
+  | {
+      action: "cancel";
+      old_booking_id: string;
+      reason: string;
+    };
 
 // ── System prompt ────────────────────────────────────────────
 // This prompt is the production voice of Smarter Dog Grooming on
@@ -235,18 +258,18 @@ PERSONALISATION RULES
 ────────────────────────────────────────────────────────
 HARD RULES — always
 ────────────────────────────────────────────────────────
-- NEVER directly confirm, move, or cancel a booking in the text. Staff approves every action before it reaches the diary.
-- You MAY propose a new booking action only when all of these are explicit or safely resolved from context: exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID. Use only dog IDs shown in context.
-- For booking_action proposals: if the dog's size is "small" or "medium", the booking_date + slot you cite MUST appear in the "--- Availability ---" block. If the dog's size is "large" (or unknown), do NOT propose a booking_action regardless of availability — say "the team will check the diary".
-- For LARGE dogs: when "--- Large-dog availability ---" is present, you MAY name specific days from "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") and you MAY acknowledge a tight diary when "Days fully booked" is long ("the next few weeks are very busy for large dogs"). You MUST NOT cite a time-of-day for a large dog. You MUST NOT propose a booking_action for a large dog. The "--- Availability ---" block is for SMALL/MEDIUM dogs only and does NOT apply to large dogs even when the date matches — never reuse a slot from it for a large dog. The customer must still clearly expect a follow-up confirmation from staff — banned phrasing from above still applies.
-- If you include booking_action, the proposed_text MUST NOT imply the booking already exists. BANNED phrases: "booked in", "pencilled in", "penciled in", "you're in", "all booked", "added to the diary", "locked in", "sorted". Instead say something like "I'll get this passed to the team and we'll confirm once it's in the diary" — the customer must clearly expect a follow-up confirmation from us.
-- If any booking detail is missing or ambiguous, do not include booking_action. Ask for the missing detail or say staff will check the diary.
-- Do not propose reschedules or cancellations yet. For those, set intent booking_change or booking_cancel and write a holding reply.
-- NEVER quote prices as fixed guarantees. Guide prices are okay when clearly labelled as "starts from" or "guide price".
-- NEVER invent appointment slots or days. For SMALL/MEDIUM, you may only cite dates and times from "--- Availability ---". For LARGE, you may only cite days from "--- Large-dog availability ---" (and never times of day). If a block is missing, empty, or says "unavailable", say "let me just check the diary and come back to you".
+- NEVER directly confirm, move, or cancel a booking in the text. The system follows up with a tap-to-confirm message; your text MUST end with a question prompting the customer's confirmation (e.g. "Shall I book that in for you?", "Want me to move it to Wednesday at 11:00?", "Are you sure you want to cancel?"). Banned phrasing: "booked in", "pencilled in", "penciled in", "you're in", "all booked", "added to the diary", "locked in", "sorted". Phrasing alternatives: "shall I book it?", "want me to set that up?", "happy to lock that in if you like".
+- You MAY propose a booking_action only when all of these are explicit or safely resolved from context: action kind (create | reschedule | cancel); for create — exact dog_id, exact YYYY-MM-DD booking_date, exact slot, and service ID; for reschedule — exact old_booking_id from the "Upcoming bookings" block, exact new_date + new_slot; for cancel — exact old_booking_id, plus a reason quoted from the customer's message. Use only dog IDs and booking IDs shown in context.
+- For booking_action.create with size "small" or "medium", the booking_date + slot MUST appear in the "--- Availability ---" block. Large dogs (size "large" or unknown size from breed): do NOT propose any booking_action — say "the team will check the diary". For large dogs you MAY name candidate days from "--- Large-dog availability ---" "Days with capacity" to be helpful ("looks like Wed 13 May has space — would that work?") but NEVER a time of day. The "--- Large-dog availability ---" block is informational only; never reuse a slot from "--- Availability ---" for a large dog.
+- For booking_action.reschedule, only propose if the original booking is at least 24 hours from today. Anything inside that window: hold and let staff handle (intent "booking_change", no booking_action).
+- For booking_action.cancel, only propose if the booking is in "Booked" status (not yet checked in or finished). Mid-service or finished bookings: hold and let staff handle.
+- If a breed is mentioned that you do not recognise (not a common UK breed name and not in the customer's "Dogs" context block), do NOT propose booking_action. Ask another natural question, populate extracted_state with the breed string for staff to confirm, and tell the customer "the team will confirm what size that breed is".
+- Do not propose more than 3 candidate slots in a single message. If you want to offer more, ask the customer for a narrower preference first.
+- NEVER quote prices as fixed guarantees. Guide prices labelled "starts from" or "guide price" are fine.
+- NEVER invent appointment slots or days. SMALL/MEDIUM cite times only from "--- Availability ---"; LARGE cite days only from "--- Large-dog availability ---". If a block is missing or empty, say "let me just check the diary and come back to you".
 - NEVER promise same-day turnaround or specific groomer assignments.
-- If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply ("thanks for letting me know, I'll make sure one of the team sees this straight away"). Don't attempt to resolve.
-- If a message seems medical or safety-related (dog unwell, injury, adverse reaction to grooming) → intent "escalate", brief holding reply, let staff handle.
+- If the message sounds distressed, angry, or is a complaint → intent "escalate", short empathetic holding reply, no booking_action.
+- If a message seems medical or safety-related → intent "escalate", brief holding reply, no booking_action.
 
 ────────────────────────────────────────────────────────
 POLICY GUIDANCE
@@ -300,6 +323,27 @@ When you receive a "--- Known so far ---" block, that is what we have already le
 After drafting your reply, include any newly-learned customer facts in the optional "extracted_state" field. Only include fields you are confident about from the latest message — leave a field out (or set null) if you don't know. The system merges your patch non-destructively.
 
 ────────────────────────────────────────────────────────
+NEW CUSTOMER COLLECTION
+────────────────────────────────────────────────────────
+When --- Customer --- is "Unknown (...)", you are speaking to someone not on our records yet. Over the next few turns, gather:
+- Customer first name + surname
+- Dog name + breed
+- Dog age (puppy if under 6 months)
+- Any handling alerts (reactive, nervous, medical)
+- Coat condition / matting state
+- Preferred day
+
+Use extracted_state to populate these on every turn. Ask for missing fields naturally — one or two per turn, never all in one go. Don't invent details.
+
+Once you have ALL of the required fields above AND the breed is one you recognise, your next reply MUST be a single plain-text summary that asks the customer to confirm everything before we save it. Example shape:
+
+  "Just to double-check — Sarah Lockwood, Alfie's a 3yo Cockapoo, nervous around dryers, coat in good condition, looking for a Wednesday — sound right? 🎓🐶❤️ X"
+
+Do NOT propose a booking_action while customer is unknown. The system creates the records on the customer's next positive reply ("yes", "that's right", "perfect"); on the turn after, you'll see --- Customer --- populated and can move into the normal booking flow.
+
+If the customer corrects a detail during the summary, update via extracted_state and re-summarise on the next turn.
+
+────────────────────────────────────────────────────────
 OUTPUT FORMAT
 ────────────────────────────────────────────────────────
 Reply with ONE JSON object, no prose, no markdown, no code fences:
@@ -314,17 +358,31 @@ Reply with ONE JSON object, no prose, no markdown, no code fences:
     "booking_date": "YYYY-MM-DD",
     "slot": "HH:MM",
     "service": "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
-    "size": "small" | "medium" | "large",
+    "size": "small" | "medium",
     "notes": "short reason, optional"
+  } | {
+    "action": "reschedule",
+    "old_booking_id": "uuid from --- Upcoming bookings --- context",
+    "new_date": "YYYY-MM-DD",
+    "new_slot": "HH:MM",
+    "notes": "short reason, optional"
+  } | {
+    "action": "cancel",
+    "old_booking_id": "uuid from --- Upcoming bookings --- context",
+    "reason": "quoted or paraphrased from the customer's message"
   },
   "extracted_state": null | {
-    "customerName": string | null,
-    "dogName":      string | null,
-    "breed":        string | null,
-    "dogSize":      "small" | "medium" | "large" | "unknown" | null,
-    "service":      "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null,
-    "preferredDay":  string | null,
-    "preferredTime": string | null
+    "customerName":      string | null,
+    "customerSurname":   string | null,
+    "dogName":           string | null,
+    "breed":             string | null,
+    "dogSize":           "small" | "medium" | "large" | "unknown" | null,
+    "dogAge":            string | null,
+    "alerts":            string[] | null,
+    "coatCondition":     string | null,
+    "service":           "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null,
+    "preferredDay":      string | null,
+    "preferredTime":     string | null
   }
 }
 
@@ -370,8 +428,12 @@ interface ConversationRow {
   id: string;
   state: string;
   human_id: string | null;
+  phone_e164: string;
   auto_send_enabled: boolean;
+  autonomous_booking_enabled: boolean;
   agent_state: AgentState;
+  lead_status: "collecting" | "awaiting_summary_confirm" | "records_created" | null;
+  lead_payload: AgentState | null;
 }
 
 async function upsertConversation(
@@ -392,18 +454,27 @@ async function upsertConversation(
   // We also pull auto_send_enabled and agent_state on the same round
   // trip so the agent can read them without an extra select. Both
   // columns come from migrations 026 and 038 respectively.
+  // Important: only include human_id in the upsert body when humanId is
+  // non-null. Supabase upsert with onConflict updates every column in
+  // the body, so writing human_id: null would silently clobber a value
+  // previously set by createNewCustomerRecords (in which case the agent
+  // would re-onboard the customer next turn). humanId is only ever set
+  // from findHumanIdByPhone which already returns existing links.
+  const upsertBody: Record<string, unknown> = {
+    phone_e164: phoneE164,
+    last_inbound_at: lastInboundAt,
+    last_customer_text: lastCustomerText ?? undefined,
+  };
+  if (humanId !== null) {
+    upsertBody.human_id = humanId;
+  }
   const { data, error } = await supabase
     .from("whatsapp_conversations")
     .upsert(
-      {
-        phone_e164: phoneE164,
-        human_id: humanId, // only used on insert; we don't clobber an existing link
-        last_inbound_at: lastInboundAt,
-        last_customer_text: lastCustomerText ?? undefined,
-      },
+      upsertBody,
       { onConflict: "phone_e164" },
     )
-    .select("id, state, human_id, auto_send_enabled, agent_state")
+    .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, lead_status, lead_payload")
     .single();
 
   if (error || !data) {
@@ -414,18 +485,32 @@ async function upsertConversation(
     id: string;
     state: string;
     human_id: string | null;
+    phone_e164: string;
     auto_send_enabled: boolean | null;
+    autonomous_booking_enabled: boolean | null;
     agent_state: unknown;
+    lead_status: string | null;
+    lead_payload: unknown;
   };
+
+  const validLeadStatuses = new Set(["collecting", "awaiting_summary_confirm", "records_created"]);
 
   return {
     id: row.id,
     state: row.state,
     human_id: row.human_id,
+    phone_e164: row.phone_e164,
     auto_send_enabled: row.auto_send_enabled === true,
+    autonomous_booking_enabled: row.autonomous_booking_enabled === true,
     agent_state: (row.agent_state && typeof row.agent_state === "object"
       ? (row.agent_state as AgentState)
       : {}) as AgentState,
+    lead_status: (typeof row.lead_status === "string" && validLeadStatuses.has(row.lead_status)
+      ? row.lead_status as "collecting" | "awaiting_summary_confirm" | "records_created"
+      : null) ?? null,
+    lead_payload: (row.lead_payload && typeof row.lead_payload === "object"
+      ? (row.lead_payload as AgentState)
+      : null) ?? null,
   };
 }
 
@@ -613,10 +698,13 @@ async function buildLargeDogAvailabilityBlock(
 function renderAgentStateBlock(state: AgentState | null): string | null {
   if (!state) return null;
   const labels: Array<[keyof AgentState, string]> = [
-    ["customerName", "Customer name"],
+    ["customerName", "Customer first name"],
+    ["customerSurname", "Customer surname"],
     ["dogName", "Dog name"],
     ["breed", "Breed"],
     ["dogSize", "Size"],
+    ["dogAge", "Dog age"],
+    ["coatCondition", "Coat condition"],
     ["service", "Service"],
     ["preferredDay", "Preferred day"],
     ["preferredTime", "Preferred time"],
@@ -627,6 +715,9 @@ function renderAgentStateBlock(state: AgentState | null): string | null {
     if (typeof value === "string" && value.trim()) {
       lines.push(`${label}: ${value}`);
     }
+  }
+  if (Array.isArray(state.alerts) && state.alerts.length > 0) {
+    lines.push(`Alerts: ${state.alerts.join(", ")}`);
   }
   if (lines.length === 0) return null;
   return `--- Known so far ---\n${lines.join("\n")}`;
@@ -707,17 +798,19 @@ async function buildContext(
 
     const { data: bookings } = await supabase
       .from("bookings")
-      .select("booking_date, slot, service, status, confirmed, dogs!inner(name, human_id)")
+      .select("id, booking_date, slot, service, status, confirmed, dogs!inner(name, human_id)")
       .eq("dogs.human_id", humanId)
       .gte("booking_date", todayIso)
       .lte("booking_date", in14)
       .order("booking_date", { ascending: true });
 
     if (bookings?.length) {
+      // booking_id rendered so the agent can populate old_booking_id for
+      // reschedule / cancel booking_actions (see HARD RULES in SYSTEM_PROMPT).
       const bookingLines = bookings.map((b: any) =>
         `  - ${b.dogs?.name ?? "?"}: ${b.booking_date} at ${b.slot} — ${b.service}${
           b.confirmed ? " (confirmed)" : " (unconfirmed)"
-        }`
+        } [booking_id: ${b.id}]`
       ).join("\n");
       parts.push(`--- Upcoming bookings (next 14 days) ---\n${bookingLines}`);
     } else {
@@ -832,8 +925,11 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
   const out: Partial<AgentState> = {};
   const stringKeys: (keyof AgentState)[] = [
     "customerName",
+    "customerSurname",
     "dogName",
     "breed",
+    "dogAge",
+    "coatCondition",
     "service",
     "preferredDay",
     "preferredTime",
@@ -850,30 +946,82 @@ function parseExtractedState(value: unknown): Partial<AgentState> | null {
       out.dogSize = ds;
     }
   }
+  if (Array.isArray(v.alerts)) {
+    const alerts = v.alerts
+      .filter((a): a is string => typeof a === "string" && a.trim().length > 0)
+      .map((a) => a.trim().slice(0, 100))
+      .slice(0, 10);
+    if (alerts.length > 0) out.alerts = alerts;
+  }
   return Object.keys(out).length > 0 ? out : null;
 }
 
 function parseBookingAction(value: unknown): BookingActionFromClaude | null {
   if (!value || typeof value !== "object") return null;
-  const action = value as Record<string, unknown>;
-  const validServices = new Set(["full-groom", "bath-and-brush", "bath-and-deshed", "puppy-groom"]);
-  const validSizes = new Set(["small", "medium", "large"]);
+  const obj = value as Record<string, unknown>;
+  const action = obj.action;
 
-  if (action.action !== "create") return null;
-  if (typeof action.dog_id !== "string" || !action.dog_id) return null;
-  if (typeof action.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(action.booking_date)) return null;
-  if (typeof action.slot !== "string" || !/^\d{2}:\d{2}$/.test(action.slot)) return null;
-  if (typeof action.service !== "string" || !validServices.has(action.service)) return null;
+  if (action === "create") {
+    const validServices = new Set([
+      "full-groom",
+      "bath-and-brush",
+      "bath-and-deshed",
+      "puppy-groom",
+    ]);
+    // Large dogs go through the day-only availability + staff path —
+    // see HARD RULES in SYSTEM_PROMPT. Reject "large" at the parser so
+    // a model that ignores the prompt can't sneak a large-dog booking
+    // through to apply.
+    const validSizes = new Set(["small", "medium"]);
+    if (typeof obj.dog_id !== "string" || !obj.dog_id) return null;
+    if (typeof obj.booking_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.booking_date)) return null;
+    if (typeof obj.slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.slot)) return null;
+    if (typeof obj.service !== "string" || !validServices.has(obj.service)) return null;
+    return {
+      action: "create",
+      dog_id: obj.dog_id,
+      booking_date: obj.booking_date,
+      slot: obj.slot,
+      service: obj.service as "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom",
+      ...(typeof obj.size === "string" && validSizes.has(obj.size)
+        ? { size: obj.size as "small" | "medium" }
+        : {}),
+      ...(typeof obj.notes === "string" && obj.notes.trim()
+        ? { notes: obj.notes.trim().slice(0, 300) }
+        : {}),
+    };
+  }
 
-  return {
-    action: "create",
-    dog_id: action.dog_id,
-    booking_date: action.booking_date,
-    slot: action.slot,
-    service: action.service as BookingActionFromClaude["service"],
-    ...(typeof action.size === "string" && validSizes.has(action.size) ? { size: action.size as BookingActionFromClaude["size"] } : {}),
-    ...(typeof action.notes === "string" && action.notes.trim() ? { notes: action.notes.trim().slice(0, 300) } : {}),
-  };
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (action === "reschedule") {
+    if (typeof obj.old_booking_id !== "string" || !uuidRe.test(obj.old_booking_id)) return null;
+    if (typeof obj.new_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.new_date)) return null;
+    if (typeof obj.new_slot !== "string" || !/^\d{2}:\d{2}$/.test(obj.new_slot)) return null;
+    return {
+      action: "reschedule",
+      old_booking_id: obj.old_booking_id,
+      new_date: obj.new_date,
+      new_slot: obj.new_slot,
+      ...(typeof obj.notes === "string" && obj.notes.trim()
+        ? { notes: obj.notes.trim().slice(0, 300) }
+        : {}),
+    };
+  }
+
+  if (action === "cancel") {
+    if (typeof obj.old_booking_id !== "string" || !uuidRe.test(obj.old_booking_id)) return null;
+    // reason must be a meaningful explanation (>= 3 chars after trim) so the
+    // cancel_reason column carries something legible, not just punctuation.
+    if (typeof obj.reason !== "string" || obj.reason.trim().length < 3) return null;
+    return {
+      action: "cancel",
+      old_booking_id: obj.old_booking_id,
+      reason: obj.reason.trim().slice(0, 300),
+    };
+  }
+
+  return null;
 }
 
 // ── Draft save ───────────────────────────────────────────────
@@ -984,6 +1132,14 @@ async function dispatchIfEligible(
   }
 }
 
+// Slot values the autonomous create path will write. Used as a final
+// guard in case parseBookingAction lets through a parseable-but-not-real
+// HH:MM. Reschedule's new_slot is validated against the same set.
+const VALID_SLOTS = new Set([
+  "08:30", "09:00", "09:30", "10:00", "10:30",
+  "11:00", "11:30", "12:00", "12:30", "13:00",
+]);
+
 async function saveBookingAction(
   supabase: SupabaseClient,
   conversationId: string,
@@ -991,47 +1147,106 @@ async function saveBookingAction(
   draft: DraftFromClaude,
 ) {
   const action = draft.booking_action;
-  if (!action || action.action !== "create") return;
-  const validSlots = new Set(["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"]);
-  if (!validSlots.has(action.slot)) return;
+  if (!action) return;
 
-  const { data: dog } = await supabase
-    .from("dogs")
-    .select("id, size, human_id")
-    .eq("id", action.dog_id)
-    .maybeSingle();
+  if (action.action === "create") {
+    if (!VALID_SLOTS.has(action.slot)) return;
 
-  if (!dog) return;
+    const { data: dog } = await supabase
+      .from("dogs")
+      .select("id, size, human_id")
+      .eq("id", action.dog_id)
+      .maybeSingle();
+    if (!dog) return;
 
-  const { data: conversation } = await supabase
-    .from("whatsapp_conversations")
-    .select("human_id")
-    .eq("id", conversationId)
-    .maybeSingle();
+    const { data: conversation } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
 
-  if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
+    const payload = {
+      dog_id: action.dog_id,
+      booking_date: action.booking_date,
+      slot: action.slot,
+      service: action.service,
+      size: action.size ?? dog.size ?? "small",
+      addons: [],
+      payment: "Due at Pick-up",
+      confirmed: true,
+      source: "whatsapp_ai",
+      notes: action.notes ?? null,
+    };
 
-  const payload = {
-    dog_id: action.dog_id,
-    booking_date: action.booking_date,
-    slot: action.slot,
-    service: action.service,
-    size: action.size ?? dog.size ?? "small",
-    addons: [],
-    payment: "Due at Pick-up",
-    confirmed: true,
-    source: "whatsapp_ai",
-    notes: action.notes ?? null,
-  };
+    const { error } = await supabase.from("whatsapp_booking_actions").insert({
+      conversation_id: conversationId,
+      draft_id: draftId,
+      action: "create",
+      payload,
+      state: "pending",
+    });
+    if (error) throw new Error(`saveBookingAction(create) failed: ${error.message}`);
+    return;
+  }
 
-  const { error } = await supabase.from("whatsapp_booking_actions").insert({
-    conversation_id: conversationId,
-    draft_id: draftId,
-    action: "create",
-    payload,
-    state: "pending",
-  });
-  if (error) throw new Error(`saveBookingAction failed: ${error.message}`);
+  // For reschedule and cancel, the action references an existing booking
+  // via old_booking_id. Validate ownership by checking dogs.human_id of
+  // the bookings target against the conversation's human_id before
+  // staging the row — same safety the create branch applies to dog_id.
+  if (action.action === "reschedule" || action.action === "cancel") {
+    if (action.action === "reschedule" && !VALID_SLOTS.has(action.new_slot)) return;
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, dogs!inner(human_id)")
+      .eq("id", action.old_booking_id)
+      .maybeSingle();
+    if (!booking) return;
+
+    const bookingHumanId = (booking as { dogs?: { human_id?: string } | null })
+      .dogs?.human_id ?? null;
+
+    const { data: conversation } = await supabase
+      .from("whatsapp_conversations")
+      .select("human_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (
+      conversation?.human_id &&
+      bookingHumanId &&
+      conversation.human_id !== bookingHumanId
+    ) {
+      // Conversation customer doesn't own this booking — silently drop
+      // the proposal. apply-customer-confirm has its own ownership
+      // check, but defence-in-depth here keeps the staging table clean.
+      return;
+    }
+
+    const payload =
+      action.action === "reschedule"
+        ? {
+            old_booking_id: action.old_booking_id,
+            new_date: action.new_date,
+            new_slot: action.new_slot,
+            notes: action.notes ?? null,
+          }
+        : {
+            old_booking_id: action.old_booking_id,
+            reason: action.reason,
+          };
+
+    const { error } = await supabase.from("whatsapp_booking_actions").insert({
+      conversation_id: conversationId,
+      draft_id: draftId,
+      action: action.action,
+      payload,
+      target_booking_id: action.old_booking_id,
+      state: "pending",
+    });
+    if (error) throw new Error(`saveBookingAction(${action.action}) failed: ${error.message}`);
+    return;
+  }
 }
 
 // ── Delivery status handler ─────────────────────────────────
@@ -1056,6 +1271,366 @@ async function handleStatus(supabase: SupabaseClient, status: MetaStatus) {
     .eq("direction", "outbound");
 
   if (error) console.error("handleStatus update failed:", error);
+}
+
+// ── Autonomous booking helpers ───────────────────────────────
+function inferDogSize(
+  breed: string | null,
+  bookingAction: BookingActionFromClaude,
+): "small" | "medium" | "large" | "unknown" | null {
+  // For create actions, the action carries an explicit size — use it.
+  if (bookingAction.action === "create" && bookingAction.size) return bookingAction.size;
+  // Otherwise resolve from breed. Reschedule/cancel actions don't carry
+  // size — we trust that the original booking already had the right
+  // size and the gate doesn't need to redo the check at this stage.
+  if (!breed) return null;
+  // Mirror src/constants/breeds.ts. Edge functions can't import from
+  // src/, so this is a curated inline subset of the most common UK
+  // breeds. Unknown breed returns "unknown" → canAutoBook fails.
+  const small = ["king charles cavalier","cavalier king charles spaniel","maltese","bichon frise","shih tzu","yorkshire terrier","yorkie","pomeranian","chihuahua","mini dachshund","miniature dachshund","toy poodle","lhasa apso","french bulldog","frenchie","pug","boston terrier","havanese","papillon","italian greyhound","japanese chin","brussels griffon","affenpinscher","miniature pinscher","min pin","chinese crested","pekingese","scottish terrier","scottie","west highland terrier","west highland white terrier","westie","cairn terrier","norfolk terrier","norwich terrier","toy fox terrier","silky terrier","dandie dinmont terrier","english toy terrier"];
+  const medium = ["cocker spaniel","cockapoo","spaniel","springer spaniel","english springer spaniel","border collie","bearded collie","standard poodle","poodle","sheltie","shetland sheepdog","whippet","corgi","welsh corgi","pembroke welsh corgi","cardigan welsh corgi","staffordshire bull terrier","staffy","jack russell","jack russell terrier","beagle","basset hound","border terrier","bichon","tibetan terrier","schnauzer","miniature schnauzer","standard schnauzer","keeshond","american eskimo","brittany","wheaten terrier","soft coated wheaten terrier"];
+  const large = ["husky","siberian husky","alaskan malamute","labrador","labrador retriever","golden retriever","german shepherd","alsatian","rottweiler","doberman","doberman pinscher","great dane","newfoundland","bernese mountain dog","saint bernard","st bernard","irish setter","english setter","gordon setter","dalmatian","weimaraner","vizsla","rhodesian ridgeback","akita","mastiff","old english sheepdog","bullmastiff","leonberger","greater swiss mountain dog","standard bernedoodle","bernedoodle","goldendoodle","labradoodle"];
+  const b = breed.toLowerCase().trim();
+  if (small.includes(b)) return "small";
+  if (medium.includes(b)) return "medium";
+  if (large.includes(b)) return "large";
+  return "unknown";
+}
+
+function buildConfirmSummary(action: BookingActionFromClaude): string {
+  if (action.action === "create") {
+    return `Confirm ${formatDateShort(action.booking_date)} at ${action.slot} — ${serviceLabel(action.service)}?`;
+  }
+  if (action.action === "reschedule") {
+    return `Confirm move to ${formatDateShort(action.new_date)} at ${action.new_slot}?`;
+  }
+  // cancel
+  return `Cancel this booking? (${action.reason.slice(0, 60)})`;
+}
+
+function formatDateShort(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+function serviceLabel(s: string): string {
+  const map: Record<string, string> = {
+    "full-groom": "full groom",
+    "bath-and-brush": "bath & brush",
+    "bath-and-deshed": "bath & deshed",
+    "puppy-groom": "puppy groom",
+  };
+  return map[s] ?? s;
+}
+
+async function dispatchConfirmButtons(
+  supabase: SupabaseClient,
+  conversationId: string,
+  draftId: string,
+  bookingAction: BookingActionFromClaude,
+): Promise<void> {
+  // The action row was just inserted by saveBookingAction. Find it by
+  // draft_id + state='pending' (the staging state). After whatsapp-send
+  // succeeds, the action row transitions to 'awaiting_customer_confirm'.
+  const { data: actionRow } = await supabase
+    .from("whatsapp_booking_actions")
+    .select("id")
+    .eq("draft_id", draftId)
+    .eq("state", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!actionRow) return;
+
+  const summaryText = buildConfirmSummary(bookingAction);
+  const actionKind =
+    bookingAction.action === "create"
+      ? "book"
+      : bookingAction.action === "reschedule"
+      ? "reschedule"
+      : "cancel";
+
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("dispatchConfirmButtons: SEND_INTERNAL_SECRET not set; skipping");
+    return;
+  }
+
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-internal-secret": SEND_INTERNAL_SECRET,
+      },
+      body: JSON.stringify({
+        mode: "confirm_buttons",
+        conversation_id: conversationId,
+        booking_action_id: actionRow.id,
+        summary_text: summaryText,
+        action_kind: actionKind,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`dispatchConfirmButtons: whatsapp-send returned ${res.status}: ${errText}`);
+    }
+  } catch (err) {
+    console.warn("dispatchConfirmButtons failed (non-fatal):", err);
+  }
+}
+
+// ── New-customer lead state machine helpers ──────────────────
+
+// New-customer onboarding fields. AI must populate these via
+// extracted_state before we can transition to summary-confirm.
+const REQUIRED_LEAD_FIELDS: (keyof AgentState)[] = [
+  "customerName",
+  "customerSurname",
+  "dogName",
+  "breed",
+  "dogAge",
+  "coatCondition",
+  "preferredDay",
+];
+
+function isLeadComplete(payload: AgentState | null): boolean {
+  if (!payload) return false;
+  for (const key of REQUIRED_LEAD_FIELDS) {
+    const value = payload[key];
+    if (typeof value !== "string" || !value.trim()) return false;
+  }
+  return true;
+}
+
+// Heuristic: did the customer's latest message signal a positive
+// confirmation of the AI's summary? False positives are worse than
+// false negatives — bias strict. Token must match the start of the
+// trimmed message.
+// Deliberately omits "ye" — matches Irish/UK colloquial "ye" (= "you")
+// which is unambiguously not a confirmation. The "yeh"/"yep"/"yup"/"yeah"
+// entries cover the genuine phonetic variants.
+const POSITIVE_TOKENS = [
+  "yes", "yeah", "yep", "yup", "yeh",
+  "that's right", "thats right", "thats it", "that's it",
+  "correct", "perfect", "all good", "sounds good", "sounds right",
+  "looks good", "go ahead", "all correct",
+];
+
+function isPositiveConfirm(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (!t) return false;
+  return POSITIVE_TOKENS.some((tok) =>
+    t === tok || t.startsWith(`${tok} `) || t.startsWith(`${tok}.`) || t.startsWith(`${tok},`),
+  );
+}
+
+async function createNewCustomerRecords(
+  supabase: SupabaseClient,
+  conversationId: string,
+  phoneE164: string,
+  payload: AgentState,
+): Promise<{ ok: true; humanId: string; dogId: string } | { ok: false; reason: string }> {
+  const notesParts: string[] = [];
+  if (payload.coatCondition) notesParts.push(`Coat (at signup): ${payload.coatCondition}`);
+  if (payload.preferredDay) notesParts.push(`Preferred day: ${payload.preferredDay}`);
+
+  // Idempotency check: if a previous attempt left a humans row for this
+  // phone tagged source='whatsapp_ai' (because the dogs insert or
+  // rollback failed last time), reuse it instead of inserting a second.
+  // The partial unique index from migration 20260512160000 is the DB-
+  // level backstop that catches the concurrent-retry race between
+  // this SELECT and the INSERT below.
+  const { data: existingHuman } = await supabase
+    .from("humans")
+    .select("id")
+    .eq("phone", phoneE164)
+    .eq("source", "whatsapp_ai")
+    .maybeSingle();
+
+  let humanId: string;
+  if (existingHuman?.id) {
+    humanId = existingHuman.id;
+  } else {
+    const { data: humanRow, error: humanErr } = await supabase
+      .from("humans")
+      .insert({
+        name: payload.customerName,
+        surname: payload.customerSurname,
+        phone: phoneE164,
+        notes: notesParts.length > 0 ? notesParts.join(" · ") : null,
+        source: "whatsapp_ai",
+      })
+      .select("id")
+      .single();
+    if (humanErr || !humanRow) {
+      return { ok: false, reason: `humans insert failed: ${humanErr?.message}` };
+    }
+    humanId = humanRow.id;
+  }
+
+  const dogSize = payload.dogSize ?? "unknown";
+  const { data: dogRow, error: dogErr } = await supabase
+    .from("dogs")
+    .insert({
+      human_id: humanId,
+      name: payload.dogName,
+      breed: payload.breed,
+      size: dogSize === "unknown" ? null : dogSize,
+      groom_notes: payload.coatCondition ?? null,
+      alerts: Array.isArray(payload.alerts) ? payload.alerts : null,
+    })
+    .select("id")
+    .single();
+  if (dogErr || !dogRow) {
+    // Rollback only the humans row we just created (not a pre-existing
+    // reused row from the idempotency SELECT). If existingHuman matched,
+    // we don't own the row and shouldn't delete it.
+    if (!existingHuman?.id) {
+      const { error: rollbackErr } = await supabase
+        .from("humans")
+        .delete()
+        .eq("id", humanId)
+        .eq("source", "whatsapp_ai");
+      if (rollbackErr) {
+        console.warn(`createNewCustomerRecords rollback failed (non-fatal): ${rollbackErr.message}`);
+      }
+    }
+    return { ok: false, reason: `dogs insert failed: ${dogErr?.message}` };
+  }
+
+  const { error: convUpdateErr } = await supabase
+    .from("whatsapp_conversations")
+    .update({ human_id: humanId, lead_status: "records_created" })
+    .eq("id", conversationId);
+  if (convUpdateErr) {
+    // Records exist (humans + dogs) but the conversation didn't get
+    // linked. Surface the inconsistency loudly — next inbound turn
+    // would re-enter the onboarding FSM (still sees human_id as null
+    // on the conversation row) and the idempotency SELECT above would
+    // reuse the same humans row, but the dogs row would conflict on
+    // duplicate. Staff need to fix the link manually.
+    console.error(
+      `createNewCustomerRecords: humans+dogs created but conversation update failed for conv ${conversationId}: ${convUpdateErr.message}`,
+    );
+    return { ok: false, reason: `conversation link failed: ${convUpdateErr.message}` };
+  }
+
+  return { ok: true, humanId, dogId: dogRow.id };
+}
+
+// ── Post-creation correction helper ─────────────────────────
+// Columns the AI is allowed to update on humans/dogs after onboarding.
+// Breed is deliberately excluded — changing breed re-derives size and
+// needs staff review. Service / preferredDay / preferredTime aren't
+// stored on humans or dogs (they're agent_state only).
+const HUMAN_UPDATE_WHITELIST: (keyof AgentState)[] = ["customerName", "customerSurname"];
+const DOG_UPDATE_WHITELIST: (keyof AgentState)[] = ["dogName", "dogAge", "coatCondition"];
+
+async function applyPostCreationCorrections(
+  supabase: SupabaseClient,
+  humanId: string,
+  current: AgentState | null,
+  patch: Partial<AgentState>,
+): Promise<void> {
+  // Only apply when the humans row is the one the AI itself created.
+  // Manually-entered customers (source NULL or other) must never be
+  // edited by the AI — staff use the dashboard for those.
+  const { data: human, error: humanErr } = await supabase
+    .from("humans")
+    .select("id, source, name, surname")
+    .eq("id", humanId)
+    .single();
+  if (humanErr || !human) return;
+  if (human.source !== "whatsapp_ai") return;
+
+  // AgentState key → humans column mapping. Iterating the whitelist
+  // gives the constant its intended effect: removing an entry from
+  // HUMAN_UPDATE_WHITELIST genuinely suppresses writes for that key.
+  const HUMAN_KEY_TO_COLUMN: Partial<Record<keyof AgentState, string>> = {
+    customerName: "name",
+    customerSurname: "surname",
+  };
+  const humanUpdate: Record<string, string> = {};
+  for (const key of HUMAN_UPDATE_WHITELIST) {
+    const column = HUMAN_KEY_TO_COLUMN[key];
+    if (!column) continue;
+    const newValue = patch[key];
+    if (typeof newValue !== "string" || !newValue) continue;
+    if (newValue === current?.[key]) continue;
+    humanUpdate[column] = newValue;
+  }
+  if (Object.keys(humanUpdate).length > 0) {
+    const { error: updateErr } = await supabase
+      .from("humans")
+      .update(humanUpdate)
+      .eq("id", humanId)
+      .eq("source", "whatsapp_ai"); // defence-in-depth — still scoped
+    if (updateErr) {
+      console.warn(`applyPostCreationCorrections(humans) failed: ${updateErr.message}`);
+    }
+  }
+
+  // Dogs — find the AI-owned dog(s) for this human and apply the diff.
+  // Multi-dog new-customer onboarding is out of scope (the lead flow
+  // captures one dog only), so we operate on the first dog row.
+  const { data: dogs } = await supabase
+    .from("dogs")
+    .select("id, name")
+    .eq("human_id", humanId)
+    .order("created_at", { ascending: true });
+  if (!dogs || dogs.length === 0) return;
+
+  const dogId = dogs[0].id;
+
+  // dogAge has no DB column today — the lead flow doesn't persist it
+  // into dogs. Whitelisted for forward-compat but produces no write.
+  // dogs.alerts is jsonb (string[]); handled separately below.
+  // Note on groom_notes: at onboarding-time createNewCustomerRecords
+  // writes the coat condition string into groom_notes verbatim, so the
+  // column starts as exactly the coat value. A subsequent correction
+  // here OVERWRITES that value. If staff have manually appended notes
+  // to an AI-onboarded dog before a correction lands, those notes will
+  // be lost. Acceptable trade-off given source='whatsapp_ai' rows are
+  // primarily owned by the AI's onboarding pipeline; a richer schema
+  // (separate coat_condition column) would solve this properly.
+  const DOG_KEY_TO_COLUMN: Partial<Record<keyof AgentState, string>> = {
+    dogName: "name",
+    coatCondition: "groom_notes",
+  };
+  const dogUpdate: Record<string, unknown> = {};
+  for (const key of DOG_UPDATE_WHITELIST) {
+    const column = DOG_KEY_TO_COLUMN[key];
+    if (!column) continue;
+    const newValue = patch[key];
+    if (typeof newValue !== "string" || !newValue) continue;
+    if (newValue === current?.[key]) continue;
+    dogUpdate[column] = newValue;
+  }
+  // Alerts (string[]) — non-string-keyed; only fires when patch differs
+  // from the current value by structure. parseExtractedState already
+  // drops empty arrays so patch.alerts === [] is unreachable via the
+  // normal AI path; if a future caller bypasses the parser the diff
+  // still catches no-op patches.
+  if (Array.isArray(patch.alerts) && JSON.stringify(patch.alerts) !== JSON.stringify(current?.alerts ?? [])) {
+    dogUpdate.alerts = patch.alerts;
+  }
+
+  if (Object.keys(dogUpdate).length > 0) {
+    // Ownership belt-and-braces: filter on human_id at UPDATE time so
+    // even a stale dogId can't land a write on the wrong dog.
+    const { error: updateErr } = await supabase
+      .from("dogs")
+      .update(dogUpdate)
+      .eq("id", dogId)
+      .eq("human_id", humanId);
+    if (updateErr) {
+      console.warn(`applyPostCreationCorrections(dogs) failed: ${updateErr.message}`);
+    }
+  }
 }
 
 // ── Main handler ─────────────────────────────────────────────
@@ -1155,6 +1730,50 @@ serve(async (req) => {
             sentAt,
           );
 
+          // Button-reply routing: if this inbound is a Yes/No tap on a
+          // confirm_buttons message we sent (id matches <uuid>:yes|no),
+          // dispatch to apply-customer-confirm and skip the Claude draft
+          // for this turn. The apply function fires its own ack text via
+          // whatsapp-send.
+          const buttonReply = msg.interactive?.button_reply;
+          if (buttonReply?.id) {
+            const buttonReplyMatch = buttonReply.id.match(/^([0-9a-f-]{36}):(yes|no)$/i);
+            if (buttonReplyMatch) {
+              const [, actionId, choice] = buttonReplyMatch;
+              const applySecret = Deno.env.get("APPLY_CONFIRM_INTERNAL_SECRET") ?? "";
+              if (!applySecret) {
+                console.warn("button_reply received but APPLY_CONFIRM_INTERNAL_SECRET not set; skipping");
+              } else {
+                const applyUrl = `${SUPABASE_URL}/functions/v1/apply-customer-confirm`;
+                try {
+                  const res = await fetch(applyUrl, {
+                    method: "POST",
+                    headers: {
+                      "content-type": "application/json",
+                      "x-internal-secret": applySecret,
+                    },
+                    // Pass caller_conversation_id so apply-customer-confirm
+                    // can assert the action belongs to the sender's
+                    // conversation — guards against a customer crafting
+                    // a button_reply for another customer's action id.
+                    body: JSON.stringify({
+                      booking_action_id: actionId,
+                      choice,
+                      caller_conversation_id: conversation.id,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const errText = await res.text();
+                    console.warn(`apply-customer-confirm returned ${res.status}: ${errText}`);
+                  }
+                } catch (err) {
+                  console.warn("apply-customer-confirm dispatch failed:", err);
+                }
+              }
+              continue; // skip Claude draft for this turn
+            }
+          }
+
           // If staff has taken over, skip AI draft entirely.
           if (conversation.state !== "ai_handling") {
             continue;
@@ -1217,6 +1836,73 @@ serve(async (req) => {
             await persistAgentState(supabase, conversation.id, merged);
           }
 
+          // New-customer onboarding state machine. Runs only when the
+          // conversation is unknown (no human_id). On positive-confirm
+          // turns we promote the lead_payload into humans/dogs rows;
+          // otherwise we keep collecting.
+          if (!conversation.human_id) {
+            const mergedPayload = mergeAgentState(
+              conversation.lead_payload ?? conversation.agent_state,
+              draft.extracted_state ?? {},
+            );
+
+            if (
+              conversation.lead_status === "awaiting_summary_confirm" &&
+              text &&
+              isPositiveConfirm(text)
+            ) {
+              if (isLeadComplete(mergedPayload)) {
+                const result = await createNewCustomerRecords(
+                  supabase,
+                  conversation.id,
+                  conversation.phone_e164,
+                  mergedPayload,
+                );
+                if (!result.ok) {
+                  console.warn(`createNewCustomerRecords failed: ${result.reason}`);
+                }
+              }
+            } else if (
+              isLeadComplete(mergedPayload) &&
+              conversation.lead_status !== "awaiting_summary_confirm" &&
+              conversation.lead_status !== "records_created"
+            ) {
+              await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  lead_status: "awaiting_summary_confirm",
+                  lead_payload: mergedPayload,
+                })
+                .eq("id", conversation.id);
+            } else {
+              await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  lead_status: conversation.lead_status ?? "collecting",
+                  lead_payload: mergedPayload,
+                })
+                .eq("id", conversation.id);
+            }
+          }
+
+          // Post-creation corrections: when the conversation is linked
+          // (records created) and the AI extracted a patch, apply the
+          // diff to humans/dogs. Restricted to AI-onboarded records via
+          // applyPostCreationCorrections's source guard. Non-blocking
+          // (warns on failure, doesn't fail the turn).
+          if (
+            conversation.human_id &&
+            draft.extracted_state &&
+            conversation.lead_status === "records_created"
+          ) {
+            await applyPostCreationCorrections(
+              supabase,
+              conversation.human_id,
+              conversation.agent_state,
+              draft.extracted_state,
+            );
+          }
+
           const draftId = await saveDraft(
             supabase,
             conversation.id,
@@ -1228,6 +1914,31 @@ serve(async (req) => {
             raw,
           );
           await saveBookingAction(supabase, conversation.id, draftId, draft);
+          // Autonomous booking: if every gate passes (env flag, per-conv
+          // opt-in, known customer, low risk, high confidence, small/medium
+          // recognised breed, booking-related intent, ai_handling state),
+          // send the confirm-buttons message. Otherwise the action stays
+          // at 'pending' and the staff inbox handles it via the legacy
+          // BookingActionPanel.
+          if (draft.booking_action) {
+            const breed = conversation.agent_state?.breed ?? null;
+            const dogSize = inferDogSize(breed, draft.booking_action);
+            const breedKnown = dogSize !== "unknown" && dogSize !== null;
+            const eligible = canAutoBook({
+              intent: draft.intent,
+              riskLevel,
+              confidence: draft.confidence,
+              dogSize,
+              customerIsKnown: !!conversation.human_id,
+              conversationState: conversation.state,
+              envFlagEnabled: AI_AUTONOMOUS_BOOKING_ENABLED,
+              conversationOptedIn: conversation.autonomous_booking_enabled,
+              breedKnown,
+            });
+            if (eligible) {
+              await dispatchConfirmButtons(supabase, conversation.id, draftId, draft.booking_action);
+            }
+          }
           await dispatchIfEligible(draftId, policy);
         }
 

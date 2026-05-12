@@ -316,10 +316,14 @@ export type AgentStateStatus =
  */
 export interface AgentState {
   customerName?: string | null;
+  customerSurname?: string | null;
   dogName?: string | null;
   breed?: string | null;
   dogSize?: DogSize | null;
-  service?: string | null;
+  dogAge?: string | null;
+  alerts?: string[] | null;
+  coatCondition?: string | null;
+  service?: "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom" | null;
   preferredDay?: string | null;
   preferredTime?: string | null;
   status?: AgentStateStatus | null;
@@ -328,9 +332,13 @@ export interface AgentState {
 
 const KNOWN_AGENT_STATE_KEYS: readonly (keyof AgentState)[] = [
   "customerName",
+  "customerSurname",
   "dogName",
   "breed",
   "dogSize",
+  "dogAge",
+  "alerts",
+  "coatCondition",
   "service",
   "preferredDay",
   "preferredTime",
@@ -361,6 +369,18 @@ export function mergeAgentState(
     if (key === "missingFields") {
       if (Array.isArray(value)) {
         next.missingFields = value.filter((v): v is string => typeof v === "string");
+      }
+      continue;
+    }
+    if (key === "alerts") {
+      if (Array.isArray(value)) {
+        // Apply the same caps as parseExtractedState so non-parser callers
+        // (tests, dashboard mutations, future RPCs) can't push oversized
+        // entries through. Defence-in-depth — the parser sanitises today.
+        next.alerts = value
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+          .map((v) => v.trim().slice(0, 100))
+          .slice(0, 10);
       }
       continue;
     }
@@ -497,6 +517,40 @@ function intentToFallbackKind(input: Intent | FallbackKind): FallbackKind {
     default:
       return "unknown";
   }
+}
+
+export interface CanAutoBookInput {
+  intent: Intent;
+  riskLevel: RiskLevel;
+  confidence: number;
+  dogSize: "small" | "medium" | "large" | "unknown" | null;
+  customerIsKnown: boolean;
+  conversationState: "ai_handling" | "human_takeover" | "snoozed" | "closed" | string;
+  envFlagEnabled: boolean;
+  conversationOptedIn: boolean;
+  breedKnown: boolean;
+}
+
+/**
+ * Returns true iff every autonomy gate passes for an autonomous booking
+ * action (create / reschedule / cancel). The agent calls this once it
+ * has Claude's draft + classifier output; on true it emits the
+ * awaiting_customer_confirm flow, on false it emits a legacy `pending`
+ * action that the staff inbox can approve.
+ */
+export function canAutoBook(input: CanAutoBookInput): boolean {
+  if (!input.envFlagEnabled) return false;
+  if (!input.conversationOptedIn) return false;
+  if (!input.customerIsKnown) return false;
+  if (input.confidence < 0.85) return false;
+  if (input.riskLevel !== "low") return false;
+  if (input.conversationState !== "ai_handling") return false;
+  if (!input.breedKnown) return false;
+  const okSizes = new Set(["small", "medium"]);
+  if (!input.dogSize || !okSizes.has(input.dogSize)) return false;
+  const okIntents = new Set<Intent>(["booking_propose", "booking_change", "booking_cancel"]);
+  if (!okIntents.has(input.intent)) return false;
+  return true;
 }
 
 /**

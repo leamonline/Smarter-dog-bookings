@@ -23,7 +23,7 @@ export function CalendarTabs({
     <div
       role="tablist"
       aria-label="Day navigation"
-      className="flex items-center justify-start xl:justify-around gap-1 xl:gap-0 px-2 py-1.5 bg-white xl:bg-transparent xl:border-0 xl:py-0 xl:px-0 border-b border-slate-200 overflow-x-auto xl:overflow-visible snap-x snap-proximity scrollbar-none scroll-px-2"
+      className="grid grid-cols-7 items-center px-2 py-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
     >
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;
@@ -34,7 +34,7 @@ export function CalendarTabs({
           <div
             key={d.dateStr}
             ref={isActive ? activeTabRef : null}
-            className="snap-center shrink-0"
+            className="snap-center flex justify-center"
           >
             <DayTab
               id={`day-tab-${d.dateStr}`}

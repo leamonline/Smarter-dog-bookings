@@ -124,34 +124,37 @@ function StatusPill({ state, size = "sm" }) {
 // reused for unread / drafts / bookings so the inbox title row reads
 // like a control surface rather than static text. Only one chip can
 // be active at a time — clicking the active chip clears the filter.
-function InboxFilterChip({ label, count, active, color, onClick, hint }) {
-  // color: "purple" | "amber" | "emerald" | "rose"
-  const palette = {
-    purple: {
-      dot: "bg-brand-purple",
-      active: "bg-brand-purple/10 border-brand-purple/30 text-brand-purple",
-      idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-purple/40 hover:text-brand-purple",
-    },
-    amber: {
-      dot: "bg-amber-500",
-      active: "bg-amber-100 border-amber-300 text-amber-900",
-      idle: "bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-800",
-    },
-    emerald: {
-      dot: "bg-emerald-500",
-      active: "bg-emerald-100 border-emerald-300 text-emerald-900",
-      idle: "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-800",
-    },
-    rose: {
-      dot: "bg-rose-500",
-      active: "bg-rose-100 border-rose-300 text-rose-900",
-      idle: "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700",
-    },
-  }[color] ?? {
+// color: "purple" | "amber" | "emerald" | "rose" — falls back to neutral slate.
+const FILTER_CHIP_PALETTES = {
+  purple: {
+    dot: "bg-brand-purple",
+    active: "bg-brand-purple/10 border-brand-purple/30 text-brand-purple",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-brand-purple/40 hover:text-brand-purple",
+  },
+  amber: {
+    dot: "bg-amber-500",
+    active: "bg-amber-100 border-amber-300 text-amber-900",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-800",
+  },
+  emerald: {
+    dot: "bg-emerald-500",
+    active: "bg-emerald-100 border-emerald-300 text-emerald-900",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-800",
+  },
+  rose: {
+    dot: "bg-rose-500",
+    active: "bg-rose-100 border-rose-300 text-rose-900",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700",
+  },
+  default: {
     dot: "bg-slate-400",
     active: "bg-slate-100 border-slate-300 text-slate-700",
     idle: "bg-white border-slate-200 text-slate-600",
-  };
+  },
+};
+
+function InboxFilterChip({ label, count, active, color, onClick, hint }) {
+  const palette = FILTER_CHIP_PALETTES[color] ?? FILTER_CHIP_PALETTES.default;
   const isEmpty = count === 0;
   return (
     <button
@@ -186,16 +189,6 @@ function serviceLabel(service) {
     "puppy-groom": "Puppy groom",
   };
   return labels[service] || service || "Service";
-}
-
-function formatDateLong(dateStr) {
-  if (!dateStr) return "No date";
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 // Compact UK-style "Mon 27 Apr" used by the booking-attached banner.
@@ -292,6 +285,47 @@ function AutoSendToggle({ conversation, onChange, disabled }) {
   );
 }
 
+function AutonomousBookingToggle({ conversation, onChange, disabled }) {
+  if (!conversation) return null;
+  const enabled = !!conversation.autonomous_booking_enabled;
+  const isDisabled = !!disabled;
+
+  const title = enabled
+    ? "Autonomous booking is on for this conversation. AI may write to the diary on customer confirm (also requires AI_AUTONOMOUS_BOOKING_ENABLED=true at function level)."
+    : "Autonomous booking is off. AI booking proposals go to the staff approval queue.";
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={`Autonomous booking ${enabled ? "on" : "off"} for this conversation`}
+      onClick={() => onChange(!enabled)}
+      disabled={isDisabled}
+      title={title}
+      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit] ${
+        enabled
+          ? "bg-sky-100 border-sky-300 text-sky-900 hover:bg-sky-200"
+          : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`relative inline-block w-7 h-4 rounded-full transition-colors ${
+          enabled ? "bg-sky-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
+            enabled ? "translate-x-3" : "translate-x-0"
+          }`}
+        />
+      </span>
+      Auto-book {enabled ? "on" : "off"}
+    </button>
+  );
+}
+
 function ConversationListItem({ conv, isSelected, onSelect }) {
   const unread = conv.unread_count > 0;
   return (
@@ -337,6 +371,15 @@ function ConversationListItem({ conv, isSelected, onSelect }) {
               title="Booking proposal pending approval"
               aria-label="Booking proposal pending approval"
             />
+          )}
+          {conv.lead_status === "records_created" && (
+            <span
+              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-800 border border-sky-200"
+              title="New customer onboarded by AI — spot-check before approving the first booking"
+              aria-label="New customer onboarded by AI"
+            >
+              🆕 New
+            </span>
           )}
           {unread && (
             <span
@@ -647,6 +690,15 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
     if (!res.ok) setError(res.reason ?? "Reject failed");
   }
 
+  // Action bar dispatch — five mutually exclusive button sets driven by
+  // the current edit/reject mode and whether the draft has an attached
+  // booking action. Flattened from a nested ternary to keep each case
+  // readable on its own line.
+  let mode = "idle";
+  if (editing) mode = "editing";
+  else if (rejecting) mode = "rejecting";
+  const hasAttached = attachedActions.length > 0;
+
   return (
     <div className="p-4 bg-amber-50 border-t-2 border-amber-300">
       <div className="flex justify-between items-start gap-2 mb-2 flex-wrap">
@@ -730,50 +782,50 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
       )}
 
       <div className="flex flex-wrap gap-2 mt-2">
-        {editing ? (
-          attachedActions.length > 0 ? (
-            <>
-              <button
-                onClick={() => handleApproveAndApply(true)}
-                disabled={inFlight || !editedText.trim()}
-                className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
-              >
-                Send edit &amp; Apply
-              </button>
-              <button
-                onClick={() => handleApprove(true)}
-                disabled={inFlight || !editedText.trim()}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-              >
-                Send edit only
-              </button>
-              <button
-                onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
-                disabled={inFlight}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-              >
-                Cancel edit
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handleApprove(true)}
-                disabled={inFlight || !editedText.trim()}
-                className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
-              >
-                Send edit
-              </button>
-              <button
-                onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
-                disabled={inFlight}
-                className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-              >
-                Cancel edit
-              </button>
-            </>
-          )
-        ) : rejecting ? (
+        {mode === "editing" && hasAttached && (
+          <>
+            <button
+              onClick={() => handleApproveAndApply(true)}
+              disabled={inFlight || !editedText.trim()}
+              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+            >
+              Send edit &amp; Apply
+            </button>
+            <button
+              onClick={() => handleApprove(true)}
+              disabled={inFlight || !editedText.trim()}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+            >
+              Send edit only
+            </button>
+            <button
+              onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+            >
+              Cancel edit
+            </button>
+          </>
+        )}
+        {mode === "editing" && !hasAttached && (
+          <>
+            <button
+              onClick={() => handleApprove(true)}
+              disabled={inFlight || !editedText.trim()}
+              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
+            >
+              Send edit
+            </button>
+            <button
+              onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
+              disabled={inFlight}
+              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
+            >
+              Cancel edit
+            </button>
+          </>
+        )}
+        {mode === "rejecting" && (
           <>
             <button
               onClick={handleConfirmReject}
@@ -790,7 +842,8 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
               Cancel
             </button>
           </>
-        ) : attachedActions.length > 0 ? (
+        )}
+        {mode === "idle" && hasAttached && (
           <>
             <button
               onClick={() => handleApproveAndApply(false)}
@@ -821,7 +874,8 @@ function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply,
               Reject
             </button>
           </>
-        ) : (
+        )}
+        {mode === "idle" && !hasAttached && (
           <>
             <button
               onClick={() => handleApprove(false)}
@@ -945,6 +999,15 @@ function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight
 // Shown in ComposePanel when the 24h free-form text window is closed.
 // Lets staff pick a Meta-approved template, fill in any params, preview
 // the message, then send it via whatsapp-send (mode:"template").
+
+// Hint shown under a template param when no value is on file. Keyed by
+// the param's `autoFill` source so adding a new auto-fill source means
+// adding one entry here rather than another ternary branch.
+const TEMPLATE_PARAM_MISSING_HELPER = {
+  customer_first_name: "No customer name on file yet — type one to send",
+  dog_name_select: "No dog on file yet — type the name to send",
+};
+
 function TemplatePicker({ conversation, dogNames, onSend }) {
   const [selectedTemplateName, setSelectedTemplateName] = useState(WHATSAPP_TEMPLATES[0].name);
   const [paramValues, setParamValues] = useState({});
@@ -1039,11 +1102,7 @@ function TemplatePicker({ conversation, dogNames, onSend }) {
           param.autoFill && (paramValues[param.key] ?? "").trim() !== "";
         const helper = isAutoFilled
           ? "Pre-filled — edit if needed"
-          : param.autoFill === "customer_first_name"
-            ? "No customer name on file yet — type one to send"
-            : param.autoFill === "dog_name_select"
-              ? "No dog on file yet — type the name to send"
-              : null;
+          : (TEMPLATE_PARAM_MISSING_HELPER[param.autoFill] ?? null);
         if (param.autoFill === "dog_name_select" && (dogNames ?? []).length > 1) {
           return (
             <div key={param.key}>
@@ -1143,6 +1202,7 @@ export function WhatsAppInboxView() {
     takeoverConversation,
     releaseConversation,
     setAutoSendEnabled,
+    setAutonomousBookingEnabled,
     sendTemplate,
     dogNames,
     actionInFlight,
@@ -1363,6 +1423,11 @@ export function WhatsAppInboxView() {
                     <AutoSendToggle
                       conversation={selectedConversation}
                       onChange={setAutoSendEnabled}
+                      disabled={actionInFlight}
+                    />
+                    <AutonomousBookingToggle
+                      conversation={selectedConversation}
+                      onChange={setAutonomousBookingEnabled}
                       disabled={actionInFlight}
                     />
                     {selectedConversation?.state === "ai_handling" ? (

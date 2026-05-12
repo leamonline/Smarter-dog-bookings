@@ -3,7 +3,7 @@
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function busyStyle(count, isOpen) {
-  if (!isOpen) return "bg-red-100 text-red-800";
+  if (!isOpen) return "bg-rose-50 text-rose-400";
   if (count === 0) return "bg-slate-100 text-slate-500";
   if (count <= 3) return "bg-emerald-500 text-white";
   if (count <= 6) return "bg-amber-500 text-white";
@@ -42,7 +42,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
           isActive
             ? "text-brand-purple xl:text-brand-yellow"
             : !isOpen
-              ? "text-red-700 xl:text-red-300"
+              ? "text-rose-400 xl:text-rose-300"
               : "text-slate-400 xl:text-white/60"
         }`}
       >

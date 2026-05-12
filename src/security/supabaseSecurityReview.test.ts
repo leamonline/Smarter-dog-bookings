@@ -247,15 +247,13 @@ describe("Supabase security review regressions", () => {
       // No remaining direct `!==` / `===` comparisons against the secret env vars.
       expect(
         fn,
-        `${path} no longer compares SEND_INTERNAL_SECRET with !==/===`,
-      ).not.toMatch(/!==\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*!==/);
+        `${path} no longer compares SEND_INTERNAL_SECRET with ===/!==`,
+      ).not.toMatch(
+        /!==\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*!==|===\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*===/,
+      );
       expect(
         fn,
-        `${path} no longer compares SEND_INTERNAL_SECRET with ===`,
-      ).not.toMatch(/===\s*SEND_INTERNAL_SECRET|SEND_INTERNAL_SECRET\s*===/);
-      expect(
-        fn,
-        `${path} no longer compares AGENT_CALLBACK_SECRET with !==/===`,
+        `${path} no longer compares AGENT_CALLBACK_SECRET with ===/!==`,
       ).not.toMatch(
         /!==\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*!==|===\s*AGENT_CALLBACK_SECRET|AGENT_CALLBACK_SECRET\s*===/,
       );
@@ -323,5 +321,97 @@ describe("Supabase security review regressions", () => {
         /console\.error\([^)]*err/,
       );
     }
+  });
+
+  it("constrains whatsapp_booking_actions.state to the autonomous-booking state set", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("Customer-confirmed autonomous booking") &&
+      sql.includes("whatsapp_booking_actions_state_check") &&
+      sql.includes("awaiting_customer_confirm")
+    );
+
+    // The replacement CHECK must list all four new autonomous states alongside the legacy six.
+    expect(migration).toMatch(/awaiting_customer_confirm/);
+    expect(migration).toMatch(/'confirmed'/);
+    expect(migration).toMatch(/auto_applied/);
+    expect(migration).toMatch(/rejected_by_customer/);
+    // Legacy states still present
+    expect(migration).toMatch(/'pending'/);
+    expect(migration).toMatch(/'applied'/);
+  });
+
+  it("adds the confirm-tracking columns and lead-collection columns", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("customer_confirm_message_id") &&
+      sql.includes("lead_status")
+    );
+
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_message_id text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?customer_confirm_expires_at timestamptz/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_status text/i);
+    expect(migration).toMatch(/add column (?:if not exists )?lead_payload jsonb/i);
+    expect(migration).toMatch(/add column (?:if not exists )?autonomous_booking_enabled boolean not null default false/i);
+    expect(migration).toMatch(/alter table humans\s+add column\s+(?:if not exists\s+)?source text/i);
+  });
+
+  it("keeps the staff-only is_staff() check on the legacy pending application path", () => {
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("create or replace function apply_whatsapp_booking_action") &&
+      sql.includes("state not in ('pending', 'confirmed')")
+    );
+
+    // Autonomous path uses state='confirmed' (set under service-role) and skips is_staff.
+    // Staff path keeps is_staff() — verify the conditional gate is present.
+    expect(migration).toMatch(/state = 'pending' and not is_staff\(\)/);
+    expect(migration).toMatch(/'whatsapp_ai_auto'/);
+    // Match 'whatsapp_ai' as a whole token — avoid matching as a prefix of 'whatsapp_ai_auto'.
+    expect(migration).toMatch(/'whatsapp_ai'(?!_auto)/);
+  });
+
+  it("apply-customer-confirm requires the internal secret and only acts on awaiting_customer_confirm", () => {
+    const fn = readProjectFile("supabase/functions/apply-customer-confirm/index.ts");
+
+    expect(fn).toMatch(/timingSafeEqualHeader\(\s*req\.headers\.get\("x-internal-secret"\)/);
+    expect(fn).toMatch(/APPLY_CONFIRM_INTERNAL_SECRET/);
+    expect(fn).toMatch(/state\s*!==\s*"awaiting_customer_confirm"/);
+    expect(fn).toMatch(/customer_confirm_expires_at/);
+    // Capacity is enforced via the validate_booking_capacity trigger; the
+    // function detects its exceptions through isCapacityError rather than
+    // pre-checking with an isSlotFree helper.
+    expect(fn).toMatch(/isCapacityError\b/);
+    // Fall back to pending on apply failure so leads aren't lost.
+    expect(fn).toMatch(/state:\s*"pending"/);
+  });
+
+  it("whatsapp-agent only calls apply-customer-confirm with shared secret", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+
+    expect(fn).toMatch(/apply-customer-confirm/);
+    expect(fn).toMatch(/x-internal-secret/);
+    expect(fn).toMatch(/APPLY_CONFIRM_INTERNAL_SECRET/);
+    // canAutoBook gate present before dispatchConfirmButtons.
+    expect(fn).toMatch(/canAutoBook\(/);
+    expect(fn).toMatch(/dispatchConfirmButtons\(/);
+  });
+
+  it("whatsapp-send confirm_buttons mode posts Meta interactive buttons and writes message id", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-send/index.ts");
+    // The interactive-button payload and state-transition logic live in the
+    // shared confirmButtons.ts helper (imported by whatsapp-send at runtime).
+    const helper = readProjectFile("supabase/functions/_shared/confirmButtons.ts");
+
+    expect(fn).toMatch(/"confirm_buttons"/);
+    expect(helper).toMatch(/type:\s*"interactive"/);
+    expect(helper).toMatch(/customer_confirm_message_id/);
+    expect(helper).toMatch(/awaiting_customer_confirm/);
+  });
+
+  it("AI-onboarded humans are tagged source=whatsapp_ai for the correction path", () => {
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+
+    expect(fn).toMatch(/source:\s*"whatsapp_ai"/);
+    expect(fn).toMatch(/applyPostCreationCorrections\b/);
+    expect(fn).toMatch(/HUMAN_UPDATE_WHITELIST/);
+    expect(fn).toMatch(/DOG_UPDATE_WHITELIST/);
   });
 });

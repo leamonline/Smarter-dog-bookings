@@ -60,6 +60,9 @@ async function fetchConversationsList() {
       last_customer_text,
       unread_count,
       auto_send_enabled,
+      autonomous_booking_enabled,
+      lead_status,
+      lead_payload,
       humans:human_id ( name, surname ),
       whatsapp_drafts ( id, state, risk_level, handoff_required ),
       whatsapp_booking_actions ( id, state )
@@ -647,6 +650,32 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  const setAutonomousBookingEnabled = useCallback(async (enabled) => {
+    if (!selectedId || actionInFlight) return { ok: false };
+    setActionInFlight(true);
+    const next = !!enabled;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: next } : c)),
+    );
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({ autonomous_booking_enabled: next })
+        .eq("id", selectedId);
+      if (error) throw error;
+      return { ok: true };
+    } catch (err) {
+      console.error("setAutonomousBookingEnabled:", err);
+      // Roll back the optimistic flip.
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: !next } : c)),
+      );
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight]);
+
   const sendTemplate = useCallback(
     async (template, paramValues) => {
       const conversation = conversations.find((c) => c.id === selectedId);
@@ -701,6 +730,7 @@ export function useWhatsAppInbox() {
     takeoverConversation,
     releaseConversation,
     setAutoSendEnabled,
+    setAutonomousBookingEnabled,
     sendTemplate,
     dogNames,
     actionInFlight,
