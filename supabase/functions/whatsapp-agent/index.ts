@@ -428,9 +428,12 @@ interface ConversationRow {
   id: string;
   state: string;
   human_id: string | null;
+  phone_e164: string;
   auto_send_enabled: boolean;
   autonomous_booking_enabled: boolean;
   agent_state: AgentState;
+  lead_status: "collecting" | "awaiting_summary_confirm" | "records_created" | null;
+  lead_payload: AgentState | null;
 }
 
 async function upsertConversation(
@@ -462,7 +465,7 @@ async function upsertConversation(
       },
       { onConflict: "phone_e164" },
     )
-    .select("id, state, human_id, auto_send_enabled, autonomous_booking_enabled, agent_state")
+    .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, lead_status, lead_payload")
     .single();
 
   if (error || !data) {
@@ -473,20 +476,32 @@ async function upsertConversation(
     id: string;
     state: string;
     human_id: string | null;
+    phone_e164: string;
     auto_send_enabled: boolean | null;
     autonomous_booking_enabled: boolean | null;
     agent_state: unknown;
+    lead_status: string | null;
+    lead_payload: unknown;
   };
+
+  const validLeadStatuses = new Set(["collecting", "awaiting_summary_confirm", "records_created"]);
 
   return {
     id: row.id,
     state: row.state,
     human_id: row.human_id,
+    phone_e164: row.phone_e164,
     auto_send_enabled: row.auto_send_enabled === true,
     autonomous_booking_enabled: row.autonomous_booking_enabled === true,
     agent_state: (row.agent_state && typeof row.agent_state === "object"
       ? (row.agent_state as AgentState)
       : {}) as AgentState,
+    lead_status: (typeof row.lead_status === "string" && validLeadStatuses.has(row.lead_status)
+      ? row.lead_status as "collecting" | "awaiting_summary_confirm" | "records_created"
+      : null) ?? null,
+    lead_payload: (row.lead_payload && typeof row.lead_payload === "object"
+      ? (row.lead_payload as AgentState)
+      : null) ?? null,
   };
 }
 
@@ -1359,6 +1374,109 @@ async function dispatchConfirmButtons(
   }
 }
 
+// ── New-customer lead state machine helpers ──────────────────
+
+// New-customer onboarding fields. AI must populate these via
+// extracted_state before we can transition to summary-confirm.
+const REQUIRED_LEAD_FIELDS: (keyof AgentState)[] = [
+  "customerName",
+  "customerSurname",
+  "dogName",
+  "breed",
+  "dogAge",
+  "coatCondition",
+  "preferredDay",
+];
+
+function isLeadComplete(payload: AgentState | null): boolean {
+  if (!payload) return false;
+  for (const key of REQUIRED_LEAD_FIELDS) {
+    const value = payload[key];
+    if (typeof value !== "string" || !value.trim()) return false;
+  }
+  return true;
+}
+
+// Heuristic: did the customer's latest message signal a positive
+// confirmation of the AI's summary? False positives are worse than
+// false negatives — bias strict. Token must match the start of the
+// trimmed message.
+const POSITIVE_TOKENS = [
+  "yes", "yeah", "yep", "yup", "yeh", "ye",
+  "that's right", "thats right", "thats it", "that's it",
+  "correct", "perfect", "all good", "sounds good", "sounds right",
+  "looks good", "go ahead", "all correct",
+];
+
+function isPositiveConfirm(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (!t) return false;
+  return POSITIVE_TOKENS.some((tok) =>
+    t === tok || t.startsWith(`${tok} `) || t.startsWith(`${tok}.`) || t.startsWith(`${tok},`),
+  );
+}
+
+async function createNewCustomerRecords(
+  supabase: SupabaseClient,
+  conversationId: string,
+  phoneE164: string,
+  payload: AgentState,
+): Promise<{ ok: true; humanId: string; dogId: string } | { ok: false; reason: string }> {
+  const notesParts: string[] = [];
+  if (payload.coatCondition) notesParts.push(`Coat (at signup): ${payload.coatCondition}`);
+  if (payload.preferredDay) notesParts.push(`Preferred day: ${payload.preferredDay}`);
+
+  const { data: humanRow, error: humanErr } = await supabase
+    .from("humans")
+    .insert({
+      name: payload.customerName,
+      surname: payload.customerSurname,
+      phone: phoneE164,
+      notes: notesParts.length > 0 ? notesParts.join(" · ") : null,
+      source: "whatsapp_ai",
+    })
+    .select("id")
+    .single();
+  if (humanErr || !humanRow) {
+    return { ok: false, reason: `humans insert failed: ${humanErr?.message}` };
+  }
+
+  const dogSize = payload.dogSize ?? "unknown";
+  const { data: dogRow, error: dogErr } = await supabase
+    .from("dogs")
+    .insert({
+      human_id: humanRow.id,
+      name: payload.dogName,
+      breed: payload.breed,
+      size: dogSize === "unknown" ? null : dogSize,
+      groom_notes: payload.coatCondition ?? null,
+      alerts: Array.isArray(payload.alerts) ? payload.alerts : null,
+    })
+    .select("id")
+    .single();
+  if (dogErr || !dogRow) {
+    // Rollback humans insert so we don't leave a half-onboarded ghost
+    // record. Best-effort — log the rollback error but report the
+    // original dogErr to the caller.
+    const { error: rollbackErr } = await supabase
+      .from("humans")
+      .delete()
+      .eq("id", humanRow.id)
+      .eq("source", "whatsapp_ai");
+    if (rollbackErr) {
+      console.warn(`createNewCustomerRecords rollback failed (non-fatal): ${rollbackErr.message}`);
+    }
+    return { ok: false, reason: `dogs insert failed: ${dogErr?.message}` };
+  }
+
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ human_id: humanRow.id, lead_status: "records_created" })
+    .eq("id", conversationId);
+
+  return { ok: true, humanId: humanRow.id, dogId: dogRow.id };
+}
+
 // ── Main handler ─────────────────────────────────────────────
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -1560,6 +1678,54 @@ serve(async (req) => {
           if (draft.extracted_state) {
             const merged = mergeAgentState(conversation.agent_state, draft.extracted_state);
             await persistAgentState(supabase, conversation.id, merged);
+          }
+
+          // New-customer onboarding state machine. Runs only when the
+          // conversation is unknown (no human_id). On positive-confirm
+          // turns we promote the lead_payload into humans/dogs rows;
+          // otherwise we keep collecting.
+          if (!conversation.human_id) {
+            const mergedPayload = mergeAgentState(
+              conversation.lead_payload ?? conversation.agent_state,
+              draft.extracted_state ?? {},
+            );
+
+            if (
+              conversation.lead_status === "awaiting_summary_confirm" &&
+              text &&
+              isPositiveConfirm(text)
+            ) {
+              if (isLeadComplete(mergedPayload)) {
+                const result = await createNewCustomerRecords(
+                  supabase,
+                  conversation.id,
+                  conversation.phone_e164,
+                  mergedPayload,
+                );
+                if (!result.ok) {
+                  console.warn(`createNewCustomerRecords failed: ${result.reason}`);
+                }
+              }
+            } else if (
+              isLeadComplete(mergedPayload) &&
+              conversation.lead_status !== "awaiting_summary_confirm"
+            ) {
+              await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  lead_status: "awaiting_summary_confirm",
+                  lead_payload: mergedPayload,
+                })
+                .eq("id", conversation.id);
+            } else {
+              await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  lead_status: conversation.lead_status ?? "collecting",
+                  lead_payload: mergedPayload,
+                })
+                .eq("id", conversation.id);
+            }
           }
 
           const draftId = await saveDraft(
