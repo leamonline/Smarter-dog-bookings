@@ -8,7 +8,7 @@ import {
   cardAnim,
 } from "./dashboardConstants.js";
 import { AddToCalendarButton } from "./AddToCalendarButton.js";
-import { Calendar, ClipboardList, ChevronDown, ChevronUp, PawPrint, Scissors } from "lucide-react";
+import { Calendar, ClipboardList, ChevronDown, ChevronUp, PawPrint, Scissors, ArrowRight } from "lucide-react";
 
 function customerStatusLabel(status) {
   const statusMap = {
@@ -39,30 +39,42 @@ export function AppointmentsSection({
   onConfirmCancel,
   onCancelBack,
   onSubscribe,
+  onBook,
 }) {
   const navigate = useNavigate();
+  const goBook = onBook ?? (() => navigate("/customer/book"));
+  const pastIsEmpty = pastBookings.length === 0;
 
   return (
     <>
       {/* ---- UPCOMING APPOINTMENTS ---- */}
-      <div className="portal-card portal-card--teal" style={cardAnim(0.2)}>
+      <div className="portal-card portal-card--mint" style={cardAnim(0.2)}>
         <div className="portal-card-header">
-          <Calendar size={18} className="portal-card-icon" aria-hidden="true" />
-          <h2 className="portal-card-title">Upcoming Appointments</h2>
+          <span className="portal-card-iconbadge portal-card-iconbadge--mint">
+            <Calendar size={18} aria-hidden="true" />
+          </span>
+          <h2 className="portal-card-title">Upcoming appointments</h2>
           {onSubscribe && upcomingBookings.length > 0 && (
             <button
               onClick={onSubscribe}
-              className="ml-auto bg-transparent border-none text-[12px] text-brand-teal font-semibold cursor-pointer hover:underline font-[inherit]"
+              className="portal-card-action bg-transparent border-none text-[12px] text-brand-purple font-semibold cursor-pointer hover:underline font-[inherit]"
             >
               Sync to calendar
             </button>
           )}
         </div>
         {upcomingBookings.length === 0 ? (
-          <div className="text-center py-4">
-            <Calendar size={32} className="text-slate-300 mx-auto mb-2" aria-hidden="true" />
-            <p className="text-sm font-semibold text-brand-cyan-dark m-0 mb-1">No upcoming appointments</p>
-            <p className="text-[13px] text-slate-500 m-0">Book your next groom using the button above!</p>
+          <div className="text-center py-3">
+            <p className="portal-empty-title m-0 mb-1">No grooms booked</p>
+            <p className="portal-empty-body">Your pup&apos;s overdue a polaroid.</p>
+            <button
+              className="portal-btn portal-btn--cta portal-btn--cta-inline"
+              onClick={goBook}
+            >
+              <PawPrint size={16} aria-hidden="true" />
+              Book a Groom
+              <ArrowRight size={16} aria-hidden="true" className="portal-btn-arrow" />
+            </button>
           </div>
         ) : (
           upcomingBookings.map(b => {
@@ -147,10 +159,10 @@ export function AppointmentsSection({
 
       {/* ---- REBOOK PROMPT ---- */}
       {upcomingBookings.length === 0 && pastBookings.some(b => b.status === "Ready for pick-up") && (
-        <div className="portal-card portal-card--yellow" style={cardAnim(0.25)}>
+        <div className="portal-card portal-card--paper" style={cardAnim(0.25)}>
           <div className="text-center py-2">
-            <Scissors size={28} className="text-brand-cyan-dark mx-auto mb-2" aria-hidden="true" />
-            <h3 className="text-base font-bold text-brand-cyan-dark font-[Montserrat] m-0 mb-1">Time for another groom?</h3>
+            <Scissors size={28} className="text-brand-purple mx-auto mb-2" aria-hidden="true" />
+            <h3 className="text-base font-bold text-brand-purple font-display m-0 mb-1">Time for another groom?</h3>
             <p className="text-sm text-slate-500 font-medium m-0 mb-4">
               Your last visit was {(() => {
                 const lastCompleted = pastBookings.find(b => b.status === "Ready for pick-up");
@@ -161,28 +173,43 @@ export function AppointmentsSection({
             </p>
             <button
               className="portal-btn portal-btn--cta"
-              onClick={() => navigate("/customer/book")}
+              onClick={goBook}
             >
-              <span className="flex items-center justify-center gap-2">
-                <PawPrint size={18} aria-hidden="true" />
-                Book your next appointment
-              </span>
+              <PawPrint size={18} aria-hidden="true" />
+              Book your next appointment
+              <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
             </button>
           </div>
         </div>
       )}
 
       {/* ---- PAST APPOINTMENTS ---- */}
-      <div className="portal-card portal-card--muted" style={cardAnim(0.3)}>
-        <button className="flex justify-between items-center w-full bg-transparent border-none cursor-pointer p-0 mb-1" onClick={() => setPastExpanded(p => !p)}>
-          <div className="flex items-center gap-2">
-            <ClipboardList size={18} className="portal-card-icon" aria-hidden="true" />
-            <h2 className="portal-card-title" style={{ margin: 0 }}>Past Appointments ({pastBookings.length})</h2>
+      <div className="portal-card" style={cardAnim(0.3)}>
+        {pastIsEmpty ? (
+          <div className="flex items-center gap-2 opacity-60 select-none">
+            <span className="portal-card-iconbadge">
+              <ClipboardList size={18} aria-hidden="true" />
+            </span>
+            <h2 className="portal-card-title" style={{ margin: 0 }}>Past appointments</h2>
+            <span className="text-[12px] text-slate-400 font-semibold ml-auto">None yet</span>
           </div>
-          <span className="text-[13px] text-slate-500 font-semibold font-[Montserrat] flex items-center gap-1">
-            {pastExpanded ? <><ChevronUp size={14} aria-hidden="true" /> Hide</> : <><ChevronDown size={14} aria-hidden="true" /> Show</>}
-          </span>
-        </button>
+        ) : (
+          <button
+            className="flex justify-between items-center w-full bg-transparent border-none cursor-pointer p-0 mb-1"
+            onClick={() => setPastExpanded(p => !p)}
+            aria-expanded={pastExpanded}
+          >
+            <div className="flex items-center gap-2">
+              <span className="portal-card-iconbadge">
+                <ClipboardList size={18} aria-hidden="true" />
+              </span>
+              <h2 className="portal-card-title" style={{ margin: 0 }}>Past appointments ({pastBookings.length})</h2>
+            </div>
+            <span className="text-[13px] text-slate-500 font-semibold font-[Montserrat] flex items-center gap-1">
+              {pastExpanded ? <><ChevronUp size={14} aria-hidden="true" /> Hide</> : <><ChevronDown size={14} aria-hidden="true" /> Show</>}
+            </span>
+          </button>
+        )}
 
         {pastExpanded && (
           <>
