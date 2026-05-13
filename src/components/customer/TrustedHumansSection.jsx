@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { cardAnim } from "./dashboardConstants.js";
-import { Users, Plus, X, MessageCircle, Smartphone } from "lucide-react";
+import { Users, Plus, X } from "lucide-react";
 
 const ERR_LABEL = {
   not_authenticated: "You need to be signed in to add a trusted human.",
@@ -147,24 +147,6 @@ export function TrustedHumansSection({ trustedHumans, onAdded }) {
         </form>
       )}
 
-      <div className="portal-card-footer-actions">
-        <a
-          href="https://wa.me/447507731487"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="portal-btn portal-btn--whatsapp portal-btn--small"
-        >
-          <MessageCircle size={14} aria-hidden="true" />
-          WhatsApp us
-        </a>
-        <a
-          href="sms:07507731487"
-          className="portal-btn portal-btn--phone portal-btn--small"
-        >
-          <Smartphone size={14} aria-hidden="true" />
-          Text 07507 731487
-        </a>
-      </div>
     </div>
   );
 }

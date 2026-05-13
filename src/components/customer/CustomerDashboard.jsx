@@ -319,7 +319,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             onCancel={handleCancel}
           />
 
-          <DogsSection dogs={dogs} onBook={handleBook} />
+          <DogsSection
+            dogs={dogs}
+            onBook={handleBook}
+            onDogUpdated={(row) =>
+              setDogs(prev => prev.map(d => (d.id === row.id ? { ...d, ...row } : d)))
+            }
+          />
 
           <TrustedHumansSection
             trustedHumans={trustedHumans}
