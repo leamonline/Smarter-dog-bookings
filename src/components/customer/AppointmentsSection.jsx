@@ -12,7 +12,7 @@ import { Calendar, ClipboardList, ChevronDown, ChevronUp, PawPrint, Scissors, Ar
 
 function customerStatusLabel(status) {
   const statusMap = {
-    "Booked": "Awaiting confirmation",
+    "Booked": "Confirmation pending",
     "Checked in": "Checked in",
     "Ready for pick-up": "Finished",
     "Completed": "Completed",
@@ -101,7 +101,14 @@ export function AppointmentsSection({
                   </div>
                   <div className="flex items-center gap-2">
                     <AddToCalendarButton bookingId={b.id} compact />
-                    <span className="text-[11px] font-bold py-1 px-2.5 rounded-md font-[Montserrat] whitespace-nowrap" style={sc}>{customerStatusLabel(b.status)}</span>
+                    <span
+                    className="text-[11px] font-bold py-1 px-2.5 rounded-md font-[Montserrat] whitespace-nowrap"
+                    style={{
+                      background: sc.background,
+                      color: sc.color,
+                      border: `1px solid ${sc.borderColor}`,
+                    }}
+                  >{customerStatusLabel(b.status)}</span>
                   </div>
                 </div>
 
@@ -233,7 +240,14 @@ export function AppointmentsSection({
                         </div>
                         {b.slot && <div className="text-xs text-slate-400 font-medium mt-0.5">{formatSlot(b.slot)}</div>}
                       </div>
-                      <span className="text-[11px] font-bold py-1 px-2.5 rounded-md font-[Montserrat] whitespace-nowrap" style={sc}>{customerStatusLabel(b.status)}</span>
+                      <span
+                    className="text-[11px] font-bold py-1 px-2.5 rounded-md font-[Montserrat] whitespace-nowrap"
+                    style={{
+                      background: sc.background,
+                      color: sc.color,
+                      border: `1px solid ${sc.borderColor}`,
+                    }}
+                  >{customerStatusLabel(b.status)}</span>
                     </div>
                   </div>
                 );
