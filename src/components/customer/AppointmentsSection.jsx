@@ -64,10 +64,8 @@ export function AppointmentsSection({
           )}
         </div>
         {upcomingBookings.length === 0 ? (
-          <div className="text-center py-4">
-            <p className="portal-empty-title m-0 mb-1">
-              <span aria-hidden="true">📸</span> No grooms booked
-            </p>
+          <div className="text-center py-3">
+            <p className="portal-empty-title m-0 mb-1">No grooms booked</p>
             <p className="portal-empty-body">Your pup&apos;s overdue a polaroid.</p>
             <button
               className="portal-btn portal-btn--cta portal-btn--cta-inline"

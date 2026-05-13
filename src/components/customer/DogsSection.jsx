@@ -1,5 +1,5 @@
 import { cardAnim } from "./dashboardConstants.js";
-import { PawPrint, AlertTriangle, Camera } from "lucide-react";
+import { PawPrint, AlertTriangle, Camera, MessageCircle } from "lucide-react";
 
 export function DogsSection({ dogs, onBook }) {
   return (
@@ -29,7 +29,7 @@ export function DogsSection({ dogs, onBook }) {
             rel="noopener noreferrer"
             className="portal-btn portal-btn--whatsapp"
           >
-            <span aria-hidden="true">💬</span>
+            <MessageCircle size={16} aria-hidden="true" />
             Message the salon
           </a>
         </div>

@@ -8,7 +8,7 @@ import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { PawPrint, ArrowRight } from "lucide-react";
+import { PawPrint, ArrowRight, Phone } from "lucide-react";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -259,31 +259,42 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         </div>
       </nav>
 
-      {/* ===== WELCOME ===== */}
+      {/* ===== WELCOME + CTA (inline on desktop, stacked on mobile) ===== */}
       <header className="portal-header">
         <div className="portal-header-inner">
-          <h1 className="portal-welcome">
-            Hi,&nbsp;
-            <span className="portal-welcome-name">
-              {firstName}
-              <svg
-                className="portal-welcome-underline"
-                viewBox="0 0 200 14"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M2 10 C 40 3, 80 13, 120 7 S 180 3, 198 9"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            <span aria-hidden="true">&nbsp;👋</span>
-          </h1>
-          <p className="portal-tagline">Strike a pose, wet nose.</p>
+          <div className="portal-header-row">
+            <div className="portal-header-text">
+              <h1 className="portal-welcome">
+                Hi,&nbsp;
+                <span className="portal-welcome-name">
+                  {firstName}
+                  <svg
+                    className="portal-welcome-underline"
+                    viewBox="0 0 200 14"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2 10 C 40 3, 80 13, 120 7 S 180 3, 198 9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+              </h1>
+              <p className="portal-tagline">Smarter grooming, Smarter Dog!</p>
+            </div>
+            <button
+              className="portal-btn portal-btn--cta portal-btn--cta-header"
+              onClick={handleBook}
+            >
+              <PawPrint size={18} aria-hidden="true" />
+              Book a Groom
+              <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -292,26 +303,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         <div className="portal-content">
 
           {loadError && (
-            <div role="alert" className="portal-section--full mb-4 py-3 px-4 rounded-xl bg-pink-50 border border-pink-200 text-brand-coral text-sm font-semibold text-center">
+            <div role="alert" className="portal-section--full mb-3 py-3 px-4 rounded-xl bg-pink-50 border border-pink-200 text-brand-coral text-sm font-semibold text-center">
               {loadError}
             </div>
           )}
-
-          {/* Book a Groom CTA (lime green) */}
-          <button
-            className="portal-btn portal-btn--cta"
-            style={{ marginBottom: "8px", animation: "cardSlideUp 0.3s ease-out 0s both" }}
-            onClick={handleBook}
-          >
-            <PawPrint size={18} aria-hidden="true" />
-            Book a Groom
-            <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
-          </button>
-
-          {/* Wavy divider */}
-          <svg className="portal-divider" viewBox="0 0 1200 16" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0 8 C 150 0, 250 16, 400 8 S 650 0, 800 8 S 1050 16, 1200 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
 
           <MyDetailsCard
             editing={editing}
@@ -326,9 +321,14 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
           <DogsSection dogs={dogs} onBook={handleBook} />
 
-          <div className="portal-section--full">
-            <TrustedHumansSection trustedHumans={trustedHumans} />
-          </div>
+          <TrustedHumansSection
+            trustedHumans={trustedHumans}
+            onAdded={(row) =>
+              setTrustedHumans(prev =>
+                prev.some(t => t.id === row.id) ? prev : [...prev, row]
+              )
+            }
+          />
 
           <div className="portal-section--full">
             <AppointmentsSection
@@ -357,9 +357,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
         {/* Footer with brand tagline + phone */}
         <footer className="portal-footer">
-          <p className="portal-footer-tagline">Strike a pose, wet nose.</p>
+          <p className="portal-footer-tagline">Smarter grooming, Smarter Dog!</p>
           <a className="portal-footer-phone" href="tel:07507731487" aria-label="Call Smarter Dog on 07507 731487">
-            <span aria-hidden="true">📞</span>
+            <Phone size={16} aria-hidden="true" />
             07507 731487
           </a>
         </footer>
