@@ -51,7 +51,12 @@ export function DogSelection({
       </p>
 
       {loading && (
-        <p className="text-slate-500 text-sm">Loading your dogs\u2026</p>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+          <span className="sr-only">Loading your dogs\u2026</span>
+        </div>
       )}
 
       {!loading && dogs.length === 0 && !showAddDog && (

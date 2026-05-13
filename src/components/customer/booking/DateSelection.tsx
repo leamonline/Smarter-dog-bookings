@@ -95,7 +95,12 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
 
       {/* Calendar grid */}
       {loading ? (
-        <p className="text-slate-500 text-sm">Loading availability\u2026</p>
+        <div className="grid grid-cols-7 gap-1" aria-busy="true" aria-live="polite">
+          {Array.from({ length: 28 }).map((_, i) => (
+            <div key={i} className="skeleton-row skeleton-row--sm" />
+          ))}
+          <span className="sr-only">Loading availability\u2026</span>
+        </div>
       ) : (
         <div className="grid grid-cols-7 gap-1">
           {gridCells.map((d, i) => {

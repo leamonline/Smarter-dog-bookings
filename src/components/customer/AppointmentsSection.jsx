@@ -125,7 +125,7 @@ export function AppointmentsSection({
                   <div className="mt-2.5 p-3.5 rounded-lg border-l-[3px] border-l-brand-coral bg-pink-50">
                     <div className="text-sm font-semibold text-brand-cyan-dark font-[Montserrat] mb-2.5">Why are you cancelling?</div>
                     <select value={cancelReason} onChange={e => setCancelReason(e.target.value)}
-                      className="w-full py-2.5 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none box-border mb-2.5 font-[inherit] transition-colors focus:border-brand-cyan-dark">
+                      className="portal-input mb-2.5">
                       <option value="">Select a reason...</option>
                       <option value="Changed plans">Changed plans</option>
                       <option value="Dog unwell">Dog unwell</option>
@@ -138,7 +138,7 @@ export function AppointmentsSection({
                         value={cancelOther}
                         onChange={e => setCancelOther(e.target.value)}
                         placeholder="Please tell us why..."
-                        className="w-full py-2.5 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none box-border mb-2.5 font-[inherit] transition-colors focus:border-brand-cyan-dark"
+                        className="portal-input mb-2.5"
                       />
                     )}
                     <div className="flex gap-2">

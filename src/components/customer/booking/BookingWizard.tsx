@@ -254,7 +254,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             Booking ref: {bookingRef}
           </div>
         )}
-        <div className="py-3 px-4 rounded-[10px] bg-emerald-50 text-brand-cyan-dark text-[13px] font-semibold mb-2">
+        <div className="portal-alert portal-alert--info" style={{ marginBottom: 8 }}>
           You'll receive a confirmation message shortly.
         </div>
         {bookedIds.length > 0 && (
@@ -343,20 +343,18 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       {/* Error banner (A4: role=alert for screen reader announcement) */}
       {error && (
-        <div role="alert" className="py-2.5 px-3.5 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold">
+        <div role="alert" className="portal-alert portal-alert--error">
           {error}
         </div>
       )}
 
       {/* Dogs fetch error */}
       {dogsError && step === 1 && (
-        <div role="alert" className="py-3.5 px-4 rounded-[10px] bg-brand-coral-light flex items-center justify-between">
-          <span className="text-brand-coral text-[13px] font-semibold">
-            {dogsError}
-          </span>
+        <div role="alert" className="portal-alert portal-alert--error" style={{ justifyContent: "space-between" }}>
+          <span>{dogsError}</span>
           <button
             onClick={fetchDogs}
-            className="py-1.5 px-3.5 rounded-md border-none bg-brand-coral text-white text-xs font-bold cursor-pointer font-[inherit]"
+            className="portal-btn portal-btn--danger portal-btn--small"
           >
             Retry
           </button>
