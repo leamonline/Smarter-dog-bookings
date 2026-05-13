@@ -86,6 +86,45 @@
   /* Mapped to mustard CTA on deep-purple ink — matches smarterdog.co.uk */
   --color-action: #FECC13;
   --color-on-action: #2D004B;
+
+  /* === Customer-portal palette (PR 1) === */
+
+  /* Surface tints — pulled up from customer-portal.css so wizard + auth can use them */
+  --color-sd-sky-tint: #EAF6FF;
+  --color-sd-buttercup-tint: #FFF7DC;
+  --color-sd-mint-tint: #E9FBEF;
+  --color-sd-coral-tint: #FFEFF3;
+  --color-sd-paper: #FAF9F6;
+
+  /* Ink + mute (semantic aliases of brand-purple) */
+  --color-sd-navy: #2D004B;
+  --color-sd-navy-soft: #43326C;
+  --color-sd-ink-light: #6B7891;
+
+  /* Action colour aliases */
+  --color-sd-yellow: #FECC13;
+  --color-sd-yellow-dark: #D4A500;
+  --color-sd-green: #00C247;
+  --color-sd-green-dark: #009536;
+  --color-sd-coral: #E7546C;
+  --color-sd-cyan: #007AAB;
+  --color-sd-cyan-dark: #005986;
+
+  /* Tape colours */
+  --color-sd-tape-yellow: rgba(254, 204, 19, 0.75);
+  --color-sd-tape-coral:  rgba(231, 84, 108, 0.55);
+  --color-sd-tape-sky:    rgba(16, 194, 252, 0.55);
+
+  /* Elevation */
+  --shadow-sd-card: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
+  --shadow-sd-card-hover: 0 14px 28px -14px rgba(45, 0, 75, 0.28);
+  --shadow-sd-cta-green: 0 10px 22px -10px rgba(0, 194, 71, 0.55);
+  --shadow-sd-cta-yellow: 0 10px 22px -10px rgba(254, 204, 19, 0.75);
+
+  /* Radii */
+  --radius-sd-input: 12px;
+  --radius-sd-card: 18px;
+  --radius-sd-pill: 9999px;
 }
 
 /* ── Semantic tokens ──────────────────────────────────────────── */
