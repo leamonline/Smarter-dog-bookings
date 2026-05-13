@@ -16,12 +16,13 @@ export const SERVICE_ICON_NAMES = {
 };
 
 export const STATUS_STYLES = {
-  "Booked":           { background: "#F1F5F9", color: "#475569" },
-  "Checked in":       { background: "#ECFDF5", color: "#065F46" },
-  "Drying":           { background: "#F3E8FF", color: "#6B21A8" },
-  "On the Table":     { background: "#F3E8FF", color: "#7C3AED" },
-  "Ready for pick-up":{ background: "#F1F5F9", color: "#475569" },
-  "Cancelled":        { background: "#FEF2F2", color: "#DC2626" },
+  "Booked":            { background: "var(--sd-buttercup-tint)", color: "#8A6300",            borderColor: "rgba(254, 204, 19, 0.45)" },
+  "Checked in":        { background: "var(--sd-mint-tint)",      color: "#0F6B3A",            borderColor: "rgba(0, 194, 71, 0.35)"  },
+  "Drying":            { background: "var(--sd-sky-tint)",       color: "var(--sd-cyan-dark)", borderColor: "rgba(0, 122, 171, 0.30)" },
+  "On the Table":      { background: "var(--sd-sky-tint)",       color: "var(--sd-cyan-dark)", borderColor: "rgba(0, 122, 171, 0.30)" },
+  "Ready for pick-up": { background: "var(--sd-mint-tint)",      color: "#0F6B3A",            borderColor: "rgba(0, 194, 71, 0.35)"  },
+  "Completed":         { background: "rgba(45, 0, 75, 0.06)",    color: "var(--sd-navy)",     borderColor: "rgba(45, 0, 75, 0.18)"   },
+  "Cancelled":         { background: "var(--sd-coral-tint)",     color: "#B83A4F",            borderColor: "rgba(231, 84, 108, 0.35)" },
 };
 
 export function formatSlot(slot) {
