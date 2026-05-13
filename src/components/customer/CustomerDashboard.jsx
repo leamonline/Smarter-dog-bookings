@@ -8,7 +8,7 @@ import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { LogOut, PawPrint } from "lucide-react";
+import { PawPrint, ArrowRight } from "lucide-react";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -233,33 +233,57 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     );
   }
 
+  const requestSignOut = () => {
+    if (editing) { setShowSignOutConfirm(true); return; }
+    onSignOut();
+  };
+  const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
+  const handleBook = () => navigate("/customer/book");
+
   return (
     <div className="customer-portal">
       <a href="#main-content" className="portal-skip-link">Skip to content</a>
 
-      {/* ===== PURPLE HEADER ===== */}
+      {/* ===== TOP NAV (matches marketing site) ===== */}
+      <nav className="portal-topnav" aria-label="Primary">
+        <div className="portal-topnav-inner">
+          <a href="https://smarterdog.co.uk" className="portal-topnav-logo" aria-label="Smarter Dog home">
+            <img src="/logo.png" alt="Smarter Dog Grooming" />
+          </a>
+          <div className="portal-topnav-links">
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#services">Services</a>
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#faq">FAQ</a>
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/houndsly">Houndsly</a>
+            <button type="button" onClick={requestSignOut}>Sign out</button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ===== WELCOME ===== */}
       <header className="portal-header">
         <div className="portal-header-inner">
-          <div className="portal-header-top">
-            <div className="portal-brand">
-              Smarter<span>Dog</span>
-            </div>
-            <button
-              className="portal-btn portal-btn--ghost"
-              onClick={() => {
-                if (editing) { setShowSignOutConfirm(true); return; }
-                onSignOut();
-              }}
-            >
-              <span className="flex items-center gap-1.5">
-                <LogOut size={14} aria-hidden="true" />
-                Log out
-              </span>
-            </button>
-          </div>
-          <div className="portal-header-bottom">
-            <h1 className="portal-welcome">{humanName}</h1>
-          </div>
+          <h1 className="portal-welcome">
+            Hi,&nbsp;
+            <span className="portal-welcome-name">
+              {firstName}
+              <svg
+                className="portal-welcome-underline"
+                viewBox="0 0 200 14"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 10 C 40 3, 80 13, 120 7 S 180 3, 198 9"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span aria-hidden="true">&nbsp;👋</span>
+          </h1>
+          <p className="portal-tagline">Strike a pose, wet nose.</p>
         </div>
       </header>
 
@@ -273,17 +297,21 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             </div>
           )}
 
-          {/* Book a Groom CTA */}
+          {/* Book a Groom CTA (lime green) */}
           <button
             className="portal-btn portal-btn--cta"
-            style={{ marginBottom: "20px", ...({ animation: "cardSlideUp 0.3s ease-out 0s both" }) }}
-            onClick={() => navigate("/customer/book")}
+            style={{ marginBottom: "8px", animation: "cardSlideUp 0.3s ease-out 0s both" }}
+            onClick={handleBook}
           >
-            <span className="flex items-center justify-center gap-2">
-              <PawPrint size={20} aria-hidden="true" />
-              Book a Groom
-            </span>
+            <PawPrint size={18} aria-hidden="true" />
+            Book a Groom
+            <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
           </button>
+
+          {/* Wavy divider */}
+          <svg className="portal-divider" viewBox="0 0 1200 16" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 8 C 150 0, 250 16, 400 8 S 650 0, 800 8 S 1050 16, 1200 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
 
           <MyDetailsCard
             editing={editing}
@@ -296,7 +324,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             onCancel={handleCancel}
           />
 
-          <DogsSection dogs={dogs} />
+          <DogsSection dogs={dogs} onBook={handleBook} />
 
           <div className="portal-section--full">
             <TrustedHumansSection trustedHumans={trustedHumans} />
@@ -321,11 +349,30 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               onConfirmCancel={confirmCancel}
               onCancelBack={() => setCancellingId(null)}
               onSubscribe={() => setShowCalendarModal(true)}
+              onBook={handleBook}
             />
           </div>
 
         </div>
+
+        {/* Footer with brand tagline + phone */}
+        <footer className="portal-footer">
+          <p className="portal-footer-tagline">Strike a pose, wet nose.</p>
+          <a className="portal-footer-phone" href="tel:07507731487" aria-label="Call Smarter Dog on 07507 731487">
+            <span aria-hidden="true">📞</span>
+            07507 731487
+          </a>
+        </footer>
       </main>
+
+      {/* Sticky mobile CTA — highest-value action */}
+      <div className="portal-sticky-cta">
+        <button className="portal-btn portal-btn--cta" onClick={handleBook}>
+          <PawPrint size={18} aria-hidden="true" />
+          Book a Groom
+          <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
+        </button>
+      </div>
 
       {showCalendarModal && (
         <CalendarSubscribeModal onClose={() => setShowCalendarModal(false)} />

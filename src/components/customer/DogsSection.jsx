@@ -1,31 +1,48 @@
 import { cardAnim } from "./dashboardConstants.js";
-import { PawPrint, AlertTriangle } from "lucide-react";
+import { PawPrint, AlertTriangle, Camera } from "lucide-react";
 
-export function DogsSection({ dogs }) {
+export function DogsSection({ dogs, onBook }) {
   return (
-    <div className="portal-card portal-card--teal" style={cardAnim(0.1)}>
+    <div className="portal-card portal-card--coral" style={cardAnim(0.1)}>
       <div className="portal-card-header">
-        <PawPrint size={18} className="portal-card-icon" aria-hidden="true" />
-        <h2 className="portal-card-title">Dogs</h2>
+        <span className="portal-card-iconbadge portal-card-iconbadge--coral">
+          <PawPrint size={18} aria-hidden="true" />
+        </span>
+        <h2 className="portal-card-title">My dogs</h2>
       </div>
+
       {dogs.length === 0 ? (
-        <div className="text-center py-4">
-          <PawPrint size={32} className="text-slate-300 mx-auto mb-2" aria-hidden="true" />
-          <p className="text-sm font-semibold text-brand-cyan-dark m-0 mb-1">No dogs on file</p>
-          <p className="text-[13px] text-slate-500 m-0">
-            <a href="tel:+441onal" className="text-brand-teal font-semibold hover:underline">Contact the salon</a> to add your dogs
+        <div className="portal-polaroid">
+          <div className="portal-polaroid-frame" aria-hidden="true">
+            <div className="portal-polaroid-photo">
+              <Camera size={42} strokeWidth={1.5} />
+            </div>
+            <span className="portal-polaroid-caption">Add your first pup</span>
+          </div>
+          <p className="portal-empty-title">No dogs on file just yet</p>
+          <p className="portal-empty-body">
+            We&apos;ll add your dogs once you&apos;ve been in &mdash; or message the salon to add them now.
           </p>
+          <a
+            href="https://wa.me/447507731487"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="portal-btn portal-btn--whatsapp"
+          >
+            <span aria-hidden="true">💬</span>
+            Message the salon
+          </a>
         </div>
       ) : (
         dogs.map(dog => (
-          <div key={dog.id} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-b-0">
+          <div key={dog.id} className="flex justify-between items-center py-3 border-b border-[rgba(45,0,75,0.07)] last:border-b-0">
             <div>
-              <div className="text-[15px] font-semibold text-brand-cyan-dark font-[Montserrat]">{dog.name}</div>
+              <div className="text-[15px] font-bold text-brand-purple font-display">{dog.name}</div>
               <div className="text-[13px] font-medium text-slate-500 mt-0.5">
-                {dog.breed}{dog.size ? ` \u00B7 ${dog.size}` : ""}
+                {dog.breed}{dog.size ? ` · ${dog.size}` : ""}
               </div>
               {dog.groom_notes && (
-                <div className="text-xs text-brand-cyan-dark-light bg-cyan-50 py-1 px-2.5 rounded-md mt-1.5 font-medium">
+                <div className="text-xs text-brand-purple bg-white/70 py-1 px-2.5 rounded-md mt-1.5 font-medium">
                   {dog.groom_notes}
                 </div>
               )}
@@ -33,9 +50,9 @@ export function DogsSection({ dogs }) {
             <div className="flex flex-col items-end gap-1">
               {dog.size && (
                 <span className={`text-[11px] font-bold py-0.5 px-2.5 rounded-md capitalize ${
-                  dog.size === "small" ? "bg-amber-50 text-amber-700" :
-                  dog.size === "medium" ? "bg-emerald-50 text-emerald-700" :
-                  "bg-pink-50 text-pink-700"
+                  dog.size === "small" ? "bg-amber-100 text-amber-800" :
+                  dog.size === "medium" ? "bg-emerald-100 text-emerald-800" :
+                  "bg-pink-100 text-pink-800"
                 }`}>{dog.size}</span>
               )}
               {dog.alerts && dog.alerts.length > 0 && (

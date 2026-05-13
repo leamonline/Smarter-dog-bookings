@@ -1,84 +1,121 @@
 import { cardAnim } from "./dashboardConstants.js";
 import { User } from "lucide-react";
 
-export function MyDetailsCard({ editing, setEditing, saving, details, setDetails, humanRecord, onSave, onCancel }) {
+function DetailRow({ label, value, editing, editor, addPrompt, onAdd }) {
   return (
-    <div className="portal-card" style={cardAnim(0.05)}>
-      <div className="portal-card-header">
-        <User size={18} className="portal-card-icon" aria-hidden="true" />
-        <h2 className="portal-card-title">My Details</h2>
-        {!editing ? (
-          <button className="portal-btn portal-btn--secondary portal-btn--small" onClick={() => setEditing(true)}>
-            Edit
+    <div className="portal-detail-row">
+      <span className="portal-detail-label">{label}</span>
+      {editing ? (
+        <div className="flex-1 ml-3">{editor}</div>
+      ) : value ? (
+        <span className="portal-detail-value">{value}</span>
+      ) : (
+        <span className="portal-detail-value">
+          <button type="button" className="portal-add-prompt" onClick={onAdd}>
+            {addPrompt}
           </button>
-        ) : (
-          <div className="flex gap-1.5">
-            <button className="portal-btn portal-btn--primary portal-btn--small" onClick={onSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function MyDetailsCard({ editing, setEditing, saving, details, setDetails, humanRecord, onSave, onCancel }) {
+  const fullName = `${details.name} ${details.surname}`.trim();
+  const startEdit = () => setEditing(true);
+
+  return (
+    <div className="portal-card portal-card--sky" style={cardAnim(0.05)}>
+      <div className="portal-card-header">
+        <span className="portal-card-iconbadge portal-card-iconbadge--sky">
+          <User size={18} aria-hidden="true" />
+        </span>
+        <h2 className="portal-card-title">My details</h2>
+        <div className="portal-card-action">
+          {!editing ? (
+            <button className="portal-btn portal-btn--secondary portal-btn--small" onClick={startEdit}>
+              Edit
             </button>
-            <button className="portal-btn portal-btn--secondary portal-btn--small" onClick={onCancel}>
-              Cancel
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex gap-1.5">
+              <button className="portal-btn portal-btn--primary portal-btn--small" onClick={onSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button className="portal-btn portal-btn--secondary portal-btn--small" onClick={onCancel}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {editing ? (
-        <div className="flex gap-2.5 py-2.5 border-b border-slate-100">
-          <div className="flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] mb-1">First Name</div>
+      <DetailRow
+        label="Name"
+        value={fullName}
+        editing={editing}
+        editor={
+          <div className="flex gap-2">
             <input
               value={details.name}
               onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
-              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark font-[inherit] box-border"
+              placeholder="First name"
+              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
             />
-          </div>
-          <div className="flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] mb-1">Surname</div>
             <input
               value={details.surname}
               onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
-              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark font-[inherit] box-border"
+              placeholder="Surname"
+              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
             />
           </div>
-        </div>
-      ) : (
-        <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] min-w-[80px]">Name</span>
-          <span className="text-sm font-semibold text-brand-cyan-dark text-right flex-1 ml-3 overflow-wrap-anywhere">{`${details.name} ${details.surname}`.trim() || "\u2014"}</span>
-        </div>
-      )}
+        }
+        addPrompt="Add your name"
+        onAdd={startEdit}
+      />
 
-      <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] min-w-[80px]">Address</span>
-        {editing ? (
-          <input value={details.address} onChange={e => setDetails(d => ({ ...d, address: e.target.value }))}
-            className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark text-right font-[inherit] box-border" />
-        ) : (
-          <span className="text-sm font-semibold text-brand-cyan-dark text-right flex-1 ml-3 overflow-wrap-anywhere">{details.address || "\u2014"}</span>
-        )}
-      </div>
+      <DetailRow
+        label="Address"
+        value={details.address}
+        editing={editing}
+        editor={
+          <input
+            value={details.address}
+            onChange={e => setDetails(d => ({ ...d, address: e.target.value }))}
+            placeholder="Street, city, postcode"
+            className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+          />
+        }
+        addPrompt="Add address"
+        onAdd={startEdit}
+      />
 
-      <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] min-w-[80px]">Email</span>
-        {editing ? (
-          <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
-            className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark text-right font-[inherit] box-border" />
-        ) : (
-          <span className="text-sm font-semibold text-brand-cyan-dark text-right flex-1 ml-3 overflow-wrap-anywhere">{details.email || "\u2014"}</span>
-        )}
-      </div>
+      <DetailRow
+        label="Email"
+        value={details.email}
+        editing={editing}
+        editor={
+          <input
+            type="email"
+            value={details.email}
+            onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
+            placeholder="you@example.com"
+            className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+          />
+        }
+        addPrompt="Add email"
+        onAdd={startEdit}
+      />
 
-      <div className="flex justify-between items-center py-2.5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat] min-w-[80px]">Mobile</span>
-        <span className="text-sm font-semibold text-brand-cyan-dark text-right flex-1 ml-3">{humanRecord?.phone || "\u2014"}</span>
-      </div>
+      <DetailRow label="Mobile" value={humanRecord?.phone || ""} editing={false} />
 
       {editing && (
-        <div className="flex justify-between items-center py-2.5 border-t border-slate-100">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat]">WhatsApp</span>
+        <div className="portal-detail-row">
+          <span className="portal-detail-label">WhatsApp</span>
           <button
-            className={`relative w-12 h-[26px] rounded-full border-none cursor-pointer transition-colors ${details.whatsapp ? "bg-brand-green" : "bg-slate-300"}`}
+            type="button"
+            aria-pressed={details.whatsapp}
+            aria-label="Toggle WhatsApp"
+            className={`relative w-12 h-[26px] rounded-full border-none cursor-pointer transition-colors ${details.whatsapp ? "bg-emerald-500" : "bg-slate-300"}`}
             onClick={() => setDetails(d => ({ ...d, whatsapp: !d.whatsapp }))}
           >
             <div className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow-sm transition-[left] ${details.whatsapp ? "left-[25px]" : "left-[3px]"}`} />
@@ -87,27 +124,23 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
       )}
 
       {editing && (
-        <div className="flex justify-between items-center py-2.5 border-t border-slate-100">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat]">Facebook</span>
-          <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
-            className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark text-right font-[inherit] box-border" />
-        </div>
-      )}
-
-      {editing && (
-        <div className="flex justify-between items-center py-2.5 border-t border-slate-100">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat]">Instagram</span>
-          <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
-            className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark text-right font-[inherit] box-border" />
-        </div>
-      )}
-
-      {editing && (
-        <div className="flex justify-between items-center py-2.5 border-t border-slate-100">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-[Montserrat]">TikTok</span>
-          <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
-            className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-cyan-dark bg-white outline-none transition-colors focus:border-brand-cyan-dark text-right font-[inherit] box-border" />
-        </div>
+        <>
+          <div className="portal-detail-row">
+            <span className="portal-detail-label">Facebook</span>
+            <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
+              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+          </div>
+          <div className="portal-detail-row">
+            <span className="portal-detail-label">Instagram</span>
+            <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
+              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+          </div>
+          <div className="portal-detail-row">
+            <span className="portal-detail-label">TikTok</span>
+            <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
+              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+          </div>
+        </>
       )}
     </div>
   );
