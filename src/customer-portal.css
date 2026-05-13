@@ -8,26 +8,26 @@
 
 :root {
   --sd-cyan-light: #10C2FC;
-  --sd-cyan: #007AAB;
-  --sd-cyan-dark: #005986;
-  --sd-navy: #2D004B;
-  --sd-navy-soft: #43326C;
+  --sd-cyan: var(--color-sd-cyan);
+  --sd-cyan-dark: var(--color-sd-cyan-dark);
+  --sd-navy: var(--color-sd-navy);
+  --sd-navy-soft: var(--color-sd-navy-soft);
   --sd-teal: #2A6F6B;
-  --sd-yellow: #FECC13;
-  --sd-yellow-dark: #D4A500;
-  --sd-coral: #E7546C;
+  --sd-yellow: var(--color-sd-yellow);
+  --sd-yellow-dark: var(--color-sd-yellow-dark);
+  --sd-coral: var(--color-sd-coral);
   --sd-coral-light: #FFF0F3;
-  --sd-sky-tint: #EAF6FF;
-  --sd-buttercup-tint: #FFF7DC;
-  --sd-mint-tint: #E9FBEF;
-  --sd-coral-tint: #FFEFF3;
-  --sd-paper: #FAF9F6;
+  --sd-sky-tint: var(--color-sd-sky-tint);
+  --sd-buttercup-tint: var(--color-sd-buttercup-tint);
+  --sd-mint-tint: var(--color-sd-mint-tint);
+  --sd-coral-tint: var(--color-sd-coral-tint);
+  --sd-paper: var(--color-sd-paper);
   --sd-white: #FFFFFF;
   --sd-dark: #2A1810;
-  --sd-green: #00C247;
-  --sd-green-dark: #009536;
+  --sd-green: var(--color-sd-green);
+  --sd-green-dark: var(--color-sd-green-dark);
   --sd-mute: #94A3B8;
-  --sd-ink-light: #6B7891;
+  --sd-ink-light: var(--color-sd-ink-light);
 }
 
 /* --- Portal Wrapper --- */
