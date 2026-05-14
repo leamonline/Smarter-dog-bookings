@@ -71,11 +71,13 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
   };
 
   return (
-    <div className="border-2 border-brand-cyan-dark rounded-[10px] p-4 bg-cyan-50 flex flex-col gap-3">
-      <div className="font-semibold text-brand-cyan-dark text-sm">Add a new dog</div>
+    <div className="wizard-card flex flex-col gap-3">
+      <div className="font-['Quicksand',sans-serif] font-bold text-[15px] text-[var(--sd-navy)]">
+        Add a new pup
+      </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="add-dog-name" className="text-[13px] text-slate-800 font-semibold">Name *</label>
+        <label htmlFor="add-dog-name" className="text-[13px] text-[var(--sd-navy)] font-semibold">Name *</label>
         <input
           id="add-dog-name"
           type="text"
@@ -87,7 +89,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="add-dog-breed" className="text-[13px] text-slate-800 font-semibold">Breed</label>
+        <label htmlFor="add-dog-breed" className="text-[13px] text-[var(--sd-navy)] font-semibold">Breed</label>
         <select
           id="add-dog-breed"
           value={breed}
@@ -113,7 +115,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           />
         )}
         {breed && !isOtherBreed && getSizeForBreed(breed) && (
-          <span className="text-xs text-brand-cyan-dark">
+          <span className="text-xs text-[var(--sd-cyan-dark)]">
             Size auto-set: {getSizeForBreed(breed)}
           </span>
         )}
@@ -123,23 +125,21 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         <div role="alert" className="portal-alert portal-alert--error">{error}</div>
       )}
 
-      <div className="flex gap-2">
+      <div className="wizard-actions">
         <button
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-          className={`flex-1 py-2.5 px-4 rounded-full border-none font-bold text-sm ${
-            !name.trim()
-              ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
-          }`}
-        >
-          {saving ? "Saving\u2026" : "Save dog"}
-        </button>
-        <button
+          type="button"
           onClick={onCancel}
-          className="py-2.5 px-4 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
+          className="wizard-btn wizard-btn--back"
         >
           Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          className="wizard-btn wizard-btn--primary"
+        >
+          {saving ? "Saving\u2026" : "Save pup"}
         </button>
       </div>
     </div>

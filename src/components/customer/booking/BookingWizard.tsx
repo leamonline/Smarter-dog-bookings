@@ -3,14 +3,16 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import { PRICING } from "../../../constants/index.js";
-import type { WizardDog, WizardState, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
+import type { WizardDog, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
 import { DogSelection } from "./DogSelection.js";
 import { ServiceSelection } from "./ServiceSelection.js";
 import { DateSelection } from "./DateSelection.js";
 import { SlotSelection } from "./SlotSelection.js";
 import { BookingConfirmation } from "./BookingConfirmation.js";
 import { AddToCalendarButton } from "../AddToCalendarButton.js";
-import { CheckCircle, Clipboard, PawPrint } from "lucide-react";
+import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
+import { CheckCircle, Clipboard, PawPrint, Check, ChevronLeft } from "lucide-react";
+import "./booking-wizard.css";
 
 interface HumanRecord {
   id: string;
@@ -53,7 +55,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
-  const stepHeadingRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Focus the step heading when the step changes (A2: focus management)
   useEffect(() => {
@@ -259,11 +261,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         </div>
         {bookedIds.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2 mb-4">
-            {bookedIds.map((id, i) => (
-              <AddToCalendarButton
-                key={id}
-                bookingId={id}
-              />
+            {bookedIds.map((id) => (
+              <AddToCalendarButton key={id} bookingId={id} />
             ))}
           </div>
         )}
@@ -281,142 +280,140 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   }
 
   return (
-    <div className="max-w-[480px] mx-auto font-[inherit] flex flex-col gap-6 py-6 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="font-bold text-brand-cyan-dark text-lg font-['Montserrat',sans-serif]">
-          Book an appointment
-        </div>
-        <button
-          onClick={onCancel}
-          className="bg-transparent border-none text-slate-500 text-sm cursor-pointer py-1 px-2 font-semibold"
-        >
-          Cancel
-        </button>
-      </div>
-
-      {/* Progress bar (A3: non-colour indicators, A5: progressbar semantics) */}
-      <div
-        className="flex gap-1"
-        role="progressbar"
-        aria-valuenow={step}
-        aria-valuemin={1}
-        aria-valuemax={5}
-        aria-label={`Booking progress: step ${step} of 5`}
-      >
-        {[1, 2, 3, 4, 5].map((s) => (
-          <div
-            key={s}
-            className={`flex-1 h-1 rounded transition-colors ${s <= step ? "bg-brand-cyan" : "bg-slate-200"}`}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
-
-      {/* Step title (A2: focus target for step navigation) */}
-      <div
-        ref={stepHeadingRef}
-        tabIndex={-1}
-        className="font-semibold text-slate-800 text-base outline-none"
-      >
-        Step {step} of 5 — {STEP_TITLES[step - 1]}
-      </div>
-
-      {/* Running price estimate (U3: shows from step 2 once services selected) */}
-      {step >= 2 && Object.keys(services).length > 0 && (() => {
-        const prices = selectedDogs
-          .filter((d) => services[d.dogId])
-          .map((d) => {
-            const svc = services[d.dogId] as keyof typeof PRICING;
-            const size = d.size as "small" | "medium" | "large";
-            return PRICING[svc]?.[size] ?? null;
-          })
-          .filter(Boolean) as string[];
-        if (prices.length === 0) return null;
-        const total = prices.reduce((sum, p) => sum + parseInt(p.replace(/[^0-9]/g, ""), 10), 0);
-        return (
-          <div className="text-[13px] text-slate-600 -mt-3">
-            Estimated total: from {"\u00A3"}{total} (final price confirmed at your appointment)
-          </div>
-        );
-      })()}
-
-      {/* Error banner (A4: role=alert for screen reader announcement) */}
-      {error && (
-        <div role="alert" className="portal-alert portal-alert--error">
-          {error}
-        </div>
-      )}
-
-      {/* Dogs fetch error */}
-      {dogsError && step === 1 && (
-        <div role="alert" className="portal-alert portal-alert--error" style={{ justifyContent: "space-between" }}>
-          <span>{dogsError}</span>
+    <div className="booking-wizard">
+      <div className="booking-wizard-inner">
+        {/* Header */}
+        <div className="booking-wizard-header">
           <button
-            onClick={fetchDogs}
-            className="portal-btn portal-btn--danger portal-btn--small"
+            onClick={onCancel}
+            className="booking-wizard-back"
+            aria-label="Cancel booking and return to dashboard"
           >
-            Retry
+            <ChevronLeft size={16} aria-hidden="true" /> Cancel
           </button>
+          <div className="booking-wizard-title">
+            <span className="booking-wizard-kicker">Step {step} of 5</span>
+            <h1 ref={stepHeadingRef} tabIndex={-1}>
+              {STEP_TITLES[step - 1]}
+              <ScribbleUnderline />
+            </h1>
+          </div>
         </div>
-      )}
 
-      {/* Step content */}
-      {step === 1 && (
-        <DogSelection
-          dogs={dogs as any}
-          selectedDogs={selectedDogs}
-          onSelect={toggleDog}
-          onNext={() => setStep(2)}
-          onDogAdded={handleDogAdded}
-          humanId={humanRecord.id}
-          loading={dogsLoading}
-        />
-      )}
+        {/* Paw-print stepper (A5: progressbar semantics; A3: dots + filled state are non-colour indicators) */}
+        <ol
+          className="booking-wizard-steps"
+          role="progressbar"
+          aria-valuenow={step}
+          aria-valuemin={1}
+          aria-valuemax={5}
+          aria-label={`Booking progress: step ${step} of 5`}
+        >
+          {[1, 2, 3, 4, 5].map((s) => (
+            <li key={s} className={s < step ? "is-done" : s === step ? "is-current" : "is-future"}>
+              <span className="booking-wizard-step-dot" aria-hidden="true">
+                {s < step ? <Check size={12} /> : <PawPrint size={12} />}
+              </span>
+            </li>
+          ))}
+        </ol>
 
-      {step === 2 && (
-        <ServiceSelection
-          selectedDogs={selectedDogs}
-          services={services}
-          onSelect={selectService}
-          onNext={() => setStep(3)}
-          onBack={() => setStep(1)}
-        />
-      )}
+        {/* Running price estimate (U3: shows from step 2 once services selected) */}
+        {step >= 2 && Object.keys(services).length > 0 && (() => {
+          const prices = selectedDogs
+            .filter((d) => services[d.dogId])
+            .map((d) => {
+              const svc = services[d.dogId] as keyof typeof PRICING;
+              const size = d.size as "small" | "medium" | "large";
+              return PRICING[svc]?.[size] ?? null;
+            })
+            .filter(Boolean) as string[];
+          if (prices.length === 0) return null;
+          const total = prices.reduce((sum, p) => sum + parseInt(p.replace(/[^0-9]/g, ""), 10), 0);
+          return (
+            <div className="text-[13px] font-semibold text-[var(--sd-ink-light)]">
+              Estimated total: from {"£"}{total} (final price confirmed at your appointment)
+            </div>
+          );
+        })()}
 
-      {step === 3 && (
-        <DateSelection
-          selectedDate={selectedDate}
-          onSelect={setSelectedDate}
-          onNext={() => setStep(4)}
-          onBack={() => setStep(2)}
-        />
-      )}
+        {/* Error banner (A4: role=alert for screen reader announcement) */}
+        {error && (
+          <div role="alert" className="portal-alert portal-alert--error">
+            {error}
+          </div>
+        )}
 
-      {step === 4 && (
-        <SlotSelection
-          selectedDogs={selectedDogs}
-          selectedDate={selectedDate}
-          slotAllocation={slotAllocation}
-          onSelect={(allocation) => setSlotAllocation(allocation)}
-          onNext={() => setStep(5)}
-          onBack={() => setStep(3)}
-          onJoinWaitlist={handleJoinWaitlist}
-        />
-      )}
+        {/* Dogs fetch error */}
+        {dogsError && step === 1 && (
+          <div role="alert" className="portal-alert portal-alert--error" style={{ justifyContent: "space-between" }}>
+            <span>{dogsError}</span>
+            <button
+              onClick={fetchDogs}
+              className="portal-btn portal-btn--danger portal-btn--small"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
-      {step === 5 && (
-        <BookingConfirmation
-          selectedDogs={selectedDogs}
-          services={services}
-          selectedDate={selectedDate}
-          slotAllocation={slotAllocation}
-          onConfirm={handleConfirm}
-          onBack={() => setStep(4)}
-          submitting={submitting}
-          dogs={dogs as any}
-        />
-      )}
+        {/* Step content */}
+        {step === 1 && (
+          <DogSelection
+            dogs={dogs as any}
+            selectedDogs={selectedDogs}
+            onSelect={toggleDog}
+            onNext={() => setStep(2)}
+            onDogAdded={handleDogAdded}
+            humanId={humanRecord.id}
+            loading={dogsLoading}
+          />
+        )}
+
+        {step === 2 && (
+          <ServiceSelection
+            selectedDogs={selectedDogs}
+            services={services}
+            onSelect={selectService}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {step === 3 && (
+          <DateSelection
+            selectedDate={selectedDate}
+            onSelect={setSelectedDate}
+            onNext={() => setStep(4)}
+            onBack={() => setStep(2)}
+          />
+        )}
+
+        {step === 4 && (
+          <SlotSelection
+            selectedDogs={selectedDogs}
+            selectedDate={selectedDate}
+            slotAllocation={slotAllocation}
+            onSelect={(allocation) => setSlotAllocation(allocation)}
+            onNext={() => setStep(5)}
+            onBack={() => setStep(3)}
+            onJoinWaitlist={handleJoinWaitlist}
+          />
+        )}
+
+        {step === 5 && (
+          <BookingConfirmation
+            selectedDogs={selectedDogs}
+            services={services}
+            selectedDate={selectedDate}
+            slotAllocation={slotAllocation}
+            onConfirm={handleConfirm}
+            onBack={() => setStep(4)}
+            submitting={submitting}
+            dogs={dogs as any}
+          />
+        )}
+      </div>
     </div>
   );
 }
