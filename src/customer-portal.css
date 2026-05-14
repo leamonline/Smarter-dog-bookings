@@ -577,6 +577,59 @@
   border-radius: 8px;
 }
 
+/* --- Input size variant --- */
+.portal-input--sm {
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+/* --- Alerts (unified replacement for red banners / coral blocks / pink-50 wraps) --- */
+.portal-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.portal-alert--error {
+  background: var(--sd-coral-tint);
+  color: #B83A4F;
+  border: 1px solid rgba(231, 84, 108, 0.30);
+}
+.portal-alert--info {
+  background: var(--sd-sky-tint);
+  color: var(--sd-cyan-dark);
+  border: 1px solid rgba(0, 122, 171, 0.22);
+}
+.portal-alert--success {
+  background: var(--sd-mint-tint);
+  color: #0F6B3A;
+  border: 1px solid rgba(0, 194, 71, 0.30);
+}
+
+/* --- Skeleton shimmer --- */
+.skeleton-row {
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(45,0,75,0.04), rgba(45,0,75,0.08), rgba(45,0,75,0.04));
+  background-size: 200% 100%;
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+.skeleton-row--sm { height: 36px; }
+.skeleton-row--lg { height: 72px; }
+@keyframes skeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row { animation: none; background: rgba(45, 0, 75, 0.06); }
+}
+
 /* --- Animations --- */
 @keyframes cardSlideUp {
   from { opacity: 0; transform: translateY(12px); }

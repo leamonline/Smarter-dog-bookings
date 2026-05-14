@@ -82,7 +82,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Biscuit"
-          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
+          className="portal-input portal-input--sm"
         />
       </div>
 
@@ -92,7 +92,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           id="add-dog-breed"
           value={breed}
           onChange={(e) => handleBreedSelect(e.target.value)}
-          className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800 cursor-pointer"
+          className="portal-input portal-input--sm cursor-pointer"
         >
           <option value="">Select breed</option>
           {SORTED_BREEDS.map(b => (
@@ -108,7 +108,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
             onChange={(e) => setCustomBreed(e.target.value)}
             placeholder="Enter breed..."
             aria-label="Custom breed name"
-            className="py-2 px-3 rounded-md border border-slate-200 text-sm bg-white text-slate-800"
+            className="portal-input portal-input--sm"
             autoFocus
           />
         )}
@@ -120,7 +120,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       {error && (
-        <div role="alert" className="text-brand-coral text-[13px]">{error}</div>
+        <div role="alert" className="portal-alert portal-alert--error">{error}</div>
       )}
 
       <div className="flex gap-2">

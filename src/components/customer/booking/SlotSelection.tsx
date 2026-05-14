@@ -95,7 +95,13 @@ export function SlotSelection({
       </p>
 
       {loading && (
-        <p className="text-slate-500 text-sm">Checking availability\u2026</p>
+        <div className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
+          <div className="skeleton-row skeleton-row--sm" />
+          <div className="skeleton-row skeleton-row--sm" />
+          <div className="skeleton-row skeleton-row--sm" />
+          <div className="skeleton-row skeleton-row--sm" />
+          <span className="sr-only">Checking availability\u2026</span>
+        </div>
       )}
 
       {!loading && availableSlots.length === 0 && (

@@ -59,13 +59,13 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
               value={details.name}
               onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
               placeholder="First name"
-              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+              className="portal-input"
             />
             <input
               value={details.surname}
               onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
               placeholder="Surname"
-              className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+              className="portal-input"
             />
           </div>
         }
@@ -82,7 +82,7 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
             value={details.address}
             onChange={e => setDetails(d => ({ ...d, address: e.target.value }))}
             placeholder="Street, city, postcode"
-            className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+            className="portal-input"
           />
         }
         addPrompt="Add address"
@@ -99,7 +99,7 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
             value={details.email}
             onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
             placeholder="you@example.com"
-            className="w-full py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple font-[inherit] box-border"
+            className="portal-input"
           />
         }
         addPrompt="Add email"
@@ -128,17 +128,17 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           <div className="portal-detail-row">
             <span className="portal-detail-label">Facebook</span>
             <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
-              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+              className="portal-input flex-1 ml-3 text-right" />
           </div>
           <div className="portal-detail-row">
             <span className="portal-detail-label">Instagram</span>
             <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
-              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+              className="portal-input flex-1 ml-3 text-right" />
           </div>
           <div className="portal-detail-row">
             <span className="portal-detail-label">TikTok</span>
             <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
-              className="flex-1 ml-3 py-2 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold text-brand-purple bg-white outline-none transition-colors focus:border-brand-purple text-right font-[inherit] box-border" />
+              className="portal-input flex-1 ml-3 text-right" />
           </div>
         </>
       )}
