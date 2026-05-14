@@ -3,7 +3,8 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import { PRICING } from "../../../constants/index.js";
-import type { WizardDog, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
+import { getSizeForBreed } from "../../../constants/breeds.js";
+import type { WizardDog, DogSize, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
 import { DogSelection } from "./DogSelection.js";
 import { ServiceSelection } from "./ServiceSelection.js";
 import { DateSelection } from "./DateSelection.js";
@@ -82,12 +83,17 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         .order("name");
       if (fetchErr) throw fetchErr;
       setDogs(
-        (data || []).map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          breed: d.breed || "",
-          size: d.size || null,
-        }))
+        (data || []).map((d: any) => {
+          const breed = d.breed || "";
+          const storedSize = d.size || null;
+          const derivedSize = !storedSize && breed ? (getSizeForBreed(breed) as DogSize | null) : null;
+          return {
+            id: d.id,
+            name: d.name,
+            breed,
+            size: storedSize ?? derivedSize ?? null,
+          };
+        })
       );
     } catch (e: any) {
       setDogsError(e.message || "Could not load your dogs");

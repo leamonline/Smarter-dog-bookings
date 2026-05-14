@@ -1,7 +1,12 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
 import { PawPrint, AlertTriangle, Camera, MessageCircle, Pencil, X } from "lucide-react";
+
+function effectiveSize(dog) {
+  return dog.size || getSizeForBreed(dog.breed) || "";
+}
 
 const ERR_LABEL = {
   not_authenticated: "Please sign in again.",
@@ -32,7 +37,7 @@ function DogRow({ dog, onSaved }) {
   const [form, setForm] = useState({
     name: dog.name || "",
     breed: dog.breed || "",
-    size: dog.size || "",
+    size: effectiveSize(dog),
     dob: dog.dob || "",
   });
 
@@ -40,12 +45,22 @@ function DogRow({ dog, onSaved }) {
     setForm({
       name: dog.name || "",
       breed: dog.breed || "",
-      size: dog.size || "",
+      size: effectiveSize(dog),
       dob: dog.dob || "",
     });
     setError(null);
     setEditing(false);
   }, [dog]);
+
+  // When the user picks a breed we know, fill in the size for them.
+  // Doesn't override an explicit size the user already typed.
+  const handleBreedChange = (newBreed) => {
+    setForm((f) => {
+      const derived = getSizeForBreed(newBreed);
+      const shouldDerive = derived && (!f.size || f.size === effectiveSize(dog));
+      return { ...f, breed: newBreed, size: shouldDerive ? derived : f.size };
+    });
+  };
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -84,7 +99,7 @@ function DogRow({ dog, onSaved }) {
           aria-label="Breed"
           placeholder="Breed (e.g. Boston Terrier)"
           value={form.breed}
-          onChange={e => setForm(f => ({ ...f, breed: e.target.value }))}
+          onChange={e => handleBreedChange(e.target.value)}
           className="portal-input"
         />
         <div className="portal-inline-form-row">
@@ -123,7 +138,7 @@ function DogRow({ dog, onSaved }) {
       <div className="min-w-0 flex-1">
         <div className="text-[15px] font-bold text-brand-purple font-display">{dog.name}</div>
         <div className="text-[13px] font-medium text-slate-500 mt-0.5">
-          {dog.breed || "Breed not set"}{dog.size ? ` · ${dog.size}` : ""}
+          {dog.breed || "Breed not set"}{effectiveSize(dog) ? ` · ${effectiveSize(dog)}` : ""}
         </div>
         {dog.groom_notes && (
           <div className="text-xs text-brand-purple bg-white/70 py-1 px-2.5 rounded-md mt-1.5 font-medium">
