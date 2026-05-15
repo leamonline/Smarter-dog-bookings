@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
-import { PawPrint } from "lucide-react";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 // Cloudflare's published test key — always passes, no real challenge.
@@ -118,11 +117,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
       style={{ background: pageBackground }}
     >
       <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated p-8 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
-        {/* Faint paw watermark in the top-left corner — decorative, not announced. */}
-        <PawPrint
-          size={120}
+        {/* Faint dog-silhouette watermark in the top-left corner — same dog
+            from the Smarter Dog logo, decorative, not announced. */}
+        <img
+          src="/images/dog-silhouette.png"
+          alt=""
           aria-hidden="true"
-          className="absolute -top-6 -left-6 text-[var(--sd-navy)] opacity-[0.05] pointer-events-none"
+          className="absolute -top-4 -left-6 w-32 h-auto opacity-[0.06] pointer-events-none select-none"
+          draggable={false}
         />
 
         <div className="relative">
