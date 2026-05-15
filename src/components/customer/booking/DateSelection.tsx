@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getDefaultOpenForDate } from "../../../engine/utils.js";
+import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {
   selectedDate: string | null;
@@ -9,13 +10,26 @@ interface DateSelectionProps {
   onBack: () => void;
 }
 
-const DAY_HEADERS = ["M", "T", "W", "T", "F", "S", "S"];
+const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function monthLabelFor(days: Date[]): string {
+  if (days.length === 0) return "";
+  const first = days[0];
+  const last = days[days.length - 1];
+  const sameMonth = first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear();
+  if (sameMonth) {
+    return first.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+  const firstLabel = first.toLocaleDateString("en-GB", { month: "short" });
+  const lastLabel = last.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  return `${firstLabel} → ${lastLabel}`;
 }
 
 export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSelectionProps) {
@@ -79,79 +93,68 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
   while (gridCells.length % 7 !== 0) gridCells.push(null);
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="m-0 text-slate-500 text-sm">
+    <>
+      <p className="wizard-helper">
         Pick a date for your visit (next 28 days).
       </p>
 
-      {/* Day headers */}
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {DAY_HEADERS.map((h, i) => (
-          <div key={i} className="text-xs font-semibold text-slate-500 py-1">
-            {h}
+      <div className="wizard-calendar">
+        <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
+        <p className="wizard-calendar-hint">
+          We&apos;re open Tuesday&ndash;Saturday. Closed days are dimmed.
+        </p>
+
+        <div className="wizard-calendar-grid">
+          {DAY_HEADERS.map((h) => (
+            <div key={h} className="wizard-day-header">{h}</div>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="wizard-calendar-grid mt-1" aria-busy="true" aria-live="polite">
+            {Array.from({ length: 28 }).map((_, i) => (
+              <div key={i} className="skeleton-row skeleton-row--sm" />
+            ))}
+            <span className="sr-only">Loading availability…</span>
           </div>
-        ))}
+        ) : (
+          <div className="wizard-calendar-grid mt-1">
+            {gridCells.map((d, i) => {
+              if (!d) return <div key={`empty-${i}`} />;
+              const dateStr = toDateStr(d);
+              const open = isOpen(d);
+              const selected = selectedDate === dateStr;
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  className="wizard-day"
+                  aria-pressed={selected}
+                  disabled={!open}
+                  onClick={() => open && onSelect(dateStr)}
+                >
+                  {d.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Calendar grid */}
-      {loading ? (
-        <div className="grid grid-cols-7 gap-1" aria-busy="true" aria-live="polite">
-          {Array.from({ length: 28 }).map((_, i) => (
-            <div key={i} className="skeleton-row skeleton-row--sm" />
-          ))}
-          <span className="sr-only">Loading availability\u2026</span>
-        </div>
-      ) : (
-        <div className="grid grid-cols-7 gap-1">
-          {gridCells.map((d, i) => {
-            if (!d) {
-              return <div key={`empty-${i}`} />;
-            }
-            const dateStr = toDateStr(d);
-            const open = isOpen(d);
-            const selected = selectedDate === dateStr;
-
-            return (
-              <button
-                key={dateStr}
-                disabled={!open}
-                onClick={() => open && onSelect(dateStr)}
-                className={`py-2 px-1 rounded-md text-[13px] text-center ${
-                  selected
-                    ? "border-2 border-brand-cyan-dark bg-cyan-50 font-bold"
-                    : open
-                      ? "border border-slate-200 bg-white font-normal"
-                      : "border border-transparent bg-slate-50 font-normal"
-                } ${
-                  open ? "text-slate-800 cursor-pointer" : "text-slate-200 cursor-default"
-                }`}
-              >
-                {d.getDate()}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="flex gap-2.5 mt-2">
-        <button
-          onClick={onBack}
-          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
-        >
-          {"\u2190"} Back
+      <div className="wizard-actions">
+        <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>
+          Back
         </button>
         <button
+          type="button"
+          className="wizard-btn wizard-btn--primary"
           onClick={onNext}
           disabled={!selectedDate}
-          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
-            selectedDate
-              ? "bg-brand-cyan text-white cursor-pointer"
-              : "bg-slate-200 text-slate-500 cursor-not-allowed"
-          }`}
         >
-          Next {"\u2192"}
+          Continue
+          <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </>
   );
 }

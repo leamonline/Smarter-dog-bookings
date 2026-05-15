@@ -1,6 +1,9 @@
-import { SERVICES, PRICING } from "../../../constants/index.js";
+import { PRICING } from "../../../constants/index.js";
 import { getAllowedServicesForSize } from "../../../engine/bookingRules.js";
+import { SERVICE_ICON_NAMES } from "../dashboardConstants.js";
 import type { WizardDog, ServiceId } from "../../../types/index.js";
+import { Check, ArrowRight, Sparkles, Scissors, Droplets, Wind, PawPrint } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 
 interface ServiceSelectionProps {
   selectedDogs: WizardDog[];
@@ -11,11 +14,23 @@ interface ServiceSelectionProps {
 }
 
 const SERVICE_DESCRIPTIONS: Record<string, string> = {
-  "full-groom": "Includes bath, dry, and full clip to breed standard",
-  "bath-and-brush": "Includes bath, blow-dry, and thorough brush-out",
-  "bath-and-deshed": "Includes bath, blow-dry, and de-shedding treatment",
+  "full-groom": "Bath, dry, and full clip to breed standard",
+  "bath-and-brush": "Bath, blow-dry, and a thorough brush-out",
+  "bath-and-deshed": "Bath, blow-dry, and de-shedding treatment",
   "puppy-groom": "A gentle introduction to grooming for pups under 6 months",
 };
+
+const ICON_COMPONENTS: Record<string, ComponentType<SVGProps<SVGSVGElement> & { size?: number }>> = {
+  Scissors,
+  Droplets,
+  Wind,
+  PawPrint,
+};
+
+function ServiceIcon({ name, color }: { name: string; color: string }) {
+  const Component = ICON_COMPONENTS[name] ?? Scissors;
+  return <Component aria-hidden="true" width={20} height={20} style={{ color, marginTop: 2, flexShrink: 0 }} />;
+}
 
 function getPriceLabel(serviceId: string, size: string): string {
   const pricing = PRICING as Record<string, Record<string, string>>;
@@ -41,22 +56,26 @@ export function ServiceSelection({
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <p className="m-0 text-slate-500 text-sm">
-        Choose a service for each dog. Prices shown are starting prices &mdash; the final cost depends on coat condition and any extras.
+    <>
+      <p className="wizard-helper">
+        Choose a service for each pup. Prices shown are starting prices &mdash; the final cost depends on coat condition and any extras.
       </p>
 
       {allSameSize && allowedForCommon.length > 0 && (
-        <div className="bg-emerald-50 rounded-lg py-3 px-3.5 flex flex-col gap-2">
-          <div className="text-[13px] font-semibold text-brand-cyan-dark">
-            Same service for all dogs:
+        <div className="wizard-card wizard-card--mint">
+          <div className="flex items-start gap-2">
+            <Sparkles size={16} aria-hidden="true" style={{ color: "#0F6B3A", marginTop: 2, flexShrink: 0 }} />
+            <span className="text-[13px] font-semibold" style={{ color: "#0F6B3A" }}>
+              Same service for all pups? Tap to apply to everyone.
+            </span>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap mt-2.5">
             {allowedForCommon.map((svc) => (
               <button
                 key={svc.id}
+                type="button"
                 onClick={() => applyToAll(svc.id as ServiceId)}
-                className="py-1.5 px-3 rounded-md border-2 border-brand-cyan-dark bg-white text-brand-cyan-dark font-semibold text-[13px] cursor-pointer"
+                className="portal-btn portal-btn--secondary portal-btn--small"
               >
                 {svc.name}
               </button>
@@ -68,33 +87,32 @@ export function ServiceSelection({
       {selectedDogs.map((dog) => {
         const allowed = getAllowedServicesForSize(dog.size);
         return (
-          <div key={dog.dogId} className="flex flex-col gap-2">
-            <div className="font-semibold text-slate-800 text-[15px]">{dog.name}</div>
-            <div className="flex flex-col gap-1.5">
+          <div key={dog.dogId} className="wizard-card">
+            <div className="font-['Quicksand',sans-serif] text-[15px] font-bold text-[var(--sd-navy)] mb-2.5">
+              {dog.name}
+            </div>
+            <div className="flex flex-col gap-2">
               {allowed.map((svc) => {
                 const selected = services[dog.dogId] === svc.id;
+                const iconName = SERVICE_ICON_NAMES[svc.id as keyof typeof SERVICE_ICON_NAMES] ?? "Scissors";
                 return (
                   <button
                     key={svc.id}
+                    type="button"
+                    aria-pressed={selected}
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
-                    className={`flex flex-col py-2.5 px-3.5 rounded-lg border-2 cursor-pointer text-left w-full ${
-                      selected
-                        ? "border-brand-cyan-dark bg-cyan-50"
-                        : "border-slate-200 bg-white"
-                    }`}
+                    className={`wizard-option wizard-service-tile${selected ? " is-selected" : ""}`}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-sm text-slate-800">
-                        {svc.name}
-                      </span>
-                      <span className={`text-sm font-semibold ${selected ? "text-brand-cyan-dark" : "text-slate-500"}`}>
-                        {getPriceLabel(svc.id, dog.size)}
-                      </span>
+                    <ServiceIcon name={iconName} color={selected ? "var(--sd-navy)" : "var(--sd-cyan-dark)"} />
+                    <div className="wizard-service-body">
+                      <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">{svc.name}</span>
+                      {SERVICE_DESCRIPTIONS[svc.id] && (
+                        <span className="text-[12px] text-[var(--sd-ink-light)]">{SERVICE_DESCRIPTIONS[svc.id]}</span>
+                      )}
+                      <span className="price text-[13px]">From {getPriceLabel(svc.id, dog.size)}</span>
                     </div>
-                    {SERVICE_DESCRIPTIONS[svc.id] && (
-                      <span className="text-xs text-slate-400 mt-0.5">
-                        {SERVICE_DESCRIPTIONS[svc.id]}
-                      </span>
+                    {selected && (
+                      <Check size={18} aria-hidden="true" className="text-[var(--sd-navy)] shrink-0 mt-0.5" />
                     )}
                   </button>
                 );
@@ -104,25 +122,20 @@ export function ServiceSelection({
         );
       })}
 
-      <div className="flex gap-2.5 mt-2">
-        <button
-          onClick={onBack}
-          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
-        >
-          {"\u2190"} Back
+      <div className="wizard-actions">
+        <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>
+          Back
         </button>
         <button
+          type="button"
+          className="wizard-btn wizard-btn--primary"
           onClick={onNext}
           disabled={!allServiced}
-          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
-            allServiced
-              ? "bg-brand-cyan text-white cursor-pointer"
-              : "bg-slate-200 text-slate-500 cursor-not-allowed"
-          }`}
         >
-          Next {"\u2192"}
+          Continue
+          <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </>
   );
 }

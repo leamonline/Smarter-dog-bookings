@@ -1,5 +1,6 @@
 import { SERVICES, PRICING } from "../../../constants/index.js";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index.js";
+import { PawPrint } from "lucide-react";
 
 interface RawDog {
   id: string;
@@ -41,6 +42,12 @@ function getPriceLabel(serviceId: string, size: string): string {
   return pricing?.[serviceId]?.[size] || "";
 }
 
+function priceNumber(serviceId: string, size: string): number {
+  const label = getPriceLabel(serviceId, size);
+  const m = label.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
 export function BookingConfirmation({
   selectedDogs,
   services,
@@ -52,88 +59,96 @@ export function BookingConfirmation({
   dogs,
 }: BookingConfirmationProps) {
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
+  const total = selectedDogs.reduce((sum, dog) => {
+    const serviceId = services[dog.dogId];
+    if (!serviceId) return sum;
+    const size = dogMap[dog.dogId]?.size || dog.size;
+    return sum + priceNumber(serviceId, size);
+  }, 0);
 
   return (
-    <div className="flex flex-col gap-5">
-      <p className="m-0 text-slate-500 text-sm">
-        Please check the details below before confirming.
+    <>
+      <p className="wizard-helper">
+        One last check before we book it in.
       </p>
 
-      {/* Date & time summary */}
-      <div className="bg-cyan-50 rounded-[10px] py-3.5 px-4 flex flex-col gap-1">
-        <div className="font-bold text-brand-cyan-dark text-[15px]">
-          {selectedDate ? formatDate(selectedDate) : "\u2014"}
+      <div className="wizard-card wizard-confirm-polaroid">
+        <div className="portal-detail-row">
+          <span className="portal-detail-label">When</span>
+          <span className="portal-detail-value">
+            {selectedDate ? formatDate(selectedDate) : "—"}
+            {slotAllocation && (
+              <>
+                {" "}at <strong>{formatSlot(slotAllocation.dropOffTime)}</strong>
+              </>
+            )}
+          </span>
         </div>
-        <div className="text-slate-800 text-sm">
-          Drop-off: <strong>{slotAllocation ? formatSlot(slotAllocation.dropOffTime) : "\u2014"}</strong>
-        </div>
-      </div>
 
-      {/* Per-dog summary */}
-      <div className="flex flex-col gap-2">
         {selectedDogs.map((dog) => {
           const serviceId = services[dog.dogId];
           const rawDog = dogMap[dog.dogId];
           const size = rawDog?.size || dog.size;
           const slotForDog = slotAllocation?.assignments.find((a) => a.dogId === dog.dogId)?.slot;
-
+          const sizeLabel = size ? `${size.charAt(0).toUpperCase()}${size.slice(1)}` : "—";
           return (
-            <div
-              key={dog.dogId}
-              className="border border-slate-200 rounded-lg py-3 px-3.5 bg-white"
-            >
-              <div className="font-semibold text-slate-800 text-[15px] mb-1">
-                {dog.name}
-              </div>
-              <div className="text-[13px] text-slate-600">
-                {rawDog?.breed || "\u2014"} · {size ? size.charAt(0).toUpperCase() + size.slice(1) : "\u2014"}
-              </div>
-              {serviceId && (
-                <div className="mt-1.5 text-sm text-slate-800">
-                  {getServiceLabel(serviceId)}
-                  {size && (
-                    <span className="ml-2 text-brand-cyan-dark font-semibold">
-                      {getPriceLabel(serviceId, size)}
-                    </span>
+            <div key={dog.dogId} className="portal-detail-row" style={{ alignItems: "flex-start" }}>
+              <span className="portal-detail-label">{dog.name}</span>
+              <span className="portal-detail-value">
+                {serviceId ? getServiceLabel(serviceId) : "—"}
+                {serviceId && size && (
+                  <>
+                    {" · "}
+                    {getPriceLabel(serviceId, size)}
+                  </>
+                )}
+                <div className="text-[12px] font-medium text-[var(--sd-ink-light)] mt-0.5">
+                  {rawDog?.breed || "—"}
+                  {" · "}
+                  {sizeLabel}
+                  {slotForDog && slotAllocation && slotForDog !== slotAllocation.dropOffTime && (
+                    <>
+                      {" · slot "}
+                      {formatSlot(slotForDog)}
+                    </>
                   )}
                 </div>
-              )}
-              {slotForDog && slotAllocation && slotForDog !== slotAllocation.dropOffTime && (
-                <div className="text-xs text-slate-500 mt-1">
-                  Slot: {formatSlot(slotForDog)}
-                </div>
-              )}
+              </span>
             </div>
           );
         })}
+
+        {total > 0 && (
+          <div className="portal-detail-row">
+            <span className="portal-detail-label">Total</span>
+            <span className="portal-detail-value">From {"£"}{total} (paid at pick-up)</span>
+          </div>
+        )}
       </div>
 
-      <p className="text-xs text-slate-500 leading-relaxed mt-1 m-0">
-        Need to cancel? Please give us at least 24 hours' notice so we can offer the slot to another pup. You can cancel from your dashboard or contact the salon directly.
+      <p className="text-[12px] text-[var(--sd-ink-light)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
+        <PawPrint size={12} aria-hidden="true" />
+        Need to cancel? You can do that from your dashboard up until the day before.
       </p>
 
-      <div className="flex gap-2.5">
+      <div className="wizard-actions">
         <button
+          type="button"
+          className="wizard-btn wizard-btn--back"
           onClick={onBack}
           disabled={submitting}
-          className={`py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm ${
-            submitting ? "cursor-not-allowed" : "cursor-pointer"
-          }`}
         >
-          {"\u2190"} Back
+          Back
         </button>
         <button
+          type="button"
+          className="wizard-btn wizard-btn--confirm"
           onClick={onConfirm}
           disabled={submitting}
-          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
-            submitting
-              ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-              : "bg-brand-yellow text-brand-cyan-dark cursor-pointer"
-          }`}
         >
-          {submitting ? "Booking\u2026" : `Confirm Booking${selectedDogs.length > 1 ? "s" : ""}`}
+          {submitting ? "Booking…" : `Confirm booking${selectedDogs.length > 1 ? "s" : ""}`}
         </button>
       </div>
-    </div>
+    </>
   );
 }

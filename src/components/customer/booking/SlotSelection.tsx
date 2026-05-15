@@ -3,6 +3,7 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import type { WizardDog, SlotAllocation, Booking } from "../../../types/index.js";
+import { Clock, ArrowRight, PawPrint } from "lucide-react";
 
 interface SlotSelectionProps {
   selectedDogs: WizardDog[];
@@ -19,6 +20,12 @@ function formatSlot(slot: string): string {
   const suffix = h >= 12 ? "pm" : "am";
   const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
+}
+
+function formatDateLabel(dateStr: string | null): string {
+  if (!dateStr) return "this day";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
 
 export function SlotSelection({
@@ -88,89 +95,112 @@ export function SlotSelection({
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
 
+  const morning = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) < 12);
+  const afternoon = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) >= 12);
+
+  const renderSlotTile = (allocation: SlotAllocation) => {
+    const selected = selectedDropOff === allocation.dropOffTime;
+    return (
+      <button
+        key={allocation.dropOffTime}
+        type="button"
+        aria-pressed={selected}
+        onClick={() => onSelect(allocation)}
+        className="wizard-option"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+          <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
+            {formatSlot(allocation.dropOffTime)}
+          </span>
+        </span>
+        {selectedDogs.length > 1 && (
+          <span className="text-[12px] text-[var(--sd-ink-light)]">Drop all pups together</span>
+        )}
+      </button>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <p className="m-0 text-slate-500 text-sm">
+    <>
+      <p className="wizard-helper">
         Choose a drop-off time.
       </p>
 
-      {loading && (
-        <div className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
-          <div className="skeleton-row skeleton-row--sm" />
-          <div className="skeleton-row skeleton-row--sm" />
-          <div className="skeleton-row skeleton-row--sm" />
-          <div className="skeleton-row skeleton-row--sm" />
-          <span className="sr-only">Checking availability\u2026</span>
-        </div>
-      )}
+      <div className="wizard-card">
+        {loading && (
+          <div className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
+            <div className="skeleton-row skeleton-row--sm" />
+            <div className="skeleton-row skeleton-row--sm" />
+            <div className="skeleton-row skeleton-row--sm" />
+            <div className="skeleton-row skeleton-row--sm" />
+            <span className="sr-only">Checking availability…</span>
+          </div>
+        )}
 
-      {!loading && availableSlots.length === 0 && (
-        <div role="alert" className="p-4 rounded-lg bg-brand-coral-light text-brand-coral text-sm font-semibold flex flex-col gap-3">
-          <div>No availability on this date. Please try another day, or join the waitlist below.</div>
-          <button
-            onClick={onJoinWaitlist}
-            className="self-start py-2.5 px-4 rounded-lg border-none bg-brand-coral text-white font-bold text-[13px] cursor-pointer"
-          >
-            Join Waitlist for this date
-          </button>
-          <span className="text-xs text-brand-coral opacity-80">
-            We'll let you know if a slot opens up on this date.
-          </span>
-        </div>
-      )}
-
-      {!loading && availableSlots.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {availableSlots.map((allocation) => {
-            const selected = selectedDropOff === allocation.dropOffTime;
-            return (
-              <button
-                key={allocation.dropOffTime}
-                onClick={() => onSelect(allocation)}
-                className={`flex items-center justify-between py-3 px-4 rounded-lg border-2 cursor-pointer text-left w-full ${
-                  selected
-                    ? "border-brand-cyan-dark bg-cyan-50"
-                    : "border-slate-200 bg-white"
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-base text-slate-800">
-                    {formatSlot(allocation.dropOffTime)}
-                  </div>
-                  {selectedDogs.length > 1 && (
-                    <div className="text-[13px] text-slate-600">
-                      Drop off all dogs at this time
-                    </div>
-                  )}
+        {!loading && availableSlots.length === 0 && (
+          <div className="wizard-empty-slots" style={{ background: "var(--sd-coral-tint)", borderRadius: "var(--radius-sd-card)", padding: 20 }}>
+            <div className="portal-polaroid">
+              <div className="portal-polaroid-frame">
+                <div className="portal-polaroid-photo">
+                  <PawPrint size={36} aria-hidden="true" />
                 </div>
-                {selected && (
-                  <span className="text-brand-cyan-dark text-xl font-bold">{"\u2713"}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+              </div>
+              <h3 className="portal-empty-title" style={{ fontSize: 16, marginTop: 4 }}>
+                Fully booked on {formatDateLabel(selectedDate)}
+              </h3>
+              <p className="portal-empty-body">
+                Try a different day, or pop on the waitlist and we&apos;ll text you if a slot opens up.
+              </p>
+              {onJoinWaitlist && (
+                <button
+                  type="button"
+                  onClick={onJoinWaitlist}
+                  className="portal-btn portal-btn--cta portal-btn--cta-inline"
+                >
+                  Join the waitlist
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-      <div className="flex gap-2.5 mt-2">
-        <button
-          onClick={onBack}
-          className="py-[11px] px-5 rounded-lg border border-slate-200 bg-white text-slate-500 font-semibold text-sm cursor-pointer"
-        >
-          {"\u2190"} Back
+        {!loading && availableSlots.length > 0 && (
+          <>
+            {morning.length > 0 && (
+              <>
+                <h3 className="wizard-slot-group">Morning drop-offs</h3>
+                <div className="flex flex-col gap-2">
+                  {morning.map(renderSlotTile)}
+                </div>
+              </>
+            )}
+            {afternoon.length > 0 && (
+              <>
+                <h3 className="wizard-slot-group">Afternoon drop-offs</h3>
+                <div className="flex flex-col gap-2">
+                  {afternoon.map(renderSlotTile)}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="wizard-actions">
+        <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>
+          Back
         </button>
         <button
+          type="button"
+          className="wizard-btn wizard-btn--primary"
           onClick={onNext}
           disabled={!selectedDropOff}
-          className={`flex-1 py-[11px] px-5 rounded-lg border-none font-bold text-[15px] ${
-            selectedDropOff
-              ? "bg-brand-cyan text-white cursor-pointer"
-              : "bg-slate-200 text-slate-500 cursor-not-allowed"
-          }`}
         >
-          Next {"\u2192"}
+          Continue
+          <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </>
   );
 }
