@@ -11,11 +11,10 @@ import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js"
  * Two states:
  *   1. **Empty** — no upcoming groom. "Ready to book {dogName} in?" + green CTA.
  *   2. **Booked** — has an upcoming groom. Date, time, service, dog;
- *      Reschedule (modal-confirmed: opens /customer/book with the original
- *      booking id passed via route state — the wizard does the cancel only
- *      after a new slot is confirmed, so closing the wizard leaves the
- *      original slot intact) and Cancel (inline reason form) as
- *      low-emphasis links.
+ *      Reschedule (modal-confirmed: navigates to /customer/book with route
+ *      state — the wizard cancels the original *after* a new booking is
+ *      successfully created, so abandoning the wizard preserves the slot)
+ *      and Cancel (inline reason form) as low-emphasis links.
  *
  * Replaces the old "Upcoming appointments empty state" + "Time for another
  * groom?" rebook block in AppointmentsSection — they duplicated each other
@@ -96,11 +95,19 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const timeStr = formatSlot(next.slot);
 
   const handleRescheduleConfirm = () => {
+    // Don't cancel anything yet — pass the booking context to the wizard via
+    // route state. The wizard cancels this booking only *after* a new one is
+    // successfully created, so abandoning the wizard preserves the slot.
     setConfirmingReschedule(false);
     navigate("/customer/book", {
       state: {
-        rescheduleFromId: next.id,
-        rescheduleFromGroupId: next.group_id ?? null,
+        rescheduleFrom: {
+          id: next.id,
+          groupId: next.group_id || null,
+          dateLabel: `${day} ${dateStr}`,
+          timeLabel: timeStr,
+          dogName,
+        },
       },
     });
   };

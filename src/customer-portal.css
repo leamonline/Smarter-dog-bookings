@@ -986,6 +986,71 @@
 .portal-chevron { transition: transform 220ms ease; }
 [aria-expanded="true"] .portal-chevron { transform: rotate(180deg); }
 
+/* --- Focus rings: per-context overrides --- */
+/* The default :focus-visible ring is yellow-dark on white. Against the yellow
+   CTA itself, that ring vanishes — so swap to a white inner ring + navy glow
+   so the focused state is visible on coloured surfaces. Same treatment for
+   the green confirm CTA. */
+.portal-btn--cta:focus-visible,
+.wizard-btn--confirm:focus-visible,
+.wizard-btn--primary:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(45, 0, 75, 0.45);
+}
+.portal-btn--primary:focus-visible {
+  outline: 3px solid var(--sd-navy);
+  outline-offset: 2px;
+}
+
+/* --- Typography rhythm helpers ---
+   Drop-in utilities that codify the customer-portal typography scale.
+   Not every inline text-class needs replacing — these exist so new code
+   can reach for the canonical step instead of inventing a new size. */
+.portal-text-display {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: clamp(24px, 5vw, 34px);
+  letter-spacing: -0.4px;
+  color: var(--sd-navy);
+  line-height: 1.1;
+}
+.portal-text-card-title {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.2px;
+  color: var(--sd-navy);
+}
+.portal-text-subhead {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--sd-navy);
+}
+.portal-text-body {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sd-navy);
+}
+.portal-text-help {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sd-ink-light);
+}
+.portal-text-kicker {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sd-ink-light);
+}
+
 /* --- Sticky mobile CTA bar --- */
 .portal-sticky-cta {
   position: fixed;

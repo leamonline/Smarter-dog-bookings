@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
+import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 // Cloudflare's published test key — always passes, no real challenge.
@@ -9,24 +10,76 @@ const TURNSTILE_SITE_KEY =
   import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
 
 const OTP_RESEND_SECONDS = 60;
-const PHONE_FORMAT_ERROR = "Please enter a valid UK mobile number, for example 07700 900123.";
+// Keep the format hint gentle — getting your phone number wrong is the most
+// common slip on this page, and harsh copy makes a small mistake feel like
+// a wall.
+const PHONE_FORMAT_ERROR = "That number doesn't look quite right. Try a UK mobile starting with 07.";
 
-// Mirrors the smarterdog.co.uk brand palette so the customer portal login
-// reads as the same site to a returning customer.
-const websiteColors = {
-  plum: "#2D004B",
-  teal: "#2A6F6B",
-  warmBeige: "#FDFBF7",
-  green: "#00D94A",
-};
-
+// Focus ring driven by token, not a bespoke colour. Used on every interactive
+// control on the page so keyboard navigation reads as one consistent thing.
 const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2A6F6B]";
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--sd-navy)]";
+
+// Page background mirrors the customer dashboard — same sky + buttercup
+// radial gradients on paper, so signing in feels like it's already inside the
+// portal rather than a separate teal-themed app.
+const pageBackground =
+  "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.15), transparent 70%), " +
+  "radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%), " +
+  "var(--sd-paper)";
+
+// Decorative scatter of the brand's dog silhouette across the card. Each is
+// placed deterministically (so the layout doesn't shift between renders) but
+// chosen to feel random — varying size, rotation, colour, and opacity.
+// Recolouring is done with CSS mask-image: the PNG becomes a stencil and the
+// background-color paints through it.
+const SILHOUETTE_SCATTER = [
+  { top: "-4%",  left: "-6%",  size: 130, rot: -18, color: "var(--sd-navy)",      opacity: 0.07 },
+  { top: "12%",  left: "82%",  size: 70,  rot:  22, color: "var(--sd-yellow)",    opacity: 0.18 },
+  { top: "30%",  left: "-8%",  size: 90,  rot:  12, color: "var(--sd-cyan-dark)", opacity: 0.07 },
+  { top: "44%",  left: "88%",  size: 50,  rot: -28, color: "var(--sd-coral)",     opacity: 0.12 },
+  { top: "58%",  left: "8%",   size: 60,  rot:  35, color: "var(--sd-yellow-dark)", opacity: 0.10 },
+  { top: "70%",  left: "70%",  size: 110, rot:  -8, color: "var(--sd-navy-soft)", opacity: 0.06 },
+  { top: "88%",  left: "18%",  size: 75,  rot:  18, color: "var(--sd-cyan-dark)", opacity: 0.09 },
+  { top: "92%",  left: "82%",  size: 55,  rot: -14, color: "var(--sd-yellow)",    opacity: 0.13 },
+];
+
+const SILHOUETTE_URL = "/images/dog-silhouette.png";
+
+function DogSilhouetteScatter() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {SILHOUETTE_SCATTER.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: "absolute",
+            top: s.top,
+            left: s.left,
+            width: s.size,
+            height: s.size,
+            transform: `rotate(${s.rot}deg)`,
+            opacity: s.opacity,
+            backgroundColor: s.color,
+            WebkitMaskImage: `url(${SILHOUETTE_URL})`,
+            maskImage: `url(${SILHOUETTE_URL})`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
-  // Phone is split into a locked +44 prefix and the local-number digits
-  // the customer types. Storing only the digits keeps the field tidy
-  // and makes it impossible to delete the country code.
+  // Phone is split into a locked +44 prefix and the local-number digits the
+  // customer types. Storing only the digits keeps the field tidy and makes it
+  // impossible to delete the country code.
   const [localDigits, setLocalDigits] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -104,174 +157,207 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
 
   const errorText = localError || error;
 
+  // Yellow CTA is reserved for non-booking primary actions across the portal;
+  // green stays the booking-only colour. "Text me a code" / "Sign in" are not
+  // bookings, so they use yellow.
+  const submitButtonClass = `w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--sd-yellow)] text-[var(--sd-navy)] hover:bg-[var(--sd-yellow-dark)] disabled:opacity-70 transition-colors ${focusRing}`;
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
-      style={{ backgroundColor: websiteColors.warmBeige }}
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
+      style={{ background: pageBackground }}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg p-8">
-        <div className="text-center mb-6">
-          <a
-            href="https://smarterdog.co.uk"
-            className={`text-sm font-medium underline rounded ${focusRing}`}
-            style={{ color: websiteColors.teal }}
-          >
-            <span aria-hidden="true">← </span>
-            Back to smarterdog.co.uk
-          </a>
-        </div>
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
+        {/* Decorative scatter of the brand dog silhouette behind the form. */}
+        <DogSilhouetteScatter />
 
-        {/* aria-live wrapper announces the stage change (heading + instruction)
-            to screen readers when otpSent flips. */}
-        <div aria-live="polite">
-          <h1
-            className="font-display font-bold text-3xl mb-2 text-center"
-            style={{ color: websiteColors.teal, letterSpacing: "0.02em" }}
-          >
-            {!otpSent ? "Sign in to your account" : "Enter your code"}
-          </h1>
-          <p id="login-instruction" className="text-sm text-center text-gray-600 mb-6">
-            {!otpSent
-              ? "Pop in your mobile number — we'll text you a 6-digit code."
-              : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
+        <div className="relative">
+          {/* Logo first — strongest possible "you're in the right place" signal
+              for a customer landing here from a text link. The kicker beneath
+              labels which Smarter Dog surface this is. */}
+          <div className="flex justify-center mb-4">
+            <img
+              src="/logo.png"
+              alt="Smarter Dog Grooming Salon"
+              className="h-[72px] w-auto select-none"
+              draggable={false}
+            />
+          </div>
+          <p className="portal-text-kicker text-center mb-5" style={{ letterSpacing: "0.12em" }}>
+            Customer portal
           </p>
-        </div>
 
-        {/* Error region is always present in the DOM so role=alert + aria-live
-            announce reliably across SR/browser combos. Visually empty when
-            there's no error. */}
-        <div
-          role="alert"
-          aria-live="assertive"
-          className={
-            errorText
-              ? "mb-5 p-3 rounded-lg bg-red-50 text-red-700 text-sm"
-              : "sr-only"
-          }
-        >
-          {errorText}
-        </div>
+          {/* aria-live wrapper announces the stage change (heading + instruction)
+              to screen readers when otpSent flips. */}
+          <div aria-live="polite">
+            <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+              <span className="relative inline-block">
+                {!otpSent ? "Sign in" : "Enter your code"}
+                <ScribbleUnderline />
+              </span>
+            </h1>
+            {!otpSent && (
+              <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-4 leading-relaxed">
+                Book grooms, see past visits, and keep your details up to date.
+              </p>
+            )}
+            <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
+              {!otpSent
+                ? "Enter your mobile number and we'll text you a 6-digit sign-in code."
+                : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
+            </p>
+          </div>
 
-        {!otpSent ? (
-          <form onSubmit={handleRequestOtp} className="space-y-4" noValidate>
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-bold mb-1"
-                style={{ color: websiteColors.teal }}
+          {/* Error region is always present in the DOM so role=alert + aria-live
+              announce reliably across SR/browser combos. Visually empty when
+              there's no error. */}
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={errorText ? "portal-alert portal-alert--error mb-6" : "sr-only"}
+          >
+            {errorText}
+          </div>
+
+          {!otpSent ? (
+            <form onSubmit={handleRequestOtp} className="space-y-6" noValidate>
+              <div>
+                <label htmlFor="phone" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                  Mobile number
+                </label>
+                {/* Locked +44 prefix on the left, digits-only input on the right.
+                    The bordered wrapper shows the focus ring so the field reads
+                    as one control. */}
+                <div className={`flex items-stretch rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] focus-within:border-[var(--sd-navy)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--sd-navy)] overflow-hidden bg-white`}>
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(45,0,75,0.14)] select-none text-[var(--sd-navy)]"
+                    style={{ background: "var(--sd-buttercup-tint)" }}
+                  >
+                    +44
+                  </span>
+                  <input
+                    ref={phoneInputRef}
+                    id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    required
+                    value={localDigits}
+                    onChange={(e) => {
+                      // Accept only digits, strip a leading 0 (UK mobile typed
+                      // in 07… form), cap at 10 digits.
+                      const digits = e.target.value
+                        .replace(/\D/g, "")
+                        .replace(/^0+/, "")
+                        .slice(0, 10);
+                      setLocalDigits(digits);
+                      setLocalError("");
+                    }}
+                    placeholder="7700 900123"
+                    pattern="7[0-9]{9}"
+                    title={PHONE_FORMAT_ERROR}
+                    aria-invalid={!otpSent && Boolean(errorText)}
+                    aria-describedby="login-instruction"
+                    className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
+                  />
+                </div>
+              </div>
+
+              {/* Embed Turnstile in a tinted, labelled panel so it reads as
+                  part of the form rather than a foreign widget pasted in.
+                  The hint copy reassures non-technical users that nothing
+                  is required from them — the check passes silently. */}
+              <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+                <p className="portal-text-kicker text-center mb-3">
+                  Quick security check
+                </p>
+                <div className="flex justify-center">
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => { captchaTokenRef.current = token; }}
+                    onExpire={() => { captchaTokenRef.current = null; }}
+                    onError={() => { captchaTokenRef.current = null; }}
+                    options={{ theme: "light", size: "normal" }}
+                  />
+                </div>
+                <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+                  Just confirms you&apos;re human — no clicks needed.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting || otpCooldown > 0}
+                aria-busy={submitting}
+                className={submitButtonClass}
+                style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
               >
-                Mobile number
-              </label>
-              {/* Locked +44 prefix on the left, digits-only input on the
-                  right. The bordered wrapper shows the focus ring so the
-                  field reads as one control. */}
-              <div className="flex items-stretch rounded-xl border-2 border-gray-200 focus-within:border-[#2A6F6B] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[#2A6F6B] overflow-hidden bg-white">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex items-center justify-center px-3 min-h-[48px] bg-gray-50 text-base font-bold border-r border-gray-200 select-none"
-                  style={{ color: websiteColors.teal }}
-                >
-                  +44
-                </span>
+                {submitting
+                  ? "Sending…"
+                  : otpCooldown > 0
+                    ? `Try again in ${otpCooldown}s`
+                    : "Text me a code"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div>
+                <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                  6-digit code
+                </label>
                 <input
-                  ref={phoneInputRef}
-                  id="phone"
-                  type="tel"
+                  ref={codeInputRef}
+                  id="code"
+                  type="text"
                   inputMode="numeric"
-                  autoComplete="tel-national"
+                  autoComplete="one-time-code"
+                  pattern="\d{6}"
+                  maxLength={6}
                   required
-                  value={localDigits}
+                  value={code}
                   onChange={(e) => {
-                    // Accept only digits, strip a leading 0 (UK mobile
-                    // typed in 07… form), cap at 10 digits.
-                    const digits = e.target.value
-                      .replace(/\D/g, "")
-                      .replace(/^0+/, "")
-                      .slice(0, 10);
-                    setLocalDigits(digits);
+                    setCode(e.target.value.replace(/\D/g, ""));
                     setLocalError("");
                   }}
-                  placeholder="7700 900123"
-                  pattern="7[0-9]{9}"
-                  title={PHONE_FORMAT_ERROR}
-                  aria-invalid={!otpSent && Boolean(errorText)}
+                  placeholder="123456"
+                  aria-invalid={otpSent && Boolean(errorText)}
                   aria-describedby="login-instruction"
-                  className="flex-1 px-3 py-3 min-h-[48px] focus:outline-none text-base bg-transparent"
+                  className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
                 />
               </div>
-            </div>
-            <Turnstile
-              ref={turnstileRef}
-              siteKey={TURNSTILE_SITE_KEY}
-              onSuccess={(token) => { captchaTokenRef.current = token; }}
-              onExpire={() => { captchaTokenRef.current = null; }}
-              onError={() => { captchaTokenRef.current = null; }}
-              options={{ theme: "light", size: "normal" }}
-            />
-            <button
-              type="submit"
-              disabled={submitting || otpCooldown > 0}
-              aria-busy={submitting}
-              className={`w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70 ${focusRing}`}
-              style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
-            >
-              {submitting
-                ? "Sending…"
-                : otpCooldown > 0
-                  ? `Try again in ${otpCooldown}s`
-                  : "Text me a code"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label
-                htmlFor="code"
-                className="block text-sm font-bold mb-1"
-                style={{ color: websiteColors.teal }}
+              <button
+                type="submit"
+                disabled={submitting}
+                aria-busy={submitting}
+                className={submitButtonClass}
+                style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
               >
-                6-digit code
-              </label>
-              <input
-                ref={codeInputRef}
-                id="code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="\d{6}"
-                maxLength={6}
-                required
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value.replace(/\D/g, ""));
-                  setLocalError("");
-                }}
-                placeholder="123456"
-                aria-invalid={otpSent && Boolean(errorText)}
-                aria-describedby="login-instruction"
-                className={`w-full px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 focus:border-[#2A6F6B] text-base tracking-widest text-center ${focusRing}`}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              aria-busy={submitting}
-              className={`w-full py-3 min-h-[48px] rounded-full font-bold text-base disabled:opacity-70 ${focusRing}`}
-              style={{ backgroundColor: websiteColors.green, color: websiteColors.plum }}
-            >
-              {submitting ? "Checking…" : "Sign in"}
-            </button>
-            <button
-              type="button"
-              onClick={onResetOtp}
-              className={`w-full text-sm font-medium underline rounded ${focusRing}`}
-              style={{ color: websiteColors.teal }}
-            >
-              Use a different number
-            </button>
-          </form>
-        )}
+                {submitting ? "Checking…" : "Sign in"}
+              </button>
+              <button
+                type="button"
+                onClick={onResetOtp}
+                className={`w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`}
+              >
+                Use a different number
+              </button>
+            </form>
+          )}
+        </div>
       </div>
+
+      {/* Back link sits beneath the card as an exit ramp. Closer (mt-5) and
+          using a human label rather than the bare domain so anyone glancing
+          at it knows where they're going. */}
+      <a
+        href="https://smarterdog.co.uk"
+        className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+      >
+        <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
+        Back to Smarter Dog website
+      </a>
     </div>
   );
 }

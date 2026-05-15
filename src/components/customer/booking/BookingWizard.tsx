@@ -28,6 +28,35 @@ interface BookingWizardProps {
   onCancel: () => void;
 }
 
+/**
+ * State the dashboard's BookingCard passes via `navigate("/customer/book", { state })`
+ * when the customer chooses Reschedule. Tells the wizard which existing
+ * booking to cancel *after* the new one is successfully created — so a
+ * customer who abandons the wizard never loses their original slot.
+ */
+interface RescheduleFromState {
+  id: string;
+  groupId: string | null;
+  // Pre-formatted display labels so the wizard's banner doesn't have
+  // to re-fetch the original booking just to show what's being moved.
+  dateLabel: string;
+  timeLabel: string;
+  dogName: string;
+}
+
+function fmtTimeForReason(slot: string): string {
+  const [h, m] = slot.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
+}
+
+function fmtDateForReason(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+  });
+}
+
 interface RawDog {
   id: string;
   name: string;
@@ -76,11 +105,14 @@ function ConfettiPaws() {
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
   const location = useLocation();
-  const rescheduleState = (location.state ?? {}) as {
-    rescheduleFromId?: string;
-    rescheduleFromGroupId?: string | null;
-  };
-  const isRescheduling = Boolean(rescheduleState.rescheduleFromId);
+  // Read the reschedule context exactly once on mount. If the customer reloads
+  // the page mid-wizard, route state is gone — they fall back into a normal
+  // booking flow, and their original slot stays untouched. That's the right
+  // failure mode.
+  const [rescheduleFrom] = useState<RescheduleFromState | null>(() => {
+    const state = location.state as { rescheduleFrom?: RescheduleFromState } | null;
+    return state?.rescheduleFrom ?? null;
+  });
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [dogs, setDogs] = useState<RawDog[]>([]);
@@ -217,24 +249,25 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       if (insertError) throw insertError;
 
       // If this run started as a reschedule, the original booking(s) only get
-      // cancelled once the new insert has succeeded. Both writes live in this
-      // try/catch — if the insert fails the cancel never runs, so the
-      // customer's original slot stays held.
-      if (isRescheduling && rescheduleState.rescheduleFromId) {
-        const idsToCancel = rescheduleState.rescheduleFromGroupId
+      // cancelled once the new insert has succeeded. Both writes share this
+      // try/catch — an insert failure means the cancel never runs (original
+      // stays held); a cancel failure after a successful insert surfaces as
+      // an error so the salon catches the rare duplicate, rather than us
+      // silently leaving two active bookings.
+      if (rescheduleFrom) {
+        const idsToCancel = rescheduleFrom.groupId
           ? (await supabase
               .from("bookings")
               .select("id")
-              .eq("group_id", rescheduleState.rescheduleFromGroupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleState.rescheduleFromId]
-          : [rescheduleState.rescheduleFromId];
-
-        const newDateLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-        const [h, mm] = slotAllocation.dropOffTime.split(":").map(Number);
-        const newTimeLabel = `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(mm).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
+              .eq("group_id", rescheduleFrom.groupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleFrom.id]
+          : [rescheduleFrom.id];
 
         const { error: cancelError } = await supabase
           .from("bookings")
-          .update({ status: "Cancelled", cancel_reason: `Rescheduled to ${newDateLabel} at ${newTimeLabel}` })
+          .update({
+            status: "Cancelled",
+            cancel_reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
+          })
           .in("id", idsToCancel);
         if (cancelError) throw cancelError;
       }
@@ -391,11 +424,18 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           ))}
         </ol>
 
-        {/* Reschedule banner — surfaces the "your old slot stays held" guarantee
-            while the customer walks through the wizard. */}
-        {isRescheduling && (
+        {/* Rescheduling banner — only present when the BookingCard sent us
+            here with a rescheduleFrom in route state. Reassures the customer
+            that nothing has been cancelled yet. */}
+        {rescheduleFrom && (
           <div role="status" className="portal-alert portal-alert--info">
-            Rescheduling: your existing slot stays held until you confirm a new time. Cancel out and nothing changes.
+            <span>
+              <strong>
+                Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.
+              </strong>
+              {" "}
+              Your original booking stays held until you confirm a new time. Cancel out and nothing changes.
+            </span>
           </div>
         )}
 
