@@ -2,11 +2,8 @@ import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
-import { PawPrint, AlertTriangle, Camera, MessageCircle, Pencil, X } from "lucide-react";
-
-function effectiveSize(dog) {
-  return dog.size || getSizeForBreed(dog.breed) || "";
-}
+import { AddDogInline } from "./booking/AddDogInline.tsx";
+import { PawPrint, Pencil, Plus, X } from "lucide-react";
 
 const ERR_LABEL = {
   not_authenticated: "Please sign in again.",
@@ -23,6 +20,10 @@ function errorFromRpc(err) {
   return key ? ERR_LABEL[key] : "Something went wrong. Please try again.";
 }
 
+function effectiveSize(dog) {
+  return dog.size || getSizeForBreed(dog.breed) || "";
+}
+
 const SIZES = [
   { value: "", label: "Not sure" },
   { value: "small", label: "Small" },
@@ -30,7 +31,21 @@ const SIZES = [
   { value: "large", label: "Large" },
 ];
 
-function DogRow({ dog, onSaved }) {
+const AVATAR_PALETTE = ["sky", "buttercup", "mint", "coral"];
+function avatarTintFor(id) {
+  if (!id) return AVATAR_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+}
+
+function lastGroomLabel(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function DogRow({ dog, lastGroomDate, onSaved }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -52,8 +67,6 @@ function DogRow({ dog, onSaved }) {
     setEditing(false);
   }, [dog]);
 
-  // When the user picks a breed we know, fill in the size for them.
-  // Doesn't override an explicit size the user already typed.
   const handleBreedChange = (newBreed) => {
     setForm((f) => {
       const derived = getSizeForBreed(newBreed);
@@ -122,7 +135,7 @@ function DogRow({ dog, onSaved }) {
         {error && <div role="alert" className="portal-inline-error">{error}</div>}
         <div className="portal-inline-form-actions">
           <button type="submit" className="portal-btn portal-btn--primary portal-btn--small" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving…" : "Save"}
           </button>
           <button type="button" className="portal-btn portal-btn--ghost portal-btn--small" onClick={reset}>
             <X size={14} aria-hidden="true" />
@@ -133,40 +146,49 @@ function DogRow({ dog, onSaved }) {
     );
   }
 
+  const initial = (dog.name || "?").trim().charAt(0).toUpperCase();
+  const tint = avatarTintFor(dog.id);
+  const sizeLabel = effectiveSize(dog);
+  const sizeBit = sizeLabel ? ` · ${sizeLabel}` : "";
+  const lastGroom = lastGroomLabel(lastGroomDate);
+
   return (
-    <div className="flex justify-between items-center py-3 border-b border-[rgba(45,0,75,0.07)] last:border-b-0 gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-bold text-brand-purple font-display">{dog.name}</div>
-        <div className="text-[13px] font-medium text-slate-500 mt-0.5">
-          {dog.breed || "Breed not set"}{effectiveSize(dog) ? ` · ${effectiveSize(dog)}` : ""}
-        </div>
-        {dog.groom_notes && (
-          <div className="text-xs text-brand-purple bg-white/70 py-1 px-2.5 rounded-md mt-1.5 font-medium">
-            {dog.groom_notes}
-          </div>
+    <div className="portal-entity-row">
+      <span className={`portal-avatar portal-avatar--${tint}`} aria-hidden="true">
+        {initial}
+      </span>
+      <div className="portal-entity-row-body">
+        <p className="portal-entity-row-name">{dog.name}</p>
+        <p className="portal-entity-row-meta">
+          {dog.breed || "Breed not set"}{sizeBit}
+        </p>
+        {lastGroom && (
+          <p className="portal-entity-row-meta">Last groom: {lastGroom}</p>
         )}
       </div>
-      <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <button
-          type="button"
-          className="portal-btn portal-btn--secondary portal-btn--small"
-          onClick={() => setEditing(true)}
-        >
-          <Pencil size={12} aria-hidden="true" />
-          Edit
-        </button>
-        {dog.alerts && dog.alerts.length > 0 && (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-brand-coral">
-            <AlertTriangle size={12} aria-hidden="true" />
-            {dog.alerts.length} alert{dog.alerts.length > 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
+      <button
+        type="button"
+        className="portal-btn portal-btn--ghost portal-btn--small"
+        onClick={() => setEditing(true)}
+        aria-label={`Edit ${dog.name}`}
+      >
+        <Pencil size={12} aria-hidden="true" />
+        Edit
+      </button>
     </div>
   );
 }
 
-export function DogsSection({ dogs, onDogUpdated }) {
+export function DogsSection({ dogs, lastGroomByDog = {}, humanId, onDogUpdated, onDogAdded }) {
+  const [addingNew, setAddingNew] = useState(false);
+
+  const handleAdded = (dog) => {
+    onDogAdded?.(dog);
+    setAddingNew(false);
+  };
+
+  const isEmpty = dogs.length === 0;
+
   return (
     <div className="portal-card portal-card--coral" style={cardAnim(0.1)}>
       <div className="portal-card-header">
@@ -176,32 +198,44 @@ export function DogsSection({ dogs, onDogUpdated }) {
         <h2 className="portal-card-title">My dogs</h2>
       </div>
 
-      {dogs.length === 0 ? (
-        <div className="portal-polaroid">
-          <div className="portal-polaroid-frame" aria-hidden="true">
-            <div className="portal-polaroid-photo">
-              <Camera size={42} strokeWidth={1.5} />
-            </div>
-            <span className="portal-polaroid-caption">Add your first pup</span>
-          </div>
-          <p className="portal-empty-title">No dogs on file just yet</p>
-          <p className="portal-empty-body">
-            We&apos;ll add your dogs once you&apos;ve been in &mdash; or message the salon to add them now.
+      <div className="flex-1">
+        {isEmpty && !addingNew && (
+          <p className="portal-empty-body" style={{ marginTop: 0 }}>
+            Add your pup so we can keep their grooming history together.
           </p>
-          <a
-            href="https://wa.me/447507731487"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="portal-btn portal-btn--whatsapp"
+        )}
+
+        {!isEmpty && dogs.map(dog => (
+          <DogRow
+            key={dog.id}
+            dog={dog}
+            lastGroomDate={lastGroomByDog[dog.id]}
+            onSaved={onDogUpdated}
+          />
+        ))}
+
+        {addingNew && humanId && (
+          <div className="mt-3">
+            <AddDogInline
+              humanId={humanId}
+              onDogAdded={handleAdded}
+              onCancel={() => setAddingNew(false)}
+            />
+          </div>
+        )}
+      </div>
+
+      {!addingNew && (
+        <div className="portal-card-bottom-action">
+          <button
+            type="button"
+            className="portal-btn portal-btn--secondary w-full"
+            onClick={() => setAddingNew(true)}
           >
-            <MessageCircle size={16} aria-hidden="true" />
-            Message the salon
-          </a>
+            <Plus size={14} aria-hidden="true" />
+            {isEmpty ? "Add a dog" : "Add another dog"}
+          </button>
         </div>
-      ) : (
-        dogs.map(dog => (
-          <DogRow key={dog.id} dog={dog} onSaved={onDogUpdated} />
-        ))
       )}
     </div>
   );

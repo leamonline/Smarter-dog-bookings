@@ -174,6 +174,23 @@
   letter-spacing: 0.1px;
 }
 
+/* Dynamic status line beneath the greeting. Coloured by tone:
+   .portal-status-line--neutral  next-groom info (navy)
+   .portal-status-line--amber    overdue / action needed
+   .portal-status-line--mute     not-yet-actioned, low-priority */
+.portal-status-line {
+  margin: 8px 0 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.portal-status-line--neutral { color: var(--sd-navy); }
+.portal-status-line--amber   { color: #8A6300; }
+.portal-status-line--mute    { color: var(--sd-ink-light); font-weight: 500; }
+
 /* CTA in header — declared after .portal-btn--cta so overrides win. */
 @media (min-width: 640px) {
   .portal-header { padding: 22px 20px 10px; }
@@ -193,10 +210,12 @@
   gap: 14px;
 }
 
-/* 2-up at tablet, 2x2 visually for the four primary cards */
+/* Tablet: 2-up grid, full-width sections span both columns. */
 @media (min-width: 640px) {
   .portal-content {
     grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    align-items: stretch;
     gap: 16px;
     max-width: 880px;
   }
@@ -207,8 +226,34 @@
   .portal-main { padding: 18px 20px 60px; }
 }
 
+/* Desktop: 3-up row for My details / My dogs / Trusted humans. */
 @media (min-width: 1024px) {
-  .portal-content { max-width: 1000px; gap: 20px; }
+  .portal-content { max-width: 1080px; gap: 20px; }
+  .portal-content--three-up { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Wrapper for the new 3-column row. Uses items-stretch so every card
+   matches the tallest, and each card pushes its action to the bottom
+   via .portal-card-bottom-action. */
+.portal-trio {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 768px) {
+  .portal-trio {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: stretch;
+  }
+  /* At md, the third tile (Trusted humans) wraps full-width. */
+  .portal-trio > :nth-child(3) { grid-column: 1 / -1; }
+}
+@media (min-width: 1024px) {
+  .portal-trio {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .portal-trio > :nth-child(3) { grid-column: auto; }
 }
 
 /* --- Cards --- */
@@ -220,6 +265,16 @@
   padding: 18px 20px 16px;
   box-shadow: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Push a card's primary action to the bottom regardless of content height,
+   so the three trio cards align actions on a shared baseline. */
+.portal-card-bottom-action {
+  margin-top: auto;
+  padding-top: 14px;
 }
 
 .portal-card--sky      { background: var(--sd-sky-tint); }
@@ -401,7 +456,7 @@
   font-size: 12px;
 }
 
-/* Inline "add" link */
+/* Inline "add" link (legacy — used by portal-detail-row empty values) */
 .portal-add-prompt {
   color: var(--sd-cyan-dark);
   font-weight: 700;
@@ -418,6 +473,29 @@
 .portal-add-prompt:hover {
   color: var(--sd-navy);
   border-bottom-color: var(--sd-navy);
+}
+
+/* Ghost "+ Add x" pill — softer affordance than .portal-add-prompt for
+   empty-value placeholders inside cards. */
+.portal-ghost-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sd-navy-soft);
+  background: rgba(45, 0, 75, 0.04);
+  border: 1px dashed rgba(45, 0, 75, 0.18);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.portal-ghost-add:hover {
+  background: rgba(45, 0, 75, 0.08);
+  border-color: var(--sd-navy);
+  color: var(--sd-navy);
 }
 
 /* --- Detail rows --- */
@@ -690,10 +768,30 @@
 /* --- Footer --- */
 .portal-footer {
   border-top: 1px solid rgba(45, 0, 75, 0.08);
-  padding: 18px 16px 22px;
-  margin-top: 24px;
-  text-align: center;
+  padding: 22px 16px 28px;
+  margin-top: 32px;
   background: var(--sd-white);
+}
+
+.portal-footer-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.portal-footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: var(--sd-navy-soft);
 }
 
 .portal-footer-tagline {
@@ -702,7 +800,7 @@
   font-weight: 600;
   font-size: 16px;
   color: var(--sd-navy);
-  margin: 0 0 12px;
+  margin: 0;
 }
 
 .portal-footer-phone {
@@ -719,6 +817,174 @@
   box-shadow: 0 6px 14px -8px rgba(254, 204, 19, 0.8);
 }
 .portal-footer-phone:hover { background: var(--sd-yellow-dark); }
+
+.portal-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--sd-navy-soft);
+}
+.portal-footer-meta svg { color: var(--sd-navy-soft); }
+
+.portal-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sd-ink-light);
+}
+.portal-footer-links a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.portal-footer-links a:hover {
+  color: var(--sd-navy);
+  border-bottom-color: var(--sd-yellow);
+}
+.portal-footer-links-sep { color: rgba(45, 0, 75, 0.20); }
+
+@media (min-width: 768px) {
+  .portal-footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .portal-footer-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .portal-footer-row--right { align-items: flex-end; }
+}
+
+/* --- Booking card (single source of truth for the next-action block) --- */
+.portal-booking-card {
+  position: relative;
+  background: var(--sd-white);
+  border: 1px solid rgba(45, 0, 75, 0.06);
+  border-radius: 18px;
+  padding: 22px 22px 20px;
+  box-shadow: 0 6px 20px -12px rgba(45, 0, 75, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.portal-booking-card--booked { background: var(--sd-mint-tint); border-color: rgba(0, 194, 71, 0.20); }
+.portal-booking-card--empty  { background: var(--sd-white); }
+
+.portal-booking-card-title {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sd-navy);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+.portal-booking-card-body {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: var(--sd-navy-soft);
+  margin: 0;
+  line-height: 1.5;
+}
+.portal-booking-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.portal-booking-card-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sd-navy-soft);
+  padding: 6px 4px;
+  text-decoration: none;
+}
+.portal-booking-card-secondary:hover { color: var(--sd-navy); }
+.portal-booking-card-secondary--danger { color: #B83A4F; }
+.portal-booking-card-secondary--danger:hover { color: #8E2438; }
+
+/* --- Initials avatar (dogs / trusted humans) --- */
+.portal-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sd-navy);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+/* Four deterministic palette tints — pick by hash(id) % 4 in JSX. */
+.portal-avatar--sky      { background: #CDEBFF; color: var(--sd-cyan-dark); }
+.portal-avatar--buttercup{ background: #FFE9A8; color: #8A6300; }
+.portal-avatar--mint     { background: #BFF0CE; color: var(--sd-green-dark); }
+.portal-avatar--coral    { background: #FFD8E0; color: #B83A4F; }
+
+/* --- Compact entity row (dog / trusted human) --- */
+.portal-entity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(45, 0, 75, 0.07);
+}
+.portal-entity-row:last-of-type { border-bottom: none; }
+.portal-entity-row-body { min-width: 0; flex: 1; }
+.portal-entity-row-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sd-navy);
+  margin: 0;
+  line-height: 1.2;
+}
+.portal-entity-row-meta {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sd-ink-light);
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+
+/* Past appointment row (date — service · price) */
+.portal-past-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(45, 0, 75, 0.06);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  color: var(--sd-navy-soft);
+}
+.portal-past-row:last-of-type { border-bottom: none; }
+.portal-past-row-date { font-weight: 700; color: var(--sd-navy); }
+.portal-past-row-service { color: var(--sd-navy-soft); flex: 1; }
+.portal-past-row-price { color: var(--sd-ink-light); font-weight: 600; }
+
+/* Chevron rotates 180° when its parent disclosure is open */
+.portal-chevron { transition: transform 220ms ease; }
+[aria-expanded="true"] .portal-chevron { transform: rotate(180deg); }
 
 /* --- Sticky mobile CTA bar --- */
 .portal-sticky-cta {
