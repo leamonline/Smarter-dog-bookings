@@ -63,7 +63,7 @@ export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonP
     <button
       onClick={handleClick}
       disabled={loading}
-      className="py-2 px-5 rounded-lg border border-brand-teal/30 bg-brand-teal/5 text-brand-teal font-semibold text-[13px] cursor-pointer font-[inherit] hover:bg-brand-teal/10 transition-colors disabled:opacity-50"
+      className="py-2 px-5 rounded-lg border border-[rgba(0,122,171,0.30)] bg-[var(--sd-sky-tint)] text-[var(--sd-cyan-dark)] font-semibold text-[13px] cursor-pointer font-[inherit] hover:bg-[rgba(0,122,171,0.10)] transition-colors disabled:opacity-50"
     >
       {loading ? "Loading..." : "\uD83D\uDCC5 Add to Calendar"}
     </button>

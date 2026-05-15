@@ -183,7 +183,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               draggable={false}
             />
           </div>
-          <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--sd-ink-light)] text-center mb-5">
+          <p className="portal-text-kicker text-center mb-5" style={{ letterSpacing: "0.12em" }}>
             Customer portal
           </p>
 
@@ -269,7 +269,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   The hint copy reassures non-technical users that nothing
                   is required from them — the check passes silently. */}
               <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
-                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-[var(--sd-ink-light)] text-center mb-3">
+                <p className="portal-text-kicker text-center mb-3">
                   Quick security check
                 </p>
                 <div className="flex justify-center">
