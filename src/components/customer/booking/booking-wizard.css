@@ -358,3 +358,124 @@
   .wizard-btn { transition: none; }
   .wizard-btn:hover:not(:disabled) { transform: none !important; }
 }
+
+/* === Booking success screen === */
+.booking-success {
+  max-width: 480px;
+  margin: 40px auto;
+  padding: 0 20px 60px;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  position: relative;
+}
+
+.booking-success-paws {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.booking-success-paws svg {
+  position: absolute;
+  opacity: 0.18;
+  animation: pawFloat 3.6s ease-in-out infinite;
+}
+
+.booking-success > *:not(.booking-success-paws) { position: relative; z-index: 1; }
+
+@keyframes pawFloat {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--rot, 0deg)); }
+}
+
+.booking-success-polaroid {
+  width: 180px;
+  height: 200px;
+  margin: 0 auto 24px;
+  background: white;
+  padding: 12px 12px 32px;
+  border-radius: 4px;
+  box-shadow: 0 18px 40px -18px rgba(45, 0, 75, 0.35);
+  transform: rotate(-3deg);
+  position: relative;
+  animation: polaroidDrop 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.booking-success-polaroid::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  width: 80px;
+  height: 20px;
+  background: var(--color-sd-tape-yellow);
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(45, 0, 75, 0.12);
+}
+.booking-success-polaroid-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  background: repeating-linear-gradient(45deg, #E6F4FB 0 10px, #DBEEF8 10px 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sd-cyan-dark);
+}
+
+.booking-success-title {
+  font-family: 'Quicksand', 'Montserrat', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--sd-navy);
+  margin: 0 0 12px;
+  position: relative;
+  display: inline-block;
+  letter-spacing: -0.4px;
+}
+.booking-success-subtitle {
+  font-size: 15px;
+  color: var(--sd-navy-soft);
+  margin: 8px 0 18px;
+  line-height: 1.5;
+}
+.booking-success-ref {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sd-ink-light);
+  background: white;
+  border: 1px dashed rgba(45, 0, 75, 0.18);
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 24px;
+}
+.booking-success-ref code { font-family: inherit; }
+.booking-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+.booking-success-footnote {
+  font-size: 13px;
+  color: var(--sd-ink-light);
+  margin-top: 20px;
+  line-height: 1.5;
+}
+
+@keyframes polaroidDrop {
+  from { opacity: 0; transform: rotate(-3deg) translateY(-32px) scale(0.94); }
+  to   { opacity: 1; transform: rotate(-3deg) translateY(0) scale(1); }
+}
+
+/* Waitlist variant — same shell, coral tape */
+.booking-success--waitlist .booking-success-polaroid::before {
+  background: var(--color-sd-tape-coral);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-success-polaroid { animation: none; }
+  .booking-success-paws svg { animation: none; }
+}
