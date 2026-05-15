@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
@@ -25,6 +26,35 @@ interface BookingWizardProps {
   humanRecord: HumanRecord;
   onComplete: () => void;
   onCancel: () => void;
+}
+
+/**
+ * State the dashboard's BookingCard passes via `navigate("/customer/book", { state })`
+ * when the customer chooses Reschedule. Tells the wizard which existing
+ * booking to cancel *after* the new one is successfully created — so a
+ * customer who abandons the wizard never loses their original slot.
+ */
+interface RescheduleFromState {
+  id: string;
+  groupId: string | null;
+  // Pre-formatted display labels so the wizard's banner doesn't have
+  // to re-fetch the original booking just to show what's being moved.
+  dateLabel: string;
+  timeLabel: string;
+  dogName: string;
+}
+
+function fmtTimeForReason(slot: string): string {
+  const [h, m] = slot.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
+}
+
+function fmtDateForReason(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+  });
 }
 
 interface RawDog {
@@ -74,6 +104,16 @@ function ConfettiPaws() {
 }
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
+  const location = useLocation();
+  // Read the reschedule context exactly once on mount. If the customer reloads
+  // the page mid-wizard, route state is gone — they fall back into a normal
+  // booking flow, and their original slot stays untouched. That's the right
+  // failure mode.
+  const [rescheduleFrom] = useState<RescheduleFromState | null>(() => {
+    const state = location.state as { rescheduleFrom?: RescheduleFromState } | null;
+    return state?.rescheduleFrom ?? null;
+  });
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [dogs, setDogs] = useState<RawDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
@@ -209,6 +249,35 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       if (insertError) throw insertError;
 
       setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
+
+      // Reschedule path: now that the new booking is safely created, cancel
+      // the original. Best-effort — if the cancel fails (network blip, RLS,
+      // already-cancelled by staff) the new booking is still confirmed and
+      // we just log it. Salon staff will see two active bookings and can
+      // resolve manually. Better than orphan-cancelling and ending up with
+      // nothing.
+      if (rescheduleFrom) {
+        try {
+          const ids = rescheduleFrom.groupId
+            ? (await supabase.from("bookings").select("id").eq("group_id", rescheduleFrom.groupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleFrom.id]
+            : [rescheduleFrom.id];
+          const newDateLabel = fmtDateForReason(selectedDate);
+          const newTimeLabel = fmtTimeForReason(slotAllocation.dropOffTime);
+          const cancelResult = await supabase
+            .from("bookings")
+            .update({
+              status: "Cancelled",
+              cancel_reason: `Rescheduled to ${newDateLabel} at ${newTimeLabel}`,
+            })
+            .in("id", ids);
+          if (cancelResult.error) {
+            console.warn("Reschedule: original booking not auto-cancelled", cancelResult.error);
+          }
+        } catch (cancelErr) {
+          console.warn("Reschedule: failed to cancel original booking", cancelErr);
+        }
+      }
+
       setBooked(true);
     } catch (e: any) {
       // The server-side capacity trigger raises useful messages like
@@ -359,6 +428,21 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </li>
           ))}
         </ol>
+
+        {/* Rescheduling banner — only present when the BookingCard sent us
+            here with a rescheduleFrom in route state. Reassures the customer
+            that nothing has been cancelled yet. */}
+        {rescheduleFrom && (
+          <div role="status" className="portal-alert portal-alert--info">
+            <span>
+              <strong>
+                Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.
+              </strong>
+              {" "}
+              Your original booking stays held until you confirm a new time. Cancel out and nothing changes.
+            </span>
+          </div>
+        )}
 
         {/* Running price estimate (U3: shows from step 2 once services selected) */}
         {step >= 2 && Object.keys(services).length > 0 && (() => {

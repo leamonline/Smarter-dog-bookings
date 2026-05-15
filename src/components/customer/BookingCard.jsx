@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";
@@ -10,8 +11,10 @@ import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js"
  * Two states:
  *   1. **Empty** — no upcoming groom. "Ready to book {dogName} in?" + green CTA.
  *   2. **Booked** — has an upcoming groom. Date, time, service, dog;
- *      Reschedule (modal-confirmed: cancels then sends to /book) and Cancel
- *      (inline reason form) as low-emphasis links.
+ *      Reschedule (modal-confirmed: navigates to /customer/book with route
+ *      state — the wizard cancels the original *after* a new booking is
+ *      successfully created, so abandoning the wizard preserves the slot)
+ *      and Cancel (inline reason form) as low-emphasis links.
  *
  * Replaces the old "Upcoming appointments empty state" + "Time for another
  * groom?" rebook block in AppointmentsSection — they duplicated each other
@@ -54,6 +57,7 @@ async function cancelBookingIds({ booking, reason, onChanged }) {
 }
 
 export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
+  const navigate = useNavigate();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
@@ -90,15 +94,22 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const dateStr = formatDate(next.booking_date);
   const timeStr = formatSlot(next.slot);
 
-  const handleRescheduleConfirm = async () => {
-    setSaving(true);
-    try {
-      await cancelBookingIds({ booking: next, reason: "Rescheduling", onChanged: onBookingChanged });
-    } finally {
-      setSaving(false);
-      setConfirmingReschedule(false);
-      onBook();
-    }
+  const handleRescheduleConfirm = () => {
+    // Don't cancel anything yet — pass the booking context to the wizard via
+    // route state. The wizard cancels this booking only *after* a new one is
+    // successfully created, so abandoning the wizard preserves the slot.
+    setConfirmingReschedule(false);
+    navigate("/customer/book", {
+      state: {
+        rescheduleFrom: {
+          id: next.id,
+          groupId: next.group_id || null,
+          dateLabel: `${day} ${dateStr}`,
+          timeLabel: timeStr,
+          dogName,
+        },
+      },
+    });
   };
 
   const startCancel = () => {
@@ -215,11 +226,11 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
       {confirmingReschedule && (
         <ConfirmDialog
-          title="Reschedule this groom?"
-          message={`We'll cancel the ${day} ${dateStr} slot and open the booking flow so you can pick a new time. ${dogName}'s spot will go back to availability the moment you confirm.`}
-          confirmLabel={saving ? "Working…" : "Cancel & rebook"}
+          title="Pick a new time?"
+          message={`We'll open the booking flow so you can pick a new slot for ${dogName}. Your current ${day} ${dateStr}, ${timeStr} booking stays held until you confirm a new one — cancel out and nothing changes.`}
+          confirmLabel="Pick a new time"
           cancelLabel="Keep this slot"
-          variant="danger"
+          variant="primary"
           onConfirm={handleRescheduleConfirm}
           onCancel={() => setConfirmingReschedule(false)}
         />
