@@ -179,6 +179,12 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             </a>
           </div>
 
+          {/* Kicker tells customers what this app is, so the bare "Sign in"
+              heading isn't context-free. Stays visible across both stages. */}
+          <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--sd-ink-light)] text-center mb-3">
+            Smarter Dog · Customer portal
+          </p>
+
           {/* aria-live wrapper announces the stage change (heading + instruction)
               to screen readers when otpSent flips. */}
           <div aria-live="polite">
@@ -188,6 +194,11 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 <ScribbleUnderline />
               </span>
             </h1>
+            {!otpSent && (
+              <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-3 leading-relaxed">
+                Book grooms, see past visits, and keep your details up to date.
+              </p>
+            )}
             <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-6">
               {!otpSent
                 ? "Pop in your mobile number — we'll text you a 6-digit code."
