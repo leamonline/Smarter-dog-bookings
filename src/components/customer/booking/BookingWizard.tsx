@@ -12,7 +12,7 @@ import { SlotSelection } from "./SlotSelection.js";
 import { BookingConfirmation } from "./BookingConfirmation.js";
 import { AddToCalendarButton } from "../AddToCalendarButton.js";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
-import { CheckCircle, Clipboard, PawPrint, Check, ChevronLeft } from "lucide-react";
+import { Clipboard, PawPrint, Check, ChevronLeft, ArrowRight } from "lucide-react";
 import "./booking-wizard.css";
 
 interface HumanRecord {
@@ -41,6 +41,37 @@ const STEP_TITLES = [
   "Choose a time",
   "Confirm booking",
 ];
+
+// Five paw prints scattered around the success screen, gently floating.
+// Decorative — purely a one-time joy moment, hidden from screen readers.
+const CONFETTI_PAWS: Array<{ top: string; left: string; size: number; color: string; rot: number; delay: string }> = [
+  { top: "8%",  left: "10%", size: 22, color: "var(--sd-yellow)",      rot: -18, delay: "0s"   },
+  { top: "22%", left: "82%", size: 18, color: "var(--sd-cyan-dark)",   rot:  12, delay: "0.4s" },
+  { top: "55%", left: "6%",  size: 16, color: "var(--sd-coral)",       rot:  -8, delay: "0.8s" },
+  { top: "70%", left: "88%", size: 20, color: "var(--sd-yellow-dark)", rot:  22, delay: "1.2s" },
+  { top: "85%", left: "20%", size: 14, color: "var(--sd-cyan-dark)",   rot:  -6, delay: "1.6s" },
+];
+
+function ConfettiPaws() {
+  return (
+    <div className="booking-success-paws" aria-hidden="true">
+      {CONFETTI_PAWS.map((p, i) => (
+        <PawPrint
+          key={i}
+          size={p.size}
+          style={{
+            top: p.top,
+            left: p.left,
+            color: p.color,
+            transform: `rotate(${p.rot}deg)`,
+            animationDelay: p.delay,
+            ["--rot" as string]: `${p.rot}deg`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -230,57 +261,62 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
     if (waitlistJoined && !booked) {
       return (
-        <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
-          <Clipboard size={48} className="text-brand-cyan-dark mx-auto mb-4" aria-hidden="true" />
-          <div className="text-xl font-extrabold text-slate-800 mb-2">
-            You're on the waitlist!
+        <div className="booking-success booking-success--waitlist">
+          <ConfettiPaws />
+          <div className="booking-success-polaroid" aria-hidden="true">
+            <div className="booking-success-polaroid-photo">
+              <Clipboard size={48} />
+            </div>
           </div>
-          <div className="text-sm text-slate-500 mb-6 leading-relaxed">
-            We've added {dogNameStr} to the waitlist for {dateLabel}. We'll let you know as soon as a slot opens up.
+          <h1 className="booking-success-title">
+            You&apos;re on the waitlist!
+            <ScribbleUnderline color="var(--sd-coral)" />
+          </h1>
+          <p className="booking-success-subtitle">
+            We&apos;ve added {dogNameStr} to the waitlist for <strong>{dateLabel}</strong>. We&apos;ll text you the moment a slot opens up.
+          </p>
+          <div className="booking-success-actions">
+            <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+              Back to dashboard
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
           </div>
-          <button
-            onClick={onComplete}
-            className="py-3 px-8 rounded-full border-none bg-action text-on-action font-bold text-[15px] cursor-pointer font-[inherit] hover:bg-brand-yellow-dark"
-          >
-            Back to dashboard
-          </button>
         </div>
       );
     }
 
     return (
-      <div className="max-w-[480px] mx-auto py-12 px-4 text-center font-[inherit]">
-        <CheckCircle size={48} className="text-brand-green mx-auto mb-4" aria-hidden="true" />
-        <div className="text-xl font-extrabold text-slate-800 mb-2">
-          All booked in! We can't wait to see {dogNameStr}.
+      <div className="booking-success">
+        <ConfettiPaws />
+        <div className="booking-success-polaroid" aria-hidden="true">
+          <div className="booking-success-polaroid-photo">
+            <PawPrint size={48} />
+          </div>
         </div>
-        <div className="text-sm text-slate-500 mb-4 leading-relaxed">
-          {dateLabel} at {fmtTime(dropOff)}
-        </div>
+        <h1 className="booking-success-title">
+          All booked in!
+          <ScribbleUnderline />
+        </h1>
+        <p className="booking-success-subtitle">
+          Can&apos;t wait to see {dogNameStr} on <strong>{dateLabel}</strong> at <strong>{fmtTime(dropOff)}</strong>.
+        </p>
         {bookingRef && (
-          <div className="text-xs text-slate-400 mb-5">
-            Booking ref: {bookingRef}
+          <div className="booking-success-ref">
+            Booking ref · <code>{bookingRef}</code>
           </div>
         )}
-        <div className="portal-alert portal-alert--info" style={{ marginBottom: 8 }}>
-          You'll receive a confirmation message shortly.
+        <div className="booking-success-actions">
+          {bookedIds.map((id) => (
+            <AddToCalendarButton key={id} bookingId={id} />
+          ))}
+          <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+            Back to dashboard
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
         </div>
-        {bookedIds.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2 mb-4">
-            {bookedIds.map((id) => (
-              <AddToCalendarButton key={id} bookingId={id} />
-            ))}
-          </div>
-        )}
-        <div className="text-xs text-slate-500 mb-6">
-          We'll send you a reminder before your appointment.
-        </div>
-        <button
-          onClick={onComplete}
-          className="py-3 px-8 rounded-full border-none bg-action text-on-action font-bold text-[15px] cursor-pointer font-[inherit] hover:bg-brand-yellow-dark"
-        >
-          Back to dashboard
-        </button>
+        <p className="booking-success-footnote">
+          We&apos;ll text a reminder the day before. Need to change something? Message us on WhatsApp.
+        </p>
       </div>
     );
   }
