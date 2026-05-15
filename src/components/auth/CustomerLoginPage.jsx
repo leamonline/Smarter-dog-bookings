@@ -10,7 +10,10 @@ const TURNSTILE_SITE_KEY =
   import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
 
 const OTP_RESEND_SECONDS = 60;
-const PHONE_FORMAT_ERROR = "Please enter a valid UK mobile number, for example 07700 900123.";
+// Keep the format hint gentle — getting your phone number wrong is the most
+// common slip on this page, and harsh copy makes a small mistake feel like
+// a wall.
+const PHONE_FORMAT_ERROR = "That number doesn't look quite right. Try a UK mobile starting with 07.";
 
 // Focus ring driven by token, not a bespoke colour. Used on every interactive
 // control on the page so keyboard navigation reads as one consistent thing.
@@ -169,10 +172,19 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         <DogSilhouetteScatter />
 
         <div className="relative">
-          {/* Kicker tells customers what this app is, so the bare "Sign in"
-              heading isn't context-free. Stays visible across both stages. */}
+          {/* Logo first — strongest possible "you're in the right place" signal
+              for a customer landing here from a text link. The kicker beneath
+              labels which Smarter Dog surface this is. */}
+          <div className="flex justify-center mb-4">
+            <img
+              src="/logo.png"
+              alt="Smarter Dog Grooming Salon"
+              className="h-9 w-auto select-none"
+              draggable={false}
+            />
+          </div>
           <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--sd-ink-light)] text-center mb-5">
-            Smarter Dog · Customer portal
+            Customer portal
           </p>
 
           {/* aria-live wrapper announces the stage change (heading + instruction)
@@ -191,7 +203,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             )}
             <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
               {!otpSent
-                ? "Pop in your mobile number — we'll text you a 6-digit code."
+                ? "Enter your mobile number and we'll text you a 6-digit sign-in code."
                 : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
             </p>
           </div>
@@ -246,23 +258,40 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     pattern="7[0-9]{9}"
                     title={PHONE_FORMAT_ERROR}
                     aria-invalid={!otpSent && Boolean(errorText)}
-                    aria-describedby="login-instruction"
+                    aria-describedby="phone-helper"
                     className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
                   />
                 </div>
+                {/* Reassurance: phone numbers feel personal. Tell people exactly
+                    how it'll be used so they aren't second-guessing. */}
+                <p id="phone-helper" className="text-[12px] text-[var(--sd-ink-light)] mt-2 leading-relaxed">
+                  We&apos;ll only use this to send your sign-in code.
+                </p>
               </div>
-              {/* Turnstile renders an iframe; centre it via a flex wrapper so it
-                  doesn't sit awkwardly against the left edge of the card. */}
-              <div className="flex justify-center">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => { captchaTokenRef.current = token; }}
-                  onExpire={() => { captchaTokenRef.current = null; }}
-                  onError={() => { captchaTokenRef.current = null; }}
-                  options={{ theme: "light", size: "normal" }}
-                />
+
+              {/* Embed Turnstile in a tinted, labelled panel so it reads as
+                  part of the form rather than a foreign widget pasted in.
+                  The hint copy reassures non-technical users that nothing
+                  is required from them — the check passes silently. */}
+              <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+                <p className="text-[11px] font-bold tracking-[0.08em] uppercase text-[var(--sd-ink-light)] text-center mb-3">
+                  Quick security check
+                </p>
+                <div className="flex justify-center">
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => { captchaTokenRef.current = token; }}
+                    onExpire={() => { captchaTokenRef.current = null; }}
+                    onError={() => { captchaTokenRef.current = null; }}
+                    options={{ theme: "light", size: "normal" }}
+                  />
+                </div>
+                <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+                  Just confirms you&apos;re human — no clicks needed.
+                </p>
               </div>
+
               <button
                 type="submit"
                 disabled={submitting || otpCooldown > 0}
@@ -324,14 +353,15 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         </div>
       </div>
 
-      {/* Back link sits below the card — it's an exit ramp, not a primary
-          action, so it shouldn't compete for attention at the top. */}
+      {/* Back link sits beneath the card as an exit ramp. Closer (mt-5) and
+          using a human label rather than the bare domain so anyone glancing
+          at it knows where they're going. */}
       <a
         href="https://smarterdog.co.uk"
-        className={`group mt-8 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+        className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
       >
         <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
-        Back to smarterdog.co.uk
+        Back to Smarter Dog website
       </a>
     </div>
   );
