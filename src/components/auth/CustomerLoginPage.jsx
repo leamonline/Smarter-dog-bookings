@@ -258,15 +258,10 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     pattern="7[0-9]{9}"
                     title={PHONE_FORMAT_ERROR}
                     aria-invalid={!otpSent && Boolean(errorText)}
-                    aria-describedby="phone-helper"
+                    aria-describedby="login-instruction"
                     className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
                   />
                 </div>
-                {/* Reassurance: phone numbers feel personal. Tell people exactly
-                    how it'll be used so they aren't second-guessing. */}
-                <p id="phone-helper" className="text-[12px] text-[var(--sd-ink-light)] mt-2 leading-relaxed">
-                  We&apos;ll only use this to send your sign-in code.
-                </p>
               </div>
 
               {/* Embed Turnstile in a tinted, labelled panel so it reads as
