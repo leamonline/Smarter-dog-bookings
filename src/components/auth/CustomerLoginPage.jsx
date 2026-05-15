@@ -161,45 +161,35 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated p-8 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
         {/* Decorative scatter of the brand dog silhouette behind the form. */}
         <DogSilhouetteScatter />
 
         <div className="relative">
-          <div className="text-center mb-6">
-            <a
-              href="https://smarterdog.co.uk"
-              className={`group text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
-            >
-              <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
-              Back to smarterdog.co.uk
-            </a>
-          </div>
-
           {/* Kicker tells customers what this app is, so the bare "Sign in"
               heading isn't context-free. Stays visible across both stages. */}
-          <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--sd-ink-light)] text-center mb-3">
+          <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--sd-ink-light)] text-center mb-5">
             Smarter Dog · Customer portal
           </p>
 
           {/* aria-live wrapper announces the stage change (heading + instruction)
               to screen readers when otpSent flips. */}
           <div aria-live="polite">
-            <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-2 text-center text-[var(--sd-navy)]">
+            <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
               <span className="relative inline-block">
                 {!otpSent ? "Sign in" : "Enter your code"}
                 <ScribbleUnderline />
               </span>
             </h1>
             {!otpSent && (
-              <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-3 leading-relaxed">
+              <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-4 leading-relaxed">
                 Book grooms, see past visits, and keep your details up to date.
               </p>
             )}
-            <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-6">
+            <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
               {!otpSent
                 ? "Pop in your mobile number — we'll text you a 6-digit code."
                 : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
@@ -212,15 +202,15 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
           <div
             role="alert"
             aria-live="assertive"
-            className={errorText ? "portal-alert portal-alert--error mb-5" : "sr-only"}
+            className={errorText ? "portal-alert portal-alert--error mb-6" : "sr-only"}
           >
             {errorText}
           </div>
 
           {!otpSent ? (
-            <form onSubmit={handleRequestOtp} className="space-y-4" noValidate>
+            <form onSubmit={handleRequestOtp} className="space-y-6" noValidate>
               <div>
-                <label htmlFor="phone" className="block text-sm font-bold mb-1 text-[var(--sd-navy)]">
+                <label htmlFor="phone" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
                   Mobile number
                 </label>
                 {/* Locked +44 prefix on the left, digits-only input on the right.
@@ -229,7 +219,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 <div className={`flex items-stretch rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] focus-within:border-[var(--sd-navy)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--sd-navy)] overflow-hidden bg-white`}>
                   <span
                     aria-hidden="true"
-                    className="inline-flex items-center justify-center px-3 min-h-[48px] text-base font-bold border-r border-[rgba(45,0,75,0.14)] select-none text-[var(--sd-navy)]"
+                    className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(45,0,75,0.14)] select-none text-[var(--sd-navy)]"
                     style={{ background: "var(--sd-buttercup-tint)" }}
                   >
                     +44
@@ -257,18 +247,22 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     title={PHONE_FORMAT_ERROR}
                     aria-invalid={!otpSent && Boolean(errorText)}
                     aria-describedby="login-instruction"
-                    className="flex-1 px-3 py-3 min-h-[48px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
+                    className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
                   />
                 </div>
               </div>
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                onSuccess={(token) => { captchaTokenRef.current = token; }}
-                onExpire={() => { captchaTokenRef.current = null; }}
-                onError={() => { captchaTokenRef.current = null; }}
-                options={{ theme: "light", size: "normal" }}
-              />
+              {/* Turnstile renders an iframe; centre it via a flex wrapper so it
+                  doesn't sit awkwardly against the left edge of the card. */}
+              <div className="flex justify-center">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => { captchaTokenRef.current = token; }}
+                  onExpire={() => { captchaTokenRef.current = null; }}
+                  onError={() => { captchaTokenRef.current = null; }}
+                  options={{ theme: "light", size: "normal" }}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={submitting || otpCooldown > 0}
@@ -284,9 +278,9 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div>
-                <label htmlFor="code" className="block text-sm font-bold mb-1 text-[var(--sd-navy)]">
+                <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
                   6-digit code
                 </label>
                 <input
@@ -306,7 +300,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                   placeholder="123456"
                   aria-invalid={otpSent && Boolean(errorText)}
                   aria-describedby="login-instruction"
-                  className={`portal-input text-base tracking-widest text-center min-h-[48px] ${focusRing}`}
+                  className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
                 />
               </div>
               <button
@@ -321,7 +315,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               <button
                 type="button"
                 onClick={onResetOtp}
-                className={`w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-1 ${focusRing}`}
+                className={`w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`}
               >
                 Use a different number
               </button>
@@ -329,6 +323,16 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
           )}
         </div>
       </div>
+
+      {/* Back link sits below the card — it's an exit ramp, not a primary
+          action, so it shouldn't compete for attention at the top. */}
+      <a
+        href="https://smarterdog.co.uk"
+        className={`group mt-8 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+      >
+        <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
+        Back to smarterdog.co.uk
+      </a>
     </div>
   );
 }
