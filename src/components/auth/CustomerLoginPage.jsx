@@ -179,7 +179,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             <img
               src="/logo.png"
               alt="Smarter Dog Grooming Salon"
-              className="h-9 w-auto select-none"
+              className="h-[72px] w-auto select-none"
               draggable={false}
             />
           </div>
