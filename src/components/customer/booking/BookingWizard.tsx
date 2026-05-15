@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
@@ -74,6 +75,13 @@ function ConfettiPaws() {
 }
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
+  const location = useLocation();
+  const rescheduleState = (location.state ?? {}) as {
+    rescheduleFromId?: string;
+    rescheduleFromGroupId?: string | null;
+  };
+  const isRescheduling = Boolean(rescheduleState.rescheduleFromId);
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [dogs, setDogs] = useState<RawDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
@@ -207,6 +215,29 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       const { data: inserted, error: insertError } = await supabase.from("bookings").insert(records).select("id");
       if (insertError) throw insertError;
+
+      // If this run started as a reschedule, the original booking(s) only get
+      // cancelled once the new insert has succeeded. Both writes live in this
+      // try/catch — if the insert fails the cancel never runs, so the
+      // customer's original slot stays held.
+      if (isRescheduling && rescheduleState.rescheduleFromId) {
+        const idsToCancel = rescheduleState.rescheduleFromGroupId
+          ? (await supabase
+              .from("bookings")
+              .select("id")
+              .eq("group_id", rescheduleState.rescheduleFromGroupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleState.rescheduleFromId]
+          : [rescheduleState.rescheduleFromId];
+
+        const newDateLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        const [h, mm] = slotAllocation.dropOffTime.split(":").map(Number);
+        const newTimeLabel = `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(mm).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
+
+        const { error: cancelError } = await supabase
+          .from("bookings")
+          .update({ status: "Cancelled", cancel_reason: `Rescheduled to ${newDateLabel} at ${newTimeLabel}` })
+          .in("id", idsToCancel);
+        if (cancelError) throw cancelError;
+      }
 
       setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
       setBooked(true);
@@ -359,6 +390,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </li>
           ))}
         </ol>
+
+        {/* Reschedule banner — surfaces the "your old slot stays held" guarantee
+            while the customer walks through the wizard. */}
+        {isRescheduling && (
+          <div role="status" className="portal-alert portal-alert--info">
+            Rescheduling: your existing slot stays held until you confirm a new time. Cancel out and nothing changes.
+          </div>
+        )}
 
         {/* Running price estimate (U3: shows from step 2 once services selected) */}
         {step >= 2 && Object.keys(services).length > 0 && (() => {
