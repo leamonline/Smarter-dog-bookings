@@ -6,9 +6,13 @@ import { MyDetailsCard } from "./MyDetailsCard.jsx";
 import { DogsSection } from "./DogsSection.jsx";
 import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
+import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { PawPrint, ArrowRight, Phone } from "lucide-react";
+import { PawPrint, Phone, MapPin, Clock } from "lucide-react";
+import { ALL_DAYS } from "../../constants/salon.js";
+
+const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -23,11 +27,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [olderBookings, setOlderBookings] = useState([]);
   const [hasMorePast, setHasMorePast] = useState(false);
-  const [cancellingId, setCancellingId] = useState(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [cancelOther, setCancelOther] = useState("");
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -103,7 +105,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     }
     fetchData();
     return () => { cancelled = true; };
-  }, [humanRecord]);
+  }, [humanRecord, refreshKey]);
 
   const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
@@ -139,57 +141,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     setEditing(false);
   }, [humanRecord]);
 
-  const startCancel = useCallback((bookingId) => {
-    setCancellingId(bookingId);
-    setCancelReason("");
-    setCancelOther("");
-  }, []);
-
-  const confirmCancel = useCallback(async () => {
-    if (!supabase || !cancellingId) return;
-    const rawReason = cancelReason === "Other" ? cancelOther.trim() : cancelReason;
-    const reason = rawReason.replace(/<[^>]*>/g, "").slice(0, 500);
-    if (!reason) return;
-
-    const booking = bookings.find(b => b.id === cancellingId);
-    if (!booking) return;
-
-    setSaving(true);
-
-    if (booking.group_id) {
-      const { data: groupBookings } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("group_id", booking.group_id);
-
-      const ids = (groupBookings || []).map(b => b.id);
-      const { error: err } = await supabase
-        .from("bookings")
-        .update({ status: "Cancelled", cancel_reason: reason })
-        .in("id", ids);
-      if (!err) {
-        setBookings(prev => prev.map(b =>
-          ids.includes(b.id) ? { ...b, status: "Cancelled", cancel_reason: reason } : b
-        ));
-      }
-    } else {
-      const { error: err } = await supabase
-        .from("bookings")
-        .update({ status: "Cancelled", cancel_reason: reason })
-        .eq("id", cancellingId);
-      if (!err) {
-        setBookings(prev => prev.map(b =>
-          b.id === cancellingId ? { ...b, status: "Cancelled", cancel_reason: reason } : b
-        ));
-      }
-    }
-
-    setSaving(false);
-    setCancellingId(null);
-    setCancelReason("");
-    setCancelOther("");
-  }, [cancellingId, cancelReason, cancelOther, bookings]);
-
   const handleLoadMore = useCallback(async () => {
     if (!supabase) return;
     const dogIds = dogs.map(d => d.id);
@@ -220,15 +171,65 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
   const pastBookings = useMemo(() =>
     [...bookings.filter(b => b.booking_date < today), ...olderBookings]
+      .filter(b => b.status !== "Cancelled")
       .sort((a, b) => b.booking_date.localeCompare(a.booking_date) || b.slot.localeCompare(a.slot)),
     [bookings, olderBookings, today]
   );
+
+  // Status line — shown beneath the welcome tagline. Three flavours:
+  //   • next groom upcoming  → neutral ("Next groom: …")
+  //   • last groom ≥ 6 weeks → amber ("Alfie's last groom was X — due for another?")
+  //   • last groom < 6 weeks → mute  ("Alfie's last groom was X weeks ago")
+  const statusLine = useMemo(() => {
+    if (upcomingBookings.length > 0) {
+      const next = upcomingBookings[0];
+      const d = new Date(next.booking_date + "T00:00:00");
+      const dayLabel = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+      const [h, m] = next.slot.split(":").map(Number);
+      const suffix = h >= 12 ? "pm" : "am";
+      const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+      return {
+        tone: "neutral",
+        text: `Next groom: ${dayLabel}, ${hour}:${m.toString().padStart(2, "0")}${suffix}`,
+      };
+    }
+    if (pastBookings.length === 0) return null;
+    const last = pastBookings[0];
+    const lastDog = last.dogs?.name || dogs[0]?.name || "your pup";
+    const lastDate = new Date(last.booking_date + "T00:00:00");
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysAgo = Math.round((today - lastDate) / 86400000);
+    const weeksAgo = Math.max(1, Math.round(daysAgo / 7));
+    const friendlyDate = lastDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    if (daysAgo >= OVERDUE_DAYS) {
+      return {
+        tone: "amber",
+        text: `${lastDog}'s last groom was ${friendlyDate} — due for another?`,
+      };
+    }
+    return {
+      tone: "mute",
+      text: `${lastDog}'s last groom was ${weeksAgo} ${weeksAgo === 1 ? "week" : "weeks"} ago.`,
+    };
+  }, [upcomingBookings, pastBookings, dogs]);
+
+  // Pre-compute "last groom" per dog for DogsSection.
+  const lastGroomByDog = useMemo(() => {
+    const map = {};
+    for (const b of pastBookings) {
+      if (!b.dog_id || map[b.dog_id]) continue;
+      map[b.dog_id] = b.booking_date;
+    }
+    return map;
+  }, [pastBookings]);
+
+  const refreshBookings = () => setRefreshKey(k => k + 1);
 
   if (loading) {
     return (
       <div className="portal-loading">
         <PawPrint size={40} className="portal-loading-icon" />
-        <div className="portal-loading-text">Just a sec, fetching your details\u2026</div>
+        <div className="portal-loading-text">Just a sec, fetching your details…</div>
       </div>
     );
   }
@@ -240,11 +241,26 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
   const handleBook = () => navigate("/customer/book");
 
+  // Footer hours line, derived from salon defaults so it stays accurate.
+  const openDays = ALL_DAYS.filter(d => d.defaultOpen);
+  const hoursLabel = openDays.length === 0
+    ? "Hours by appointment"
+    : openDays.length === 7
+      ? "Open every day, 9am–5pm"
+      : (() => {
+          const indices = openDays.map(d => ALL_DAYS.findIndex(x => x.key === d.key));
+          const contiguous = indices.every((idx, i) => i === 0 || idx === indices[i - 1] + 1);
+          if (contiguous && openDays.length > 1) {
+            return `${openDays[0].label}–${openDays[openDays.length - 1].label}, 9am–5pm`;
+          }
+          return `${openDays.map(d => d.label).join(", ")}, 9am–5pm`;
+        })();
+
   return (
     <div className="customer-portal">
       <a href="#main-content" className="portal-skip-link">Skip to content</a>
 
-      {/* ===== TOP NAV (matches marketing site) ===== */}
+      {/* ===== TOP NAV (no in-header CTA — the in-page Booking card carries the action) ===== */}
       <nav className="portal-topnav" aria-label="Primary">
         <div className="portal-topnav-inner">
           <a href="https://smarterdog.co.uk" className="portal-topnav-logo" aria-label="Smarter Dog home">
@@ -259,41 +275,36 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         </div>
       </nav>
 
-      {/* ===== WELCOME + CTA (inline on desktop, stacked on mobile) ===== */}
+      {/* ===== GREETING BAND ===== */}
       <header className="portal-header">
         <div className="portal-header-inner">
-          <div className="portal-header-row">
-            <div className="portal-header-text">
-              <h1 className="portal-welcome">
-                Hi,&nbsp;
-                <span className="portal-welcome-name">
-                  {firstName}
-                  <svg
-                    className="portal-welcome-underline"
-                    viewBox="0 0 200 14"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M2 10 C 40 3, 80 13, 120 7 S 180 3, 198 9"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-              </h1>
-              <p className="portal-tagline">Smarter grooming, Smarter Dog!</p>
-            </div>
-            <button
-              className="portal-btn portal-btn--cta portal-btn--cta-header"
-              onClick={handleBook}
-            >
-              <PawPrint size={18} aria-hidden="true" />
-              Book a Groom
-              <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
-            </button>
+          <div className="portal-header-text">
+            <h1 className="portal-welcome">
+              Hi,&nbsp;
+              <span className="portal-welcome-name">
+                {firstName}
+                <svg
+                  className="portal-welcome-underline"
+                  viewBox="0 0 200 14"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2 10 C 40 3, 80 13, 120 7 S 180 3, 198 9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+            <p className="portal-tagline">Smarter grooming for a Smarter Dog.</p>
+            {statusLine && (
+              <p className={`portal-status-line portal-status-line--${statusLine.tone}`}>
+                {statusLine.text}
+              </p>
+            )}
           </div>
         </div>
       </header>
@@ -303,80 +314,111 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         <div className="portal-content">
 
           {loadError && (
-            <div role="alert" className="portal-section--full mb-3 py-3 px-4 rounded-xl bg-pink-50 border border-pink-200 text-brand-coral text-sm font-semibold text-center">
+            <div role="alert" className="portal-section--full portal-alert portal-alert--error">
               {loadError}
             </div>
           )}
 
-          <MyDetailsCard
-            editing={editing}
-            setEditing={setEditing}
-            saving={saving}
-            details={details}
-            setDetails={setDetails}
-            humanRecord={humanRecord}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-
-          <DogsSection
+          {/* Booking card — single source of truth for the next-action block. */}
+          <BookingCard
+            upcomingBookings={upcomingBookings}
             dogs={dogs}
             onBook={handleBook}
-            onDogUpdated={(row) =>
-              setDogs(prev => prev.map(d => (d.id === row.id ? { ...d, ...row } : d)))
-            }
+            onBookingChanged={refreshBookings}
           />
 
-          <TrustedHumansSection
-            trustedHumans={trustedHumans}
-            onAdded={(row) =>
-              setTrustedHumans(prev =>
-                prev.some(t => t.id === row.id) ? prev : [...prev, row]
-              )
-            }
-          />
+          {/* Three-column row: My details | My dogs | Trusted humans */}
+          <div className="portal-section--full portal-trio">
+            <MyDetailsCard
+              editing={editing}
+              setEditing={setEditing}
+              saving={saving}
+              details={details}
+              setDetails={setDetails}
+              humanRecord={humanRecord}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
 
+            <DogsSection
+              dogs={dogs}
+              lastGroomByDog={lastGroomByDog}
+              humanId={humanRecord?.id}
+              onBook={handleBook}
+              onDogUpdated={(row) =>
+                setDogs(prev => prev.map(d => (d.id === row.id ? { ...d, ...row } : d)))
+              }
+              onDogAdded={(row) =>
+                setDogs(prev => (prev.some(d => d.id === row.id) ? prev : [...prev, row]))
+              }
+            />
+
+            <TrustedHumansSection
+              dogName={dogs[0]?.name || "your pup"}
+              trustedHumans={trustedHumans}
+              onAdded={(row) =>
+                setTrustedHumans(prev =>
+                  prev.some(t => t.id === row.id) ? prev : [...prev, row]
+                )
+              }
+            />
+          </div>
+
+          {/* Past appointments — collapsed by default. */}
           <div className="portal-section--full">
             <AppointmentsSection
-              upcomingBookings={upcomingBookings}
               pastBookings={pastBookings}
+              dogs={dogs}
               pastExpanded={pastExpanded}
               setPastExpanded={setPastExpanded}
               hasMorePast={hasMorePast}
               loadingMore={loadingMore}
               onLoadMore={handleLoadMore}
-              cancellingId={cancellingId}
-              cancelReason={cancelReason}
-              setCancelReason={setCancelReason}
-              cancelOther={cancelOther}
-              setCancelOther={setCancelOther}
-              saving={saving}
-              onStartCancel={startCancel}
-              onConfirmCancel={confirmCancel}
-              onCancelBack={() => setCancellingId(null)}
-              onSubscribe={() => setShowCalendarModal(true)}
-              onBook={handleBook}
+              onSubscribe={upcomingBookings.length > 0 ? () => setShowCalendarModal(true) : null}
             />
           </div>
 
         </div>
 
-        {/* Footer with brand tagline + phone */}
+        {/* ===== FOOTER ===== */}
         <footer className="portal-footer">
-          <p className="portal-footer-tagline">Smarter grooming, Smarter Dog!</p>
-          <a className="portal-footer-phone" href="tel:07507731487" aria-label="Call Smarter Dog on 07507 731487">
-            <Phone size={16} aria-hidden="true" />
-            07507 731487
-          </a>
+          <div className="portal-footer-inner">
+            <div className="portal-footer-row">
+              <p className="portal-footer-tagline">Smarter grooming, Smarter Dog.</p>
+              <a className="portal-footer-phone" href="tel:07507731487" aria-label="Call Smarter Dog on 07507 731487">
+                <Phone size={16} aria-hidden="true" />
+                07507 731487
+              </a>
+            </div>
+            <div className="portal-footer-row portal-footer-row--right">
+              <span className="portal-footer-meta">
+                <Clock size={14} aria-hidden="true" />
+                {hoursLabel}
+              </span>
+              <span className="portal-footer-meta">
+                <MapPin size={14} aria-hidden="true" />
+                Smarter Dog Grooming, Hove
+              </span>
+              <div className="portal-footer-links">
+                <a href="https://smarterdog.co.uk/#services">Services</a>
+                <span className="portal-footer-links-sep" aria-hidden="true">·</span>
+                <a href="https://smarterdog.co.uk/#faq">FAQ</a>
+                <span className="portal-footer-links-sep" aria-hidden="true">·</span>
+                <a href="https://smarterdog.co.uk/privacy">Privacy</a>
+                <span className="portal-footer-links-sep" aria-hidden="true">·</span>
+                <a href="https://smarterdog.co.uk/terms">Terms</a>
+              </div>
+            </div>
+          </div>
         </footer>
       </main>
 
-      {/* Sticky mobile CTA — highest-value action */}
+      {/* Sticky mobile CTA — kept because the header CTA is gone and the
+          page CTA scrolls off-screen on mobile. */}
       <div className="portal-sticky-cta">
         <button className="portal-btn portal-btn--cta" onClick={handleBook}>
           <PawPrint size={18} aria-hidden="true" />
-          Book a Groom
-          <ArrowRight size={18} aria-hidden="true" className="portal-btn-arrow" />
+          Book a groom
         </button>
       </div>
 
