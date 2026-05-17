@@ -105,7 +105,7 @@ export function WeeklySnapshot() {
     >
       <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">This week</h2>
+          <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">This week so far</h2>
           <div className="text-[11px] sm:text-xs font-semibold text-white/80">
             Last week £{lastWeekTotal.toFixed(0)}
           </div>
