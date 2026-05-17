@@ -136,8 +136,14 @@ export function useHumans() {
       const byId = buildHumansById(humanRows || []);
       const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows, byId);
 
-      setHumansById(byId);
-      setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
+      // Merge instead of replacing — see the matching comment in useDogs.
+      // Previous calls to ensureHumansByIds may have populated humans past
+      // the paginated window so dogs and bookings can resolve owner names.
+      // The real-time INSERT/UPDATE handlers below also call fetchHumans(),
+      // and a destructive replace there would lose every ensured owner.
+      const mapAdditions = dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap);
+      setHumansById((prev) => ({ ...prev, ...byId }));
+      setHumans((prev) => ({ ...prev, ...mapAdditions }));
       setHasMore((humanRows || []).length >= limit);
       setLoading(false);
     }
