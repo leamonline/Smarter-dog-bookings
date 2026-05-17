@@ -313,6 +313,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     dogsById,
     dogsByHumanId,
     ensureDogsForHumans,
+    ensureDogsByIds: sbEnsureDogsByIds,
     loading: dl,
     error: de,
     updateDog: sbUpdateDog,
@@ -377,6 +378,22 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     }
     if (ids.size > 0) sbEnsureHumansByIds([...ids]);
   }, [sbBookings, sbEnsureHumansByIds]);
+
+  // Same pattern as the owner pre-fetch above, but for dogs. useDogs
+  // paginates by name so any booking whose dog row sits past the first
+  // page would render as "Unknown" on the day view (and lose its size,
+  // breed and alerts in the detail modal). Resolving the missing rows
+  // by id here closes that gap.
+  useEffect(() => {
+    if (!sbEnsureDogsByIds) return;
+    const ids = new Set();
+    for (const list of Object.values(sbBookings || {})) {
+      for (const b of list || []) {
+        if (b?._dogId) ids.add(b._dogId);
+      }
+    }
+    if (ids.size > 0) sbEnsureDogsByIds([...ids]);
+  }, [sbBookings, sbEnsureDogsByIds]);
 
   const offline = useOfflineState(weekStart, currentDateStr, currentDateObj);
 
