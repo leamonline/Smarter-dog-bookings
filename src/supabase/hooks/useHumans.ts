@@ -136,8 +136,15 @@ export function useHumans() {
       const byId = buildHumansById(humanRows || []);
       const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows, byId);
 
-      setHumansById(byId);
-      setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
+      // Merge rather than replace: humans added by ensureHumansByIds
+      // (rows past the first paginated page, hydrated for a deep-linked
+      // dog or booking owner) would otherwise be wiped out when a
+      // realtime INSERT/UPDATE triggers a refetch, and then never
+      // re-added because fetchedHumanIdsRef has already marked them as
+      // resolved. Same fix pattern as useDogs.ts.
+      const nextMap = dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap);
+      setHumansById((prev) => ({ ...prev, ...byId }));
+      setHumans((prev) => ({ ...prev, ...nextMap }));
       setHasMore((humanRows || []).length >= limit);
       setLoading(false);
     }
