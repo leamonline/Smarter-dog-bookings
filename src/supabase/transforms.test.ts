@@ -386,11 +386,16 @@ describe("dbBookingsToArray", () => {
     expect(bk._bookingDate).toBe("2026-04-14");
   });
 
-  it("falls back to 'Unknown' dog name when dog_id not found", () => {
+  it("leaves dogName / owner empty when the dog row hasn't loaded yet", () => {
+    // Previously the transform stamped "Unknown" into these fields, which
+    // leaked into the booking card UI (and defeated the "Unknown owner"
+    // sentinel check). The user-visible placeholder is now produced by
+    // resolveBookingDisplay so the live join can still win once the
+    // dogs/humans cache catches up via ensureDogsByIds/ensureHumansByIds.
     const bookings = dbBookingsToArray([bookingRow()], {}, {});
-    expect(bookings[0].dogName).toBe("Unknown");
+    expect(bookings[0].dogName).toBe("");
     expect(bookings[0].breed).toBe("");
-    expect(bookings[0].owner).toBe("Unknown");
+    expect(bookings[0].owner).toBe("");
   });
 
   it("defaults status to 'Booked' when null", () => {

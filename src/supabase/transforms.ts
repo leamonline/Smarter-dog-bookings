@@ -274,15 +274,22 @@ export function dbBookingsToArray(
     // snapshot columns (set at insert time by trg_bookings_set_snapshots)
     // only when the linked dog or owner row is missing. resolveBookingDisplay
     // in engine/bookingRules.ts mirrors this logic for downstream consumers.
+    //
+    // Leave these fields empty when nothing resolves — never bake "Unknown"
+    // into the stored booking object. The dogs/humans maps paginate, so the
+    // join often misses on first paint and only resolves after
+    // ensureDogsByIds/ensureHumansByIds populate the cache. Storing "Unknown"
+    // would (a) leak into the card UI as a literal name, and (b) defeat the
+    // "Unknown owner" sentinel check downstream consumers rely on.
     const breedSnapshot = row.breed_snapshot ?? null;
     const ownerSnapshot = row.owner_name_snapshot ?? null;
     const breed = dog.breed || breedSnapshot || "";
-    const owner = ownerHuman?.fullName || ownerSnapshot || "Unknown";
+    const owner = ownerHuman?.fullName || ownerSnapshot || "";
 
     return {
       id: row.id,
       slot: row.slot,
-      dogName: dog.name || "Unknown",
+      dogName: dog.name || "",
       breed,
       size: row.size as Booking["size"],
       service: row.service as Booking["service"],
