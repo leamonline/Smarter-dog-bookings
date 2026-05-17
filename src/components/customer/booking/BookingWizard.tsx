@@ -248,36 +248,31 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const { data: inserted, error: insertError } = await supabase.from("bookings").insert(records).select("id");
       if (insertError) throw insertError;
 
-      setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
-
-      // Reschedule path: now that the new booking is safely created, cancel
-      // the original. Best-effort — if the cancel fails (network blip, RLS,
-      // already-cancelled by staff) the new booking is still confirmed and
-      // we just log it. Salon staff will see two active bookings and can
-      // resolve manually. Better than orphan-cancelling and ending up with
-      // nothing.
+      // If this run started as a reschedule, the original booking(s) only get
+      // cancelled once the new insert has succeeded. Both writes share this
+      // try/catch — an insert failure means the cancel never runs (original
+      // stays held); a cancel failure after a successful insert surfaces as
+      // an error so the salon catches the rare duplicate, rather than us
+      // silently leaving two active bookings.
       if (rescheduleFrom) {
-        try {
-          const ids = rescheduleFrom.groupId
-            ? (await supabase.from("bookings").select("id").eq("group_id", rescheduleFrom.groupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleFrom.id]
-            : [rescheduleFrom.id];
-          const newDateLabel = fmtDateForReason(selectedDate);
-          const newTimeLabel = fmtTimeForReason(slotAllocation.dropOffTime);
-          const cancelResult = await supabase
-            .from("bookings")
-            .update({
-              status: "Cancelled",
-              cancel_reason: `Rescheduled to ${newDateLabel} at ${newTimeLabel}`,
-            })
-            .in("id", ids);
-          if (cancelResult.error) {
-            console.warn("Reschedule: original booking not auto-cancelled", cancelResult.error);
-          }
-        } catch (cancelErr) {
-          console.warn("Reschedule: failed to cancel original booking", cancelErr);
-        }
+        const idsToCancel = rescheduleFrom.groupId
+          ? (await supabase
+              .from("bookings")
+              .select("id")
+              .eq("group_id", rescheduleFrom.groupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleFrom.id]
+          : [rescheduleFrom.id];
+
+        const { error: cancelError } = await supabase
+          .from("bookings")
+          .update({
+            status: "Cancelled",
+            cancel_reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
+          })
+          .in("id", idsToCancel);
+        if (cancelError) throw cancelError;
       }
 
+      setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
       setBooked(true);
     } catch (e: any) {
       // The server-side capacity trigger raises useful messages like

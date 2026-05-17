@@ -26,7 +26,7 @@ export function BookingFormFields({
       {/* ─── STEP 2: Date Selection ─── */}
       {hasDogs && (
         <div>
-          <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Choose a Date</label>
+          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
           <AvailabilityCalendar
             bookingsByDate={bookingsByDate}
             dayOpenState={dayOpenState}
@@ -41,7 +41,7 @@ export function BookingFormFields({
       {/* ─── STEP 3: Time Slot Selection ─── */}
       {selectedDateStr && hasDogs && (
         <div>
-          <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">
+          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
           </label>
           <TimeSlotPicker
@@ -66,7 +66,7 @@ export function BookingFormFields({
       {/* ─── STEP 4: Recurring (Optional) ─── */}
       {hasDogs && selectedDateStr && selectedSlot && (
         <div className="mb-4">
-          <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
+          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
           <select
             value={recurringWeeks}
             onChange={(e) => setRecurringWeeks(Number(e.target.value))}
@@ -78,7 +78,7 @@ export function BookingFormFields({
             <option value={8}>Every 8 weeks</option>
           </select>
           {recurringWeeks > 0 && (
-            <div className="mt-2 text-[13px] text-brand-teal font-semibold">
+            <div className="mt-2 text-[13px] text-brand-teal-text font-semibold">
               This will generate bookings for the rest of the year. If a day is full, that slot will be skipped.
             </div>
           )}

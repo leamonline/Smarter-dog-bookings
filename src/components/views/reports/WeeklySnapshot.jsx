@@ -157,7 +157,7 @@ export function WeeklySnapshot() {
                   style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
                   aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
                 />
-                <div className={`text-[10px] sm:text-[11px] font-bold mt-1 ${day.isToday ? "text-brand-teal" : "text-slate-700"}`}>
+                <div className={`text-[10px] sm:text-[11px] font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
                   {day.label}
                 </div>
                 <div className="text-[10px] font-semibold text-slate-400">
@@ -170,7 +170,7 @@ export function WeeklySnapshot() {
 
         {/* Insight */}
         <div className="text-[12px] sm:text-[13px] font-medium leading-relaxed">
-          <span className="text-[#2D8B7A] font-bold">Insight: </span>
+          <span className="text-brand-teal-text font-bold">Insight: </span>
           <span className="text-slate-600">{insight}</span>
         </div>
       </div>

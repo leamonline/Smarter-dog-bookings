@@ -45,7 +45,7 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
 
   return (
     <>
-      <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+      <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
         Recent Bookings
       </div>
       {history.slice(0, 5).map((booking, i) => {
@@ -575,7 +575,7 @@ export function HumanCardModal({
           {/* DOGS (own dogs) */}
           {humanDogs.length > 0 && (
             <>
-              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+              <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
                 Dogs
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -587,7 +587,7 @@ export function HumanCardModal({
           {/* DOGS TRUSTED WITH */}
           {trustedDogs.length > 0 && (
             <>
-              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+              <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
                 Dogs Trusted With
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -599,7 +599,7 @@ export function HumanCardModal({
           {/* If neither section has dogs */}
           {humanDogs.length === 0 && trustedDogs.length === 0 && (
             <>
-              <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+              <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
                 Dogs
               </div>
               <div className="text-[13px] text-slate-500 italic">
@@ -608,7 +608,7 @@ export function HumanCardModal({
             </>
           )}
 
-          <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+          <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
             Trusted Humans
           </div>
           {human.trustedContacts && human.trustedContacts.length > 0 ? (
@@ -632,7 +632,7 @@ export function HumanCardModal({
                         onClose();
                         onOpenHuman && onOpenHuman(trustedHuman?.id || contact.id);
                       }}
-                      className="text-[13px] font-semibold text-brand-teal cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit"
+                      className="text-[13px] font-semibold text-brand-teal-text cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit"
                     >
                       {titleCase(trustedLabel)}
                     </button>
@@ -673,7 +673,7 @@ export function HumanCardModal({
           </button>
 
           {/* Reminder Preferences */}
-          <div className="mt-5 font-extrabold text-xs text-brand-teal uppercase tracking-wide mb-2">
+          <div className="mt-5 font-extrabold text-xs text-brand-teal-text uppercase tracking-wide mb-2">
             Reminder Preferences
           </div>
           <div className="flex flex-col gap-2">
@@ -788,7 +788,7 @@ export function HumanCardModal({
 
               {showNewTrustedForm && (
                 <div className="mt-2.5 p-3.5 bg-slate-50 rounded-[10px] border border-slate-200">
-                  <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2.5">
+                  <div className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide mb-2.5">
                     New Trusted Human
                   </div>
                   <div className="flex gap-2 mb-2">

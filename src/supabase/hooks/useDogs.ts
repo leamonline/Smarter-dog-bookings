@@ -31,6 +31,18 @@ export function useDogs(humansById: Record<string, any>) {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchedHumanIdsRef = useRef<Set<string>>(new Set());
   const inflightHumanIdsRef = useRef<Set<string>>(new Set());
+  const fetchedDogIdsRef = useRef<Set<string>>(new Set());
+  const inflightDogIdsRef = useRef<Set<string>>(new Set());
+
+  // The main fetch effect can't depend on humansById: every time
+  // ensureHumansByIds (in useHumans) resolves a missing owner, the
+  // humansById reference changes, which would re-run fetchDogs() and
+  // wipe out any dogs that ensureDogsByIds had just merged in from the
+  // tail of the paginated list. We keep a ref instead so realtime
+  // INSERT/UPDATE handlers and on-demand fetches still see the latest
+  // humans without re-triggering the effect.
+  const humansByIdRef = useRef(humansById);
+  useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
 
   const invalidateHuman = useCallback((humanId: string | null | undefined) => {
     if (!humanId) return;
@@ -85,8 +97,15 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       const rows = data || [];
-      setDogsById(buildDogsById(rows));
-      setDogs(dbDogsToMap(rows, humansById || {}));
+      // Merge rather than replace: dogs added by ensureDogsByIds (rows
+      // past the first paginated page) would otherwise be wiped out
+      // when a realtime INSERT/UPDATE triggers a refetch, and then
+      // never re-added because fetchedDogIdsRef has already marked
+      // them as resolved.
+      const nextById = buildDogsById(rows);
+      const nextMap = dbDogsToMap(rows, humansByIdRef.current || {});
+      setDogsById((prev) => ({ ...prev, ...nextById }));
+      setDogs((prev) => ({ ...prev, ...nextMap }));
       setHasMore(rows.length >= limit);
       setLoading(false);
     }
@@ -139,7 +158,7 @@ export function useDogs(humansById: Record<string, any>) {
       cancelled = true;
       supabase!.removeChannel(channel);
     };
-  }, [humansById]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!supabase) return;
@@ -634,11 +653,81 @@ export function useDogs(humansById: Record<string, any>) {
     setDogsByHumanId((prev) => ({ ...prev, ...grouped }));
   }, [humansById]);
 
+  // Mirrors ensureHumansByIds in useHumans: when a booking references a
+  // dog whose row sits past the paginated dogs window, the booking grid
+  // and detail modal would render "Unknown" because dogsById has no
+  // entry to resolve booking.dog_id against. Fetch the missing rows on
+  // demand and merge them into both maps so the next render resolves
+  // the dog name, breed, size and alerts.
+  const ensureDogsByIds = useCallback(
+    async (ids: (string | null | undefined)[]) => {
+      if (!supabase || !ids?.length) return;
+      const missing = Array.from(
+        new Set(
+          ids.filter(
+            (id): id is string =>
+              typeof id === "string" &&
+              id.length > 0 &&
+              !dogsById[id] &&
+              !inflightDogIdsRef.current.has(id) &&
+              !fetchedDogIdsRef.current.has(id),
+          ),
+        ),
+      );
+      if (missing.length === 0) return;
+
+      missing.forEach((id) => inflightDogIdsRef.current.add(id));
+
+      const { data, error: err } = await supabase
+        .from("dogs")
+        .select("*")
+        .in("id", missing);
+
+      missing.forEach((id) => {
+        inflightDogIdsRef.current.delete(id);
+        fetchedDogIdsRef.current.add(id);
+      });
+
+      if (err) {
+        console.error("ensureDogsByIds failed:", err);
+        missing.forEach((id) => fetchedDogIdsRef.current.delete(id));
+        return;
+      }
+
+      const rows = data || [];
+      if (rows.length === 0) return;
+
+      const byIdAdditions: Record<string, any> = {};
+      const mapAdditions: Record<string, any> = {};
+      for (const row of rows) {
+        byIdAdditions[row.id] = row;
+        const owner = humansById?.[row.human_id || ""];
+        mapAdditions[row.id] = {
+          id: row.id,
+          name: row.name,
+          breed: row.breed,
+          age: row.age || "",
+          size: row.size || null,
+          humanId: owner ? owner.fullName : (row.human_id || ""),
+          _humanId: row.human_id || null,
+          alerts: row.alerts || [],
+          groomNotes: row.groom_notes || "",
+          customPrice: row.custom_price,
+        };
+      }
+
+      setDogsById((prev) => ({ ...prev, ...byIdAdditions }));
+      setDogs((prev) => ({ ...prev, ...mapAdditions }));
+    },
+    [dogsById, humansById],
+  );
+
   return {
     dogs,
     dogsById,
     dogsByHumanId,
     ensureDogsForHumans,
+    ensureDogsByIds,
     loading,
     error,
     updateDog,

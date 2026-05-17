@@ -288,7 +288,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             <div role="alert" className="m-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <h2 className="text-sm font-bold text-amber-900">We can&apos;t load your messages right now</h2>
               <p className="mt-1 text-xs text-amber-800">
-                The inbox is temporarily unavailable. This usually clears within a minute. If it doesn&apos;t, ping support.
+                The inbox is temporarily unavailable. This usually clears within a minute. If it keeps happening, the dashboard&apos;s WhatsApp widget may still show recent threads.
               </p>
               <button
                 type="button"

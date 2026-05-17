@@ -12,6 +12,17 @@ export function looksLikeUuid(value: unknown): boolean {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
+// Legacy booking rows (and a previous version of dbBookingsToArray) baked
+// the literal string "Unknown" into bookings.dogName / bookings.owner
+// whenever the dogs/humans join missed. Treat those as "no value" so
+// downstream consumers can rely on the Unknown / Unknown owner sentinels
+// rather than rendering the placeholder verbatim.
+function isMissingNameToken(value: unknown): boolean {
+  if (typeof value !== "string") return true;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed === "" || trimmed === "unknown" || trimmed === "unknown owner";
+}
+
 export const DEFAULT_DEPOSIT_AMOUNT = 10;
 
 export interface BookingPricingInput {
@@ -163,18 +174,28 @@ export function resolveBookingDisplay(
     };
   }
 
-  const dog = getDogByIdOrName(dogs ?? {}, booking._dogId || booking.dogName || "");
+  // Only seed the dog lookup with booking.dogName when it's a real value;
+  // legacy rows store the literal "Unknown" placeholder which would
+  // accidentally match a dog literally named "Unknown".
+  const dogLookupKey =
+    booking._dogId ||
+    (isMissingNameToken(booking.dogName) ? "" : booking.dogName) ||
+    "";
+  const dog = getDogByIdOrName(dogs ?? {}, dogLookupKey);
   const owner = dog
     ? getHumanByIdOrName(humans ?? {}, dog._humanId || dog.humanId || "")
     : booking._ownerId
       ? getHumanByIdOrName(humans ?? {}, booking._ownerId)
       : null;
 
-  const rawDogName = dog?.name || booking.dogName || "";
-  const rawBreed = dog?.breed || booking.breedSnapshot || booking.breed || "";
-  const rawOwnerName = owner?.fullName || booking.ownerNameSnapshot || booking.owner || "";
+  const fallbackDogName = isMissingNameToken(booking.dogName) ? "" : booking.dogName;
+  const fallbackOwnerName = isMissingNameToken(booking.owner) ? "" : booking.owner;
 
-  const dogName = looksLikeUuid(rawDogName) ? "Unknown" : (rawDogName || "Unknown");
+  const rawDogName = dog?.name || fallbackDogName || "";
+  const rawBreed = dog?.breed || booking.breedSnapshot || booking.breed || "";
+  const rawOwnerName = owner?.fullName || booking.ownerNameSnapshot || fallbackOwnerName || "";
+
+  const dogName = looksLikeUuid(rawDogName) || !rawDogName ? "Unknown" : rawDogName;
   const breed = looksLikeUuid(rawBreed) ? "" : rawBreed;
   const owner_label = looksLikeUuid(rawOwnerName) || !rawOwnerName ? "Unknown owner" : rawOwnerName;
 

@@ -226,8 +226,8 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
       {confirmingReschedule && (
         <ConfirmDialog
-          title="Pick a new time?"
-          message={`We'll open the booking flow so you can pick a new slot for ${dogName}. Your current ${day} ${dateStr}, ${timeStr} booking stays held until you confirm a new one — cancel out and nothing changes.`}
+          title="Reschedule this groom?"
+          message="Pick your new time and we'll swap you over once you confirm."
           confirmLabel="Pick a new time"
           cancelLabel="Keep this slot"
           variant="primary"
