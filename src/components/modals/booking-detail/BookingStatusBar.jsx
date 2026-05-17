@@ -61,13 +61,25 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
               aria-label={`Set status to ${status.label}`}
               onClick={async () => {
                 if (isActive) return;
+                // Capture the pre-change status so the undo callback
+                // reverts to the right value even if `currentStatus`
+                // changes between toast trigger and undo click.
+                const previousStatus = currentStatus;
                 await onUpdate(
                   { ...booking, status: status.id },
                   currentDateStr,
                   currentDateStr,
                 );
                 const variant = status.id === "Checked in" || status.id === "Ready for pick-up" ? "success" : "info";
-                toast.show(`Status: ${status.label}`, variant);
+                toast.show(
+                  `Status: ${status.label}`,
+                  variant,
+                  () => onUpdate(
+                    { ...booking, status: previousStatus },
+                    currentDateStr,
+                    currentDateStr,
+                  ),
+                );
               }}
               className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-bold transition-colors duration-150 ${
                 isActive

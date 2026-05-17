@@ -4,7 +4,7 @@ import { buildSearchEntries } from "./helpers.js";
 describe("buildSearchEntries", () => {
   it("returns one entry per dog with the owner first", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
-    const humans = { "Sarah Jones": { phone: "07700 900111", trustedIds: [] } };
+    const humans = { "Sarah Jones": { fullName: "Sarah Jones", phone: "07700 900111", trustedIds: [] } };
     const entries = buildSearchEntries(dogs, humans);
     expect(entries).toHaveLength(1);
     expect(entries[0].dog.id).toBe("d1");
@@ -16,7 +16,7 @@ describe("buildSearchEntries", () => {
   it("nests trusted humans after the owner in the same entry", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "07700 900111", trustedIds: ["Dave Smith", "Emma Wilson"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "07700 900111", trustedIds: ["Dave Smith", "Emma Wilson"] },
       "Dave Smith": { phone: "07700 900112" },
       "Emma Wilson": { phone: "07700 900113" },
     };
@@ -32,7 +32,7 @@ describe("buildSearchEntries", () => {
   it("skips trusted IDs that don't resolve to a human record", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "111", trustedIds: ["Ghost User", "Dave Smith"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "111", trustedIds: ["Ghost User", "Dave Smith"] },
       "Dave Smith": { phone: "112" },
     };
     const entries = buildSearchEntries(dogs, humans);
@@ -59,9 +59,10 @@ describe("buildSearchEntries", () => {
     const entries = buildSearchEntries(dogs, humans);
     expect(entries).toHaveLength(1);
     // humanId is name-shaped (not a UUID) so we preserve the fetch-time
-    // owner name rather than collapsing to "Unknown owner".
+    // owner name rather than collapsing to "Unknown owner", but mark it
+    // missing so callers can show a "link owner" affordance.
     expect(entries[0].humans).toEqual([
-      { key: "Missing Owner", phone: "", isTrusted: false, missing: false },
+      { key: "Missing Owner", phone: "", isTrusted: false, missing: true },
     ]);
   });
 
@@ -85,11 +86,38 @@ describe("buildSearchEntries", () => {
   it("does not duplicate a dog that used to produce one entry per human", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "111", trustedIds: ["Dave Smith", "Emma Wilson"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "111", trustedIds: ["Dave Smith", "Emma Wilson"] },
       "Dave Smith": { phone: "112" },
       "Emma Wilson": { phone: "113" },
     };
     const entries = buildSearchEntries(dogs, humans);
     expect(entries.filter((e) => e.dog.id === "d1")).toHaveLength(1);
+  });
+});
+
+describe("buildSearchEntries — id-keyed owner resolution", () => {
+  it("resolves a dog whose humanId is a UUID via the humans map's id field", () => {
+    const dogs = {
+      "dog-1": {
+        id: "dog-1",
+        name: "Alfie",
+        humanId: "1b2e9d3a-4c5f-6789-abcd-ef0123456789", // UUID
+        _humanId: "1b2e9d3a-4c5f-6789-abcd-ef0123456789",
+      },
+    };
+    const humans = {
+      "Anna Cragg": {
+        id: "1b2e9d3a-4c5f-6789-abcd-ef0123456789",
+        fullName: "Anna Cragg",
+        name: "Anna",
+        surname: "Cragg",
+        phone: "+447700900123",
+      },
+    };
+    const entries = buildSearchEntries(dogs, humans);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].humans).toHaveLength(1);
+    expect(entries[0].humans[0].key).toBe("Anna Cragg");
+    expect(entries[0].humans[0].missing).toBe(false);
   });
 });

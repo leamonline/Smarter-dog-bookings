@@ -46,7 +46,7 @@ export function serviceLabel(service) {
   const labels = {
     "full-groom": "Full groom",
     "bath-and-brush": "Bath & brush",
-    "bath-and-deshed": "Bath & deshed",
+    "bath-and-deshed": "Bath & de-shed",
     "puppy-groom": "Puppy groom",
   };
   return labels[service] || service || "Service";

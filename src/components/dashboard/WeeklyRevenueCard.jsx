@@ -58,12 +58,13 @@ export function WeeklyRevenueCard({
   dogs,
   currentDateObj,
 }) {
-  const todayStr = currentDateObj ? toDateStr(currentDateObj) : null;
+  const todayStr = toDateStr(new Date());
+  const selectedStr = currentDateObj ? toDateStr(currentDateObj) : null;
 
   const dayRevenue = useMemo(() => {
-    if (!todayStr) return 0;
-    return computeRevenue(bookingsByDate?.[todayStr] || [], dogs);
-  }, [bookingsByDate, dogs, todayStr]);
+    if (!selectedStr) return 0;
+    return computeRevenue(bookingsByDate?.[selectedStr] || [], dogs);
+  }, [bookingsByDate, dogs, selectedStr]);
 
   const weekRevenue = useMemo(() => {
     return (dates || []).reduce(
@@ -89,7 +90,7 @@ export function WeeklyRevenueCard({
         <RevenueBar
           amount={dayRevenue}
           pct={dayPct}
-          label="Today"
+          label={selectedStr === todayStr ? "Today" : "This day"}
           sub={
             currentDateObj
               ? currentDateObj.toLocaleDateString("en-GB", {

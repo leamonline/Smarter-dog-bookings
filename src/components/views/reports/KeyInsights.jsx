@@ -18,14 +18,15 @@ function buildSizeSummary(sizes, curRev) {
   };
 }
 
-function fillRateInsight(util, openDays) {
+function fillRateInsight(util, openDays, days) {
   if (openDays === 0) return null;
-  if (util < 30) return `Seat fill is ${util.toFixed(0)}% — availability is wide open.`;
-  if (util > 85) return `Seat fill is ${util.toFixed(0)}% — capacity is nearly maxed.`;
-  return `Seat fill is ${util.toFixed(0)}% across ${pluralCount(openDays, "open day", "open days")}.`;
+  const scope = ` · last ${days} days`;
+  if (util < 30) return `Seat fill is ${util.toFixed(0)}% — availability is wide open${scope}.`;
+  if (util > 85) return `Seat fill is ${util.toFixed(0)}% — capacity is nearly maxed${scope}.`;
+  return `Seat fill is ${util.toFixed(0)}% across ${pluralCount(openDays, "open day", "open days")}${scope}.`;
 }
 
-export function KeyInsights({ stats, insights }) {
+export function KeyInsights({ stats, insights, days }) {
   const items = [];
 
   if (insights.service) items.push({ key: "service", text: insights.service });
@@ -52,7 +53,7 @@ export function KeyInsights({ stats, insights }) {
     });
   }
 
-  const fill = fillRateInsight(stats.util, stats.openDays);
+  const fill = fillRateInsight(stats.util, stats.openDays, days);
   if (fill) items.push({ key: "fill", text: fill });
 
   if (insights.health) items.push({ key: "health", text: insights.health });
