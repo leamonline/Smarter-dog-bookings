@@ -34,6 +34,16 @@ export function useDogs(humansById: Record<string, any>) {
   const fetchedDogIdsRef = useRef<Set<string>>(new Set());
   const inflightDogIdsRef = useRef<Set<string>>(new Set());
 
+  // The main fetch effect can't depend on humansById: every time
+  // ensureHumansByIds (in useHumans) resolves a missing owner, the
+  // humansById reference changes, which would re-run fetchDogs() and
+  // wipe out any dogs that ensureDogsByIds had just merged in from the
+  // tail of the paginated list. We keep a ref instead so realtime
+  // INSERT/UPDATE handlers and on-demand fetches still see the latest
+  // humans without re-triggering the effect.
+  const humansByIdRef = useRef(humansById);
+  useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
+
   const invalidateHuman = useCallback((humanId: string | null | undefined) => {
     if (!humanId) return;
     fetchedHumanIdsRef.current.delete(humanId);
@@ -87,8 +97,15 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       const rows = data || [];
-      setDogsById(buildDogsById(rows));
-      setDogs(dbDogsToMap(rows, humansById || {}));
+      // Merge rather than replace: dogs added by ensureDogsByIds (rows
+      // past the first paginated page) would otherwise be wiped out
+      // when a realtime INSERT/UPDATE triggers a refetch, and then
+      // never re-added because fetchedDogIdsRef has already marked
+      // them as resolved.
+      const nextById = buildDogsById(rows);
+      const nextMap = dbDogsToMap(rows, humansByIdRef.current || {});
+      setDogsById((prev) => ({ ...prev, ...nextById }));
+      setDogs((prev) => ({ ...prev, ...nextMap }));
       setHasMore(rows.length >= limit);
       setLoading(false);
     }
@@ -141,7 +158,7 @@ export function useDogs(humansById: Record<string, any>) {
       cancelled = true;
       supabase!.removeChannel(channel);
     };
-  }, [humansById]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!supabase) return;
