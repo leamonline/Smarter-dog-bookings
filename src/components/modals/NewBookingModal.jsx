@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { canBookSlot } from "../../engine/capacity.js";
@@ -48,6 +48,35 @@ export function NewBookingModal({
   const [selectedSlot, setSelectedSlot] = useState(initialSlot || "");
   const [error, setError] = useState("");
   const [recurringWeeks, setRecurringWeeks] = useState(0);
+
+  // When the modal opens from a WhatsApp message the humans map may not
+  // have hydrated yet, so dogQuery falls back to the conversation's
+  // displayName (`ownerName`). Once humans loads with the matching
+  // record, upgrade dogQuery to the canonical owner name — but only
+  // while we're still showing the fallback (or nothing). If the user
+  // has typed anything different, treat that as intent and don't stomp.
+  const prefilledOwnerRef = useRef(false);
+  useEffect(() => {
+    if (prefilledOwnerRef.current) return;
+    if (!initialHumanId) return;
+    if (dogEntries.length > 0) {
+      prefilledOwnerRef.current = true;
+      return;
+    }
+    // Only upgrade from the initial fallback ("" or ownerName).
+    const fallback = ownerName || "";
+    if (dogQuery && dogQuery !== fallback) {
+      prefilledOwnerRef.current = true;
+      return;
+    }
+    const owner = Object.values(humans || {}).find((h) => h?.id === initialHumanId);
+    if (!owner) return;
+    const resolved = owner.fullName || `${owner.name || ""} ${owner.surname || ""}`.trim();
+    if (resolved && resolved !== dogQuery) {
+      setDogQuery(resolved);
+    }
+    prefilledOwnerRef.current = true;
+  }, [humans, initialHumanId, dogEntries.length, dogQuery, ownerName]);
 
   const hasDogs = dogEntries.length > 0;
   const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
