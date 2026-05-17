@@ -9,7 +9,7 @@ export const MAX_DOGS_PER_SLOT = 5;
 export const SERVICES = [
   { id: "full-groom", name: "Full Groom" },
   { id: "bath-and-brush", name: "Bath & Brush" },
-  { id: "bath-and-deshed", name: "Bath & Deshed" },
+  { id: "bath-and-deshed", name: "Bath & De-shed" },
   { id: "puppy-groom", name: "Puppy Groom" },
 ];
 
