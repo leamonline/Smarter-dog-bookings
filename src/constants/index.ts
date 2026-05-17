@@ -12,5 +12,6 @@ export {
 export {
   BREED_SIZE_MAP,
   BREED_LIST,
+  DOG_BREEDS,
   getSizeForBreed,
 } from "./breeds.js";
