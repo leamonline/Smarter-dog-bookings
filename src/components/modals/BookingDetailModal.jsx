@@ -622,6 +622,8 @@ export function BookingDetailModal({
           }}
           onAdd={onAdd}
           onRemove={onRemove}
+          onUpdate={onUpdate}
+          currentDateStr={currentDateStr}
           onClose={onClose}
           onReschedule={() => setShowReschedule(true)}
           autosaveStatus={autosaveStatus}
