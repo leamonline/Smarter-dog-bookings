@@ -676,6 +676,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onOpenAddHuman={() => setShowAddHumanModal(true)}
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
+                  initialHumanId={showNewBooking.initialHumanId}
+                  sourceConversationId={showNewBooking.sourceConversationId}
+                  sourceMessageText={showNewBooking.sourceMessageText}
+                  ownerName={showNewBooking.ownerName}
                   onSearchDogs={dogsSearchDogs}
                   isSearchingDogs={dogsIsSearching}
                 />

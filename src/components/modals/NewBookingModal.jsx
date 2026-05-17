@@ -22,12 +22,25 @@ export function NewBookingModal({
   onOpenAddHuman,
   initialDateStr,
   initialSlot,
+  initialHumanId,
+  sourceConversationId,
+  sourceMessageText,
+  ownerName,
   onSearchDogs,
   isSearchingDogs,
 }) {
   const toast = useToast();
 
-  const [dogQuery, setDogQuery] = useState("");
+  const [dogQuery, setDogQuery] = useState(() => {
+    if (initialHumanId) {
+      const humansList = humans ? Object.values(humans) : [];
+      const owner = humansList.find((h) => h?.id === initialHumanId);
+      if (owner) {
+        return owner.fullName || `${owner.name || ""} ${owner.surname || ""}`.trim() || "";
+      }
+    }
+    return ownerName || "";
+  });
   const [dogEntries, setDogEntries] = useState([]); // { dog, humanKey, service }
   const [selectedHumanKey, setSelectedHumanKey] = useState("");
   const [addingAnotherDog, setAddingAnotherDog] = useState(false);
@@ -219,6 +232,13 @@ export function NewBookingModal({
             style={{ color: primaryTheme.headerText }}
           >{"\u00D7"}</button>
         </div>
+
+        {/* ─── WhatsApp context banner ─── */}
+        {sourceMessageText && (
+          <div className="mx-6 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            <span className="font-bold">From WhatsApp:</span> "{sourceMessageText.slice(0, 140)}"
+          </div>
+        )}
 
         {/* ─── Dog search / selection ─── */}
         <DogSearchSection
