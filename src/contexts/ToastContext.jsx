@@ -13,6 +13,7 @@ import { createContext, useContext, useState, useCallback, useRef } from "react"
 const ToastContext = createContext(null);
 
 const TOAST_DURATION = 4000;
+const TOAST_DURATION_WITH_UNDO = 10000;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -26,7 +27,8 @@ export function ToastProvider({ children }) {
     const id = ++idRef.current;
     setToasts((prev) => [...prev, { id, message, variant, onUndo }]);
 
-    setTimeout(() => dismiss(id), TOAST_DURATION);
+    const ms = onUndo ? TOAST_DURATION_WITH_UNDO : TOAST_DURATION;
+    setTimeout(() => dismiss(id), ms);
     return id;
   }, [dismiss]);
 
