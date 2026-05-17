@@ -4,7 +4,7 @@ import { buildSearchEntries } from "./helpers.js";
 describe("buildSearchEntries", () => {
   it("returns one entry per dog with the owner first", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
-    const humans = { "Sarah Jones": { phone: "07700 900111", trustedIds: [] } };
+    const humans = { "Sarah Jones": { fullName: "Sarah Jones", phone: "07700 900111", trustedIds: [] } };
     const entries = buildSearchEntries(dogs, humans);
     expect(entries).toHaveLength(1);
     expect(entries[0].dog.id).toBe("d1");
@@ -16,7 +16,7 @@ describe("buildSearchEntries", () => {
   it("nests trusted humans after the owner in the same entry", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "07700 900111", trustedIds: ["Dave Smith", "Emma Wilson"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "07700 900111", trustedIds: ["Dave Smith", "Emma Wilson"] },
       "Dave Smith": { phone: "07700 900112" },
       "Emma Wilson": { phone: "07700 900113" },
     };
@@ -32,7 +32,7 @@ describe("buildSearchEntries", () => {
   it("skips trusted IDs that don't resolve to a human record", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "111", trustedIds: ["Ghost User", "Dave Smith"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "111", trustedIds: ["Ghost User", "Dave Smith"] },
       "Dave Smith": { phone: "112" },
     };
     const entries = buildSearchEntries(dogs, humans);
@@ -86,7 +86,7 @@ describe("buildSearchEntries", () => {
   it("does not duplicate a dog that used to produce one entry per human", () => {
     const dogs = { Bella: { id: "d1", name: "Bella", humanId: "Sarah Jones" } };
     const humans = {
-      "Sarah Jones": { phone: "111", trustedIds: ["Dave Smith", "Emma Wilson"] },
+      "Sarah Jones": { fullName: "Sarah Jones", phone: "111", trustedIds: ["Dave Smith", "Emma Wilson"] },
       "Dave Smith": { phone: "112" },
       "Emma Wilson": { phone: "113" },
     };

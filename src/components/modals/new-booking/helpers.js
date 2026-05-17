@@ -35,7 +35,7 @@ export function buildSearchEntries(dogs, humans) {
     if (!owner && ownerKey && !ownerIsUuid) {
       owner = humans?.[ownerKey] || null;
     }
-    if (!owner && ownerKey) {
+    if (!owner && ownerKey && ownerKey !== dog._humanId) {
       // Last resort: try matching the key against any human's id, in
       // case humanId itself is a UUID and _humanId wasn't populated.
       owner = humansList.find((h) => h?.id === ownerKey) || null;
@@ -45,15 +45,9 @@ export function buildSearchEntries(dogs, humans) {
     const humansForDog = [];
 
     if (owner) {
-      const displayKey =
-        owner.fullName ||
-        `${owner.name || ""} ${owner.surname || ""}`.trim() ||
-        // Fall back to the humanId string when the owner record has no name
-        // fields (e.g. legacy records keyed by display name).
-        (!ownerIsUuid ? ownerKey : "") ||
-        "Unknown owner";
+      const displayKey = owner.fullName || `${owner.name || ""} ${owner.surname || ""}`.trim();
       humansForDog.push({
-        key: displayKey,
+        key: displayKey || "Unknown owner",
         phone: owner.phone || "",
         isTrusted: false,
         missing: false,
