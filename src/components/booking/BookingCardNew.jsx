@@ -161,10 +161,16 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const changeStatus = (nextStatus) => {
     if (!nextStatus || nextStatus === booking.status) return;
     const previous = booking.status || "Booked";
+    const prevIdx = STATUS_PROGRESSION.indexOf(previous);
+    const nextIdx = STATUS_PROGRESSION.indexOf(nextStatus);
+    const skipped = nextIdx - prevIdx;
+    if (skipped >= 2) {
+      const ok = window.confirm(
+        `Skip from "${STATUS_DISPLAY[previous]?.label || previous}" straight to "${STATUS_DISPLAY[nextStatus]?.label || nextStatus}"?`,
+      );
+      if (!ok) return;
+    }
     if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
-    // Undo toast — gives staff 5s to back out of a mis-tap. The toast
-    // module clears itself after its timeout; the undo handler just
-    // re-applies the previous status via the same update path.
     toast.show(
       `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
       "info",
