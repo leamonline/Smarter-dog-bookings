@@ -48,6 +48,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
     conversations,
     loadingList,
+    listError,
     selectedId,
     selectedConversation,
     messages,
@@ -70,6 +71,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     sendTemplate,
     dogNames,
     actionInFlight,
+    refreshList,
   } = useWhatsAppInbox();
   const toast = useToast();
 
@@ -282,6 +284,26 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         >
           {loadingList ? (
             <div className="p-4"><LoadingSpinner /></div>
+          ) : listError ? (
+            <div role="alert" className="m-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <h2 className="text-sm font-bold text-amber-900">We can&apos;t load your messages right now</h2>
+              <p className="mt-1 text-xs text-amber-800">
+                The inbox is temporarily unavailable. This usually clears within a minute. If it doesn&apos;t, ping support.
+              </p>
+              <button
+                type="button"
+                onClick={refreshList}
+                className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1.5 text-xs font-bold text-amber-50 hover:bg-amber-950"
+              >
+                Try again
+              </button>
+              {import.meta.env.DEV && (
+                <details className="mt-3 text-[10px] text-amber-700">
+                  <summary>Dev: error details</summary>
+                  <pre className="whitespace-pre-wrap mt-1">{String(listError?.message || listError)}</pre>
+                </details>
+              )}
+            </div>
           ) : conversations.length === 0 ? (
             <div className="p-6 text-center text-slate-600 text-[13px]">
               <p className="font-semibold text-brand-purple mb-1">No WhatsApp conversations yet</p>
