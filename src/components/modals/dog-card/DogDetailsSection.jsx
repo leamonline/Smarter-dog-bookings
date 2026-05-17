@@ -14,6 +14,7 @@ export function DogDetailsSection({
   ownerLabel,
   ownerOpenValue,
   owner,
+  hasLinkedOwner,
   onClose,
   onOpenHuman,
   // Owner edit
@@ -113,9 +114,24 @@ export function DogDetailsSection({
   );
 
   /* ── Owner row with contact links ── */
+  // Three states matter:
+  //   1. No owner linked (humanId null in DB): "No owner assigned"
+  //   2. Owner linked but row not in the map (deleted human, or the
+  //      hydration race that motivated the useHumans merge fix): the
+  //      formatOwnerLabel helper returns "Unknown owner" - show it
+  //      italic so it reads as a placeholder, not a real name.
+  //   3. Owner resolved: name + phone WA links, row is clickable.
+  const ownerNameNode = !hasLinkedOwner ? (
+    <span className="italic text-slate-400">No owner assigned</span>
+  ) : !owner ? (
+    <span className="italic text-slate-400">{ownerLabel || "Unknown owner"}</span>
+  ) : (
+    <span>{titleCase(ownerLabel)}</span>
+  );
+
   const ownerValue = (
     <span className="inline-flex items-baseline gap-2 flex-wrap justify-end">
-      <span>{titleCase(ownerLabel) || "\u2014"}</span>
+      {ownerNameNode}
       {owner?.phone && (
         <>
           <a
