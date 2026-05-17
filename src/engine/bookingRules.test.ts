@@ -357,4 +357,28 @@ describe("resolveBookingDisplay", () => {
     const after = resolveBookingDisplay(booking, { Alfie: updatedDog }, { "Jane Smith": human });
     expect(after.breed).toBe("Cavalier King Charles Spaniel");
   });
+
+  // Regression: bookings whose dogs/humans hadn't loaded at transform time
+  // used to be stamped with the literal string "Unknown" as dogName / owner.
+  // Once the cache populated, the live join had to win — otherwise cards
+  // rendered "Unknown" indefinitely (and the BookingCardNew "Unknown owner"
+  // sentinel check that hides the owner row never matched).
+  it("resolves live dog and owner even when the booking carries the legacy 'Unknown' placeholder", () => {
+    const legacy = { ...booking, dogName: "Unknown", owner: "Unknown", ownerNameSnapshot: null, breedSnapshot: null };
+    const result = resolveBookingDisplay(legacy, { [dog.id]: dog }, { [human.id]: human });
+    expect(result.dogName).toBe("Alfie");
+    expect(result.breed).toBe("Cockapoo");
+    expect(result.owner).toBe("Jane Smith");
+    expect(result.dogMissing).toBe(false);
+    expect(result.ownerMissing).toBe(false);
+  });
+
+  it("returns the 'Unknown owner' sentinel (not the literal 'Unknown') when nothing resolves", () => {
+    const legacy = { ...booking, dogName: "Unknown", owner: "Unknown", ownerNameSnapshot: null, breedSnapshot: null, _dogId: "", _ownerId: null };
+    const result = resolveBookingDisplay(legacy, {}, {});
+    expect(result.dogName).toBe("Unknown");
+    expect(result.owner).toBe("Unknown owner");
+    expect(result.dogMissing).toBe(true);
+    expect(result.ownerMissing).toBe(true);
+  });
 });
