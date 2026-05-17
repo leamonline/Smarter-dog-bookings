@@ -128,12 +128,15 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
                 onClick={() => onSelectDate(date)}
                 aria-label={ariaLabel}
                 aria-pressed={isSelected}
+                aria-current={isToday ? "date" : undefined}
                 className={`relative w-full aspect-square rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
                   isSelected
                     ? "bg-brand-yellow text-brand-purple shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
-                    : isToday
-                      ? `bg-brand-yellow/15 ${numberColor} border border-brand-yellow/60`
-                      : `bg-transparent ${numberColor} hover:bg-slate-50`
+                    : `bg-transparent ${numberColor} hover:bg-slate-50`
+                } ${
+                  isToday
+                    ? "ring-2 ring-brand-purple ring-offset-1 ring-offset-white"
+                    : ""
                 }`}
               >
                 <span>{date.getDate()}</span>
@@ -146,6 +149,21 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-3 flex items-center justify-center gap-3 text-[9px] font-semibold text-slate-400">
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full ring-2 ring-brand-purple inline-block" />
+            Today
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm bg-brand-yellow inline-block" />
+            Selected
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+            Bookings
+          </span>
         </div>
 
       </div>
