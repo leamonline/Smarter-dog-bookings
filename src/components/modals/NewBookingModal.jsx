@@ -35,10 +35,15 @@ export function NewBookingModal({
   const [selectedSlot, setSelectedSlot] = useState(initialSlot || "");
   const [error, setError] = useState("");
   const [recurringWeeks, setRecurringWeeks] = useState(0);
+  // Past-date booking confirmation. Set when handleConfirm runs against a
+  // date earlier than today; the actual save happens inside the confirm
+  // dialog's accept handler. Avoids accidental back-dated bookings while
+  // still letting staff log historical records when they need to.
+  const [pendingPastConfirm, setPendingPastConfirm] = useState(false);
 
   const hasDogs = dogEntries.length > 0;
   const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
-  const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small" }));
+  const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small", name: e.dog.name }));
 
   // ─── handlers ───────────────────────────────────────────────────────────
 
@@ -124,6 +129,18 @@ export function NewBookingModal({
       }
     }
 
+    // Past-date guard. If the selected date is before today, require an
+    // explicit confirmation so staff can't accidentally book yesterday.
+    const todayStr = toDateStr(new Date());
+    if (selectedDateStr < todayStr) {
+      setPendingPastConfirm(true);
+      return;
+    }
+
+    saveBooking();
+  };
+
+  const saveBooking = () => {
     const bookings = [];
     const occurrences = recurringWeeks > 0 ? Math.floor(52 / recurringWeeks) : 1;
     let baseDate = new Date(selectedDateStr + "T00:00:00");
@@ -184,7 +201,7 @@ export function NewBookingModal({
     toast.show("Booking created", "success");
   };
 
-  // Format the selected date nicely
+  // Format the selected date nicely (long form for the form label).
   const selectedDateDisplay = selectedDateStr
     ? (() => {
         const [y, m, d] = selectedDateStr.split("-").map(Number);
@@ -192,6 +209,34 @@ export function NewBookingModal({
         return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
       })()
     : "";
+
+  // Short form for the header subtitle ("Mon 11 May") so the user can
+  // always see which slot they're booking into without scrolling.
+  const selectedDateShort = selectedDateStr
+    ? (() => {
+        const [y, m, d] = selectedDateStr.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+      })()
+    : "";
+
+  // Slot label without the leading zero — "10:30am" reads better than "10:30".
+  const selectedSlotLabel = selectedSlot
+    ? (() => {
+        const [h, mn] = selectedSlot.split(":").map(Number);
+        const suffix = h >= 12 ? "pm" : "am";
+        const hour = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        return `${hour}:${String(mn).padStart(2, "0")}${suffix}`;
+      })()
+    : "";
+
+  const subtitleParts = [];
+  if (hasDogs) subtitleParts.push(dogEntries.map(e => titleCase(e.dog.name)).join(", "));
+  if (selectedSlotLabel) subtitleParts.push(selectedSlotLabel);
+  if (selectedDateShort) subtitleParts.push(selectedDateShort);
+  const headerSubtitle = subtitleParts.length > 0
+    ? subtitleParts.join(" · ")
+    : "Search for a dog to get started";
 
   // ─── render ─────────────────────────────────────────────────────────────
 
@@ -210,7 +255,7 @@ export function NewBookingModal({
           <div>
             <div id="new-booking-title" className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
             <div className="text-xs mt-0.5" style={{ color: primaryTheme.headerTextSub }}>
-              {hasDogs ? dogEntries.map(e => titleCase(e.dog.name)).join(", ") : "Search for a dog to get started"}
+              {headerSubtitle}
             </div>
           </div>
           <button
@@ -265,6 +310,62 @@ export function NewBookingModal({
           onConfirm={handleConfirm}
           onClose={onClose}
         />
+
+        {pendingPastConfirm && (
+          <PastDateConfirm
+            dateLabel={selectedDateDisplay}
+            slotLabel={selectedSlotLabel}
+            onConfirm={() => { setPendingPastConfirm(false); saveBooking(); }}
+            onCancel={() => setPendingPastConfirm(false)}
+          />
+        )}
     </AccessibleModal>
+  );
+}
+
+// Past-date confirmation. Rendered as a fixed-position overlay on top
+// of the main New Booking modal (z-index 1100 vs the modal's 1000) so
+// the question is unmistakable. Kept inline here because it only makes
+// sense in the booking flow.
+function PastDateConfirm({ dateLabel, slotLabel, onConfirm, onCancel }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="past-date-confirm-title"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
+      style={{ zIndex: 1100 }}
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.2)] p-5 max-w-[360px] w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div id="past-date-confirm-title" className="text-base font-extrabold text-slate-800 mb-1.5">
+          Log a historical booking?
+        </div>
+        <p className="text-[13px] text-slate-600 leading-relaxed mb-4">
+          {dateLabel || "This date"}{slotLabel ? ` at ${slotLabel}` : ""} is in the past.
+          {" "}Save it anyway to keep a historical record?
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="py-2 px-4 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-semibold cursor-pointer font-inherit"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            autoFocus
+            className="py-2 px-4 rounded-lg border-none bg-brand-coral text-white text-sm font-bold cursor-pointer font-inherit"
+          >
+            Log as historical
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -35,7 +35,7 @@ function RevenueBar({ amount, pct, label, sub, statusLabel }) {
           )}
         </div>
         <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
-          <span className="font-bold text-brand-teal">£{amount}</span>
+          <span className="font-bold text-brand-teal-text">£{amount}</span>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             {statusLabel}
           </span>

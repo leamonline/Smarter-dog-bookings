@@ -65,6 +65,12 @@
   --color-brand-coral: #E7546C;
   --color-brand-coral-light: #FDE2E8;
   --color-brand-teal: #2D8B7A;
+  /* Darker teal reserved for body-size text (<18pt regular / <14pt bold).
+     Crosses the 4.5:1 WCAG AA contrast threshold against white where the
+     primary brand-teal sits at ~4.13:1. Use text-brand-teal for headings,
+     icons, and badges on tinted backgrounds; text-brand-teal-text for
+     small form labels, price labels, and inline links. */
+  --color-brand-teal-text: #266E60;
   --color-brand-green: #00D94A;
   --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;

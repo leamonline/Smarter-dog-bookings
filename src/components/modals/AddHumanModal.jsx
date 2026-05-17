@@ -121,14 +121,14 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
         <form onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">First Name *</label>
+              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
               <input value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="Sarah"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                 autoFocus />
             </div>
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Surname *</label>
+              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
               <input value={surname} onChange={e => { setSurname(e.target.value); setError(""); }} placeholder="Jones"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
@@ -136,21 +136,21 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Phone *</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Phone *</label>
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900111"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Email</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
           </div>
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Address</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Address</label>
             <input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St"
               autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
@@ -172,7 +172,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
           {/* Link dogs */}
           {dogs && onUpdateDog && (
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">
+              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
                 Dogs they own
                 <span className="font-medium normal-case tracking-normal text-slate-400 ml-1.5">optional</span>
               </label>
@@ -241,7 +241,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
           )}
 
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Notes</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes about this person..." rows={2}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
           </div>

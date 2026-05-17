@@ -10,7 +10,7 @@ export function ContactPopup({ human, onClose }) {
     <div className="flex justify-between items-center py-2 border-b border-slate-200">
       <span className="text-[13px] text-slate-500">{label}</span>
       {typeof active === "boolean" ? (
-        <span className={`text-[13px] font-semibold ${active ? "text-brand-teal" : "text-brand-coral"}`}>
+        <span className={`text-[13px] font-semibold ${active ? "text-brand-teal-text" : "text-brand-coral"}`}>
           {active ? "\u2705 On" : "\u274C Off"}
         </span>
       ) : (
@@ -40,7 +40,7 @@ export function ContactPopup({ human, onClose }) {
               <span className="text-[13px] text-slate-500">Phone</span>
               <a
                 href={`tel:${human.phone.replace(/\s/g, "")}`}
-                className="text-[13px] font-semibold text-brand-teal no-underline hover:underline"
+                className="text-[13px] font-semibold text-brand-teal-text no-underline hover:underline"
               >
                 {human.phone}
               </a>
@@ -51,7 +51,7 @@ export function ContactPopup({ human, onClose }) {
           {human.email ? (
             <div className="flex justify-between items-center py-2">
               <span className="text-[13px] text-slate-500">Email</span>
-              <a href={`mailto:${human.email}`} className="text-[13px] font-semibold text-brand-teal no-underline hover:underline">{human.email}</a>
+              <a href={`mailto:${human.email}`} className="text-[13px] font-semibold text-brand-teal-text no-underline hover:underline">{human.email}</a>
             </div>
           ) : row("Email", "\u2014")}
         </div>

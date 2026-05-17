@@ -48,6 +48,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
     conversations,
     loadingList,
+    listError,
     selectedId,
     selectedConversation,
     messages,
@@ -282,6 +283,16 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         >
           {loadingList ? (
             <div className="p-4"><LoadingSpinner /></div>
+          ) : listError ? (
+            <div className="p-6 text-center text-slate-600 text-[13px]" role="alert">
+              <p className="font-semibold text-brand-coral mb-1">Couldn't load conversations</p>
+              <p className="text-[12px] text-slate-500 mb-2">
+                {listError.message || "Something went wrong fetching the inbox."}
+              </p>
+              <p className="text-[12px] text-slate-500">
+                If this keeps happening, the dashboard's WhatsApp widget may still show recent threads.
+              </p>
+            </div>
           ) : conversations.length === 0 ? (
             <div className="p-6 text-center text-slate-600 text-[13px]">
               <p className="font-semibold text-brand-purple mb-1">No WhatsApp conversations yet</p>

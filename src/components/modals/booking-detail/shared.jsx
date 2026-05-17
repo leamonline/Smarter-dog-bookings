@@ -9,7 +9,7 @@ export const MODAL_INPUT_CLS =
 
 export function LogisticsLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
+    <span className="text-[12px] font-extrabold text-brand-teal-text uppercase tracking-wide">
       {text}
     </span>
   );
@@ -51,7 +51,7 @@ export function CardRow({ label, value, onClick, last }) {
       <span
         className={`text-[13px] font-semibold text-right break-words ${
           onClick
-            ? "text-brand-teal cursor-pointer"
+            ? "text-brand-teal-text cursor-pointer"
             : "text-slate-800"
         }`}
         role={onClick ? "button" : undefined}
