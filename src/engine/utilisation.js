@@ -50,10 +50,18 @@ export function findNextAvailable({
   daySettings,
   maxDaysAhead = 28,
   size = "small",
+  now = new Date(),
 } = {}) {
   if (!fromDate) return null;
   const start = new Date(fromDate);
   start.setHours(0, 0, 0, 0);
+  // Never advertise a slot in the past. If the caller is looking at a
+  // past day (e.g., the user clicked back through the calendar), bump
+  // the search start to today so we don't suggest "Mon 11 May" when
+  // today is the 17th.
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  if (start < today) start.setTime(today.getTime());
   for (let i = 0; i < maxDaysAhead; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);

@@ -7,7 +7,7 @@
 
 import "./skeleton.css";
 
-function Block({ className = "", style }) {
+export function SkeletonBlock({ className = "", style }) {
   return (
     <div
       className={`bg-slate-200/70 rounded animate-skeleton-pulse ${className}`}
@@ -16,6 +16,9 @@ function Block({ className = "", style }) {
     />
   );
 }
+
+// Internal alias so existing callers inside this file don't change.
+const Block = SkeletonBlock;
 
 export function CardGridSkeleton({ rows = 3, cols = 3 }) {
   const cells = rows * cols;
