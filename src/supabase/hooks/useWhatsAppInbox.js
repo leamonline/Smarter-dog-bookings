@@ -140,7 +140,13 @@ async function fetchConversationDetail(conversationId) {
 // ── The hook ─────────────────────────────────────────────────
 export function useWhatsAppInbox() {
   const [conversations, setConversations] = useState([]);
+  // `dogNames` is the array used by the template picker (it auto-fills the
+  // first dog when staff picks a templated reply). `dogNamesById` is the
+  // map BookingCreatedCard uses to resolve the dog name from a booking
+  // action's `payload.dog_id` — without it the chip falls back to the
+  // generic "this dog" placeholder even when we know the name.
   const [dogNames, setDogNames] = useState([]);
+  const [dogNamesById, setDogNamesById] = useState({});
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState(null);
 
@@ -269,17 +275,24 @@ export function useWhatsAppInbox() {
 
     await refreshDetail(conversationId);
 
-    // Fetch dog names for template picker auto-fill
+    // Fetch dog names for template picker auto-fill + booking-action chip.
     const humanId = conversations.find((c) => c.id === conversationId)?.human_id;
     if (humanId) {
       const { data: dogsData } = await supabase
         .from("dogs")
-        .select("name")
+        .select("id, name")
         .eq("human_id", humanId)
         .order("name");
-      setDogNames((dogsData ?? []).map((d) => d.name));
+      const rows = dogsData ?? [];
+      setDogNames(rows.map((d) => d.name));
+      const byId = {};
+      for (const d of rows) {
+        if (d?.id && d?.name) byId[d.id] = d.name;
+      }
+      setDogNamesById(byId);
     } else {
       setDogNames([]);
+      setDogNamesById({});
     }
   }, [refreshDetail]);
 
@@ -747,6 +760,7 @@ export function useWhatsAppInbox() {
     setAutonomousBookingEnabled,
     sendTemplate,
     dogNames,
+    dogNamesById,
     actionInFlight,
     // manual refresh (rarely needed)
     refreshList,

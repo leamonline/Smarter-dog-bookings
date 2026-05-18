@@ -27,3 +27,23 @@ export function normaliseUkMobile(raw) {
 
   return UK_MOBILE_E164_PATTERN.test(phone) ? phone : "";
 }
+
+/**
+ * Format a phone number for display to staff. UK mobiles in E.164 form
+ * (+447XXXXXXXXX) render as "07XXX XXXXXX" — the national form a salon
+ * staff member would read off a takeaway pad. Non-UK or malformed input
+ * is returned as-is (trimmed), so we never show an empty card while
+ * eating someone's number.
+ */
+export function formatPhoneForDisplay(raw) {
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const normalised = normaliseUkMobile(trimmed);
+  if (normalised) {
+    // +447700900123 → 07700 900123
+    const national = "0" + normalised.slice(3);
+    return `${national.slice(0, 5)} ${national.slice(5)}`;
+  }
+  return trimmed;
+}
