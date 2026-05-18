@@ -43,7 +43,7 @@ export function BookingMainPanel({
   };
 
   return (
-    <main
+    <section
       className="flex flex-col gap-3 min-w-0 xl:flex-1 xl:min-h-0 xl:h-full"
       aria-label="Booking schedule"
     >
@@ -99,6 +99,6 @@ export function BookingMainPanel({
       ) : (
         <ClosedDayView onOpen={onOpenDay} />
       )}
-    </main>
+    </section>
   );
 }

@@ -134,8 +134,12 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                 <div className="text-[13px] text-slate-500 mb-1">
                   Enter your email and we'll send you a reset link.
                 </div>
+                <label htmlFor="reset-email" className="sr-only">Email address</label>
                 <input
+                  id="reset-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={resetEmail}
                   onChange={e => { setResetEmail(e.target.value); setResetError(""); }}
                   placeholder="you@smarterdog.co.uk"
@@ -184,11 +188,17 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           className="flex flex-col gap-3"
         >
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+            <label
+              htmlFor="staff-email"
+              className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5"
+            >
               Email
             </label>
             <input
+              id="staff-email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
               placeholder="you@smarterdog.co.uk"
@@ -197,11 +207,17 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+            <label
+              htmlFor="staff-password"
+              className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5"
+            >
               Password
             </label>
             <input
+              id="staff-password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
               placeholder="Min. 12 characters"

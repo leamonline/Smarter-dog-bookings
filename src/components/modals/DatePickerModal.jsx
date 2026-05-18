@@ -94,11 +94,22 @@ export function DatePickerModal({
             else if (today) { bgCls = "bg-sky-50 hover:bg-sky-100"; textCls = "text-brand-cyan"; }
             if (disabled) { textCls = "text-slate-300"; bgCls = "bg-transparent"; }
 
+            const cellLabel = cellDate.toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }) + (disabled ? ", salon closed" : "");
+
             return (
               <button
                 key={d}
+                type="button"
                 onClick={() => { if (!disabled) onSelectDate(new Date(viewYear, viewMonth, d)); }}
                 disabled={disabled}
+                aria-label={cellLabel}
+                aria-current={today ? "date" : undefined}
+                aria-pressed={selected || undefined}
                 className={`w-full aspect-square border-none rounded-lg text-sm cursor-pointer font-[inherit] transition-all ${bgCls} ${textCls} ${selected ? "font-extrabold" : "font-semibold"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {d}

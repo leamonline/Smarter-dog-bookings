@@ -493,7 +493,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
         >
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
-              <div id="main-content">
+              <main id="main-content">
                 <Routes>
                   <Route path="/settings" element={
                     <SettingsView
@@ -626,7 +626,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   } />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-              </div>
+              </main>
             </Suspense>
           </ErrorBoundary>
 

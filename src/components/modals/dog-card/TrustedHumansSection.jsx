@@ -142,16 +142,17 @@ export function TrustedHumansSection({
                   {trustedSearchResults.map((candidate) => {
                     const fullName = candidate.fullName || `${candidate.name || ""} ${candidate.surname || ""}`.trim();
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={candidate.id}
                         onClick={() => handleAddTrusted(candidate.id)}
-                        className="px-3 py-2 cursor-pointer border-b border-slate-200 transition-colors hover:bg-slate-50"
+                        className="w-full text-left bg-white px-3 py-2 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-50"
                       >
                         <div className="text-[13px] font-semibold text-slate-800">{fullName}</div>
                         {candidate.phone && (
                           <div className="text-xs text-slate-500">{candidate.phone}</div>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

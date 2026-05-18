@@ -71,6 +71,7 @@ export function DogCardHeader({
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Dog name"
+            aria-label="Dog name"
             className="text-[24px] font-extrabold bg-white/15 border border-white/30 rounded-lg px-2.5 py-1 w-full box-border outline-none font-inherit"
             style={{ color: headerTextColour }}
           />
@@ -88,6 +89,7 @@ export function DogCardHeader({
             <select
               value={editDobMonth}
               onChange={(e) => setEditDobMonth(e.target.value)}
+              aria-label="Birth month"
               className="text-xs bg-white/15 border border-white/30 rounded-md px-1 py-[3px] outline-none font-inherit cursor-pointer"
               style={{ color: headerTextColour }}
             >
@@ -99,6 +101,7 @@ export function DogCardHeader({
             <select
               value={editDobYear}
               onChange={(e) => setEditDobYear(e.target.value)}
+              aria-label="Birth year"
               className="text-xs bg-white/15 border border-white/30 rounded-md px-1 py-[3px] outline-none font-inherit cursor-pointer"
               style={{ color: headerTextColour }}
             >
