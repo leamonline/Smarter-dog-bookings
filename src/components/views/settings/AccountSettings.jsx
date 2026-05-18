@@ -90,7 +90,7 @@ export function AccountSettings({ user, staffProfile }) {
               className={INPUT_CLS}
             />
             {emailPending && (
-              <div className="text-xs text-brand-teal mt-1.5">
+              <div className="text-xs text-brand-teal-text mt-1.5">
                 Confirmation sent to {account.email} — click the link to confirm.
               </div>
             )}

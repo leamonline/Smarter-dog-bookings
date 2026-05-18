@@ -175,7 +175,8 @@ export function AddBookingForm({
               {selectedDog.name}
             </div>
             <div className="text-[11px] text-slate-800">
-              {selectedDog.breed} · {ownerName || "Unknown owner"}
+              {selectedDog.breed}
+              {ownerName ? ` · ${ownerName}` : ""}
             </div>
           </div>
           <button
@@ -222,7 +223,7 @@ export function AddBookingForm({
                       // map hasn't loaded the owner row.
                       const key = dog.humanId || "";
                       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
-                      return isUuid ? "Unknown owner" : key;
+                      return isUuid || !key ? "No owner linked yet" : key;
                     })()}
                     {dog.size ? ` · ${dog.size}` : ""}
                   </div>

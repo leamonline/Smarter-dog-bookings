@@ -6,6 +6,7 @@ import {
   getHumanByIdOrName,
   looksLikeUuid,
 } from "../../engine/bookingRules.js";
+import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import {
   GroomingHistory,
   DogCardHeader,
@@ -18,6 +19,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { PhotoGalleryModal } from "./PhotoGalleryModal.jsx";
+import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 
 const ChainBookingModal = lazy(() =>
   import("./ChainBookingModal.jsx").then((m) => ({ default: m.ChainBookingModal })),
@@ -39,46 +41,69 @@ export function DogCardModal({
   handleAdd,
 }) {
   const [pendingDelete, setPendingDelete] = useState(false);
-  const fallback = {
+  // Placeholder used while fetchDogById is in flight. `name: ""` instead
+  // of the UUID so the header never briefly shows the raw id on a cold
+  // deep-link.
+  const placeholder = useMemo(() => ({
     id: dogId,
-    name: dogId,
+    name: "",
     breed: "",
     age: "",
     humanId: "",
     _humanId: null,
     alerts: [],
     groomNotes: "",
-  };
+  }), [dogId]);
 
-  const [resolvedDog, setResolvedDog] = useState(
-    () => getDogByIdOrName(dogs, dogId) || fallback,
-  );
+  const initialDog = getDogByIdOrName(dogs, dogId);
+  const [resolvedDog, setResolvedDog] = useState(initialDog || placeholder);
+  const [isLoadingDog, setIsLoadingDog] = useState(!initialDog);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     const found = getDogByIdOrName(dogs, dogId);
     if (found) {
       setResolvedDog(found);
+      setIsLoadingDog(false);
+      setNotFound(false);
       return;
     }
     // Dog not in the pre-loaded page — fetch on demand
-    if (fetchDogById) {
-      fetchDogById(dogId).then((dog) => {
-        if (dog) setResolvedDog(dog);
-      });
+    if (!fetchDogById) {
+      setIsLoadingDog(false);
+      setNotFound(true);
+      return;
     }
+    setIsLoadingDog(true);
+    fetchDogById(dogId).then((dog) => {
+      if (dog) {
+        setResolvedDog(dog);
+        setNotFound(false);
+      } else {
+        setNotFound(true);
+      }
+      setIsLoadingDog(false);
+    });
   }, [dogId, dogs, fetchDogById]);
 
+  // _humanId is the source of truth for "is this dog linked to an owner".
+  // We also accept a non-UUID humanId fallback for legacy rows that only
+  // have the name-keyed value populated.
+  const hasLinkedOwner = Boolean(
+    resolvedDog._humanId ||
+      (resolvedDog.humanId && !looksLikeUuid(resolvedDog.humanId)),
+  );
   const owner =
     getHumanByIdOrName(humans, resolvedDog._humanId || resolvedDog.humanId) ||
     null;
 
-  // ownerLabel is visible text in the card title row, so it can never
-  // be a raw UUID. ownerOpenValue is an internal id passed to onOpenHuman
-  // and is allowed to be a UUID.
-  const rawOwnerLabel = owner?.fullName || resolvedDog.humanId || "";
-  const ownerLabel = looksLikeUuid(rawOwnerLabel) ? "" : rawOwnerLabel;
-  const ownerOpenValue =
-    owner?.id || resolvedDog._humanId || resolvedDog.humanId || null;
+  // formatOwnerLabel is the single source of truth for owner display copy
+  // (refuses to render UUIDs, returns "Unknown owner" when the human row
+  // isn't in the map). DogsView uses the same helper, so the directory
+  // card and this modal can never disagree on what the owner is called.
+  const { label: resolvedOwnerLabel } = formatOwnerLabel(resolvedDog, humans);
+  const ownerLabel = hasLinkedOwner ? resolvedOwnerLabel : "";
+  const ownerOpenValue = owner?.id || resolvedDog._humanId || null;
 
   const toast = useToast();
   const { fetchPhotosForDog, deletePhoto, updatePhotoNotes } = useGroomPhotos();
@@ -352,6 +377,53 @@ export function DogCardModal({
 
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
+  if (isLoadingDog) {
+    return (
+      <AccessibleModal
+        onClose={onClose}
+        titleId="dog-card-title"
+        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      >
+        <div
+          id="dog-card-title"
+          className="px-6 py-16 flex flex-col items-center justify-center gap-3"
+        >
+          <LoadingSpinner />
+          <div className="text-sm text-slate-500">Loading dog profile…</div>
+        </div>
+      </AccessibleModal>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <AccessibleModal
+        onClose={onClose}
+        titleId="dog-card-title"
+        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      >
+        <div className="px-6 py-12 text-center">
+          <div
+            id="dog-card-title"
+            className="text-base font-extrabold text-slate-800 mb-2"
+          >
+            Dog not found
+          </div>
+          <div className="text-sm text-slate-500 mb-5">
+            This dog may have been deleted or the link is broken.
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-bold cursor-pointer font-inherit"
+          >
+            Close
+          </button>
+        </div>
+      </AccessibleModal>
+    );
+  }
+
   return (
     <>
     <AccessibleModal
@@ -382,7 +454,7 @@ export function DogCardModal({
             !resolvedDog.size ||
             !resolvedDog.breed ||
             !resolvedDog.breed.trim() ||
-            !owner
+            !hasLinkedOwner
           }
         />
 
@@ -398,6 +470,7 @@ export function DogCardModal({
           ownerLabel={ownerLabel}
           ownerOpenValue={ownerOpenValue}
           owner={owner}
+          hasLinkedOwner={hasLinkedOwner}
           onClose={onClose}
           onOpenHuman={onOpenHuman}
           editOwnerLabel={editOwnerLabel}

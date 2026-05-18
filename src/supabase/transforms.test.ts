@@ -225,6 +225,19 @@ describe("dbHumansToMap", () => {
     expect(map["Jane Smith"].trustedIds).toEqual(["h-2", "h-3"]);
   });
 
+  it("strips literal null / Null surnames so fullName isn't 'Jane null'", () => {
+    // surname=null is the most common case (faker pipeline + nullable column).
+    const mapNull = dbHumansToMap([humanRow({ surname: null })], {});
+    expect(mapNull["Jane"]).toBeDefined();
+    expect(mapNull["Jane"].fullName).toBe("Jane");
+    expect(mapNull["Jane null"]).toBeUndefined();
+
+    // surname="Null" (literal "Null" string) — also a known seed-data leak.
+    const mapStr = dbHumansToMap([humanRow({ surname: "Null" })], {});
+    expect(mapStr["Jane"]).toBeDefined();
+    expect(mapStr["Jane Null"]).toBeUndefined();
+  });
+
   it("defaults trustedIds to empty array when human id not in trustedMap", () => {
     const map = dbHumansToMap([humanRow()], {});
     expect(map["Jane Smith"].trustedIds).toEqual([]);
@@ -233,6 +246,49 @@ describe("dbHumansToMap", () => {
   it("handles multiple rows keyed by full name", () => {
     const map = dbHumansToMap([humanRow(), humanRow2()], {});
     expect(Object.keys(map)).toEqual(["Jane Smith", "Bob Jones"]);
+  });
+
+  // Regression for the deep-link bug fixed in useHumans.ts: when
+  // ensureHumansByIds hydrates a missing owner by id, it stores the
+  // entry under `humans[uuid]`. The initial fetch's setHumans/setHumansById
+  // therefore MUST merge rather than replace, or those uuid-keyed entries
+  // get wiped out and the `fetchedHumanIdsRef` cache prevents a re-fetch.
+  // This test pins the data-shape invariant the merge relies on: the
+  // name-keyed map from dbHumansToMap doesn't collide with uuid-shaped
+  // keys, so { ...idKeyed, ...nameKeyed } keeps both layouts intact.
+  it("uses name-shaped keys that don't collide with uuid-shaped keys", () => {
+    const ownerByName = dbHumansToMap([humanRow()], {});
+    const uuid = "dd7c1fc5-6de7-4b07-907f-5f5b4ce9d04a";
+    const ownerByUuid: Record<string, ReturnType<typeof dbHumansToMap>[string]> = {
+      [uuid]: {
+        id: uuid,
+        name: "David & Emily",
+        surname: "Cooper",
+        fullName: "David & Emily Cooper",
+        phone: "",
+        sms: false,
+        whatsapp: false,
+        email: "",
+        fb: "",
+        insta: "",
+        tiktok: "",
+        address: "",
+        notes: "",
+        historyFlag: "",
+        reminderHours: 24,
+        reminderChannels: ["whatsapp"],
+        trustedIds: [],
+        trustedContacts: [],
+      },
+    };
+
+    // The exact merge pattern useHumans applies on fetchHumans / realtime
+    // refetches. Both lookup shapes must remain reachable afterwards.
+    const merged = { ...ownerByUuid, ...ownerByName };
+
+    expect(merged["Jane Smith"]).toBeDefined();
+    expect(merged[uuid]).toBeDefined();
+    expect(merged[uuid].fullName).toBe("David & Emily Cooper");
   });
 });
 

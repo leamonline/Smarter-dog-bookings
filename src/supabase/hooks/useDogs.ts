@@ -6,6 +6,7 @@ import {
   buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 
 const PAGE_SIZE = 50;
 
@@ -33,6 +34,16 @@ export function useDogs(humansById: Record<string, any>) {
   const inflightHumanIdsRef = useRef<Set<string>>(new Set());
   const fetchedDogIdsRef = useRef<Set<string>>(new Set());
   const inflightDogIdsRef = useRef<Set<string>>(new Set());
+
+  // The main fetch effect can't depend on humansById: every time
+  // ensureHumansByIds (in useHumans) resolves a missing owner, the
+  // humansById reference changes, which would re-run fetchDogs() and
+  // wipe out any dogs that ensureDogsByIds had just merged in from the
+  // tail of the paginated list. We keep a ref instead so realtime
+  // INSERT/UPDATE handlers and on-demand fetches still see the latest
+  // humans without re-triggering the effect.
+  const humansByIdRef = useRef(humansById);
+  useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
 
   const invalidateHuman = useCallback((humanId: string | null | undefined) => {
     if (!humanId) return;
@@ -99,6 +110,15 @@ export function useDogs(humansById: Record<string, any>) {
       const mapAdditions = dbDogsToMap(rows, humansById || {});
       setDogsById((prev) => ({ ...prev, ...byIdAdditions }));
       setDogs((prev) => ({ ...prev, ...mapAdditions }));
+      // Merge rather than replace: dogs added by ensureDogsByIds (rows
+      // past the first paginated page) would otherwise be wiped out
+      // when a realtime INSERT/UPDATE triggers a refetch, and then
+      // never re-added because fetchedDogIdsRef has already marked
+      // them as resolved.
+      const nextById = buildDogsById(rows);
+      const nextMap = dbDogsToMap(rows, humansByIdRef.current || {});
+      setDogsById((prev) => ({ ...prev, ...nextById }));
+      setDogs((prev) => ({ ...prev, ...nextMap }));
       setHasMore(rows.length >= limit);
       setLoading(false);
     }
@@ -151,7 +171,7 @@ export function useDogs(humansById: Record<string, any>) {
       cancelled = true;
       supabase!.removeChannel(channel);
     };
-  }, [humansById]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!supabase) return;
@@ -206,7 +226,11 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       const rows = data || [];
-      setDogsById(buildDogsById(rows));
+      // Merge rather than replace: dogsById doubles as a lookup cache for
+      // booking cards (populated via ensureDogsByIds). Replacing it here
+      // wipes any dog past the first paginated page, which then shows up
+      // as "Unknown" on the day view after a quick trip through /dogs.
+      setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
       setDogs(dbDogsToMap(rows, humansById || {}));
       setHasMore(rows.length >= PAGE_SIZE);
     })();
@@ -290,7 +314,8 @@ export function useDogs(humansById: Record<string, any>) {
           ownerDogRows,
         ]).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         const ownerHumansById = buildHumansById(ownerRows);
-        setDogsById(buildDogsById(rows));
+        // Merge into the lookup cache (see clearSearch for the reason).
+        setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
         setDogs(dbDogsToMap(rows, { ...(humansById || {}), ...ownerHumansById }));
         setTotalCount(rows.length);
         setHasMore(false);
@@ -551,7 +576,7 @@ export function useDogs(humansById: Record<string, any>) {
       return {
         id: row.id,
         name: row.name,
-        breed: row.breed,
+        breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
         size: (row.size as any) || null,
         humanId: owner ? owner.fullName : (row.human_id || ""),
@@ -631,7 +656,7 @@ export function useDogs(humansById: Record<string, any>) {
       const dog = {
         id: row.id,
         name: row.name,
-        breed: row.breed,
+        breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
         size: row.size || null,
         humanId: humansById?.[hid]?.fullName || hid,
@@ -698,7 +723,7 @@ export function useDogs(humansById: Record<string, any>) {
         mapAdditions[row.id] = {
           id: row.id,
           name: row.name,
-          breed: row.breed,
+          breed: sanitiseFieldValue(row.breed),
           age: row.age || "",
           size: row.size || null,
           humanId: owner ? owner.fullName : (row.human_id || ""),

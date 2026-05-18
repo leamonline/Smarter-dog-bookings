@@ -20,6 +20,7 @@ import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
 import { UtilityTabs } from "../dashboard/UtilityTabs.jsx";
+import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
 
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
@@ -102,6 +103,23 @@ export function WeekCalendarView({
   const openNewBooking = (dateStr, slot) =>
     setShowNewBooking({ dateStr: dateStr || currentDateStr, slot: slot || "" });
 
+  const handleCreateBookingFromWhatsApp = (conversation) => {
+    if (!conversation) {
+      openNewBooking(currentDateStr, "");
+      return;
+    }
+    const text = conversation.lastText || conversation.last_customer_text || "";
+    const hints = parseBookingHintsFromMessage(text, { referenceDate: new Date() });
+    setShowNewBooking({
+      dateStr: hints.dateStr || currentDateStr,
+      slot: hints.slot || "",
+      initialHumanId: conversation.humanId || conversation.human_id || null,
+      sourceConversationId: conversation.conversationId || conversation.id || null,
+      sourceMessageText: text,
+      ownerName: conversation.displayName || null,
+    });
+  };
+
   const handlePrintDaySheet = () => {
     if (typeof window !== "undefined") window.print();
   };
@@ -114,9 +132,14 @@ export function WeekCalendarView({
         month: "short",
       });
       const items = dayBookings.map((b) => {
-        const dogName = b.dogName || "Unknown";
-        const owner = b.ownerName || b.owner || "";
-        return `Rearrange: ${dogName}${owner ? ` (${owner})` : ""} — was ${dateLabel} ${b.slot}`;
+        const dogName = (b.dogName || "").trim();
+        const owner = (b.ownerName || b.owner || "").trim();
+        let label;
+        if (dogName && owner) label = `${dogName} (${owner})`;
+        else if (dogName) label = dogName;
+        else if (owner) label = `${owner}'s dog`;
+        else label = "Booking";
+        return `Rearrange: ${label} — was ${dateLabel} ${b.slot}`;
       });
       addTodos(items);
     }
@@ -235,7 +258,7 @@ export function WeekCalendarView({
                   messageCount={waUnread}
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
-                  onCreateBookingFromWhatsApp={() => openNewBooking(currentDateStr, "")}
+                  onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
                 />
               </div>
               <div className="hidden xl:block">
@@ -244,7 +267,7 @@ export function WeekCalendarView({
                   todoCount={openTodoCount}
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
-                  onCreateBookingFromWhatsApp={() => openNewBooking(currentDateStr, "")}
+                  onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
                 />
               </div>
             </>

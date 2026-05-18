@@ -1,7 +1,7 @@
 export const SERVICE_LABELS = {
   "full-groom": "Full Groom",
   "bath-and-brush": "Bath & Brush",
-  "bath-and-deshed": "Bath & Deshed",
+  "bath-and-deshed": "Bath & De-shed",
   "puppy-groom": "Puppy Groom",
   "nail-trim": "Nail Trim",
 };

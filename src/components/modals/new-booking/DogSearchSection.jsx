@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect } from "react";
 import { SERVICES, PRICING, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index.js";
 import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon.js";
 import { IconSearch } from "../../icons/index.jsx";
+import { SkeletonBlock } from "../../ui/Skeleton.jsx";
 import { titleCase, buildSearchEntries } from "./helpers.js";
 
 export function DogSearchSection({
@@ -50,6 +51,15 @@ export function DogSearchSection({
       e.humans.some(h => h.key?.toLowerCase().includes(q))
     ).slice(0, 8);
   }, [dogs, humans, hasDogs, dogQuery]);
+
+  const nameCounts = useMemo(() => {
+    const counts = {};
+    for (const entry of filteredEntries) {
+      const k = (entry.dog.name || "").toLowerCase();
+      counts[k] = (counts[k] || 0) + 1;
+    }
+    return counts;
+  }, [filteredEntries]);
 
   // Same owner's other dogs for "add another" picker
   const sameOwnerDogs = useMemo(() => {
@@ -202,7 +212,7 @@ export function DogSearchSection({
         </div>
       ) : (
         <div>
-          <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Search Dog</label>
+          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Search Dog</label>
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
               <IconSearch size={15} colour="#6B7280" />
@@ -249,6 +259,14 @@ export function DogSearchSection({
                       className="flex items-center gap-1.5 min-w-0 mb-1.5 w-full text-left bg-transparent border-none cursor-pointer p-0 font-[inherit] rounded-md transition-colors hover:bg-slate-50"
                     >
                       <span className="text-sm font-bold text-slate-800">{titleCase(entry.dog.name)}</span>
+                      {nameCounts[(entry.dog.name || "").toLowerCase()] > 1 && (
+                        <span
+                          className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full"
+                          aria-label={`${nameCounts[(entry.dog.name || "").toLowerCase()]} dogs share this name`}
+                        >
+                          {nameCounts[(entry.dog.name || "").toLowerCase()]}×
+                        </span>
+                      )}
                       <span className="text-xs text-slate-400">—</span>
                       <span className="text-xs text-slate-500">{titleCase(entry.dog.breed)}</span>
                       {entry.hasAlerts && <span className="text-[13px]" aria-label="Has alerts">⚠️</span>}
@@ -269,11 +287,16 @@ export function DogSearchSection({
                           const labelBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
                           const labelColor = human.isTrusted ? "#2D8B7A" : "#0099BD";
                           const hoverBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
+                          // When the humans map hasn't loaded yet, the entry is
+                          // marked missing. Show a shimmer instead of the
+                          // misleading "Unknown owner" text — the row will
+                          // re-render once humans hydrate.
+                          const stillLoading = human.missing && Object.keys(humans || {}).length === 0;
                           return (
                             <button
                               key={human.key}
                               type="button"
-                              aria-label={`Book ${titleCase(entry.dog.name)} with ${titleCase(human.key)}${human.isTrusted ? " (trusted)" : " (owner)"}`}
+                              aria-label={`Book ${titleCase(entry.dog.name)} with ${stillLoading ? "this owner" : titleCase(human.key)}${human.isTrusted ? " (trusted)" : " (owner)"}`}
                               onMouseDown={() => onSelectEntry({ dog: entry.dog, humanKey: human.key, humanPhone: human.phone, isTrusted: human.isTrusted, hasAlerts: entry.hasAlerts })}
                               className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
                               onMouseEnter={(e) => (e.currentTarget.style.background = hoverBg)}
@@ -283,7 +306,11 @@ export function DogSearchSection({
                                 className="text-[9px] font-bold py-0.5 px-[7px] rounded-md shrink-0 uppercase tracking-wide"
                                 style={{ background: labelBg, color: labelColor }}
                               >{human.isTrusted ? "Trusted" : "Owner"}</span>
-                              <span className="text-xs font-semibold text-slate-800 truncate">{titleCase(human.key)}</span>
+                              {stillLoading ? (
+                                <SkeletonBlock className="h-3 w-24" />
+                              ) : (
+                                <span className="text-xs font-semibold text-slate-800 truncate">{titleCase(human.key)}</span>
+                              )}
                               {human.phone && (
                                 <span className="text-xs text-slate-500 truncate">· {human.phone}</span>
                               )}
@@ -311,6 +338,28 @@ export function DogSearchSection({
               </div>
             )}
           </div>
+
+          {/* Persistent "can't find them?" row so the create paths
+              never hide behind a failed search. The only state that
+              suppresses it is the bigger "no matches" panel that
+              already surfaces the same CTAs in expanded form. */}
+          {!(dogQuery.trim().length >= 2 && filteredEntries.length === 0 && !isSearchingDogs) && (
+            <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+              <span>Can't find them?</span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onOpenAddDog?.(); }}
+                  className="py-1 px-2 rounded-md border border-brand-cyan/40 bg-white text-brand-cyan text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-cyan/5"
+                >+ New Dog</button>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onOpenAddHuman?.(); }}
+                  className="py-1 px-2 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-teal/5"
+                >+ New Human</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

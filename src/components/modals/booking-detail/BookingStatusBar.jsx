@@ -36,18 +36,8 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
       <div
         role="radiogroup"
         aria-label="Booking status"
-        className="relative grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 ring-1 ring-slate-200/70"
+        className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 ring-1 ring-slate-200/70"
       >
-        {/* Sliding active indicator */}
-        <div
-          aria-hidden="true"
-          className={`absolute top-1 bottom-1 left-1 rounded-lg shadow-sm transition-all duration-200 ease-out ${getStatusAccent(currentStatus).pillBg} ring-1 ${getStatusAccent(currentStatus).ring}`}
-          style={{
-            width: `calc((100% - 0.5rem) / 3)`,
-            transform: `translateX(calc(${safeIdx} * (100% + 0.25rem)))`,
-          }}
-        />
-
         {BOOKING_STATUSES.map((status, idx) => {
           const isActive = currentStatus === status.id;
           const isPast = idx < safeIdx;
@@ -56,25 +46,42 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
           return (
             <button
               key={status.id}
+              type="button"
               role="radio"
               aria-checked={isActive}
               aria-label={`Set status to ${status.label}`}
               onClick={async () => {
                 if (isActive) return;
-                await onUpdate(
+                // Capture the pre-change status so the undo callback
+                // reverts to the right value even if `currentStatus`
+                // changes between toast trigger and undo click.
+                const previousStatus = currentStatus;
+                const result = await onUpdate(
                   { ...booking, status: status.id },
                   currentDateStr,
                   currentDateStr,
                 );
+                // updateBooking returns null on failure (server check or
+                // RLS error); the global error banner already surfaces the
+                // message, so suppress the success toast in that case.
+                if (result === null) return;
                 const variant = status.id === "Checked in" || status.id === "Ready for pick-up" ? "success" : "info";
-                toast.show(`Status: ${status.label}`, variant);
+                toast.show(
+                  `Status: ${status.label}`,
+                  variant,
+                  () => onUpdate(
+                    { ...booking, status: previousStatus },
+                    currentDateStr,
+                    currentDateStr,
+                  ),
+                );
               }}
-              className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-bold transition-colors duration-150 ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-bold ring-1 transition-colors duration-150 ${
                 isActive
-                  ? accent.pillText
+                  ? `${accent.pillBg} ${accent.pillText} ${accent.ring} shadow-sm`
                   : isPast
-                    ? "text-slate-400 hover:text-slate-600"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-transparent ring-transparent text-slate-400 hover:text-slate-600 hover:bg-white/60"
+                    : "bg-transparent ring-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60"
               }`}
             >
               <span className={isActive ? accent.text : ""}>{STATUS_ICON[status.id]}</span>

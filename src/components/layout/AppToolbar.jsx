@@ -165,7 +165,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
           <button
             type="button"
             onClick={onNewBooking}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit]"
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
             aria-label="New booking (press N)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -260,7 +260,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             type="button"
             onClick={onNewBooking}
             aria-label="New booking"
-            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit]"
+            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             <span className="hidden sm:inline">New booking</span>

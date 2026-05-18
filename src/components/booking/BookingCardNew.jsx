@@ -1,5 +1,6 @@
 // src/components/booking/BookingCardNew.jsx
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import { SERVICES } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
@@ -41,6 +42,14 @@ const STATUS_DISPLAY = {
 // The five-step inline progression. Cancelled is terminal and only
 // reachable via the detail modal — never appears here.
 const STATUS_PROGRESSION = ["Booked", "Checked in", "In bath", "Ready for pick-up", "Completed"];
+
+const STATUS_ICONS = {
+  "Booked": Calendar,
+  "Checked in": LogIn,
+  "In bath": Droplets,
+  "Ready for pick-up": Sparkles,
+  "Completed": Check,
+};
 
 const SIZE_TOOLTIP = {
   small: "Small dog",
@@ -161,10 +170,16 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const changeStatus = (nextStatus) => {
     if (!nextStatus || nextStatus === booking.status) return;
     const previous = booking.status || "Booked";
+    const prevIdx = STATUS_PROGRESSION.indexOf(previous);
+    const nextIdx = STATUS_PROGRESSION.indexOf(nextStatus);
+    const skipped = nextIdx - prevIdx;
+    if (skipped >= 2) {
+      const ok = window.confirm(
+        `Skip from "${STATUS_DISPLAY[previous]?.label || previous}" straight to "${STATUS_DISPLAY[nextStatus]?.label || nextStatus}"?`,
+      );
+      if (!ok) return;
+    }
     if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
-    // Undo toast — gives staff 5s to back out of a mis-tap. The toast
-    // module clears itself after its timeout; the undo handler just
-    // re-applies the previous status via the same update path.
     toast.show(
       `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
       "info",
@@ -193,9 +208,14 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     customPrice: dogRecord?.customPrice,
   });
 
-  const displayDogName = titleCase(display.dogName);
+  // resolveBookingDisplay returns sentinel strings ("Unknown" / "Unknown owner")
+  // when the joined dog/human row can't be resolved. Use the missing flags to
+  // swap those for friendlier UI copy without leaking the sentinel.
+  const displayDogName = titleCase(
+    display.dogMissing ? "Unnamed booking" : display.dogName,
+  );
   const displayBreed = titleCase(display.breed);
-  const displayOwner = titleCase(display.owner === "Unknown owner" ? "" : display.owner);
+  const displayOwner = titleCase(display.ownerMissing ? "" : display.owner);
 
   const handleCardClick = onClick || (() => setShowDetail(true));
 
@@ -225,8 +245,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             className="w-3 h-3 rounded-full shrink-0 inline-block self-center"
             style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
             role="img"
-            aria-label={SIZE_TOOLTIP[booking.size] || "Unknown size"}
-            title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
+            aria-label={SIZE_TOOLTIP[booking.size] || "Size not set"}
+            title={SIZE_TOOLTIP[booking.size] || "Size not set"}
           />
           <span className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
             {displayDogName}
@@ -329,7 +349,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") e.stopPropagation();
                     }}
-                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] ${
+                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-0.5 ${
                       isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
                     }`}
                     style={{
@@ -339,6 +359,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       ...(isCurrent ? { "--tw-ring-color": s.color } : {}),
                     }}
                   >
+                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
                     {s.label}
                   </button>
                 );
@@ -361,6 +382,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5 font-[inherit]"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
+              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
               {statusObj.label}
               <span aria-hidden="true" className="text-[8px] opacity-60">{"\u25BE"}</span>
             </button>

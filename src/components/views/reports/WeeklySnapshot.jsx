@@ -105,7 +105,7 @@ export function WeeklySnapshot() {
     >
       <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">This week</h2>
+          <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">This week so far</h2>
           <div className="text-[11px] sm:text-xs font-semibold text-white/80">
             Last week £{lastWeekTotal.toFixed(0)}
           </div>
@@ -157,7 +157,7 @@ export function WeeklySnapshot() {
                   style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
                   aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
                 />
-                <div className={`text-[10px] sm:text-[11px] font-bold mt-1 ${day.isToday ? "text-brand-teal" : "text-slate-700"}`}>
+                <div className={`text-[10px] sm:text-[11px] font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
                   {day.label}
                 </div>
                 <div className="text-[10px] font-semibold text-slate-400">
@@ -170,7 +170,7 @@ export function WeeklySnapshot() {
 
         {/* Insight */}
         <div className="text-[12px] sm:text-[13px] font-medium leading-relaxed">
-          <span className="text-[#2D8B7A] font-bold">Insight: </span>
+          <span className="text-brand-teal-text font-bold">Insight: </span>
           <span className="text-slate-600">{insight}</span>
         </div>
       </div>

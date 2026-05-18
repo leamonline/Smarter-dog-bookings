@@ -19,7 +19,7 @@
 //     conversationsToday, // # distinct conversations touched in last 24h
 //     recentConversations, // last 5 conversations by last_inbound_at,
 //                      // de-duped per person (one row per conversation):
-//                      // [{ conversationId, displayName, lastText, lastAt }]
+//                      // [{ conversationId, humanId, displayName, lastText, lastAt }]
 //     loading,
 //   }
 //
@@ -30,6 +30,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { formatPhoneForDisplay } from "../../utils/phone.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -85,7 +86,7 @@ export function useWhatsAppSummary() {
       supabase
         .from("whatsapp_conversations")
         .select(
-          "id, phone_e164, last_customer_text, last_inbound_at, humans:human_id(name, surname)",
+          "id, phone_e164, human_id, last_customer_text, last_inbound_at, humans:human_id(name, surname)",
         )
         .order("last_inbound_at", { ascending: false, nullsFirst: false })
         .limit(5),
@@ -103,7 +104,8 @@ export function useWhatsAppSummary() {
       const name = [human?.name, human?.surname].filter(Boolean).join(" ").trim();
       return {
         conversationId: c.id,
-        displayName: name || c.phone_e164 || "Unknown",
+        humanId: c.human_id || null,
+        displayName: name || formatPhoneForDisplay(c.phone_e164) || "Unknown contact",
         lastText: c.last_customer_text ?? "",
         lastAt: c.last_inbound_at,
       };

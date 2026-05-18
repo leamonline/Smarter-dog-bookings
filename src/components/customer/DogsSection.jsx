@@ -4,6 +4,7 @@ import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
 import { PawPrint, Pencil, Plus, X } from "lucide-react";
+import { titleCase } from "../../utils/text.js";
 
 const ERR_LABEL = {
   not_authenticated: "Please sign in again.",
@@ -158,9 +159,9 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
         {initial}
       </span>
       <div className="portal-entity-row-body">
-        <p className="portal-entity-row-name">{dog.name}</p>
+        <p className="portal-entity-row-name">{titleCase(dog.name)}</p>
         <p className="portal-entity-row-meta">
-          {dog.breed || "Breed not set"}{sizeBit}
+          {dog.breed ? titleCase(dog.breed) : "Breed not set"}{sizeBit}
         </p>
         {lastGroom && (
           <p className="portal-entity-row-meta">Last groom: {lastGroom}</p>

@@ -1,5 +1,6 @@
 import { titleCase } from "./helpers.js";
 import { IconEdit, IconGallery } from "../../icons/index.jsx";
+import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 
 export function DogCardHeader({
   isEditing,
@@ -47,6 +48,7 @@ export function DogCardHeader({
         {!isEditing && onEnterEdit && (
           <button
             onClick={onEnterEdit}
+            aria-label={`Edit ${resolvedDog?.name || "dog"}`}
             className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer shrink-0"
             style={{ color: headerTextColour }}
           >
@@ -55,6 +57,7 @@ export function DogCardHeader({
         )}
         <button
           onClick={onClose}
+          aria-label="Close"
           className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
           style={{ color: headerTextColour }}
         >
@@ -72,12 +75,14 @@ export function DogCardHeader({
             style={{ color: headerTextColour }}
           />
           <div className="flex gap-2 mt-2">
-            <input
+            <BreedCombobox
               value={editBreed}
-              onChange={(e) => setEditBreed(e.target.value)}
-              placeholder="Breed"
-              className="text-[13px] bg-white/15 border border-white/30 rounded-md px-2 py-[3px] flex-1 outline-none font-inherit"
-              style={{ color: headerTextColour }}
+              onChange={setEditBreed}
+              ariaLabel="Breed"
+              placeholder="Select or search breed"
+              wrapperClassName="flex-1"
+              inputClassName="text-[13px] bg-white/15 border border-white/30 rounded-md px-2 py-[3px] w-full outline-none font-inherit"
+              inputStyle={{ color: headerTextColour }}
             />
             <span className="text-xs self-center" style={{ color: headerSubTextColour }}>Born</span>
             <select

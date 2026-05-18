@@ -21,10 +21,10 @@ function formatBookingDate(dateStr) {
   });
 }
 
-export function BookingCreatedCard({ action, dogNames }) {
+export function BookingCreatedCard({ action, dogNamesById }) {
   const payload = action?.payload || {};
   const dogId = payload.dog_id || action?.applied_booking_id;
-  const dogName = dogNames?.[payload.dog_id] || "this dog";
+  const dogName = dogNamesById?.[payload.dog_id] || "this dog";
   const dateLabel = formatBookingDate(payload.booking_date);
   const slot = payload.slot || "";
   const autoApplied = action?.state === "auto_applied";

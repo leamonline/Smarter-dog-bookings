@@ -41,6 +41,8 @@ const SMALL_BREEDS = [
   "West Highland Terrier",
   "West Highland White Terrier",
   "Westie",
+  "Jack Russell",
+  "Jack Russell Terrier",
   "Cairn Terrier",
   "Norfolk Terrier",
   "Norwich Terrier",
@@ -114,6 +116,7 @@ const MEDIUM_BREEDS = [
   "Cavachon",
   "Poochon",
   "Jackapoo",
+  "Poodle",
 ];
 
 const LARGE_BREEDS = [
@@ -209,10 +212,32 @@ export function getSizeForBreed(breed: string | null | undefined): string | null
 }
 
 /**
+ * Common mixed / cross breeds that we don't auto-size from.
+ * Staff still pick a size manually for these.
+ */
+const CROSS_BREEDS = [
+  "Chorkie",
+  "Corgi Cross",
+  "Terrier X",
+  "Yorkshire Terrier X Pomeranian",
+];
+
+/**
  * All known breed names grouped by size, for autocomplete or display.
  */
 export const BREED_LIST = {
   small: SMALL_BREEDS,
   medium: MEDIUM_BREEDS,
   large: LARGE_BREEDS,
+  cross: CROSS_BREEDS,
 };
+
+/**
+ * Flat, sorted, de-duplicated list of all known breed names.
+ * Use this as the option list for breed combobox/autocomplete UIs.
+ * Extend by adding entries to SMALL_BREEDS, MEDIUM_BREEDS, LARGE_BREEDS,
+ * or CROSS_BREEDS above.
+ */
+export const DOG_BREEDS: string[] = Array.from(
+  new Set([...SMALL_BREEDS, ...MEDIUM_BREEDS, ...LARGE_BREEDS, ...CROSS_BREEDS]),
+).sort((a, b) => a.localeCompare(b));

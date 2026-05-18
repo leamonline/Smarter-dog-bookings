@@ -22,7 +22,7 @@ export function CustomerRanking({ topCusts, uniqueCusts, revPerCust }) {
                     </div>
                   </div>
                 </div>
-                <span className="text-[13px] font-black text-[#2D8B7A] shrink-0 ml-2">
+                <span className="text-[13px] font-black text-brand-teal-text shrink-0 ml-2">
                   {"£"}{c.rev.toFixed(0)}
                 </span>
               </div>
@@ -35,7 +35,7 @@ export function CustomerRanking({ topCusts, uniqueCusts, revPerCust }) {
             </div>
             <div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Avg / customer</div>
-              <div className="text-[15px] font-black text-[#2D8B7A]">{"£"}{revPerCust.toFixed(0)}</div>
+              <div className="text-[15px] font-black text-brand-teal-text">{"£"}{revPerCust.toFixed(0)}</div>
             </div>
           </div>
         </>

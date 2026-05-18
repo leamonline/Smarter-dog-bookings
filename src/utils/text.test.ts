@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { titleCase } from "./text.js";
+import { titleCase, normaliseSurname } from "./text.js";
 
 describe("titleCase", () => {
   it("capitalizes first letter of each word", () => {
@@ -33,5 +33,32 @@ describe("titleCase", () => {
 
   it("handles hyphenated names", () => {
     expect(titleCase("jean-claude")).toBe("Jean-Claude");
+  });
+});
+
+describe("normaliseSurname", () => {
+  it("returns empty string for falsy / non-string input", () => {
+    expect(normaliseSurname("")).toBe("");
+    expect(normaliseSurname("   ")).toBe("");
+    expect(normaliseSurname(null)).toBe("");
+    expect(normaliseSurname(undefined)).toBe("");
+    expect(normaliseSurname(123)).toBe("");
+  });
+
+  it("strips sentinel strings that leak from seed/import data", () => {
+    expect(normaliseSurname("Null")).toBe("");
+    expect(normaliseSurname("NULL")).toBe("");
+    expect(normaliseSurname("null")).toBe("");
+    expect(normaliseSurname("Undefined")).toBe("");
+    expect(normaliseSurname("N/A")).toBe("");
+    expect(normaliseSurname("n/a")).toBe("");
+    expect(normaliseSurname("None")).toBe("");
+  });
+
+  it("preserves real surnames including mixed case and apostrophes", () => {
+    expect(normaliseSurname("Smith")).toBe("Smith");
+    expect(normaliseSurname("McDonald")).toBe("McDonald");
+    expect(normaliseSurname("O'Brien")).toBe("O'Brien");
+    expect(normaliseSurname("  Smith  ")).toBe("Smith");
   });
 });

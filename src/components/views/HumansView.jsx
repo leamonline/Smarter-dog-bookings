@@ -2,17 +2,11 @@ import { useState, useMemo, useEffect } from "react";
 import { getSizeForBreed } from "../../constants/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
-import { titleCase } from "../../utils/text.js";
+import { titleCase, normaliseSurname } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
-import { CardGridSkeleton } from "../ui/Skeleton.jsx";
+import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
-
-function waLink(phone) {
-  if (!phone) return "#";
-  const digits = phone.replace(/[\s\-()]/g, "");
-  const intl = digits.startsWith("0") ? "44" + digits.slice(1) : digits;
-  return `https://wa.me/${intl}`;
-}
+import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
 export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -54,8 +48,12 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xl md:text-2xl font-black text-white font-display">Humans Directory</div>
-            <div className="text-sm font-semibold text-white/70 mt-0.5">
-              {headerCountText}
+            <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
+              {isInitialLoading && Object.keys(humans).length === 0 ? (
+                <SkeletonBlock className="h-4 w-32 bg-white/20" />
+              ) : (
+                headerCountText
+              )}
             </div>
           </div>
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
@@ -87,7 +85,8 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
       ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedHumans.map((human) => {
-          const fullName = human.fullName || `${human.name} ${human.surname}`;
+          const cleanSurname = normaliseSurname(human.surname);
+          const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
           const humanDogs =
             dogsByHumanId?.[human.id] ||
             Object.values(dogs).filter(
@@ -99,8 +98,17 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           return (
             <div
               key={human.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${titleCase(fullName)}'s profile`}
               onClick={() => onOpenHuman(human.id || fullName)}
-              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenHuman(human.id || fullName);
+                }
+              }}
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
             >
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Delete now lives inside the human profile. */}
@@ -126,7 +134,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                     onClick={(e) => e.stopPropagation()}
                   >
                     <a
-                      href={`tel:${human.phone.replace(/[\s-()]/g, "")}`}
+                      href={telLink(human.phone)}
                       className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal"
                     >
                       {human.phone}

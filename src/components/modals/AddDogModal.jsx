@@ -4,7 +4,8 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { titleCase } from "../../utils/text.js";
+import { titleCase, normaliseSurname } from "../../utils/text.js";
+import { normalisePhoneDigits } from "./dog-card/helpers.js";
 
 const SORTED_BREEDS = [
   ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
@@ -31,7 +32,11 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [alerts, setAlerts] = useState([]);
   const [hasAllergy, setHasAllergy] = useState(false);
   const [allergyInput, setAllergyInput] = useState("");
-  const [error, setError] = useState("");
+  // Field-level errors so missing fields can be surfaced all at once
+  // and announced to screen readers via aria-describedby. The `banner`
+  // slot is reserved for cross-field / server-side errors that don't
+  // belong on any one field.
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   // New owner form
@@ -49,7 +54,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     return Object.values(humans)
       .filter((h) => {
         if (!h) return false;
-        const fullName = (h.fullName || `${h.name || ""} ${h.surname || ""}`).toLowerCase();
+        const fullName = (h.fullName || `${h.name || ""} ${normaliseSurname(h.surname)}`).toLowerCase();
         const phone = (h.phone || "").toLowerCase();
         return fullName.includes(query) || phone.includes(query);
       })
@@ -59,48 +64,55 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const finalBreed = isOtherBreed ? customBreed.trim() : breed.trim();
-    if (!name.trim() || !finalBreed) {
-      setError("Dog name and breed are required.");
-      return;
+
+    // Aggregate all field-level validation errors in a single pass so
+    // the user can see everything that's wrong at once instead of
+    // playing whack-a-mole one error at a time.
+    const errors = {};
+    if (!name.trim()) errors.name = "Dog name is required.";
+    if (!finalBreed) errors.breed = "Breed is required.";
+    if (!size) errors.size = "Size is required — pick a breed and it will fill in automatically.";
+    if (showNewOwner) {
+      if (!newOwnerName.trim() || !newOwnerSurname.trim() || !newOwnerPhone.trim()) {
+        errors.owner = "New owner needs a first name, surname, and phone number.";
+      } else if (normalisePhoneDigits(newOwnerPhone).length < 10) {
+        // Same check as AddHumanModal — anything shorter can't be a UK
+        // mobile/landline and breaks wa.me/tel: links downstream.
+        errors.owner = "Please enter a valid phone number (at least 10 digits).";
+      } else if (!onAddHuman) {
+        errors.owner = "Cannot create new owners right now.";
+      }
+    } else if (!selectedOwner?.id) {
+      errors.owner = "Please select or add an owner.";
     }
-    if (!size) {
-      setError("Please select a size.");
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
     let ownerId = selectedOwner?.id;
 
-    // If adding a new owner, create them first
+    // Create the new owner (if needed) once all client-side validation
+    // has passed so we don't leave orphan rows behind on field errors.
     if (showNewOwner) {
-      const oName = newOwnerName.trim();
-      const oSurname = newOwnerSurname.trim();
-      const oPhone = newOwnerPhone.trim();
-      if (!oName || !oSurname || !oPhone) {
-        setError("New owner needs a first name, surname, and phone number.");
-        return;
-      }
-      if (!onAddHuman) {
-        setError("Cannot create new owners right now.");
-        return;
-      }
       setSubmitting(true);
-      setError("");
-      const newHuman = await onAddHuman({ name: oName, surname: oSurname, phone: oPhone });
+      setFieldErrors({});
+      const newHuman = await onAddHuman({
+        name: newOwnerName.trim(),
+        surname: newOwnerSurname.trim(),
+        phone: newOwnerPhone.trim(),
+      });
       if (!newHuman) {
         setSubmitting(false);
-        setError("Failed to create new owner.");
+        setFieldErrors({ owner: "Failed to create new owner." });
         return;
       }
       ownerId = newHuman.id;
     }
 
-    if (!ownerId) {
-      setError("Please select or add an owner.");
-      return;
-    }
-
     setSubmitting(true);
-    setError("");
+    setFieldErrors({});
 
     const dob = dobMonth && dobYear ? `${dobYear}-${dobMonth}` : "";
 
@@ -126,8 +138,19 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
       onClose();
     } else {
       toast.show("Could not add dog", "error");
-      setError("Failed to add dog. A dog with this name may already exist.");
+      setFieldErrors({ banner: "Failed to add dog. A dog with this name may already exist." });
     }
+  };
+
+  // Clear a single field's error when the user edits it — feedback
+  // shouldn't outlive the mistake.
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   return (
@@ -143,24 +166,35 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
         >
           <div id="add-dog-title" className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
           <button
+            type="button"
             onClick={onClose}
-            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
+            aria-label="Close add dog"
+            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: headerTheme.text }}
-          >{"\u00D7"}</button>
+          ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
           {/* Name, Gender & Breed */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Dog Name *</label>
-              <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
+              <label htmlFor="add-dog-name" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Dog Name *</label>
+              <input
+                id="add-dog-name"
+                value={name}
+                onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
                 placeholder="Bella"
-                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
-                autoFocus />
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? "add-dog-name-error" : undefined}
+                className={`w-full px-3.5 py-2.5 rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal ${fieldErrors.name ? "border-brand-coral" : "border-slate-200"}`}
+                autoFocus
+              />
+              {fieldErrors.name && (
+                <p id="add-dog-name-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.name}</p>
+              )}
             </div>
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Gender</label>
+              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
               <select value={gender} onChange={(e) => setGender(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                 <option value="">Select</option>
@@ -172,19 +206,28 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
           {/* Breed & Size */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Breed *</label>
-              <select value={breed} onChange={(e) => {
-                const val = e.target.value;
-                setBreed(val);
-                setError("");
-                if (val === "__other__") {
-                  if (!sizeOverridden) { setSize(""); setSizeAutoSet(false); }
-                } else {
-                  const detected = getSizeForBreed(val);
-                  if (detected && !sizeOverridden) { setSize(detected); setSizeAutoSet(true); }
-                }
-              }}
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+              <label htmlFor="add-dog-breed" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Breed *</label>
+              <select
+                id="add-dog-breed"
+                value={breed}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBreed(val);
+                  clearFieldError("breed");
+                  if (val === "__other__") {
+                    if (!sizeOverridden) { setSize(""); setSizeAutoSet(false); }
+                  } else {
+                    const detected = getSizeForBreed(val);
+                    if (detected && !sizeOverridden) {
+                      setSize(detected);
+                      setSizeAutoSet(true);
+                      clearFieldError("size");
+                    }
+                  }
+                }}
+                aria-invalid={Boolean(fieldErrors.breed)}
+                aria-describedby={fieldErrors.breed ? "add-dog-breed-error" : undefined}
+                className={`w-full px-3.5 py-2.5 rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer ${fieldErrors.breed ? "border-brand-coral" : "border-slate-200"}`}>
                 <option value="">Select breed</option>
                 {SORTED_BREEDS.map(b => (
                   <option key={b.name} value={b.name}>{b.name}</option>
@@ -192,15 +235,22 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 <option value="__other__">Other</option>
               </select>
               {isOtherBreed && (
-                <input value={customBreed} onChange={(e) => { setCustomBreed(e.target.value); setError(""); }}
+                <input
+                  value={customBreed}
+                  onChange={(e) => { setCustomBreed(e.target.value); clearFieldError("breed"); }}
                   placeholder="Enter breed..."
+                  aria-label="Custom breed"
                   className="w-full mt-1.5 px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
-                  autoFocus />
+                  autoFocus
+                />
+              )}
+              {fieldErrors.breed && (
+                <p id="add-dog-breed-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.breed}</p>
               )}
             </div>
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">
-                Size *
+              <label htmlFor="add-dog-size" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
+                Size
                 {sizeAutoSet && !sizeOverridden && (
                   <span className="font-medium normal-case tracking-normal text-brand-green ml-1.5">auto</span>
                 )}
@@ -208,26 +258,35 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                   <span className="font-medium normal-case tracking-normal text-brand-coral ml-1.5">unknown breed</span>
                 )}
               </label>
-              <select value={size} onChange={(e) => {
-                setSize(e.target.value);
-                setSizeOverridden(true);
-                setSizeAutoSet(false);
-              }}
-              className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
-              style={{
-                borderColor: sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E7546C" : undefined,
-              }}>
+              <select
+                id="add-dog-size"
+                value={size}
+                onChange={(e) => {
+                  setSize(e.target.value);
+                  setSizeOverridden(true);
+                  setSizeAutoSet(false);
+                  clearFieldError("size");
+                }}
+                aria-invalid={Boolean(fieldErrors.size)}
+                aria-describedby={fieldErrors.size ? "add-dog-size-error" : undefined}
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
+                style={{
+                  borderColor: fieldErrors.size ? "#E7546C" : sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E7546C" : undefined,
+                }}>
                 <option value="">Select size</option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
               </select>
+              {fieldErrors.size && (
+                <p id="add-dog-size-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.size}</p>
+              )}
             </div>
           </div>
 
           {/* DOB */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Date of Birth</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Date of Birth</label>
             <div className="flex gap-1.5">
               <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)}
                 className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
@@ -248,7 +307,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
           {/* Owner */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Owner *</label>
+            <label htmlFor="add-dog-owner" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Owner *</label>
             {selectedOwner && !showNewOwner ? (
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-[#E6F5F2] px-3.5 py-2.5 rounded-lg">
@@ -269,19 +328,23 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                     <IconSearch size={14} colour="#6B7280" />
                   </div>
                   <input
+                    id="add-dog-owner"
                     value={ownerQuery}
-                    onChange={(e) => { setOwnerQuery(e.target.value); setError(""); }}
+                    onChange={(e) => { setOwnerQuery(e.target.value); clearFieldError("owner"); }}
                     placeholder="Search by name or phone..."
-                    className="w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
+                    aria-invalid={Boolean(fieldErrors.owner)}
+                    aria-describedby={fieldErrors.owner ? "add-dog-owner-error" : undefined}
+                    className={`w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal ${fieldErrors.owner ? "border-brand-coral" : "border-slate-200"}`}
                   />
                   {ownerResults.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                       {ownerResults.map((h) => {
-                        const fullName = h.fullName || `${h.name || ""} ${h.surname || ""}`.trim();
+                        const fullName = h.fullName || `${h.name || ""} ${normaliseSurname(h.surname)}`.trim();
                         return (
                           <div key={h.id || fullName} onMouseDown={() => {
                             setSelectedOwner({ id: h.id || fullName, label: fullName, phone: h.phone || "" });
                             setOwnerQuery(fullName);
+                            clearFieldError("owner");
                           }}
                           className="px-3.5 py-2.5 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]">
                             <div className="text-[13px] font-semibold text-slate-800">{titleCase(fullName)}</div>
@@ -292,47 +355,72 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                     </div>
                   )}
                 </div>
+                {/* "No matches" inline CTA — mirrors the booking-flow dog
+                    search pattern so the user doesn't have to abandon
+                    the form to add a brand-new human. */}
+                {onAddHuman && ownerQuery.trim().length >= 2 && ownerResults.length === 0 && (
+                  <div className="mt-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
+                    <div className="text-[12px] text-slate-500 mb-1.5">
+                      No humans found matching "{ownerQuery.trim()}".
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewOwner(true); setOwnerQuery(""); setSelectedOwner(null); clearFieldError("owner"); }}
+                      className="w-full py-2 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit"
+                    >
+                      + New Human
+                    </button>
+                  </div>
+                )}
                 {onAddHuman && (
-                  <button type="button" onClick={() => { setShowNewOwner(true); setOwnerQuery(""); setSelectedOwner(null); }}
-                    className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-brand-teal bg-white text-brand-teal text-xs font-bold cursor-pointer font-inherit transition-all">
+                  <button type="button" onClick={() => { setShowNewOwner(true); setOwnerQuery(""); setSelectedOwner(null); clearFieldError("owner"); }}
+                    className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-brand-teal bg-white text-brand-teal-text text-xs font-bold cursor-pointer font-inherit transition-all">
                     + Add new owner
                   </button>
                 )}
               </div>
             ) : (
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide mb-2">New Owner</div>
+                <div className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide mb-2">New Owner</div>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text" placeholder="First name" value={newOwnerName}
-                    onChange={(e) => setNewOwnerName(e.target.value)} autoFocus
+                    onChange={(e) => { setNewOwnerName(e.target.value); clearFieldError("owner"); }}
+                    autoFocus
+                    aria-label="Owner first name"
                     className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   />
                   <input
                     type="text" placeholder="Surname" value={newOwnerSurname}
-                    onChange={(e) => setNewOwnerSurname(e.target.value)}
+                    onChange={(e) => { setNewOwnerSurname(e.target.value); clearFieldError("owner"); }}
+                    aria-label="Owner surname"
                     className="flex-1 w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                   />
                 </div>
                 <input
                   type="tel" placeholder="Phone number" value={newOwnerPhone}
-                  onChange={(e) => setNewOwnerPhone(e.target.value)}
+                  onChange={(e) => { setNewOwnerPhone(e.target.value); clearFieldError("owner"); }}
+                  aria-label="Owner phone number"
                   className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal mb-2"
                 />
                 <button type="button" onClick={() => {
                   setShowNewOwner(false);
                   setNewOwnerName(""); setNewOwnerSurname(""); setNewOwnerPhone("");
+                  clearFieldError("owner");
                 }}
                 className="bg-transparent border-none text-slate-500 text-xs font-semibold cursor-pointer font-inherit p-0">
                   Cancel — search existing instead
                 </button>
               </div>
             )}
+            {fieldErrors.owner && (
+              <p id="add-dog-owner-error" role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">{fieldErrors.owner}</p>
+            )}
           </div>
 
           {/* Groom Notes */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1">Groom Notes</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Groom Notes</label>
             <textarea value={groomNotes} onChange={(e) => setGroomNotes(e.target.value)}
               placeholder="Teddy bear cut, short on ears..." rows={2}
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
@@ -340,7 +428,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
 
           {/* Alerts */}
           <div>
-            <label className="text-[11px] font-extrabold text-brand-teal uppercase tracking-wide block mb-1.5">Alerts</label>
+            <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Alerts</label>
             <div className="flex flex-wrap gap-1.5">
               {ALERT_OPTIONS.map((opt) => {
                 const active = alerts.includes(opt.label);
@@ -387,9 +475,9 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
             )}
           </div>
 
-          {error && (
-            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
-              {error}
+          {fieldErrors.banner && (
+            <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
+              {fieldErrors.banner}
             </div>
           )}
 

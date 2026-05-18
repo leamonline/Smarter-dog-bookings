@@ -17,6 +17,7 @@
 
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { titleCase } from "../../../../utils/text.js";
+import { formatPhoneForDisplay } from "../../../../utils/phone.js";
 import { waMeLink, telLink } from "../hooks/customerContextSummary.js";
 import { DogSummaryCard } from "./DogSummaryCard.jsx";
 import { LastBookingChip } from "./LastBookingChip.jsx";
@@ -33,9 +34,10 @@ export function CustomerContextPanel({
   const { human, dogs, lastBooking, trustedContacts, summary, loading, error } = context;
 
   const phoneE164 = conversation?.phone_e164 || human?.phone || "";
-  const displayPhone = human?.phone || phoneE164;
-  const tel = telLink(displayPhone);
-  const waMe = waMeLink(displayPhone);
+  const rawPhone = human?.phone || phoneE164;
+  const displayPhone = formatPhoneForDisplay(rawPhone) || rawPhone;
+  const tel = telLink(rawPhone);
+  const waMe = waMeLink(rawPhone);
 
   return (
     <aside
@@ -71,7 +73,7 @@ export function CustomerContextPanel({
             Couldn't load customer details: {error}
           </div>
         ) : !human ? (
-          <UnmatchedEmptyState phone={phoneE164} />
+          <UnmatchedEmptyState phone={displayPhone} />
         ) : (
           <div className="flex flex-col gap-3">
             {summary && (

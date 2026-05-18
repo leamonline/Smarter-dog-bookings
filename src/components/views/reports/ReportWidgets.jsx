@@ -3,11 +3,11 @@
 import { formatDelta } from "../../../utils/intl.js";
 
 export function Trend({ cur, prev, invert }) {
-  // formatDelta returns "\u2014" when the previous period was zero \u2014 there's
+  // formatDelta returns an em-dash when the previous period was zero \u2014 there's
   // no meaningful percentage to display in that case, so the badge is
   // suppressed entirely (rendered as a small em-dash placeholder).
   const delta = formatDelta(cur, prev);
-  if (delta === "\u2014") return <span className="text-[11px] font-bold text-slate-400 px-1.5">\u2014</span>;
+  if (delta === "\u2014") return <span className="text-[11px] font-bold text-slate-400 px-1.5">{"\u2014"}</span>;
   if (prev === 0 && cur === 0) return null;
   const up = delta.startsWith("+");
   const good = invert ? !up : up;
@@ -40,7 +40,7 @@ export function Section({ title, accent = "#2D8B7A", children, insight }) {
         {children}
         {insight && (
           <div className="mt-4 pt-3 border-t border-slate-100 text-[12px] font-medium leading-relaxed">
-            <span className="text-[#2D8B7A] font-bold">Insight: </span>
+            <span className="text-brand-teal-text font-bold">Insight: </span>
             <span className="text-slate-500">{insight}</span>
           </div>
         )}

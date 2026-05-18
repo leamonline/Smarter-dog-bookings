@@ -381,4 +381,33 @@ describe("resolveBookingDisplay", () => {
     expect(result.dogMissing).toBe(true);
     expect(result.ownerMissing).toBe(true);
   });
+
+  // Regression: legacy rows stored the literal "Unknown" in breed_snapshot
+  // (and a few dogs.breed values). That string was passing through the
+  // selector and showing up next to the owner on the booking card.
+  it("treats a literal 'Unknown' breed as missing rather than rendering it on the card", () => {
+    const legacyBreedSnapshot = {
+      ...booking,
+      breedSnapshot: "Unknown",
+      breed: "Unknown",
+    };
+    const result = resolveBookingDisplay(legacyBreedSnapshot, {}, { [human.id]: human });
+    expect(result.breed).toBe("");
+  });
+
+  it("treats a dog row whose breed column is literally 'Unknown' as missing", () => {
+    const dogWithUnknownBreed = { ...dog, breed: "Unknown" };
+    // Clear the snapshot fallbacks too so we exercise the dog-row path.
+    const bookingWithoutSnapshots = {
+      ...booking,
+      breedSnapshot: null,
+      breed: "",
+    };
+    const result = resolveBookingDisplay(
+      bookingWithoutSnapshots,
+      { [dog.id]: dogWithUnknownBreed },
+      { [human.id]: human },
+    );
+    expect(result.breed).toBe("");
+  });
 });

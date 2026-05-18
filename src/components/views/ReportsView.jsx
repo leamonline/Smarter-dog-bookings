@@ -147,7 +147,7 @@ export function ReportsView() {
             <Kpi
               label="Seat Fill Rate"
               value={`${stats.util.toFixed(0)}%`}
-              sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"}`}
+              sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"} · last ${days} days`}
               color="#E7546C"
             />
           </div>
@@ -161,7 +161,7 @@ export function ReportsView() {
               chartLabels={chartLabels}
               insight={insights.capacity}
             />
-            <KeyInsights stats={stats} insights={insights} />
+            <KeyInsights stats={stats} insights={insights} days={days} />
           </div>
 
           {/* Band 5 — Service Mix + Demand Pattern */}

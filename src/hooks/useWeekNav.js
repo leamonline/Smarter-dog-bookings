@@ -7,10 +7,19 @@ import { useSearchParams } from "react-router-dom";
 import { ALL_DAYS } from "../constants/index.js";
 import { toDateStr } from "../supabase/transforms.js";
 
+/**
+ * Returns 0..6 where 0 = Monday, 6 = Sunday — i.e. the index into the
+ * weekly `dates` array. Exported for testing only.
+ */
+export function mondayIndexedDayOfWeek(date) {
+  const dow = date.getDay(); // 0 = Sunday in JS
+  return dow === 0 ? 6 : dow - 1;
+}
+
 export function useWeekNav() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(() => mondayIndexedDayOfWeek(new Date()));
   const initialised = useRef(false);
   // Tracks whether internal (selectedDay/weekOffset) state has caught up to
   // the URL's ?date= param. Until it has, the sync effect must NOT write to

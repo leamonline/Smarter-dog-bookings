@@ -6,7 +6,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch.js";
-import { CardGridSkeleton } from "../ui/Skeleton.jsx";
+import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 
 function computeAge(dog) {
@@ -90,8 +90,12 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xl md:text-2xl font-black text-white font-display">Dogs Directory</div>
-            <div className="text-sm font-semibold text-white/70 mt-0.5">
-              {headerCountText}
+            <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
+              {isInitialLoading && Object.keys(dogs).length === 0 ? (
+                <SkeletonBlock className="h-4 w-32 bg-white/20" />
+              ) : (
+                headerCountText
+              )}
             </div>
           </div>
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
@@ -193,10 +197,12 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           const incomplete = isIncompleteDogProfile(dog, humans);
 
           return (
-            <div
+            <button
               key={dog.id}
+              type="button"
               onClick={() => onOpenDog(dog.id || dog.name)}
-              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col"
+              aria-label={`Open ${titleCase(dog.name)}'s profile`}
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col text-left p-0 font-[inherit]"
             >
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Bulk delete from the directory was too easy to mis-fire;
@@ -234,14 +240,19 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                   {titleCase(dog.breed) || <span className="italic text-slate-400">No breed</span>}{age ? ` · ${age}` : ""}
                 </div>
 
-                {/* Owner — pushed to bottom. Italic when we don't know who the owner is. */}
+                {/* Owner — pushed to bottom. While humans are still
+                    loading we can't tell "missing owner" from "owner
+                    row hasn't arrived yet", so show a skeleton instead
+                    of the misleading "Unknown owner" flash. */}
                 <div className="mt-auto text-[12px] font-semibold text-slate-400 truncate">
-                  {ownerMissing
-                    ? <span className="italic">{ownerName}</span>
-                    : titleCase(ownerName)}
+                  {ownerMissing && Object.keys(humans).length === 0
+                    ? <SkeletonBlock className="h-3 w-24" />
+                    : ownerMissing
+                      ? <span className="italic">{ownerName}</span>
+                      : titleCase(ownerName)}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
 

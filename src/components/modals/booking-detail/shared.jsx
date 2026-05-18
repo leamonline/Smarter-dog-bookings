@@ -9,7 +9,7 @@ export const MODAL_INPUT_CLS =
 
 export function LogisticsLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-brand-teal uppercase tracking-wide">
+    <span className="text-[12px] font-extrabold text-brand-teal-text uppercase tracking-wide">
       {text}
     </span>
   );
@@ -51,7 +51,7 @@ export function CardRow({ label, value, onClick, last }) {
       <span
         className={`text-[13px] font-semibold text-right break-words ${
           onClick
-            ? "text-brand-teal cursor-pointer"
+            ? "text-brand-teal-text cursor-pointer"
             : "text-slate-800"
         }`}
         role={onClick ? "button" : undefined}
@@ -126,13 +126,29 @@ export const STATUS_ACCENT = {
     pillBg: "bg-sky-100",
     pillText: "text-sky-800",
   },
-  "Ready for pick-up": {    // labelled "Finished" in the UI
+  "In bath": {
+    stripe: "bg-cyan-400",
+    fill: "bg-cyan-50",
+    ring: "ring-cyan-200",
+    text: "text-cyan-700",
+    pillBg: "bg-cyan-100",
+    pillText: "text-cyan-800",
+  },
+  "Ready for pick-up": {    // labelled "Ready" in the UI
     stripe: "bg-emerald-400",
     fill: "bg-emerald-50",
     ring: "ring-emerald-200",
     text: "text-emerald-700",
     pillBg: "bg-emerald-100",
     pillText: "text-emerald-800",
+  },
+  "Completed": {
+    stripe: "bg-violet-400",
+    fill: "bg-violet-50",
+    ring: "ring-violet-200",
+    text: "text-violet-700",
+    pillBg: "bg-violet-100",
+    pillText: "text-violet-800",
   },
   "Cancelled": {
     stripe: "bg-rose-400",

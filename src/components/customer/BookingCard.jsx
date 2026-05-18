@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 
@@ -153,6 +154,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
         {!cancelling && (
           <div className="portal-booking-card-actions">
+            <AddToCalendarButton bookingId={next.id} compact />
             <button
               type="button"
               className="portal-booking-card-secondary"

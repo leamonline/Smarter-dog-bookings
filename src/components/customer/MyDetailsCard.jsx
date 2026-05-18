@@ -1,5 +1,6 @@
 import { cardAnim } from "./dashboardConstants.js";
 import { User, Plus, Pencil, X } from "lucide-react";
+import { formatPhoneForDisplay } from "../../utils/phone.js";
 
 function DetailRow({ label, value, editing, editor, addPrompt, onAdd }) {
   return (
@@ -92,7 +93,11 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           onAdd={startEdit}
         />
 
-        <DetailRow label="Mobile" value={humanRecord?.phone || ""} editing={false} />
+        <DetailRow
+          label="Mobile"
+          value={formatPhoneForDisplay(humanRecord?.phone) || ""}
+          editing={false}
+        />
 
         {editing && (
           <div className="portal-detail-row">

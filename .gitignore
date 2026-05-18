@@ -8,3 +8,6 @@ dist/
 supabase/.temp/
 .vercel
 docs/private/
+playwright-report/
+test-results/
+.playwright/
