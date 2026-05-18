@@ -5,6 +5,7 @@ import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
+import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
 import "./customer-portal.css";
@@ -112,6 +113,7 @@ export default function CustomerApp() {
   // Authenticated + matched
   return (
     <ErrorBoundary>
+      <NetworkOfflineBanner />
       <Routes>
         <Route path="book" element={
           <BookingWizard

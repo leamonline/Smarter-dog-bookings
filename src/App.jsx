@@ -31,6 +31,7 @@ import { AppFrame } from "./components/ui/PageShell.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
+import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
@@ -457,6 +458,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           Skip to content
         </a>
         <OfflineDemoBanner isOnline={isOnline} />
+        <NetworkOfflineBanner />
         {dataError && !errorDismissed && (
           <ErrorBanner message={dataError} onClose={() => setErrorDismissed(true)} />
         )}
@@ -736,7 +738,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             </ErrorBoundary>
           )}
         </SalonProvider>
-        <Analytics />
+        {import.meta.env.PROD ? <Analytics /> : null}
       </AppFrame>
     </ToastProvider>
   );

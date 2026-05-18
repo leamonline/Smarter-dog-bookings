@@ -323,12 +323,12 @@ export function useHumans() {
         dogNameResult,
         dogBreedResult,
       ] = await Promise.all([
-        supabase.from("humans").select("*").ilike("name", likeTerm),
-        supabase.from("humans").select("*").ilike("surname", likeTerm),
-        supabase.from("humans").select("*").ilike("phone", likeTerm),
-        supabase.from("humans").select("*").ilike("email", likeTerm),
-        supabase.from("dogs").select("human_id").ilike("name", likeTerm),
-        supabase.from("dogs").select("human_id").ilike("breed", likeTerm),
+        supabase.from("humans").select("*").ilike("name", likeTerm).order("surname").order("name").limit(50),
+        supabase.from("humans").select("*").ilike("surname", likeTerm).order("surname").order("name").limit(50),
+        supabase.from("humans").select("*").ilike("phone", likeTerm).order("surname").order("name").limit(50),
+        supabase.from("humans").select("*").ilike("email", likeTerm).order("surname").order("name").limit(50),
+        supabase.from("dogs").select("human_id").ilike("name", likeTerm).limit(100),
+        supabase.from("dogs").select("human_id").ilike("breed", likeTerm).limit(100),
       ]);
 
       const firstError =
