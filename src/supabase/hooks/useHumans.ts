@@ -5,6 +5,7 @@ import {
   buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 
 const PAGE_SIZE = 50;
 
@@ -39,7 +40,12 @@ function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
 }
 
 function buildHumanMapEntry(row: any) {
-  const fullName = `${row.name} ${row.surname}`;
+  // Mirror the placeholder-token stripping in transforms.buildHumanFullName.
+  // Legacy rows can carry surname "Null" — surfaces them in the UI as
+  // "Mirek Null" without this guard.
+  const name = sanitiseFieldValue(row.name);
+  const surname = sanitiseFieldValue(row.surname);
+  const fullName = name && surname ? `${name} ${surname}` : name || surname;
   return {
     id: row.id,
     name: row.name,

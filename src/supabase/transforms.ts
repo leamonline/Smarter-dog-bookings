@@ -4,6 +4,7 @@
  */
 
 import type { Human, Dog, Booking, SalonConfig, TrustedContact } from "../types/index.js";
+import { sanitiseFieldValue } from "../utils/sanitiseFieldValue.js";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)
@@ -79,7 +80,15 @@ interface DbConfigOut {
 // ============================================================
 
 function buildHumanFullName(row: DbHumanRow): string {
-  return `${row.name} ${row.surname}`;
+  // Some legacy imports stored the literal surname "Null". A CHECK
+  // constraint (migration 20260513150000_fix_null_surnames.sql) now
+  // prevents new ones, but old rows can still surface in the UI as
+  // "Mirek Null". Strip the placeholder so the fullName degrades to
+  // just the first name rather than a confusing literal.
+  const name = sanitiseFieldValue(row.name);
+  const surname = sanitiseFieldValue(row.surname);
+  if (name && surname) return `${name} ${surname}`;
+  return name || surname;
 }
 
 // ============================================================
@@ -236,7 +245,10 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
     map[row.id] = {
       id: row.id,
       name: row.name,
-      breed: row.breed,
+      // Strip legacy placeholder breeds ("Unknown" / "N/A" / etc) so the
+      // dogs directory shows the proper "No breed" hint and the
+      // isIncompleteDogProfile filter flags the row for attention.
+      breed: sanitiseFieldValue(row.breed),
       age: row.age || "",
       size: (row.size as Dog["size"]) || null,
       humanId: owner ? owner.fullName : (row.human_id || ""),
