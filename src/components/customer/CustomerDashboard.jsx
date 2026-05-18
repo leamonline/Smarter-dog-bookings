@@ -9,10 +9,13 @@ import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { PawPrint, Phone, MapPin, Clock } from "lucide-react";
+import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS } from "../../constants/salon.js";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
+// Trading hours, surfaced in the footer + booking flow. Hard-coded for now —
+// promote to salon config when we have somewhere sensible to put it.
+const SALON_OPEN_LABEL = "8:30am–3pm";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -241,19 +244,20 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
   const handleBook = () => navigate("/customer/book");
 
-  // Footer hours line, derived from salon defaults so it stays accurate.
+  // Footer hours line, derived from salon defaults so it stays accurate
+  // when default-open days change in salon.ts.
   const openDays = ALL_DAYS.filter(d => d.defaultOpen);
   const hoursLabel = openDays.length === 0
     ? "Hours by appointment"
     : openDays.length === 7
-      ? "Open every day, 9am–5pm"
+      ? `Open every day, ${SALON_OPEN_LABEL}`
       : (() => {
           const indices = openDays.map(d => ALL_DAYS.findIndex(x => x.key === d.key));
           const contiguous = indices.every((idx, i) => i === 0 || idx === indices[i - 1] + 1);
           if (contiguous && openDays.length > 1) {
-            return `${openDays[0].label}–${openDays[openDays.length - 1].label}, 9am–5pm`;
+            return `${openDays[0].label}–${openDays[openDays.length - 1].label}, ${SALON_OPEN_LABEL}`;
           }
-          return `${openDays.map(d => d.label).join(", ")}, 9am–5pm`;
+          return `${openDays.map(d => d.label).join(", ")}, ${SALON_OPEN_LABEL}`;
         })();
 
   return (
@@ -394,10 +398,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               <span className="portal-footer-meta">
                 <Clock size={14} aria-hidden="true" />
                 {hoursLabel}
-              </span>
-              <span className="portal-footer-meta">
-                <MapPin size={14} aria-hidden="true" />
-                Smarter Dog Grooming, Hove
               </span>
               <div className="portal-footer-links">
                 <a href="https://smarterdog.co.uk/#services">Services</a>
