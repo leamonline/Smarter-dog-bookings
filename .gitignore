@@ -1,5 +1,6 @@
 node_modules/
 dist/
+coverage/
 .env
 .env.local
 .env.production
@@ -11,3 +12,12 @@ docs/private/
 playwright-report/
 test-results/
 .playwright/
+
+# AI assistant working directories — local session artifacts, not shipping code
+.agents/
+.claude/
+.codex/
+.firecrawl/
+.playwright-mcp/
+.superpowers/
+.zed/

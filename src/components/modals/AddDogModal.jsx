@@ -340,16 +340,22 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                     <div className="absolute top-full left-0 right-0 mt-1 border border-slate-200 rounded-lg overflow-hidden bg-white z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                       {ownerResults.map((h) => {
                         const fullName = h.fullName || `${h.name || ""} ${normaliseSurname(h.surname)}`.trim();
+                        const selectOwner = () => {
+                          setSelectedOwner({ id: h.id || fullName, label: fullName, phone: h.phone || "" });
+                          setOwnerQuery(fullName);
+                          clearFieldError("owner");
+                        };
                         return (
-                          <div key={h.id || fullName} onMouseDown={() => {
-                            setSelectedOwner({ id: h.id || fullName, label: fullName, phone: h.phone || "" });
-                            setOwnerQuery(fullName);
-                            clearFieldError("owner");
-                          }}
-                          className="px-3.5 py-2.5 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]">
+                          <button
+                            type="button"
+                            key={h.id || fullName}
+                            onMouseDown={selectOwner}
+                            onClick={selectOwner}
+                            className="w-full text-left bg-white px-3.5 py-2.5 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-[#E6F5F2] focus:outline-none focus-visible:bg-[#E6F5F2]"
+                          >
                             <div className="text-[13px] font-semibold text-slate-800">{titleCase(fullName)}</div>
                             {h.phone && <div className="text-xs text-slate-500">{h.phone}</div>}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>

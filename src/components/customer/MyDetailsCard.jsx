@@ -43,12 +43,16 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           editor={
             <div className="flex gap-2">
               <input
+                aria-label="First name"
+                autoComplete="given-name"
                 value={details.name}
                 onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
                 placeholder="First name"
                 className="portal-input"
               />
               <input
+                aria-label="Surname"
+                autoComplete="family-name"
                 value={details.surname}
                 onChange={e => setDetails(d => ({ ...d, surname: e.target.value }))}
                 placeholder="Surname"
@@ -66,6 +70,8 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           editing={editing}
           editor={
             <input
+              aria-label="Address"
+              autoComplete="street-address"
               value={details.address}
               onChange={e => setDetails(d => ({ ...d, address: e.target.value }))}
               placeholder="Street, city, postcode"
@@ -83,6 +89,8 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           editor={
             <input
               type="email"
+              aria-label="Email address"
+              autoComplete="email"
               value={details.email}
               onChange={e => setDetails(d => ({ ...d, email: e.target.value }))}
               placeholder="you@example.com"
@@ -118,17 +126,17 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           <>
             <div className="portal-detail-row">
               <span className="portal-detail-label">Facebook</span>
-              <input value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
+              <input aria-label="Facebook profile URL" value={details.fb} onChange={e => setDetails(d => ({ ...d, fb: e.target.value }))} placeholder="facebook.com/..."
                 className="portal-input flex-1 ml-3 text-right" />
             </div>
             <div className="portal-detail-row">
               <span className="portal-detail-label">Instagram</span>
-              <input value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
+              <input aria-label="Instagram handle" value={details.insta} onChange={e => setDetails(d => ({ ...d, insta: e.target.value }))} placeholder="@handle"
                 className="portal-input flex-1 ml-3 text-right" />
             </div>
             <div className="portal-detail-row">
               <span className="portal-detail-label">TikTok</span>
-              <input value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
+              <input aria-label="TikTok handle" value={details.tiktok} onChange={e => setDetails(d => ({ ...d, tiktok: e.target.value }))} placeholder="@handle"
                 className="portal-input flex-1 ml-3 text-right" />
             </div>
           </>

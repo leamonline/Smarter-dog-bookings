@@ -366,16 +366,17 @@ export function HumanCardModal({
   );
 
   const editableRow = (label, value, setter, { type = "text", placeholder = "" } = {}) => (
-    <div className="flex justify-between items-center gap-3 py-2 border-b border-slate-200">
+    <label className="flex justify-between items-center gap-3 py-2 border-b border-slate-200">
       <span className="text-[13px] text-slate-500 shrink-0">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => setter(e.target.value)}
         placeholder={placeholder}
+        aria-label={label}
         className="flex-1 max-w-[65%] py-1 px-2 rounded-md border border-slate-200 text-[13px] font-semibold font-inherit outline-none text-slate-800 text-right focus:border-brand-teal"
       />
-    </div>
+    </label>
   );
 
   const contactRow = (label, active) => (
@@ -391,24 +392,19 @@ export function HumanCardModal({
   );
 
   const editableToggleRow = (label, active, setter) => (
-    <label className="flex items-center justify-between py-2 border-b border-slate-200 cursor-pointer">
+    <div className="flex items-center justify-between py-2 border-b border-slate-200">
       <span className="text-[13px] text-slate-500">{label}</span>
-      <div
+      <button
+        type="button"
         role="switch"
         aria-checked={active}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setter(!active);
-          }
-        }}
+        aria-label={label}
         onClick={() => setter(!active)}
-        className={`w-9 h-5 rounded-full relative transition-colors ${active ? "bg-brand-teal" : "bg-slate-300"}`}
+        className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer border-none p-0 ${active ? "bg-brand-teal" : "bg-slate-300"}`}
       >
-        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
-      </div>
-    </label>
+        <span aria-hidden="true" className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
+      </button>
+    </div>
   );
 
   const PILL_FALLBACK = { light: "#E5E7EB", primary: "#6B7280" };
@@ -531,10 +527,12 @@ export function HumanCardModal({
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close"
               className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm text-white font-bold shrink-0"
             >
-              {"\u00D7"}
+              <span aria-hidden="true">{"\u00D7"}</span>
             </button>
           </div>
         </div>
@@ -713,28 +711,22 @@ export function HumanCardModal({
               const channels = human.reminderChannels || ["whatsapp"];
               const active = channels.includes(key);
               return (
-                <label key={key} className="flex items-center justify-between py-1.5 cursor-pointer">
+                <div key={key} className="flex items-center justify-between py-1.5">
                   <span className="text-[13px] text-slate-600">{label}</span>
-                  <div
+                  <button
+                    type="button"
                     role="switch"
                     aria-checked={active}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        const next = active ? channels.filter((c) => c !== key) : [...channels, key];
-                        onUpdateHuman(human.id, { reminderChannels: next.length > 0 ? next : ["whatsapp"] });
-                      }
-                    }}
+                    aria-label={`Reminders via ${label}`}
                     onClick={() => {
                       const next = active ? channels.filter((c) => c !== key) : [...channels, key];
                       onUpdateHuman(human.id, { reminderChannels: next.length > 0 ? next : ["whatsapp"] });
                     }}
-                    className={`w-9 h-5 rounded-full relative transition-colors ${active ? "bg-brand-teal" : "bg-slate-300"}`}
+                    className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer border-none p-0 ${active ? "bg-brand-teal" : "bg-slate-300"}`}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
-                  </div>
-                </label>
+                    <span aria-hidden="true" className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? "left-[18px]" : "left-0.5"}`} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -769,10 +761,11 @@ export function HumanCardModal({
                       `${candidate.name || ""} ${candidate.surname || ""}`.trim();
 
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={candidate.id}
                         onClick={() => handleAddTrusted(candidate.id)}
-                        className="px-3 py-2.5 cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#E6F5F2]"
+                        className="w-full text-left bg-transparent px-3 py-2.5 cursor-pointer border-x-0 border-t-0 border-b border-slate-200 transition-colors hover:bg-[#E6F5F2] focus:outline-none focus-visible:bg-[#E6F5F2]"
                       >
                         <div className="text-[13px] font-semibold text-slate-800">
                           {titleCase(fullName)}
@@ -780,7 +773,7 @@ export function HumanCardModal({
                         <div className="text-xs text-slate-500">
                           {candidate.phone}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

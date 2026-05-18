@@ -27,4 +27,40 @@ test.describe("Smoke", () => {
     expect(response?.ok()).toBe(true);
     await expect(page.locator("#root")).not.toBeEmpty();
   });
+
+  test("staff can navigate to the dogs directory", async ({ page }) => {
+    await page.goto("/dogs");
+    await expect(page).toHaveURL(/\/dogs/);
+    // Main content renders something; sample data should populate the
+    // directory but at minimum we want a non-empty <main>.
+    await expect(page.locator("main#main-content")).not.toBeEmpty();
+  });
+
+  test("staff can navigate to the humans directory", async ({ page }) => {
+    await page.goto("/humans");
+    await expect(page).toHaveURL(/\/humans/);
+    await expect(page.locator("main#main-content")).not.toBeEmpty();
+  });
+
+  test("staff can navigate to the settings page", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page).toHaveURL(/\/settings/);
+    await expect(
+      page.getByRole("heading", { name: /salon settings/i }).first(),
+    ).toBeVisible();
+  });
+
+  test("staff can navigate to the inbox", async ({ page }) => {
+    await page.goto("/inbox");
+    await expect(page).toHaveURL(/\/inbox/);
+    await expect(page.locator("main#main-content")).toBeAttached();
+  });
+
+  test("main content landmark is present and is a <main>", async ({ page }) => {
+    await page.goto("/");
+    // The skip link targets #main-content. Make sure that element is a
+    // <main> landmark, not just a <div> with the right id.
+    const mainContent = page.locator("main#main-content");
+    await expect(mainContent).toBeAttached();
+  });
 });

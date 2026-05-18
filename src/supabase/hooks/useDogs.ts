@@ -263,11 +263,11 @@ export function useDogs(humansById: Record<string, any>) {
           ownerSurnameResult,
           ownerPhoneResult,
         ] = await Promise.all([
-          supabase.from("dogs").select("*").ilike("name", likeTerm),
-          supabase.from("dogs").select("*").ilike("breed", likeTerm),
-          supabase.from("humans").select("*").ilike("name", likeTerm),
-          supabase.from("humans").select("*").ilike("surname", likeTerm),
-          supabase.from("humans").select("*").ilike("phone", likeTerm),
+          supabase.from("dogs").select("*").ilike("name", likeTerm).order("name").limit(50),
+          supabase.from("dogs").select("*").ilike("breed", likeTerm).order("name").limit(50),
+          supabase.from("humans").select("*").ilike("name", likeTerm).order("surname").order("name").limit(50),
+          supabase.from("humans").select("*").ilike("surname", likeTerm).order("surname").order("name").limit(50),
+          supabase.from("humans").select("*").ilike("phone", likeTerm).order("surname").order("name").limit(50),
         ]);
 
         const firstError =
