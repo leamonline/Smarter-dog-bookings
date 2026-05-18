@@ -45,6 +45,7 @@ export function useSlotAvailability({
         {
           overrides: editSettings.overrides?.[slot] || {},
           dogId: bookingDogId,
+          staffOverride: true,
         },
       );
       return check.allowed;
@@ -61,6 +62,7 @@ export function useSlotAvailability({
       {
         overrides: editSettings.overrides?.[bookingSlot] || {},
         dogId: bookingDogId,
+        staffOverride: true,
       },
     );
     return check.allowed;

@@ -97,6 +97,7 @@ export function ChainBookingModal({
         const result = canBookSlot(dayBookings, slot, dogSize, activeSlots, {
           overrides: settings.overrides?.[slot] || {},
           dogId: dog?.id,
+          staffOverride: true,
         });
         return result.allowed;
       });

@@ -308,6 +308,17 @@ describe("Mid-Morning Block (10:00 - 11:30)", () => {
     const result = canBookSlot([], "10:00", "small", SLOTS);
     expect(result.allowed).toBe(true);
   });
+
+  it.each(["10:00", "10:30", "11:00", "11:30"])("Large dog at %s allowed with staffOverride", (slot) => {
+    const result = canBookSlot([], slot, "large", SLOTS, { staffOverride: true });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("staffOverride still enforces seat availability — large dog can't fit if seat already taken", () => {
+    const bookings = [b("10:00", "small")];
+    const result = canBookSlot(bookings, "10:00", "large", SLOTS, { staffOverride: true });
+    expect(result.allowed).toBe(false);
+  });
 });
 
 // ============================================================

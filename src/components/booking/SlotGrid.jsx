@@ -33,6 +33,7 @@ export function SlotGrid({
         {
           overrides: overrides?.[targetSlot] || {},
           dogId: booking._dogId,
+          staffOverride: true,
         },
       );
       return check.allowed;

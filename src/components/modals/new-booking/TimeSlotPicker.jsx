@@ -22,6 +22,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
     for (const dog of selectedDogs) {
       const check = canBookSlot(simulated, slot, dog.size, activeSlots, {
         dogId: dog.id,
+        staffOverride: true,
       });
       if (!check.allowed) {
         if (check.reason === "This dog is already booked in this slot") {
