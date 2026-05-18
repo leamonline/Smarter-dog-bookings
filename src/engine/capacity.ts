@@ -217,14 +217,60 @@ export function getBookableSeatCount(
 //    12:30 + 13:00, and only if early close isn't active.
 // ============================================================
 
+// Strings that canBookSlot returns when the rejection is a *physical
+// capacity* rule (the kind staff can choose to override). New rejection
+// reasons default to non-overridable — add them here only when they
+// represent a capacity rule, not a data-integrity / programmer error.
+const CAPACITY_REASONS = new Set<string>([
+  "Large dogs need Leam's approval for this slot",
+  "9:00am conditional: 8:30am must be empty",
+  "9:00am conditional: 10:00am must have 0–1 seats",
+  "12:00 large dog requires 1:00pm to be empty (early close)",
+  "1:00pm is closed — large dog at 12:00 triggered early close",
+  "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
+  "Only a small/medium dog can share this slot with a large dog",
+  "Large dog fills this slot — already has bookings",
+  "Not enough capacity (2-2-1 rule)",
+  "1:00pm closed — early close from 12:00 large dog",
+  "Capped at 1 (2-2-1 rule)",
+  "Slot is full",
+  "Large dog fills this slot",
+]);
+
+export function isCapacityRejection(reason: string | undefined): boolean {
+  if (!reason) return false;
+  return CAPACITY_REASONS.has(reason);
+}
+
+type StaffOverride =
+  | boolean
+  | { approval?: boolean; capacity?: boolean };
+
+function resolveStaffOverride(raw: StaffOverride): { approval: boolean; capacity: boolean } {
+  if (typeof raw === "boolean") return { approval: raw, capacity: false };
+  return { approval: raw.approval ?? false, capacity: raw.capacity ?? false };
+}
+
 export function canBookSlot(
   bookings: Booking[],
   slot: string,
   size: DogSize,
   activeSlots: string[],
-  options: { overrides?: SlotOverrides; selectedSeatIndex?: number | null; dogId?: string | null; staffOverride?: boolean } = {},
+  options: {
+    overrides?: SlotOverrides;
+    selectedSeatIndex?: number | null;
+    dogId?: string | null;
+    staffOverride?: StaffOverride;
+  } = {},
 ): BookingResult {
-  const { overrides = {}, selectedSeatIndex = null, dogId = null, staffOverride = false } = options;
+  const {
+    overrides = {},
+    selectedSeatIndex = null,
+    dogId = null,
+    staffOverride: rawOverride = false,
+  } = options;
+  const override = resolveStaffOverride(rawOverride);
+
   const capacities = computeSlotCapacities(bookings, activeSlots);
   const cap = capacities[slot];
   const largeDogSlots = LARGE_DOG_SLOTS as Record<string, LargeDogSlotRule>;
@@ -244,12 +290,8 @@ export function canBookSlot(
     const rule = largeDogSlots[slot];
 
     // --- Mid-morning block: no LARGE_DOG_SLOTS entry ---
-    // Staff are the approver; when staffOverride is set, fall through
-    // to the general seat-availability check below. Rule-specific
-    // checks (conditional, back-to-back, full-takeover) all require a
-    // rule and don't apply to no-rule slots.
     if (!rule) {
-      if (!staffOverride) {
+      if (!override.approval) {
         return {
           allowed: false,
           reason: "Large dogs need Leam's approval for this slot",
@@ -257,106 +299,99 @@ export function canBookSlot(
         };
       }
     } else {
+      // --- 09:00 conditional ---
+      if (rule.conditional && slot === "09:00") {
+        const seats830 = getSeatsUsed(bookings, "08:30");
+        const seats1000 = getSeatsUsed(bookings, "10:00");
+        if (seats830 > 0 && !override.capacity) {
+          return {
+            allowed: false,
+            reason: "9:00am conditional: 8:30am must be empty",
+          };
+        }
+        if (seats1000 > 1 && !override.capacity) {
+          return {
+            allowed: false,
+            reason: "9:00am conditional: 10:00am must have 0–1 seats",
+          };
+        }
+      }
 
-    // --- 09:00 conditional: start-of-day exception ---
-    if (rule.conditional && slot === "09:00") {
-      const seats830 = getSeatsUsed(bookings, "08:30");
-      const seats1000 = getSeatsUsed(bookings, "10:00");
-      if (seats830 > 0) {
+      // --- 12:00 conditional ---
+      if (slot === "12:00") {
+        const seats1300 = getSeatsUsed(bookings, "13:00");
+        if (seats1300 > 0 && !override.capacity) {
+          return {
+            allowed: false,
+            reason: "12:00 large dog requires 1:00pm to be empty (early close)",
+          };
+        }
+      }
+
+      // --- 13:00 early close ---
+      if (slot === "13:00" && isEarlyCloseActive(bookings) && !override.capacity) {
         return {
           allowed: false,
-          reason: "9:00am conditional: 8:30am must be empty",
+          reason: "1:00pm is closed — large dog at 12:00 triggered early close",
         };
       }
-      if (seats1000 > 1) {
-        return {
-          allowed: false,
-          reason: "9:00am conditional: 10:00am must have 0\u20131 seats",
-        };
-      }
-    }
 
-    // --- 12:00 conditional: 13:00 must be empty ---
-    if (slot === "12:00") {
-      const seats1300 = getSeatsUsed(bookings, "13:00");
-      if (seats1300 > 0) {
-        return {
-          allowed: false,
-          reason: "12:00 large dog requires 1:00pm to be empty (early close)",
-        };
-      }
-    }
+      // --- Back-to-back full-takeover ---
+      if (!rule.canShare) {
+        const slotIndex = activeSlots.indexOf(slot);
 
-    // --- 13:00 early close: blocked if 12:00 has large dog ---
-    if (slot === "13:00" && isEarlyCloseActive(bookings)) {
-      return {
-        allowed: false,
-        reason: "1:00pm is closed \u2014 large dog at 12:00 triggered early close",
-      };
-    }
+        if (slotIndex > 0) {
+          const prevSlot = activeSlots[slotIndex - 1];
+          const prevRule = largeDogSlots[prevSlot];
+          if (prevRule && !prevRule.canShare && hasLargeDog(bookings, prevSlot)) {
+            const pair = [prevSlot, slot].sort();
+            if (!(pair[0] === "12:30" && pair[1] === "13:00") && !override.capacity) {
+              return {
+                allowed: false,
+                reason: "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
+              };
+            }
+          }
+        }
 
-    // --- Back-to-back full-takeover check ---
-    // Only applies to slots where large dogs take 2 seats (canShare: false)
-    if (!rule.canShare) {
-      const slotIndex = activeSlots.indexOf(slot);
-
-      // Check the slot before this one
-      if (slotIndex > 0) {
-        const prevSlot = activeSlots[slotIndex - 1];
-        const prevRule = largeDogSlots[prevSlot];
-        if (prevRule && !prevRule.canShare && hasLargeDog(bookings, prevSlot)) {
-          // Two adjacent full-takeover large dog slots
-          const pair = [prevSlot, slot].sort();
-          if (!(pair[0] === "12:30" && pair[1] === "13:00")) {
-            return {
-              allowed: false,
-              reason: "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
-            };
+        if (slotIndex < activeSlots.length - 1) {
+          const nextSlot = activeSlots[slotIndex + 1];
+          const nextRule = largeDogSlots[nextSlot];
+          if (nextRule && !nextRule.canShare && hasLargeDog(bookings, nextSlot)) {
+            const pair = [slot, nextSlot].sort();
+            if (!(pair[0] === "12:30" && pair[1] === "13:00") && !override.capacity) {
+              return {
+                allowed: false,
+                reason: "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
+              };
+            }
           }
         }
       }
 
-      // Check the slot after this one
-      if (slotIndex < activeSlots.length - 1) {
-        const nextSlot = activeSlots[slotIndex + 1];
-        const nextRule = largeDogSlots[nextSlot];
-        if (nextRule && !nextRule.canShare && hasLargeDog(bookings, nextSlot)) {
-          const pair = [slot, nextSlot].sort();
-          if (!(pair[0] === "12:30" && pair[1] === "13:00")) {
-            return {
-              allowed: false,
-              reason: "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
-            };
-          }
-        }
+      // --- Shareable slot: only small/medium can join a large dog ---
+      if (rule.canShare && hasLargeDog(bookings, slot) && !override.capacity) {
+        return {
+          allowed: false,
+          reason: "Only a small/medium dog can share this slot with a large dog",
+        };
       }
-    }
 
-    // --- Shareable slot: only small/medium can join a large dog ---
-    // Business rule: "The remaining seat can only be booked by a
-    // small/medium dog — not another large dog."
-    if (rule.canShare && hasLargeDog(bookings, slot)) {
-      return {
-        allowed: false,
-        reason: "Only a small/medium dog can share this slot with a large dog",
-      };
-    }
+      // --- Full-takeover slot already has bookings ---
+      if (!rule.canShare && cap.used > 0 && !override.capacity) {
+        return {
+          allowed: false,
+          reason: "Large dog fills this slot — already has bookings",
+        };
+      }
 
-    // --- Full-takeover slot already has bookings ---
-    if (!rule.canShare && cap.used > 0) {
-      return {
-        allowed: false,
-        reason: "Large dog fills this slot \u2014 already has bookings",
-      };
-    }
-
-    // --- Full-takeover needs 2 seats but 2-2-1 caps at 1 ---
-    if (!rule.canShare && seatsNeeded > cap.max) {
-      return {
-        allowed: false,
-        reason: "Not enough capacity (2-2-1 rule)",
-      };
-    }
+      // --- Full-takeover needs 2 seats but 2-2-1 caps at 1 ---
+      if (!rule.canShare && seatsNeeded > cap.max && !override.capacity) {
+        return {
+          allowed: false,
+          reason: "Not enough capacity (2-2-1 rule)",
+        };
+      }
     }
   }
 
@@ -369,14 +404,14 @@ export function canBookSlot(
     selectedSeatIndex,
   );
 
-  if (availableSeats < seatsNeeded) {
+  if (availableSeats < seatsNeeded && !override.capacity) {
     return {
       allowed: false,
       reason:
         size === "large"
           ? "Not enough capacity (2-2-1 rule)"
           : cap.isEarlyClosed
-            ? "1:00pm closed \u2014 early close from 12:00 large dog"
+            ? "1:00pm closed — early close from 12:00 large dog"
             : cap.isConstrained
               ? "Capped at 1 (2-2-1 rule)"
               : "Slot is full",
@@ -384,7 +419,7 @@ export function canBookSlot(
   }
 
   // --- Small/medium blocked by full-takeover large dog ---
-  if (size !== "large" && cap.hasLargeDog) {
+  if (size !== "large" && cap.hasLargeDog && !override.capacity) {
     const rule = largeDogSlots[slot];
     if (rule && !rule.canShare) {
       return { allowed: false, reason: "Large dog fills this slot" };

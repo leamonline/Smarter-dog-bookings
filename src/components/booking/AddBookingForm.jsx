@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   getAllowedServicesForSize,
   getServicePriceLabel,
@@ -47,6 +48,8 @@ export function AddBookingForm({
   const [addons, setAddons] = useState(prefill?.addons || []);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingOverride, setPendingOverride] = useState(null);
+  // shape: { reason: string, payload: object }
 
   const toggleAddon = (addon) => {
     setAddons((prev) =>
@@ -108,6 +111,20 @@ export function AddBookingForm({
     setError("");
   };
 
+  const confirmOverride = async () => {
+    const payload = pendingOverride.payload;
+    setPendingOverride(null);
+    setSubmitting(true);
+    setError("");
+    const result = await onAdd(payload);
+    setSubmitting(false);
+    if (result) {
+      toast.show(`${payload.dogName} booked in`, "success");
+    } else {
+      setError("Could not save booking. Please try again.");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -121,22 +138,7 @@ export function AddBookingForm({
       return;
     }
 
-    const check = canBookSlot(bookings, slot, size, activeSlots, {
-      slotOverrides,
-      selectedSeatIndex,
-      dogId: selectedDog.id || null,
-      staffOverride: true,
-    });
-
-    if (!check.allowed) {
-      setError(check.reason);
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-
-    const result = await onAdd({
+    const buildPayload = (capacity) => ({
       id: Date.now(),
       slot,
       dogName: selectedDog.name,
@@ -153,7 +155,29 @@ export function AddBookingForm({
       _ownerId:
         selectedDog._humanId || selectedOwner?.id || prefill?._ownerId || null,
       _pickupById: prefill?._pickupById || null,
+      ...(capacity ? { staff_capacity_override: true } : {}),
     });
+
+    const check = canBookSlot(bookings, slot, size, activeSlots, {
+      slotOverrides,
+      selectedSeatIndex,
+      dogId: selectedDog.id || null,
+      staffOverride: true,
+    });
+
+    if (!check.allowed) {
+      if (isCapacityRejection(check.reason)) {
+        setPendingOverride({ reason: check.reason, payload: buildPayload(true) });
+        return;
+      }
+      setError(check.reason);
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    const result = await onAdd(buildPayload(false));
 
     setSubmitting(false);
 
@@ -328,6 +352,18 @@ export function AddBookingForm({
           Cancel
         </button>
       </div>
+
+      {pendingOverride && (
+        <ConfirmDialog
+          title="This booking breaks the capacity rule"
+          message={`${pendingOverride.reason}. Override and book anyway?`}
+          confirmLabel="Override and book"
+          cancelLabel="Pick another time"
+          variant="primary"
+          onConfirm={confirmOverride}
+          onCancel={() => setPendingOverride(null)}
+        />
+      )}
     </form>
   );
 }

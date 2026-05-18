@@ -24,6 +24,7 @@ import {
   canBookSlot,
   getBookableSeatCount,
   findGroupedSlots,
+  isCapacityRejection,
 } from "./capacity.js";
 
 const SLOTS = [
@@ -649,5 +650,189 @@ describe("Multi-Dog Slot Grouping", () => {
     );
     expect(orderA.length).toBeGreaterThan(0);
     expect(orderB.length).toBeGreaterThan(0);
+  });
+});
+
+// ============================================================
+// 14. STAFF CAPACITY OVERRIDE
+// ============================================================
+
+describe("Staff capacity override — object form of staffOverride", () => {
+  // Legacy boolean back-compat: staffOverride: true bypasses approval only.
+  it("staffOverride: true bypasses approval gate (legacy boolean)", () => {
+    // 11:00 is full (no LARGE_DOG_SLOTS entry → approval gate too).
+    // Legacy boolean must let staff past the approval gate but still
+    // hit the physical-capacity rejection.
+    const bookings = [b("11:00"), b("11:00")];
+
+    const noOverride = canBookSlot(bookings, "11:00", "large", SLOTS);
+    expect(noOverride.allowed).toBe(false);
+    expect(noOverride.reason).toMatch(/approval/i);
+
+    const legacy = canBookSlot(bookings, "11:00", "large", SLOTS, {
+      staffOverride: true,
+    });
+    // Approval gate bypassed but capacity isn't.
+    expect(legacy.allowed).toBe(false);
+    expect(legacy.reason).toMatch(/2-2-1|capacity/i);
+  });
+
+  it("staffOverride: { approval: true } also bypasses approval only (object form)", () => {
+    const result = canBookSlot([], "10:00", "large", SLOTS, {
+      staffOverride: { approval: true },
+    });
+    // 10:00 empty → 2 seats available for a 2-seat large dog. Approval
+    // bypassed, no capacity rule fires.
+    expect(result.allowed).toBe(true);
+  });
+
+  it("staffOverride: { approval: true, capacity: true } books a no-rule large dog into a full slot", () => {
+    const bookings = [b("11:00"), b("11:00")];
+    const result = canBookSlot(bookings, "11:00", "large", SLOTS, {
+      staffOverride: { approval: true, capacity: true },
+    });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("staffOverride: { capacity: true } bypasses 2-2-1 'Capped at 1'", () => {
+    // 09:30 is capped at 1 by 2-2-1 (two doubles at 08:30 and 09:00).
+    // Fill that cap-of-1 to force the rejection.
+    const bookings = [
+      b("08:30"), b("08:30"),
+      b("09:00"), b("09:00"),
+      b("09:30"),
+    ];
+    const blocked = canBookSlot(bookings, "09:30", "small", SLOTS);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toMatch(/2-2-1/);
+
+    const allowed = canBookSlot(bookings, "09:30", "small", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  it("staffOverride: { capacity: true } bypasses 'Slot is full'", () => {
+    const bookings = [b("11:00"), b("11:00")];
+    const blocked = canBookSlot(bookings, "11:00", "small", SLOTS);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toBe("Slot is full");
+
+    const allowed = canBookSlot(bookings, "11:00", "small", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  it("staffOverride: { capacity: true } bypasses 9:00 conditional (8:30 must be empty)", () => {
+    const bookings = [b("08:30")];
+    const blocked = canBookSlot(bookings, "09:00", "large", SLOTS);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toMatch(/8:30am must be empty/);
+
+    const allowed = canBookSlot(bookings, "09:00", "large", SLOTS, {
+      staffOverride: { approval: true, capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  it("staffOverride: { capacity: true } bypasses 12:00 / 13:00 early-close pair", () => {
+    // 12:00 large dog blocks 13:00.
+    const bookings = [b("12:00", "large")];
+    const blocked = canBookSlot(bookings, "13:00", "large", SLOTS);
+    expect(blocked.allowed).toBe(false);
+
+    const allowed = canBookSlot(bookings, "13:00", "large", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  // Back-to-back rejection isn't directly testable with the current
+  // LARGE_DOG_SLOTS (only 12:30 + 13:00 are canShare:false, and that
+  // adjacent pair is the *allowed* pair). The bypass code path is in
+  // place for completeness; if LARGE_DOG_SLOTS is ever extended, the
+  // existing back-to-back tests at line ~231 cover the positive path.
+
+  it("staffOverride: { capacity: true } bypasses 'Only a small/medium dog can share'", () => {
+    const bookings = [b("12:00", "large")];
+    const blocked = canBookSlot(bookings, "12:00", "large", SLOTS);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toMatch(/share this slot/);
+
+    const allowed = canBookSlot(bookings, "12:00", "large", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  it("staffOverride: { capacity: true } bypasses 'Large dog fills this slot' for small dog", () => {
+    const bookings = [b("12:30", "large")];
+    const blocked = canBookSlot(bookings, "12:30", "small", SLOTS);
+    expect(blocked.allowed).toBe(false);
+
+    const allowed = canBookSlot(bookings, "12:30", "small", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(allowed.allowed).toBe(true);
+  });
+
+  it("staffOverride: { approval: false, capacity: false } behaves like no override", () => {
+    const bookings = [];
+    const noOverride = canBookSlot(bookings, "10:00", "large", SLOTS);
+    const explicitFalse = canBookSlot(bookings, "10:00", "large", SLOTS, {
+      staffOverride: { approval: false, capacity: false },
+    });
+    const emptyObject = canBookSlot(bookings, "10:00", "large", SLOTS, {
+      staffOverride: {},
+    });
+
+    expect(noOverride.allowed).toBe(false);
+    expect(noOverride.reason).toMatch(/approval/i);
+    expect(explicitFalse).toEqual(noOverride);
+    expect(emptyObject).toEqual(noOverride);
+  });
+
+  // Data-integrity errors must stay hard even with capacity: true.
+  it("staffOverride: { capacity: true } does NOT bypass 'Invalid slot'", () => {
+    const result = canBookSlot([], "07:00", "small", SLOTS, {
+      staffOverride: { capacity: true },
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("Invalid slot");
+  });
+
+  it("staffOverride: { capacity: true } does NOT bypass 'already booked in this slot'", () => {
+    const dogId = "dog-1";
+    const bookings = [{ ...b("09:00"), _dogId: dogId }];
+    const result = canBookSlot(bookings, "09:00", "small", SLOTS, {
+      dogId,
+      staffOverride: { capacity: true },
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/already booked/);
+  });
+});
+
+describe("isCapacityRejection", () => {
+  it("returns false for data-integrity reasons", () => {
+    expect(isCapacityRejection("Invalid slot")).toBe(false);
+    expect(isCapacityRejection("This dog is already booked in this slot")).toBe(false);
+  });
+
+  it("returns true for capacity reasons", () => {
+    expect(isCapacityRejection("Not enough capacity (2-2-1 rule)")).toBe(true);
+    expect(isCapacityRejection("Slot is full")).toBe(true);
+    expect(isCapacityRejection("Capped at 1 (2-2-1 rule)")).toBe(true);
+    expect(isCapacityRejection("Back-to-back large dogs only allowed at 12:30 + 1:00pm")).toBe(true);
+    expect(isCapacityRejection("Only a small/medium dog can share this slot with a large dog")).toBe(true);
+    expect(isCapacityRejection("Large dog fills this slot")).toBe(true);
+    expect(isCapacityRejection("9:00am conditional: 8:30am must be empty")).toBe(true);
+  });
+
+  it("returns false for unknown reason strings (opt-in safety)", () => {
+    expect(isCapacityRejection("Some new reason we haven't seen")).toBe(false);
+    expect(isCapacityRejection("")).toBe(false);
+    expect(isCapacityRejection(undefined)).toBe(false);
   });
 });

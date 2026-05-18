@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 // ─── main modal ─────────────────────────────────────────────────────────────
 
@@ -53,6 +54,8 @@ export function NewBookingModal({
   // dialog's accept handler. Avoids accidental back-dated bookings while
   // still letting staff log historical records when they need to.
   const [pendingPastConfirm, setPendingPastConfirm] = useState(false);
+  const [pendingCapacityOverride, setPendingCapacityOverride] = useState(null);
+  // shape: { reason: string, targetDateStr: string }
 
   // When the modal opens from a WhatsApp message the humans map may not
   // have hydrated yet, so dogQuery falls back to the conversation's
@@ -198,23 +201,23 @@ export function NewBookingModal({
     saveBooking();
   };
 
-  const saveBooking = () => {
-    const bookings = [];
+  const buildBookingsForOverride = (capacity) => {
+    const result = [];
     const occurrences = recurringWeeks > 0 ? Math.floor(52 / recurringWeeks) : 1;
-    let baseDate = new Date(selectedDateStr + "T00:00:00");
+    const baseDate = new Date(selectedDateStr + "T00:00:00");
 
     for (let i = 0; i < occurrences; i++) {
       const targetDate = new Date(baseDate);
       targetDate.setDate(baseDate.getDate() + (i * recurringWeeks * 7));
       const targetDateStr = toDateStr(targetDate);
 
-      // Skip closed days in a recurring series — the README promises
-      // "If a day is full, that slot will be skipped" and a closed day is
-      // effectively full from the customer's view.
       if (!isDateOpen(targetDateStr, dayOpenState)) {
         if (i === 0) {
-          setError("The salon is closed on this day. Open the day first or pick a different date.");
-          return;
+          return {
+            error: "The salon is closed on this day. Open the day first or pick a different date.",
+            targetDateStr,
+            bareError: true,
+          };
         }
         continue;
       }
@@ -231,7 +234,9 @@ export function NewBookingModal({
         const size = entry.dog.size || "small";
         const check = canBookSlot(simulated, selectedSlot, size, activeSlots, {
           dogId: entry.dog.id,
-          staffOverride: true,
+          staffOverride: capacity
+            ? { approval: true, capacity: true }
+            : true,
         });
         if (!check.allowed) {
           allFit = false;
@@ -246,28 +251,64 @@ export function NewBookingModal({
 
       if (allFit) {
         dogEntries.forEach(entry => {
-          bookings.push({
-             id: crypto.randomUUID(),
-             slot: selectedSlot,
-             dogName: entry.dog.name,
-             breed: entry.dog.breed,
-             size: entry.dog.size || "small",
-             service: entry.service,
-             addons: entry.addons || [],
-             owner: entry.dog.humanId,
-             _dogId: entry.dog.id,
-             _bookingDate: targetDateStr,
+          result.push({
+            id: crypto.randomUUID(),
+            slot: selectedSlot,
+            dogName: entry.dog.name,
+            breed: entry.dog.breed,
+            size: entry.dog.size || "small",
+            service: entry.service,
+            addons: entry.addons || [],
+            owner: entry.dog.humanId,
+            _dogId: entry.dog.id,
+            _bookingDate: targetDateStr,
+            ...(capacity ? { staff_capacity_override: true } : {}),
           });
         });
-      } else {
-        if (i === 0) {
-          setError(`Booking on ${targetDateStr} failed: ${failureReason} (Choose a different starting date)`);
-          return;
-        }
+      } else if (i === 0) {
+        return { error: failureReason, targetDateStr };
       }
+      // i > 0: silently skip (today's behaviour)
     }
 
-    onAdd(bookings, selectedDateStr);
+    return { bookings: result };
+  };
+
+  const saveBooking = () => {
+    const outcome = buildBookingsForOverride(false);
+    if (outcome.error) {
+      if (isCapacityRejection(outcome.error)) {
+        setPendingCapacityOverride({ reason: outcome.error, targetDateStr: outcome.targetDateStr });
+        return;
+      }
+      setError(
+        outcome.bareError
+          ? outcome.error
+          : `Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`
+      );
+      return;
+    }
+
+    onAdd(outcome.bookings, selectedDateStr);
+    toast.show("Booking created", "success");
+  };
+
+  const confirmCapacityOverride = () => {
+    const outcome = buildBookingsForOverride(true);
+    setPendingCapacityOverride(null);
+
+    if (outcome.error) {
+      // Override didn't help (e.g. a data-integrity reason or the recurring
+      // week-1 still fails for some other reason). Fall back to hard error.
+      setError(
+        outcome.bareError
+          ? outcome.error
+          : `Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`
+      );
+      return;
+    }
+
+    onAdd(outcome.bookings, selectedDateStr);
     toast.show("Booking created", "success");
   };
 
@@ -396,6 +437,18 @@ export function NewBookingModal({
             slotLabel={selectedSlotLabel}
             onConfirm={() => { setPendingPastConfirm(false); saveBooking(); }}
             onCancel={() => setPendingPastConfirm(false)}
+          />
+        )}
+
+        {pendingCapacityOverride && (
+          <ConfirmDialog
+            title="This booking breaks the capacity rule"
+            message={`${pendingCapacityOverride.reason}. Override and book anyway?`}
+            confirmLabel="Override and book"
+            cancelLabel="Pick another time"
+            variant="primary"
+            onConfirm={confirmCapacityOverride}
+            onCancel={() => setPendingCapacityOverride(null)}
           />
         )}
     </AccessibleModal>
