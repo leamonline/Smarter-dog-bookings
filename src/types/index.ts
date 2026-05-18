@@ -80,6 +80,7 @@ export interface Booking {
   payment: string;
   depositAmount?: number | null;
   confirmed: boolean;
+  dogNameSnapshot: string | null;
   breedSnapshot: string | null;
   ownerNameSnapshot: string | null;
   whatsappConversationId: string | null;

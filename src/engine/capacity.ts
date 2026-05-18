@@ -454,6 +454,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     pickupBy: "",
     payment: "",
     confirmed: false,
+    dogNameSnapshot: null,
     breedSnapshot: null,
     ownerNameSnapshot: null,
     whatsappConversationId: null,

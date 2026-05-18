@@ -303,6 +303,7 @@ describe("resolveBookingDisplay", () => {
     pickupBy: "",
     payment: "Due at Pick-up",
     confirmed: false,
+    dogNameSnapshot: "Old Name",
     breedSnapshot: "Boston Terrier",
     ownerNameSnapshot: "Old Owner",
     whatsappConversationId: null,
@@ -323,15 +324,26 @@ describe("resolveBookingDisplay", () => {
       { Alfie: dog },
       { "Jane Smith": human },
     );
+    expect(result.dogName).toBe("Alfie");
     expect(result.breed).toBe("Cockapoo");
     expect(result.owner).toBe("Jane Smith");
     expect(result.dogMissing).toBe(false);
     expect(result.ownerMissing).toBe(false);
   });
 
-  it("falls back to snapshot when dog row is missing", () => {
+  it("falls back to dogNameSnapshot/breedSnapshot when dog row is missing", () => {
     const result = resolveBookingDisplay(booking, {}, { "Jane Smith": human });
+    expect(result.dogName).toBe("Old Name");
     expect(result.breed).toBe("Boston Terrier");
+    // dogMissing means "we have no usable name" — the snapshot provides one,
+    // so cards should render the name rather than the "Unnamed booking" fallback.
+    expect(result.dogMissing).toBe(false);
+  });
+
+  it("flags dogMissing=true only when no live row and no snapshot are available", () => {
+    const noFallback = { ...booking, dogName: "", dogNameSnapshot: null };
+    const result = resolveBookingDisplay(noFallback, {}, { "Jane Smith": human });
+    expect(result.dogName).toBe("Unknown");
     expect(result.dogMissing).toBe(true);
   });
 
@@ -377,7 +389,7 @@ describe("resolveBookingDisplay", () => {
   });
 
   it("returns the 'Unknown owner' sentinel (not the literal 'Unknown') when nothing resolves", () => {
-    const legacy = { ...booking, dogName: "Unknown", owner: "Unknown", ownerNameSnapshot: null, breedSnapshot: null, _dogId: "", _ownerId: null };
+    const legacy = { ...booking, dogName: "Unknown", owner: "Unknown", dogNameSnapshot: null, ownerNameSnapshot: null, breedSnapshot: null, _dogId: "", _ownerId: null };
     const result = resolveBookingDisplay(legacy, {}, {});
     expect(result.dogName).toBe("Unknown");
     expect(result.owner).toBe("Unknown owner");

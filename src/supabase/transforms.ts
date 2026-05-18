@@ -55,6 +55,7 @@ interface DbBookingRow {
   pickup_by_id: string | null;
   booking_date: string;
   group_id: string | null;
+  dog_name_snapshot?: string | null;
   breed_snapshot?: string | null;
   owner_name_snapshot?: string | null;
   whatsapp_conversation_id?: string | null;
@@ -297,6 +298,7 @@ export function dbBookingsToArray(
     // ensureDogsByIds/ensureHumansByIds populate the cache. Storing "Unknown"
     // would (a) leak into the card UI as a literal name, and (b) defeat the
     // "Unknown owner" sentinel check downstream consumers rely on.
+    const dogNameSnapshot = row.dog_name_snapshot ?? null;
     const breedSnapshot = row.breed_snapshot ?? null;
     const ownerSnapshot = row.owner_name_snapshot ?? null;
     const breed = dog.breed || breedSnapshot || "";
@@ -305,7 +307,7 @@ export function dbBookingsToArray(
     return {
       id: row.id,
       slot: row.slot,
-      dogName: dog.name || "",
+      dogName: dog.name || dogNameSnapshot || "",
       breed,
       size: row.size as Booking["size"],
       service: row.service as Booking["service"],
@@ -316,6 +318,7 @@ export function dbBookingsToArray(
       payment: row.payment || "Due at Pick-up",
       depositAmount: row.deposit_amount ?? null,
       confirmed: row.confirmed === true,
+      dogNameSnapshot,
       breedSnapshot,
       ownerNameSnapshot: ownerSnapshot,
       whatsappConversationId: row.whatsapp_conversation_id ?? null,

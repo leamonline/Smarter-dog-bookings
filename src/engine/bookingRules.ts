@@ -151,12 +151,21 @@ export interface BookingDisplay {
  *
  * Policy (also enforced server-side via trg_bookings_set_snapshots):
  *   1. Prefer the live joined value from `dogs` / `humans`.
- *   2. Fall back to `booking.breedSnapshot` / `booking.ownerNameSnapshot`
- *      only when the dog or human row is missing or has been deleted.
+ *   2. Fall back to `booking.dogNameSnapshot` / `breedSnapshot` /
+ *      `ownerNameSnapshot` when the dog or human row is missing, has
+ *      been deleted, or simply hasn't been hydrated into the cache
+ *      yet (the dogs/humans maps paginate, so this is the common
+ *      case on first paint).
  *   3. Never render a UUID as customer-visible text. If the input
  *      somehow resolves to a UUID-shape, the helper substitutes the
  *      "Unknown" sentinel and (in dev) emits a warning so the leak is
  *      caught in code review rather than in production.
+ *
+ * `dogMissing` means "we have nothing usable to render" — surfaces
+ * use it as the gate for the "Unnamed booking" fallback copy. A
+ * booking whose dog row is past the paginated cache but whose
+ * snapshot is populated still has a usable name, so dogMissing is
+ * false. Same shape for `ownerMissing`.
  */
 export function resolveBookingDisplay(
   booking: Booking | null | undefined,
@@ -189,7 +198,9 @@ export function resolveBookingDisplay(
       : null;
 
   const fallbackDogName = isMissingNameToken(booking.dogName) ? "" : booking.dogName;
+  const fallbackDogNameSnapshot = isMissingNameToken(booking.dogNameSnapshot) ? "" : booking.dogNameSnapshot;
   const fallbackOwnerName = isMissingNameToken(booking.owner) ? "" : booking.owner;
+  const fallbackOwnerSnapshot = isMissingNameToken(booking.ownerNameSnapshot) ? "" : booking.ownerNameSnapshot;
   // Same legacy-row policy for breed: rows from before the
   // trg_bookings_set_snapshots trigger landed sometimes stored "Unknown"
   // literally, which then rendered on the booking card next to the owner.
@@ -198,9 +209,9 @@ export function resolveBookingDisplay(
   const fallbackBreedSnapshot = isMissingNameToken(booking.breedSnapshot) ? "" : booking.breedSnapshot;
   const fallbackBreedField = isMissingNameToken(booking.breed) ? "" : booking.breed;
 
-  const rawDogName = dog?.name || fallbackDogName || "";
+  const rawDogName = dog?.name || fallbackDogNameSnapshot || fallbackDogName || "";
   const rawBreed = fallbackBreed || fallbackBreedSnapshot || fallbackBreedField || "";
-  const rawOwnerName = owner?.fullName || booking.ownerNameSnapshot || fallbackOwnerName || "";
+  const rawOwnerName = owner?.fullName || fallbackOwnerSnapshot || fallbackOwnerName || "";
 
   const dogName = looksLikeUuid(rawDogName) || !rawDogName ? "Unknown" : rawDogName;
   const breed = looksLikeUuid(rawBreed) ? "" : rawBreed;
@@ -216,7 +227,7 @@ export function resolveBookingDisplay(
     breed,
     owner: owner_label,
     ownerPhone: owner?.phone || "",
-    dogMissing: !dog,
-    ownerMissing: !owner,
+    dogMissing: !dog && !fallbackDogNameSnapshot && !fallbackDogName,
+    ownerMissing: !owner && !fallbackOwnerSnapshot && !fallbackOwnerName,
   };
 }

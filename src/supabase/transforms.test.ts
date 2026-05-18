@@ -531,28 +531,34 @@ describe("dbBookingsToArray", () => {
   // Display layer prefers live join, falls back to snapshot only
   // when the joined dog/owner row is missing.
   // ──────────────────────────────────────────────────────────
-  it("prefers live joined breed/owner over snapshot when dog and human exist", () => {
+  it("prefers live joined dog/breed/owner over snapshot when rows exist", () => {
     const humansById = buildHumansById([humanRow({ name: "Jane", surname: "Smith" })]);
-    const dogsById = buildDogsById([dogRow({ breed: "Cockapoo" })]);
+    const dogsById = buildDogsById([dogRow({ name: "Alfie", breed: "Cockapoo" })]);
     const row = bookingRow({
+      dog_name_snapshot: "Old Name",
       breed_snapshot: "Boston Terrier",
-      owner_name_snapshot: "Old Name",
+      owner_name_snapshot: "Old Owner",
     });
     const bookings = dbBookingsToArray([row], dogsById, humansById);
+    expect(bookings[0].dogName).toBe("Alfie");
     expect(bookings[0].breed).toBe("Cockapoo");
     expect(bookings[0].owner).toBe("Jane Smith");
+    expect(bookings[0].dogNameSnapshot).toBe("Old Name");
     expect(bookings[0].breedSnapshot).toBe("Boston Terrier");
-    expect(bookings[0].ownerNameSnapshot).toBe("Old Name");
+    expect(bookings[0].ownerNameSnapshot).toBe("Old Owner");
   });
 
-  it("falls back to breed_snapshot when the dog row is missing", () => {
+  it("falls back to snapshots when the dog row is missing", () => {
     const humansById = buildHumansById([humanRow()]);
     const row = bookingRow({
+      dog_name_snapshot: "Granville",
       breed_snapshot: "Boston Terrier",
       owner_name_snapshot: "Jane Smith",
     });
-    // Empty dogsById simulates the dog having been deleted after booking creation.
+    // Empty dogsById simulates the dog having been deleted or sitting
+    // past the paginated dogs cache.
     const bookings = dbBookingsToArray([row], {}, humansById);
+    expect(bookings[0].dogName).toBe("Granville");
     expect(bookings[0].breed).toBe("Boston Terrier");
     expect(bookings[0].owner).toBe("Jane Smith");
   });
@@ -561,6 +567,7 @@ describe("dbBookingsToArray", () => {
     const humansById = buildHumansById([humanRow()]);
     const dogsById = buildDogsById([dogRow()]);
     const bookings = dbBookingsToArray([bookingRow()], dogsById, humansById);
+    expect(bookings[0].dogNameSnapshot).toBeNull();
     expect(bookings[0].breedSnapshot).toBeNull();
     expect(bookings[0].ownerNameSnapshot).toBeNull();
   });

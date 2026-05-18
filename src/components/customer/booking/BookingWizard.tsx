@@ -208,7 +208,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         id: row.id, slot: row.slot, size: row.size, dogName: "", breed: "",
         service: row.service, owner: "", status: row.status, addons: row.addons || [],
         pickupBy: "", payment: row.payment || "", confirmed: row.confirmed || false,
-        breedSnapshot: null, ownerNameSnapshot: null,
+        dogNameSnapshot: null, breedSnapshot: null, ownerNameSnapshot: null,
         whatsappConversationId: null, whatsappMessageId: null,
         staffCapacityOverride: false, staffCapacityOverrideBy: null, staffCapacityOverrideAt: null,
         _dogId: row.dog_id, _ownerId: null, _pickupById: row.pickup_by_id || null,
