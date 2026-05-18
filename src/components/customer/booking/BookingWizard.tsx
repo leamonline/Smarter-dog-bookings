@@ -210,6 +210,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         pickupBy: "", payment: row.payment || "", confirmed: row.confirmed || false,
         breedSnapshot: null, ownerNameSnapshot: null,
         whatsappConversationId: null, whatsappMessageId: null,
+        staffCapacityOverride: false, staffCapacityOverrideBy: null, staffCapacityOverrideAt: null,
         _dogId: row.dog_id, _ownerId: null, _pickupById: row.pickup_by_id || null,
         _bookingDate: row.booking_date, _groupId: row.group_id || null,
       }));

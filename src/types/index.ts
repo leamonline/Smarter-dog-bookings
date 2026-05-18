@@ -84,6 +84,13 @@ export interface Booking {
   ownerNameSnapshot: string | null;
   whatsappConversationId: string | null;
   whatsappMessageId: string | null;
+  // Staff capacity override audit. True when a staff member explicitly
+  // chose to book over a physical-capacity rule. _by and _at are filled
+  // by the validate_booking_capacity DB trigger from auth.uid() / now()
+  // — clients can't spoof them.
+  staffCapacityOverride: boolean;
+  staffCapacityOverrideBy: string | null;
+  staffCapacityOverrideAt: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

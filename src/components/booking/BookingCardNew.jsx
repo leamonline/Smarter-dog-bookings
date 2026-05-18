@@ -57,6 +57,26 @@ const SIZE_TOOLTIP = {
   large: "Large dog",
 };
 
+// Short human-readable timestamp for the override-badge tooltip:
+// "Mon 18 May at 13:57". Falls back to the raw ISO string if parsing
+// fails so a malformed value is still visible to whoever is debugging.
+function formatOverrideAt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const date = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${date} at ${time}`;
+}
+
 /**
  * AlertsPopover — small popup that lists every alert on a dog.
  * Rendered via portal so it escapes the booking card's overflow:
@@ -286,6 +306,24 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </button>
+          )}
+          {booking.staffCapacityOverride && (
+            <span
+              role="img"
+              aria-label={
+                booking.staffCapacityOverrideAt
+                  ? `Capacity overridden on ${formatOverrideAt(booking.staffCapacityOverrideAt)}`
+                  : "Capacity overridden by staff"
+              }
+              title={
+                booking.staffCapacityOverrideAt
+                  ? `Capacity overridden on ${formatOverrideAt(booking.staffCapacityOverrideAt)}`
+                  : "Capacity overridden by staff"
+              }
+              className="self-center text-[8px] md:text-[9px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-1 py-0.5 rounded-md shrink-0 leading-none"
+            >
+              Over
+            </span>
           )}
           {pricing.isPaidInFull ? (
             <span

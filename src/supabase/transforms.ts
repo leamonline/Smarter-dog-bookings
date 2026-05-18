@@ -59,6 +59,9 @@ interface DbBookingRow {
   owner_name_snapshot?: string | null;
   whatsapp_conversation_id?: string | null;
   whatsapp_message_id?: string | null;
+  staff_capacity_override?: boolean | null;
+  staff_capacity_override_by?: string | null;
+  staff_capacity_override_at?: string | null;
 }
 
 interface DbConfigRow {
@@ -317,6 +320,9 @@ export function dbBookingsToArray(
       ownerNameSnapshot: ownerSnapshot,
       whatsappConversationId: row.whatsapp_conversation_id ?? null,
       whatsappMessageId: row.whatsapp_message_id ?? null,
+      staffCapacityOverride: row.staff_capacity_override === true,
+      staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
+      staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

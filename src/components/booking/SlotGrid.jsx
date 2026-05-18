@@ -102,7 +102,7 @@ export function SlotGrid({
       <div
         key={slot}
         className={[
-          `grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr_1fr] md:grid-cols-[52px_1fr_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
+          `grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr] md:grid-cols-[52px_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
           hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
           !hasBooking ? "opacity-70 hover:opacity-100 transition-opacity" : "",
@@ -128,7 +128,10 @@ export function SlotGrid({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 sm:contents">
+        {/* Seat container: 2 columns at sm+ for normal slots; wraps onto a
+            new row when the slot is overbooked (3+ bookings via staff
+            override). auto-fit + minmax keeps each card legible. */}
+        <div className="flex flex-col gap-1.5 sm:grid sm:gap-1.5 md:gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
         {loading ? (
           <>
             <SkeletonCard />

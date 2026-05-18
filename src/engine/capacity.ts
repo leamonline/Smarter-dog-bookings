@@ -125,20 +125,27 @@ export function getSeatStatesForSlot(
   if (!cap) return [];
 
   const slotBookings = bookings.filter((b) => b.slot === slot);
-  const states: SeatState[] = [
-    { type: "blocked", seatIndex: 0 },
-    { type: "blocked", seatIndex: 1 },
-  ];
+
+  // Total seats rendered = the normal 2-seat capacity, but expanded when
+  // staff overbooks so every booking has its own seat to render in. A
+  // 3-dog overbook produces 3 seats; the extra ones are "booking" type
+  // and don't get the available/blocked treatment below.
+  const totalSeats = Math.max(2, slotBookings.length);
+
+  const states: SeatState[] = [];
+  for (let i = 0; i < totalSeats; i++) {
+    states.push({ type: "blocked", seatIndex: i });
+  }
 
   let cursor = 0;
   for (const booking of slotBookings) {
     const seatsNeeded = getSeatsNeeded(booking.size, slot);
-    while (cursor < 2 && states[cursor].type === "booking") cursor += 1;
-    if (cursor >= 2) break;
+    while (cursor < totalSeats && states[cursor].type === "booking") cursor += 1;
+    if (cursor >= totalSeats) break;
 
     states[cursor] = { type: "booking", seatIndex: cursor, booking };
 
-    for (let used = 1; used < seatsNeeded && cursor + used < 2; used++) {
+    for (let used = 1; used < seatsNeeded && cursor + used < totalSeats; used++) {
       states[cursor + used] = {
         type: "reserved",
         seatIndex: cursor + used,
@@ -149,7 +156,7 @@ export function getSeatStatesForSlot(
     cursor += seatsNeeded;
   }
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < totalSeats; i++) {
     if (states[i].type === "booking" || states[i].type === "reserved") continue;
 
     const override = overrides?.[i];
@@ -451,6 +458,9 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     ownerNameSnapshot: null,
     whatsappConversationId: null,
     whatsappMessageId: null,
+    staffCapacityOverride: false,
+    staffCapacityOverrideBy: null,
+    staffCapacityOverrideAt: null,
     _dogId: dog.id,
     _ownerId: null,
     _pickupById: null,
