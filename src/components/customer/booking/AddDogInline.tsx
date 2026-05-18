@@ -85,6 +85,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           ariaLabelledBy="add-dog-breed-label"
           placeholder="Select or search breed"
           inputClassName="portal-input portal-input--sm"
+          inputStyle={{}}
         />
         {breed && getSizeForBreed(breed) && (
           <span className="text-xs text-[var(--sd-cyan-dark)]">
