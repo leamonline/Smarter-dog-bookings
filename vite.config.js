@@ -64,6 +64,10 @@ export default defineConfig({
             return "analytics";
           }
 
+          if (id.includes("node_modules/@sentry/")) {
+            return "sentry";
+          }
+
           if (
             id.includes("node_modules/react-router") ||
             id.includes("node_modules/react-router-dom")

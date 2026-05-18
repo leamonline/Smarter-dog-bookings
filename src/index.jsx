@@ -5,6 +5,9 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { supabaseConfigError } from "./supabase/client.js";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
+import { initSentry } from "./lib/sentry.js";
+
+initSentry();
 
 const App = lazy(() => import("./App.jsx"));
 const CustomerApp = lazy(() => import("./CustomerApp.jsx"));
