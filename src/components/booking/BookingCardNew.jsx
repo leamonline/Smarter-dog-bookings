@@ -221,16 +221,17 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   return (
     <>
+      {/* Outer wrapper is a plain div, not role="button", so the inner
+          buttons (dog name, alerts, status) aren't nested interactives.
+          The dog-name button below is the keyboard target for "open
+          details"; mouse users can still click anywhere on the card. */}
       <div
-        role="button"
-        tabIndex={searchDimmed ? -1 : 0}
         aria-hidden={searchDimmed || undefined}
         draggable={draggable || undefined}
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:ring-offset-1 ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
@@ -248,9 +249,15 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             aria-label={SIZE_TOOLTIP[booking.size] || "Size not set"}
             title={SIZE_TOOLTIP[booking.size] || "Size not set"}
           />
-          <span className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
+            tabIndex={searchDimmed ? -1 : 0}
+            aria-label={`Open booking for ${displayDogName}`}
+            className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0 text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded"
+          >
             {displayDogName}
-          </span>
+          </button>
           {/* Alert icon — single click target that opens a popup
               listing every note on the dog. No count or label so the
               card stays uncluttered; the icon's job is just to flag. */}
