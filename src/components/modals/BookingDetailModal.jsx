@@ -658,14 +658,20 @@ export function BookingDetailModal({
           dayOpenState={dayOpenState}
           sizeTheme={sizeTheme}
           onClose={() => setShowReschedule(false)}
-          onConfirm={async (newDateStr, newSlot) => {
+          onConfirm={async (newDateStr, newSlot, options = {}) => {
             const oldDateStr = currentDateStr;
             const oldSlot = booking.slot;
-            await onUpdate(
-              { ...booking, slot: newSlot },
-              oldDateStr,
-              newDateStr,
-            );
+            const updated = {
+              ...booking,
+              slot: newSlot,
+              // capacityOverride flips on when staff picked an override-eligible
+              // (over-capacity) slot in the reschedule picker. useBookings.update
+              // forwards staff_capacity_override → the trigger stamps _by/_at.
+              ...(options.capacityOverride
+                ? { staff_capacity_override: true }
+                : {}),
+            };
+            await onUpdate(updated, oldDateStr, newDateStr);
             setShowReschedule(false);
             toast.show("Booking rescheduled", "success", () => {
               onUpdate({ ...booking, slot: oldSlot }, newDateStr, oldDateStr);

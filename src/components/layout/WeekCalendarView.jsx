@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { SALON_SLOTS } from "../../constants/index.ts";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { getDefaultOpenForDate } from "../../engine/utils.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
@@ -180,6 +180,26 @@ export function WeekCalendarView({
           staffOverride: true,
         }).allowed,
     );
+  }, [rebookData, rebookSlots, rebookBookings, rebookSettings]);
+
+  // Same shape as rebookAvailableSlots, but for slots that are over
+  // capacity yet staff-overridable. The slot button renders these in
+  // amber so the user knows they're overriding when they pick one.
+  // AddBookingForm's own override popup catches it on submit.
+  const rebookOverrideSlots = useMemo(() => {
+    if (!rebookData) return new Set();
+    const set = new Set();
+    for (const slot of rebookSlots) {
+      const result = canBookSlot(rebookBookings, slot, rebookData.size, rebookSlots, {
+        overrides: rebookSettings?.overrides?.[slot] || {},
+        dogId: rebookData._dogId,
+        staffOverride: true,
+      });
+      if (!result.allowed && isCapacityRejection(result.reason)) {
+        set.add(slot);
+      }
+    }
+    return set;
   }, [rebookData, rebookSlots, rebookBookings, rebookSettings]);
 
   return (
@@ -409,38 +429,52 @@ export function WeekCalendarView({
                     staffOverride: true,
                   },
                 ).allowed;
-
+                const isOverride = !allowed && rebookOverrideSlots.has(slot);
+                const isClickable = allowed || isOverride;
                 const isActive = rebookData.slot === slot;
 
                 return (
                   <button
                     key={slot}
                     type="button"
-                    disabled={!allowed}
+                    disabled={!isClickable}
                     onClick={() =>
                       setRebookData((prev) => ({ ...prev, slot }))
+                    }
+                    title={
+                      isOverride
+                        ? "Over capacity. Pick to override on submit."
+                        : undefined
+                    }
+                    aria-label={
+                      isOverride ? `${slot} — over capacity, click to override` : slot
                     }
                     className={`py-2 rounded-lg border-[1.5px] text-[13px] font-semibold font-[inherit] transition-all ${
                       isActive
                         ? "border-brand-yellow bg-brand-yellow text-brand-purple"
-                        : "border-slate-200 bg-white"
+                        : isOverride
+                          ? "border-amber-400 bg-amber-50 text-amber-900"
+                          : "border-slate-200 bg-white"
                     } ${
-                      allowed
+                      isClickable
                         ? "cursor-pointer opacity-100"
                         : "cursor-not-allowed opacity-50"
                     } ${
                       !isActive && allowed ? "text-brand-purple" : ""
                     } ${
-                      !isActive && !allowed ? "text-slate-500" : ""
+                      !isActive && !isClickable ? "text-slate-500" : ""
                     }`}
                   >
                     {slot}
+                    {isOverride && !isActive && (
+                      <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
+                    )}
                   </button>
                 );
               })}
             </div>
 
-            {rebookAvailableSlots.length === 0 && (
+            {rebookAvailableSlots.length === 0 && rebookOverrideSlots.size === 0 && (
               <div className="mb-3 text-xs text-brand-coral font-bold">
                 No bookable slots are available for this dog on the selected date.
               </div>

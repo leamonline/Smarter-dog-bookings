@@ -386,6 +386,14 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         deposit_amount: updatedBooking.depositAmount ?? null,
         status: updatedBooking.status || "Booked",
         confirmed: updatedBooking.confirmed ?? false,
+        // Reschedule / Rebook / Edit flows that override capacity flip
+        // this flag on the in-memory booking before calling onUpdate.
+        // Mirrors the insert path: trigger validates and stamps _by/_at.
+        ...(updatedBooking.staff_capacity_override
+          ? { staff_capacity_override: true }
+          : updatedBooking.staffCapacityOverride
+            ? { staff_capacity_override: true }
+            : {}),
       };
 
       const { data, error: err } = await supabase

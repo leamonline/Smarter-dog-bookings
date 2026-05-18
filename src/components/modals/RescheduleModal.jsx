@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { getDefaultOpenForDate } from "../../engine/utils.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
@@ -57,30 +58,59 @@ export function RescheduleModal({
 
   const [selectedDateStr, setSelectedDateStr] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [pendingOverride, setPendingOverride] = useState(null);
+  // shape: { dateStr: string, slot: string, reason: string }
 
   const selectedDay = days.find((d) => d.dateStr === selectedDateStr);
 
-  const availableSlots = useMemo(() => {
-    if (!selectedDay || !selectedDay.isOpen) return [];
+  // Slots split into two lists: directly bookable (green), and
+  // capacity-blocked but staff-overridable (amber). Data-integrity
+  // rejections (the same dog already booked in that slot) stay hidden
+  // because the override doesn't apply to them.
+  const { availableSlots, overrideSlots } = useMemo(() => {
+    if (!selectedDay || !selectedDay.isOpen) {
+      return { availableSlots: [], overrideSlots: [] };
+    }
     const activeSlots = [
       ...SALON_SLOTS,
       ...(selectedDay.settings.extraSlots || []),
     ];
     const dayBookings = bookingsByDate[selectedDay.dateStr] || [];
 
-    return activeSlots.filter((slot) => {
+    const ok = [];
+    const overrideable = [];
+    for (const slot of activeSlots) {
       const result = canBookSlot(dayBookings, slot, booking.size, activeSlots, {
         overrides: selectedDay.settings.overrides?.[slot] || {},
         dogId: booking._dogId,
         staffOverride: true,
       });
-      return result.allowed;
-    });
+      if (result.allowed) {
+        ok.push(slot);
+      } else if (isCapacityRejection(result.reason)) {
+        overrideable.push({ slot, reason: result.reason });
+      }
+    }
+    return { availableSlots: ok, overrideSlots: overrideable };
   }, [selectedDay, bookingsByDate, booking.size, booking._dogId]);
+
+  const pickSlot = (slot) => {
+    setSelectedSlot(slot);
+  };
+
+  const pickOverrideSlot = (slot, reason) => {
+    setPendingOverride({ dateStr: selectedDateStr, slot, reason });
+  };
 
   const handleConfirm = () => {
     if (!selectedDateStr || !selectedSlot) return;
     onConfirm(selectedDateStr, selectedSlot);
+  };
+
+  const confirmOverride = () => {
+    const { dateStr, slot } = pendingOverride;
+    setPendingOverride(null);
+    onConfirm(dateStr, slot, { capacityOverride: true });
   };
 
   return (
@@ -134,7 +164,7 @@ export function RescheduleModal({
             <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-2">
               Available Slots
             </div>
-            {availableSlots.length === 0 ? (
+            {availableSlots.length === 0 && overrideSlots.length === 0 ? (
               <p className="text-[13px] text-brand-coral font-semibold mb-5">
                 No available slots on this day.
               </p>
@@ -145,7 +175,7 @@ export function RescheduleModal({
                   return (
                     <button
                       key={slot}
-                      onClick={() => setSelectedSlot(slot)}
+                      onClick={() => pickSlot(slot)}
                       className="py-2 rounded-lg text-[13px] font-semibold text-center cursor-pointer font-inherit border-[1.5px] transition-colors"
                       style={{
                         background: isSelected ? theme.primary : "#FFFFFF",
@@ -157,6 +187,23 @@ export function RescheduleModal({
                     </button>
                   );
                 })}
+                {overrideSlots.map(({ slot, reason }) => (
+                  <button
+                    key={slot}
+                    onClick={() => pickOverrideSlot(slot, reason)}
+                    title={`${reason}. Click to override.`}
+                    aria-label={`${slot} — over capacity, click to override`}
+                    className="py-2 rounded-lg text-[13px] font-semibold text-center cursor-pointer font-inherit border-[1.5px] transition-colors"
+                    style={{
+                      background: "#FFFBEB",
+                      color: "#92400E",
+                      borderColor: "#F59E0B",
+                    }}
+                  >
+                    {slot}
+                    <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
+                  </button>
+                ))}
               </div>
             )}
           </>
@@ -183,6 +230,18 @@ export function RescheduleModal({
           </button>
         </div>
       </div>
+
+      {pendingOverride && (
+        <ConfirmDialog
+          title="This time is fully booked"
+          message={`${pendingOverride.reason}. Override and reschedule anyway?`}
+          confirmLabel="Override and reschedule"
+          cancelLabel="Pick another time"
+          variant="primary"
+          onConfirm={confirmOverride}
+          onCancel={() => setPendingOverride(null)}
+        />
+      )}
     </AccessibleModal>
   );
 }
