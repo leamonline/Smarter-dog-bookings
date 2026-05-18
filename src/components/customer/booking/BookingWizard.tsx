@@ -142,16 +142,27 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     return () => window.removeEventListener("beforeunload", handler);
   }, [step, booked, waitlistJoined]);
 
+  // Shared so both the auto-fetch effect and the retry button below
+  // route through one signal — clicking retry aborts the prior load,
+  // and unmount aborts whichever request is in flight.
+  const dogsFetchControllerRef = useRef<AbortController | null>(null);
+
   const fetchDogs = useCallback(async () => {
+    if (!supabase) return;
+    dogsFetchControllerRef.current?.abort();
+    const controller = new AbortController();
+    dogsFetchControllerRef.current = controller;
+
     setDogsLoading(true);
     setDogsError(null);
     try {
-      if (!supabase) return;
       const { data, error: fetchErr } = await supabase
         .from("dogs")
         .select("id, name, breed, size")
         .eq("human_id", humanRecord.id)
-        .order("name");
+        .order("name")
+        .abortSignal(controller.signal);
+      if (controller.signal.aborted) return;
       if (fetchErr) throw fetchErr;
       setDogs(
         (data || []).map((d: any) => {
@@ -167,13 +178,17 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         })
       );
     } catch (e: any) {
+      if (controller.signal.aborted) return;
       setDogsError(e.message || "Could not load your dogs");
     } finally {
-      setDogsLoading(false);
+      if (!controller.signal.aborted) setDogsLoading(false);
     }
   }, [humanRecord.id]);
 
-  useEffect(() => { fetchDogs(); }, [fetchDogs]);
+  useEffect(() => {
+    fetchDogs();
+    return () => dogsFetchControllerRef.current?.abort();
+  }, [fetchDogs]);
 
   const toggleDog = (dog: WizardDog) => {
     setSelectedDogs((prev) => {

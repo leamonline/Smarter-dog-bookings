@@ -21,7 +21,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetch() {
       try {
@@ -29,9 +29,10 @@ export function useSalonConfig({ canSeed = false } = {}) {
           .from("salon_config")
           .select("*")
           .limit(1)
+          .abortSignal(controller.signal)
           .maybeSingle();
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         if (err) {
           setError(err.message);
           return;
@@ -50,24 +51,24 @@ export function useSalonConfig({ canSeed = false } = {}) {
             .from("salon_config")
             .insert(appConfigToDb(DEFAULT_CONFIG))
             .select()
+            .abortSignal(controller.signal)
             .single();
-          if (!cancelled) {
-            if (insErr) {
-              setError(insErr.message);
-              setConfig(DEFAULT_CONFIG);
-            } else {
-              setConfig(dbConfigToApp(inserted));
-            }
+          if (controller.signal.aborted) return;
+          if (insErr) {
+            setError(insErr.message);
+            setConfig(DEFAULT_CONFIG);
+          } else {
+            setConfig(dbConfigToApp(inserted));
           }
         } else {
           setConfig(DEFAULT_CONFIG);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     fetch();
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, [canSeed]);
 
   const updateConfig = useCallback(

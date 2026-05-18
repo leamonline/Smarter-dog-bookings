@@ -9,19 +9,19 @@ export function useTodos() {
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     (async () => {
       const { data, error } = await supabase
         .from("salon_todos")
         .select("*")
         .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .abortSignal(controller.signal);
 
-      if (!cancelled) {
-        if (!error && data) setTodos(data);
-        setLoading(false);
-      }
+      if (controller.signal.aborted) return;
+      if (!error && data) setTodos(data);
+      setLoading(false);
     })();
 
     // ── Realtime ───────────────────────────────────────────────
@@ -37,12 +37,16 @@ export function useTodos() {
             .select("*")
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: true })
-            .then(({ data }) => { if (data && !cancelled) setTodos(data); });
+            .abortSignal(controller.signal)
+            .then(({ data }) => {
+              if (controller.signal.aborted) return;
+              if (data) setTodos(data);
+            });
         },
       )
       .subscribe();
 
-    return () => { cancelled = true; channel.unsubscribe(); };
+    return () => { controller.abort(); channel.unsubscribe(); };
   }, []);
 
   // ── Add ────────────────────────────────────────────────────────

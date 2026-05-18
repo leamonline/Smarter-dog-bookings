@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { toDateStr } from "../transforms.js";
 
@@ -7,18 +7,26 @@ export function useWaitlist(targetDateObj) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Shared across the initial load and every realtime-triggered refetch
+  // so the cleanup below can cancel any in-flight query. Stored in a ref
+  // so the imperative fetchWaitlist callback can read the latest signal.
+  const controllerRef = useRef(null);
+
   const fetchWaitlist = useCallback(async () => {
     if (!supabase || !targetDateObj || isNaN(targetDateObj.getTime())) return;
-    
+
+    const signal = controllerRef.current?.signal;
     setLoading(true);
     const dateStr = toDateStr(targetDateObj);
-    
-    // We want the humans that are waiting
-    const { data, error } = await supabase
+
+    const query = supabase
       .from("waitlist_entries")
       .select("*, humans(id, name, surname, phone)")
       .eq("target_date", dateStr);
 
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
+
+    if (signal?.aborted) return;
     if (error) {
       console.error("Error fetching waitlist:", error);
       setError(error.message);
@@ -30,6 +38,9 @@ export function useWaitlist(targetDateObj) {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
 
     fetchWaitlist();
 
@@ -45,6 +56,7 @@ export function useWaitlist(targetDateObj) {
       .subscribe();
 
     return () => {
+      controller.abort();
       supabase.removeChannel(channel);
     };
   }, [fetchWaitlist]);

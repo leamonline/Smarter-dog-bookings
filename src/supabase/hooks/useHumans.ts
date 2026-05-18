@@ -88,7 +88,7 @@ export function useHumans() {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetchHumans(limit = PAGE_SIZE) {
       setLoading(true);
@@ -96,9 +96,10 @@ export function useHumans() {
 
       const { count, error: countErr } = await supabase!
         .from("humans")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (countErr) {
         setError(countErr.message);
@@ -113,9 +114,10 @@ export function useHumans() {
         .select("*")
         .order("name")
         .order("surname")
-        .limit(limit);
+        .limit(limit)
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (humanErr) {
         setError(humanErr.message);
@@ -127,9 +129,10 @@ export function useHumans() {
 
       const { data: trustedRows, error: trustedErr } = await supabase!
         .from("human_trusted_contacts")
-        .select("human_id, trusted_id, relationship");
+        .select("human_id, trusted_id, relationship")
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (trustedErr) {
         setError(trustedErr.message);
@@ -206,7 +209,7 @@ export function useHumans() {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase!.removeChannel(channel);
     };
   }, []);

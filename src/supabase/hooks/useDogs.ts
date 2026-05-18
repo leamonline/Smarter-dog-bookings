@@ -63,7 +63,7 @@ export function useDogs(humansById: Record<string, any>) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetchDogs(limit = PAGE_SIZE) {
       setLoading(true);
@@ -71,9 +71,10 @@ export function useDogs(humansById: Record<string, any>) {
 
       const { count, error: countErr } = await supabase!
         .from("dogs")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (countErr) {
         setError(countErr.message);
@@ -87,9 +88,10 @@ export function useDogs(humansById: Record<string, any>) {
         .from("dogs")
         .select("*")
         .order("name")
-        .limit(limit);
+        .limit(limit)
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (err) {
         setError(err.message);
@@ -168,7 +170,7 @@ export function useDogs(humansById: Record<string, any>) {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase!.removeChannel(channel);
     };
   }, []);
