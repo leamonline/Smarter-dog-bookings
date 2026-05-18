@@ -125,6 +125,7 @@ export function AddBookingForm({
       slotOverrides,
       selectedSeatIndex,
       dogId: selectedDog.id || null,
+      staffOverride: true,
     });
 
     if (!check.allowed) {

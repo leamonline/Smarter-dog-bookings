@@ -222,9 +222,9 @@ export function canBookSlot(
   slot: string,
   size: DogSize,
   activeSlots: string[],
-  options: { overrides?: SlotOverrides; selectedSeatIndex?: number | null; dogId?: string | null } = {},
+  options: { overrides?: SlotOverrides; selectedSeatIndex?: number | null; dogId?: string | null; staffOverride?: boolean } = {},
 ): BookingResult {
-  const { overrides = {}, selectedSeatIndex = null, dogId = null } = options;
+  const { overrides = {}, selectedSeatIndex = null, dogId = null, staffOverride = false } = options;
   const capacities = computeSlotCapacities(bookings, activeSlots);
   const cap = capacities[slot];
   const largeDogSlots = LARGE_DOG_SLOTS as Record<string, LargeDogSlotRule>;
@@ -244,13 +244,19 @@ export function canBookSlot(
     const rule = largeDogSlots[slot];
 
     // --- Mid-morning block: no LARGE_DOG_SLOTS entry ---
+    // Staff are the approver; when staffOverride is set, fall through
+    // to the general seat-availability check below. Rule-specific
+    // checks (conditional, back-to-back, full-takeover) all require a
+    // rule and don't apply to no-rule slots.
     if (!rule) {
-      return {
-        allowed: false,
-        reason: "Large dogs need Leam's approval for this slot",
-        needsApproval: true,
-      };
-    }
+      if (!staffOverride) {
+        return {
+          allowed: false,
+          reason: "Large dogs need Leam's approval for this slot",
+          needsApproval: true,
+        };
+      }
+    } else {
 
     // --- 09:00 conditional: start-of-day exception ---
     if (rule.conditional && slot === "09:00") {
@@ -350,6 +356,7 @@ export function canBookSlot(
         allowed: false,
         reason: "Not enough capacity (2-2-1 rule)",
       };
+    }
     }
   }
 

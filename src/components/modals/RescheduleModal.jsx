@@ -72,6 +72,7 @@ export function RescheduleModal({
       const result = canBookSlot(dayBookings, slot, booking.size, activeSlots, {
         overrides: selectedDay.settings.overrides?.[slot] || {},
         dogId: booking._dogId,
+        staffOverride: true,
       });
       return result.allowed;
     });

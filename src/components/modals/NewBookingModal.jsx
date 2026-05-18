@@ -231,6 +231,7 @@ export function NewBookingModal({
         const size = entry.dog.size || "small";
         const check = canBookSlot(simulated, selectedSlot, size, activeSlots, {
           dogId: entry.dog.id,
+          staffOverride: true,
         });
         if (!check.allowed) {
           allFit = false;

@@ -219,6 +219,7 @@ export function BookingDetailModal({
         {
           overrides: newSettings.overrides?.[nextSlot] || {},
           dogId: booking._dogId,
+          staffOverride: true,
         },
       );
       if (!check.allowed) {
@@ -400,7 +401,7 @@ export function BookingDetailModal({
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5 w-full">
                     {editActiveSlots.length > 0 ? (
                       editActiveSlots.map((slot) => {
-                        const allowed = canBookSlot(otherBookings, slot, booking.size, editActiveSlots, { overrides: editSettings.overrides?.[slot] || {}, dogId: booking._dogId }).allowed;
+                        const allowed = canBookSlot(otherBookings, slot, booking.size, editActiveSlots, { overrides: editSettings.overrides?.[slot] || {}, dogId: booking._dogId, staffOverride: true }).allowed;
                         const seatStates = getSeatStatesForSlot(otherBookings, slot, editActiveSlots, editSettings.overrides?.[slot] || {});
                         const isStaffOpened = seatStates.some((seat) => seat.staffOpened);
                         return (
