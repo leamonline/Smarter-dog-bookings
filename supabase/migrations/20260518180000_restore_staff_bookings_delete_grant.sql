@@ -1,0 +1,23 @@
+-- ============================================================
+-- Restore DELETE on public.bookings for the authenticated role.
+--
+-- Migration 20260512000000_drop_customer_bookings_delete_policy
+-- revoked DELETE from `authenticated` as belt-and-braces against a
+-- future customer DELETE policy being re-added. Its comment said
+-- "Staff DELETE still works because they use service_role / staff
+-- RLS", but that is incorrect — the staff client signs in via
+-- Supabase Auth and operates as `authenticated`, not service_role.
+-- The revoke therefore blocks staff deletes too, surfacing as
+-- "permission denied for table bookings" at the GRANT layer before
+-- RLS is even evaluated.
+--
+-- Customers remain blocked by RLS: 20260512 also dropped the
+-- `customer_cancel_own_bookings` DELETE policy, so the only DELETE
+-- policy on bookings is `staff_delete_bookings` (USING is_staff()).
+-- A customer DELETE returns zero rows (RLS-filtered) without error.
+-- The UPDATE-to-Cancelled flow remains the customer cancellation
+-- channel, which captures cancel_reason and fires the
+-- notify-booking-cancelled trigger.
+-- ============================================================
+
+GRANT DELETE ON TABLE public.bookings TO authenticated;
