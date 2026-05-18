@@ -32,7 +32,7 @@ export function ContactPopup({ human, onClose }) {
             <div id="contact-popup-title" className="text-[15px] font-bold text-white">{fullName}</div>
             <div className="text-xs text-white/80 mt-0.5">Contact preferences</div>
           </div>
-          <button onClick={onClose} className="bg-white/20 border-none rounded-md w-6 h-6 flex items-center justify-center cursor-pointer text-xs text-white font-bold">{"\u00D7"}</button>
+          <button type="button" onClick={onClose} aria-label="Close contact preferences" className="bg-white/20 border-none rounded-md w-6 h-6 flex items-center justify-center cursor-pointer text-xs text-white font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
         <div className="px-[18px] pt-2.5 pb-4">
           {human.phone ? (

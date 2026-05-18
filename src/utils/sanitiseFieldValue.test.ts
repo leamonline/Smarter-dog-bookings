@@ -15,6 +15,7 @@ describe("sanitiseFieldValue", () => {
     expect(sanitiseFieldValue("Null")).toBe("");
     expect(sanitiseFieldValue("null")).toBe("");
     expect(sanitiseFieldValue("N/A")).toBe("");
+    expect(sanitiseFieldValue("None")).toBe("");
     expect(sanitiseFieldValue("TBD")).toBe("");
     expect(sanitiseFieldValue("undefined")).toBe("");
   });

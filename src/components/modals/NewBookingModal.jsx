@@ -3,7 +3,7 @@ import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { canBookSlot } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
-import { titleCase } from "./new-booking/helpers.js";
+import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -159,12 +159,28 @@ export function NewBookingModal({
     if (!selectedDateStr) { setError("Please select a date."); return; }
     if (!selectedSlot) { setError("Please select a time slot."); return; }
 
-    // Check for duplicate dogs on the same date/slot
+    // Closed-day guard. The TimeSlotPicker is hidden for closed days, but
+    // staff can land here via an initialSlot prefill from a closed-day URL
+    // or a stale state — fail loudly rather than silently writing a booking
+    // the day view treats as cancelled.
+    if (!isDateOpen(selectedDateStr, dayOpenState)) {
+      setError("The salon is closed on this day. Open the day first or pick a different date.");
+      return;
+    }
+
+    // Check for duplicate dogs on the same date/slot. Prefer the stable
+    // _dogId — `dog_id` is the DB column name, but the booking objects in
+    // bookingsByDate are camelCased and expose it as `_dogId`. Falling back
+    // to dogName alone would over-block two different dogs that share a name
+    // (e.g. two Alfies), so only treat name as a match when the ids agree
+    // or the ids are missing entirely.
     const existingBookings = bookingsByDate?.[selectedDateStr] || [];
     for (const entry of dogEntries) {
-      const duplicate = existingBookings.find(
-        (b) => (b.dog_id === entry.dog.id || b.dogName === entry.dog.name) && b.slot === selectedSlot
-      );
+      const duplicate = existingBookings.find((b) => {
+        if (b.slot !== selectedSlot) return false;
+        if (b._dogId && entry.dog.id) return b._dogId === entry.dog.id;
+        return b.dogName === entry.dog.name;
+      });
       if (duplicate) {
         setError(`${entry.dog.name} is already booked at ${selectedSlot} on this date.`);
         return;
@@ -191,6 +207,17 @@ export function NewBookingModal({
       const targetDate = new Date(baseDate);
       targetDate.setDate(baseDate.getDate() + (i * recurringWeeks * 7));
       const targetDateStr = toDateStr(targetDate);
+
+      // Skip closed days in a recurring series — the README promises
+      // "If a day is full, that slot will be skipped" and a closed day is
+      // effectively full from the customer's view.
+      if (!isDateOpen(targetDateStr, dayOpenState)) {
+        if (i === 0) {
+          setError("The salon is closed on this day. Open the day first or pick a different date.");
+          return;
+        }
+        continue;
+      }
 
       const dayBookings = bookingsByDate?.[targetDateStr] || [];
       const settings = daySettings?.[targetDateStr];
@@ -301,10 +328,12 @@ export function NewBookingModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
+            aria-label="Close new booking"
+            className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: primaryTheme.headerText }}
-          >{"\u00D7"}</button>
+          ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         {/* ─── WhatsApp context banner ─── */}

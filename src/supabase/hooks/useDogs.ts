@@ -214,7 +214,11 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       const rows = data || [];
-      setDogsById(buildDogsById(rows));
+      // Merge rather than replace: dogsById doubles as a lookup cache for
+      // booking cards (populated via ensureDogsByIds). Replacing it here
+      // wipes any dog past the first paginated page, which then shows up
+      // as "Unknown" on the day view after a quick trip through /dogs.
+      setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
       setDogs(dbDogsToMap(rows, humansById || {}));
       setHasMore(rows.length >= PAGE_SIZE);
     })();
@@ -298,7 +302,8 @@ export function useDogs(humansById: Record<string, any>) {
           ownerDogRows,
         ]).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         const ownerHumansById = buildHumansById(ownerRows);
-        setDogsById(buildDogsById(rows));
+        // Merge into the lookup cache (see clearSearch for the reason).
+        setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
         setDogs(dbDogsToMap(rows, { ...(humansById || {}), ...ownerHumansById }));
         setTotalCount(rows.length);
         setHasMore(false);

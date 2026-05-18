@@ -14,6 +14,7 @@ const PLACEHOLDER_TOKENS = new Set([
   "unknown owner",
   "null",
   "n/a",
+  "none",
   "tbd",
   "undefined",
 ]);

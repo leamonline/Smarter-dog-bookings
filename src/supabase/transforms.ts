@@ -80,11 +80,12 @@ interface DbConfigOut {
 // ============================================================
 
 function buildHumanFullName(row: DbHumanRow): string {
-  // Some legacy imports stored the literal surname "Null". A CHECK
-  // constraint (migration 20260513150000_fix_null_surnames.sql) now
-  // prevents new ones, but old rows can still surface in the UI as
-  // "Mirek Null". Strip the placeholder so the fullName degrades to
-  // just the first name rather than a confusing literal.
+  // Some legacy imports stored a literal placeholder surname — "Null"
+  // from a faker pipeline, or "Unknown" / "N/A" / "None" from imports.
+  // A CHECK constraint (migration 20260513150000_fix_null_surnames.sql)
+  // now blocks new "Null" rows but doesn't backfill. Strip the token
+  // so the fullName degrades to just the first name rather than a
+  // confusing literal like "Mirek Null".
   const name = sanitiseFieldValue(row.name);
   const surname = sanitiseFieldValue(row.surname);
   if (name && surname) return `${name} ${surname}`;

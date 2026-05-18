@@ -225,6 +225,19 @@ describe("dbHumansToMap", () => {
     expect(map["Jane Smith"].trustedIds).toEqual(["h-2", "h-3"]);
   });
 
+  it("strips literal null / Null surnames so fullName isn't 'Jane null'", () => {
+    // surname=null is the most common case (faker pipeline + nullable column).
+    const mapNull = dbHumansToMap([humanRow({ surname: null })], {});
+    expect(mapNull["Jane"]).toBeDefined();
+    expect(mapNull["Jane"].fullName).toBe("Jane");
+    expect(mapNull["Jane null"]).toBeUndefined();
+
+    // surname="Null" (literal "Null" string) — also a known seed-data leak.
+    const mapStr = dbHumansToMap([humanRow({ surname: "Null" })], {});
+    expect(mapStr["Jane"]).toBeDefined();
+    expect(mapStr["Jane Null"]).toBeUndefined();
+  });
+
   it("defaults trustedIds to empty array when human id not in trustedMap", () => {
     const map = dbHumansToMap([humanRow()], {});
     expect(map["Jane Smith"].trustedIds).toEqual([]);
