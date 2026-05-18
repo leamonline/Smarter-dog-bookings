@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { isCapacityRejection } from "../../engine/capacity.js";
 
 // ─── main modal ─────────────────────────────────────────────────────────────
 
@@ -214,7 +213,11 @@ export function NewBookingModal({
 
       if (!isDateOpen(targetDateStr, dayOpenState)) {
         if (i === 0) {
-          return { error: "The salon is closed on this day. Open the day first or pick a different date." };
+          return {
+            error: "The salon is closed on this day. Open the day first or pick a different date.",
+            targetDateStr,
+            bareError: true,
+          };
         }
         continue;
       }
@@ -278,7 +281,11 @@ export function NewBookingModal({
         setPendingCapacityOverride({ reason: outcome.error, targetDateStr: outcome.targetDateStr });
         return;
       }
-      setError(`Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`);
+      setError(
+        outcome.bareError
+          ? outcome.error
+          : `Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`
+      );
       return;
     }
 
@@ -293,7 +300,11 @@ export function NewBookingModal({
     if (outcome.error) {
       // Override didn't help (e.g. a data-integrity reason or the recurring
       // week-1 still fails for some other reason). Fall back to hard error.
-      setError(`Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`);
+      setError(
+        outcome.bareError
+          ? outcome.error
+          : `Booking on ${outcome.targetDateStr} failed: ${outcome.error} (Choose a different starting date)`
+      );
       return;
     }
 
