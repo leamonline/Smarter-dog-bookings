@@ -41,7 +41,11 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
   });
 
   const hasAnyAvailable = slotStates.some(s => s.status === "available");
-  if (!hasAnyAvailable && slotStates.every(s => s.status === "full")) {
+  const hasAnyOverrideEligible = slotStates.some(s => s.status === "full");
+  // Empty-state only kicks in when there's literally nothing to pick — every
+  // slot is "already-booked" (data-integrity, not overridable). Full slots
+  // still render so staff can opt to override capacity.
+  if (!hasAnyAvailable && !hasAnyOverrideEligible) {
     return (
       <div className="text-[13px] text-slate-500 text-center py-3">
         No available slots for this size on this date.
@@ -58,38 +62,79 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
         const isSelected = slot === selectedSlot;
         const isAvailable = status === "available";
         const isAlreadyBooked = status === "already-booked";
+        const isOverrideEligible = status === "full";
 
-        // Visual hierarchy: available > already-booked (greyed but visible)
-        // > full (hidden from the grid via opacity but still mounted, so the
-        // user can scan for slot positions).
-        if (status === "full" && !isSelected) {
-          // Don't show fully-full slots unless they were previously selected.
-          return null;
-        }
+        // Visual hierarchy: available > override-eligible (amber, capacity rule
+        // can be overridden by staff) > already-booked (greyed, data integrity,
+        // not overridable).
+        const isClickable = isAvailable || isOverrideEligible;
 
         const baseStyle = {
-          borderColor: isSelected ? sizeTheme.gradient[0] : "#E5E7EB",
-          background: isSelected ? sizeTheme.gradient[0] : "#FFFFFF",
-          color: isSelected ? sizeTheme.headerText : isAvailable ? "#1F2937" : "#94A3B8",
-          opacity: isAvailable || isSelected ? 1 : 0.7,
-          cursor: isAvailable ? "pointer" : "not-allowed",
+          borderColor: isSelected
+            ? sizeTheme.gradient[0]
+            : isOverrideEligible
+              ? "#F59E0B"
+              : "#E5E7EB",
+          background: isSelected
+            ? sizeTheme.gradient[0]
+            : isOverrideEligible
+              ? "#FFFBEB"
+              : "#FFFFFF",
+          color: isSelected
+            ? sizeTheme.headerText
+            : isAvailable
+              ? "#1F2937"
+              : isOverrideEligible
+                ? "#92400E"
+                : "#94A3B8",
+          opacity: isClickable || isSelected ? 1 : 0.7,
+          cursor: isClickable ? "pointer" : "not-allowed",
         };
 
         return (
           <button
             key={slot}
             type="button"
-            onClick={() => isAvailable && onSelectSlot(slot)}
-            disabled={!isAvailable}
-            title={isAlreadyBooked ? reason : undefined}
-            aria-disabled={!isAvailable}
-            aria-label={isAlreadyBooked ? `${displayTime} — ${reason}` : displayTime}
+            onClick={() => isClickable && onSelectSlot(slot)}
+            disabled={!isClickable}
+            title={
+              isOverrideEligible
+                ? `${reason}. Click to override.`
+                : isAlreadyBooked
+                  ? reason
+                  : undefined
+            }
+            aria-disabled={!isClickable}
+            aria-label={
+              isOverrideEligible
+                ? `${displayTime} — over capacity, click to override`
+                : isAlreadyBooked
+                  ? `${displayTime} — ${reason}`
+                  : displayTime
+            }
             className="py-2.5 rounded-[10px] border-2 text-sm font-bold font-inherit transition-all text-center"
             style={baseStyle}
-            onMouseEnter={(e) => { if (isAvailable && !isSelected) { e.currentTarget.style.borderColor = sizeTheme.gradient[0]; e.currentTarget.style.background = sizeTheme.light; } }}
-            onMouseLeave={(e) => { if (isAvailable && !isSelected) { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#FFFFFF"; } }}
+            onMouseEnter={(e) => {
+              if (isAvailable && !isSelected) {
+                e.currentTarget.style.borderColor = sizeTheme.gradient[0];
+                e.currentTarget.style.background = sizeTheme.light;
+              } else if (isOverrideEligible && !isSelected) {
+                e.currentTarget.style.background = "#FEF3C7";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (isAvailable && !isSelected) {
+                e.currentTarget.style.borderColor = "#E5E7EB";
+                e.currentTarget.style.background = "#FFFFFF";
+              } else if (isOverrideEligible && !isSelected) {
+                e.currentTarget.style.background = "#FFFBEB";
+              }
+            }}
           >
             {displayTime}
+            {isOverrideEligible && (
+              <div className="text-[9px] font-semibold mt-0.5 leading-none">over</div>
+            )}
           </button>
         );
       })}
