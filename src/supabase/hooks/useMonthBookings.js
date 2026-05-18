@@ -27,7 +27,7 @@ export function useMonthBookings(year, month) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -41,9 +41,10 @@ export function useMonthBookings(year, month) {
         .from("bookings")
         .select("id, booking_date")
         .gte("booking_date", startStr)
-        .lte("booking_date", endStr);
+        .lte("booking_date", endStr)
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (error) {
         console.error("Failed to fetch month bookings:", error);
@@ -127,7 +128,7 @@ export function useMonthBookings(year, month) {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase.removeChannel(channel);
     };
   }, [year, month]);

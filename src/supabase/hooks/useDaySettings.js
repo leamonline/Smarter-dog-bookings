@@ -52,7 +52,7 @@ export function useDaySettings(weekStart) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
@@ -66,9 +66,10 @@ export function useDaySettings(weekStart) {
         .from("day_settings")
         .select("*")
         .gte("setting_date", startStr)
-        .lte("setting_date", endStr);
+        .lte("setting_date", endStr)
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (error) {
         console.error("Failed to fetch day settings:", error);
@@ -114,7 +115,7 @@ export function useDaySettings(weekStart) {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase.removeChannel(channel);
     };
   }, [weekStart]);

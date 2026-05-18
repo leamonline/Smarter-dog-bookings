@@ -458,12 +458,12 @@ export function useReportsData(days: number, source?: SalonReportSource) {
     useState<ReportSourceData>(EMPTY_REPORT_SOURCE);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function load() {
       if (!supabase) {
         const offlineSource = buildReportSourceFromSalon(source);
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setReportSource(offlineSource);
           setLoading(false);
         }
@@ -481,12 +481,13 @@ export function useReportsData(days: number, source?: SalonReportSource) {
             .from("bookings")
             .select("id, booking_date, service, size, status, payment, slot, dog_id")
             .gte("booking_date", sinceStr)
-            .order("booking_date"),
-          supabase.from("dogs").select("id, human_id, custom_price"),
-          supabase.from("humans").select("id, name, surname"),
+            .order("booking_date")
+            .abortSignal(controller.signal),
+          supabase.from("dogs").select("id, human_id, custom_price").abortSignal(controller.signal),
+          supabase.from("humans").select("id, name, surname").abortSignal(controller.signal),
         ]);
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         if (bk.error || dg.error || hm.error) {
           throw new Error(
             [
@@ -515,14 +516,16 @@ export function useReportsData(days: number, source?: SalonReportSource) {
           humanMap,
         });
       } catch (err) {
-        console.error("ReportsView: failed to load data", err);
+        if (!controller.signal.aborted) {
+          console.error("ReportsView: failed to load data", err);
+        }
       }
-      if (!cancelled) setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
 
     load();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [days, source]);
 

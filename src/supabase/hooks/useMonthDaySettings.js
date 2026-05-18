@@ -47,7 +47,7 @@ export function useMonthDaySettings(year, month) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -61,9 +61,10 @@ export function useMonthDaySettings(year, month) {
         .from("day_settings")
         .select("*")
         .gte("setting_date", startStr)
-        .lte("setting_date", endStr);
+        .lte("setting_date", endStr)
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (error) {
         console.error("Failed to fetch month day settings:", error);
@@ -108,7 +109,7 @@ export function useMonthDaySettings(year, month) {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase.removeChannel(channel);
     };
   }, [year, month]);

@@ -53,7 +53,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
@@ -70,9 +70,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         .gte("booking_date", startStr)
         .lte("booking_date", endStr)
         .order("booking_date")
-        .order("slot");
+        .order("slot")
+        .abortSignal(controller.signal);
 
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
 
       if (err) {
         setError(err.message);
@@ -181,7 +182,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
       .subscribe();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       supabase.removeChannel(channel);
     };
   }, [weekStart, dogsById, humansById, refreshKey]);

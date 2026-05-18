@@ -2,7 +2,7 @@
 // Modal for subscribing to a live calendar feed of all appointments.
 // Displays the webcal:// URL with copy-to-clipboard and platform instructions.
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.js";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 
@@ -16,16 +16,22 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
+  const tokenFetchControllerRef = useRef<AbortController | null>(null);
+
   const fetchToken = useCallback(async () => {
     if (!supabase) return;
+    tokenFetchControllerRef.current?.abort();
+    const controller = new AbortController();
+    tokenFetchControllerRef.current = controller;
+
     setLoading(true);
 
     try {
-      const { data: token, error } = await supabase.rpc(
-        "get_or_create_calendar_feed_token",
-        { p_feed_type: "customer" },
-      );
+      const { data: token, error } = await supabase
+        .rpc("get_or_create_calendar_feed_token", { p_feed_type: "customer" })
+        .abortSignal(controller.signal);
 
+      if (controller.signal.aborted) return;
       if (error || !token) {
         console.error("Failed to get calendar token:", error);
         setLoading(false);
@@ -40,14 +46,16 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       const webcalUrl = httpsUrl.replace(/^https?:\/\//, "webcal://");
       setFeedUrl(webcalUrl);
     } catch (err) {
+      if (controller.signal.aborted) return;
       console.error("Calendar subscribe error:", err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchToken();
+    return () => tokenFetchControllerRef.current?.abort();
   }, [fetchToken]);
 
   const handleCopy = useCallback(async () => {

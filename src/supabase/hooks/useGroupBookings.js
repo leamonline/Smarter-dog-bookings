@@ -15,7 +15,7 @@ export function useGroupBookings(groupId) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetchChain() {
       setLoading(true);
@@ -24,16 +24,16 @@ export function useGroupBookings(groupId) {
         .select("id, booking_date, slot, service, size, status")
         .eq("group_id", groupId)
         .order("booking_date")
-        .order("slot");
+        .order("slot")
+        .abortSignal(controller.signal);
 
-      if (!cancelled) {
-        if (!error && data) setChainBookings(data);
-        setLoading(false);
-      }
+      if (controller.signal.aborted) return;
+      if (!error && data) setChainBookings(data);
+      setLoading(false);
     }
 
     fetchChain();
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, [groupId]);
 
   const cancelBookings = useCallback(async (ids) => {
