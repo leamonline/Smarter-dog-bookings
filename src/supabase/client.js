@@ -1,11 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
+// VITE_FORCE_OFFLINE=1 forces the app into offline/sample-data mode regardless
+// of credentials. Used by Playwright E2E (.env.local would otherwise override
+// shell env in Vite) so journeys exercise the deterministic sample dataset.
+const forceOffline = import.meta.env.VITE_FORCE_OFFLINE === "1";
 
-if (!supabaseUrl || !supabaseKey) {
+const supabaseUrl = forceOffline ? null : import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = forceOffline
+  ? null
+  : import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!forceOffline && (!supabaseUrl || !supabaseKey)) {
   console.warn(
     "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running in offline mode."
   );
