@@ -25,7 +25,7 @@ When a staff member tries to book a slot that violates a physical-capacity rule,
 - **Confirm:** "Override and book" (primary variant — deliberate decision, not destructive)
 - **Cancel:** "Pick another time"
 
-On confirm, the booking is written. The override is persisted on the booking row so it's auditable later.
+On confirm, the booking is written. The booking row records that the override was applied, by which staff member, and when.
 
 Data-integrity errors (invalid slot, dog already booked in this slot, closed day, past-date without confirmation) remain hard errors — those aren't capacity rules.
 
@@ -34,7 +34,7 @@ Data-integrity errors (invalid slot, dog already booked in this slot, closed day
 - **Reschedule / Chain / Rebook flows.** These filter the time-slot picker to only show bookable slots; widening them requires rendering slots in a "warning" state rather than hiding them. That's a meaningful UX change and is deferred to a follow-up.
 - **Customer-facing booking flow** (`src/components/customer/booking/BookingWizard.tsx`). The override is staff-only; customers continue to see the existing rejection messages.
 - **A new global on/off setting.** `enforce_server_capacity` already exists; this is per-booking and gated on `is_staff()`.
-- **Visual indicator on existing booking cards** showing "this was a capacity override." The DB column persists the flag so a follow-up can surface it in the day view, but no UI change is in scope here.
+- **Visual indicator on existing booking cards** showing "this was a capacity override." The DB columns persist the flag, the staff user id, and the timestamp, so a follow-up can surface it in the day view, but no UI change is in scope here.
 - **Approval-gate change for any new size.** "Large dogs need Leam's approval" still kicks the customer flow through approval; this spec is only about physical-capacity rejections for staff.
 - **Trigger-level audit log of who overrode.** `bookings.staff_capacity_override = true` plus the existing booking row's audit columns (created_at, etc.) are sufficient; no new audit table.
 
@@ -65,6 +65,8 @@ Apply `override.capacity` to short-circuit the following rejections — when `ov
 
 | Line | Reason string |
 | --- | --- |
+| ~266 | `"9:00am conditional: 8:30am must be empty"` |
+| ~273 | `"9:00am conditional: 10:00am must have 0–1 seats"` |
 | ~284 | `"12:00 large dog requires 1:00pm to be empty (early close)"` |
 | ~293 | `"1:00pm is closed — large dog at 12:00 triggered early close"` |
 | ~313 / ~328 | `"Back-to-back large dogs only allowed at 12:30 + 1:00pm"` |
@@ -77,13 +79,10 @@ Apply `override.capacity` to short-circuit the following rejections — when `ov
 | ~382 | `"Slot is full"` |
 | ~390 | `"Large dog fills this slot"` (small/medium blocked) |
 
-The 09:00 conditional checks (lines 262–277) are **kept as hard rejections** — they're not "the salon is full," they're "this specific large-dog slot has a precondition you didn't meet." Could be revisited later; leaving them strict for now.
-
 `override.capacity` does **not** affect:
 
 - `"Invalid slot"` — data integrity
 - `"This dog is already booked in this slot"` — data integrity
-- The 09:00 conditional reasons above
 
 Return shape stays `{ allowed, reason, needsApproval? }`. No new fields — the caller already knows it asked with `capacity: true`.
 
@@ -131,7 +130,7 @@ Save flow becomes:
 
 The confirm dialog reuses `<ConfirmDialog>` from `src/components/shared/ConfirmDialog.jsx` with `variant="primary"` (need to confirm primary is supported — see Open Questions).
 
-Recurring-booking interaction: if a recurring series hits capacity on occurrence 2 (`i > 0`), today's code silently skips that occurrence. **Keep that behaviour** — the confirmation popup only fires on the *first* occurrence (`i === 0`), which is also the only place `setError` is called today. Overriding the first instance doesn't auto-override the rest; a recurring series that hits capacity on week 3 silently skips week 3, same as today. (Open Question: do we want to override every occurrence the staff confirmed? Probably yes, but it's a behaviour change worth flagging.)
+Recurring-booking interaction: if a recurring series hits capacity on occurrence 2+ (`i > 0`), today's code silently skips that occurrence. **Keep that behaviour.** The confirmation popup only fires on the *first* occurrence (`i === 0`); overriding the first instance does **not** propagate to weeks 2–N. A recurring series that hits capacity on week 3 silently skips week 3, exactly as today. The toast already says "Booking created" — no change needed there; the day-view will show the gap.
 
 ### 3. Frontend — `AddBookingForm.jsx`
 
@@ -148,19 +147,48 @@ Becomes: on rejection, if `isCapacityRejection(check.reason)`, open the confirm 
 
 ### 4. DB — new migration `supabase/migrations/20260518100000_staff_capacity_override_column.sql`
 
-Add a column and teach the existing capacity trigger to honour it.
+Add three columns and teach the existing capacity trigger to honour them.
 
 ```sql
 ALTER TABLE bookings
-  ADD COLUMN staff_capacity_override boolean NOT NULL DEFAULT false;
+  ADD COLUMN staff_capacity_override    boolean NOT NULL DEFAULT false,
+  ADD COLUMN staff_capacity_override_by uuid    REFERENCES auth.users(id),
+  ADD COLUMN staff_capacity_override_at timestamptz;
 
 COMMENT ON COLUMN bookings.staff_capacity_override IS
   'True if a staff member explicitly overrode a physical-capacity rejection
-   for this booking. Only honoured when is_staff() at insert time.';
+   for this booking. Only honoured when is_staff() at insert/update time.';
+COMMENT ON COLUMN bookings.staff_capacity_override_by IS
+  'auth.users.id of the staff member who confirmed the override. Populated
+   by the validate_booking_capacity trigger from auth.uid() when the
+   override is honoured; nullable for non-overridden rows.';
+COMMENT ON COLUMN bookings.staff_capacity_override_at IS
+  'Timestamp the override was applied. Populated by the trigger.';
 ```
 
-Then patch `validate_booking_capacity` to skip the same set of `RAISE EXCEPTION`s the engine skips, when `is_staff() AND NEW.staff_capacity_override`:
+The audit columns are **populated by the trigger**, not by the client. The client just sets `staff_capacity_override = true`. The trigger fills `staff_capacity_override_by = auth.uid()` and `staff_capacity_override_at = now()` when the override is honoured. This prevents a client from spoofing "who overrode" — Postgres uses the session's authenticated user.
 
+Patch `validate_booking_capacity` (currently a `BEFORE INSERT OR UPDATE` trigger, so it can mutate `NEW` and the changes persist).
+
+At the top of the function, after `v_enforce` is resolved, compute and stamp the override:
+
+```sql
+v_override := COALESCE(NEW.staff_capacity_override, false) AND is_staff();
+IF v_override THEN
+  NEW.staff_capacity_override_by := auth.uid();
+  NEW.staff_capacity_override_at := now();
+ELSE
+  -- Defensive: don't let a client set _by/_at without a real override
+  NEW.staff_capacity_override_by := NULL;
+  NEW.staff_capacity_override_at := NULL;
+END IF;
+```
+
+Then wrap each bypassable `RAISE EXCEPTION` in `IF NOT v_override THEN ... END IF;`. The data-integrity ones (`Invalid slot`) stay unconditional. The 09:00 conditional pair is bypassable (matching the engine):
+
+Reasons made bypassable (when `v_override`):
+- "9:00 large dog conditional: 8:30 must be empty"
+- "9:00 large dog conditional: 10:00 must have 0-1 seats used"
 - "12:00 large dog requires 13:00 to be empty (early close)"
 - "13:00 is closed — large dog at 12:00 triggered early close"
 - "Back-to-back large dogs only allowed at 12:30 + 13:00"
@@ -172,19 +200,14 @@ Then patch `validate_booking_capacity` to skip the same set of `RAISE EXCEPTION`
 - "Slot is full"
 - "Large dog fills this slot"
 
-Structurally: add a local `v_override` flag at the top of `validate_booking_capacity`:
+Reasons that remain unconditional:
+- "Invalid slot: %" — data integrity
 
-```sql
-v_override := COALESCE(NEW.staff_capacity_override, false) AND is_staff();
-```
+**Service role / autonomous WhatsApp path:** `is_staff()` returns false for the service role, so `v_override` collapses to false for those inserts even if `staff_capacity_override = true` somehow leaks in. The defensive `ELSE` branch nulls `_by` / `_at` to prevent a non-staff client from poisoning the audit columns.
 
-Then wrap each bypassable `RAISE EXCEPTION` in `IF NOT v_override THEN ... END IF;`. The data-integrity ones (`Invalid slot`, the 09:00 conditional pair) stay unconditional.
+**RLS / column-grant considerations:** the existing RLS policies on `bookings` will need to allow staff to set `staff_capacity_override` on insert/update. The audit columns (`_by`, `_at`) should never be settable by clients — only the trigger writes them. To enforce this, either (a) use column-level grants to revoke INSERT/UPDATE on those two columns for non-superuser roles, or (b) rely on the trigger's defensive null-overwrite (less strict but simpler). Implementation plan to pick — leaning towards (b) for simplicity since the trigger is the gate either way.
 
-The 09:00 conditional reasons (matching the engine) are NOT bypassed.
-
-**Service role / autonomous WhatsApp path:** `is_staff()` returns false for the service role, so `v_override` collapses to false for those inserts even if `staff_capacity_override = true` somehow leaks in. Belt-and-braces: a `CHECK` constraint isn't necessary — the trigger guards the actual behaviour.
-
-**Backfill:** all existing rows default to `false`, no historic bookings are retroactively flagged as overrides.
+**Backfill:** all existing rows default to `false` / `NULL` / `NULL`. No historic bookings are retroactively flagged as overrides.
 
 ### 5. Supabase write path
 
@@ -251,8 +274,9 @@ canBookSlot(..., { staffOverride: true })   ← approval bypass only
 ## Testing
 
 **Engine** (`src/engine/capacity.test.js`):
-- One test per bypassable reason: confirm rejection without `capacity: true`, confirm acceptance with `capacity: true`.
-- One test for each data-integrity reason: confirm rejection persists even with `capacity: true`.
+- One test per bypassable reason (all 13 in the table above, including the 09:00 conditional pair): confirm rejection without `capacity: true`, confirm acceptance with `capacity: true`.
+- One test for each data-integrity reason ("Invalid slot", "This dog is already booked in this slot"): confirm rejection persists even with `capacity: true`.
+- `staffOverride: true` (legacy boolean) still bypasses approval only — regression test for the existing behaviour.
 - `isCapacityRejection` helper: covered indirectly by the above + 1-2 direct assertions.
 
 **Component** (jsdom):
@@ -262,15 +286,20 @@ canBookSlot(..., { staffOverride: true })   ← approval bypass only
 
 **E2E** (Playwright, deferred — call out in plan but only build if cheap): full happy path on a deliberately-overbooked day. Optional.
 
-**DB:** existing capacity-trigger test pattern (if there is one — to verify in implementation plan) gets two new cases: `staff_capacity_override = true` + `is_staff()` → insert succeeds; `staff_capacity_override = true` + service role → insert still rejected.
+**DB** (manual verification on a Supabase branch, plus any existing capacity-trigger tests if present):
+- Authenticated staff + `staff_capacity_override = true` + capacity-violating row → insert succeeds, `_by` = staff's auth.uid, `_at` ≈ now().
+- Authenticated staff + `staff_capacity_override = false` → existing behaviour (insert rejected).
+- Service role + `staff_capacity_override = true` → insert still rejected (is_staff() false → v_override false).
+- Authenticated staff + `staff_capacity_override = true` + duplicate booking → still rejected (data integrity unconditional).
+- Authenticated staff sends `staff_capacity_override_by = '<spoofed-uuid>'` directly → trigger overwrites with `auth.uid()` (or nulls it if override not granted).
 
 ## Open questions
 
 1. **Confirm button variant.** `ConfirmDialog` only documents `variant="danger"` (default) — I'll need to verify it supports `"primary"` or add a styling escape hatch. If not, fall back to `variant="danger"` for v1 (visually red, but the button text reads "Override and book" so it's clear). Decision: try primary in the implementation; if it doesn't exist, ship with danger and file a follow-up.
 
-2. **Recurring series:** today, if `i > 0` and a later occurrence fails, the loop silently skips. Should an override on week 1 also override weeks 2–N? **Tentative answer: yes** — if a staff member explicitly said "override this slot" for a recurring chain, they probably mean "for the whole chain." But this is a behaviour change worth user confirmation before implementing. If unclear at implementation time, default to "override only week 1, silently skip the rest" (i.e. today's silent-skip behaviour) and surface in the toast: "Booked week 1 with override; weeks 2–N skipped due to capacity."
+2. **Audit-column protection.** Whether to use column-level grants on `staff_capacity_override_by` / `_at` or rely solely on the trigger's defensive null-overwrite. Leaning towards the simpler trigger-only approach; implementation plan to confirm.
 
-3. **Audit visibility.** The column exists but nothing surfaces it. Out of scope here; flag in the implementation plan as a candidate follow-up.
+3. **Audit visibility in the UI.** The columns will exist but nothing surfaces them. Out of scope here; flag in the implementation plan as a candidate follow-up (e.g. a small badge on the booking card: "Overridden by Alex on 18 May").
 
 4. **DB trigger test infrastructure.** The implementation plan will check whether the existing test setup runs trigger-level assertions or just engine assertions. If trigger tests don't exist, the migration is covered by manual verification (a Supabase branch is fine for this) + the engine tests, since the trigger mirrors the engine logic line-for-line.
 
