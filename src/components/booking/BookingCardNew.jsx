@@ -12,6 +12,7 @@ import {
   resolveBookingDisplay,
 } from "../../engine/bookingRules.js";
 import { titleCase } from "../../utils/text.js";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({
@@ -184,8 +185,21 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const [showDetail, setShowDetail] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [alertsAnchor, setAlertsAnchor] = useState(null);
+  // pendingSkipStatus tracks a "skip ≥2 steps" status change waiting for
+  // staff to confirm via ConfirmDialog (replaces the old window.confirm).
+  const [pendingSkipStatus, setPendingSkipStatus] = useState(null);
+  // shape: { nextStatus: string, previous: string }
   const alertsButtonRef = useRef(null);
   const toast = useToast();
+
+  const applyStatusChange = (nextStatus, previous) => {
+    if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
+    toast.show(
+      `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
+      "info",
+      () => onUpdate?.({ ...booking, status: previous }, currentDateStr, currentDateStr),
+    );
+  };
 
   const changeStatus = (nextStatus) => {
     if (!nextStatus || nextStatus === booking.status) return;
@@ -194,17 +208,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     const nextIdx = STATUS_PROGRESSION.indexOf(nextStatus);
     const skipped = nextIdx - prevIdx;
     if (skipped >= 2) {
-      const ok = window.confirm(
-        `Skip from "${STATUS_DISPLAY[previous]?.label || previous}" straight to "${STATUS_DISPLAY[nextStatus]?.label || nextStatus}"?`,
-      );
-      if (!ok) return;
+      setPendingSkipStatus({ nextStatus, previous });
+      return;
     }
-    if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
-    toast.show(
-      `Marked as ${STATUS_DISPLAY[nextStatus]?.label ?? nextStatus}`,
-      "info",
-      () => onUpdate?.({ ...booking, status: previous }, currentDateStr, currentDateStr),
-    );
+    applyStatusChange(nextStatus, previous);
   };
 
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
@@ -466,6 +473,22 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             daySettings={daySettings}
           />
         </Suspense>
+      )}
+
+      {pendingSkipStatus && (
+        <ConfirmDialog
+          title="Skip ahead?"
+          message={`Skip from "${STATUS_DISPLAY[pendingSkipStatus.previous]?.label || pendingSkipStatus.previous}" straight to "${STATUS_DISPLAY[pendingSkipStatus.nextStatus]?.label || pendingSkipStatus.nextStatus}"?`}
+          confirmLabel="Skip and update"
+          cancelLabel="Cancel"
+          variant="primary"
+          onConfirm={() => {
+            const { nextStatus, previous } = pendingSkipStatus;
+            setPendingSkipStatus(null);
+            applyStatusChange(nextStatus, previous);
+          }}
+          onCancel={() => setPendingSkipStatus(null)}
+        />
       )}
     </>
   );
