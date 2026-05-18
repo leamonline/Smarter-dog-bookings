@@ -612,6 +612,12 @@ export function DogCardModal({
                   : "",
                 status: "Booked",
                 group_id: chainId,
+                // Per-link override flag from ChainBookingModal — useBookings.add
+                // conditionally spreads it into the insert payload so the
+                // trigger stamps _by/_at.
+                ...(link.staffCapacityOverride
+                  ? { staff_capacity_override: true }
+                  : {}),
               }, link.dateStr);
             }
           }}

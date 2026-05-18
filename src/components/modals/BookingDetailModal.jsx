@@ -11,7 +11,7 @@ import {
   SIZE_FALLBACK,
   SALON_SLOTS,
 } from "../../constants/index.js";
-import { canBookSlot, getSeatStatesForSlot } from "../../engine/capacity.js";
+import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
 import {
   getAllowedServicesForSize,
@@ -41,6 +41,7 @@ import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { ExitConfirmDialog } from "./booking-detail/ExitConfirmDialog.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
 import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
@@ -246,7 +247,12 @@ export function BookingDetailModal({
     }
   }, [setIsEditing, toast]);
 
-  const { save: handleSave } = useBookingSave({
+  const {
+    save: handleSave,
+    pendingOverride: pendingSaveOverride,
+    confirmOverride: confirmSaveOverride,
+    cancelOverride: cancelSaveOverride,
+  } = useBookingSave({
     editData,
     setSaving,
     setSaveError,
@@ -401,12 +407,54 @@ export function BookingDetailModal({
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5 w-full">
                     {editActiveSlots.length > 0 ? (
                       editActiveSlots.map((slot) => {
-                        const allowed = canBookSlot(otherBookings, slot, booking.size, editActiveSlots, { overrides: editSettings.overrides?.[slot] || {}, dogId: booking._dogId, staffOverride: true }).allowed;
+                        const check = canBookSlot(otherBookings, slot, booking.size, editActiveSlots, { overrides: editSettings.overrides?.[slot] || {}, dogId: booking._dogId, staffOverride: true });
+                        const allowed = check.allowed;
+                        const isOverride = !allowed && isCapacityRejection(check.reason);
+                        const isClickable = allowed || isOverride;
                         const seatStates = getSeatStatesForSlot(otherBookings, slot, editActiveSlots, editSettings.overrides?.[slot] || {});
                         const isStaffOpened = seatStates.some((seat) => seat.staffOpened);
+                        const isSelected = editData.slot === slot;
                         return (
-                          <button key={slot} type="button" onClick={() => { if (!allowed) return; setEditData((prev) => ({ ...prev, slot })); setSaveError(""); }} disabled={!allowed} className="py-2 rounded-lg text-[13px] font-semibold text-center" style={{ cursor: allowed ? "pointer" : "not-allowed", background: editData.slot === slot ? sizeTheme.primary : isStaffOpened ? sizeTheme.light : "#FFFFFF", color: editData.slot === slot ? sizeTheme.headerText : allowed ? "#1F2937" : "#6B7280", border: `1.5px solid ${editData.slot === slot ? sizeTheme.primary : isStaffOpened ? sizeTheme.primary : "#E5E7EB"}`, opacity: allowed ? 1 : 0.5 }}>
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => { if (!isClickable) return; setEditData((prev) => ({ ...prev, slot })); setSaveError(""); }}
+                            disabled={!isClickable}
+                            title={isOverride ? "Over capacity. Save will prompt for override." : undefined}
+                            aria-label={isOverride ? `${slot} — over capacity, click to override` : slot}
+                            className="py-2 rounded-lg text-[13px] font-semibold text-center"
+                            style={{
+                              cursor: isClickable ? "pointer" : "not-allowed",
+                              background: isSelected
+                                ? sizeTheme.primary
+                                : isOverride
+                                  ? "#FFFBEB"
+                                  : isStaffOpened
+                                    ? sizeTheme.light
+                                    : "#FFFFFF",
+                              color: isSelected
+                                ? sizeTheme.headerText
+                                : allowed
+                                  ? "#1F2937"
+                                  : isOverride
+                                    ? "#92400E"
+                                    : "#6B7280",
+                              border: `1.5px solid ${
+                                isSelected
+                                  ? sizeTheme.primary
+                                  : isOverride
+                                    ? "#F59E0B"
+                                    : isStaffOpened
+                                      ? sizeTheme.primary
+                                      : "#E5E7EB"
+                              }`,
+                              opacity: isClickable ? 1 : 0.5,
+                            }}
+                          >
                             {slot}
+                            {isOverride && !isSelected && (
+                              <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
+                            )}
                           </button>
                         );
                       })
@@ -702,6 +750,18 @@ export function BookingDetailModal({
           onClose={() => setShowPhotoUpload(false)}
           onSaved={() => toast.show("Photo saved", "success")}
           uploadPhoto={uploadPhoto}
+        />
+      )}
+
+      {pendingSaveOverride && (
+        <ConfirmDialog
+          title="This time is fully booked"
+          message={`${pendingSaveOverride.reason}. Override and save anyway?`}
+          confirmLabel="Override and save"
+          cancelLabel="Pick another time"
+          variant="primary"
+          onConfirm={confirmSaveOverride}
+          onCancel={cancelSaveOverride}
         />
       )}
     </AccessibleModal>

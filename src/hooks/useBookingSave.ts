@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { canBookSlot } from "../engine/capacity.js";
+import { useCallback, useState } from "react";
+import { canBookSlot, isCapacityRejection } from "../engine/capacity.js";
 import {
   getHumanByIdOrName,
   normalizeServiceForSize,
@@ -71,125 +71,150 @@ export function useBookingSave({
   onUpdate,
   onUpdateDog,
 }: UseBookingSaveParams) {
-  const save = useCallback(async () => {
-    if (!editData.slot) {
-      setSaveError("Select a drop-off time");
-      return;
-    }
+  // pendingOverride is null in the happy path. Populated when canBookSlot
+  // returns a capacity-class rejection: the BookingDetailModal renders a
+  // ConfirmDialog using this state, then calls confirmOverride to retry
+  // the save with staff_capacity_override stamped on the booking.
+  const [pendingOverride, setPendingOverride] = useState<{ reason: string } | null>(null);
 
-    if (!editDayOpen) {
-      setSaveError("This day is currently closed");
-      return;
-    }
+  const runSave = useCallback(
+    async (capacityOverride: boolean) => {
+      if (!editData.slot) {
+        setSaveError("Select a drop-off time");
+        return;
+      }
 
-    const normalizedService = normalizeServiceForSize(
-      editData.service,
-      booking.size,
-    );
+      if (!editDayOpen) {
+        setSaveError("This day is currently closed");
+        return;
+      }
 
-    if (!allowedServices.some((service) => service.id === normalizedService)) {
-      setSaveError("Select a valid service for this dog size");
-      return;
-    }
+      const normalizedService = normalizeServiceForSize(
+        editData.service,
+        booking.size,
+      );
 
-    const slotCheck = canBookSlot(
-      otherBookings,
-      editData.slot,
-      booking.size,
-      editActiveSlots,
-      {
-        overrides: (editSettings.overrides?.[editData.slot] || {}) as SlotOverrides,
-        dogId: booking._dogId,
-        staffOverride: true,
-      },
-    );
+      if (!allowedServices.some((service) => service.id === normalizedService)) {
+        setSaveError("Select a valid service for this dog size");
+        return;
+      }
 
-    if (!slotCheck.allowed) {
-      setSaveError(slotCheck.reason || "Slot unavailable");
-      return;
-    }
+      const slotCheck = canBookSlot(
+        otherBookings,
+        editData.slot,
+        booking.size,
+        editActiveSlots,
+        {
+          overrides: (editSettings.overrides?.[editData.slot] || {}) as SlotOverrides,
+          dogId: booking._dogId,
+          staffOverride: capacityOverride
+            ? { approval: true, capacity: true }
+            : true,
+        },
+      );
 
-    setSaving(true);
-    setSaveError("");
+      if (!slotCheck.allowed) {
+        if (!capacityOverride && isCapacityRejection(slotCheck.reason)) {
+          // Surface the override popup; BookingDetailModal will render
+          // the ConfirmDialog and call confirmOverride if staff confirms.
+          setPendingOverride({ reason: slotCheck.reason || "Slot unavailable" });
+          return;
+        }
+        setSaveError(slotCheck.reason || "Slot unavailable");
+        return;
+      }
 
-    let finalNotes = editData.groomNotes || "";
-    const originalDateDisplay = formatFullDate(currentDateObj);
-    const newDateDisplay = formatFullDate(editData.date);
+      setSaving(true);
+      setSaveError("");
 
-    if (
-      originalDateDisplay !== newDateDisplay ||
-      booking.slot !== editData.slot
-    ) {
-      const stamp = `\n\n[Booking moved by Staff from ${originalDateDisplay} at ${booking.slot} to ${newDateDisplay} at ${editData.slot}]`;
-      finalNotes += stamp;
-    }
+      let finalNotes = editData.groomNotes || "";
+      const originalDateDisplay = formatFullDate(currentDateObj);
+      const newDateDisplay = formatFullDate(editData.date);
 
-    const finalAlerts = editData.alerts.filter(
-      (a) => !a.startsWith("Allergic to "),
-    );
-    if (hasAllergy && allergyInput.trim()) {
-      finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
-    }
+      if (
+        originalDateDisplay !== newDateDisplay ||
+        booking.slot !== editData.slot
+      ) {
+        const stamp = `\n\n[Booking moved by Staff from ${originalDateDisplay} at ${booking.slot} to ${newDateDisplay} at ${editData.slot}]`;
+        finalNotes += stamp;
+      }
 
-    const dogUpdateResult = await onUpdateDog(
-      booking._dogId || booking.dogName,
-      {
-        alerts: finalAlerts,
-        groomNotes: finalNotes,
-        customPrice: Number(editData.customPrice || 0),
-      },
-    );
+      const finalAlerts = editData.alerts.filter(
+        (a) => !a.startsWith("Allergic to "),
+      );
+      if (hasAllergy && allergyInput.trim()) {
+        finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
+      }
 
-    if (dogUpdateResult === null) {
+      const dogUpdateResult = await onUpdateDog(
+        booking._dogId || booking.dogName,
+        {
+          alerts: finalAlerts,
+          groomNotes: finalNotes,
+          customPrice: Number(editData.customPrice || 0),
+        },
+      );
+
+      if (dogUpdateResult === null) {
+        setSaving(false);
+        setSaveError("Could not update dog details");
+        return;
+      }
+
+      const newDateStr = toDateStr(editData.date);
+      const updateResult = await onUpdate(
+        {
+          ...booking,
+          service: normalizedService,
+          addons: editData.addons,
+          pickupBy:
+            getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
+            editData.pickupBy,
+          payment: editData.payment,
+          depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
+          slot: editData.slot,
+          ...(capacityOverride ? { staff_capacity_override: true } : {}),
+        },
+        currentDateStr,
+        newDateStr,
+      );
+
+      if (!updateResult) {
+        setSaving(false);
+        setSaveError("Could not save booking changes");
+        return;
+      }
+
       setSaving(false);
-      setSaveError("Could not update dog details");
-      return;
-    }
-
-    const newDateStr = toDateStr(editData.date);
-    const updateResult = await onUpdate(
-      {
-        ...booking,
-        service: normalizedService,
-        addons: editData.addons,
-        pickupBy:
-          getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
-          editData.pickupBy,
-        payment: editData.payment,
-        depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
-        slot: editData.slot,
-      },
+      setIsEditing(false);
+    },
+    [
+      editData,
+      setSaving,
+      setSaveError,
+      setIsEditing,
+      hasAllergy,
+      allergyInput,
+      booking,
+      humans,
+      currentDateObj,
       currentDateStr,
-      newDateStr,
-    );
+      editDayOpen,
+      editSettings,
+      editActiveSlots,
+      otherBookings,
+      allowedServices,
+      onUpdate,
+      onUpdateDog,
+    ],
+  );
 
-    if (!updateResult) {
-      setSaving(false);
-      setSaveError("Could not save booking changes");
-      return;
-    }
+  const save = useCallback(() => runSave(false), [runSave]);
+  const confirmOverride = useCallback(() => {
+    setPendingOverride(null);
+    return runSave(true);
+  }, [runSave]);
+  const cancelOverride = useCallback(() => setPendingOverride(null), []);
 
-    setSaving(false);
-    setIsEditing(false);
-  }, [
-    editData,
-    setSaving,
-    setSaveError,
-    setIsEditing,
-    hasAllergy,
-    allergyInput,
-    booking,
-    humans,
-    currentDateObj,
-    currentDateStr,
-    editDayOpen,
-    editSettings,
-    editActiveSlots,
-    otherBookings,
-    allowedServices,
-    onUpdate,
-    onUpdateDog,
-  ]);
-
-  return { save };
+  return { save, pendingOverride, confirmOverride, cancelOverride };
 }

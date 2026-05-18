@@ -9,7 +9,8 @@ import {
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { useSalon } from "../../contexts/SalonContext.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { canBookSlot } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { toDateStr } from "../../supabase/transforms.js";
 import {
   getNumericPrice,
@@ -93,14 +94,21 @@ export function ChainBookingModal({
         ...(settings.extraSlots || []),
       ];
 
-      return activeSlots.filter((slot) => {
+      const available = [];
+      const overrideable = new Set();
+      for (const slot of activeSlots) {
         const result = canBookSlot(dayBookings, slot, dogSize, activeSlots, {
           overrides: settings.overrides?.[slot] || {},
           dogId: dog?.id,
           staffOverride: true,
         });
-        return result.allowed;
-      });
+        if (result.allowed) {
+          available.push(slot);
+        } else if (isCapacityRejection(result.reason)) {
+          overrideable.add(slot);
+        }
+      }
+      return { available, overrideable };
     },
     [bookingsByDate, daySettings, dogSize, dog?.id],
   );
@@ -110,10 +118,29 @@ export function ChainBookingModal({
     [firstDateStr, getAvailableSlots],
   );
 
+  // pendingOverride lifts an "are you sure?" ConfirmDialog over the chain UI
+  // when the user picks (or auto-rolls into) an over-capacity slot. It
+  // captures everything needed to commit the link once they confirm.
+  const [pendingOverride, setPendingOverride] = useState(null);
+  // shape: { date, dateStr, slot, reason }
+
   // ── Actions ──
   const addFirstAppointment = useCallback(() => {
     if (!firstSlot || !firstDateStr) return;
     const date = new Date(firstDateStr + "T00:00:00");
+    const isOverride = firstDateSlots.overrideable.has(firstSlot);
+    if (isOverride) {
+      setPendingOverride({
+        date,
+        dateStr: firstDateStr,
+        slot: firstSlot,
+        reason: "This time is fully booked",
+        // First appointment is rendered separately from chain.push — flag
+        // so the confirm handler knows whether to push to chain or replace.
+        isFirst: true,
+      });
+      return;
+    }
     setChain([
       {
         date,
@@ -121,9 +148,10 @@ export function ChainBookingModal({
         service,
         slot: firstSlot,
         size: dogSize,
+        staffCapacityOverride: false,
       },
     ]);
-  }, [firstSlot, firstDateStr, service, dogSize]);
+  }, [firstSlot, firstDateStr, firstDateSlots, service, dogSize]);
 
   const addNextAppointment = useCallback(() => {
     const weeksNum = parseInt(weeksGap, 10);
@@ -132,7 +160,7 @@ export function ChainBookingModal({
     const lastLink = chain[chain.length - 1];
     const nextDate = addWeeks(lastLink.date, weeksNum);
     const nextDateStr = toDateStr(nextDate);
-    const available = getAvailableSlots(nextDateStr);
+    const { available, overrideable } = getAvailableSlots(nextDateStr);
 
     if (available.includes(lastLink.slot)) {
       setChain((prev) => [
@@ -143,17 +171,29 @@ export function ChainBookingModal({
           service,
           slot: lastLink.slot,
           size: dogSize,
+          staffCapacityOverride: false,
         },
       ]);
       toast.show(
         `Booked ${formatDate(nextDate)} at ${lastLink.slot}`,
         "success",
       );
-    } else if (available.length > 0) {
+    } else if (overrideable.has(lastLink.slot)) {
+      // Preferred slot is full but overridable — surface the popup so
+      // staff confirms instead of silently overriding.
+      setPendingOverride({
+        date: nextDate,
+        dateStr: nextDateStr,
+        slot: lastLink.slot,
+        reason: "This time is fully booked",
+        isFirst: false,
+      });
+    } else if (available.length > 0 || overrideable.size > 0) {
       setSlotPickerFor({
         date: nextDate,
         dateStr: nextDateStr,
         availableSlots: available,
+        overrideSlots: Array.from(overrideable),
       });
     } else {
       toast.show(
@@ -164,8 +204,19 @@ export function ChainBookingModal({
   }, [weeksGap, chain, service, dogSize, getAvailableSlots, toast]);
 
   const pickAlternativeSlot = useCallback(
-    (slot) => {
+    (slot, isOverride) => {
       if (!slotPickerFor) return;
+      if (isOverride) {
+        setPendingOverride({
+          date: slotPickerFor.date,
+          dateStr: slotPickerFor.dateStr,
+          slot,
+          reason: "This time is fully booked",
+          isFirst: false,
+        });
+        setSlotPickerFor(null);
+        return;
+      }
       setChain((prev) => [
         ...prev,
         {
@@ -174,6 +225,7 @@ export function ChainBookingModal({
           service,
           slot,
           size: dogSize,
+          staffCapacityOverride: false,
         },
       ]);
       toast.show(
@@ -184,6 +236,26 @@ export function ChainBookingModal({
     },
     [slotPickerFor, service, dogSize, toast],
   );
+
+  const confirmPendingOverride = useCallback(() => {
+    if (!pendingOverride) return;
+    const { date, dateStr, slot, isFirst } = pendingOverride;
+    const link = {
+      date,
+      dateStr,
+      service,
+      slot,
+      size: dogSize,
+      staffCapacityOverride: true,
+    };
+    if (isFirst) {
+      setChain([link]);
+    } else {
+      setChain((prev) => [...prev, link]);
+    }
+    toast.show(`Booked ${formatDate(date)} at ${slot} (override)`, "success");
+    setPendingOverride(null);
+  }, [pendingOverride, service, dogSize, toast]);
 
   const removeLink = useCallback((idx) => {
     // Remove this item and everything after it (chain is sequential)
@@ -314,31 +386,53 @@ export function ChainBookingModal({
               </div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-1.5">
                 {SALON_SLOTS.map((slot) => {
-                  const available = firstDateSlots.includes(slot);
+                  const available = firstDateSlots.available.includes(slot);
+                  const isOverride =
+                    !available && firstDateSlots.overrideable.has(slot);
+                  const isClickable = available || isOverride;
                   const selected = firstSlot === slot;
                   return (
                     <button
                       key={slot}
-                      onClick={() => available && setFirstSlot(slot)}
-                      disabled={!available}
+                      onClick={() => isClickable && setFirstSlot(slot)}
+                      disabled={!isClickable}
+                      title={
+                        isOverride ? "Over capacity. Click to override." : undefined
+                      }
+                      aria-label={
+                        isOverride
+                          ? `${slot} — over capacity, click to override`
+                          : slot
+                      }
                       className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] transition-colors"
                       style={{
-                        cursor: available ? "pointer" : "not-allowed",
+                        cursor: isClickable ? "pointer" : "not-allowed",
                         background: selected
                           ? sizeTheme.primary
-                          : "#FFFFFF",
+                          : isOverride
+                            ? "#FFFBEB"
+                            : "#FFFFFF",
                         color: selected
                           ? sizeTheme.headerText
                           : available
                             ? "#1F2937"
-                            : "#9CA3AF",
+                            : isOverride
+                              ? "#92400E"
+                              : "#9CA3AF",
                         borderColor: selected
                           ? sizeTheme.primary
-                          : "#E5E7EB",
-                        opacity: available ? 1 : 0.5,
+                          : isOverride
+                            ? "#F59E0B"
+                            : "#E5E7EB",
+                        opacity: isClickable ? 1 : 0.5,
                       }}
                     >
                       {slot}
+                      {isOverride && !selected && (
+                        <div className="text-[9px] font-bold mt-0.5 leading-none">
+                          over
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -412,7 +506,7 @@ export function ChainBookingModal({
               {slotPickerFor.availableSlots.map((slot) => (
                 <button
                   key={slot}
-                  onClick={() => pickAlternativeSlot(slot)}
+                  onClick={() => pickAlternativeSlot(slot, false)}
                   className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] cursor-pointer transition-colors bg-white"
                   style={{
                     color: sizeTheme.primary,
@@ -420,6 +514,23 @@ export function ChainBookingModal({
                   }}
                 >
                   {slot}
+                </button>
+              ))}
+              {(slotPickerFor.overrideSlots || []).map((slot) => (
+                <button
+                  key={slot}
+                  onClick={() => pickAlternativeSlot(slot, true)}
+                  title="Over capacity. Click to override."
+                  aria-label={`${slot} — over capacity, click to override`}
+                  className="py-2 rounded-lg text-[13px] font-semibold text-center border-[1.5px] cursor-pointer transition-colors"
+                  style={{
+                    background: "#FFFBEB",
+                    color: "#92400E",
+                    borderColor: "#F59E0B",
+                  }}
+                >
+                  {slot}
+                  <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
                 </button>
               ))}
             </div>
@@ -513,6 +624,18 @@ export function ChainBookingModal({
               : `Confirm All (${chain.length})`}
           </button>
         </div>
+      )}
+
+      {pendingOverride && (
+        <ConfirmDialog
+          title="This time is fully booked"
+          message={`Add ${formatDate(pendingOverride.date)} at ${pendingOverride.slot} anyway?`}
+          confirmLabel="Override and add"
+          cancelLabel="Pick another time"
+          variant="primary"
+          onConfirm={confirmPendingOverride}
+          onCancel={() => setPendingOverride(null)}
+        />
       )}
     </AccessibleModal>
   );
