@@ -11,9 +11,24 @@ const supabaseKey = forceOffline
   : import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!forceOffline && (!supabaseUrl || !supabaseKey)) {
+const credsMissing = !forceOffline && (!supabaseUrl || !supabaseKey);
+
+// In production, missing creds means the deploy is broken (env vars not set
+// on the host). We refuse to fall back to offline/sample-data mode there —
+// index.jsx checks this flag and renders a hard error page instead. In dev,
+// missing creds is intentional (local offline sample-data mode).
+export const supabaseConfigError =
+  credsMissing && import.meta.env.PROD
+    ? "Missing VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY"
+    : null;
+
+if (supabaseConfigError) {
+  console.error(
+    `[Smarter Dog] ${supabaseConfigError}. Set the env vars on your hosting provider (Vercel / Cloudflare) and redeploy.`,
+  );
+} else if (credsMissing) {
   console.warn(
-    "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running in offline mode."
+    "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running in offline mode.",
   );
 }
 
