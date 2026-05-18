@@ -113,6 +113,54 @@ npm run build    # outputs to /dist
 - [ ] Confirm Supabase connection is live
 - [ ] Test a full booking flow end-to-end
 - [ ] Check all views load correctly (Dashboard, Dogs, Humans, Settings)
+- [ ] Open the browser DevTools Console — confirm no CSP violations
+      (especially for Cloudflare Turnstile on /login and /customer/login)
+- [ ] Trigger a deliberate error in dev (`throw new Error(...)` inside a
+      component) and confirm it appears in the Sentry dashboard for the
+      configured DSN
+
+### 4.5 Rollback Runbook
+
+If a deploy introduces a regression, roll back the **frontend** first
+(fast, no data risk), then assess whether the database needs attention.
+
+**Frontend rollback (Vercel — single step, ~30s):**
+1. Open Vercel → Project → Deployments.
+2. Find the previous good deployment in the list (most recent green
+   one before the bad deploy).
+3. Click the `⋯` menu → **Promote to Production**.
+4. Vercel re-points the production alias to that deployment instantly;
+   no redeploy needed.
+5. Confirm the rollback by hard-refreshing the production URL and
+   checking the `<meta name="commit">` (if present) or the build hash
+   in `dist/assets/index-*.js`.
+
+**Service worker note:**
+The PWA service worker is configured with `skipWaiting: true` and
+`clientsClaim: true`, so a single hard refresh on each open tab is
+enough to pick up the rolled-back assets. Users with the app installed
+as a PWA may need to force-close it once.
+
+**Edge function rollback:**
+Edge functions auto-deploy from `supabase/functions/**` on every push
+to `main` (see `.github/workflows/deploy-edge-functions.yml`). To roll
+back an edge function:
+1. `git revert <bad-commit>` (only the relevant function file paths).
+2. Push to `main` — the deploy workflow will redeploy the prior version.
+3. As a last resort, manually redeploy from your local machine:
+   `supabase functions deploy <function-name> --project-ref <ref>`.
+
+**Database migration rollback:**
+Migrations in `supabase/migrations/` are applied manually via the
+Supabase SQL Editor. There is no automatic `down` migration. If a bad
+migration ships, write a new compensating migration (next numeric
+prefix) rather than editing or deleting the existing one. The
+migrations are append-only by convention so the audit trail stays
+intact.
+
+**Sentry as a verification tool:**
+Watch the Sentry dashboard for 5–10 minutes after each prod deploy.
+A spike in errors with the new release tag = pull-back trigger.
 
 ---
 
