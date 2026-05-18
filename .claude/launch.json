@@ -6,6 +6,12 @@
       "runtimeExecutable": "/usr/local/bin/node",
       "runtimeArgs": ["node_modules/.bin/vite"],
       "port": 5173
+    },
+    {
+      "name": "Vite Prod Preview",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "preview", "--port", "4173"],
+      "port": 4173
     }
   ]
 }
