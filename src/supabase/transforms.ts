@@ -79,7 +79,14 @@ interface DbConfigOut {
 // ============================================================
 
 function buildHumanFullName(row: DbHumanRow): string {
-  return `${row.name} ${row.surname}`;
+  // Trim and drop the surname when it's missing or a faker-pipeline
+  // sentinel ("Null", "Undefined", "N/A"). Without this guard the JS
+  // null-to-"null" coercion produces a literal "Andrea null" everywhere
+  // the fullName is rendered as a heading or used as a map key.
+  const name = (row.name || "").trim();
+  const rawSurname = (row.surname || "").trim();
+  const surname = /^(null|undefined|n\/a|none)$/i.test(rawSurname) ? "" : rawSurname;
+  return surname ? `${name} ${surname}` : name;
 }
 
 // ============================================================

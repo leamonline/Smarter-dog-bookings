@@ -4,6 +4,7 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconSearch } from "../icons/index.jsx";
 import { titleCase } from "../../utils/text.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
+import { normalisePhoneDigits } from "./dog-card/helpers.js";
 
 export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
   const toast = useToast();
@@ -69,6 +70,14 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
       setError("First name, surname, and phone number are required.");
       return;
     }
+    // Phone validation: must reduce to at least 10 digits after stripping
+    // non-numeric characters. Anything shorter can't be a UK mobile/landline
+    // and breaks the wa.me / tel: links downstream.
+    const phoneDigits = normalisePhoneDigits(phone);
+    if (phoneDigits.length < 10) {
+      setError("Please enter a valid phone number (at least 10 digits).");
+      return;
+    }
     setSubmitting(true);
     setError("");
     const result = await onAdd({
@@ -115,7 +124,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
           style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
         >
           <div id="add-human-title" className="text-lg font-extrabold text-white">Add New Human</div>
-          <button onClick={onClose} className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0">{"\u00D7"}</button>
+          <button type="button" onClick={onClose} aria-label="Close add human" className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         <form onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">

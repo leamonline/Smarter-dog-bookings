@@ -39,7 +39,13 @@ function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
 }
 
 function buildHumanMapEntry(row: any) {
-  const fullName = `${row.name} ${row.surname}`;
+  // Mirror buildHumanFullName() in transforms.ts: trim and strip the
+  // "null"/"undefined"/"n/a" sentinels rather than emitting literal
+  // "Andrea null" headings or duplicate map keys.
+  const name = (row.name || "").trim();
+  const rawSurname = (row.surname || "").trim();
+  const surname = /^(null|undefined|n\/a|none)$/i.test(rawSurname) ? "" : rawSurname;
+  const fullName = surname ? `${name} ${surname}` : name;
   return {
     id: row.id,
     name: row.name,
@@ -281,7 +287,11 @@ export function useHumans() {
         const byId = buildHumansById(humanRows || []);
         const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows || [], byId);
 
-        setHumansById(byId);
+        // Merge into humansById — it doubles as the booking/dog lookup cache,
+        // and a paginated refetch must not evict owners loaded via
+        // ensureHumansByIds, or booking cards/dog modals fall back to
+        // "Unknown owner" until the next hard reload.
+        setHumansById((prev) => ({ ...prev, ...byId }));
         setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
         setHasMore((humanRows || []).length >= PAGE_SIZE);
       }
@@ -380,7 +390,8 @@ export function useHumans() {
         trustedContactsMap = maps.trustedContactsMap;
       }
 
-      setHumansById(byId);
+      // Merge into the lookup cache — see refetch() comment for the reason.
+      setHumansById((prev) => ({ ...prev, ...byId }));
       setHumans(dbHumansToMap(rows, trustedMap, trustedContactsMap));
       setTotalCount(rows.length);
       setHasMore(false);
@@ -786,7 +797,15 @@ export function useHumans() {
 
       const entry = buildHumanMapEntry(data);
       setHumansById((prev) => ({ ...prev, [data.id]: entry }));
-      setHumans((prev) => ({ ...prev, [data.id]: entry }));
+      // humans is fullName-keyed (see ensureHumansByIds comment). Insert
+      // under the name and remove any prior UUID-keyed copy of the same
+      // row so HumansView doesn't render two cards with the same React key.
+      setHumans((prev) => {
+        const next: Record<string, any> = { ...prev };
+        delete next[data.id];
+        next[entry.fullName || data.id] = entry;
+        return next;
+      });
       return entry;
     },
     [humans, humansById],
@@ -842,12 +861,30 @@ export function useHumans() {
       const rows = data || [];
       if (rows.length === 0) return;
 
-      const additions: Record<string, any> = {};
+      // humansById is UUID-keyed; humans is fullName-keyed (HumansView
+      // iterates Object.values, but buildSearchEntries/formatOwnerLabel
+      // also look up by fullName). Keying both off `row.id` here used to
+      // double-insert every owner — once under the UUID and once under
+      // the fullName from the main fetch — which surfaced as a React
+      // duplicate-key warning on HumansView (same id rendered twice).
+      const additionsById: Record<string, any> = {};
+      const additionsByName: Record<string, any> = {};
       for (const row of rows) {
-        additions[row.id] = buildHumanMapEntry(row);
+        const entry = buildHumanMapEntry(row);
+        additionsById[row.id] = entry;
+        additionsByName[entry.fullName || row.id] = entry;
       }
-      setHumansById((prev) => ({ ...prev, ...additions }));
-      setHumans((prev) => ({ ...prev, ...additions }));
+      setHumansById((prev) => ({ ...prev, ...additionsById }));
+      setHumans((prev) => {
+        // Drop any stale UUID-keyed entries we may have inserted before
+        // this fix shipped — keeps the map name-keyed for the rest of
+        // its lifetime.
+        const next: Record<string, any> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (!additionsById[k]) next[k] = v;
+        }
+        return { ...next, ...additionsByName };
+      });
     },
     [humans, humansById],
   );

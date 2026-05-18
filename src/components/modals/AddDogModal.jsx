@@ -5,6 +5,7 @@ import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text.js";
+import { normalisePhoneDigits } from "./dog-card/helpers.js";
 
 const SORTED_BREEDS = [
   ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
@@ -74,6 +75,10 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     if (showNewOwner) {
       if (!newOwnerName.trim() || !newOwnerSurname.trim() || !newOwnerPhone.trim()) {
         errors.owner = "New owner needs a first name, surname, and phone number.";
+      } else if (normalisePhoneDigits(newOwnerPhone).length < 10) {
+        // Same check as AddHumanModal — anything shorter can't be a UK
+        // mobile/landline and breaks wa.me/tel: links downstream.
+        errors.owner = "Please enter a valid phone number (at least 10 digits).";
       } else if (!onAddHuman) {
         errors.owner = "Cannot create new owners right now.";
       }
@@ -161,10 +166,12 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
         >
           <div id="add-dog-title" className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
           <button
+            type="button"
             onClick={onClose}
-            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0"
+            aria-label="Close add dog"
+            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: headerTheme.text }}
-          >{"\u00D7"}</button>
+          ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">

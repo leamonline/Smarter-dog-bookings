@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSearchEntries } from "./helpers.js";
+import { buildSearchEntries, isDateOpen } from "./helpers.js";
 
 describe("buildSearchEntries", () => {
   it("returns one entry per dog with the owner first", () => {
@@ -119,5 +119,39 @@ describe("buildSearchEntries — id-keyed owner resolution", () => {
     expect(entries[0].humans).toHaveLength(1);
     expect(entries[0].humans[0].key).toBe("Anna Cragg");
     expect(entries[0].humans[0].missing).toBe(false);
+  });
+});
+
+describe("isDateOpen", () => {
+  it("returns false for an empty/missing dateStr", () => {
+    expect(isDateOpen("", {})).toBe(false);
+    expect(isDateOpen(null, {})).toBe(false);
+    expect(isDateOpen(undefined, undefined)).toBe(false);
+  });
+
+  it("honours an explicit dayOpenState override (open)", () => {
+    // 2026-05-17 is a Sunday — closed by default — but the override wins.
+    expect(isDateOpen("2026-05-17", { "2026-05-17": true })).toBe(true);
+  });
+
+  it("honours an explicit dayOpenState override (closed)", () => {
+    // 2026-05-18 is a Monday — open by default — but the override wins.
+    expect(isDateOpen("2026-05-18", { "2026-05-18": false })).toBe(false);
+  });
+
+  it("falls back to ALL_DAYS defaults when there is no override", () => {
+    // Mon=open, Tue=open, Wed=open, Thu=closed, Fri=closed, Sat=closed, Sun=closed.
+    expect(isDateOpen("2026-05-18", {})).toBe(true);  // Mon
+    expect(isDateOpen("2026-05-19", {})).toBe(true);  // Tue
+    expect(isDateOpen("2026-05-20", {})).toBe(true);  // Wed
+    expect(isDateOpen("2026-05-21", {})).toBe(false); // Thu
+    expect(isDateOpen("2026-05-22", {})).toBe(false); // Fri
+    expect(isDateOpen("2026-05-23", {})).toBe(false); // Sat
+    expect(isDateOpen("2026-05-24", {})).toBe(false); // Sun
+  });
+
+  it("treats an absent dayOpenState the same as an empty one", () => {
+    expect(isDateOpen("2026-05-18", undefined)).toBe(true);
+    expect(isDateOpen("2026-05-24", null)).toBe(false);
   });
 });
