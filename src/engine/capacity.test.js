@@ -777,6 +777,22 @@ describe("Staff capacity override — object form of staffOverride", () => {
     expect(allowed.allowed).toBe(true);
   });
 
+  it("staffOverride: { approval: false, capacity: false } behaves like no override", () => {
+    const bookings = [];
+    const noOverride = canBookSlot(bookings, "10:00", "large", SLOTS);
+    const explicitFalse = canBookSlot(bookings, "10:00", "large", SLOTS, {
+      staffOverride: { approval: false, capacity: false },
+    });
+    const emptyObject = canBookSlot(bookings, "10:00", "large", SLOTS, {
+      staffOverride: {},
+    });
+
+    expect(noOverride.allowed).toBe(false);
+    expect(noOverride.reason).toMatch(/approval/i);
+    expect(explicitFalse).toEqual(noOverride);
+    expect(emptyObject).toEqual(noOverride);
+  });
+
   // Data-integrity errors must stay hard even with capacity: true.
   it("staffOverride: { capacity: true } does NOT bypass 'Invalid slot'", () => {
     const result = canBookSlot([], "07:00", "small", SLOTS, {
@@ -812,5 +828,11 @@ describe("isCapacityRejection", () => {
     expect(isCapacityRejection("Only a small/medium dog can share this slot with a large dog")).toBe(true);
     expect(isCapacityRejection("Large dog fills this slot")).toBe(true);
     expect(isCapacityRejection("9:00am conditional: 8:30am must be empty")).toBe(true);
+  });
+
+  it("returns false for unknown reason strings (opt-in safety)", () => {
+    expect(isCapacityRejection("Some new reason we haven't seen")).toBe(false);
+    expect(isCapacityRejection("")).toBe(false);
+    expect(isCapacityRejection(undefined)).toBe(false);
   });
 });

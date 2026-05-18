@@ -217,16 +217,29 @@ export function getBookableSeatCount(
 //    12:30 + 13:00, and only if early close isn't active.
 // ============================================================
 
-// Reasons returned by canBookSlot that are NOT capacity-related —
-// these stay as hard errors even when a staff member overrides.
-const DATA_INTEGRITY_REASONS = new Set<string>([
-  "Invalid slot",
-  "This dog is already booked in this slot",
+// Strings that canBookSlot returns when the rejection is a *physical
+// capacity* rule (the kind staff can choose to override). New rejection
+// reasons default to non-overridable — add them here only when they
+// represent a capacity rule, not a data-integrity / programmer error.
+const CAPACITY_REASONS = new Set<string>([
+  "Large dogs need Leam's approval for this slot",
+  "9:00am conditional: 8:30am must be empty",
+  "9:00am conditional: 10:00am must have 0–1 seats",
+  "12:00 large dog requires 1:00pm to be empty (early close)",
+  "1:00pm is closed — large dog at 12:00 triggered early close",
+  "Back-to-back large dogs only allowed at 12:30 + 1:00pm",
+  "Only a small/medium dog can share this slot with a large dog",
+  "Large dog fills this slot — already has bookings",
+  "Not enough capacity (2-2-1 rule)",
+  "1:00pm closed — early close from 12:00 large dog",
+  "Capped at 1 (2-2-1 rule)",
+  "Slot is full",
+  "Large dog fills this slot",
 ]);
 
 export function isCapacityRejection(reason: string | undefined): boolean {
   if (!reason) return false;
-  return !DATA_INTEGRITY_REASONS.has(reason);
+  return CAPACITY_REASONS.has(reason);
 }
 
 type StaffOverride =
