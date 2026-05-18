@@ -9,7 +9,7 @@ import {
 } from "../../engine/bookingRules.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text.js";
-import { waLink, telLink } from "./dog-card/helpers.js";
+import { waLink, telLink, normalisePhoneDigits } from "./dog-card/helpers.js";
 
 function HumanBookingHistory({ human, dogs, bookingsByDate }) {
   const history = useMemo(() => {
@@ -200,11 +200,20 @@ export function HumanCardModal({
   }, [human.id]);  
 
   const handleSaveHuman = async () => {
+    // Phone validation: a non-empty phone must reduce to at least 10
+    // digits, otherwise we'd persist a value that breaks wa.me/tel: links
+    // and the reminder pipeline. Empty phones are allowed (the customer
+    // may not have shared one yet).
+    const trimmedPhone = editPhone.trim();
+    if (trimmedPhone && normalisePhoneDigits(trimmedPhone).length < 10) {
+      toast.show("Please enter a valid phone number (at least 10 digits).", "error");
+      return;
+    }
     const updates = {
       name: editName.trim(),
       surname: editSurname.trim(),
       fullName: `${editName.trim()} ${editSurname.trim()}`.trim(),
-      phone: editPhone.trim(),
+      phone: trimmedPhone,
       email: editEmail.trim(),
       address: editAddress.trim(),
       fb: editFb.trim(),
@@ -298,12 +307,17 @@ export function HumanCardModal({
 
   const handleAddNewTrusted = async () => {
     if (!newTrustedName.trim() || !onAddHuman) return;
+    const trimmedTrustedPhone = newTrustedPhone.trim();
+    if (trimmedTrustedPhone && normalisePhoneDigits(trimmedTrustedPhone).length < 10) {
+      toast.show("Please enter a valid phone number (at least 10 digits).", "error");
+      return;
+    }
     const relationship = (newTrustedRelationship || "").trim();
     try {
       const result = await onAddHuman({
         name: newTrustedName.trim(),
         surname: newTrustedSurname.trim(),
-        phone: newTrustedPhone.trim(),
+        phone: trimmedTrustedPhone,
       });
       const newId = result?.id || result?.[0]?.id;
       if (newId) {
@@ -405,13 +419,15 @@ export function HumanCardModal({
     const colours = { bg: theme.light, text: theme.primary };
     const hasAlerts = dog.alerts && dog.alerts.length > 0;
     return (
-      <span
+      <button
+        type="button"
         onClick={() => { onClose(); onOpenDog && onOpenDog(dog.id || dog.name); }}
-        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold transition-opacity hover:opacity-80"
+        aria-label={`Open ${dog.name}${hasAlerts ? " (has alerts)" : ""}`}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold transition-opacity hover:opacity-80 border-none font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
         style={{ background: colours.bg, color: colours.text }}
       >
-        {hasAlerts && "\u26A0\uFE0F "}{titleCase(dog.name)} · {titleCase(dog.breed)}
-      </span>
+        {hasAlerts && <span aria-hidden="true">{"\u26A0\uFE0F "}</span>}{titleCase(dog.name)} · {titleCase(dog.breed)}
+      </button>
     );
   };
 

@@ -1,5 +1,6 @@
 import { AvailabilityCalendar } from "./AvailabilityCalendar.jsx";
 import { TimeSlotPicker } from "./TimeSlotPicker.jsx";
+import { isDateOpen } from "./helpers.js";
 
 export function BookingFormFields({
   hasDogs,
@@ -20,6 +21,7 @@ export function BookingFormFields({
   onConfirm,
   onClose,
 }) {
+  const selectedDayOpen = isDateOpen(selectedDateStr, dayOpenState);
   return (
     <div className="px-6 py-4 pb-5 flex flex-col gap-4 overflow-y-auto flex-1">
 
@@ -44,15 +46,21 @@ export function BookingFormFields({
           <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
           </label>
-          <TimeSlotPicker
-            dateStr={selectedDateStr}
-            bookingsByDate={bookingsByDate}
-            daySettings={daySettings}
-            selectedDogs={selectedDogs}
-            onSelectSlot={onSelectSlot}
-            selectedSlot={selectedSlot}
-            sizeTheme={primaryTheme}
-          />
+          {selectedDayOpen ? (
+            <TimeSlotPicker
+              dateStr={selectedDateStr}
+              bookingsByDate={bookingsByDate}
+              daySettings={daySettings}
+              selectedDogs={selectedDogs}
+              onSelectSlot={onSelectSlot}
+              selectedSlot={selectedSlot}
+              sizeTheme={primaryTheme}
+            />
+          ) : (
+            <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-[10px]">
+              The salon is closed on {selectedDateDisplay}. Pick an open day in the calendar above, or open this day from the day view first.
+            </div>
+          )}
         </div>
       )}
 
