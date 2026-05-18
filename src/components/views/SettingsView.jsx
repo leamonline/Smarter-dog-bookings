@@ -1,5 +1,5 @@
 // src/components/views/SettingsView.jsx — tabbed settings interface
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { BusinessSettings } from "./settings/BusinessSettings.jsx";
 import { HoursSettings } from "./settings/HoursSettings.jsx";
 import { AccountSettings } from "./settings/AccountSettings.jsx";
@@ -24,6 +24,31 @@ const SECTIONS = [
 
 export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
   const [activeTab, setActiveTab] = useState("business");
+  const tablistRef = useRef(null);
+  const keyboardNav = useRef(false);
+
+  useEffect(() => {
+    if (!keyboardNav.current) return;
+    tablistRef.current
+      ?.querySelector('[role="tab"][aria-selected="true"]')
+      ?.focus();
+    keyboardNav.current = false;
+  }, [activeTab]);
+
+  const handleKeyDown = (e) => {
+    const idx = SECTIONS.findIndex((s) => s.id === activeTab);
+    let next;
+    if (e.key === "ArrowRight") next = (idx + 1) % SECTIONS.length;
+    else if (e.key === "ArrowLeft") next = (idx - 1 + SECTIONS.length) % SECTIONS.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = SECTIONS.length - 1;
+    else return;
+    e.preventDefault();
+    if (SECTIONS[next].id !== activeTab) {
+      keyboardNav.current = true;
+      setActiveTab(SECTIONS[next].id);
+    }
+  };
 
   return (
     <div className="animate-[fadeIn_0.2s_ease-in]">
@@ -36,32 +61,54 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 flex-wrap bg-slate-100 p-1 rounded-[10px] mb-5">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setActiveTab(s.id)}
-            className={`rounded-[7px] px-3 py-[7px] text-xs font-semibold cursor-pointer font-inherit transition-all border-none ${
-              activeTab === s.id
-                ? "bg-white text-brand-teal shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                : "bg-transparent text-slate-500 hover:text-slate-800 hover:bg-white/60"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div
+        ref={tablistRef}
+        role="tablist"
+        aria-label="Settings sections"
+        onKeyDown={handleKeyDown}
+        className="flex gap-1 flex-wrap bg-slate-100 p-1 rounded-[10px] mb-5"
+      >
+        {SECTIONS.map((s) => {
+          const isActive = activeTab === s.id;
+          return (
+            <button
+              key={s.id}
+              role="tab"
+              id={`settings-tab-${s.id}`}
+              aria-selected={isActive}
+              aria-controls="settings-panel"
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => setActiveTab(s.id)}
+              className={`rounded-[7px] px-3 py-[7px] text-xs font-semibold cursor-pointer font-inherit transition-all border-none ${
+                isActive
+                  ? "bg-white text-brand-teal shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                  : "bg-transparent text-slate-500 hover:text-slate-800 hover:bg-white/60"
+              }`}
+            >
+              {s.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Active section */}
-      {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} />}
-      {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} />}
-      {activeTab === "calendar" && <CalendarSettings />}
+      <div
+        role="tabpanel"
+        id="settings-panel"
+        aria-labelledby={`settings-tab-${activeTab}`}
+        tabIndex={0}
+        className="focus:outline-none"
+      >
+        {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} />}
+        {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "calendar" && <CalendarSettings />}
+      </div>
     </div>
   );
 }
