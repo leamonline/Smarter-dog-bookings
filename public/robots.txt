@@ -1,0 +1,5 @@
+# SmarterDog is a private salon booking & management dashboard.
+# Customer portal access is by invitation via the salon.
+# Discourage crawlers from indexing any surface.
+User-agent: *
+Disallow: /
