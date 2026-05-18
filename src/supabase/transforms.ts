@@ -4,6 +4,7 @@
  */
 
 import type { Human, Dog, Booking, SalonConfig, TrustedContact } from "../types/index.js";
+import { sanitiseFieldValue } from "../utils/sanitiseFieldValue.js";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)
@@ -79,14 +80,16 @@ interface DbConfigOut {
 // ============================================================
 
 function buildHumanFullName(row: DbHumanRow): string {
-  // Trim and drop the surname when it's missing or a faker-pipeline
-  // sentinel ("Null", "Undefined", "N/A"). Without this guard the JS
-  // null-to-"null" coercion produces a literal "Andrea null" everywhere
-  // the fullName is rendered as a heading or used as a map key.
-  const name = (row.name || "").trim();
-  const rawSurname = (row.surname || "").trim();
-  const surname = /^(null|undefined|n\/a|none)$/i.test(rawSurname) ? "" : rawSurname;
-  return surname ? `${name} ${surname}` : name;
+  // Some legacy imports stored a literal placeholder surname — "Null"
+  // from a faker pipeline, or "Unknown" / "N/A" / "None" from imports.
+  // A CHECK constraint (migration 20260513150000_fix_null_surnames.sql)
+  // now blocks new "Null" rows but doesn't backfill. Strip the token
+  // so the fullName degrades to just the first name rather than a
+  // confusing literal like "Mirek Null".
+  const name = sanitiseFieldValue(row.name);
+  const surname = sanitiseFieldValue(row.surname);
+  if (name && surname) return `${name} ${surname}`;
+  return name || surname;
 }
 
 // ============================================================
@@ -243,7 +246,10 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
     map[row.id] = {
       id: row.id,
       name: row.name,
-      breed: row.breed,
+      // Strip legacy placeholder breeds ("Unknown" / "N/A" / etc) so the
+      // dogs directory shows the proper "No breed" hint and the
+      // isIncompleteDogProfile filter flags the row for attention.
+      breed: sanitiseFieldValue(row.breed),
       age: row.age || "",
       size: (row.size as Dog["size"]) || null,
       humanId: owner ? owner.fullName : (row.human_id || ""),

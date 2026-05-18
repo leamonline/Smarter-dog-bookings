@@ -190,9 +190,16 @@ export function resolveBookingDisplay(
 
   const fallbackDogName = isMissingNameToken(booking.dogName) ? "" : booking.dogName;
   const fallbackOwnerName = isMissingNameToken(booking.owner) ? "" : booking.owner;
+  // Same legacy-row policy for breed: rows from before the
+  // trg_bookings_set_snapshots trigger landed sometimes stored "Unknown"
+  // literally, which then rendered on the booking card next to the owner.
+  // Use the same filter so the placeholder never reaches the UI.
+  const fallbackBreed = isMissingNameToken(dog?.breed) ? "" : dog?.breed;
+  const fallbackBreedSnapshot = isMissingNameToken(booking.breedSnapshot) ? "" : booking.breedSnapshot;
+  const fallbackBreedField = isMissingNameToken(booking.breed) ? "" : booking.breed;
 
   const rawDogName = dog?.name || fallbackDogName || "";
-  const rawBreed = dog?.breed || booking.breedSnapshot || booking.breed || "";
+  const rawBreed = fallbackBreed || fallbackBreedSnapshot || fallbackBreedField || "";
   const rawOwnerName = owner?.fullName || booking.ownerNameSnapshot || fallbackOwnerName || "";
 
   const dogName = looksLikeUuid(rawDogName) || !rawDogName ? "Unknown" : rawDogName;

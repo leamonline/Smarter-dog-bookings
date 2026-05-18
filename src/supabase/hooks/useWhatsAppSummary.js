@@ -30,6 +30,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { formatPhoneForDisplay } from "../../utils/phone.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -104,7 +105,7 @@ export function useWhatsAppSummary() {
       return {
         conversationId: c.id,
         humanId: c.human_id || null,
-        displayName: name || c.phone_e164 || "Unknown",
+        displayName: name || formatPhoneForDisplay(c.phone_e164) || "Unknown contact",
         lastText: c.last_customer_text ?? "",
         lastAt: c.last_inbound_at,
       };

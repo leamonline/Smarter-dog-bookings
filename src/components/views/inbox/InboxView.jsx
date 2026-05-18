@@ -29,6 +29,7 @@ import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import { displayName } from "./helpers.js";
+import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
 import { StatusPill } from "./StatusPill.jsx";
 import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
@@ -70,6 +71,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setAutonomousBookingEnabled,
     sendTemplate,
     dogNames,
+    dogNamesById,
     actionInFlight,
     refreshList,
   } = useWhatsAppInbox();
@@ -367,7 +369,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         )}
                       </div>
                       <div className="text-[11px] text-slate-600 truncate">
-                        {selectedConversation?.phone_e164}
+                        {formatPhoneForDisplay(selectedConversation?.phone_e164)}
                       </div>
                     </div>
                   </div>
@@ -477,7 +479,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         <BookingCreatedCard
                           key={item.key}
                           action={item.data}
-                          dogNames={dogNames}
+                          dogNamesById={dogNamesById}
                         />
                       ),
                     )

@@ -56,7 +56,7 @@ export function PhotoGalleryModal({
       .catch((err) => {
         clearTimeout(timeout);
         if (!cancelled && mountedRef.current) {
-          setError(err.message || "Unknown error");
+          setError(err.message || "Couldn't load the photos. Please try again.");
           setLoading(false);
         }
       });
@@ -75,7 +75,7 @@ export function PhotoGalleryModal({
 
     fetchPhotosForDog(dogId)
       .then((data) => { clearTimeout(timeout); if (mountedRef.current) { setPhotos(data); setLoading(false); } })
-      .catch((err) => { clearTimeout(timeout); if (mountedRef.current) { setError(err.message || "Unknown error"); setLoading(false); } });
+      .catch((err) => { clearTimeout(timeout); if (mountedRef.current) { setError(err.message || "Couldn't load the photos. Please try again."); setLoading(false); } });
   };
 
   const handleDelete = async (photoId, storagePath) => {

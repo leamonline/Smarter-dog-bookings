@@ -5,6 +5,7 @@ import {
   buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 
 const PAGE_SIZE = 50;
 
@@ -39,13 +40,12 @@ function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
 }
 
 function buildHumanMapEntry(row: any) {
-  // Mirror buildHumanFullName() in transforms.ts: trim and strip the
-  // "null"/"undefined"/"n/a" sentinels rather than emitting literal
-  // "Andrea null" headings or duplicate map keys.
-  const name = (row.name || "").trim();
-  const rawSurname = (row.surname || "").trim();
-  const surname = /^(null|undefined|n\/a|none)$/i.test(rawSurname) ? "" : rawSurname;
-  const fullName = surname ? `${name} ${surname}` : name;
+  // Mirror buildHumanFullName() in transforms.ts. Strips placeholder
+  // tokens ("Null", "Unknown", "None", etc.) via sanitiseFieldValue
+  // rather than coercing to a literal "Andrea null" heading.
+  const name = sanitiseFieldValue(row.name);
+  const surname = sanitiseFieldValue(row.surname);
+  const fullName = name && surname ? `${name} ${surname}` : name || surname;
   return {
     id: row.id,
     name: row.name,

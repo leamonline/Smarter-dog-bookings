@@ -208,9 +208,14 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     customPrice: dogRecord?.customPrice,
   });
 
-  const displayDogName = titleCase(display.dogName);
+  // resolveBookingDisplay returns sentinel strings ("Unknown" / "Unknown owner")
+  // when the joined dog/human row can't be resolved. Use the missing flags to
+  // swap those for friendlier UI copy without leaking the sentinel.
+  const displayDogName = titleCase(
+    display.dogMissing ? "Unnamed booking" : display.dogName,
+  );
   const displayBreed = titleCase(display.breed);
-  const displayOwner = titleCase(display.owner === "Unknown owner" ? "" : display.owner);
+  const displayOwner = titleCase(display.ownerMissing ? "" : display.owner);
 
   const handleCardClick = onClick || (() => setShowDetail(true));
 
@@ -240,8 +245,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             className="w-3 h-3 rounded-full shrink-0 inline-block self-center"
             style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
             role="img"
-            aria-label={SIZE_TOOLTIP[booking.size] || "Unknown size"}
-            title={SIZE_TOOLTIP[booking.size] || "Unknown size"}
+            aria-label={SIZE_TOOLTIP[booking.size] || "Size not set"}
+            title={SIZE_TOOLTIP[booking.size] || "Size not set"}
           />
           <span className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
             {displayDogName}

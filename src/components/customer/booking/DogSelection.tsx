@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { WizardDog, DogSize } from "../../../types/index.js";
 import { AddDogInline } from "./AddDogInline.js";
 import { Check, PawPrint, ArrowRight } from "lucide-react";
+import { titleCase } from "../../../utils/text.js";
 
 interface RawDog {
   id: string;
@@ -81,9 +82,9 @@ export function DogSelection({
                 className="wizard-option"
               >
                 <div className="flex flex-col items-start gap-0.5 min-w-0">
-                  <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">{dog.name}</span>
+                  <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">{titleCase(dog.name)}</span>
                   <span className="text-[12px] font-medium text-[var(--sd-ink-light)]">
-                    {dog.breed || "Breed unknown"}
+                    {dog.breed ? titleCase(dog.breed) : "Breed not set"}
                     {sizeLabel ? ` · ${sizeLabel}` : ""}
                   </span>
                   {!sizeKnown && (

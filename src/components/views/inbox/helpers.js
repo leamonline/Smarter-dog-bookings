@@ -6,6 +6,7 @@
 // ============================================================
 
 import { titleCase } from "../../../utils/text.js";
+import { formatPhoneForDisplay } from "../../../utils/phone.js";
 
 // "09:30" if today, "Yesterday" if yesterday, "12 May" otherwise.
 export function formatWhen(iso) {
@@ -23,14 +24,15 @@ export function formatWhen(iso) {
 }
 
 // Display name for a conversation row: customer's full name if matched
-// to a humans record, otherwise the raw E.164 phone.
+// to a humans record, otherwise the phone in 07… form. "Unknown contact"
+// only when both are missing (degenerate data).
 export function displayName(conv) {
   if (conv?.humans?.name) {
     const name = titleCase(conv.humans.name);
     const surname = conv.humans.surname ? " " + titleCase(conv.humans.surname) : "";
     return `${name}${surname}`;
   }
-  return conv?.phone_e164 ?? "Unknown";
+  return formatPhoneForDisplay(conv?.phone_e164) || "Unknown contact";
 }
 
 // Bucket a 0..1 confidence into a human label.

@@ -6,6 +6,7 @@ import {
   buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 
 const PAGE_SIZE = 50;
 
@@ -563,7 +564,7 @@ export function useDogs(humansById: Record<string, any>) {
       return {
         id: row.id,
         name: row.name,
-        breed: row.breed,
+        breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
         size: (row.size as any) || null,
         humanId: owner ? owner.fullName : (row.human_id || ""),
@@ -643,7 +644,7 @@ export function useDogs(humansById: Record<string, any>) {
       const dog = {
         id: row.id,
         name: row.name,
-        breed: row.breed,
+        breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
         size: row.size || null,
         humanId: humansById?.[hid]?.fullName || hid,
@@ -710,7 +711,7 @@ export function useDogs(humansById: Record<string, any>) {
         mapAdditions[row.id] = {
           id: row.id,
           name: row.name,
-          breed: row.breed,
+          breed: sanitiseFieldValue(row.breed),
           age: row.age || "",
           size: row.size || null,
           humanId: owner ? owner.fullName : (row.human_id || ""),
