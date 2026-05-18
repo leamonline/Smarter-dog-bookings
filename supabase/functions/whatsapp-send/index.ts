@@ -50,12 +50,15 @@
 //   header, x-internal-secret auth) are unaffected.
 //
 // Env vars required:
-//   SUPABASE_URL                (auto)
-//   SUPABASE_SERVICE_ROLE_KEY   (auto)
-//   SUPABASE_ANON_KEY           (auto)
-//   META_ACCESS_TOKEN           (user-added — permanent system user)
-//   META_PHONE_NUMBER_ID        (user-added — e.g. 1060731703795077)
-//   SEND_INTERNAL_SECRET        (user-added — for service-role callers)
+//   SUPABASE_URL                       (auto)
+//   SUPABASE_SERVICE_ROLE_KEY          (auto)
+//   SUPABASE_ANON_KEY                  (auto)
+//   META_ACCESS_TOKEN                  (user-added — permanent system user)
+//   META_PHONE_NUMBER_ID               (user-added — e.g. 1060731703795077)
+//   SEND_INTERNAL_SECRET               (user-added — for service-role callers)
+//   WHATSAPP_SEND_ALLOWED_ORIGINS      (optional — comma-separated CORS
+//                                       allowlist. Falls back to the
+//                                       staging + localhost defaults.)
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -86,11 +89,21 @@ const MAX_MANUAL_TEXT_LEN = 2000;
 // an Origin header and are unaffected. When the origin is not in this
 // set we omit Access-Control-Allow-Origin entirely so the browser blocks
 // the response — that's the correct CORS-deny behaviour.
-const ALLOWED_ORIGINS = new Set([
+//
+// Configured via WHATSAPP_SEND_ALLOWED_ORIGINS (comma-separated). The
+// hardcoded staging + dev defaults are kept as a safety net so deploys
+// without the secret still work in known environments.
+const DEFAULT_ALLOWED_ORIGINS = [
   "https://smarterdog.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
-]);
+];
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get("WHATSAPP_SEND_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
 
 function buildCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") ?? "";
