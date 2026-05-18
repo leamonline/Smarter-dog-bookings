@@ -70,7 +70,7 @@ export function BookingHeader({
         onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
       >
-        {titleCase(display.dogName)}
+        {titleCase(display.dogMissing ? "Unnamed booking" : display.dogName)}
       </span>
 
       {subtitle && (

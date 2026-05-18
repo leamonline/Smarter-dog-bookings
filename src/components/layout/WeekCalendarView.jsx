@@ -132,9 +132,14 @@ export function WeekCalendarView({
         month: "short",
       });
       const items = dayBookings.map((b) => {
-        const dogName = b.dogName || "Unknown";
-        const owner = b.ownerName || b.owner || "";
-        return `Rearrange: ${dogName}${owner ? ` (${owner})` : ""} — was ${dateLabel} ${b.slot}`;
+        const dogName = (b.dogName || "").trim();
+        const owner = (b.ownerName || b.owner || "").trim();
+        let label;
+        if (dogName && owner) label = `${dogName} (${owner})`;
+        else if (dogName) label = dogName;
+        else if (owner) label = `${owner}'s dog`;
+        else label = "Booking";
+        return `Rearrange: ${label} — was ${dateLabel} ${b.slot}`;
       });
       addTodos(items);
     }

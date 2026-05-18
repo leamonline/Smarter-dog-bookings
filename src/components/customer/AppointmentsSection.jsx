@@ -4,6 +4,7 @@ import {
 } from "./dashboardConstants.js";
 import { PRICING } from "../../constants/index.js";
 import { ClipboardList, ChevronDown } from "lucide-react";
+import { titleCase } from "../../utils/text.js";
 
 /**
  * Past-only appointments list. The "Upcoming" + "Time for another groom?"
@@ -71,7 +72,7 @@ export function AppointmentsSection({
       {pastExpanded && !isEmpty && (
         <div id="past-appointments-list" className="mt-3">
           {pastBookings.map(b => {
-            const dogName = b.dogs?.name || "Unknown";
+            const dogName = b.dogs?.name ? titleCase(b.dogs.name) : "your dog";
             const size = b.dogs?.size || b.size;
             const service = SERVICE_LABELS[b.service] || b.service;
             const price = priceLabelFor(b.service, size);
