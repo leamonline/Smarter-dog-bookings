@@ -98,6 +98,18 @@ export function useDogs(humansById: Record<string, any>) {
       }
 
       const rows = data || [];
+      // Merge instead of replacing. Previous calls to ensureDogsByIds may
+      // have populated rows beyond the paginated window (so bookings whose
+      // dogs sit past the first page can resolve names); a raw replace
+      // here would wipe them out and — because fetchedDogIdsRef still
+      // remembers the IDs — ensureDogsByIds would refuse to re-fetch
+      // them, leaving the cards stuck on "Unknown". This effect re-runs
+      // whenever humansById changes, so the destructive variant caused
+      // names to flash in correctly and then revert.
+      const byIdAdditions = buildDogsById(rows);
+      const mapAdditions = dbDogsToMap(rows, humansById || {});
+      setDogsById((prev) => ({ ...prev, ...byIdAdditions }));
+      setDogs((prev) => ({ ...prev, ...mapAdditions }));
       // Merge rather than replace: dogs added by ensureDogsByIds (rows
       // past the first paginated page) would otherwise be wiped out
       // when a realtime INSERT/UPDATE triggers a refetch, and then
