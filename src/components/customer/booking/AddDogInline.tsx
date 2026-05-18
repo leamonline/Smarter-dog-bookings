@@ -1,13 +1,8 @@
 import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { getSizeForBreed, BREED_LIST } from "../../../constants/breeds.js";
+import { getSizeForBreed } from "../../../constants/breeds.js";
+import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index.js";
-
-const SORTED_BREEDS = [
-  ...BREED_LIST.small.map((b: string) => ({ name: b, size: "small" })),
-  ...BREED_LIST.medium.map((b: string) => ({ name: b, size: "medium" })),
-  ...BREED_LIST.large.map((b: string) => ({ name: b, size: "large" })),
-].sort((a, b) => a.name.localeCompare(b.name));
 
 interface AddDogInlineProps {
   humanId: string;
@@ -18,20 +13,14 @@ interface AddDogInlineProps {
 export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProps) {
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
-  const [customBreed, setCustomBreed] = useState("");
-  const isOtherBreed = breed === "__other__";
   const [size, setSize] = useState<DogSize | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleBreedSelect = (value: string) => {
-    setBreed(value);
-    if (value === "__other__") {
-      setSize(null);
-    } else {
-      const detected = getSizeForBreed(value);
-      if (detected) setSize(detected as DogSize);
-    }
+  const handleBreedChange = (next: string) => {
+    setBreed(next);
+    const detected = getSizeForBreed(next);
+    setSize(detected ? (detected as DogSize) : null);
   };
 
   const handleSave = async () => {
@@ -41,7 +30,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
     try {
       if (!supabase) throw new Error("Not connected");
 
-      const finalBreed = isOtherBreed ? customBreed.trim() : breed.trim();
+      const finalBreed = breed.trim();
       const dogSize = size || getSizeForBreed(finalBreed) as DogSize || null;
 
       const { data, error: err } = await supabase
@@ -89,32 +78,15 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="add-dog-breed" className="text-[13px] text-[var(--sd-navy)] font-semibold">Breed</label>
-        <select
-          id="add-dog-breed"
+        <span id="add-dog-breed-label" className="text-[13px] text-[var(--sd-navy)] font-semibold">Breed</span>
+        <BreedCombobox
           value={breed}
-          onChange={(e) => handleBreedSelect(e.target.value)}
-          className="portal-input portal-input--sm cursor-pointer"
-        >
-          <option value="">Select breed</option>
-          {SORTED_BREEDS.map(b => (
-            <option key={b.name} value={b.name}>{b.name}</option>
-          ))}
-          <option value="__other__">Other</option>
-        </select>
-        {isOtherBreed && (
-          <input
-            id="add-dog-custom-breed"
-            type="text"
-            value={customBreed}
-            onChange={(e) => setCustomBreed(e.target.value)}
-            placeholder="Enter breed..."
-            aria-label="Custom breed name"
-            className="portal-input portal-input--sm"
-            autoFocus
-          />
-        )}
-        {breed && !isOtherBreed && getSizeForBreed(breed) && (
+          onChange={handleBreedChange}
+          ariaLabelledBy="add-dog-breed-label"
+          placeholder="Select or search breed"
+          inputClassName="portal-input portal-input--sm"
+        />
+        {breed && getSizeForBreed(breed) && (
           <span className="text-xs text-[var(--sd-cyan-dark)]">
             Size auto-set: {getSizeForBreed(breed)}
           </span>
@@ -139,7 +111,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
           disabled={saving || !name.trim()}
           className="wizard-btn wizard-btn--primary"
         >
-          {saving ? "Saving\u2026" : "Save pup"}
+          {saving ? "Saving…" : "Save pup"}
         </button>
       </div>
     </div>
