@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban } from "lucide-react";
+import { Ban, MoreVertical } from "lucide-react";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 function formatSlot(slot) {
   const [h, m] = slot.split(":");
@@ -10,14 +11,24 @@ function formatSlot(slot) {
 }
 
 /**
- * SlotRowMenu — popover menu of slot-level admin actions
- * (Block seat 1, Block seat 2, Block timeslot). The trigger is
- * the row's time label itself.
+ * SlotRowMenu — the slot row's left-column UI.
  *
- * The popover is rendered via portal so it escapes the parent
- * slot row, which uses opacity:0.7 on empty rows. Without the
- * portal, that opacity would composite the popover content too
- * — making the dark-purple background look translucent.
+ * Two affordances stacked in the column:
+ *
+ *  - **Time button** (primary). Clicking it routes to a new booking:
+ *    - If the slot has at least one available seat, calls `onOpenBooking()`
+ *      which opens NewBookingModal pre-filled with this slot.
+ *    - If the slot is fully booked, opens an "This time is fully booked.
+ *      Override and book anyway?" confirm dialog. On confirm, calls
+ *      `onOverbook()` which opens NewBookingModal with the override
+ *      pre-armed.
+ *
+ *  - **⋯ icon** (secondary, only when seats are available). Opens the
+ *    admin popover for "Block seat 1/2/timeslot". Portalled so it
+ *    escapes the parent row's opacity:0.7.
+ *
+ * `onOpenBooking` / `onOverbook` are independent — a parent that
+ * doesn't want the time to be clickable can simply omit them.
  */
 export function SlotRowMenu({
   slot,
@@ -26,24 +37,27 @@ export function SlotRowMenu({
   disabled,
   triggerClassName = "",
   hasBooking,
+  onOpenBooking,
+  onOverbook,
 }) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
-  const triggerRef = useRef(null);
+  const [pendingOverbook, setPendingOverbook] = useState(false);
+  const moreRef = useRef(null);
   const popRef = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!menuOpen) return;
     const handle = (e) => {
       if (
         !popRef.current?.contains(e.target) &&
-        !triggerRef.current?.contains(e.target)
+        !moreRef.current?.contains(e.target)
       ) {
-        setOpen(false);
+        setMenuOpen(false);
       }
     };
     const onKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setMenuOpen(false);
     };
     document.addEventListener("mousedown", handle);
     document.addEventListener("keydown", onKey);
@@ -51,21 +65,40 @@ export function SlotRowMenu({
       document.removeEventListener("mousedown", handle);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [menuOpen]);
 
   const slotLabel = formatSlot(slot);
 
   const availableSeats = (seatStates || [])
     .map((s, i) => ({ seat: s, index: i }))
     .filter(({ seat }) => seat.type === "available");
+  const hasFreeSeat = availableSeats.length > 0;
+  const isFullyBooked = (seatStates || []).every((s) => s.type === "booking");
 
-  const menuDisabled = disabled || !onBlockSeat || availableSeats.length === 0;
+  const moreDisabled = disabled || !onBlockSeat || availableSeats.length === 0;
+  const timeDisabled = disabled || (!onOpenBooking && !onOverbook);
 
-  const openMenu = () => {
-    if (menuDisabled) return;
-    const r = triggerRef.current?.getBoundingClientRect();
+  const handleTimeClick = () => {
+    if (timeDisabled) return;
+    if (hasFreeSeat && onOpenBooking) {
+      onOpenBooking();
+      return;
+    }
+    if (isFullyBooked && onOverbook) {
+      setPendingOverbook(true);
+    }
+  };
+
+  const handleConfirmOverbook = () => {
+    setPendingOverbook(false);
+    onOverbook?.();
+  };
+
+  const openMoreMenu = () => {
+    if (moreDisabled) return;
+    const r = moreRef.current?.getBoundingClientRect();
     if (r) setAnchorRect(r);
-    setOpen((o) => !o);
+    setMenuOpen((o) => !o);
   };
 
   // Compute popover position in viewport coords. Clamped so it
@@ -83,31 +116,65 @@ export function SlotRowMenu({
     if (popLeft < margin) popLeft = margin;
   }
 
+  const timeAriaLabel = timeDisabled
+    ? slotLabel
+    : isFullyBooked
+      ? `${slotLabel} — fully booked, click to override and book`
+      : `${slotLabel} — book a dog in`;
+
+  const timeTitle = timeDisabled
+    ? slotLabel
+    : isFullyBooked
+      ? "Fully booked. Click to override."
+      : "Click to book";
+
   return (
-    <div className="relative h-full">
+    <div className="relative h-full flex flex-col items-stretch justify-center gap-0.5">
       <button
-        ref={triggerRef}
         type="button"
-        onClick={openMenu}
-        aria-label={
-          menuDisabled
-            ? `${slotLabel} — no actions available`
-            : `${slotLabel} — open slot actions`
-        }
-        aria-haspopup={menuDisabled ? undefined : "menu"}
-        aria-expanded={menuDisabled ? undefined : open}
-        disabled={menuDisabled}
-        title={menuDisabled ? slotLabel : "Click for slot actions"}
-        className={`w-full h-full text-[12px] md:text-[13px] font-extrabold text-center cursor-pointer border-none bg-transparent transition-colors font-[inherit] rounded-md tabular-nums ${
-          menuDisabled
+        onClick={handleTimeClick}
+        aria-label={timeAriaLabel}
+        title={timeTitle}
+        disabled={timeDisabled}
+        className={`w-full text-[12px] md:text-[13px] font-extrabold text-center cursor-pointer border-none bg-transparent transition-colors font-[inherit] rounded-md tabular-nums py-1 ${
+          timeDisabled
             ? "cursor-default"
-            : "hover:bg-brand-yellow/15 hover:text-brand-purple"
+            : isFullyBooked
+              ? "hover:bg-amber-100 hover:text-amber-900"
+              : "hover:bg-brand-yellow/15 hover:text-brand-purple"
         } ${hasBooking ? "text-brand-purple" : "text-slate-400"} ${triggerClassName}`}
       >
         {slotLabel}
       </button>
 
-      {open && !menuDisabled && anchorRect && createPortal(
+      {!moreDisabled && (
+        <button
+          ref={moreRef}
+          type="button"
+          onClick={openMoreMenu}
+          aria-label={`${slotLabel} — open slot actions`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          title="Slot actions"
+          className="self-center w-5 h-4 flex items-center justify-center text-slate-400 hover:text-brand-purple cursor-pointer border-none bg-transparent rounded p-0"
+        >
+          <MoreVertical size={12} strokeWidth={2.4} aria-hidden="true" />
+        </button>
+      )}
+
+      {pendingOverbook && (
+        <ConfirmDialog
+          title="This time is fully booked"
+          message="Override and book anyway?"
+          confirmLabel="Override and book"
+          cancelLabel="Pick another time"
+          variant="primary"
+          onConfirm={handleConfirmOverbook}
+          onCancel={() => setPendingOverbook(false)}
+        />
+      )}
+
+      {menuOpen && !moreDisabled && anchorRect && createPortal(
         <div
           ref={popRef}
           role="menu"
@@ -133,21 +200,21 @@ export function SlotRowMenu({
                 onClick={() => {
                   onBlockSeat(0);
                   onBlockSeat(1);
-                  setOpen(false);
+                  setMenuOpen(false);
                 }}
               />
               <MenuItem
                 label="Block seat 1 only"
                 onClick={() => {
                   onBlockSeat(0);
-                  setOpen(false);
+                  setMenuOpen(false);
                 }}
               />
               <MenuItem
                 label="Block seat 2 only"
                 onClick={() => {
                   onBlockSeat(1);
-                  setOpen(false);
+                  setMenuOpen(false);
                 }}
               />
             </>
@@ -158,7 +225,7 @@ export function SlotRowMenu({
                 label={`Block seat ${index + 1}`}
                 onClick={() => {
                   onBlockSeat(index);
-                  setOpen(false);
+                  setMenuOpen(false);
                 }}
               />
             ))

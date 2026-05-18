@@ -100,8 +100,12 @@ export function WeekCalendarView({
     return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
   }, [currentSettings.extraSlots]);
 
-  const openNewBooking = (dateStr, slot) =>
-    setShowNewBooking({ dateStr: dateStr || currentDateStr, slot: slot || "" });
+  const openNewBooking = (dateStr, slot, options = {}) =>
+    setShowNewBooking({
+      dateStr: dateStr || currentDateStr,
+      slot: slot || "",
+      capacityOverride: options.capacityOverride === true,
+    });
 
   const handleCreateBookingFromWhatsApp = (conversation) => {
     if (!conversation) {

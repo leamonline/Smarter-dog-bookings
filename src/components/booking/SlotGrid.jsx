@@ -115,6 +115,16 @@ export function SlotGrid({
             onBlockSeat={onOverride ? (idx) => block(slot, idx) : undefined}
             disabled={loading}
             hasBooking={hasBooking}
+            onOpenBooking={
+              onOpenNewBooking
+                ? () => onOpenNewBooking(currentDateStr, slot)
+                : undefined
+            }
+            onOverbook={
+              onOpenNewBooking
+                ? () => onOpenNewBooking(currentDateStr, slot, { capacityOverride: true })
+                : undefined
+            }
           />
         </div>
 

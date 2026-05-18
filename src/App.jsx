@@ -696,6 +696,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
                   initialHumanId={showNewBooking.initialHumanId}
+                  initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
                   sourceConversationId={showNewBooking.sourceConversationId}
                   sourceMessageText={showNewBooking.sourceMessageText}
                   ownerName={showNewBooking.ownerName}

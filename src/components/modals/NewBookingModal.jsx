@@ -24,6 +24,11 @@ export function NewBookingModal({
   initialDateStr,
   initialSlot,
   initialHumanId,
+  // When true, saveBooking skips the over-capacity ConfirmDialog and
+  // stamps staff_capacity_override on every booking object from the
+  // first attempt. Set by the day-view's time-click flow, which has
+  // already shown its own override confirm dialog upstream.
+  initialStaffCapacityOverride = false,
   sourceConversationId,
   sourceMessageText,
   ownerName,
@@ -275,9 +280,13 @@ export function NewBookingModal({
   };
 
   const saveBooking = () => {
-    const outcome = buildBookingsForOverride(false);
+    // initialStaffCapacityOverride short-circuits the in-modal popup: the
+    // day-view already asked "this slot is full, override and book?" and
+    // the user confirmed. Going straight to capacity-override mode avoids
+    // a second confirm.
+    const outcome = buildBookingsForOverride(initialStaffCapacityOverride);
     if (outcome.error) {
-      if (isCapacityRejection(outcome.error)) {
+      if (!initialStaffCapacityOverride && isCapacityRejection(outcome.error)) {
         setPendingCapacityOverride({ reason: outcome.error, targetDateStr: outcome.targetDateStr });
         return;
       }
