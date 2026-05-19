@@ -97,6 +97,7 @@ export function HumanCardModal({
   bookingsByDate,
   fetchHumanById,
   findHumanByFullName,
+  searchHumansByTerm,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -245,6 +246,24 @@ export function HumanCardModal({
     setEditHistoryFlag(human.historyFlag || "");
     setIsEditing(false);
   };
+
+  // Server-side fallback for humans past the paginated PAGE_SIZE=50
+  // window — see the DogCardModal copy of this effect for context.
+  useEffect(() => {
+    const query = trustedSearchQuery.trim();
+    if (!query || !searchHumansByTerm) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      if (cancelled) return;
+      searchHumansByTerm(query).catch((err) => {
+        console.error("trusted-human server search failed:", err);
+      });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [trustedSearchQuery, searchHumansByTerm]);
 
   const trustedSearchResults = useMemo(() => {
     if (!trustedSearchQuery.trim()) return [];

@@ -897,6 +897,59 @@ export function useHumans() {
     [],
   );
 
+  // Inline server-side search for the trusted-human pickers (the
+  // "Search by name or phone…" inputs on the dog and human modals).
+  // Those pickers previously filtered Object.values(humans) only, which
+  // is paginated at PAGE_SIZE=50 — anyone past the page boundary was
+  // invisible. We hydrate matches into the local map so the existing
+  // memoised filter picks them up on the next render, and so the
+  // subsequent `updateHuman` lookup can resolve them by id without
+  // hitting the stale-closure miss in `findHumanByIdOrName`.
+  const searchHumansByTerm = useCallback(async (query: string) => {
+    const trimmed = (query || "").trim();
+    if (!trimmed || !supabase) return [];
+
+    const likeTerm = `%${trimmed}%`;
+    const [nameResult, surnameResult, phoneResult] = await Promise.all([
+      supabase.from("humans").select("*").ilike("name", likeTerm).limit(10),
+      supabase.from("humans").select("*").ilike("surname", likeTerm).limit(10),
+      supabase.from("humans").select("*").ilike("phone", likeTerm).limit(10),
+    ]);
+
+    const seen = new Set<string>();
+    const rows: any[] = [];
+    for (const data of [nameResult.data, surnameResult.data, phoneResult.data]) {
+      for (const row of data || []) {
+        if (!row?.id || seen.has(row.id)) continue;
+        seen.add(row.id);
+        rows.push(row);
+      }
+    }
+    if (rows.length === 0) return [];
+
+    const additionsById: Record<string, any> = {};
+    const additionsByName: Record<string, any> = {};
+    const entries: any[] = [];
+    for (const row of rows) {
+      const entry = buildHumanMapEntry(row);
+      entries.push(entry);
+      additionsById[row.id] = entry;
+      additionsByName[entry.fullName || row.id] = entry;
+    }
+    setHumansById((prev) => ({ ...prev, ...additionsById }));
+    setHumans((prev) => {
+      // Drop any stale UUID-keyed entries first — same pattern as
+      // ensureHumansByIds, keeps the map name-keyed.
+      const next: Record<string, any> = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (!additionsById[k]) next[k] = v;
+      }
+      return { ...next, ...additionsByName };
+    });
+
+    return entries;
+  }, []);
+
   // Bulk-load any humans referenced by ids that aren't yet in the
   // local map. The /dogs and /bookings pages can show records owned
   // by humans whose row sits past the current humans pagination
@@ -985,6 +1038,7 @@ export function useHumans() {
     deleteHuman,
     fetchHumanById,
     findHumanByFullName,
+    searchHumansByTerm,
     ensureHumansByIds,
     hasMore,
     totalCount,

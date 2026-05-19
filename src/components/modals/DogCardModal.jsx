@@ -40,6 +40,7 @@ export function DogCardModal({
   fetchDogById,
   handleAdd,
   findHumanByFullName,
+  searchHumansByTerm,
 }) {
   const [pendingDelete, setPendingDelete] = useState(false);
   // Placeholder used while fetchDogById is in flight. `name: ""` instead
@@ -189,6 +190,27 @@ export function DogCardModal({
   const [newTrustedRelationship, setNewTrustedRelationship] = useState("");
 
   const trustedContacts = owner?.trustedContacts || [];
+
+  // Server-side fallback: humans past the paginated page boundary (50)
+  // aren't in the local map, so a name/phone the user knows about may
+  // not surface in the dropdown. We hit the DB whenever the query
+  // changes, debounced, and let the helper fold matches into the local
+  // humans state — the memo below then includes them naturally.
+  useEffect(() => {
+    const query = trustedSearchQuery.trim();
+    if (!query || !searchHumansByTerm) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      if (cancelled) return;
+      searchHumansByTerm(query).catch((err) => {
+        console.error("trusted-human server search failed:", err);
+      });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [trustedSearchQuery, searchHumansByTerm]);
 
   const trustedSearchResults = useMemo(() => {
     if (!trustedSearchQuery.trim()) return [];
