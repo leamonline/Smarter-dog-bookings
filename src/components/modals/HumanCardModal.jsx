@@ -96,6 +96,7 @@ export function HumanCardModal({
   onDeleteHuman,
   bookingsByDate,
   fetchHumanById,
+  findHumanByFullName,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -313,6 +314,37 @@ export function HumanCardModal({
       return;
     }
     const relationship = (newTrustedRelationship || "").trim();
+    const linkAsTrusted = async (trustedHuman, successMessage) => {
+      const myId = human.id || humanId;
+      const currentContacts = human.trustedContacts || [];
+      await onUpdateHuman(myId, {
+        trustedContacts: [
+          ...currentContacts,
+          { id: trustedHuman.id, relationship },
+        ],
+      });
+      try {
+        const theirContacts = trustedHuman.trustedContacts || [];
+        if (!theirContacts.some((c) => c.id === myId || c.fullName === humanFullName)) {
+          await onUpdateHuman(trustedHuman.id, {
+            trustedContacts: [
+              ...theirContacts,
+              { id: myId, relationship: "" },
+            ],
+          });
+        }
+      } catch {
+        console.error("Failed to add bidirectional trust for new human");
+      }
+      setShowNewTrustedForm(false);
+      setNewTrustedName("");
+      setNewTrustedSurname("");
+      setNewTrustedPhone("");
+      setNewTrustedRelationship("");
+      setShowTrustedSearch(false);
+      toast.show(successMessage, "success");
+    };
+
     try {
       const result = await onAddHuman({
         name: newTrustedName.trim(),
@@ -321,28 +353,34 @@ export function HumanCardModal({
       });
       const newId = result?.id || result?.[0]?.id;
       if (newId) {
-        const myId = human.id || humanId;
-        const currentContacts = human.trustedContacts || [];
-        await onUpdateHuman(myId, {
-          trustedContacts: [...currentContacts, { id: newId, relationship }],
-        });
-        try {
-          await onUpdateHuman(newId, {
-            trustedContacts: [{ id: myId, relationship: "" }],
-          });
-        } catch {
-          console.error("Failed to add bidirectional trust for new human");
-        }
+        await linkAsTrusted(result, "Trusted human added");
       }
-      setShowNewTrustedForm(false);
-      setNewTrustedName("");
-      setNewTrustedSurname("");
-      setNewTrustedPhone("");
-      setNewTrustedRelationship("");
-      setShowTrustedSearch(false);
-      toast.show("Trusted human added", "success");
     } catch (err) {
       console.error("Failed to create new trusted human:", err);
+      // Mirror DogCardModal: the unique constraint on (name, surname)
+      // fires when the directory already has a row with this name. Look
+      // it up server-side and link the existing record instead of
+      // failing the user out.
+      const isDuplicate =
+        typeof err?.message === "string" && err.message.includes("already exists");
+      if (isDuplicate && findHumanByFullName) {
+        try {
+          const existing = await findHumanByFullName(
+            newTrustedName.trim(),
+            newTrustedSurname.trim(),
+          );
+          if (existing) {
+            await linkAsTrusted(
+              existing,
+              `Linked existing ${existing.fullName} as trusted human`,
+            );
+            return;
+          }
+        } catch (lookupErr) {
+          console.error("findHumanByFullName failed:", lookupErr);
+        }
+      }
+      toast.show(err?.message || "Could not add trusted human.", "error");
     }
   };
 

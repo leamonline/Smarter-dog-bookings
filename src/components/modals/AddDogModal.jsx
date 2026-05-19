@@ -98,11 +98,18 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     if (showNewOwner) {
       setSubmitting(true);
       setFieldErrors({});
-      const newHuman = await onAddHuman({
-        name: newOwnerName.trim(),
-        surname: newOwnerSurname.trim(),
-        phone: newOwnerPhone.trim(),
-      });
+      let newHuman;
+      try {
+        newHuman = await onAddHuman({
+          name: newOwnerName.trim(),
+          surname: newOwnerSurname.trim(),
+          phone: newOwnerPhone.trim(),
+        });
+      } catch (err) {
+        setSubmitting(false);
+        setFieldErrors({ owner: err?.message || "Failed to create new owner." });
+        return;
+      }
       if (!newHuman) {
         setSubmitting(false);
         setFieldErrors({ owner: "Failed to create new owner." });

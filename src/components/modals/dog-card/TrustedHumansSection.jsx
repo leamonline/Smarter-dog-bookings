@@ -107,7 +107,13 @@ export function TrustedHumansSection({
         </div>
       )}
 
-      {isEditing && onUpdateHuman && (
+      {isEditing && onUpdateHuman && !owner && (
+        <div className="text-xs text-slate-500 italic py-2 mt-1">
+          Set an owner on this dog before adding a trusted human.
+        </div>
+      )}
+
+      {isEditing && onUpdateHuman && owner && (
         <>
           <button
             onClick={() => setShowTrustedSearch(!showTrustedSearch)}

@@ -715,7 +715,7 @@ export function useHumans() {
           ? `${fullName} already exists. Please use a different name.`
           : insertErr.message;
         setError(msg);
-        return null;
+        throw new Error(msg);
       }
 
       const savedHuman = buildHumanMapEntry(data);
@@ -732,8 +732,9 @@ export function useHumans() {
       return savedHuman;
     } catch (err: any) {
       console.error("addHuman threw:", err);
-      setError(err?.message || "Failed to add human. Please try again.");
-      return null;
+      const msg = err?.message || "Failed to add human. Please try again.";
+      setError((prev) => prev || msg);
+      throw err instanceof Error ? err : new Error(msg);
     }
   }, []);
 
@@ -820,6 +821,80 @@ export function useHumans() {
       return entry;
     },
     [humans, humansById],
+  );
+
+  // Look a human up by their (name, surname) pair. Used as a fallback
+  // when the trusted-human "+ Add new human" form hits the unique
+  // constraint on (name, surname): the existing row may sit past the
+  // paginated humans window, so the local search never surfaced it.
+  // We need a direct DB lookup to find them and link them as trusted
+  // without forcing the user to scroll a 200-row directory.
+  //
+  // Also hydrates their existing trustedContacts — updateHuman
+  // replaces (not merges) the trusted-contacts join rows when called
+  // with a `trustedContacts` payload, so callers need the full list
+  // to add to, not an empty stub.
+  const findHumanByFullName = useCallback(
+    async (name: string, surname: string) => {
+      const trimmedName = (name || "").trim();
+      const trimmedSurname = (surname || "").trim();
+      if (!trimmedName || !trimmedSurname || !supabase) return null;
+
+      const { data, error: err } = await supabase
+        .from("humans")
+        .select("*")
+        .ilike("name", trimmedName)
+        .ilike("surname", trimmedSurname)
+        .limit(1)
+        .maybeSingle();
+
+      if (err || !data) return null;
+
+      const entry: any = buildHumanMapEntry(data);
+
+      const { data: trustedRows } = await supabase
+        .from("human_trusted_contacts")
+        .select("trusted_id, relationship")
+        .eq("human_id", data.id);
+
+      if (trustedRows && trustedRows.length > 0) {
+        const trustedIds = trustedRows.map((row: any) => row.trusted_id).filter(Boolean);
+        const { data: trustedHumans } = await supabase
+          .from("humans")
+          .select("id, name, surname")
+          .in("id", trustedIds);
+        const byId: Record<string, { fullName: string }> = {};
+        for (const h of trustedHumans || []) {
+          const cleanName = sanitiseFieldValue(h.name);
+          const cleanSurname = sanitiseFieldValue(h.surname);
+          const fullName =
+            cleanName && cleanSurname ? `${cleanName} ${cleanSurname}` : cleanName || cleanSurname || "";
+          byId[h.id] = { fullName };
+        }
+        const trustedContacts: { id: string; fullName: string; relationship: string }[] = [];
+        for (const row of trustedRows) {
+          const th = byId[row.trusted_id];
+          if (!th?.fullName) continue;
+          trustedContacts.push({
+            id: row.trusted_id,
+            fullName: th.fullName,
+            relationship: row.relationship || "",
+          });
+        }
+        entry.trustedContacts = trustedContacts;
+        entry.trustedIds = trustedContacts.map((c) => c.fullName);
+      }
+
+      setHumansById((prev) => ({ ...prev, [data.id]: entry }));
+      setHumans((prev) => {
+        const next: Record<string, any> = { ...prev };
+        delete next[data.id];
+        next[entry.fullName || data.id] = entry;
+        return next;
+      });
+      return entry;
+    },
+    [],
   );
 
   // Bulk-load any humans referenced by ids that aren't yet in the
@@ -909,6 +984,7 @@ export function useHumans() {
     addHuman,
     deleteHuman,
     fetchHumanById,
+    findHumanByFullName,
     ensureHumansByIds,
     hasMore,
     totalCount,
