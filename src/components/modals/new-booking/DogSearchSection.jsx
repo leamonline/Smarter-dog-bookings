@@ -52,15 +52,6 @@ export function DogSearchSection({
     ).slice(0, 8);
   }, [dogs, humans, hasDogs, dogQuery]);
 
-  const nameCounts = useMemo(() => {
-    const counts = {};
-    for (const entry of filteredEntries) {
-      const k = (entry.dog.name || "").toLowerCase();
-      counts[k] = (counts[k] || 0) + 1;
-    }
-    return counts;
-  }, [filteredEntries]);
-
   // Same owner's other dogs for "add another" picker
   const sameOwnerDogs = useMemo(() => {
     if (!selectedHumanKey) return [];
@@ -259,14 +250,6 @@ export function DogSearchSection({
                       className="flex items-center gap-1.5 min-w-0 mb-1.5 w-full text-left bg-transparent border-none cursor-pointer p-0 font-[inherit] rounded-md transition-colors hover:bg-slate-50"
                     >
                       <span className="text-sm font-bold text-slate-800">{titleCase(entry.dog.name)}</span>
-                      {nameCounts[(entry.dog.name || "").toLowerCase()] > 1 && (
-                        <span
-                          className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full"
-                          aria-label={`${nameCounts[(entry.dog.name || "").toLowerCase()]} dogs share this name`}
-                        >
-                          {nameCounts[(entry.dog.name || "").toLowerCase()]}×
-                        </span>
-                      )}
                       <span className="text-xs text-slate-400">—</span>
                       <span className="text-xs text-slate-500">{titleCase(entry.dog.breed)}</span>
                       {entry.hasAlerts && <span className="text-[13px]" aria-label="Has alerts">⚠️</span>}

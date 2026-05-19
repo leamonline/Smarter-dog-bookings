@@ -1,12 +1,123 @@
 import { useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { supabase } from "../../supabase/client.js";
+import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 
 // Cloudflare's published test key — always passes, no real challenge.
 // Supabase accepts it when the project's Turnstile secret key is also the
 // matching test secret (0x4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA).
 const TURNSTILE_SITE_KEY =
   import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
+
+// Page background + silhouette scatter are intentionally kept in sync with
+// CustomerLoginPage.jsx so the customer and staff entry points read as one
+// brand surface. If you tweak the decoration here, mirror it there.
+const pageBackground =
+  "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.15), transparent 70%), " +
+  "radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%), " +
+  "var(--sd-paper)";
+
+const SILHOUETTE_SCATTER = [
+  { top: "-4%",  left: "-6%",  size: 130, rot: -18, color: "var(--sd-navy)",        opacity: 0.07 },
+  { top: "12%",  left: "82%",  size: 70,  rot:  22, color: "var(--sd-yellow)",      opacity: 0.18 },
+  { top: "30%",  left: "-8%",  size: 90,  rot:  12, color: "var(--sd-cyan-dark)",   opacity: 0.07 },
+  { top: "44%",  left: "88%",  size: 50,  rot: -28, color: "var(--sd-coral)",       opacity: 0.12 },
+  { top: "58%",  left: "8%",   size: 60,  rot:  35, color: "var(--sd-yellow-dark)", opacity: 0.10 },
+  { top: "70%",  left: "70%",  size: 110, rot:  -8, color: "var(--sd-navy-soft)",   opacity: 0.06 },
+  { top: "88%",  left: "18%",  size: 75,  rot:  18, color: "var(--sd-cyan-dark)",   opacity: 0.09 },
+  { top: "92%",  left: "82%",  size: 55,  rot: -14, color: "var(--sd-yellow)",      opacity: 0.13 },
+];
+const SILHOUETTE_URL = "/images/dog-silhouette.png";
+
+function DogSilhouetteScatter() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {SILHOUETTE_SCATTER.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: "absolute",
+            top: s.top,
+            left: s.left,
+            width: s.size,
+            height: s.size,
+            transform: `rotate(${s.rot}deg)`,
+            opacity: s.opacity,
+            backgroundColor: s.color,
+            WebkitMaskImage: `url(${SILHOUETTE_URL})`,
+            maskImage: `url(${SILHOUETTE_URL})`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+const focusRing =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--sd-navy)]";
+
+const kickerClass =
+  "font-bold text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-light)]";
+
+// Tailwind stand-ins for portal-input / portal-alert--error from
+// customer-portal.css, which isn't loaded on the staff app.
+const fieldInputClass =
+  "w-full px-4 py-3 min-h-[52px] rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] bg-white " +
+  "text-base text-[var(--sd-navy)] placeholder:text-slate-400 placeholder:font-medium " +
+  "outline-none transition-colors focus:border-[var(--sd-navy)] " + focusRing;
+
+const alertErrorClass =
+  "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-[13px] leading-[1.45] " +
+  "bg-[var(--sd-coral-tint)] text-[#B83A4F] border border-[rgba(231,84,108,0.30)]";
+
+// Yellow CTA matches the customer portal — primary, non-booking action.
+const submitButtonClass =
+  "w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--sd-yellow)] text-[var(--sd-navy)] " +
+  "hover:bg-[var(--sd-yellow-dark)] disabled:opacity-70 transition-colors " + focusRing;
+
+const linkButtonClass =
+  "w-full text-sm font-semibold rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 " +
+  "bg-transparent border-none cursor-pointer " + focusRing;
+
+function PortalShell({ children }) {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
+      style={{ background: pageBackground }}
+    >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
+        <DogSilhouetteScatter />
+        <div className="relative">
+          <div className="flex justify-center mb-4">
+            <img
+              src="/logo.png"
+              alt="Smarter Dog Grooming Salon"
+              className="h-[72px] w-auto select-none"
+              draggable={false}
+            />
+          </div>
+          <p className={`${kickerClass} text-center mb-5`} style={{ letterSpacing: "0.12em" }}>
+            Staff portal
+          </p>
+          {children}
+        </div>
+      </div>
+      <a
+        href="https://smarterdog.co.uk"
+        className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}
+      >
+        <span aria-hidden="true" className="transition-transform group-hover:-translate-x-1">←</span>
+        Back to Smarter Dog website
+      </a>
+    </div>
+  );
+}
 
 /**
  * Staff login page — sign-in only.
@@ -20,14 +131,12 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Forgot password
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSending, setResetSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState("");
 
-  // Captcha tokens — separate widgets per form, refs to avoid re-renders.
   const signInCaptchaRef = useRef(null);
   const signInTurnstileRef = useRef(null);
   const resetCaptchaRef = useRef(null);
@@ -35,7 +144,10 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!resetEmail.trim()) { setResetError("Please enter your email address."); return; }
+    if (!resetEmail.trim()) {
+      setResetError("Please enter your email address.");
+      return;
+    }
     setResetSending(true);
     setResetError("");
     const captchaToken = resetCaptchaRef.current;
@@ -81,117 +193,49 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
   if (isOffline) {
     return (
-      <div className="max-w-[400px] mx-auto mt-20 px-5 font-sans">
-        <div className="text-center mb-8">
-          <div className="text-[28px] font-display font-bold text-brand-purple">
-            Smarter<span className="text-brand-yellow">Dog</span>
-          </div>
-          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
-        </div>
-        <div className="bg-amber-50 border border-amber-400 rounded-xl p-5 text-center">
-          <div className="text-[15px] font-bold text-amber-800 mb-2">Offline Mode</div>
-          <div className="text-[13px] text-amber-800">
-            Supabase is not configured. The app will run with sample data and no authentication.
-          </div>
-        </div>
-      </div>
+      <PortalShell>
+        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+          <span className="relative inline-block">
+            Offline mode
+            <ScribbleUnderline />
+          </span>
+        </h1>
+        <p className="text-sm text-center text-[var(--sd-ink-light)] leading-relaxed">
+          Supabase isn't configured, so the app is running with sample data and no authentication.
+        </p>
+      </PortalShell>
     );
   }
 
-  return (
-    <div className="max-w-[400px] mx-auto mt-20 px-5 font-sans">
-      <div className="text-center mb-8">
-        <div className="text-[28px] font-display font-bold text-brand-purple">
-          Smarter<span className="text-brand-yellow">Dog</span>
+  const errorText = localError || error;
+
+  // Sign-in (default) view
+  if (!forgotMode) {
+    return (
+      <PortalShell>
+        <div aria-live="polite">
+          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+            <span className="relative inline-block">
+              Hello again
+              <ScribbleUnderline />
+            </span>
+          </h1>
+          <p className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
+            Sign in to start the day.
+          </p>
         </div>
-        <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
-      </div>
 
-      <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-        <div className="text-lg font-extrabold text-brand-purple mb-1">Hello again</div>
-        <div className="text-[13px] text-slate-500 mb-5">Sign in to start the day.</div>
-
-        {/* Forgot password mode */}
-        {forgotMode && (
-          <div className="mb-5">
-            {resetSent ? (
-              <div className="text-center">
-                <div className="text-[32px] mb-2.5">{"\uD83D\uDCE7"}</div>
-                <div className="text-[15px] font-bold text-slate-800 mb-1.5">Check your inbox</div>
-                <div className="text-[13px] text-slate-500 mb-4">
-                  We've sent a password reset link to <strong>{resetEmail}</strong>.
-                </div>
-                <button
-                  onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
-                  className="text-[13px] text-brand-cyan bg-transparent border-none cursor-pointer font-semibold"
-                >
-                  {"\u2190"} Back to sign in
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
-                <div className="text-[15px] font-bold text-slate-800 mb-0.5">Reset your password</div>
-                <div className="text-[13px] text-slate-500 mb-1">
-                  Enter your email and we'll send you a reset link.
-                </div>
-                <label htmlFor="reset-email" className="sr-only">Email address</label>
-                <input
-                  id="reset-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={resetEmail}
-                  onChange={e => { setResetEmail(e.target.value); setResetError(""); }}
-                  placeholder="you@smarterdog.co.uk"
-                  className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
-                  autoFocus
-                />
-                {resetError && (
-                  <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
-                    {resetError}
-                  </div>
-                )}
-                <Turnstile
-                  ref={resetTurnstileRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => { resetCaptchaRef.current = token; }}
-                  onExpire={() => { resetCaptchaRef.current = null; }}
-                  onError={() => { resetCaptchaRef.current = null; }}
-                  options={{ theme: "light", size: "normal" }}
-                />
-                <button
-                  type="submit"
-                  disabled={resetSending}
-                  className={`w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] ${
-                    resetSending
-                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
-                  }`}
-                >
-                  {resetSending ? "Just a sec\u2026" : "Send reset link"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setForgotMode(false); setResetError(""); setResetEmail(""); }}
-                  className="text-[13px] text-slate-500 bg-transparent border-none cursor-pointer text-center"
-                >
-                  {"\u2190"} Back to sign in
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-
-        {/* Sign in form */}
-        {!forgotMode && <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-3"
+        <div
+          role="alert"
+          aria-live="assertive"
+          className={errorText ? `${alertErrorClass} mb-6` : "sr-only"}
         >
+          {errorText}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label
-              htmlFor="staff-email"
-              className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5"
-            >
+            <label htmlFor="staff-email" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
               Email
             </label>
             <input
@@ -202,15 +246,12 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={email}
               onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
               placeholder="you@smarterdog.co.uk"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
+              className={fieldInputClass}
               autoFocus
             />
           </div>
           <div>
-            <label
-              htmlFor="staff-password"
-              className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5"
-            >
+            <label htmlFor="staff-password" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
               Password
             </label>
             <input
@@ -221,52 +262,158 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
               placeholder="Min. 12 characters"
-              className="w-full py-3 px-4 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
+              className={fieldInputClass}
             />
           </div>
 
-          {(localError || error) && (
-            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
-              {localError || error}
+          <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+            <p className={`${kickerClass} text-center mb-3`}>
+              Quick security check
+            </p>
+            <div className="flex justify-center">
+              <Turnstile
+                ref={signInTurnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={(token) => { signInCaptchaRef.current = token; }}
+                onExpire={() => { signInCaptchaRef.current = null; }}
+                onError={() => { signInCaptchaRef.current = null; }}
+                options={{ theme: "light", size: "normal" }}
+              />
             </div>
-          )}
-
-          <Turnstile
-            ref={signInTurnstileRef}
-            siteKey={TURNSTILE_SITE_KEY}
-            onSuccess={(token) => { signInCaptchaRef.current = token; }}
-            onExpire={() => { signInCaptchaRef.current = null; }}
-            onError={() => { signInCaptchaRef.current = null; }}
-            options={{ theme: "light", size: "normal" }}
-          />
+            <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+              Just confirms you&apos;re human — no clicks needed.
+            </p>
+          </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className={`w-full py-3 rounded-full border-none text-sm font-bold font-[inherit] transition-all mt-1 ${
-              submitting
-                ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-action text-on-action cursor-pointer hover:bg-brand-yellow-dark"
-            }`}
+            aria-busy={submitting}
+            className={submitButtonClass}
+            style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
           >
-            {submitting ? "Just a sec\u2026" : "Sign in"}
+            {submitting ? "Just a sec…" : "Sign in"}
           </button>
 
           <button
             type="button"
             onClick={() => { setForgotMode(true); setLocalError(""); setResetEmail(email); }}
-            className="bg-transparent border-none text-slate-500 text-[13px] cursor-pointer text-center py-1 font-[inherit]"
+            className={linkButtonClass}
           >
             Forgot password?
           </button>
-        </form>}
+        </form>
 
-        <div className="mt-5 py-3 px-3.5 bg-slate-200 rounded-lg">
-          <div className="text-xs text-slate-500 leading-relaxed">
-            <strong className="text-slate-800">Need an account?</strong> Ask the salon owner to add your email in Supabase Auth, then use the password reset link to set your password.
+        <div className="mt-6 rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-3">
+          <p className="text-[12px] text-[var(--sd-navy-soft)] leading-relaxed">
+            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to add your email in Supabase Auth, then use the password reset link to set your password.
+          </p>
+        </div>
+      </PortalShell>
+    );
+  }
+
+  // Forgot-password — request sent confirmation
+  if (resetSent) {
+    return (
+      <PortalShell>
+        <div aria-live="polite">
+          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+            <span className="relative inline-block">
+              Check your inbox
+              <ScribbleUnderline />
+            </span>
+          </h1>
+          <p className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
+            We've sent a password reset link to{" "}
+            <strong className="text-[var(--sd-navy)]">{resetEmail}</strong>.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
+          className={linkButtonClass}
+        >
+          ← Back to sign in
+        </button>
+      </PortalShell>
+    );
+  }
+
+  // Forgot-password — request form
+  return (
+    <PortalShell>
+      <div aria-live="polite">
+        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
+          <span className="relative inline-block">
+            Reset your password
+            <ScribbleUnderline />
+          </span>
+        </h1>
+        <p className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
+          Enter your email and we'll send you a reset link.
+        </p>
+      </div>
+
+      <div
+        role="alert"
+        aria-live="assertive"
+        className={resetError ? `${alertErrorClass} mb-6` : "sr-only"}
+      >
+        {resetError}
+      </div>
+
+      <form onSubmit={handleResetPassword} className="space-y-6">
+        <div>
+          <label htmlFor="reset-email" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+            Email
+          </label>
+          <input
+            id="reset-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={resetEmail}
+            onChange={(e) => { setResetEmail(e.target.value); setResetError(""); }}
+            placeholder="you@smarterdog.co.uk"
+            className={fieldInputClass}
+            autoFocus
+          />
+        </div>
+
+        <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+          <p className={`${kickerClass} text-center mb-3`}>
+            Quick security check
+          </p>
+          <div className="flex justify-center">
+            <Turnstile
+              ref={resetTurnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onSuccess={(token) => { resetCaptchaRef.current = token; }}
+              onExpire={() => { resetCaptchaRef.current = null; }}
+              onError={() => { resetCaptchaRef.current = null; }}
+              options={{ theme: "light", size: "normal" }}
+            />
           </div>
         </div>
-      </div>
-    </div>
+
+        <button
+          type="submit"
+          disabled={resetSending}
+          aria-busy={resetSending}
+          className={submitButtonClass}
+          style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
+        >
+          {resetSending ? "Just a sec…" : "Send reset link"}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setForgotMode(false); setResetError(""); setResetEmail(""); }}
+          className={linkButtonClass}
+        >
+          ← Back to sign in
+        </button>
+      </form>
+    </PortalShell>
   );
 }
