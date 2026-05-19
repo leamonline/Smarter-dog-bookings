@@ -7,6 +7,10 @@
     <circle cx="444" cy="260" r="34" fill="#F7F9FB"/>
     <circle cx="568" cy="260" r="34" fill="#F7F9FB"/>
     <circle cx="694" cy="260" r="34" fill="#F7F9FB"/>
+    <rect x="302" y="166" width="37" height="118" rx="18.5" fill="#0D2A44"/>
+    <rect x="425" y="166" width="37" height="118" rx="18.5" fill="#0D2A44"/>
+    <rect x="550" y="166" width="37" height="118" rx="18.5" fill="#0D2A44"/>
+    <rect x="675" y="166" width="37" height="118" rx="18.5" fill="#0D2A44"/>
     <ellipse cx="454" cy="446" rx="39" ry="56" fill="#D8DEE5"/>
     <ellipse cx="560" cy="446" rx="39" ry="56" fill="#D8DEE5"/>
     <ellipse cx="381" cy="518" rx="39" ry="52" transform="rotate(-22 381 518)" fill="#D8DEE5"/>
