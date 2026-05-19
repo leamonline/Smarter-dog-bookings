@@ -24,9 +24,9 @@ const headerH = 200;
 
 // Spiral binding rings
 const ringCount = 4;
-const ringW = 86;                 // outer width of the eyelet
+const ringW = 82;                 // outer width of the eyelet
 const ringPostW = 54;             // black metal post width
-const ringTop = paperY - 116;     // top of the post above the page
+const ringTop = paperY - 114;     // top of the post above the page
 const ringPostBottom = paperY + 78;
 const ringSpacing = paperW / (ringCount + 1);
 
@@ -111,13 +111,14 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" wid
   <rect x="${paperX - 6}" y="${paperY + 26}" width="${paperW + 12}" height="${paperH}" rx="${paperR}" ry="${paperR}"
         fill="#0A1C70" opacity="0.5"/>
 
-  <!-- Three sheets stacked underneath the top page, each peeking out a few pixels at the bottom edge -->
+  <!-- Three sheets stacked underneath the top page, peeking out at the bottom edge.
+       Bigger Y offsets so each layer is clearly visible as a sliver. -->
+  <rect x="${paperX + 26}" y="${paperY + 32}" width="${paperW - 52}" height="${paperH}" rx="${paperR - 10}" ry="${paperR - 10}"
+        fill="#A8AEBC"/>
   <rect x="${paperX + 18}" y="${paperY + 22}" width="${paperW - 36}" height="${paperH}" rx="${paperR - 8}" ry="${paperR - 8}"
-        fill="#B7BCC8"/>
-  <rect x="${paperX + 12}" y="${paperY + 14}" width="${paperW - 24}" height="${paperH}" rx="${paperR - 6}" ry="${paperR - 6}"
-        fill="#D2D6DF"/>
-  <rect x="${paperX + 6}" y="${paperY + 8}" width="${paperW - 12}" height="${paperH}" rx="${paperR - 4}" ry="${paperR - 4}"
-        fill="#E8EBF1"/>
+        fill="#C8CCD7"/>
+  <rect x="${paperX + 10}" y="${paperY + 12}" width="${paperW - 20}" height="${paperH}" rx="${paperR - 6}" ry="${paperR - 6}"
+        fill="#E4E7EE"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->

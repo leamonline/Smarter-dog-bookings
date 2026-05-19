@@ -28,13 +28,14 @@
   <rect x="154" y="276" width="716" height="680" rx="36" ry="36"
         fill="#0A1C70" opacity="0.5"/>
 
-  <!-- Three sheets stacked underneath the top page, each peeking out a few pixels at the bottom edge -->
+  <!-- Three sheets stacked underneath the top page, peeking out at the bottom edge.
+       Bigger Y offsets so each layer is clearly visible as a sliver. -->
+  <rect x="186" y="282" width="652" height="680" rx="26" ry="26"
+        fill="#A8AEBC"/>
   <rect x="178" y="272" width="668" height="680" rx="28" ry="28"
-        fill="#B7BCC8"/>
-  <rect x="172" y="264" width="680" height="680" rx="30" ry="30"
-        fill="#D2D6DF"/>
-  <rect x="166" y="258" width="692" height="680" rx="32" ry="32"
-        fill="#E8EBF1"/>
+        fill="#C8CCD7"/>
+  <rect x="170" y="262" width="684" height="680" rx="30" ry="30"
+        fill="#E4E7EE"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->
@@ -107,116 +108,116 @@
   
   <g>
     <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="306.8" cy="362" rx="45" ry="9" fill="#7A5400" opacity="0.55"/>
+    <ellipse cx="306.8" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
 
     <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="300.8" cy="350" rx="43" ry="35" fill="#FFFFFF"/>
+    <ellipse cx="300.8" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
     <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="299.8" cy="349" rx="40" ry="32" fill="#E2E5EC"/>
+    <ellipse cx="299.8" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
     <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="300.8" cy="352" rx="33" ry="27" fill="#1A1306"/>
+    <ellipse cx="300.8" cy="352" rx="31" ry="25" fill="#1A1306"/>
 
     <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="273.8" y="134"
-          width="54" height="222"
+    <rect x="273.8" y="136"
+          width="54" height="220"
           rx="27" ry="27"
           fill="#181818"/>
 
     <!-- Right-edge specular highlight on the post -->
-    <rect x="315.8" y="150" width="6" height="129.6"
+    <rect x="315.8" y="152" width="6" height="128.4"
           rx="3" fill="#5E5E5E"/>
     <!-- Top cap highlight -->
-    <ellipse cx="296.8" cy="148" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="294.8" cy="144" rx="9" ry="3" fill="#B8B8B8"/>
+    <ellipse cx="296.8" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
+    <ellipse cx="294.8" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
     <!-- Left-edge subtle shadow on the post -->
-    <rect x="276.8" y="152" width="3" height="129.6"
+    <rect x="276.8" y="154" width="3" height="128.4"
           rx="1.5" fill="#000" opacity="0.5"/>
     <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
     <ellipse cx="300.8" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
     <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="447.6" cy="362" rx="45" ry="9" fill="#7A5400" opacity="0.55"/>
+    <ellipse cx="447.6" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
 
     <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="441.6" cy="350" rx="43" ry="35" fill="#FFFFFF"/>
+    <ellipse cx="441.6" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
     <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="440.6" cy="349" rx="40" ry="32" fill="#E2E5EC"/>
+    <ellipse cx="440.6" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
     <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="441.6" cy="352" rx="33" ry="27" fill="#1A1306"/>
+    <ellipse cx="441.6" cy="352" rx="31" ry="25" fill="#1A1306"/>
 
     <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="414.6" y="134"
-          width="54" height="222"
+    <rect x="414.6" y="136"
+          width="54" height="220"
           rx="27" ry="27"
           fill="#181818"/>
 
     <!-- Right-edge specular highlight on the post -->
-    <rect x="456.6" y="150" width="6" height="129.6"
+    <rect x="456.6" y="152" width="6" height="128.4"
           rx="3" fill="#5E5E5E"/>
     <!-- Top cap highlight -->
-    <ellipse cx="437.6" cy="148" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="435.6" cy="144" rx="9" ry="3" fill="#B8B8B8"/>
+    <ellipse cx="437.6" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
+    <ellipse cx="435.6" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
     <!-- Left-edge subtle shadow on the post -->
-    <rect x="417.6" y="152" width="3" height="129.6"
+    <rect x="417.6" y="154" width="3" height="128.4"
           rx="1.5" fill="#000" opacity="0.5"/>
     <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
     <ellipse cx="441.6" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
     <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="588.4000000000001" cy="362" rx="45" ry="9" fill="#7A5400" opacity="0.55"/>
+    <ellipse cx="588.4000000000001" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
 
     <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="582.4000000000001" cy="350" rx="43" ry="35" fill="#FFFFFF"/>
+    <ellipse cx="582.4000000000001" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
     <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="581.4000000000001" cy="349" rx="40" ry="32" fill="#E2E5EC"/>
+    <ellipse cx="581.4000000000001" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
     <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="582.4000000000001" cy="352" rx="33" ry="27" fill="#1A1306"/>
+    <ellipse cx="582.4000000000001" cy="352" rx="31" ry="25" fill="#1A1306"/>
 
     <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="555.4000000000001" y="134"
-          width="54" height="222"
+    <rect x="555.4000000000001" y="136"
+          width="54" height="220"
           rx="27" ry="27"
           fill="#181818"/>
 
     <!-- Right-edge specular highlight on the post -->
-    <rect x="597.4000000000001" y="150" width="6" height="129.6"
+    <rect x="597.4000000000001" y="152" width="6" height="128.4"
           rx="3" fill="#5E5E5E"/>
     <!-- Top cap highlight -->
-    <ellipse cx="578.4000000000001" cy="148" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="576.4000000000001" cy="144" rx="9" ry="3" fill="#B8B8B8"/>
+    <ellipse cx="578.4000000000001" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
+    <ellipse cx="576.4000000000001" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
     <!-- Left-edge subtle shadow on the post -->
-    <rect x="558.4000000000001" y="152" width="3" height="129.6"
+    <rect x="558.4000000000001" y="154" width="3" height="128.4"
           rx="1.5" fill="#000" opacity="0.5"/>
     <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
     <ellipse cx="582.4000000000001" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
     <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="729.2" cy="362" rx="45" ry="9" fill="#7A5400" opacity="0.55"/>
+    <ellipse cx="729.2" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
 
     <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="723.2" cy="350" rx="43" ry="35" fill="#FFFFFF"/>
+    <ellipse cx="723.2" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
     <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="722.2" cy="349" rx="40" ry="32" fill="#E2E5EC"/>
+    <ellipse cx="722.2" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
     <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="723.2" cy="352" rx="33" ry="27" fill="#1A1306"/>
+    <ellipse cx="723.2" cy="352" rx="31" ry="25" fill="#1A1306"/>
 
     <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="696.2" y="134"
-          width="54" height="222"
+    <rect x="696.2" y="136"
+          width="54" height="220"
           rx="27" ry="27"
           fill="#181818"/>
 
     <!-- Right-edge specular highlight on the post -->
-    <rect x="738.2" y="150" width="6" height="129.6"
+    <rect x="738.2" y="152" width="6" height="128.4"
           rx="3" fill="#5E5E5E"/>
     <!-- Top cap highlight -->
-    <ellipse cx="719.2" cy="148" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="717.2" cy="144" rx="9" ry="3" fill="#B8B8B8"/>
+    <ellipse cx="719.2" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
+    <ellipse cx="717.2" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
     <!-- Left-edge subtle shadow on the post -->
-    <rect x="699.2" y="152" width="3" height="129.6"
+    <rect x="699.2" y="154" width="3" height="128.4"
           rx="1.5" fill="#000" opacity="0.5"/>
     <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
     <ellipse cx="723.2" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
