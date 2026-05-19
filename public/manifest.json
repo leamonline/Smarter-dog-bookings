@@ -4,8 +4,8 @@
   "description": "Dog grooming salon booking and management dashboard",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1B40D9",
-  "theme_color": "#1B40D9",
+  "background_color": "#1F3DDD",
+  "theme_color": "#1F3DDD",
   "icons": [
     {
       "src": "/favicon.svg",
