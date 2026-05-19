@@ -133,6 +133,23 @@
   --radius-sd-pill: 9999px;
 }
 
+/* Shorthand aliases used by portal-style pages (customer login, staff login,
+   reset-password). These mirror the canonical --color-sd-* tokens above so
+   pages outside customer-portal.css can use the same names. */
+:root {
+  --sd-paper: var(--color-sd-paper);
+  --sd-navy: var(--color-sd-navy);
+  --sd-navy-soft: var(--color-sd-navy-soft);
+  --sd-ink-light: var(--color-sd-ink-light);
+  --sd-yellow: var(--color-sd-yellow);
+  --sd-yellow-dark: var(--color-sd-yellow-dark);
+  --sd-coral: var(--color-sd-coral);
+  --sd-cyan-dark: var(--color-sd-cyan-dark);
+  --sd-sky-tint: var(--color-sd-sky-tint);
+  --sd-buttercup-tint: var(--color-sd-buttercup-tint);
+  --sd-coral-tint: var(--color-sd-coral-tint);
+}
+
 /* ── Semantic tokens ──────────────────────────────────────────── */
 /* Mapped to match smarterdog.co.uk: mustard CTA on deep-purple ink.  */
 /* The raw --color-brand-cyan* tokens are still available as accents. */
