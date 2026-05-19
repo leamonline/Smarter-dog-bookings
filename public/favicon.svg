@@ -25,12 +25,16 @@
   <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1F3DDD"/>
 
   <!-- Paper drop shadow (soft, below + slightly right) -->
-  <rect x="154" y="274" width="716" height="680" rx="36" ry="36"
+  <rect x="154" y="276" width="716" height="680" rx="36" ry="36"
         fill="#0A1C70" opacity="0.5"/>
 
-  <!-- Second-page sliver underneath (suggests a small stack) -->
-  <rect x="168" y="262" width="688" height="680" rx="32" ry="32"
+  <!-- Three sheets stacked underneath the top page, each peeking out a few pixels at the bottom edge -->
+  <rect x="178" y="272" width="668" height="680" rx="28" ry="28"
+        fill="#B7BCC8"/>
+  <rect x="172" y="264" width="680" height="680" rx="30" ry="30"
         fill="#D2D6DF"/>
+  <rect x="166" y="258" width="692" height="680" rx="32" ry="32"
+        fill="#E8EBF1"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->
@@ -65,32 +69,39 @@
   </g>
   </g>
 
-  <!-- Page curl (drawn outside the clip so it overlaps the rounded corner) -->
-  <!-- Shadow cast on the page below the lifted corner -->
+  <!-- Page curl (drawn outside the clip so it overlaps the rounded corner). -->
+  <!-- Soft shadow cast on the page below the lifted corner -->
   <path d="
-    M 594 920
-    Q 774 954
-      868 680
-    L 886 684
-    Q 794 972
-      584 938
+    M 634 932
+    Q 784 952
+      868 712
+    L 886 716
+    Q 814 968
+      624 948
     Z" fill="#0A1C70" opacity="0.4"/>
 
   <!-- The exposed back of the peeled corner -->
   <path d="
-    M 614 926
-    L 860 680
-    Q 842 810
-      754 874
-    Q 674 912
-      614 926
+    M 654 928
+    L 862 720
+    Q 848 826
+      772 880
+    Q 710 912
+      654 928
     Z" fill="url(#paperBack)"/>
+
+  <!-- Inner crease highlight along the underside of the curl -->
+  <path d="
+    M 674 920
+    Q 804 908
+      852 740"
+    stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.55"/>
 
   <!-- Fold crease shadow along the hypotenuse -->
   <path d="
-    M 614 926
-    L 860 680"
-    stroke="#888E9C" stroke-width="2.5" fill="none" opacity="0.65"/>
+    M 654 928
+    L 862 720"
+    stroke="#7C8294" stroke-width="2.5" fill="none" opacity="0.65"/>
 
   <!-- Rings on top -->
   

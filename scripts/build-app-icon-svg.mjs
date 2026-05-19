@@ -108,12 +108,16 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" wid
   <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1F3DDD"/>
 
   <!-- Paper drop shadow (soft, below + slightly right) -->
-  <rect x="${paperX - 6}" y="${paperY + 24}" width="${paperW + 12}" height="${paperH}" rx="${paperR}" ry="${paperR}"
+  <rect x="${paperX - 6}" y="${paperY + 26}" width="${paperW + 12}" height="${paperH}" rx="${paperR}" ry="${paperR}"
         fill="#0A1C70" opacity="0.5"/>
 
-  <!-- Second-page sliver underneath (suggests a small stack) -->
-  <rect x="${paperX + 8}" y="${paperY + 12}" width="${paperW - 16}" height="${paperH}" rx="${paperR - 4}" ry="${paperR - 4}"
+  <!-- Three sheets stacked underneath the top page, each peeking out a few pixels at the bottom edge -->
+  <rect x="${paperX + 18}" y="${paperY + 22}" width="${paperW - 36}" height="${paperH}" rx="${paperR - 8}" ry="${paperR - 8}"
+        fill="#B7BCC8"/>
+  <rect x="${paperX + 12}" y="${paperY + 14}" width="${paperW - 24}" height="${paperH}" rx="${paperR - 6}" ry="${paperR - 6}"
         fill="#D2D6DF"/>
+  <rect x="${paperX + 6}" y="${paperY + 8}" width="${paperW - 12}" height="${paperH}" rx="${paperR - 4}" ry="${paperR - 4}"
+        fill="#E8EBF1"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->
@@ -134,32 +138,39 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" wid
     ${pawShapes(0.94, 0, 10, 'url(#pawFloor)', 1)}
   </g>
 
-  <!-- Page curl (drawn outside the clip so it overlaps the rounded corner) -->
-  <!-- Shadow cast on the page below the lifted corner -->
+  <!-- Page curl (drawn outside the clip so it overlaps the rounded corner). -->
+  <!-- Soft shadow cast on the page below the lifted corner -->
   <path d="
-    M ${paperX + paperW - 270} ${paperY + paperH - 10}
-    Q ${paperX + paperW - 90} ${paperY + paperH + 24}
-      ${paperX + paperW + 4} ${paperY + paperH - 250}
-    L ${paperX + paperW + 22} ${paperY + paperH - 246}
-    Q ${paperX + paperW - 70} ${paperY + paperH + 42}
-      ${paperX + paperW - 280} ${paperY + paperH + 8}
+    M ${paperX + paperW - 230} ${paperY + paperH + 2}
+    Q ${paperX + paperW - 80} ${paperY + paperH + 22}
+      ${paperX + paperW + 4} ${paperY + paperH - 218}
+    L ${paperX + paperW + 22} ${paperY + paperH - 214}
+    Q ${paperX + paperW - 50} ${paperY + paperH + 38}
+      ${paperX + paperW - 240} ${paperY + paperH + 18}
     Z" fill="#0A1C70" opacity="0.4"/>
 
   <!-- The exposed back of the peeled corner -->
   <path d="
-    M ${paperX + paperW - 250} ${paperY + paperH - 4}
-    L ${paperX + paperW - 4} ${paperY + paperH - 250}
-    Q ${paperX + paperW - 22} ${paperY + paperH - 120}
-      ${paperX + paperW - 110} ${paperY + paperH - 56}
-    Q ${paperX + paperW - 190} ${paperY + paperH - 18}
-      ${paperX + paperW - 250} ${paperY + paperH - 4}
+    M ${paperX + paperW - 210} ${paperY + paperH - 2}
+    L ${paperX + paperW - 2} ${paperY + paperH - 210}
+    Q ${paperX + paperW - 16} ${paperY + paperH - 104}
+      ${paperX + paperW - 92} ${paperY + paperH - 50}
+    Q ${paperX + paperW - 154} ${paperY + paperH - 18}
+      ${paperX + paperW - 210} ${paperY + paperH - 2}
     Z" fill="url(#paperBack)"/>
+
+  <!-- Inner crease highlight along the underside of the curl -->
+  <path d="
+    M ${paperX + paperW - 190} ${paperY + paperH - 10}
+    Q ${paperX + paperW - 60} ${paperY + paperH - 22}
+      ${paperX + paperW - 12} ${paperY + paperH - 190}"
+    stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.55"/>
 
   <!-- Fold crease shadow along the hypotenuse -->
   <path d="
-    M ${paperX + paperW - 250} ${paperY + paperH - 4}
-    L ${paperX + paperW - 4} ${paperY + paperH - 250}"
-    stroke="#888E9C" stroke-width="2.5" fill="none" opacity="0.65"/>
+    M ${paperX + paperW - 210} ${paperY + paperH - 2}
+    L ${paperX + paperW - 2} ${paperY + paperH - 210}"
+    stroke="#7C8294" stroke-width="2.5" fill="none" opacity="0.65"/>
 
   <!-- Rings on top -->
   ${rings}
