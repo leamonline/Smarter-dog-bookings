@@ -2,23 +2,35 @@
   <defs>
     <linearGradient id="paperGrad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#EEF1F6"/>
+      <stop offset="1" stop-color="#ECEFF4"/>
+    </linearGradient>
+    <linearGradient id="paperBack" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#C4C9D2"/>
+      <stop offset="0.4" stop-color="#E2E6ED"/>
+      <stop offset="1" stop-color="#F8F9FC"/>
     </linearGradient>
     <linearGradient id="yellowGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFCE36"/>
-      <stop offset="1" stop-color="#D69A0C"/>
+      <stop offset="0" stop-color="#FFD24A"/>
+      <stop offset="0.5" stop-color="#F5B81D"/>
+      <stop offset="1" stop-color="#C98E08"/>
     </linearGradient>
     <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2A52F0"/>
-      <stop offset="1" stop-color="#1430B0"/>
+      <stop offset="0" stop-color="#2E58F5"/>
+      <stop offset="1" stop-color="#142EB0"/>
     </linearGradient>
-    <radialGradient id="pawInset" cx="0.5" cy="0.4" r="0.7">
-      <stop offset="0" stop-color="#A9AEBC"/>
-      <stop offset="0.6" stop-color="#C5C9D2"/>
-      <stop offset="1" stop-color="#E6E8EE"/>
+    <radialGradient id="pawInset" cx="0.35" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#7E869B"/>
+      <stop offset="0.35" stop-color="#A6ACBC"/>
+      <stop offset="0.75" stop-color="#D4D8E0"/>
+      <stop offset="1" stop-color="#F0F2F6"/>
     </radialGradient>
+    <linearGradient id="pawRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
     <clipPath id="paperClip">
-      <rect x="160" y="240" width="704" height="660" rx="44" ry="44"/>
+      <rect x="150" y="270" width="724" height="660" rx="46" ry="46"/>
     </clipPath>
   </defs>
 
@@ -26,117 +38,197 @@
   <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="url(#blueGrad)"/>
 
   <!-- Paper drop shadow -->
-  <rect x="154" y="258" width="716" height="660" rx="44" ry="44"
+  <rect x="142" y="296" width="740" height="660" rx="46" ry="46"
         fill="#0A1C70" opacity="0.55"/>
+  <!-- Sliver of a second page underneath, suggesting a small stack -->
+  <rect x="156" y="282" width="712" height="660" rx="46" ry="46"
+        fill="#DCE0E9"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->
-    <rect x="160" y="240" width="704" height="660" fill="url(#paperGrad)"/>
+    <rect x="150" y="270" width="724" height="660" fill="url(#paperGrad)"/>
 
     <!-- Yellow top band -->
-    <rect x="160" y="240" width="704" height="170" fill="url(#yellowGrad)"/>
-    <!-- Shadow seam below the yellow band -->
-    <rect x="160" y="410" width="704" height="8" fill="#D69A0C" opacity="0.35"/>
-    <rect x="160" y="418" width="704" height="14" fill="#000" opacity="0.06"/>
+    <rect x="150" y="270" width="724" height="180" fill="url(#yellowGrad)"/>
+    <!-- Shadow seam below the yellow band onto the white -->
+    <rect x="150" y="450" width="724" height="6" fill="#A37207" opacity="0.55"/>
+    <rect x="150" y="456" width="724" height="24" fill="#000" opacity="0.08"/>
 
-    <!-- Debossed paw print: dark "depth" shape, then paper-colored hollow that sits inside it, then highlight rim -->
+    <!-- Debossed paw print: deep shadow → mid inset gradient → bright rim -->
     
-  <g transform="translate(516 689) scale(1)" fill="#9097A8" opacity="0.55">
-    <ellipse cx="0" cy="78" rx="118" ry="92"/>
-    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
-    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
-    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
-    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
+  <g transform="translate(524 736) scale(1)" fill="#3F465A" opacity="0.35">
+    <ellipse cx="0" cy="80" rx="128" ry="100"/>
+    <ellipse cx="-132" cy="-22" rx="48" ry="62" transform="rotate(-22 -132 -22)"/>
+    <ellipse cx="-46"  cy="-104" rx="44" ry="60"/>
+    <ellipse cx="46"   cy="-104" rx="44" ry="60"/>
+    <ellipse cx="132"  cy="-22" rx="48" ry="62" transform="rotate(22 132 -22)"/>
   </g>
     
-  <g transform="translate(512 683) scale(0.96)" fill="url(#pawInset)" opacity="1">
-    <ellipse cx="0" cy="78" rx="118" ry="92"/>
-    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
-    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
-    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
-    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
+  <g transform="translate(517 727) scale(1)" fill="#7E869B" opacity="0.55">
+    <ellipse cx="0" cy="80" rx="128" ry="100"/>
+    <ellipse cx="-132" cy="-22" rx="48" ry="62" transform="rotate(-22 -132 -22)"/>
+    <ellipse cx="-46"  cy="-104" rx="44" ry="60"/>
+    <ellipse cx="46"   cy="-104" rx="44" ry="60"/>
+    <ellipse cx="132"  cy="-22" rx="48" ry="62" transform="rotate(22 132 -22)"/>
   </g>
     
-  <g transform="translate(509 678) scale(0.92)" fill="#F5F6FA" opacity="0.9">
-    <ellipse cx="0" cy="78" rx="118" ry="92"/>
-    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
-    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
-    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
-    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
+  <g transform="translate(512 720) scale(0.97)" fill="url(#pawInset)" opacity="1">
+    <ellipse cx="0" cy="80" rx="128" ry="100"/>
+    <ellipse cx="-132" cy="-22" rx="48" ry="62" transform="rotate(-22 -132 -22)"/>
+    <ellipse cx="-46"  cy="-104" rx="44" ry="60"/>
+    <ellipse cx="46"   cy="-104" rx="44" ry="60"/>
+    <ellipse cx="132"  cy="-22" rx="48" ry="62" transform="rotate(22 132 -22)"/>
+  </g>
+    
+  <g transform="translate(508 714) scale(0.92)" fill="#F4F5F8" opacity="1">
+    <ellipse cx="0" cy="80" rx="128" ry="100"/>
+    <ellipse cx="-132" cy="-22" rx="48" ry="62" transform="rotate(-22 -132 -22)"/>
+    <ellipse cx="-46"  cy="-104" rx="44" ry="60"/>
+    <ellipse cx="46"   cy="-104" rx="44" ry="60"/>
+    <ellipse cx="132"  cy="-22" rx="48" ry="62" transform="rotate(22 132 -22)"/>
+  </g>
+    
+  <g transform="translate(509 710) scale(0.95)" fill="url(#pawRim)" opacity="0.85">
+    <ellipse cx="0" cy="80" rx="128" ry="100"/>
+    <ellipse cx="-132" cy="-22" rx="48" ry="62" transform="rotate(-22 -132 -22)"/>
+    <ellipse cx="-46"  cy="-104" rx="44" ry="60"/>
+    <ellipse cx="46"   cy="-104" rx="44" ry="60"/>
+    <ellipse cx="132"  cy="-22" rx="48" ry="62" transform="rotate(22 132 -22)"/>
+  </g>
   </g>
 
-    <!-- Page curl: the underside of the curling paper at the bottom-right corner -->
-    <!-- Shadow under the curl -->
-    <path d="
-      M 699 900
-      Q 794 870
-        864 735
-      L 864 900
-      Z"
-      fill="#9097A8" opacity="0.55"/>
-    <!-- The curled paper itself -->
-    <path d="
-      M 714 900
-      Q 814 840
-        864 750
-      Q 824 800
-        714 900
-      Z"
-      fill="#F5F6FA"/>
-  </g>
+  <!-- Page curl (outside the paper clip so it can extend past the rounded corner) -->
+  <!-- Shadow cast below the lifted corner -->
+  <path d="
+    M 614 936
+    Q 774 944
+      882 682
+    L 896 686
+    Q 794 962
+      604 954
+    Z" fill="#0A1C70" opacity="0.4"/>
+
+  <!-- The peeled corner itself: triangle from bottom-edge to right-edge,
+       with a curved inner edge representing the rolled paper. -->
+  <path d="
+    M 634 924
+    L 868 690
+    Q 844 800
+      764 870
+    Q 694 908
+      634 924
+    Z" fill="url(#paperBack)"/>
+
+  <!-- Crease/fold-line shadow -->
+  <path d="
+    M 634 924
+    L 868 690"
+    stroke="#9097A8" stroke-width="3" fill="none" opacity="0.55"/>
 
   <!-- Spiral rings on top -->
   
   <g>
-    <!-- Drop shadow -->
-    <rect x="275.8" y="148" width="56" height="160"
-          rx="28" fill="#0A1C70" opacity="0.55"/>
-    <!-- Ring body -->
-    <rect x="272.8" y="140" width="56" height="160"
-          rx="28" fill="#1A1A1A"/>
-    <!-- Specular highlight -->
-    <rect x="316.8" y="154" width="6" height="88"
-          rx="3" fill="#4A4A4A"/>
-    <!-- Inner highlight on top loop -->
-    <ellipse cx="300.8" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+    <!-- Drop shadow on the paper below the ring -->
+    <ellipse cx="298.8" cy="304" rx="36" ry="10" fill="#0A1C70" opacity="0.35"/>
+
+    <!-- Punched eyelet hole through the yellow header band -->
+    <ellipse cx="294.8" cy="348" rx="20" ry="14" fill="#8A5E03"/>
+    <ellipse cx="294.8" cy="346" rx="16" ry="10" fill="#3A2602"/>
+
+    <!-- The metal ring loop body. A tall vertical pill, rounded at top and bottom. -->
+    <rect x="262.8" y="130" width="64" height="162" rx="32" ry="32"
+          fill="#1A1A1A"/>
+
+    <!-- Inner shading to suggest the hollow loop / 3D form (darker centre) -->
+    <rect x="278.8" y="146" width="32" height="112"
+          rx="16" fill="#000" opacity="0.7"/>
+
+    <!-- Right-edge specular highlight -->
+    <rect x="314.8" y="148" width="6" height="97.2"
+          rx="3" fill="#5A5A5A"/>
+    <!-- Top cap highlight -->
+    <ellipse cx="288.8" cy="144" rx="14" ry="7" fill="#7A7A7A" opacity="0.95"/>
+    <!-- Bright top sliver -->
+    <ellipse cx="286.8" cy="140" rx="6" ry="3" fill="#B5B5B5" opacity="0.9"/>
+    <!-- Dark base shadow where ring enters page -->
+    <ellipse cx="294.8" cy="290" rx="28" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
-    <!-- Drop shadow -->
-    <rect x="416.6" y="148" width="56" height="160"
-          rx="28" fill="#0A1C70" opacity="0.55"/>
-    <!-- Ring body -->
-    <rect x="413.6" y="140" width="56" height="160"
-          rx="28" fill="#1A1A1A"/>
-    <!-- Specular highlight -->
-    <rect x="457.6" y="154" width="6" height="88"
-          rx="3" fill="#4A4A4A"/>
-    <!-- Inner highlight on top loop -->
-    <ellipse cx="441.6" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+    <!-- Drop shadow on the paper below the ring -->
+    <ellipse cx="443.6" cy="304" rx="36" ry="10" fill="#0A1C70" opacity="0.35"/>
+
+    <!-- Punched eyelet hole through the yellow header band -->
+    <ellipse cx="439.6" cy="348" rx="20" ry="14" fill="#8A5E03"/>
+    <ellipse cx="439.6" cy="346" rx="16" ry="10" fill="#3A2602"/>
+
+    <!-- The metal ring loop body. A tall vertical pill, rounded at top and bottom. -->
+    <rect x="407.6" y="130" width="64" height="162" rx="32" ry="32"
+          fill="#1A1A1A"/>
+
+    <!-- Inner shading to suggest the hollow loop / 3D form (darker centre) -->
+    <rect x="423.6" y="146" width="32" height="112"
+          rx="16" fill="#000" opacity="0.7"/>
+
+    <!-- Right-edge specular highlight -->
+    <rect x="459.6" y="148" width="6" height="97.2"
+          rx="3" fill="#5A5A5A"/>
+    <!-- Top cap highlight -->
+    <ellipse cx="433.6" cy="144" rx="14" ry="7" fill="#7A7A7A" opacity="0.95"/>
+    <!-- Bright top sliver -->
+    <ellipse cx="431.6" cy="140" rx="6" ry="3" fill="#B5B5B5" opacity="0.9"/>
+    <!-- Dark base shadow where ring enters page -->
+    <ellipse cx="439.6" cy="290" rx="28" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
-    <!-- Drop shadow -->
-    <rect x="557.4000000000001" y="148" width="56" height="160"
-          rx="28" fill="#0A1C70" opacity="0.55"/>
-    <!-- Ring body -->
-    <rect x="554.4000000000001" y="140" width="56" height="160"
-          rx="28" fill="#1A1A1A"/>
-    <!-- Specular highlight -->
-    <rect x="598.4000000000001" y="154" width="6" height="88"
-          rx="3" fill="#4A4A4A"/>
-    <!-- Inner highlight on top loop -->
-    <ellipse cx="582.4000000000001" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+    <!-- Drop shadow on the paper below the ring -->
+    <ellipse cx="588.4000000000001" cy="304" rx="36" ry="10" fill="#0A1C70" opacity="0.35"/>
+
+    <!-- Punched eyelet hole through the yellow header band -->
+    <ellipse cx="584.4000000000001" cy="348" rx="20" ry="14" fill="#8A5E03"/>
+    <ellipse cx="584.4000000000001" cy="346" rx="16" ry="10" fill="#3A2602"/>
+
+    <!-- The metal ring loop body. A tall vertical pill, rounded at top and bottom. -->
+    <rect x="552.4000000000001" y="130" width="64" height="162" rx="32" ry="32"
+          fill="#1A1A1A"/>
+
+    <!-- Inner shading to suggest the hollow loop / 3D form (darker centre) -->
+    <rect x="568.4000000000001" y="146" width="32" height="112"
+          rx="16" fill="#000" opacity="0.7"/>
+
+    <!-- Right-edge specular highlight -->
+    <rect x="604.4000000000001" y="148" width="6" height="97.2"
+          rx="3" fill="#5A5A5A"/>
+    <!-- Top cap highlight -->
+    <ellipse cx="578.4000000000001" cy="144" rx="14" ry="7" fill="#7A7A7A" opacity="0.95"/>
+    <!-- Bright top sliver -->
+    <ellipse cx="576.4000000000001" cy="140" rx="6" ry="3" fill="#B5B5B5" opacity="0.9"/>
+    <!-- Dark base shadow where ring enters page -->
+    <ellipse cx="584.4000000000001" cy="290" rx="28" ry="5" fill="#000" opacity="0.7"/>
   </g>
   <g>
-    <!-- Drop shadow -->
-    <rect x="698.2" y="148" width="56" height="160"
-          rx="28" fill="#0A1C70" opacity="0.55"/>
-    <!-- Ring body -->
-    <rect x="695.2" y="140" width="56" height="160"
-          rx="28" fill="#1A1A1A"/>
-    <!-- Specular highlight -->
-    <rect x="739.2" y="154" width="6" height="88"
-          rx="3" fill="#4A4A4A"/>
-    <!-- Inner highlight on top loop -->
-    <ellipse cx="723.2" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+    <!-- Drop shadow on the paper below the ring -->
+    <ellipse cx="733.2" cy="304" rx="36" ry="10" fill="#0A1C70" opacity="0.35"/>
+
+    <!-- Punched eyelet hole through the yellow header band -->
+    <ellipse cx="729.2" cy="348" rx="20" ry="14" fill="#8A5E03"/>
+    <ellipse cx="729.2" cy="346" rx="16" ry="10" fill="#3A2602"/>
+
+    <!-- The metal ring loop body. A tall vertical pill, rounded at top and bottom. -->
+    <rect x="697.2" y="130" width="64" height="162" rx="32" ry="32"
+          fill="#1A1A1A"/>
+
+    <!-- Inner shading to suggest the hollow loop / 3D form (darker centre) -->
+    <rect x="713.2" y="146" width="32" height="112"
+          rx="16" fill="#000" opacity="0.7"/>
+
+    <!-- Right-edge specular highlight -->
+    <rect x="749.2" y="148" width="6" height="97.2"
+          rx="3" fill="#5A5A5A"/>
+    <!-- Top cap highlight -->
+    <ellipse cx="723.2" cy="144" rx="14" ry="7" fill="#7A7A7A" opacity="0.95"/>
+    <!-- Bright top sliver -->
+    <ellipse cx="721.2" cy="140" rx="6" ry="3" fill="#B5B5B5" opacity="0.9"/>
+    <!-- Dark base shadow where ring enters page -->
+    <ellipse cx="729.2" cy="290" rx="28" ry="5" fill="#000" opacity="0.7"/>
   </g>
 </svg>
