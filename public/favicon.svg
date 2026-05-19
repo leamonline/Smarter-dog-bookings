@@ -1,30 +1,142 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#00B8E0"/>
+  <defs>
+    <linearGradient id="paperGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEF1F6"/>
+    </linearGradient>
+    <linearGradient id="yellowGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFCE36"/>
+      <stop offset="1" stop-color="#D69A0C"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A52F0"/>
+      <stop offset="1" stop-color="#1430B0"/>
+    </linearGradient>
+    <radialGradient id="pawInset" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#A9AEBC"/>
+      <stop offset="0.6" stop-color="#C5C9D2"/>
+      <stop offset="1" stop-color="#E6E8EE"/>
+    </radialGradient>
+    <clipPath id="paperClip">
+      <rect x="160" y="240" width="704" height="660" rx="44" ry="44"/>
+    </clipPath>
+  </defs>
 
-  <text x="490" y="345"
-        text-anchor="middle"
-        font-family="'Quicksand', 'Nunito', 'Avenir Next', 'Trebuchet MS', system-ui, sans-serif"
-        font-weight="700"
-        font-size="190"
-        fill="#000000"
-        letter-spacing="-2">Smarter</text>
+  <!-- Deep-blue rounded-square background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="url(#blueGrad)"/>
 
-  <g>
-    <text x="380" y="635"
-          text-anchor="middle"
-          font-family="'Quicksand', 'Nunito', 'Avenir Next', 'Trebuchet MS', system-ui, sans-serif"
-          font-weight="700"
-          font-size="240"
-          fill="#F5C518">dog</text>
-    <g transform="translate(378 555) scale(0.40)" fill="#00B8E0">
-      <ellipse cx="0" cy="55" rx="78" ry="58"/>
-      <ellipse cx="-70" cy="-15" rx="28" ry="36" transform="rotate(-22 -70 -15)"/>
-      <ellipse cx="-26" cy="-58" rx="26" ry="34"/>
-      <ellipse cx="26"  cy="-58" rx="26" ry="34"/>
-      <ellipse cx="70"  cy="-15" rx="28" ry="36" transform="rotate(22 70 -15)"/>
-    </g>
+  <!-- Paper drop shadow -->
+  <rect x="154" y="258" width="716" height="660" rx="44" ry="44"
+        fill="#0A1C70" opacity="0.55"/>
+
+  <g clip-path="url(#paperClip)">
+    <!-- White paper body -->
+    <rect x="160" y="240" width="704" height="660" fill="url(#paperGrad)"/>
+
+    <!-- Yellow top band -->
+    <rect x="160" y="240" width="704" height="170" fill="url(#yellowGrad)"/>
+    <!-- Shadow seam below the yellow band -->
+    <rect x="160" y="410" width="704" height="8" fill="#D69A0C" opacity="0.35"/>
+    <rect x="160" y="418" width="704" height="14" fill="#000" opacity="0.06"/>
+
+    <!-- Debossed paw print: dark "depth" shape, then paper-colored hollow that sits inside it, then highlight rim -->
+    
+  <g transform="translate(516 689) scale(1)" fill="#9097A8" opacity="0.55">
+    <ellipse cx="0" cy="78" rx="118" ry="92"/>
+    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
+    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
+    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
+    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
+  </g>
+    
+  <g transform="translate(512 683) scale(0.96)" fill="url(#pawInset)" opacity="1">
+    <ellipse cx="0" cy="78" rx="118" ry="92"/>
+    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
+    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
+    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
+    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
+  </g>
+    
+  <g transform="translate(509 678) scale(0.92)" fill="#F5F6FA" opacity="0.9">
+    <ellipse cx="0" cy="78" rx="118" ry="92"/>
+    <ellipse cx="-122" cy="-24" rx="44" ry="58" transform="rotate(-22 -122 -24)"/>
+    <ellipse cx="-42"  cy="-94" rx="40" ry="56"/>
+    <ellipse cx="42"   cy="-94" rx="40" ry="56"/>
+    <ellipse cx="122"  cy="-24" rx="44" ry="58" transform="rotate(22 122 -24)"/>
   </g>
 
-  <image x="620" y="600" width="370" height="370" preserveAspectRatio="xMidYMid meet"
-    href="data:image/png;base64,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" />
+    <!-- Page curl: the underside of the curling paper at the bottom-right corner -->
+    <!-- Shadow under the curl -->
+    <path d="
+      M 699 900
+      Q 794 870
+        864 735
+      L 864 900
+      Z"
+      fill="#9097A8" opacity="0.55"/>
+    <!-- The curled paper itself -->
+    <path d="
+      M 714 900
+      Q 814 840
+        864 750
+      Q 824 800
+        714 900
+      Z"
+      fill="#F5F6FA"/>
+  </g>
+
+  <!-- Spiral rings on top -->
+  
+  <g>
+    <!-- Drop shadow -->
+    <rect x="275.8" y="148" width="56" height="160"
+          rx="28" fill="#0A1C70" opacity="0.55"/>
+    <!-- Ring body -->
+    <rect x="272.8" y="140" width="56" height="160"
+          rx="28" fill="#1A1A1A"/>
+    <!-- Specular highlight -->
+    <rect x="316.8" y="154" width="6" height="88"
+          rx="3" fill="#4A4A4A"/>
+    <!-- Inner highlight on top loop -->
+    <ellipse cx="300.8" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+  </g>
+  <g>
+    <!-- Drop shadow -->
+    <rect x="416.6" y="148" width="56" height="160"
+          rx="28" fill="#0A1C70" opacity="0.55"/>
+    <!-- Ring body -->
+    <rect x="413.6" y="140" width="56" height="160"
+          rx="28" fill="#1A1A1A"/>
+    <!-- Specular highlight -->
+    <rect x="457.6" y="154" width="6" height="88"
+          rx="3" fill="#4A4A4A"/>
+    <!-- Inner highlight on top loop -->
+    <ellipse cx="441.6" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+  </g>
+  <g>
+    <!-- Drop shadow -->
+    <rect x="557.4000000000001" y="148" width="56" height="160"
+          rx="28" fill="#0A1C70" opacity="0.55"/>
+    <!-- Ring body -->
+    <rect x="554.4000000000001" y="140" width="56" height="160"
+          rx="28" fill="#1A1A1A"/>
+    <!-- Specular highlight -->
+    <rect x="598.4000000000001" y="154" width="6" height="88"
+          rx="3" fill="#4A4A4A"/>
+    <!-- Inner highlight on top loop -->
+    <ellipse cx="582.4000000000001" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+  </g>
+  <g>
+    <!-- Drop shadow -->
+    <rect x="698.2" y="148" width="56" height="160"
+          rx="28" fill="#0A1C70" opacity="0.55"/>
+    <!-- Ring body -->
+    <rect x="695.2" y="140" width="56" height="160"
+          rx="28" fill="#1A1A1A"/>
+    <!-- Specular highlight -->
+    <rect x="739.2" y="154" width="6" height="88"
+          rx="3" fill="#4A4A4A"/>
+    <!-- Inner highlight on top loop -->
+    <ellipse cx="723.2" cy="152" rx="20" ry="6" fill="#5A5A5A" opacity="0.6"/>
+  </g>
 </svg>
