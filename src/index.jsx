@@ -6,8 +6,10 @@ import { supabaseConfigError } from "./supabase/client.js";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
 import { StaffMisconfiguredPage } from "./components/StaffMisconfiguredPage.jsx";
 import { initSentry } from "./lib/sentry.js";
+import { installChunkReloadHandler } from "./lib/chunkReload.js";
 
 initSentry();
+installChunkReloadHandler();
 
 const App = lazy(() => import("./App.jsx"));
 const CustomerApp = lazy(() => import("./CustomerApp.jsx"));
