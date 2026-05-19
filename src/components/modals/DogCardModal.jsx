@@ -39,6 +39,7 @@ export function DogCardModal({
   fetchBookingHistoryForDog,
   fetchDogById,
   handleAdd,
+  findHumanByFullName,
 }) {
   const [pendingDelete, setPendingDelete] = useState(false);
   // Placeholder used while fetchDogById is in flight. `name: ""` instead
@@ -251,34 +252,76 @@ export function DogCardModal({
   };
 
   const handleAddNewTrusted = async () => {
-    if (!owner || !onAddHuman || !onUpdateHuman) return;
+    if (!onAddHuman || !onUpdateHuman) return;
+    if (!owner) {
+      toast.show("Set an owner on this dog before adding a trusted human.", "error");
+      return;
+    }
     const name = newTrustedName.trim();
     const surname = newTrustedSurname.trim();
     const phone = newTrustedPhone.trim();
     const relationship = (newTrustedRelationship || "").trim();
     if (!name || !surname || !phone) return;
 
-    const newHuman = await onAddHuman({ name, surname, phone });
-    if (!newHuman) return;
+    const linkAsTrusted = async (trustedHuman, successMessage) => {
+      const currentContacts = owner.trustedContacts || [];
+      const ownerKey = owner.fullName || owner.id;
+      await onUpdateHuman(ownerKey, {
+        trustedContacts: [
+          ...currentContacts,
+          { id: trustedHuman.id, relationship },
+        ],
+      });
 
-    const currentContacts = owner.trustedContacts || [];
-    const ownerKey = owner.fullName || owner.id;
-    await onUpdateHuman(ownerKey, {
-      trustedContacts: [...currentContacts, { id: newHuman.id, relationship }],
-    });
+      const theirContacts = trustedHuman.trustedContacts || [];
+      const ownerId = owner.id || ownerKey;
+      if (!theirContacts.some((c) => c.id === ownerId || c.fullName === owner.fullName)) {
+        const theirKey = trustedHuman.fullName || trustedHuman.id;
+        await onUpdateHuman(theirKey, {
+          trustedContacts: [
+            ...theirContacts,
+            { id: ownerId, relationship: "" },
+          ],
+        });
+      }
 
-    const newKey = newHuman.fullName || `${name} ${surname}`;
-    await onUpdateHuman(newKey, {
-      trustedContacts: [{ id: owner.id || ownerKey, relationship: "" }],
-    });
+      setNewTrustedName("");
+      setNewTrustedSurname("");
+      setNewTrustedPhone("");
+      setNewTrustedRelationship("");
+      setShowNewTrustedForm(false);
+      setShowTrustedSearch(false);
+      toast.show(successMessage, "success");
+    };
 
-    setNewTrustedName("");
-    setNewTrustedSurname("");
-    setNewTrustedPhone("");
-    setNewTrustedRelationship("");
-    setShowNewTrustedForm(false);
-    setShowTrustedSearch(false);
-    toast.show("Trusted human added", "success");
+    try {
+      const newHuman = await onAddHuman({ name, surname, phone });
+      if (!newHuman) return;
+      await linkAsTrusted(newHuman, "Trusted human added");
+    } catch (err) {
+      // If the directory already has a row with this (name, surname),
+      // the unique constraint fires. The existing row may be paginated
+      // out of the local map, so the search above never offered it.
+      // Look it up by name and link the existing record as trusted —
+      // saves the user from manually scrolling the directory.
+      const isDuplicate =
+        typeof err?.message === "string" && err.message.includes("already exists");
+      if (isDuplicate && findHumanByFullName) {
+        try {
+          const existing = await findHumanByFullName(name, surname);
+          if (existing) {
+            await linkAsTrusted(
+              existing,
+              `Linked existing ${existing.fullName} as trusted human`,
+            );
+            return;
+          }
+        } catch (lookupErr) {
+          console.error("findHumanByFullName failed:", lookupErr);
+        }
+      }
+      toast.show(err?.message || "Could not add trusted human.", "error");
+    }
   };
 
   const handleUpdateTrustedRelationship = async (trustedIdOrName, relationship) => {

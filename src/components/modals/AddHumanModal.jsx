@@ -80,16 +80,25 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
     }
     setSubmitting(true);
     setError("");
-    const result = await onAdd({
-      name: name.trim(),
-      surname: surname.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      address: address.trim(),
-      sms,
-      whatsapp,
-      notes: notes.trim(),
-    });
+    let result;
+    try {
+      result = await onAdd({
+        name: name.trim(),
+        surname: surname.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        address: address.trim(),
+        sms,
+        whatsapp,
+        notes: notes.trim(),
+      });
+    } catch (err) {
+      setSubmitting(false);
+      const msg = err?.message || "Failed to add human. They may already exist.";
+      toast.show(msg, "error");
+      setError(msg);
+      return;
+    }
     const newHumanId = result?.id || result?.[0]?.id;
     if (result && newHumanId && onUpdateDog && selectedDogs.length > 0) {
       await Promise.all(

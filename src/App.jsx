@@ -301,6 +301,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
     fetchHumanById: sbFetchHumanById,
+    findHumanByFullName: sbFindHumanByFullName,
     ensureHumansByIds: sbEnsureHumansByIds,
     hasMore: humansHasMore,
     totalCount: humansTotalCount,
@@ -645,6 +646,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onDeleteHuman={sbDeleteHuman}
                   bookingsByDate={bookingsByDate}
                   fetchHumanById={sbFetchHumanById}
+                  findHumanByFullName={sbFindHumanByFullName}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -667,6 +669,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
                   fetchDogById={fetchDogById}
                   handleAdd={handleAdd}
+                  findHumanByFullName={sbFindHumanByFullName}
                 />
               </Suspense>
             </ErrorBoundary>
