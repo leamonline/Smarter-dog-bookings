@@ -39,6 +39,11 @@ export function DogDetailsSection({
   // Price
   editPrice,
   setEditPrice,
+  // Size (staff-only — modal is only mounted in the staff app)
+  editSize,
+  setEditSize,
+  sizeAutoSet,
+  sizeOverridden,
 }) {
   /* ── Alerts (shown above cards, like BookingAlerts) ── */
   const alertsView = !isEditing && displayAlerts.length > 0 && (
@@ -221,6 +226,29 @@ export function DogDetailsSection({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Size edit (staff-only — controls grooming workflow + pricing) */}
+          <div className="py-2.5 border-b border-slate-100">
+            <div className={`${SECTION_LABEL_CLS} mb-1.5 flex items-center gap-1.5`} style={{ color: sizeAccent }}>
+              <span>Size</span>
+              {sizeAutoSet && !sizeOverridden && (
+                <span className="font-medium normal-case tracking-normal text-brand-green text-[11px]">
+                  auto
+                </span>
+              )}
+            </div>
+            <select
+              value={editSize}
+              onChange={(e) => setEditSize(e.target.value)}
+              aria-label="Dog size"
+              className={`${INPUT_CLS} cursor-pointer w-[140px]`}
+            >
+              {!editSize && <option value="">Select size</option>}
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
           </div>
 
           {/* Groom Notes edit */}

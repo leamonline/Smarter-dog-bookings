@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
@@ -151,6 +151,9 @@ export function DogCardModal({
   const [editNotes, setEditNotes] = useState(resolvedDog.groomNotes || "");
   const [editPrice, setEditPrice] = useState(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
   const [editAlerts, setEditAlerts] = useState([...(resolvedDog.alerts || [])]);
+  const [editSize, setEditSize] = useState(resolvedDog.size || "");
+  const [sizeAutoSet, setSizeAutoSet] = useState(false);
+  const [sizeOverridden, setSizeOverridden] = useState(false);
 
   const [allergyInput, setAllergyInput] = useState(() => {
     const allergy = (resolvedDog.alerts || []).find((a) =>
@@ -174,11 +177,14 @@ export function DogCardModal({
       setEditNotes(resolvedDog.groomNotes || "");
       setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
       setEditAlerts([...(resolvedDog.alerts || [])]);
+      setEditSize(resolvedDog.size || "");
+      setSizeAutoSet(false);
+      setSizeOverridden(false);
       const allergy = (resolvedDog.alerts || []).find((a) => a.startsWith("Allergic to "));
       setAllergyInput(allergy ? allergy.replace("Allergic to ", "") : "");
       setHasAllergy((resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")));
     }
-  }, [resolvedDog]);  
+  }, [resolvedDog]);
 
   // --- Trusted humans state ---
   const [showTrustedSearch, setShowTrustedSearch] = useState(false);
@@ -389,6 +395,26 @@ export function DogCardModal({
     setTrustedToRemove(trustedIdToRemove);
   };
 
+  // Wrap setEditBreed so changing the breed in the header auto-derives a
+  // size — matching the AddDogModal flow. Stops once staff override the
+  // dropdown manually (sizeOverridden), so we don't clobber an explicit
+  // choice on a subsequent unrelated breed tweak.
+  const handleEditBreedChange = (newBreed) => {
+    setEditBreed(newBreed);
+    if (sizeOverridden) return;
+    const detected = getSizeForBreed(newBreed);
+    if (detected) {
+      setEditSize(detected);
+      setSizeAutoSet(true);
+    }
+  };
+
+  const handleEditSizeChange = (newSize) => {
+    setEditSize(newSize);
+    setSizeOverridden(true);
+    setSizeAutoSet(false);
+  };
+
   const handleSave = async () => {
     const finalAlerts = editAlerts.filter((a) => !a.startsWith("Allergic to "));
     if (hasAllergy && allergyInput.trim()) {
@@ -408,6 +434,7 @@ export function DogCardModal({
     if (editOwnerId !== ownerOpenValue) updates.humanId = editOwnerId;
     const priceNum = editPrice.trim() ? Number(editPrice) : undefined;
     if (priceNum !== resolvedDog.customPrice) updates.customPrice = priceNum;
+    if (editSize && editSize !== (resolvedDog.size || "")) updates.size = editSize;
 
     await onUpdateDog(resolvedDog.id || resolvedDog.name, updates);
     setIsEditing(false);
@@ -425,6 +452,9 @@ export function DogCardModal({
     setEditNotes(resolvedDog.groomNotes || "");
     setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
     setEditAlerts([...(resolvedDog.alerts || [])]);
+    setEditSize(resolvedDog.size || "");
+    setSizeAutoSet(false);
+    setSizeOverridden(false);
     const allergy = (resolvedDog.alerts || []).find((a) =>
       a.startsWith("Allergic to "),
     );
@@ -504,7 +534,7 @@ export function DogCardModal({
           editName={editName}
           setEditName={setEditName}
           editBreed={editBreed}
-          setEditBreed={setEditBreed}
+          setEditBreed={handleEditBreedChange}
           editDobMonth={editDobMonth}
           setEditDobMonth={setEditDobMonth}
           editDobYear={editDobYear}
@@ -556,6 +586,10 @@ export function DogCardModal({
           setAllergyInput={setAllergyInput}
           editPrice={editPrice}
           setEditPrice={setEditPrice}
+          editSize={editSize}
+          setEditSize={handleEditSizeChange}
+          sizeAutoSet={sizeAutoSet}
+          sizeOverridden={sizeOverridden}
         />
 
         <TrustedHumansSection
