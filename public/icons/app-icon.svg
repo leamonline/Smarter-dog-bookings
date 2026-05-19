@@ -1,225 +1,120 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <!-- Paw "recess floor" — softly lit, lighter at bottom -->
-    <linearGradient id="pawFloor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#DDE1E9"/>
-      <stop offset="1" stop-color="#F6F7FA"/>
-    </linearGradient>
-    <!-- Paper backside gradient for the page curl -->
-    <linearGradient id="paperBack" x1="0" y1="0" x2="1" y2="-1">
-      <stop offset="0" stop-color="#B7BCC9"/>
-      <stop offset="0.5" stop-color="#E2E5EC"/>
-      <stop offset="1" stop-color="#F8F9FC"/>
-    </linearGradient>
     <linearGradient id="yellowGrad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFCC42"/>
-      <stop offset="0.5" stop-color="#F2B41C"/>
-      <stop offset="1" stop-color="#D89A06"/>
+      <stop offset="1" stop-color="#F0AE10"/>
+    </linearGradient>
+    <linearGradient id="foldGrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#C7CCD8"/>
+      <stop offset="1" stop-color="#EEF0F5"/>
     </linearGradient>
     <clipPath id="paperClip">
-      <rect x="160" y="250" width="704" height="680" rx="36" ry="36"/>
+      <path d="
+        M 188 210
+        H 836
+        Q 884 210 884 258
+        V 790
+        L 744 930
+        H 188
+        Q 140 930 140 882
+        V 258
+        Q 140 210 188 210
+        Z"/>
     </clipPath>
   </defs>
 
-  <!-- Flat royal-blue background — matches the reference render -->
+  <!-- Royal-blue background, iOS-safe rounded square -->
   <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1F3DDD"/>
 
-  <!-- Paper drop shadow (soft, below + slightly right) -->
-  <rect x="154" y="276" width="716" height="680" rx="36" ry="36"
-        fill="#0A1C70" opacity="0.5"/>
-
-  <!-- Three sheets stacked underneath the top page, peeking out at the bottom edge.
-       Bigger Y offsets so each layer is clearly visible as a sliver. -->
-  <rect x="186" y="282" width="652" height="680" rx="26" ry="26"
-        fill="#A8AEBC"/>
-  <rect x="178" y="272" width="668" height="680" rx="28" ry="28"
-        fill="#C8CCD7"/>
-  <rect x="170" y="262" width="684" height="680" rx="30" ry="30"
-        fill="#E4E7EE"/>
+  <!-- Soft drop shadow under the paper -->
+  <path d="
+    M 188 232
+    H 836
+    Q 888 232 888 280
+    V 812
+    L 744 952
+    H 188
+    Q 136 952 136 904
+    V 280
+    Q 136 232 188 232 Z"
+    fill="#0A1C70" opacity="0.42"/>
 
   <g clip-path="url(#paperClip)">
     <!-- White paper body -->
-    <rect x="160" y="250" width="704" height="680" fill="#FFFFFF"/>
+    <rect x="140" y="210" width="744" height="720" fill="#FFFFFF"/>
 
-    <!-- Yellow top band -->
-    <rect x="160" y="250" width="704" height="200" fill="url(#yellowGrad)"/>
-    <!-- Soft shadow line where the yellow band meets the white paper -->
-    <rect x="160" y="450" width="704" height="4" fill="#A77807" opacity="0.45"/>
-    <rect x="160" y="454" width="704" height="26" fill="#000" opacity="0.05"/>
+    <!-- Yellow header band -->
+    <rect x="140" y="210" width="744" height="184" fill="url(#yellowGrad)"/>
+    <!-- Crisp separator under the band -->
+    <rect x="140" y="394" width="744" height="3" fill="#A77807" opacity="0.5"/>
 
-    <!-- Debossed paw — clean two-layer approach:
-           1. Main shape filled solid mid-gray = the "recess wall in shadow"
-           2. Slightly smaller shape on top, offset DOWN, filled with light gradient
-              = the "recess floor" visible through the opening of the wall.
-           The dark crescent left at the top is the deboss shadow. -->
+    <!-- Hole-punches -->
     
-  <g transform="translate(512 706) scale(1)" fill="#A1A8B9" opacity="1">
-    <ellipse cx="0" cy="78" rx="130" ry="106"/>
-    <ellipse cx="-138" cy="-26" rx="50" ry="64" transform="rotate(-22 -138 -26)"/>
-    <ellipse cx="-48"  cy="-108" rx="46" ry="62"/>
-    <ellipse cx="48"   cy="-108" rx="46" ry="62"/>
-    <ellipse cx="138"  cy="-26" rx="50" ry="64" transform="rotate(22 138 -26)"/>
-  </g>
-    
-  <g transform="translate(512 716) scale(0.94)" fill="url(#pawFloor)" opacity="1">
-    <ellipse cx="0" cy="78" rx="130" ry="106"/>
-    <ellipse cx="-138" cy="-26" rx="50" ry="64" transform="rotate(-22 -138 -26)"/>
-    <ellipse cx="-48"  cy="-108" rx="46" ry="62"/>
-    <ellipse cx="48"   cy="-108" rx="46" ry="62"/>
-    <ellipse cx="138"  cy="-26" rx="50" ry="64" transform="rotate(22 138 -26)"/>
-  </g>
+    <g>
+      <!-- Soft cast shadow inside the hole -->
+      <ellipse cx="288.8" cy="310" rx="31" ry="31" fill="#5C3F02" opacity="0.55"/>
+      <!-- Hole interior -->
+      <circle cx="288.8" cy="306" r="30" fill="#1F1206"/>
+      <!-- Subtle top rim highlight (paper edge catching light) -->
+      <path d="M 262.8 302
+               A 26 26 0 0 1 314.8 302"
+            fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.45" stroke-linecap="round"/>
+    </g>
+    <g>
+      <!-- Soft cast shadow inside the hole -->
+      <ellipse cx="437.6" cy="310" rx="31" ry="31" fill="#5C3F02" opacity="0.55"/>
+      <!-- Hole interior -->
+      <circle cx="437.6" cy="306" r="30" fill="#1F1206"/>
+      <!-- Subtle top rim highlight (paper edge catching light) -->
+      <path d="M 411.6 302
+               A 26 26 0 0 1 463.6 302"
+            fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.45" stroke-linecap="round"/>
+    </g>
+    <g>
+      <!-- Soft cast shadow inside the hole -->
+      <ellipse cx="586.4000000000001" cy="310" rx="31" ry="31" fill="#5C3F02" opacity="0.55"/>
+      <!-- Hole interior -->
+      <circle cx="586.4000000000001" cy="306" r="30" fill="#1F1206"/>
+      <!-- Subtle top rim highlight (paper edge catching light) -->
+      <path d="M 560.4000000000001 302
+               A 26 26 0 0 1 612.4000000000001 302"
+            fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.45" stroke-linecap="round"/>
+    </g>
+    <g>
+      <!-- Soft cast shadow inside the hole -->
+      <ellipse cx="735.2" cy="310" rx="31" ry="31" fill="#5C3F02" opacity="0.55"/>
+      <!-- Hole interior -->
+      <circle cx="735.2" cy="306" r="30" fill="#1F1206"/>
+      <!-- Subtle top rim highlight (paper edge catching light) -->
+      <path d="M 709.2 302
+               A 26 26 0 0 1 761.2 302"
+            fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.45" stroke-linecap="round"/>
+    </g>
+
+    <!-- Bold royal-blue paw print -->
+    <g transform="translate(512 686)" fill="#1F3DDD">
+      <!-- Main pad -->
+      <ellipse cx="0" cy="92" rx="158" ry="126"/>
+      <!-- Outer side toes -->
+      <ellipse cx="-168" cy="-30" rx="62" ry="84" transform="rotate(-22 -168 -30)"/>
+      <ellipse cx="168"  cy="-30" rx="62" ry="84" transform="rotate(22 168 -30)"/>
+      <!-- Inner top toes -->
+      <ellipse cx="-60" cy="-130" rx="58" ry="78"/>
+      <ellipse cx="60"  cy="-130" rx="58" ry="78"/>
+    </g>
   </g>
 
-  <!-- Page curl (drawn outside the clip so it overlaps the rounded corner). -->
-  <!-- Soft shadow cast on the page below the lifted corner -->
+  <!-- Page-fold triangle (visible because the clip path cut the corner) -->
+  <!-- Paper back -->
   <path d="
-    M 634 932
-    Q 784 952
-      868 712
-    L 886 716
-    Q 814 968
-      624 948
-    Z" fill="#0A1C70" opacity="0.4"/>
-
-  <!-- The exposed back of the peeled corner -->
-  <path d="
-    M 654 928
-    L 862 720
-    Q 848 826
-      772 880
-    Q 710 912
-      654 928
-    Z" fill="url(#paperBack)"/>
-
-  <!-- Inner crease highlight along the underside of the curl -->
-  <path d="
-    M 674 920
-    Q 804 908
-      852 740"
-    stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.55"/>
-
-  <!-- Fold crease shadow along the hypotenuse -->
-  <path d="
-    M 654 928
-    L 862 720"
-    stroke="#7C8294" stroke-width="2.5" fill="none" opacity="0.65"/>
-
-  <!-- Rings on top -->
-  
-  <g>
-    <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="306.8" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
-
-    <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="300.8" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
-    <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="299.8" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
-    <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="300.8" cy="352" rx="31" ry="25" fill="#1A1306"/>
-
-    <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="273.8" y="136"
-          width="54" height="220"
-          rx="27" ry="27"
-          fill="#181818"/>
-
-    <!-- Right-edge specular highlight on the post -->
-    <rect x="315.8" y="152" width="6" height="128.4"
-          rx="3" fill="#5E5E5E"/>
-    <!-- Top cap highlight -->
-    <ellipse cx="296.8" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="294.8" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
-    <!-- Left-edge subtle shadow on the post -->
-    <rect x="276.8" y="154" width="3" height="128.4"
-          rx="1.5" fill="#000" opacity="0.5"/>
-    <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
-    <ellipse cx="300.8" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
-  </g>
-  <g>
-    <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="447.6" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
-
-    <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="441.6" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
-    <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="440.6" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
-    <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="441.6" cy="352" rx="31" ry="25" fill="#1A1306"/>
-
-    <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="414.6" y="136"
-          width="54" height="220"
-          rx="27" ry="27"
-          fill="#181818"/>
-
-    <!-- Right-edge specular highlight on the post -->
-    <rect x="456.6" y="152" width="6" height="128.4"
-          rx="3" fill="#5E5E5E"/>
-    <!-- Top cap highlight -->
-    <ellipse cx="437.6" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="435.6" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
-    <!-- Left-edge subtle shadow on the post -->
-    <rect x="417.6" y="154" width="3" height="128.4"
-          rx="1.5" fill="#000" opacity="0.5"/>
-    <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
-    <ellipse cx="441.6" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
-  </g>
-  <g>
-    <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="588.4000000000001" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
-
-    <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="582.4000000000001" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
-    <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="581.4000000000001" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
-    <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="582.4000000000001" cy="352" rx="31" ry="25" fill="#1A1306"/>
-
-    <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="555.4000000000001" y="136"
-          width="54" height="220"
-          rx="27" ry="27"
-          fill="#181818"/>
-
-    <!-- Right-edge specular highlight on the post -->
-    <rect x="597.4000000000001" y="152" width="6" height="128.4"
-          rx="3" fill="#5E5E5E"/>
-    <!-- Top cap highlight -->
-    <ellipse cx="578.4000000000001" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="576.4000000000001" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
-    <!-- Left-edge subtle shadow on the post -->
-    <rect x="558.4000000000001" y="154" width="3" height="128.4"
-          rx="1.5" fill="#000" opacity="0.5"/>
-    <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
-    <ellipse cx="582.4000000000001" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
-  </g>
-  <g>
-    <!-- Soft drop shadow from the post/eyelet onto the yellow band -->
-    <ellipse cx="729.2" cy="362" rx="43" ry="9" fill="#7A5400" opacity="0.55"/>
-
-    <!-- Eyelet: white paper rim peeking out around the post -->
-    <ellipse cx="723.2" cy="350" rx="41" ry="33" fill="#FFFFFF"/>
-    <!-- Subtle paper-shadow inside the rim -->
-    <ellipse cx="722.2" cy="349" rx="38" ry="30" fill="#E2E5EC"/>
-    <!-- Dark hole interior (the punch-through visible behind the post) -->
-    <ellipse cx="723.2" cy="352" rx="31" ry="25" fill="#1A1306"/>
-
-    <!-- The black metal post — vertical capsule ending inside the eyelet -->
-    <rect x="696.2" y="136"
-          width="54" height="220"
-          rx="27" ry="27"
-          fill="#181818"/>
-
-    <!-- Right-edge specular highlight on the post -->
-    <rect x="738.2" y="152" width="6" height="128.4"
-          rx="3" fill="#5E5E5E"/>
-    <!-- Top cap highlight -->
-    <ellipse cx="719.2" cy="150" rx="17" ry="6" fill="#7A7A7A"/>
-    <ellipse cx="717.2" cy="146" rx="9" ry="3" fill="#B8B8B8"/>
-    <!-- Left-edge subtle shadow on the post -->
-    <rect x="699.2" y="154" width="3" height="128.4"
-          rx="1.5" fill="#000" opacity="0.5"/>
-    <!-- Dark line where the post meets the eyelet (settles it into the hole) -->
-    <ellipse cx="723.2" cy="348" rx="26" ry="5" fill="#000" opacity="0.7"/>
-  </g>
+    M 744 930
+    L 884 790
+    L 884 930
+    Z" fill="url(#foldGrad)"/>
+  <!-- Fold edge shadow -->
+  <line x1="744" y1="930" x2="884" y2="790"
+        stroke="#8C92A2" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <!-- Tiny inner highlight along the fold for definition -->
+  <line x1="750" y1="926" x2="880" y2="796"
+        stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
 </svg>
