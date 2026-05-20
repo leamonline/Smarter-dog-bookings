@@ -3,62 +3,70 @@
 /**
  * Each template maps to a Meta-approved WhatsApp message template.
  *
- * `params` defines the ordered list of {{N}} placeholders in the template body.
- * `autoFill` is a hint to the picker: which context key to pre-populate from.
- *   Supported values: "customer_first_name", "dog_name_select" (dropdown if multiple dogs, text otherwise)
+ * `params` is the ordered list of {{N}} placeholders in the registered
+ * template body. The array order is what gets sent to Meta via
+ * buildTemplateParams — Meta substitutes by index ({{1}} = params[0],
+ * {{2}} = params[1], etc.), so this MUST match the numbering Meta has
+ * on file or the send will 132xxx error.
  *
- * `preview(values)` renders the message with the given param values for the
- *   UI preview — must match the exact wording registered with Meta.
+ * `autoFill` is a hint to the picker UI: which context key to
+ * pre-populate from. Supported values:
+ *   - "customer_first_name"
+ *   - "dog_name_select" (dropdown if multiple dogs, text otherwise)
+ *
+ * `preview(values)` renders the message with the given param values
+ * for the in-app preview pane — must match the exact wording
+ * registered with Meta, otherwise staff send something that reads
+ * differently from what they previewed.
+ *
+ * Template names here MUST match the registered names in Meta
+ * Business Manager → WhatsApp Manager → Message Templates. As of
+ * 2026-05-20 the salon has:
+ *   - appointment_reminder_v1   (en_GB, 3 params, Active)
+ *   - booking_confirmed_v1      (en_GB, 4 params, Active)
+ *   - booking_changed_v1        (en,    not yet in picker)
+ *   - hello_world               (en_US, Meta's starter — not customer-facing)
+ * Add a new picker entry here only after the corresponding template
+ * is Approved in Meta — otherwise sends will fail at the gateway.
  */
-// Friendly placeholder rendered in the preview when a param hasn't been
-// filled in yet. We deliberately avoid Meta's raw {{N}} syntax here —
-// the preview is for staff, not Meta, so "[date]" reads as a missing
-// value much more clearly than "{{3}}". The actual outbound payload
-// still uses the ordered param array built by buildTemplateParams.
 const PLACEHOLDER = {
   customer_first_name: "[their name]",
   dog_name: "[dog's name]",
-  date: "[date]",
-  time: "[time]",
+  when: "[date and time]",
+  service: "[service]",
 };
 
 export const WHATSAPP_TEMPLATES = [
   {
-    name: "smarter_appointment_reminder",
+    name: "appointment_reminder_v1",
     label: "Appointment Reminder",
     description: "Remind a customer about an upcoming appointment",
     language: "en_GB",
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
-      { key: "date", label: "Date (e.g. Monday 12 May)", autoFill: null },
-      { key: "time", label: "Time (e.g. 9:00am)", autoFill: null },
+      { key: "appointment_when", label: "When (e.g. Monday 25 May at 9:00am)", autoFill: null },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, just a quick reminder that ${values.dog_name || PLACEHOLDER.dog_name} has a grooming appointment with us on ${values.date || PLACEHOLDER.date} at ${values.time || PLACEHOLDER.time}. We're looking forward to seeing you both! 🐾`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, just a friendly reminder that ${values.dog_name || PLACEHOLDER.dog_name} is booked in with us at Smarter Dog Grooming Salon for ${values.appointment_when || PLACEHOLDER.when}. Reply here if you need to change anything — see you soon..`,
   },
   {
-    name: "smarter_general_contact",
-    label: "General Contact",
-    description: "Reach out when you need to speak to a customer",
+    name: "booking_confirmed_v1",
+    label: "Booking Confirmation",
+    description: "Confirm a new or rescheduled booking",
     language: "en_GB",
-    params: [
-      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
-    ],
-    preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, it's the Smarter Dog Grooming team here! We just wanted to reach out — could you reply here when you get a chance? Thanks so much! 🐾`,
-  },
-  {
-    name: "smarter_rebook_invite",
-    label: "Rebook Invite",
-    description: "Invite a customer to book their next groom",
-    language: "en_GB",
+    // Note Meta's body reads "{{1}}, {{2}}'s {{4}} is confirmed for {{3}}"
+    // — service is placeholder #4 even though it appears mid-sentence.
+    // Order here mirrors the registered placeholder numbering, not the
+    // sentence reading order.
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "appointment_when", label: "When (e.g. Monday 25 May at 9:00am)", autoFill: null },
+      { key: "service", label: "Service (e.g. Full Groom)", autoFill: null },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, it was lovely seeing ${values.dog_name || PLACEHOLDER.dog_name} recently! 🐾 Would you like to book their next groom? Just reply here and we'll sort something out.`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, ${values.dog_name || PLACEHOLDER.dog_name}'s ${values.service || PLACEHOLDER.service} is confirmed for ${values.appointment_when || PLACEHOLDER.when} at Smarter Dog Grooming Salon. We're looking forward to seeing you both. Reply here if anything changes.`,
   },
 ];
 

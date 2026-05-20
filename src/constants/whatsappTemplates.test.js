@@ -2,41 +2,78 @@ import { describe, it, expect } from "vitest";
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "./whatsappTemplates.js";
 
 describe("buildTemplateParams", () => {
-  it("returns params in template order", () => {
-    const template = WHATSAPP_TEMPLATES[0]; // appointment_reminder
+  it("returns appointment_reminder_v1 params in {{1}}..{{3}} order", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_reminder_v1");
     const values = {
       customer_first_name: "Sarah",
       dog_name: "Bella",
-      date: "Monday 12 May",
-      time: "9:00am",
+      appointment_when: "Monday 25 May at 9:00am",
     };
-    expect(buildTemplateParams(template, values)).toEqual(["Sarah", "Bella", "Monday 12 May", "9:00am"]);
-  });
-
-  it("fills empty string for missing params", () => {
-    const template = WHATSAPP_TEMPLATES[0];
-    expect(buildTemplateParams(template, { customer_first_name: "Sarah" })).toEqual([
-      "Sarah", "", "", "",
+    expect(buildTemplateParams(template, values)).toEqual([
+      "Sarah",
+      "Bella",
+      "Monday 25 May at 9:00am",
     ]);
   });
 
-  it("general_contact only has one param", () => {
-    const template = WHATSAPP_TEMPLATES[1]; // general_contact
-    expect(buildTemplateParams(template, { customer_first_name: "Jon" })).toEqual(["Jon"]);
+  it("fills empty string for missing params", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_reminder_v1");
+    expect(buildTemplateParams(template, { customer_first_name: "Sarah" })).toEqual([
+      "Sarah",
+      "",
+      "",
+    ]);
   });
 
-  it("preview renders correctly for appointment_reminder", () => {
-    const template = WHATSAPP_TEMPLATES[0];
-    const values = { customer_first_name: "Sarah", dog_name: "Bella", date: "Monday 12 May", time: "9:00am" };
+  it("returns booking_confirmed_v1 params in {{1}}..{{4}} order, not sentence order", () => {
+    // Meta's body reads "{{1}}, {{2}}'s {{4}} is confirmed for {{3}}" — the
+    // service is placeholder #4 even though sentence-position is mid-text,
+    // and `when` is placeholder #3 even though sentence-position is after.
+    // The params array MUST match Meta's numbering, not reading order.
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_confirmed_v1");
+    const values = {
+      customer_first_name: "Jon",
+      dog_name: "Bella",
+      appointment_when: "Monday 25 May at 9:00am",
+      service: "Full Groom",
+    };
+    expect(buildTemplateParams(template, values)).toEqual([
+      "Jon",
+      "Bella",
+      "Monday 25 May at 9:00am",
+      "Full Groom",
+    ]);
+  });
+
+  it("preview renders the registered appointment_reminder_v1 wording", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_reminder_v1");
+    const values = {
+      customer_first_name: "Sarah",
+      dog_name: "Bella",
+      appointment_when: "Monday 25 May at 9:00am",
+    };
     expect(template.preview(values)).toBe(
-      "Hi Sarah, just a quick reminder that Bella has a grooming appointment with us on Monday 12 May at 9:00am. We're looking forward to seeing you both! 🐾"
+      "Hi Sarah, just a friendly reminder that Bella is booked in with us at Smarter Dog Grooming Salon for Monday 25 May at 9:00am. Reply here if you need to change anything — see you soon..",
+    );
+  });
+
+  it("preview renders the registered booking_confirmed_v1 wording", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_confirmed_v1");
+    const values = {
+      customer_first_name: "Jon",
+      dog_name: "Bella",
+      appointment_when: "Monday 25 May at 9:00am",
+      service: "Full Groom",
+    };
+    expect(template.preview(values)).toBe(
+      "Hi Jon, Bella's Full Groom is confirmed for Monday 25 May at 9:00am at Smarter Dog Grooming Salon. We're looking forward to seeing you both. Reply here if anything changes.",
     );
   });
 
   it("preview falls back to friendly placeholders for missing values", () => {
-    const template = WHATSAPP_TEMPLATES[0];
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_reminder_v1");
     expect(template.preview({})).toBe(
-      "Hi [their name], just a quick reminder that [dog's name] has a grooming appointment with us on [date] at [time]. We're looking forward to seeing you both! 🐾"
+      "Hi [their name], just a friendly reminder that [dog's name] is booked in with us at Smarter Dog Grooming Salon for [date and time]. Reply here if you need to change anything — see you soon..",
     );
   });
 });
