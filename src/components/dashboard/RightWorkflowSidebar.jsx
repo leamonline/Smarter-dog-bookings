@@ -10,13 +10,15 @@ export function RightWorkflowSidebar({
   onOpenWaitlist,
   onOpenTodos,
   onCreateBookingFromWhatsApp,
+  waitlistLoading = false,
+  todoLoading = false,
 }) {
   return (
     <aside className="flex flex-col gap-4" aria-label="Workflow inbox and quick actions">
       <WhatsAppInboxCard onCreateBooking={onCreateBookingFromWhatsApp} />
       <TomorrowRemindersCard />
-      <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} />
-      <TodoListCard count={todoCount} onOpen={onOpenTodos} />
+      <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} loading={waitlistLoading} />
+      <TodoListCard count={todoCount} onOpen={onOpenTodos} loading={todoLoading} />
       <BookingHistoryCard />
     </aside>
   );

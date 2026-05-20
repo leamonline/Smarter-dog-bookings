@@ -1,4 +1,4 @@
-import { Card, CardHead, CardBody, Toggle } from "./shared.jsx";
+import { Card, CardHead, CardBody, Toggle, useConfigSaver } from "./shared.jsx";
 
 const DEFAULT_NOTIFICATIONS = {
   bookingConfirmation: { enabled: true, channels: ["whatsapp", "email"] },
@@ -23,11 +23,12 @@ const NOTIF_ROWS = [
 ];
 
 export function NotificationSettings({ config, onUpdateConfig }) {
+  const save = useConfigSaver(onUpdateConfig);
   const notifs = config?.notifications || DEFAULT_NOTIFICATIONS;
 
   const toggleNotif = (key) => {
     const current = notifs[key];
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       notifications: {
         ...(prev.notifications || DEFAULT_NOTIFICATIONS),
@@ -42,7 +43,7 @@ export function NotificationSettings({ config, onUpdateConfig }) {
     const updated = channels.includes(channel)
       ? channels.filter((c) => c !== channel)
       : [...channels, channel];
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       notifications: {
         ...(prev.notifications || DEFAULT_NOTIFICATIONS),

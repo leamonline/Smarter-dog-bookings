@@ -523,6 +523,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       isSearching={humansIsSearching}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
+                      loadError={he}
                     />
                   } />
                   {/* Profile route: shows the same HumansView underneath with the
@@ -542,6 +543,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      loadError={he}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
                     />
@@ -561,6 +563,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       isSearching={dogsIsSearching}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
+                      loadError={de}
                     />
                   } />
                   <Route path="/dogs/:id" element={
@@ -578,9 +581,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       isSearching={dogsIsSearching}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
+                      loadError={de}
                     />
                   } />
-                  <Route path="/reports" element={<ReportsView />} />
+                  <Route path="/reports" element={<ReportsView loadError={be || de || he} />} />
                   <Route path="/inbox" element={
                     <InboxView
                       onOpenHuman={handleOpenHuman}
@@ -600,6 +604,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       goToPrevWeek={goToPrevWeek}
                       bookingsByDate={bookingsByDate}
                       bookingsLoading={bookingsLoading}
+                      bookingsError={be}
                       daySettings={daySettings}
                       dayOpenState={dayOpenState}
                       dogs={dogs}

@@ -5,10 +5,11 @@ import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
+import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -78,6 +79,18 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           </div>
         </div>
       </div>
+
+      {/* Surface the fetch error inline when the directory ended up
+          empty — the global page-level banner can be dismissed, and
+          we want the user to know where to retry from. */}
+      {loadError && sortedHumans.length === 0 && !isInitialLoading && (
+        <ErrorBanner
+          title="Couldn't load the humans directory"
+          message="Check your connection and try again."
+          retry={() => window.location.reload()}
+          retryLabel="Refresh"
+        />
+      )}
 
       {/* Card grid — skeleton during the initial fetch. */}
       {isInitialLoading && sortedHumans.length === 0 ? (
@@ -182,7 +195,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           );
         })}
 
-        {sortedHumans.length === 0 && !isSearching && (
+        {sortedHumans.length === 0 && !isSearching && !loadError && (
           <div className="col-span-full text-center py-16 px-5 text-slate-500">
             <div className="text-[32px] mb-3">{"\uD83D\uDD0D"}</div>
             <div className="text-[15px] font-semibold">

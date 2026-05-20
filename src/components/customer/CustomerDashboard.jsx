@@ -9,6 +9,7 @@ import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS } from "../../constants/salon.js";
 
@@ -19,6 +20,7 @@ const SALON_OPEN_LABEL = "8:30am–3pm";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [dogs, setDogs] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [trustedHumans, setTrustedHumans] = useState([]);
@@ -127,8 +129,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       })
       .eq("id", humanRecord.id);
     setSaving(false);
-    if (!err) setEditing(false);
-  }, [humanRecord, details]);
+    if (err) {
+      toast.show("Couldn't save your details — try again?", "error");
+      return;
+    }
+    setEditing(false);
+    toast.show("Details saved", "success");
+  }, [humanRecord, details, toast]);
 
   const handleCancel = useCallback(() => {
     setDetails({

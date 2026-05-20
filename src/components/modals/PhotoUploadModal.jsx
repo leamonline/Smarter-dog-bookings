@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconCamera } from "../icons/index.jsx";
+import { InlineError } from "../ui/InlineError.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
 
 /**
@@ -153,9 +154,7 @@ export function PhotoUploadModal({
         </div>
 
         {/* Error */}
-        {error && (
-          <p className="text-xs text-brand-coral font-semibold m-0">{error}</p>
-        )}
+        <InlineError message={error} />
 
         {/* Actions */}
         <div className="flex gap-2">

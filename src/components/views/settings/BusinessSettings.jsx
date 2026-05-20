@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 
 const PLACEHOLDER_BIZ_NAME = "Smarter Dog Grooming";
 
 export function BusinessSettings({ config, onUpdateConfig }) {
+  const toast = useToast();
   // Track whether the salon has actively configured its details so we
   // can warn that customers are seeing the default placeholders rather
   // than real values. The default name doubles as a placeholder; phone,
@@ -23,9 +25,9 @@ export function BusinessSettings({ config, onUpdateConfig }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    onUpdateConfig((prev) => ({
+    const result = await onUpdateConfig((prev) => ({
       ...prev,
       businessName: business.name,
       businessPhone: business.phone,
@@ -33,6 +35,10 @@ export function BusinessSettings({ config, onUpdateConfig }) {
       businessAddress: business.address,
     }));
     setSaving(false);
+    if (result?.ok === false) {
+      toast.show(result.error || "Couldn't save — try again?", "error");
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

@@ -7,6 +7,7 @@ import { titleCase } from "../../utils/text.js";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
+import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 
 function computeAge(dog) {
@@ -45,7 +46,7 @@ const SIZE_FILTERS = [
   { value: "unset", label: "Unset" },
 ];
 
-export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
+export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [sizeFilter, setSizeFilter] = useState(null); // "small" | "medium" | "large" | "unset" | null
@@ -180,6 +181,18 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         )}
       </div>
 
+      {/* Inline fetch-error banner — only shown when the grid is also
+          empty, so callers don't get a duplicate global+local banner
+          for an error that didn't actually wipe the list. */}
+      {loadError && sortedDogs.length === 0 && !isInitialLoading && (
+        <ErrorBanner
+          title="Couldn't load the dogs directory"
+          message="Check your connection and try again."
+          retry={() => window.location.reload()}
+          retryLabel="Refresh"
+        />
+      )}
+
       {/* Card grid — skeleton during the initial fetch so the page
           settles into shape before the data arrives. */}
       {isInitialLoading && sortedDogs.length === 0 ? (
@@ -256,7 +269,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           );
         })}
 
-        {sortedDogs.length === 0 && !isSearching && (
+        {sortedDogs.length === 0 && !isSearching && !loadError && (
           <div className="col-span-full text-center py-16 px-5 text-slate-500">
             <div className="text-[32px] mb-3">{"🐾"}</div>
             <div className="text-[15px] font-semibold">

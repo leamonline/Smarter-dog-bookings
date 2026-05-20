@@ -18,8 +18,12 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
     setViewMonth(currentDateObj.getMonth());
   }, [currentDateObj]);
 
-  const { monthBookingsByDate } = useMonthBookings(viewYear, viewMonth);
-  const { monthDayOpenState } = useMonthDaySettings(viewYear, viewMonth);
+  const { monthBookingsByDate, monthBookingsLoading } = useMonthBookings(viewYear, viewMonth);
+  const { monthDayOpenState, monthDaySettingsLoading } = useMonthDaySettings(viewYear, viewMonth);
+  // While the month's data is still loading, suppress the colour/dot
+  // calculation so the grid doesn't claim "all days empty, all green"
+  // before the bookings arrive.
+  const monthLoading = monthBookingsLoading || monthDaySettingsLoading;
 
   const { weeks, monthName } = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -83,24 +87,31 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
           {weeks.flat().map((date, i) => {
             if (!date) return <div key={`e-${i}`} />;
             const dateStr = toDateStr(date);
-            const isOpen = monthDayOpenState[dateStr] ?? getDefaultOpenForDate(date);
-            const count = (monthBookingsByDate[dateStr] || []).length;
+            // While loading we don't know if the day is open/closed or
+            // how many dogs are booked, so use neutral defaults to
+            // avoid claiming "available" on every date.
+            const isOpen = monthLoading
+              ? true
+              : (monthDayOpenState[dateStr] ?? getDefaultOpenForDate(date));
+            const count = monthLoading ? 0 : (monthBookingsByDate[dateStr] || []).length;
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedStr;
             const isFull = isOpen && count >= DAY_CAPACITY;
             const hasAvailability = isOpen && !isFull;
 
             // Status: closed → red, full → blue, available → green
-            // Selected/today still win for clarity.
-            const numberColor = !isOpen
-              ? "text-rose-500"
-              : isFull
-                ? "text-sky-600"
-                : count > 0
-                  ? "text-emerald-700"
-                  : "text-emerald-600";
+            // Selected/today still win for clarity. Loading → neutral.
+            const numberColor = monthLoading
+              ? "text-slate-300"
+              : !isOpen
+                ? "text-rose-500"
+                : isFull
+                  ? "text-sky-600"
+                  : count > 0
+                    ? "text-emerald-700"
+                    : "text-emerald-600";
 
-            const dotColor = !isOpen
+            const dotColor = monthLoading || !isOpen
               ? null
               : isFull
                 ? "bg-sky-500"
@@ -113,13 +124,15 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
               day: "numeric",
               month: "long",
             })}${
-              !isOpen
-                ? ", closed"
-                : isFull
-                  ? `, fully booked, ${count} bookings`
-                  : count > 0
-                    ? `, ${count} ${count === 1 ? "booking" : "bookings"}, availability`
-                    : ", availability"
+              monthLoading
+                ? ", loading"
+                : !isOpen
+                  ? ", closed"
+                  : isFull
+                    ? `, fully booked, ${count} bookings`
+                    : count > 0
+                      ? `, ${count} ${count === 1 ? "booking" : "bookings"}, availability`
+                      : ", availability"
             }`;
 
             return (

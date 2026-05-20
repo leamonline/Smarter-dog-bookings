@@ -18,6 +18,8 @@ export function UtilityTabs({
   onOpenTodos,
   onCreateBookingFromWhatsApp,
   defaultTab = "inbox",
+  waitlistLoading = false,
+  todoLoading = false,
 }) {
   const [active, setActive] = useState(defaultTab);
 
@@ -91,10 +93,10 @@ export function UtilityTabs({
           <WhatsAppInboxCard onCreateBooking={onCreateBookingFromWhatsApp} bare />
         )}
         {active === "waitlist" && (
-          <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} bare />
+          <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} bare loading={waitlistLoading} />
         )}
         {active === "tasks" && (
-          <TodoListCard count={todoCount} onOpen={onOpenTodos} bare />
+          <TodoListCard count={todoCount} onOpen={onOpenTodos} bare loading={todoLoading} />
         )}
       </div>
     </section>

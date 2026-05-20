@@ -1,12 +1,17 @@
 import { ListChecks, ArrowRight } from "lucide-react";
+import { SkeletonBlock } from "../ui/Skeleton.jsx";
 
-export function TodoListCard({ count = 0, onOpen, bare = false }) {
+export function TodoListCard({ count = 0, onOpen, bare = false, loading = false }) {
   const hasTasks = count > 0;
+  const ariaLabel = loading
+    ? "To-do list, loading"
+    : `To-do list, ${count} ${count === 1 ? "task" : "tasks"} — click to view all`;
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`To-do list, ${count} ${count === 1 ? "task" : "tasks"} — click to view all`}
+      aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       className={[
         "group w-full text-left cursor-pointer font-[inherit] border-none transition-colors",
         bare
@@ -25,15 +30,19 @@ export function TodoListCard({ count = 0, onOpen, bare = false }) {
 
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <div
-            className={`text-2xl font-black font-display leading-none ${
-              hasTasks ? "text-rose-700" : "text-rose-300"
-            }`}
-          >
-            {count}
-          </div>
+          {loading ? (
+            <SkeletonBlock className="h-7 w-8 rounded-md" />
+          ) : (
+            <div
+              className={`text-2xl font-black font-display leading-none ${
+                hasTasks ? "text-rose-700" : "text-rose-300"
+              }`}
+            >
+              {count}
+            </div>
+          )}
           <div className="text-[11px] font-semibold text-rose-700/70">
-            {count === 1 ? "open task" : "open tasks"}
+            {loading ? "checking…" : count === 1 ? "open task" : "open tasks"}
           </div>
         </div>
         <ArrowRight

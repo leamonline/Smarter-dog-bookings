@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { SERVICES } from "../../../constants/index.js";
-import { Card, CardHead, CardBody, SaveButton, SECTION_LABEL_CLS } from "./shared.jsx";
+import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
 export function PricingSettings({ config, onUpdateConfig }) {
+  const save = useConfigSaver(onUpdateConfig);
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceIcon, setNewServiceIcon] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const currentServices = config?.services || SERVICES;
   const currentPricing = config?.pricing || {};
 
   const updatePricing = (serviceId, size, value) => {
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       pricing: {
         ...prev.pricing,
@@ -22,7 +21,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
   };
 
   const deleteService = (serviceId) => {
-    onUpdateConfig((prev) => {
+    save((prev) => {
       const updatedServices = (prev.services || SERVICES).filter((s) => s.id !== serviceId);
       const updatedPricing = { ...prev.pricing };
       delete updatedPricing[serviceId];
@@ -34,20 +33,13 @@ export function PricingSettings({ config, onUpdateConfig }) {
     const name = newServiceName.trim();
     if (!name) return;
     const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       services: [...(prev.services || SERVICES), { id, name, icon: newServiceIcon || "\u2702\uFE0F" }],
       pricing: { ...prev.pricing, [id]: { small: "", medium: "", large: "" } },
     }));
     setNewServiceName("");
     setNewServiceIcon("");
-  };
-
-  const handleSave = () => {
-    setSaving(true);
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   };
 
   const priceInputCls = "w-full py-2 px-2 pl-10 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 outline-none transition-colors focus:border-brand-teal";
@@ -132,8 +124,8 @@ export function PricingSettings({ config, onUpdateConfig }) {
           </button>
         </div>
 
-        <div className="mt-3.5">
-          <SaveButton onClick={handleSave} saving={saving} saved={saved} label="Save pricing" />
+        <div className="mt-3.5 text-[11px] font-semibold text-slate-400">
+          Changes save as you type.
         </div>
       </CardBody>
     </Card>

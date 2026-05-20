@@ -122,6 +122,9 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     setOfflineConfig((prev) =>
       typeof updater === "function" ? updater(prev) : updater,
     );
+    // Mirror useSalonConfig's return shape so consumers can await the same
+    // outcome contract in online and offline modes.
+    return { ok: true };
   }, []);
 
   const offlineAddHuman = useCallback((humanData) => {
@@ -254,6 +257,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
         else overrides[slot] = slotOv;
         return { ...prev, [currentDateStr]: { ...current, overrides } };
       });
+      return { ok: true };
     },
     [currentDateStr, currentDateObj],
   );

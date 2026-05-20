@@ -7,10 +7,22 @@ import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
+import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { PawPrint } from "lucide-react";
 import "./customer-portal.css";
 
 export default function CustomerApp() {
+  // Wrap the whole app in ToastProvider so customer-facing save flows
+  // (MyDetails, dogs, trusted humans) can confirm success or surface
+  // failures alongside the existing inline portal-alert--error UI.
+  return (
+    <ToastProvider>
+      <CustomerAppContent />
+    </ToastProvider>
+  );
+}
+
+function CustomerAppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
