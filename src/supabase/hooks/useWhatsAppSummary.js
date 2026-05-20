@@ -43,6 +43,19 @@ export function useWhatsAppSummary() {
   });
   const [loading, setLoading] = useState(true);
 
+  // AI-written summary sentence. Loaded asynchronously from the
+  // dashboard-summary edge function (which caches on the server side
+  // against the inbox's max(updated_at), so this is safe to call
+  // freely on every realtime tick).
+  const [aiSummary, setAiSummary] = useState({
+    text: "",
+    awaitingCount: 0,
+    generatedAt: null,
+    fromCache: false,
+    loading: false,
+    error: null,
+  });
+
   const refresh = useCallback(async () => {
     if (!supabase) {
       setLoading(false);
@@ -120,40 +133,85 @@ export function useWhatsAppSummary() {
     setLoading(false);
   }, []);
 
+  const refreshAiSummary = useCallback(async () => {
+    if (!supabase) return;
+    setAiSummary((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const { data, error } = await supabase.functions.invoke("dashboard-summary", {
+        body: {},
+      });
+      if (error) {
+        // Edge function might not be deployed yet on first install —
+        // fail silently and let the card show the count without the
+        // summary line. Surface the error in state for debugging.
+        setAiSummary((prev) => ({
+          ...prev,
+          loading: false,
+          error: error.message ?? "Summary unavailable",
+        }));
+        return;
+      }
+      setAiSummary({
+        text: data?.summary ?? "",
+        awaitingCount: data?.awaitingCount ?? 0,
+        generatedAt: data?.generatedAt ?? null,
+        fromCache: data?.fromCache === true,
+        loading: false,
+        error: null,
+      });
+    } catch (err) {
+      setAiSummary((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     if (!supabase) return;
     refresh();
+    refreshAiSummary();
 
     // Only the three events that can change our numbers. We don't
     // subscribe to whatsapp_messages inserts directly — the trigger
     // will bump unread_count which comes through as an UPDATE on
     // whatsapp_conversations, and that's enough.
+    //
+    // AI summary refreshes on the same triggers but is cheap because
+    // the dashboard-summary function caches against the inbox's max
+    // updated_at — unchanged state returns from cache without an
+    // LLM call.
+    const onAnyChange = () => {
+      refresh();
+      refreshAiSummary();
+    };
     const channel = supabase
       .channel("whatsapp-dashboard-summary")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_conversations" },
-        () => refresh(),
+        onAnyChange,
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_conversations" },
-        () => refresh(),
+        onAnyChange,
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_drafts" },
-        () => refresh(),
+        onAnyChange,
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_drafts" },
-        () => refresh(),
+        onAnyChange,
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [refresh]);
+  }, [refresh, refreshAiSummary]);
 
-  return { ...summary, loading };
+  return { ...summary, aiSummary, loading, refreshAiSummary };
 }

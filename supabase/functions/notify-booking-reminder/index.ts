@@ -6,10 +6,38 @@ import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts.
+
+// CORS — only for the staff-JWT path (the cron call sends no Origin
+// header). Same allowlist pattern as whatsapp-send.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://smarterdog.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get("NOTIFY_REMINDER_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") ?? "";
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+  if (ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -114,33 +142,119 @@ function groupBookings(bookings: Booking[]): Map<string | null, Booking[]> {
 // ── Main handler ───────────────────────────────────────────────────────────
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+  }
+
   try {
-    // 0. Verify webhook secret — MANDATORY
-    if (!WEBHOOK_SECRET) {
-      console.error("WEBHOOK_SECRET is not configured");
-      return new Response("Server misconfiguration: WEBHOOK_SECRET not set", { status: 500 });
+    // 0. Auth — two paths:
+    //    (a) cron / pg_net trigger: Authorization: Bearer <WEBHOOK_SECRET>
+    //    (b) staff dashboard: Authorization: Bearer <JWT> + is_staff()
+    //
+    // Path (b) was added so the dashboard's "Tomorrow's reminders"
+    // panel can fire a one-shot reminder for a single booking
+    // without needing to share the WEBHOOK_SECRET with the browser.
+    let authedAsStaff = false;
+    const cronAuthed =
+      !!WEBHOOK_SECRET && isAuthorizedWebhook(req.headers.get("Authorization"), WEBHOOK_SECRET);
+
+    if (!cronAuthed) {
+      const authHeader = req.headers.get("authorization");
+      if (!authHeader) {
+        return new Response("Unauthorized", { status: 401, headers: buildCorsHeaders(req) });
+      }
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userRes, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !userRes?.user) {
+        return new Response("Unauthorized", { status: 401, headers: buildCorsHeaders(req) });
+      }
+      const { data: staffCheck } = await userClient.rpc("is_staff");
+      if (!staffCheck) {
+        return new Response("Forbidden", { status: 403, headers: buildCorsHeaders(req) });
+      }
+      authedAsStaff = true;
     }
-    if (!isAuthorizedWebhook(req.headers.get("Authorization"), WEBHOOK_SECRET)) {
-      return new Response("Unauthorized", { status: 401 });
+
+    // Optional body — staff path can pass { booking_id } to send a
+    // reminder for one specific booking (or all bookings sharing its
+    // group_id). The cron path sends no body.
+    let body: { booking_id?: string } = {};
+    if (req.body) {
+      try { body = await req.json(); } catch { body = {}; }
     }
+    const singleBookingId = typeof body.booking_id === "string" ? body.booking_id : null;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const tomorrow = tomorrowDateString();
 
-    // 1. Fetch all tomorrow's active booked appointments.
-    const { data: bookings, error: bookingsError } = await supabase
-      .from("bookings")
-      .select("id, booking_date, slot, dog_id, service, group_id")
-      .eq("booking_date", tomorrow)
-      .eq("status", "Booked");
+    // 1. Fetch bookings — either the staff-targeted single booking
+    //    (plus any group siblings so a recurring chain or large-dog
+    //    pair gets one combined reminder), or all of tomorrow's
+    //    active bookings via the cron path.
+    let bookings: Booking[] | null = null;
+    let bookingsError: { message: string } | null = null;
+    if (singleBookingId) {
+      // First fetch the named booking, then expand to its group.
+      const { data: anchor, error: anchorErr } = await supabase
+        .from("bookings")
+        .select("id, booking_date, slot, dog_id, service, group_id, status")
+        .eq("id", singleBookingId)
+        .maybeSingle();
+      if (anchorErr || !anchor) {
+        return new Response(
+          JSON.stringify({ error: "booking not found" }),
+          { status: 404, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
+        );
+      }
+      if (anchor.status === "Cancelled") {
+        return new Response(
+          JSON.stringify({ error: "booking is cancelled — won't remind" }),
+          { status: 422, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
+        );
+      }
+      if (anchor.group_id) {
+        const { data: siblings, error: siblingsErr } = await supabase
+          .from("bookings")
+          .select("id, booking_date, slot, dog_id, service, group_id")
+          .eq("group_id", anchor.group_id)
+          .neq("status", "Cancelled");
+        if (siblingsErr) {
+          bookingsError = siblingsErr;
+        } else {
+          bookings = siblings as Booking[];
+        }
+      } else {
+        bookings = [{
+          id: anchor.id,
+          booking_date: anchor.booking_date,
+          slot: anchor.slot,
+          dog_id: anchor.dog_id,
+          service: anchor.service,
+          group_id: null,
+        }];
+      }
+    } else {
+      const tomorrow = tomorrowDateString();
+      const res = await supabase
+        .from("bookings")
+        .select("id, booking_date, slot, dog_id, service, group_id")
+        .eq("booking_date", tomorrow)
+        .eq("status", "Booked");
+      if (res.error) bookingsError = res.error;
+      else bookings = (res.data ?? []) as Booking[];
+    }
 
     if (bookingsError) {
       console.error("Bookings query failed:", bookingsError.message);
-      return new Response("Bookings query failed", { status: 500 });
+      return new Response("Bookings query failed", { status: 500, headers: buildCorsHeaders(req) });
     }
 
     if (!bookings || bookings.length === 0) {
-      return new Response("No bookings to remind for tomorrow", { status: 200 });
+      const message = singleBookingId
+        ? "Booking not eligible for reminder"
+        : "No bookings to remind for tomorrow";
+      return new Response(message, { status: 200, headers: buildCorsHeaders(req) });
     }
 
     // 2. Group by group_id (null = individual)
@@ -271,17 +385,23 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ tomorrow, groups: results.length, results }),
+      JSON.stringify({
+        mode: singleBookingId ? "single" : "cron",
+        booking_id: singleBookingId,
+        groups: results.length,
+        results,
+        authed_as_staff: authedAsStaff,
+      }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
       },
     );
   } catch (err) {
     console.error("notify-booking-reminder error:", err);
     return new Response(
       JSON.stringify({ error: "internal error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
     );
   }
 });

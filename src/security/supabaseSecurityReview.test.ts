@@ -219,8 +219,15 @@ describe("Supabase security review regressions", () => {
       expect(fn, `${path} imports the timing-safe helper`).toMatch(
         /import\s*{\s*isAuthorizedWebhook\s*}\s*from\s*"\.\.\/_shared\/webhook-auth\.ts"/,
       );
+      // The webhook secret must be checked through the timing-safe
+      // helper. Either form is OK:
+      //   if (!isAuthorizedWebhook(req.headers.get("Authorization"), SECRET))
+      //   const ok = isAuthorizedWebhook(req.headers.get("Authorization"), SECRET); if (!ok)
+      // notify-booking-reminder uses the second form post-Phase-F (it
+      // accepts a staff JWT as an alternative auth path for the
+      // dashboard's manual reminder send).
       expect(fn, `${path} uses the helper to check auth`).toMatch(
-        /if\s*\(\s*!isAuthorizedWebhook\(/,
+        /isAuthorizedWebhook\(/,
       );
       expect(fn, `${path} no longer compares WEBHOOK_SECRET with !==`).not.toMatch(
         /authHeader\s*!==\s*`Bearer\s*\$\{WEBHOOK_SECRET\}`/,
