@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed": "node src/supabase/seed.js",
+    "seed": "tsx src/supabase/seed.ts",
     "test": "vitest run",
     "test:logic": "vitest run --project=logic",
     "test:component": "vitest run --project=component",
