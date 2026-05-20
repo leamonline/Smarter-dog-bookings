@@ -838,6 +838,52 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  // ── Outbound (compose-new) template send ───────────────────
+  // Used by the inbox header's "New message" button. Identical to
+  // sendTemplate below except the conversation context is supplied
+  // by the picker (humanId + phoneE164) rather than read from the
+  // selectedId — there's no selected thread when staff initiate
+  // contact. whatsapp-send mode:"template" upserts the conversation
+  // by phone_e164, so the message lands in the inbox immediately.
+  const sendOutboundTemplate = useCallback(
+    async ({ humanId, phoneE164, template, paramValues }) => {
+      if (!phoneE164 || !template) {
+        return { ok: false, reason: "missing recipient or template" };
+      }
+      const params = buildTemplateParams(template, paramValues);
+      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
+        body: {
+          mode: "template",
+          to: phoneE164,
+          template_name: template.name,
+          language: template.language,
+          params,
+          human_id: humanId ?? null,
+        },
+      });
+      if (error) {
+        let detail = error.message ?? "Template send failed";
+        try {
+          const errorBody = await error.context?.json?.();
+          if (errorBody) {
+            const parts = [errorBody.error, errorBody.detail].filter(Boolean);
+            if (parts.length) detail = parts.join(": ");
+          }
+        } catch {
+          /* fall through */
+        }
+        return { ok: false, reason: detail };
+      }
+      // Refresh the list so the newly-upserted conversation shows up.
+      // The realtime subscription on whatsapp_conversations will also
+      // pick this up, but the manual refresh keeps the post-send
+      // navigation flow synchronous.
+      await refreshList();
+      return { ok: true };
+    },
+    [refreshList],
+  );
+
   const sendTemplate = useCallback(
     async (template, paramValues) => {
       const conversation = conversations.find((c) => c.id === selectedId);
@@ -913,6 +959,7 @@ export function useWhatsAppInbox() {
     resolveConversation,
     reopenConversation,
     sendTemplate,
+    sendOutboundTemplate,
     dogNames,
     dogNamesById,
     actionInFlight,

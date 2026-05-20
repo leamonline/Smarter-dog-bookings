@@ -139,6 +139,11 @@ interface TemplateMode {
   language?: string;
   params?: string[];
   conversation_id?: string;
+  // Optional: link the conversation to a known human. Used by the
+  // inbox compose-new flow — staff picked the customer from the
+  // humans directory, so we know who this is before any reply.
+  // Falls back to the phone-lookup + agent-side linking otherwise.
+  human_id?: string | null;
 }
 
 interface ConfirmButtonsMode {
@@ -524,14 +529,51 @@ async function handleTemplateMode(
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
+  // Resolve (or create) the conversation row this outbound belongs to.
+  // The inbox compose-new flow sends to phones we may not have a
+  // conversation for yet — without an upsert, recordOutbound would
+  // silently no-op and the sent message would never appear in /inbox
+  // until the customer replied and the webhook bootstrapped it.
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
+    const phoneE164 = toE164(body.to);
     const { data: conv } = await supabase
       .from("whatsapp_conversations")
-      .select("id")
-      .eq("phone_e164", toE164(body.to))
+      .select("id, human_id")
+      .eq("phone_e164", phoneE164)
       .maybeSingle();
-    conversationId = conv?.id ?? null;
+    if (conv?.id) {
+      conversationId = conv.id;
+      // Backfill human_id if the caller knows it and the existing row
+      // doesn't — happens when the agent created the conversation
+      // before staff linked the customer.
+      if (body.human_id && !conv.human_id) {
+        await supabase
+          .from("whatsapp_conversations")
+          .update({ human_id: body.human_id })
+          .eq("id", conv.id);
+      }
+    } else {
+      const { data: created, error: createErr } = await supabase
+        .from("whatsapp_conversations")
+        .insert({
+          phone_e164: phoneE164,
+          human_id: body.human_id ?? null,
+          // Keep the conversation in human_takeover mode by default
+          // for outbound-initiated threads — staff just opened it and
+          // are driving. The agent kicks in if the customer replies
+          // (the webhook → agent path doesn't read this flag for the
+          // initial inbound, so AI drafts will resume naturally).
+          state: "ai_handling",
+        })
+        .select("id")
+        .single();
+      if (createErr) {
+        console.error("template mode: conversation create failed:", createErr);
+      } else {
+        conversationId = created?.id ?? null;
+      }
+    }
   }
 
   const content = `[template:${body.template_name}] ${params.join(" · ")}`.trim();

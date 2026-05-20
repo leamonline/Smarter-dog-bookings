@@ -18,7 +18,11 @@ const TEMPLATE_PARAM_MISSING_HELPER = {
   dog_name_select: "No dog on file yet — type the name to send",
 };
 
-export function TemplatePicker({ conversation, dogNames, onSend }) {
+// Accepts EITHER a conversation (existing-thread reply, the 24h-window
+// reopen flow) OR a customerFirstName + contextKey directly (outbound
+// compose-new flow, where there isn't a conversation row yet). Both
+// paths render the same form; only the auto-fill source differs.
+export function TemplatePicker({ conversation, dogNames, onSend, customerFirstName, contextKey }) {
   const [selectedTemplateName, setSelectedTemplateName] = useState(WHATSAPP_TEMPLATES[0].name);
   const [paramValues, setParamValues] = useState({});
   const [sending, setSending] = useState(false);
@@ -27,21 +31,25 @@ export function TemplatePicker({ conversation, dogNames, onSend }) {
 
   const template = WHATSAPP_TEMPLATES.find((t) => t.name === selectedTemplateName);
 
-  // Auto-fill known params from conversation context whenever the selected
-  // template or conversation changes.
+  // Auto-fill known params from conversation context whenever the
+  // selected template or context changes. contextKey lets the
+  // outbound compose-new flow tell us "this is a different customer
+  // now" without faking a conversation.id.
+  const resolvedFirstName =
+    customerFirstName ?? conversation?.humans?.name ?? "";
+  const resolvedContextKey = contextKey ?? conversation?.id ?? "";
   useEffect(() => {
     const autoFilled = {};
-    const customerFirstName = conversation?.humans?.name ?? "";
     const firstDog = (dogNames ?? [])[0] ?? "";
 
     for (const param of template.params) {
-      if (param.autoFill === "customer_first_name") autoFilled[param.key] = customerFirstName;
+      if (param.autoFill === "customer_first_name") autoFilled[param.key] = resolvedFirstName;
       else if (param.autoFill === "dog_name_select") autoFilled[param.key] = firstDog;
     }
     setParamValues(autoFilled);
     setSent(false);
     setError(null);
-  }, [selectedTemplateName, conversation?.id, dogNames, template]);
+  }, [selectedTemplateName, resolvedContextKey, resolvedFirstName, dogNames, template]);
 
   const allFilled = template.params.every((p) => (paramValues[p.key] ?? "").trim() !== "");
   const preview = template.preview(paramValues);

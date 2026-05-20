@@ -35,6 +35,7 @@ import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
 import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
 import { AIModeSelector } from "./AIModeSelector.jsx";
 import { MarkCompleteButton } from "./MarkCompleteButton.jsx";
+import { ComposeNewModal } from "./compose-new/ComposeNewModal.jsx";
 import { MessageBubble } from "./thread/MessageBubble.jsx";
 import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
@@ -68,6 +69,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     resolveConversation,
     reopenConversation,
     sendTemplate,
+    sendOutboundTemplate,
     dogNames,
     dogNamesById,
     actionInFlight,
@@ -154,6 +156,29 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     else if (res?.reason) toast.show(`Could not reopen: ${res.reason}`, "error");
     return res;
   }, [reopenConversation, toast]);
+
+  // Compose-new modal — outbound entry point. Opens from the header
+  // button; after a successful send, close the modal and select the
+  // freshly-upserted conversation so staff land straight in the thread.
+  const [composeOpen, setComposeOpen] = useState(false);
+  const handleComposeSent = useCallback(async (payload) => {
+    const res = await sendOutboundTemplate(payload);
+    if (res?.ok) {
+      setComposeOpen(false);
+      toast.show("Template sent — opening the thread.", "success");
+      // After refreshList settled inside sendOutboundTemplate, find the
+      // conversation by phone and select it. The list refresh already
+      // landed by the time this resolves, so the selection is reliable.
+      const phoneDigits = (payload.phoneE164 ?? "").replace(/\D/g, "");
+      const match = conversations.find(
+        (c) => (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits,
+      );
+      if (match) selectConversation(match.id);
+    } else if (res?.reason) {
+      toast.show(`Could not send: ${res.reason}`, "error");
+    }
+    return res;
+  }, [sendOutboundTemplate, conversations, selectConversation, toast]);
 
   // Customer-context panel: docked third column at xl, slide-over below xl.
   // Track openness separately so the slide-over can close without
@@ -298,6 +323,18 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setComposeOpen(true)}
+            title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New message
+          </button>
         </div>
         <div
           className="flex items-center gap-2 flex-wrap"
@@ -620,6 +657,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             titleId="inbox-customer-context-title"
           />
         </SlideOverPanel>
+      )}
+
+      {composeOpen && (
+        <ComposeNewModal
+          onClose={() => setComposeOpen(false)}
+          onSent={handleComposeSent}
+        />
       )}
     </div>
   );
