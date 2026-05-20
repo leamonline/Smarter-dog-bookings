@@ -462,6 +462,15 @@ async function upsertConversation(
   // from findHumanIdByPhone which already returns existing links.
   const upsertBody: Record<string, unknown> = {
     phone_e164: phoneE164,
+    // Phase E added a channel column (whatsapp | sms) and replaced
+    // the single-column unique constraint on phone_e164 with a
+    // composite (phone_e164, channel). All inbound here is from
+    // Meta's WhatsApp webhook, so the channel is always 'whatsapp'.
+    // The composite ON CONFLICT target is required after that
+    // migration — using "phone_e164" alone fails with "there is no
+    // unique or exclusion constraint matching the ON CONFLICT
+    // specification".
+    channel: "whatsapp",
     last_inbound_at: lastInboundAt,
     last_customer_text: lastCustomerText ?? undefined,
   };
@@ -472,7 +481,7 @@ async function upsertConversation(
     .from("whatsapp_conversations")
     .upsert(
       upsertBody,
-      { onConflict: "phone_e164" },
+      { onConflict: "phone_e164,channel" },
     )
     .select("id, state, human_id, phone_e164, auto_send_enabled, autonomous_booking_enabled, agent_state, lead_status, lead_payload")
     .single();
