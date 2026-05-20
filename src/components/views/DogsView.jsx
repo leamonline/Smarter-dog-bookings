@@ -102,14 +102,14 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
             <div className="relative flex-1">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="rgba(255,255,255,0.5)" />
+                <IconSearch size={16} colour="rgba(255,255,255,0.85)" />
               </div>
               <input
                 type="text"
                 placeholder="Search by name, breed or owner..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/40 bg-white/25 text-sm font-inherit outline-none text-white placeholder:text-white/85 transition-colors focus:bg-white/35 focus:border-white/60"
               />
             </div>
             <button
