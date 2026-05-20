@@ -27,27 +27,14 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
 import { logger } from "../../lib/logger.js";
+import {
+  SEND_FUNCTION_PATH,
+  parseSupabaseFunctionError,
+} from "./inbox/helpers.js";
+import { useOutboundSender } from "./inbox/useOutboundSender.js";
+import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
+import { useAIModeControls } from "./inbox/useAIModeControls.js";
 
-const SEND_FUNCTION_PATH = "whatsapp-send";
-
-// Pulls a useful failure message out of a supabase.functions.invoke
-// error. The transport-level `error.message` is usually generic ("Edge
-// Function returned a non-2xx status code"); the function body
-// typically carries the real `{ error, detail }` JSON. We try to parse
-// that and fall back to the transport message if parsing fails.
-async function parseSupabaseFunctionError(error, fallbackMessage) {
-  let detail = error.message ?? fallbackMessage;
-  try {
-    const errorBody = await error.context?.json?.();
-    if (errorBody) {
-      const parts = [errorBody.error, errorBody.detail].filter(Boolean);
-      if (parts.length) detail = parts.join(": ");
-    }
-  } catch {
-    /* fall through */
-  }
-  return detail;
-}
 
 // ── Pure helpers (exported for testing) ─────────────────────
 // Filters the bookingActions list down to the actions attached to the
@@ -212,6 +199,43 @@ export function useWhatsAppInbox() {
       setLoadingList(false);
     }
   }, []);
+
+  // Outbound (compose-new) sends — extracted into their own hook
+  // because they don't share state with the rest of the inbox; only
+  // refreshList() is shared, and they call it explicitly so the
+  // newly-upserted conversation surfaces immediately.
+  const { sendOutboundSMS, sendOutboundTemplate } = useOutboundSender({
+    refreshList,
+  });
+
+  // Conversation state-transition callbacks (takeover / release /
+  // resolve / reopen) — extracted because they're a coherent
+  // semantic cluster operating on whatsapp_conversations and don't
+  // need the rest of the inbox state.
+  const {
+    takeoverConversation,
+    releaseConversation,
+    resolveConversation,
+    reopenConversation,
+  } = useConversationLifecycle({
+    selectedId,
+    actionInFlight,
+    setActionInFlight,
+    conversations,
+  });
+
+  // AI-mode toggles (segmented control + per-conversation auto-send
+  // and autonomous-booking flags). Optimistic updates with rollback
+  // live in the dedicated hook so the InboxView never sees the
+  // setConversations plumbing.
+  const { setAutoSendEnabled, setAutonomousBookingEnabled, setAIMode } =
+    useAIModeControls({
+      selectedId,
+      actionInFlight,
+      setActionInFlight,
+      conversations,
+      setConversations,
+    });
 
   useEffect(() => {
     if (!supabase) {
@@ -654,247 +678,6 @@ export function useWhatsAppInbox() {
     }
   }, [actionInFlight]);
 
-  const takeoverConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ state: "human_takeover" })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("takeoverConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "takeoverConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  const releaseConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ state: "ai_handling" })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("releaseConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "releaseConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  // Per-conversation auto-send opt-in. The agent only auto-sends a
-  // draft when ALL of the following are true:
-  //   1. AI_AUTO_SEND_LOW_RISK env flag on the function is 'true'
-  //   2. This row's auto_send_enabled is true (set here)
-  //   3. The draft itself is low-risk + handoff-free + in the auto-send
-  //      intent allowlist (computed by the agent at draft time)
-  // Optimistic: flip the local list state immediately so the toggle
-  // feels instant; realtime subscription will reconcile.
-  const setAutoSendEnabled = useCallback(async (enabled) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    const next = !!enabled;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: next } : c)),
-    );
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ auto_send_enabled: next })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAutoSendEnabled failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAutoSendEnabled" },
-      });
-      // Roll back the optimistic flip.
-      setConversations((prev) =>
-        prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: !next } : c)),
-      );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  const setAutonomousBookingEnabled = useCallback(async (enabled) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    const next = !!enabled;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: next } : c)),
-    );
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ autonomous_booking_enabled: next })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAutonomousBookingEnabled failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAutonomousBookingEnabled" },
-      });
-      // Roll back the optimistic flip.
-      setConversations((prev) =>
-        prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: !next } : c)),
-      );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  // ── Consolidated AI mode selector ──────────────────────────
-  // Replaces the trio of (state column, auto_send_enabled, autonomous_booking_enabled)
-  // with a single semantic mode the header surfaces as a segmented control.
-  //
-  //   'ai_auto'       state='ai_handling', auto_send_enabled=true,  autonomous_booking_enabled=opts.allowAutonomousBooking
-  //   'human_only'    state='human_takeover', auto_send_enabled=false, autonomous_booking_enabled=false
-  //
-  // Post-Phase-G: 'ai_drafts' is retired. The on-demand "Generate reply"
-  // button covers the use case (manual draft on a per-message basis).
-  //
-  // The nested "Allow autonomous bookings" toggle is meaningful only in
-  // ai_auto. Switching away from ai_auto always disables it so a future
-  // switch back to ai_auto starts at the safe default.
-  const setAIMode = useCallback(async (mode, opts = {}) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    if (!["ai_auto", "human_only"].includes(mode)) {
-      return { ok: false, reason: `unknown mode: ${mode}` };
-    }
-
-    const next = {
-      state: mode === "human_only" ? "human_takeover" : "ai_handling",
-      auto_send_enabled: mode === "ai_auto",
-      autonomous_booking_enabled:
-        mode === "ai_auto" ? !!opts.allowAutonomousBooking : false,
-    };
-
-    // Capture previous values so we can roll back on failure.
-    const prev = conversations.find((c) => c.id === selectedId);
-    const previousSnapshot = prev
-      ? {
-          state: prev.state,
-          auto_send_enabled: prev.auto_send_enabled,
-          autonomous_booking_enabled: prev.autonomous_booking_enabled,
-        }
-      : null;
-
-    setActionInFlight(true);
-    setConversations((list) =>
-      list.map((c) => (c.id === selectedId ? { ...c, ...next } : c)),
-    );
-
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update(next)
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAIMode failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAIMode" },
-      });
-      if (previousSnapshot) {
-        setConversations((list) =>
-          list.map((c) => (c.id === selectedId ? { ...c, ...previousSnapshot } : c)),
-        );
-      }
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight, conversations]);
-
-  // ── Resolve / reopen ──────────────────────────────────────
-  // resolveConversation marks the currently-selected conversation
-  // complete. closure_reason inherits the active suggestion if there
-  // is one (so a "Suggest closing" pill turning into a close keeps the
-  // semantic reason), otherwise it's 'manual'.
-  //
-  // closed_by is the staff member who clicked the button — pulled
-  // from the live auth session rather than trusting client-supplied
-  // user_id, so an attacker who can call the API can't backdate
-  // someone else's closure.
-  //
-  // reopenConversation clears closed_at + closure_reason. closed_by
-  // is preserved so a future audit surface can still show who closed
-  // it before it was reopened.
-  const resolveConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-
-    const current = conversations.find((c) => c.id === selectedId);
-    const inheritedReason = current?.closure_suggested_reason ?? null;
-    const reason = inheritedReason || "manual";
-
-    try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes?.user?.id ?? null;
-
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({
-          closed_at: new Date().toISOString(),
-          closed_by: userId,
-          closure_reason: reason,
-          // Clear suggestion fields — they've been resolved.
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true, reason };
-    } catch (err) {
-      logger.error("resolveConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "resolveConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight, conversations]);
-
-  const reopenConversation = useCallback(async (conversationId) => {
-    const id = conversationId ?? selectedId;
-    if (!id || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({
-          closed_at: null,
-          closure_reason: null,
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
-        .eq("id", id);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("reopenConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "reopenConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
 
   // ── Generate reply on demand (Phase G) ─────────────────────
   // Calls the whatsapp-generate-reply edge function, which authenticates
@@ -926,70 +709,6 @@ export function useWhatsAppInbox() {
     return { ok: true };
   }, [selectedId]);
 
-  // ── Outbound SMS via Twilio ────────────────────────────────
-  // Compose-new flow's SMS path. Posts to the sms-send edge function
-  // which upserts the (phone_e164, channel='sms') conversation and
-  // records the outbound message. Free-form text — SMS has no Meta-
-  // style template gate.
-  const sendOutboundSMS = useCallback(
-    async ({ humanId, phoneE164, text }) => {
-      if (!phoneE164 || !text) {
-        return { ok: false, reason: "missing recipient or text" };
-      }
-      const { error } = await supabase.functions.invoke("sms-send", {
-        body: {
-          mode: "manual",
-          to: phoneE164,
-          text,
-          human_id: humanId ?? null,
-        },
-      });
-      if (error) {
-        const detail = await parseSupabaseFunctionError(error, "SMS send failed");
-        return { ok: false, reason: detail };
-      }
-      await refreshList();
-      return { ok: true };
-    },
-    [refreshList],
-  );
-
-  // ── Outbound (compose-new) template send ───────────────────
-  // Used by the inbox header's "New message" button. Identical to
-  // sendTemplate below except the conversation context is supplied
-  // by the picker (humanId + phoneE164) rather than read from the
-  // selectedId — there's no selected thread when staff initiate
-  // contact. whatsapp-send mode:"template" upserts the conversation
-  // by phone_e164, so the message lands in the inbox immediately.
-  const sendOutboundTemplate = useCallback(
-    async ({ humanId, phoneE164, template, paramValues }) => {
-      if (!phoneE164 || !template) {
-        return { ok: false, reason: "missing recipient or template" };
-      }
-      const params = buildTemplateParams(template, paramValues);
-      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
-        body: {
-          mode: "template",
-          to: phoneE164,
-          template_name: template.name,
-          language: template.language,
-          params,
-          human_id: humanId ?? null,
-        },
-      });
-      if (error) {
-        const detail = await parseSupabaseFunctionError(error, "Template send failed");
-        return { ok: false, reason: detail };
-      }
-      // Refresh the list so the newly-upserted conversation shows up.
-      // The realtime subscription on whatsapp_conversations will also
-      // pick this up, but the manual refresh keeps the post-send
-      // navigation flow synchronous.
-      await refreshList();
-      return { ok: true };
-    },
-    [refreshList],
-  );
 
   const sendTemplate = useCallback(
     async (template, paramValues) => {
