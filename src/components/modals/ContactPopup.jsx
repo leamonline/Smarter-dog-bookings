@@ -23,11 +23,11 @@ export function ContactPopup({ human, onClose }) {
     <AccessibleModal
       onClose={onClose}
       titleId="contact-popup-title"
-      className="bg-white rounded-xl w-[min(280px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-xl w-[min(280px,90vw)] overflow-hidden shadow-modal"
       backdropClass="bg-black/25"
       zIndex={1100}
     >
-        <div className="bg-gradient-to-br from-brand-teal to-[#236b5d] px-[18px] py-3.5 flex justify-between items-center">
+        <div className="bg-gradient-to-br from-brand-teal to-brand-teal-dark px-[18px] py-3.5 flex justify-between items-center">
           <div>
             <div id="contact-popup-title" className="text-[15px] font-bold text-white">{fullName}</div>
             <div className="text-xs text-white/80 mt-0.5">Contact preferences</div>

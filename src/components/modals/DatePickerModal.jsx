@@ -48,7 +48,7 @@ export function DatePickerModal({
     <AccessibleModal
       onClose={onClose}
       titleId="date-picker-title"
-      className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-modal"
       zIndex={1200}
     >
         {/* Header */}

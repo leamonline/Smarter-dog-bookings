@@ -105,7 +105,7 @@ export function PhotoGalleryModal({
       <AccessibleModal
         onClose={onClose}
         titleId="photo-gallery-title"
-        className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+        className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
         zIndex={1100}
       >
         {/* Header */}

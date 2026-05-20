@@ -132,7 +132,7 @@ export function ReportsView({ loadError = null }) {
               cur={stats.curRev}
               prev={stats.prevRev}
               hideDelta={isLowN}
-              color="#2D8B7A"
+              color="var(--color-brand-teal)"
             />
             <Kpi
               label="Bookings"
@@ -156,7 +156,7 @@ export function ReportsView({ loadError = null }) {
               label="Seat Fill Rate"
               value={`${stats.util.toFixed(0)}%`}
               sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"} · last ${days} days`}
-              color="#E7546C"
+              color="var(--color-brand-coral)"
             />
           </div>
 

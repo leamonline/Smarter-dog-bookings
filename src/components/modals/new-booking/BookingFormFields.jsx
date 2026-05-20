@@ -57,7 +57,7 @@ export function BookingFormFields({
               sizeTheme={primaryTheme}
             />
           ) : (
-            <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-[10px]">
+            <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
               The salon is closed on {selectedDateDisplay}. Pick an open day in the calendar above, or open this day from the day view first.
             </div>
           )}
@@ -66,7 +66,7 @@ export function BookingFormFields({
 
       {/* ─── Error ─── */}
       {error && (
-        <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-[10px] mb-4">
+        <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-4">
           {error}
         </div>
       )}
@@ -78,7 +78,7 @@ export function BookingFormFields({
           <select
             value={recurringWeeks}
             onChange={(e) => setRecurringWeeks(Number(e.target.value))}
-            className="w-full py-3 px-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-cyan"
+            className="w-full py-3 px-3.5 rounded-control border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-teal"
           >
             <option value={0}>None (Once off)</option>
             <option value={4}>Every 4 weeks</option>

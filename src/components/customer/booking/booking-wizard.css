@@ -319,7 +319,9 @@
   gap: 8px;
   transition: transform 220ms ease, box-shadow 220ms ease, background 200ms ease;
 }
-.wizard-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+/* Disabled opacity matches .portal-btn (0.5) so the three button systems
+   share a single "dim" feel when disabled. */
+.wizard-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .wizard-btn--back {
   background: white;
   border: 1.5px solid rgba(45, 0, 75, 0.18);

@@ -39,8 +39,8 @@ const PRIMARY_NAV = [
   {
     to: "/humans",
     label: "Humans",
-    activeBg: "bg-[#2D8B7A] text-white shadow-[0_2px_8px_rgba(45,139,122,0.5)]",
-    activeText: "text-[#3BA594]",
+    activeBg: "bg-brand-teal text-white shadow-[0_2px_8px_rgba(45,139,122,0.5)]",
+    activeText: "text-brand-teal-light",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4" />

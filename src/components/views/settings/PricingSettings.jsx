@@ -114,11 +114,11 @@ export function PricingSettings({ config, onUpdateConfig }) {
             value={newServiceName}
             onChange={(e) => setNewServiceName(e.target.value)}
             placeholder="Service name"
-            className="flex-1 py-2 px-3 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
+            className="flex-1 py-2 px-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
           />
           <button
             onClick={addService}
-            className="border-[1.5px] border-dashed border-slate-200 rounded-[10px] bg-transparent px-4 py-2 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all whitespace-nowrap hover:border-brand-teal hover:text-brand-teal"
+            className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-4 py-2 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all whitespace-nowrap hover:border-brand-teal hover:text-brand-teal"
           >
             + Add service
           </button>

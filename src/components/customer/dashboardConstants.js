@@ -22,7 +22,7 @@ export const STATUS_STYLES = {
   "On the Table":      { background: "var(--sd-sky-tint)",       color: "var(--sd-cyan-dark)", borderColor: "rgba(0, 122, 171, 0.30)" },
   "Ready for pick-up": { background: "var(--sd-mint-tint)",      color: "#0F6B3A",            borderColor: "rgba(0, 194, 71, 0.35)"  },
   "Completed":         { background: "rgba(45, 0, 75, 0.06)",    color: "var(--sd-navy)",     borderColor: "rgba(45, 0, 75, 0.18)"   },
-  "Cancelled":         { background: "var(--sd-coral-tint)",     color: "#B83A4F",            borderColor: "rgba(231, 84, 108, 0.35)" },
+  "Cancelled":         { background: "var(--sd-coral-tint)",     color: "var(--color-brand-coral-text)", borderColor: "rgba(231, 84, 108, 0.35)" },
 };
 
 export function formatSlot(slot) {

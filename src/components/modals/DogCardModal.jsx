@@ -477,7 +477,7 @@ export function DogCardModal({
       <AccessibleModal
         onClose={onClose}
         titleId="dog-card-title"
-        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-modal"
       >
         <div
           id="dog-card-title"
@@ -495,7 +495,7 @@ export function DogCardModal({
       <AccessibleModal
         onClose={onClose}
         titleId="dog-card-title"
-        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+        className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-modal"
       >
         <div className="px-6 py-12 text-center">
           <div
@@ -524,7 +524,7 @@ export function DogCardModal({
     <AccessibleModal
       onClose={onClose}
       titleId="dog-card-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
     >
         <DogCardHeader
           titleId="dog-card-title"

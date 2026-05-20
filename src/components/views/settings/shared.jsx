@@ -5,7 +5,7 @@ import { cloneElement, useCallback, useState } from "react";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 const CARD_HEAD_THEMES = {
-  teal:   { bg: "bg-[#E6F5F2]", color: "text-[#1E6B5C]" },
+  teal:   { bg: "bg-[#E6F5F2]", color: "text-brand-teal-dark" },
   blue:   { bg: "bg-blue-50",    color: "text-brand-cyan-dark" },
   yellow: { bg: "bg-amber-50",   color: "text-amber-800" },
   coral:  { bg: "bg-brand-coral-light", color: "text-brand-coral" },
@@ -99,12 +99,12 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
 }
 
 export function SaveButton({ onClick, saving, saved, label = "Save changes" }) {
-  const base = "px-4 py-2.5 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors duration-200";
+  const base = "px-4 py-2.5 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors duration-200";
   const state = saving
     ? "bg-slate-200 text-slate-500 cursor-not-allowed"
     : saved
       ? "bg-brand-teal text-white"
-      : "bg-brand-teal text-white hover:bg-[#1E6B5C]";
+      : "bg-brand-teal text-white hover:bg-brand-teal-dark";
 
   return (
     <button onClick={onClick} disabled={saving} className={`${base} ${state}`}>
@@ -132,6 +132,6 @@ export function useConfigSaver(onUpdateConfig) {
 }
 
 // Reusable class strings
-export const LABEL_CLS = "text-[11px] font-extrabold text-[#1E6B5C] uppercase tracking-wide block mb-1.5";
-export const SECTION_LABEL_CLS = "text-[11px] font-extrabold text-[#1E6B5C] uppercase tracking-wide mb-2";
-export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal";
+export const LABEL_CLS = "text-[11px] font-extrabold text-brand-teal-dark uppercase tracking-wide block mb-1.5";
+export const SECTION_LABEL_CLS = "text-[11px] font-extrabold text-brand-teal-dark uppercase tracking-wide mb-2";
+export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal";

@@ -64,6 +64,11 @@
   /* Accents */
   --color-brand-coral: #E7546C;
   --color-brand-coral-light: #FDE2E8;
+  /* Darker coral for borders/strokes on coral surfaces (e.g. size-large
+     border, status pill borders). */
+  --color-brand-coral-dark: #C93D63;
+  /* Text-weight coral for text on coral-tint backgrounds and inline links. */
+  --color-brand-coral-text: #B83A4F;
   --color-brand-teal: #2D8B7A;
   /* Darker teal reserved for body-size text (<18pt regular / <14pt bold).
      Crosses the 4.5:1 WCAG AA contrast threshold against white where the
@@ -71,9 +76,20 @@
      icons, and badges on tinted backgrounds; text-brand-teal-text for
      small form labels, price labels, and inline links. */
   --color-brand-teal-text: #266E60;
+  /* Darker teal for borders/strokes on teal surfaces (size-medium border,
+     hover bg). Replaces ad-hoc #1E6B5C / #236b5d. */
+  --color-brand-teal-dark: #1E6B5C;
+  /* Lighter teal — gradient companion for the canonical brand-teal. */
+  --color-brand-teal-light: #3BA594;
   --color-brand-green: #00D94A;
   --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
+  /* Mustard family — waitlist tab/tag palette. Lifted out of WaitlistNote
+     so the same colours can be reused for any "pending / on-the-list"
+     affordance. */
+  --color-brand-mustard: #B8860B;
+  --color-brand-mustard-tint: #F5E6C8;
+  --color-brand-mustard-paper: #FFFBF2;
 
   /* Customer portal palette */
   --color-brand-purple: #2D004B;
@@ -126,11 +142,26 @@
   --shadow-sd-card-hover: 0 14px 28px -14px rgba(45, 0, 75, 0.28);
   --shadow-sd-cta-green: 0 10px 22px -10px rgba(0, 194, 71, 0.55);
   --shadow-sd-cta-yellow: 0 10px 22px -10px rgba(254, 204, 19, 0.75);
+  /* Modal/overlay shadow — replaces the 17 inline copies of
+     shadow-[0_8px_32px_rgba(0,0,0,0.18)] across the modal layer. */
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+  /* Card resting shadow — softer than --shadow-sd-card, for white cards
+     on the staff dashboard. */
+  --shadow-card-resting: 0 2px 8px rgba(0, 0, 0, 0.04);
 
   /* Radii */
   --radius-sd-input: 12px;
   --radius-sd-card: 18px;
   --radius-sd-pill: 9999px;
+  /* Form-control radius — sits between rounded-md (6px) and rounded-xl
+     (12px). Codifies the 45 inline rounded-[10px] uses. Available as
+     rounded-control via Tailwind v4's @theme. */
+  --radius-control: 10px;
+
+  /* Motion durations — three speeds for the whole UI. */
+  --duration-fast: 80ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
 }
 
 /* Shorthand aliases used by portal-style pages (customer login, staff login,
@@ -255,16 +286,12 @@ body {
 }
 
 /* ── Shared utility classes ───────────────────────────────────── */
+/* .btn-pill is a lighter-weight variant of .btn that doesn't enforce the
+   standard padding/size. Both share the same hover/press behaviour so they
+   feel like one family — see joined :hover/:active rules below the .btn
+   block. */
 .btn-pill {
   @apply rounded-full font-bold transition-all duration-300 cursor-pointer;
-}
-.btn-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-.btn-pill:active {
-  transform: scale(0.95);
-  transition-duration: 80ms;
 }
 
 .card-glass {
@@ -315,13 +342,19 @@ body {
 .btn {
   @apply py-2 px-4 rounded-full text-sm font-semibold cursor-pointer font-[inherit] transition-all duration-300 border-none;
 }
-.btn:hover {
+/* Shared hover/press for .btn and .btn-pill — single source of truth
+   for the staff-dashboard button feel. Press-scale 0.97 matches the
+   customer portal so all three button systems (.btn, .btn-pill,
+   .portal-btn) press identically. */
+.btn:hover,
+.btn-pill:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-.btn:active {
-  transform: scale(0.95);
-  transition-duration: 80ms;
+.btn:active,
+.btn-pill:active {
+  transform: scale(0.97);
+  transition-duration: var(--duration-fast);
 }
 .btn-primary {
   @apply bg-brand-yellow text-brand-purple hover:bg-brand-yellow-dark;

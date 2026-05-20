@@ -18,7 +18,7 @@ export function Legend() {
       </button>
 
       {open && (
-        <div className="absolute top-[38px] left-0 z-50 flex flex-wrap py-2.5 px-4 bg-white rounded-[10px] text-xs text-slate-500 items-center justify-between gap-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.12)] min-w-[340px] border border-slate-200">
+        <div className="absolute top-[38px] left-0 z-50 flex flex-wrap py-2.5 px-4 bg-white rounded-control text-xs text-slate-500 items-center justify-between gap-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.12)] min-w-[340px] border border-slate-200">
           <div className="flex items-center gap-[5px]"><SizeTag size="small" legendMode /> Small</div>
           <div className="flex items-center gap-[5px]"><SizeTag size="medium" legendMode /> Medium</div>
           <div className="flex items-center gap-[5px]"><SizeTag size="large" legendMode /> Large</div>
