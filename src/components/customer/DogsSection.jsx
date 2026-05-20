@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { updateCustomerDog } from "../../supabase/rpc.ts";
 import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
@@ -83,12 +84,12 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
     if (!supabase) return;
     setSaving(true);
     setError(null);
-    const { data, error: rpcErr } = await supabase.rpc("update_customer_dog", {
-      p_dog_id: dog.id,
-      p_name: form.name,
-      p_breed: form.breed,
-      p_size: form.size,
-      p_dob: form.dob,
+    const { data, error: rpcErr } = await updateCustomerDog(supabase, {
+      dogId: dog.id,
+      name: form.name,
+      breed: form.breed,
+      size: form.size,
+      dob: form.dob,
     });
     setSaving(false);
     if (rpcErr) {

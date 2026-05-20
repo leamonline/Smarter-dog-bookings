@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { addCustomerTrustedHuman } from "../../supabase/rpc.ts";
 import { cardAnim } from "./dashboardConstants.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { Users, Plus, X } from "lucide-react";
@@ -46,11 +47,11 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
     if (!supabase) return;
     setSaving(true);
     setError(null);
-    const { data, error: rpcErr } = await supabase.rpc("add_customer_trusted_human", {
-      p_name: form.name,
-      p_surname: form.surname,
-      p_phone: form.phone,
-      p_relationship: form.relationship,
+    const { data, error: rpcErr } = await addCustomerTrustedHuman(supabase, {
+      name: form.name,
+      surname: form.surname,
+      phone: form.phone,
+      relationship: form.relationship,
     });
     setSaving(false);
     if (rpcErr) {

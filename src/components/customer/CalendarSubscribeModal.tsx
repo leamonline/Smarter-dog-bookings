@@ -5,6 +5,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.js";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import {
+  getOrCreateCalendarFeedToken,
+  revokeCalendarFeedToken,
+} from "../../supabase/rpc.js";
 
 interface CalendarSubscribeModalProps {
   onClose: () => void;
@@ -27,9 +31,10 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
     setLoading(true);
 
     try {
-      const { data: token, error } = await supabase
-        .rpc("get_or_create_calendar_feed_token", { p_feed_type: "customer" })
-        .abortSignal(controller.signal);
+      const { data: token, error } = await getOrCreateCalendarFeedToken(
+        supabase,
+        "customer",
+      ).abortSignal(controller.signal);
 
       if (controller.signal.aborted) return;
       if (error || !token) {
@@ -83,7 +88,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
 
     try {
       // Revoke old token
-      await supabase.rpc("revoke_calendar_feed_token", { p_feed_type: "customer" });
+      await revokeCalendarFeedToken(supabase, "customer");
       // Generate new one
       await fetchToken();
     } catch (err) {

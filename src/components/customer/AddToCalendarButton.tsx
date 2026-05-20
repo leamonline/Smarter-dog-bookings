@@ -4,6 +4,7 @@
 
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { getOrCreateCalendarFeedToken } from "../../supabase/rpc.js";
 
 interface AddToCalendarButtonProps {
   bookingId: string;
@@ -20,9 +21,9 @@ export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonP
 
     try {
       // Get or create a feed token for the current customer
-      const { data: token, error } = await supabase.rpc(
-        "get_or_create_calendar_feed_token",
-        { p_feed_type: "customer" },
+      const { data: token, error } = await getOrCreateCalendarFeedToken(
+        supabase,
+        "customer",
       );
 
       if (error || !token) {

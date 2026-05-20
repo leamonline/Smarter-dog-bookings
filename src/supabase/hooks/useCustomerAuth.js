@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
+import { linkCustomerToHuman } from "../rpc.ts";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_SEND_ERROR =
@@ -52,7 +53,7 @@ export function useCustomerAuth() {
   const linkHumanRecord = useCallback(async () => {
     if (!supabase) return null;
 
-    const { data, error: rpcErr } = await supabase.rpc("link_customer_to_human");
+    const { data, error: rpcErr } = await linkCustomerToHuman(supabase);
 
     if (rpcErr) {
       console.error("link_customer_to_human RPC error:", rpcErr);
