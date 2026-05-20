@@ -41,6 +41,7 @@ import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
 import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
 import { ComposePanel } from "./thread/ComposePanel.jsx";
+import { GenerateReplyButton } from "./thread/GenerateReplyButton.jsx";
 import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
 import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
 import { useCustomerContext } from "./hooks/useCustomerContext.js";
@@ -71,6 +72,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
+    generateReplyForConversation,
     dogNames,
     dogNamesById,
     actionInFlight,
@@ -624,6 +626,23 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 onApply={handleApplyBookingAction}
                 onReject={handleRejectBookingAction}
                 inFlight={actionInFlight}
+              />
+
+              {/* Phase G — AI on demand. Shown when there's at least
+                  one inbound message and no pending draft. Hidden
+                  during in-flight actions to avoid stacking. */}
+              <GenerateReplyButton
+                hasPendingDraft={!!draft}
+                hasInbound={messages.some((m) => m.direction === "inbound")}
+                inFlight={actionInFlight}
+                onGenerate={async () => {
+                  const res = await generateReplyForConversation(selectedId);
+                  if (res?.ok) {
+                    toast.show("Asking the AI… a draft will appear below shortly.", "info");
+                  } else if (res?.reason) {
+                    toast.show(`Could not generate: ${res.reason}`, "error");
+                  }
+                }}
               />
 
               {/* Free-form compose box — always available when a

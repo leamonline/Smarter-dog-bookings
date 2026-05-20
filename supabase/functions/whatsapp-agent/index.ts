@@ -1682,7 +1682,7 @@ serve(async (req) => {
     return new Response("unauthorized", { status: 401 });
   }
 
-  let body: { event_id?: string } = {};
+  let body: { event_id?: string; force_draft?: boolean } = {};
   try {
     body = await req.json();
   } catch {
@@ -1692,6 +1692,14 @@ serve(async (req) => {
   if (!body.event_id) {
     return new Response("missing event_id", { status: 400 });
   }
+
+  // Phase G — AI on demand. The default mode for conversations is
+  // human_takeover; the agent normally short-circuits and just
+  // persists the inbound message. Callers (the "Generate reply"
+  // button on the inbox) can override by sending { force_draft: true }
+  // alongside event_id — that bypasses the human-only skip and runs
+  // the full Claude path for this one turn.
+  const forceDraft = body.force_draft === true;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -1708,7 +1716,11 @@ serve(async (req) => {
   }
 
   // Idempotency: if someone calls us twice, don't reprocess.
-  if (event.processing_status !== "pending") {
+  // Exception: when force_draft is set (the "Generate reply" button
+  // on the inbox), staff explicitly want a fresh draft for an event
+  // that's already been processed — usually because they want to
+  // re-prompt the AI after editing the conversation context.
+  if (event.processing_status !== "pending" && !forceDraft) {
     return new Response(`already ${event.processing_status}`, { status: 200 });
   }
   if (!event.signature_valid) {
@@ -1806,8 +1818,16 @@ serve(async (req) => {
             }
           }
 
-          // If staff has taken over, skip AI draft entirely.
-          if (conversation.state !== "ai_handling") {
+          // Phase G — AI on demand. Skip the Claude path entirely
+          // when the conversation is in Human only mode for a KNOWN
+          // customer, unless the caller explicitly forced a draft
+          // via the "Generate reply" button (body.force_draft).
+          // Unknown customers (human_id IS NULL) still get the agent
+          // pass so the onboarding state machine can collect their
+          // details — staff don't have to babysit every cold inbound.
+          const isHumanOnly = conversation.state !== "ai_handling";
+          const isKnownCustomer = conversation.human_id != null;
+          if (isHumanOnly && isKnownCustomer && !forceDraft) {
             continue;
           }
 

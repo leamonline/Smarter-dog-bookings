@@ -714,15 +714,17 @@ export function useWhatsAppInbox() {
   // with a single semantic mode the header surfaces as a segmented control.
   //
   //   'ai_auto'       state='ai_handling', auto_send_enabled=true,  autonomous_booking_enabled=opts.allowAutonomousBooking
-  //   'ai_drafts'     state='ai_handling', auto_send_enabled=false, autonomous_booking_enabled=false
   //   'human_only'    state='human_takeover', auto_send_enabled=false, autonomous_booking_enabled=false
+  //
+  // Post-Phase-G: 'ai_drafts' is retired. The on-demand "Generate reply"
+  // button covers the use case (manual draft on a per-message basis).
   //
   // The nested "Allow autonomous bookings" toggle is meaningful only in
   // ai_auto. Switching away from ai_auto always disables it so a future
   // switch back to ai_auto starts at the safe default.
   const setAIMode = useCallback(async (mode, opts = {}) => {
     if (!selectedId || actionInFlight) return { ok: false };
-    if (!["ai_auto", "ai_drafts", "human_only"].includes(mode)) {
+    if (!["ai_auto", "human_only"].includes(mode)) {
       return { ok: false, reason: `unknown mode: ${mode}` };
     }
 
@@ -838,6 +840,36 @@ export function useWhatsAppInbox() {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight]);
+
+  // ── Generate reply on demand (Phase G) ─────────────────────
+  // Calls the whatsapp-generate-reply edge function, which authenticates
+  // staff via JWT then forwards to whatsapp-agent with force_draft=true.
+  // Used by the "Generate reply" button on the inbox thread — under the
+  // new default (Human only) the agent doesn't auto-draft, so staff
+  // explicitly trigger it when they want help drafting.
+  const generateReplyForConversation = useCallback(async (conversationId) => {
+    const id = conversationId ?? selectedId;
+    if (!id) return { ok: false, reason: "no conversation selected" };
+    const { error } = await supabase.functions.invoke("whatsapp-generate-reply", {
+      body: { conversation_id: id },
+    });
+    if (error) {
+      let detail = error.message ?? "Generate reply failed";
+      try {
+        const errorBody = await error.context?.json?.();
+        if (errorBody) {
+          const parts = [errorBody.error, errorBody.reason, errorBody.detail].filter(Boolean);
+          if (parts.length) detail = parts.join(": ");
+        }
+      } catch {
+        /* fall through */
+      }
+      return { ok: false, reason: detail };
+    }
+    // Realtime subscription on whatsapp_drafts will pick up the new
+    // draft and refresh the thread automatically; no manual refetch.
+    return { ok: true };
+  }, [selectedId]);
 
   // ── Outbound SMS via Twilio ────────────────────────────────
   // Compose-new flow's SMS path. Posts to the sms-send edge function
@@ -999,6 +1031,7 @@ export function useWhatsAppInbox() {
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
+    generateReplyForConversation,
     dogNames,
     dogNamesById,
     actionInFlight,

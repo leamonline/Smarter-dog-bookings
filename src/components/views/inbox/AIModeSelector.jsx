@@ -22,31 +22,30 @@ import { useMemo, useId } from "react";
 
 // Derive the active mode from the conversation row. Mirrors the
 // inverse of setAIMode in useWhatsAppInbox.js — keep these in sync.
+//
+// Post-Phase-G we're down to two modes (the "AI drafts" middle option
+// is retired in favour of an on-demand Generate reply button). Default
+// for new conversations is human_only.
 export function deriveAIMode(conversation) {
-  if (!conversation) return "ai_auto";
-  if (conversation.state === "human_takeover") return "human_only";
-  if (conversation.auto_send_enabled) return "ai_auto";
-  return "ai_drafts";
+  if (!conversation) return "human_only";
+  if (conversation.state === "ai_handling" && conversation.auto_send_enabled) {
+    return "ai_auto";
+  }
+  return "human_only";
 }
 
 const MODES = [
+  {
+    id: "human_only",
+    label: "Human only",
+    description:
+      "AI is paused — messages just sit in the inbox until you click Generate reply. New customer messages don't get drafts automatically.",
+  },
   {
     id: "ai_auto",
     label: "AI auto",
     description:
       "AI replies to low-risk customer messages without waiting for you. Anything risky still waits.",
-  },
-  {
-    id: "ai_drafts",
-    label: "AI drafts",
-    description:
-      "AI proposes every reply; nothing goes to the customer without your nod.",
-  },
-  {
-    id: "human_only",
-    label: "Human only",
-    description:
-      "AI is paused — only your manual replies go out. New customer messages don't get drafts.",
   },
 ];
 
