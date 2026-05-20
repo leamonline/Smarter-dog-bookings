@@ -1,54 +1,53 @@
 // ============================================================
 // supabase/functions/sms-send/index.ts
 //
-// Outbound SMS via Twilio. Mirrors whatsapp-send's structure so the
-// two channels feel symmetric — same auth gate, same CORS handling,
-// same record-to-DB conventions — only the wire protocol differs.
+// Outbound SMS via Twilio. Reuses the salon's existing Twilio
+// integration in _shared/twilio.ts (same account that sends the
+// customer-login codes and the notify-booking-* reminders) so
+// there's only one set of env vars to manage.
 //
-// Two modes (much simpler than WhatsApp's four — SMS has no template
-// gate, no 24h window, no interactive buttons):
+// Two modes (much simpler than whatsapp-send's four — SMS has no
+// template gate, no 24h window, no interactive buttons):
 //
 //   mode: "manual"
 //     Free-form text typed by staff. Caller passes
-//     { mode, conversation_id?, to, text, human_id? }. If conversation_id
-//     is omitted we upsert one by (phone_e164, channel='sms') so the
-//     outbound shows up in the inbox immediately, mirroring whatsapp-send's
-//     template-mode upsert path.
+//     { mode, conversation_id?, to, text, human_id? }. If
+//     conversation_id is omitted we upsert one by
+//     (phone_e164, channel='sms') so the outbound shows up in the
+//     inbox immediately.
 //
 //   mode: "template"
-//     Pre-templated text with substituted params. Twilio doesn't
-//     gate template names the way Meta does, so this is mostly a
-//     convenience for callers that already have a template + params
-//     pair shaped for WhatsApp. We just splice them into the body
-//     before sending.
+//     Pre-rendered text from a template (the caller substituted
+//     params upstream). Twilio doesn't gate template names the way
+//     Meta does, so this is mostly a convenience for callers that
+//     already have a template + params pair. Records the template
+//     name in the message content for audit.
 //
 // Auth, CORS, and recordOutbound conventions match whatsapp-send.
 //
-// Env vars required:
+// Env vars required (all already set on the project for the
+// notify-booking-* path):
 //   SUPABASE_URL                       (auto)
 //   SUPABASE_SERVICE_ROLE_KEY          (auto)
 //   SUPABASE_ANON_KEY                  (auto)
 //   TWILIO_ACCOUNT_SID                 Twilio Account SID — starts with AC
-//   TWILIO_AUTH_TOKEN                  Twilio auth token (or use API Key SID/secret pair)
-//   TWILIO_MESSAGING_SERVICE_SID       Twilio Messaging Service SID (preferred) — starts with MG
+//   TWILIO_API_KEY + TWILIO_API_SECRET (preferred over AUTH_TOKEN)
+//   TWILIO_AUTH_TOKEN                  (legacy fallback)
+//   TWILIO_MESSAGING_SERVICE_SID       Messaging Service SID — starts with MG
 //                                       OR
-//   TWILIO_FROM_NUMBER                 E.164 sender number — used only when
-//                                       MESSAGING_SERVICE_SID is not set
+//   TWILIO_SMS_FROM                    E.164 sender number — fallback
 //   SEND_INTERNAL_SECRET               Shared with whatsapp-send for service callers
-//   SMS_SEND_ALLOWED_ORIGINS           Optional CORS allowlist — falls back to defaults
+//   SMS_SEND_ALLOWED_ORIGINS           Optional CORS allowlist
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID") ?? "";
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN") ?? "";
-const TWILIO_MESSAGING_SERVICE_SID = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID") ?? "";
-const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER") ?? "";
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 
 // Conservative cap — Twilio bills per segment (160 GSM-7 chars or 70
@@ -97,59 +96,10 @@ interface TemplateMode {
   text: string; // already rendered upstream — Twilio doesn't care about template names
   conversation_id?: string;
   human_id?: string | null;
-  template_name?: string; // optional, recorded for audit
+  template_name?: string;
 }
 
 type SendBody = ManualMode | TemplateMode;
-
-function toE164(input: string): string {
-  const digits = input.replace(/\D/g, "");
-  return digits ? `+${digits}` : "";
-}
-
-async function callTwilio(toE164Phone: string, body: string): Promise<{ sid: string; raw: unknown }> {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
-    throw new Error(
-      "Twilio not configured — set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN env vars on the sms-send function.",
-    );
-  }
-  if (!TWILIO_MESSAGING_SERVICE_SID && !TWILIO_FROM_NUMBER) {
-    throw new Error(
-      "Twilio sender not configured — set either TWILIO_MESSAGING_SERVICE_SID (preferred) or TWILIO_FROM_NUMBER on the sms-send function.",
-    );
-  }
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-  const params = new URLSearchParams();
-  params.set("To", toE164Phone);
-  params.set("Body", body);
-  if (TWILIO_MESSAGING_SERVICE_SID) {
-    params.set("MessagingServiceSid", TWILIO_MESSAGING_SERVICE_SID);
-  } else {
-    params.set("From", TWILIO_FROM_NUMBER);
-  }
-
-  const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  const json: any = await res.json();
-  if (!res.ok) {
-    const code = json?.code ?? res.status;
-    const msg = json?.message ?? "(no message)";
-    throw new Error(`Twilio ${res.status} — code ${code}: ${msg}`);
-  }
-  if (!json?.sid) {
-    throw new Error("Twilio returned no SID — response shape unexpected");
-  }
-  return { sid: json.sid, raw: json };
-}
 
 async function authorise(req: Request): Promise<
   | { ok: true; userId?: string; internal?: boolean }
@@ -278,20 +228,33 @@ async function handleSend(
     );
   }
 
-  const phoneE164 = toE164(body.to);
-  if (!phoneE164) {
+  const phoneE164 = normaliseUkPhone(body.to);
+  if (!phoneE164 || !phoneE164.startsWith("+")) {
     return json(req, { error: "to is not a valid phone number" }, 400);
   }
 
-  let twilioRes: { sid: string; raw: unknown };
+  let twilioResult;
   try {
-    twilioRes = await callTwilio(phoneE164, body.text.trim());
+    twilioResult = await sendSms(phoneE164, body.text.trim());
   } catch (err) {
     return json(
       req,
       {
-        error: "Twilio send failed",
+        error: "Twilio not configured",
         detail: err instanceof Error ? err.message : String(err),
+      },
+      500,
+    );
+  }
+
+  if (!twilioResult.ok) {
+    return json(
+      req,
+      {
+        error: "Twilio send failed",
+        detail: `${twilioResult.errorCode ?? twilioResult.status}: ${twilioResult.errorMessage ?? "(no message)"}`,
+        twilio_status: twilioResult.status,
+        twilio_code: twilioResult.errorCode,
       },
       502,
     );
@@ -311,11 +274,17 @@ async function handleSend(
       ? `[template:${body.template_name}] ${body.text.trim()}`
       : body.text.trim();
 
-  await recordOutbound(supabase, conversationId, twilioRes.sid, contentForRecord, twilioRes.raw);
+  await recordOutbound(
+    supabase,
+    conversationId,
+    twilioResult.sid ?? null,
+    contentForRecord,
+    twilioResult,
+  );
 
   return json(req, {
     ok: true,
-    twilio_sid: twilioRes.sid,
+    twilio_sid: twilioResult.sid,
     sent_text: body.text.trim(),
     conversation_id: conversationId,
   });
