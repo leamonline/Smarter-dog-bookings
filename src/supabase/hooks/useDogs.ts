@@ -7,6 +7,7 @@ import {
   findHumanByIdOrName,
 } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
+import { logger } from "../../lib/logger.js";
 
 const PAGE_SIZE = 50;
 
@@ -378,9 +379,13 @@ export function useDogs(humansById: Record<string, any>) {
       if (updates.humanId !== undefined) {
         const owner = findHumanByIdOrName(humansById, updates.humanId);
         if (!owner?.id) {
-          console.error(
+          logger.error(
             "Failed to update dog owner: owner not found",
-            updates.humanId,
+            undefined,
+            {
+              tags: { hook: "useDogs", op: "updateDog" },
+              extra: { humanId: updates.humanId },
+            },
           );
           setDogs(prevDogs);
           setDogsById(prevDogsById);
@@ -401,7 +406,9 @@ export function useDogs(humansById: Record<string, any>) {
         .single();
 
       if (err) {
-        console.error("Failed to update dog:", err);
+        logger.error("Failed to update dog", err, {
+          tags: { hook: "useDogs", op: "updateDog" },
+        });
         setDogs(prevDogs);
         setDogsById(prevDogsById);
         return null;
@@ -441,7 +448,10 @@ export function useDogs(humansById: Record<string, any>) {
       const owner = findHumanByIdOrName(humansById, dogData.humanId);
 
       if (!owner?.id) {
-        console.error("Owner not found:", dogData.humanId);
+        logger.error("Owner not found", undefined, {
+          tags: { hook: "useDogs", op: "addDog" },
+          extra: { humanId: dogData.humanId },
+        });
         return null;
       }
 
@@ -497,7 +507,9 @@ export function useDogs(humansById: Record<string, any>) {
         .single();
 
       if (err) {
-        console.error("Failed to add dog:", err);
+        logger.error("Failed to add dog", err, {
+          tags: { hook: "useDogs", op: "addDog" },
+        });
         setError(err.message);
         return null;
       }
@@ -644,7 +656,9 @@ export function useDogs(humansById: Record<string, any>) {
     });
 
     if (err) {
-      console.error("ensureDogsForHumans failed:", err);
+      logger.error("ensureDogsForHumans failed", err, {
+        tags: { hook: "useDogs", op: "ensureDogsForHumans" },
+      });
       missing.forEach((id) => fetchedHumanIdsRef.current.delete(id));
       return;
     }
@@ -709,7 +723,9 @@ export function useDogs(humansById: Record<string, any>) {
       });
 
       if (err) {
-        console.error("ensureDogsByIds failed:", err);
+        logger.error("ensureDogsByIds failed", err, {
+          tags: { hook: "useDogs", op: "ensureDogsByIds" },
+        });
         missing.forEach((id) => fetchedDogIdsRef.current.delete(id));
         return;
       }

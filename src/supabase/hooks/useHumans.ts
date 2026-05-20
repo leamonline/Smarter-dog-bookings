@@ -6,6 +6,7 @@ import {
   findHumanByIdOrName,
 } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
+import { logger } from "../../lib/logger.js";
 
 const PAGE_SIZE = 50;
 
@@ -496,7 +497,9 @@ export function useHumans() {
           .single();
 
         if (updateErr) {
-          console.error("Failed to update human:", updateErr);
+          logger.error("Failed to update human", updateErr, {
+            tags: { hook: "useHumans", op: "updateHuman" },
+          });
           setError(updateErr.message);
           setHumans(prevHumans);
           setHumansById(prevHumansById);
@@ -557,7 +560,9 @@ export function useHumans() {
           .eq("human_id", existingHuman.id);
 
         if (deleteErr) {
-          console.error("Failed to clear trusted contacts:", deleteErr);
+          logger.error("Failed to clear trusted contacts", deleteErr, {
+            tags: { hook: "useHumans", op: "updateHuman.clearTrusted" },
+          });
           setError(deleteErr.message);
           setHumans(prevHumans);
           setHumansById(prevHumansById);
@@ -576,7 +581,9 @@ export function useHumans() {
             );
 
           if (insertErr) {
-            console.error("Failed to save trusted contacts:", insertErr);
+            logger.error("Failed to save trusted contacts", insertErr, {
+              tags: { hook: "useHumans", op: "updateHuman.saveTrusted" },
+            });
             setError(insertErr.message);
             setHumans(prevHumans);
             setHumansById(prevHumansById);
@@ -710,7 +717,9 @@ export function useHumans() {
         .single();
 
       if (insertErr) {
-        console.error("Failed to add human:", insertErr);
+        logger.error("Failed to add human", insertErr, {
+          tags: { hook: "useHumans", op: "addHuman" },
+        });
         const msg = insertErr.code === "23505"
           ? `${fullName} already exists. Please use a different name.`
           : insertErr.message;
@@ -731,7 +740,9 @@ export function useHumans() {
 
       return savedHuman;
     } catch (err: any) {
-      console.error("addHuman threw:", err);
+      logger.error("addHuman threw", err, {
+        tags: { hook: "useHumans", op: "addHuman" },
+      });
       const msg = err?.message || "Failed to add human. Please try again.";
       setError((prev) => prev || msg);
       throw err instanceof Error ? err : new Error(msg);
@@ -993,7 +1004,9 @@ export function useHumans() {
       });
 
       if (err) {
-        console.error("ensureHumansByIds failed:", err);
+        logger.error("ensureHumansByIds failed", err, {
+          tags: { hook: "useHumans", op: "ensureHumansByIds" },
+        });
         return;
       }
 
