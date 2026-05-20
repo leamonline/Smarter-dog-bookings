@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { cancelMany, listIdsInGroup } from "../../supabase/repositories/bookingsRepo.ts";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
-import { BOOKING_STATUS } from "../../constants/salon.js";
 
 /**
  * Single source of truth for the dashboard's next-action block.
@@ -48,13 +48,11 @@ function dayLabel(dateStr) {
 
 async function cancelBookingIds({ booking, reason, onChanged }) {
   if (!supabase) return;
-  const ids = booking.group_id
-    ? (await supabase.from("bookings").select("id").eq("group_id", booking.group_id)).data?.map((r) => r.id) ?? [booking.id]
-    : [booking.id];
-  await supabase
-    .from("bookings")
-    .update({ status: BOOKING_STATUS.CANCELLED, cancel_reason: reason })
-    .in("id", ids);
+  const ids = await listIdsInGroup(supabase, {
+    groupId: booking.group_id,
+    fallbackId: booking.id,
+  });
+  await cancelMany(supabase, { ids, reason });
   onChanged?.();
 }
 
