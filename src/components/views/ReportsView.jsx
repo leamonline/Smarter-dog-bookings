@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useReportsData } from "../../hooks/useReportsData.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
+import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { Kpi, PERIODS } from "./reports/ReportWidgets.jsx";
 import { RevenueTrend } from "./reports/RevenueTrend.jsx";
 import { ServiceMix } from "./reports/ServiceMix.jsx";
@@ -20,7 +21,7 @@ function parsePeriod(value) {
   return ALLOWED_PERIODS.includes(n) ? n : null;
 }
 
-export function ReportsView() {
+export function ReportsView({ loadError = null }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const days = parsePeriod(searchParams.get("period")) ?? DEFAULT_PERIOD;
   const setDays = useCallback(
@@ -108,6 +109,13 @@ export function ReportsView() {
 
       {loading ? (
         <LoadingSpinner />
+      ) : loadError && stats.curN === 0 ? (
+        <ErrorBanner
+          title="Couldn't load reports right now"
+          message="The underlying booking data didn't come through. Refresh to try again."
+          retry={() => window.location.reload()}
+          retryLabel="Refresh"
+        />
       ) : stats.curN === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
           <div className="text-lg font-bold text-slate-400 mb-1">No bookings in this period</div>
@@ -124,7 +132,7 @@ export function ReportsView() {
               cur={stats.curRev}
               prev={stats.prevRev}
               hideDelta={isLowN}
-              color="#2D8B7A"
+              color="var(--color-brand-teal)"
             />
             <Kpi
               label="Bookings"
@@ -148,7 +156,7 @@ export function ReportsView() {
               label="Seat Fill Rate"
               value={`${stats.util.toFixed(0)}%`}
               sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"} · last ${days} days`}
-              color="#E7546C"
+              color="var(--color-brand-coral)"
             />
           </div>
 

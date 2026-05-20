@@ -5,7 +5,7 @@ function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-[10px] shadow-lg border border-slate-200 p-2 flex flex-col gap-1 z-10 min-w-[140px]"
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-control shadow-lg border border-slate-200 p-2 flex flex-col gap-1 z-10 min-w-[140px]"
     >
       {[
         { label: "Block seat 1", action: onBlock1 },

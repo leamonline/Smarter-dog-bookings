@@ -1,12 +1,14 @@
-import { Card, CardHead, CardBody, SettingRow, Toggle, InlineField } from "./shared.jsx";
+import { Card, CardHead, CardBody, SettingRow, Toggle, InlineField, useConfigSaver } from "./shared.jsx";
 
 export function BookingRulesSettings({ config, onUpdateConfig }) {
+  const save = useConfigSaver(onUpdateConfig);
+
   const updatePickupOffset = (value) => {
-    onUpdateConfig((prev) => ({ ...prev, defaultPickupOffset: Number(value) }));
+    save((prev) => ({ ...prev, defaultPickupOffset: Number(value) }));
   };
 
   const updateConfigField = (field, value) => {
-    onUpdateConfig((prev) => ({ ...prev, [field]: value }));
+    save((prev) => ({ ...prev, [field]: value }));
   };
 
   return (

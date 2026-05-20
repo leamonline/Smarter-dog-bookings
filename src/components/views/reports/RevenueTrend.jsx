@@ -16,7 +16,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
   const ticks = buildYAxisTicks(maxChartRev);
 
   return (
-    <Section title={isWeekly ? "Weekly Revenue Trend" : "Daily Revenue"} accent="#2D8B7A" insight={insight}>
+    <Section title={isWeekly ? "Weekly Revenue Trend" : "Daily Revenue"} accent="var(--color-brand-teal)" insight={insight}>
       <div className="flex gap-2 h-[90px]">
         {/* Y-axis: three ticks (max, half, 0) for readability. */}
         <div className="flex flex-col justify-between text-[9px] text-slate-400 font-semibold tabular-nums w-7 text-right pr-0.5 shrink-0">

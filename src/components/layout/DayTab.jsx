@@ -17,6 +17,9 @@ function dateCircleStyle({ isPast, isToday, dogCount, isOpen }) {
 
   // Future days
   if (!isOpen) return "bg-rose-100 text-rose-700";
+  // Bookings still loading — keep the circle neutral so it doesn't
+  // assert "empty day" before the data arrives.
+  if (dogCount == null) return "bg-slate-100 text-slate-500";
   if (dogCount === 0) return "bg-slate-200 text-slate-700";
   if (dogCount <= 3) return "bg-emerald-500 text-white";
   if (dogCount <= 6) return "bg-amber-500 text-white";
@@ -37,6 +40,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const thisDay = startOfDay(dateObj);
   const isToday = thisDay.getTime() === today.getTime();
   const isPast = thisDay.getTime() < today.getTime();
+  const isLoading = dogCount == null;
 
   // Two display modes: light (mobile/tablet, on white CalendarTabs bg) and
   // dark (xl+ inside the purple AppToolbar). Mode selected via Tailwind's xl: prefix.
@@ -44,14 +48,17 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
     <button
       role="tab"
       aria-selected={isActive}
+      aria-busy={isLoading || undefined}
       aria-label={`${dayName} ${dateNum}, ${
         !isOpen
           ? "closed"
-          : isPast
-            ? `completed, ${dogCount} dogs`
-            : isToday
-              ? `today, ${dogCount} dogs`
-              : `${dogCount} dogs`
+          : isLoading
+            ? "loading"
+            : isPast
+              ? `completed, ${dogCount} dogs`
+              : isToday
+                ? `today, ${dogCount} dogs`
+                : `${dogCount} dogs`
       }`}
       tabIndex={isActive ? 0 : -1}
       id={id}
@@ -104,8 +111,9 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
                 ? "text-sky-700 xl:text-sky-200"
                 : "text-slate-600 xl:text-white/70"
         }`}
+        aria-hidden={isLoading || undefined}
       >
-        {dogCount === 0 ? "—" : `${dogCount}`}
+        {isLoading ? "·" : dogCount === 0 ? "—" : `${dogCount}`}
       </span>
     </button>
   );

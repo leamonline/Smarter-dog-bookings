@@ -3,6 +3,7 @@ import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Pencil, Plus, X } from "lucide-react";
 import { titleCase } from "../../utils/text.js";
 
@@ -47,6 +48,7 @@ function lastGroomLabel(dateStr) {
 }
 
 function DogRow({ dog, lastGroomDate, onSaved }) {
+  const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -96,7 +98,8 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
     const row = Array.isArray(data) ? data[0] : data;
     if (row && onSaved) onSaved({ ...dog, ...row });
     setEditing(false);
-  }, [dog, form, onSaved]);
+    toast.show(`${(form.name || dog.name || "Dog").trim()}'s details saved`, "success");
+  }, [dog, form, onSaved, toast]);
 
   if (editing) {
     return (
@@ -181,11 +184,13 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
 }
 
 export function DogsSection({ dogs, lastGroomByDog = {}, humanId, onDogUpdated, onDogAdded }) {
+  const toast = useToast();
   const [addingNew, setAddingNew] = useState(false);
 
   const handleAdded = (dog) => {
     onDogAdded?.(dog);
     setAddingNew(false);
+    toast.show(dog?.name ? `${dog.name} added` : "Dog added", "success");
   };
 
   const isEmpty = dogs.length === 0;

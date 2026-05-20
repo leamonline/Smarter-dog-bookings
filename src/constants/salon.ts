@@ -69,13 +69,13 @@ export const BOOKING_STATUSES = [
   { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
   { id: "In bath", label: "In bath", color: "#0E7490", bg: "#CFFAFE" },
   { id: "Ready for pick-up", label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
-  { id: "Completed", label: "Completed", color: "#2D004B", bg: "#E2D9F0" },
+  { id: "Completed", label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
 ];
 
 export const ALERT_OPTIONS = [
-  { label: "Bites / Nips", color: "#E7546C" },
-  { label: "Reactive to dogs", color: "#E7546C" },
-  { label: "Kennel aggressive", color: "#E7546C" },
+  { label: "Bites / Nips", color: "var(--color-brand-coral)" },
+  { label: "Reactive to dogs", color: "var(--color-brand-coral)" },
+  { label: "Kennel aggressive", color: "var(--color-brand-coral)" },
   { label: "Nervous / Anxious", color: "#D97706" },
   { label: "Fear of dryer", color: "#D97706" },
   { label: "Sensitive paws", color: "#D97706" },

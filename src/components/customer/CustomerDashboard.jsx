@@ -9,6 +9,7 @@ import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS } from "../../constants/salon.js";
 
@@ -19,6 +20,7 @@ const SALON_OPEN_LABEL = "8:30am–3pm";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [dogs, setDogs] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [trustedHumans, setTrustedHumans] = useState([]);
@@ -26,6 +28,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [editing, setEditing] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const [pastExpanded, setPastExpanded] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [olderBookings, setOlderBookings] = useState([]);
@@ -113,6 +116,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
     setSaving(true);
+    setSaveError(null);
     const { error: err } = await supabase
       .from("humans")
       .update({
@@ -127,10 +131,23 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       })
       .eq("id", humanRecord.id);
     setSaving(false);
-    if (!err) setEditing(false);
-  }, [humanRecord, details]);
+    if (err) {
+      // Inline saveError is the primary feedback channel — it persists
+      // alongside the still-open form so the user can read and react.
+      // No error toast to avoid duplicating the same signal.
+      setSaveError(
+        err?.message
+          ? `We couldn't save your changes: ${err.message}. Try again, or refresh if it keeps failing.`
+          : "We couldn't save your changes. Try again, or refresh if it keeps failing.",
+      );
+      return;
+    }
+    setEditing(false);
+    toast.show("Details saved", "success");
+  }, [humanRecord, details, toast]);
 
   const handleCancel = useCallback(() => {
+    setSaveError(null);
     setDetails({
       name: humanRecord?.name || "",
       surname: humanRecord?.surname || "",
@@ -267,13 +284,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       {/* ===== TOP NAV (no in-header CTA — the in-page Booking card carries the action) ===== */}
       <nav className="portal-topnav" aria-label="Primary">
         <div className="portal-topnav-inner">
-          <a href="https://smarterdog.co.uk" className="portal-topnav-logo" aria-label="Smarter Dog home">
+          <a href="https://smarterdog.co.uk" target="_blank" rel="noopener noreferrer" className="portal-topnav-logo" aria-label="Smarter Dog home (opens in a new tab)">
             <img src="/logo.png" alt="Smarter Dog Grooming" />
           </a>
           <div className="portal-topnav-links">
-            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#services">Services</a>
-            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#faq">FAQ</a>
-            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/houndsly">Houndsly</a>
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#services" target="_blank" rel="noopener noreferrer">Services</a>
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/#faq" target="_blank" rel="noopener noreferrer">FAQ</a>
+            <a className="portal-topnav-link--hide-sm" href="https://smarterdog.co.uk/houndsly" target="_blank" rel="noopener noreferrer">Houndsly</a>
             <button type="button" onClick={requestSignOut}>Sign out</button>
           </div>
         </div>
@@ -337,6 +354,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               editing={editing}
               setEditing={setEditing}
               saving={saving}
+              saveError={saveError}
               details={details}
               setDetails={setDetails}
               humanRecord={humanRecord}
@@ -400,13 +418,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                 {hoursLabel}
               </span>
               <div className="portal-footer-links">
-                <a href="https://smarterdog.co.uk/#services">Services</a>
+                <a href="https://smarterdog.co.uk/#services" target="_blank" rel="noopener noreferrer">Services</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
-                <a href="https://smarterdog.co.uk/#faq">FAQ</a>
+                <a href="https://smarterdog.co.uk/#faq" target="_blank" rel="noopener noreferrer">FAQ</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
-                <a href="https://smarterdog.co.uk/privacy">Privacy</a>
+                <a href="https://smarterdog.co.uk/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
-                <a href="https://smarterdog.co.uk/terms">Terms</a>
+                <a href="https://smarterdog.co.uk/terms" target="_blank" rel="noopener noreferrer">Terms</a>
               </div>
             </div>
           </div>

@@ -9,9 +9,9 @@ const LETTERS = { small: "S", medium: "M", large: "L" };
 const LABELS = { small: "Small dog", medium: "Medium dog", large: "Large dog" };
 
 const COLOURS = {
-  small: { bg: "#F5C518", border: "#D4A500", fg: "#2D004B" },
-  medium: { bg: "#2D8B7A", border: "#1E6B5C", fg: "#FFFFFF" },
-  large: { bg: "#E7546C", border: "#C93D63", fg: "#FFFFFF" },
+  small: { bg: "var(--color-size-small)", border: "var(--color-brand-yellow-dark)", fg: "var(--color-brand-purple)" },
+  medium: { bg: "var(--color-brand-teal)", border: "var(--color-brand-teal-dark)", fg: "#FFFFFF" },
+  large: { bg: "var(--color-brand-coral)", border: "var(--color-brand-coral-dark)", fg: "#FFFFFF" },
   unset: { bg: "#00B8E0", border: "#0099BD", fg: "#FFFFFF" },
 };
 

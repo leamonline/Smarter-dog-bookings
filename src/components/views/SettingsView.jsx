@@ -66,7 +66,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
         role="tablist"
         aria-label="Settings sections"
         onKeyDown={handleKeyDown}
-        className="flex gap-1 flex-wrap bg-slate-100 p-1 rounded-[10px] mb-5"
+        className="flex gap-1 flex-wrap bg-slate-100 p-1 rounded-control mb-5"
       >
         {SECTIONS.map((s) => {
           const isActive = activeTab === s.id;

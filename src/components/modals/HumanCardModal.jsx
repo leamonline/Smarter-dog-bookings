@@ -441,7 +441,7 @@ export function HumanCardModal({
       <span className="text-[13px] text-slate-500">{label}</span>
       <span
         className="text-[13px] font-semibold"
-        style={{ color: active ? "#2D8B7A" : "#E7546C" }}
+        style={{ color: active ? "var(--color-brand-teal)" : "var(--color-brand-coral)" }}
       >
         {active ? "\u2705 Active" : "\u274C Off"}
       </span>
@@ -489,11 +489,11 @@ export function HumanCardModal({
     <AccessibleModal
       onClose={onClose}
       titleId="human-card-title"
-      className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[85vh] overflow-auto shadow-modal"
     >
         <div
           className="px-6 py-5 rounded-t-2xl flex justify-between items-start"
-          style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
+          style={{ background: "linear-gradient(135deg, var(--color-brand-teal), var(--color-brand-teal-dark))" }}
         >
           <div className="flex-1 min-w-0 pr-3">
             {isEditing ? (
@@ -734,10 +734,10 @@ export function HumanCardModal({
 
           <button
             onClick={() => setShowTrustedSearch(!showTrustedSearch)}
-            className="w-full mt-3 py-2.5 rounded-[10px] border-[1.5px] border-dashed border-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all"
+            className="w-full mt-3 py-2.5 rounded-control border-[1.5px] border-dashed border-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all"
             style={{
-              background: showTrustedSearch ? "#2D8B7A" : "#E6F5F2",
-              color: showTrustedSearch ? "#FFFFFF" : "#2D8B7A",
+              background: showTrustedSearch ? "var(--color-brand-teal)" : "#E6F5F2",
+              color: showTrustedSearch ? "#FFFFFF" : "var(--color-brand-teal)",
             }}
           >
             {showTrustedSearch ? "Cancel" : "+ Add a trusted Human"}
@@ -846,14 +846,14 @@ export function HumanCardModal({
               {onAddHuman && !showNewTrustedForm && (
                 <button
                   onClick={() => setShowNewTrustedForm(true)}
-                  className="w-full mt-2.5 py-2.5 rounded-[10px] border-[1.5px] border-dashed border-brand-teal bg-[#E6F5F2] text-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal hover:text-white"
+                  className="w-full mt-2.5 py-2.5 rounded-control border-[1.5px] border-dashed border-brand-teal bg-[#E6F5F2] text-brand-teal text-[13px] font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal hover:text-white"
                 >
                   + Create new human
                 </button>
               )}
 
               {showNewTrustedForm && (
-                <div className="mt-2.5 p-3.5 bg-slate-50 rounded-[10px] border border-slate-200">
+                <div className="mt-2.5 p-3.5 bg-slate-50 rounded-control border border-slate-200">
                   <div className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide mb-2.5">
                     New Trusted Human
                   </div>
@@ -892,7 +892,7 @@ export function HumanCardModal({
                     <button
                       onClick={handleAddNewTrusted}
                       disabled={!newTrustedName.trim()}
-                      className="flex-1 py-2.5 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed bg-brand-teal text-white"
+                      className="flex-1 py-2.5 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed bg-brand-teal text-white"
                     >
                       Add
                     </button>
@@ -904,7 +904,7 @@ export function HumanCardModal({
                         setNewTrustedPhone("");
                         setNewTrustedRelationship("");
                       }}
-                      className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit bg-white text-slate-500 transition-colors hover:bg-slate-50"
+                      className="flex-1 py-2.5 rounded-control border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit bg-white text-slate-500 transition-colors hover:bg-slate-50"
                     >
                       Cancel
                     </button>
@@ -919,14 +919,14 @@ export function HumanCardModal({
           <div className="px-6 py-4 pb-5 flex gap-2.5 bg-slate-50 border-t border-slate-200">
             <button
               onClick={handleSaveHuman}
-              className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors text-white"
-              style={{ background: "#2D8B7A" }}
+              className="flex-1 py-3 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors text-white"
+              style={{ background: "var(--color-brand-teal)" }}
             >
               <IconTick size={16} colour="#FFFFFF" /> Save Changes
             </button>
             <button
               onClick={handleCancelEdit}
-              className="flex-1 py-3 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
+              className="flex-1 py-3 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
             >
               Cancel
             </button>

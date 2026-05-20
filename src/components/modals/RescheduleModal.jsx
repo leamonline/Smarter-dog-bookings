@@ -117,7 +117,7 @@ export function RescheduleModal({
     <AccessibleModal
       onClose={onClose}
       titleId="reschedule-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[85vh] overflow-auto shadow-modal"
     >
       <div className="px-6 py-5">
         <h2
@@ -213,14 +213,14 @@ export function RescheduleModal({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
+            className="px-5 py-2.5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={!selectedDateStr || !selectedSlot}
-            className="px-5 py-2.5 rounded-[10px] border-none text-white text-[13px] font-bold cursor-pointer font-inherit disabled:cursor-not-allowed disabled:bg-slate-300 transition-colors"
+            className="px-5 py-2.5 rounded-control border-none text-white text-[13px] font-bold cursor-pointer font-inherit disabled:cursor-not-allowed disabled:bg-slate-300 transition-colors"
             style={{
               background:
                 selectedDateStr && selectedSlot ? theme.primary : undefined,

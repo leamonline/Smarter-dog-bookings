@@ -5,12 +5,15 @@ import { BookingGridControls } from "./BookingGridControls.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
 import { BookingList } from "../booking/BookingList.jsx";
 import { ClosedDayView } from "../layout/ClosedDayView.jsx";
+import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 
 export function BookingMainPanel({
   currentDateObj,
   currentDateStr,
   bookings,
   bookingsLoading,
+  bookingsError,
+  onRetry,
   dogs,
   isOpen,
   activeSlots,
@@ -30,7 +33,12 @@ export function BookingMainPanel({
   searchQuery,
 }) {
   const hasBookings = (bookings || []).length > 0;
-  const showEmpty = isOpen && !hasBookings && !bookingsLoading;
+  // Only surface the inline error when this day's grid would otherwise
+  // look empty. If bookings did load for the day, suppress the inline
+  // banner — the global page-level banner is already covering the
+  // upstream issue and we don't want to double up.
+  const showError = isOpen && !hasBookings && !bookingsLoading && bookingsError;
+  const showEmpty = isOpen && !hasBookings && !bookingsLoading && !bookingsError;
   const todayStr = toDateStr(new Date());
   const currentStr = toDateStr(currentDateObj);
   const isToday = todayStr === currentStr;
@@ -56,6 +64,15 @@ export function BookingMainPanel({
 
       {isOpen ? (
         <>
+          {showError && (
+            <ErrorBanner
+              title="Couldn't load today's bookings"
+              message={typeof bookingsError === "string" ? bookingsError : "Check your connection and try again."}
+              retry={onRetry}
+              retryLabel="Refresh"
+            />
+          )}
+
           {showEmpty && (
             <EmptyDayPanel
               currentDateObj={currentDateObj}

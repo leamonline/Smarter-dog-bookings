@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, SECTION_LABEL_CLS, INPUT_CLS } from "./shared.jsx";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -14,6 +15,7 @@ const DEFAULT_HOURS = {
 };
 
 export function HoursSettings({ config, onUpdateConfig }) {
+  const toast = useToast();
   const [hours, setHours] = useState(config?.businessHours || DEFAULT_HOURS);
   const [closures, setClosures] = useState(config?.closures || []);
   const [saving, setSaving] = useState(false);
@@ -40,10 +42,14 @@ export function HoursSettings({ config, onUpdateConfig }) {
     setClosures((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    onUpdateConfig((prev) => ({ ...prev, businessHours: hours, closures }));
+    const result = await onUpdateConfig((prev) => ({ ...prev, businessHours: hours, closures }));
     setSaving(false);
+    if (result?.ok === false) {
+      toast.show(result.error || "Couldn't save — try again?", "error");
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -131,7 +137,7 @@ export function HoursSettings({ config, onUpdateConfig }) {
             />
             <button
               onClick={addClosure}
-              className="border-[1.5px] border-dashed border-slate-200 rounded-[10px] bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal"
+              className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal"
             >
               + Add
             </button>

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { computeRevenue } from "../../engine/pricing.js";
 import { toDateStr } from "../../supabase/transforms.js";
+import { SkeletonBlock } from "../ui/Skeleton.jsx";
 
 // Working revenue targets. Used purely as the bar's denominator so
 // "100%" means "a normal full day / normal full week" — the salon
@@ -24,9 +25,9 @@ function revenueLabel(pct, hasRevenue) {
   return "Quiet";
 }
 
-function RevenueBar({ amount, pct, label, sub, statusLabel }) {
+function RevenueBar({ amount, pct, label, sub, statusLabel, loading = false }) {
   return (
-    <div>
+    <div aria-busy={loading || undefined}>
       <div className="flex items-baseline justify-between mb-1.5 gap-2">
         <div className="text-xs font-semibold text-brand-purple truncate">
           {label}
@@ -35,18 +36,26 @@ function RevenueBar({ amount, pct, label, sub, statusLabel }) {
           )}
         </div>
         <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
-          <span className="font-bold text-brand-teal-text">£{amount}</span>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {statusLabel}
-          </span>
+          {loading ? (
+            <SkeletonBlock className="h-4 w-12 rounded-md" />
+          ) : (
+            <>
+              <span className="font-bold text-brand-teal-text">£{amount}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                {statusLabel}
+              </span>
+            </>
+          )}
         </div>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div
-          className={`h-full ${revenueColour(pct)} rounded-full transition-all`}
-          style={{ width: `${Math.min(100, pct)}%` }}
-          aria-hidden="true"
-        />
+        {!loading && (
+          <div
+            className={`h-full ${revenueColour(pct)} rounded-full transition-all`}
+            style={{ width: `${Math.min(100, pct)}%` }}
+            aria-hidden="true"
+          />
+        )}
       </div>
     </div>
   );
@@ -57,6 +66,7 @@ export function WeeklyRevenueCard({
   bookingsByDate,
   dogs,
   currentDateObj,
+  loading = false,
 }) {
   const todayStr = toDateStr(new Date());
   const selectedStr = currentDateObj ? toDateStr(currentDateObj) : null;
@@ -101,12 +111,14 @@ export function WeeklyRevenueCard({
               : ""
           }
           statusLabel={revenueLabel(dayPct, dayRevenue > 0)}
+          loading={loading}
         />
         <RevenueBar
           amount={weekRevenue}
           pct={weekPct}
           label="This week"
           statusLabel={revenueLabel(weekPct, weekRevenue > 0)}
+          loading={loading}
         />
       </div>
     </section>
