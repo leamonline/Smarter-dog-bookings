@@ -1,0 +1,22 @@
+-- ============================================================
+-- Restore EXECUTE on apply_whatsapp_booking_action(uuid) for the
+-- authenticated role.
+--
+-- Same class of bug as the mark_whatsapp_conversation_read grant fix
+-- in 20260520100000: the original migration
+-- 20260427151411_apply_whatsapp_booking_action.sql granted EXECUTE
+-- to `authenticated`, but the live DB lost the grant somewhere along
+-- the way (probably during one of the two later
+-- create-or-replace passes in 20260512140000 / 20260513140000 if the
+-- function was ever dropped and re-created off-migration).
+--
+-- Effect on the inbox: clicking "Apply" on an AI-proposed booking
+-- action 403s with no surfaced error, leaving the action stuck at
+-- state='pending' even though the staff member did approve it.
+--
+-- The function is SECURITY DEFINER and is_staff()-gated internally,
+-- so re-granting EXECUTE to `authenticated` is safe — non-staff
+-- callers are rejected by the function body.
+-- ============================================================
+
+GRANT EXECUTE ON FUNCTION public.apply_whatsapp_booking_action(uuid) TO authenticated;

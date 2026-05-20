@@ -1,0 +1,22 @@
+-- ============================================================
+-- Restore EXECUTE on mark_whatsapp_conversation_read(uuid) for the
+-- authenticated role.
+--
+-- Migration 20260424021708_whatsapp_unread_count_fix.sql created the
+-- function and explicitly granted EXECUTE to `authenticated`. The
+-- live DB no longer has that grant — only `postgres` and
+-- `service_role` carry it — so staff hits to /inbox throw 403 from
+-- the mark_whatsapp_conversation_read RPC when opening a conversation.
+-- Effect: the unread badge keeps growing because the optimistic
+-- client-side clear can't be persisted.
+--
+-- The function is SECURITY DEFINER and gates writes via an internal
+-- is_staff() check, so restoring EXECUTE for `authenticated` is safe
+-- — customers can't successfully invoke it because the function body
+-- itself rejects non-staff callers.
+--
+-- Mirrors 20260518200851_restore_staff_bookings_delete_grant.sql
+-- (the same pattern bit us with REVOKE DELETE on public.bookings).
+-- ============================================================
+
+GRANT EXECUTE ON FUNCTION public.mark_whatsapp_conversation_read(uuid) TO authenticated;
