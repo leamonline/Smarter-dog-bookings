@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { logger } from "../../lib/logger.js";
 
 const ROLES = { owner: "owner", staff: "staff" };
 
@@ -23,11 +24,16 @@ export function useAuth() {
         // No staff profile found — user is NOT authorized for the staff portal.
         // Staff profiles must be created by an owner via the dashboard or
         // directly in Supabase Auth. Auto-creation is disabled for security.
-        console.warn("No staff profile found for user:", userId, "— access denied.");
+        logger.warn("No staff profile found — access denied", {
+          tags: { hook: "useAuth", op: "fetchProfile" },
+          extra: { userId },
+        });
         return null;
       }
 
-      console.error("Failed to fetch staff profile:", err);
+      logger.error("Failed to fetch staff profile", err, {
+        tags: { hook: "useAuth", op: "fetchProfile" },
+      });
       return null;
     }
 
@@ -79,7 +85,9 @@ export function useAuth() {
           const profile = await fetchProfile(userId);
           if (!cancelled) setStaffProfile(profile);
         } catch (err) {
-          console.error("useAuth: error fetching staff profile:", err);
+          logger.error("useAuth: error fetching staff profile", err, {
+            tags: { hook: "useAuth", op: "scheduleProfileFetch" },
+          });
         } finally {
           finishInitialLoad();
         }
@@ -88,8 +96,9 @@ export function useAuth() {
 
     const timeout = setTimeout(() => {
       if (!initialDone && !cancelled) {
-        console.warn(
+        logger.warn(
           "useAuth: auth startup timed out after 5s; showing UI anyway",
+          { tags: { hook: "useAuth", op: "startupTimeout" } },
         );
         finishInitialLoad();
       }
@@ -99,7 +108,9 @@ export function useAuth() {
       .getSession()
       .then(({ data, error: sessionErr }) => {
         if (sessionErr) {
-          console.error("useAuth: failed to get initial session:", sessionErr);
+          logger.error("useAuth: failed to get initial session", sessionErr, {
+            tags: { hook: "useAuth", op: "getSession" },
+          });
           finishInitialLoad();
           return;
         }
@@ -108,7 +119,9 @@ export function useAuth() {
         scheduleProfileFetch(session?.user?.id);
       })
       .catch((err) => {
-        console.error("useAuth: unexpected getSession error:", err);
+        logger.error("useAuth: unexpected getSession error", err, {
+          tags: { hook: "useAuth", op: "getSession" },
+        });
         finishInitialLoad();
       });
 
@@ -152,7 +165,9 @@ export function useAuth() {
 
       return { data };
     } catch (err) {
-      console.error("Sign in error:", err);
+      logger.error("Sign in error", err, {
+        tags: { hook: "useAuth", op: "signIn" },
+      });
       setError("Could not sign in. Please try again.");
       return { error: err };
     } finally {
@@ -164,7 +179,11 @@ export function useAuth() {
     if (!supabase) return;
 
     const { error: err } = await supabase.auth.signOut();
-    if (err) console.error("Sign out error:", err);
+    if (err) {
+      logger.error("Sign out error", err, {
+        tags: { hook: "useAuth", op: "signOut" },
+      });
+    }
 
     setUser(null);
     setStaffProfile(null);
