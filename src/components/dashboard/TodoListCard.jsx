@@ -3,15 +3,18 @@ import { ListChecks, ArrowRight } from "lucide-react";
 export function TodoListCard({ count = 0, onOpen, bare = false }) {
   const hasTasks = count > 0;
   return (
-    <section
-      aria-label={`To-do list, ${count} ${count === 1 ? "task" : "tasks"}`}
-      className={
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`To-do list, ${count} ${count === 1 ? "task" : "tasks"} — click to view all`}
+      className={[
+        "group w-full text-left cursor-pointer font-[inherit] border-none transition-colors",
         bare
-          ? "p-1"
-          : "rounded-2xl border border-rose-200 shadow-[0_2px_8px_rgba(244,63,94,0.08)] p-4 bg-gradient-to-br from-rose-50 to-white"
-      }
+          ? "p-3 bg-transparent hover:bg-rose-50/40"
+          : "rounded-2xl border border-rose-200 shadow-[0_2px_8px_rgba(244,63,94,0.08)] p-3 bg-gradient-to-br from-rose-50 to-white hover:border-rose-400 hover:shadow-[0_2px_10px_rgba(244,63,94,0.18)]",
+      ].join(" ")}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <h2 className="text-[10px] font-bold text-rose-700/70 uppercase tracking-wider">
           To-do list
         </h2>
@@ -20,25 +23,26 @@ export function TodoListCard({ count = 0, onOpen, bare = false }) {
         </span>
       </div>
 
-      <div className="flex items-baseline gap-2 mb-3">
-        <div className={`text-2xl font-black font-display leading-none ${
-          hasTasks ? "text-rose-700" : "text-rose-300"
-        }`}>
-          {count}
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <div
+            className={`text-2xl font-black font-display leading-none ${
+              hasTasks ? "text-rose-700" : "text-rose-300"
+            }`}
+          >
+            {count}
+          </div>
+          <div className="text-[11px] font-semibold text-rose-700/70">
+            {count === 1 ? "open task" : "open tasks"}
+          </div>
         </div>
-        <div className="text-[11px] font-semibold text-rose-700/70">
-          {count === 1 ? "open task" : "open tasks"}
-        </div>
+        <ArrowRight
+          size={14}
+          strokeWidth={2.5}
+          aria-hidden="true"
+          className="text-rose-500/70 group-hover:text-rose-700 transition-colors shrink-0"
+        />
       </div>
-
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full inline-flex items-center justify-between gap-2 text-[12px] font-semibold text-rose-800 bg-white border border-rose-200 rounded-full px-3 py-1.5 cursor-pointer transition-colors hover:border-rose-400 hover:bg-rose-50 font-[inherit]"
-      >
-        View all tasks
-        <ArrowRight size={12} strokeWidth={2.5} aria-hidden="true" />
-      </button>
-    </section>
+    </button>
   );
 }
