@@ -288,7 +288,7 @@ export function ChainBookingModal({
     <AccessibleModal
       onClose={onClose}
       titleId="chain-booking-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
     >
       {/* ── Gradient header ── */}
       <div

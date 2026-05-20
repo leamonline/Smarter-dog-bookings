@@ -125,12 +125,12 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
     <AccessibleModal
       onClose={onClose}
       titleId="add-human-title"
-      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
     >
         {/* Header */}
         <div
           className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
-          style={{ background: "linear-gradient(135deg, #2D8B7A, #236b5d)" }}
+          style={{ background: "linear-gradient(135deg, var(--color-brand-teal), var(--color-brand-teal-dark))" }}
         >
           <div id="add-human-title" className="text-lg font-extrabold text-white">Add New Human</div>
           <button type="button" onClick={onClose} aria-label="Close add human" className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
@@ -274,11 +274,11 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-[10px] border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-[#236b5d] disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed">
+              className="flex-1 py-3 rounded-control border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed">
               {submitting ? "Adding..." : "Add Human"}
             </button>
             <button type="button" onClick={onClose}
-              className="py-3 px-5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
+              className="py-3 px-5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
               Cancel
             </button>
           </div>

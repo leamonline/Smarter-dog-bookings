@@ -185,7 +185,7 @@ export function SlotRowMenu({
             top: popTop,
             left: popLeft,
             width: 200,
-            backgroundColor: "#2D004B",
+            backgroundColor: "var(--color-brand-purple)",
             zIndex: 1100,
           }}
           className="rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-[0_12px_28px_rgba(45,0,75,0.45),0_4px_10px_rgba(45,0,75,0.3)] animate-[fadeIn_0.12s_ease-out]"

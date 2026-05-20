@@ -61,7 +61,7 @@ export function RecurringBookingModal({
     <AccessibleModal
       onClose={onClose}
       titleId="recurring-booking-title"
-      className="bg-white rounded-2xl w-[min(440px,95vw)] max-h-[85vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(440px,95vw)] max-h-[85vh] overflow-auto shadow-modal"
     >
       <div className="px-6 py-5">
         <h2
@@ -134,7 +134,7 @@ export function RecurringBookingModal({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
+            className="px-5 py-2.5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
           >
             Close
           </button>
@@ -142,7 +142,7 @@ export function RecurringBookingModal({
             <button
               onClick={() => setShowCancelAll(true)}
               disabled={cancelling}
-              className="px-5 py-2.5 rounded-[10px] border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-inherit disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="px-5 py-2.5 rounded-control border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-inherit disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               Cancel Future ({futureBookings.length})
             </button>

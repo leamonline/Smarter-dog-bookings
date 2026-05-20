@@ -383,7 +383,7 @@ export function WeekCalendarView({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl w-[420px] py-5 px-6 shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+            className="bg-white rounded-2xl w-[420px] py-5 px-6 shadow-modal"
           >
             <div className="text-base font-extrabold text-brand-purple mb-1">
               Rebook {rebookData.dogName}
@@ -395,7 +395,7 @@ export function WeekCalendarView({
             <button
               type="button"
               onClick={() => setShowRebookDatePicker(true)}
-              className="w-full mb-2.5 py-2.5 px-3 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-brand-purple text-[13px] font-semibold cursor-pointer font-[inherit] flex justify-between items-center"
+              className="w-full mb-2.5 py-2.5 px-3 rounded-control border-[1.5px] border-slate-200 bg-white text-brand-purple text-[13px] font-semibold cursor-pointer font-[inherit] flex justify-between items-center"
             >
               <span>
                 {rebookData.date

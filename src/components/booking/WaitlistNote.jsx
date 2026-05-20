@@ -58,33 +58,33 @@ export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
         aria-label={`Waitlist: ${count} ${count === 1 ? "person" : "people"}`}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
-        className="flex-1 min-w-[56px] md:min-w-[72px] rounded-t-[10px] bg-[#FFFBF2] text-center border-[1.5px] border-b-0 border-[#F5E6C8] select-none pb-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
+        className="flex-1 min-w-[56px] md:min-w-[72px] rounded-t-control bg-brand-mustard-paper text-center border-[1.5px] border-b-0 border-brand-mustard-tint select-none pb-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]"
       >
-        <div className="py-[3px] text-[8px] font-extrabold text-[#B8860B] uppercase tracking-[0.8px] rounded-t-lg bg-[#F5E6C8]">
+        <div className="py-[3px] text-[8px] font-extrabold text-brand-mustard uppercase tracking-[0.8px] rounded-t-lg bg-brand-mustard-tint">
           Wait List
         </div>
-        <div className="text-lg md:text-2xl font-black leading-none mt-0.5 text-[#B8860B]">
+        <div className="text-lg md:text-2xl font-black leading-none mt-0.5 text-brand-mustard">
           {count}
         </div>
-        <div className="text-[10px] md:text-[13px] font-extrabold leading-none mt-px text-[#B8860B]/60">
+        <div className="text-[10px] md:text-[13px] font-extrabold leading-none mt-px text-brand-mustard/60">
           {count === 1 ? "person" : "people"}
         </div>
       </div>
 
       {/* Post-it dropdown — square, simple */}
       {open && (
-        <div className="absolute top-full right-0 mt-1 z-50 w-[min(280px,calc(100vw-32px))] max-h-[320px] bg-[#FFFBF2] border border-[#F5E6C8] rounded-md shadow-[0_4px_20px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.06)] p-4 flex flex-col animate-[fadeIn_0.12s_ease-out]">
+        <div className="absolute top-full right-0 mt-1 z-50 w-[min(280px,calc(100vw-32px))] max-h-[320px] bg-brand-mustard-paper border border-brand-mustard-tint rounded-md shadow-[0_4px_20px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.06)] p-4 flex flex-col animate-[fadeIn_0.12s_ease-out]">
           {/* Tape strip */}
-          <div className="absolute -top-[6px] left-1/2 -translate-x-1/2 w-10 h-3 bg-[#F5E6C8]/80 rounded-sm" />
+          <div className="absolute -top-[6px] left-1/2 -translate-x-1/2 w-10 h-3 bg-brand-mustard-tint/80 rounded-sm" />
 
-          <div className="text-[15px] font-black text-[#B8860B] mb-3">
+          <div className="text-[15px] font-black text-brand-mustard mb-3">
             Wait List
           </div>
 
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="mb-3 py-2 px-3 rounded-lg border-[1.5px] border-dashed border-[#D4A500]/30 bg-white/60 text-[#B8860B] text-xs font-bold cursor-pointer transition-all hover:border-[#B8860B] hover:bg-white w-full text-center"
+            className="mb-3 py-2 px-3 rounded-lg border-[1.5px] border-dashed border-[#D4A500]/30 bg-white/60 text-brand-mustard text-xs font-bold cursor-pointer transition-all hover:border-brand-mustard hover:bg-white w-full text-center"
           >
             + Add Person
           </button>
@@ -120,7 +120,7 @@ export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
                 const dogNames = theirDogs.map(d => d.name).join(", ") || "No dogs";
 
                 return (
-                  <div key={entry.id} className="flex items-center justify-between bg-white/70 py-2 px-3 rounded-lg border border-[#F5E6C8]">
+                  <div key={entry.id} className="flex items-center justify-between bg-white/70 py-2 px-3 rounded-lg border border-brand-mustard-tint">
                     <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { onOpenHuman && onOpenHuman(h.id); setOpen(false); }}>
                       <div className="text-[13px] font-bold text-slate-800">{h.name} {h.surname}</div>
                       <div className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
@@ -137,7 +137,7 @@ export function WaitlistNote({ currentDateObj, humans, dogs, onOpenHuman }) {
                 );
               })
             ) : (
-              <div className="flex-1 flex items-center justify-center text-xs italic text-[#B8860B]/50">
+              <div className="flex-1 flex items-center justify-center text-xs italic text-brand-mustard/50">
                 No one waiting yet
               </div>
             )}

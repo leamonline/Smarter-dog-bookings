@@ -131,7 +131,7 @@ export function HoursSettings({ config, onUpdateConfig }) {
             />
             <button
               onClick={addClosure}
-              className="border-[1.5px] border-dashed border-slate-200 rounded-[10px] bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal"
+              className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal"
             >
               + Add
             </button>

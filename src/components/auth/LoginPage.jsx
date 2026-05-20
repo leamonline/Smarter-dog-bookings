@@ -74,7 +74,7 @@ const fieldInputClass =
 
 const alertErrorClass =
   "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-[13px] leading-[1.45] " +
-  "bg-[var(--sd-coral-tint)] text-[#B83A4F] border border-[rgba(231,84,108,0.30)]";
+  "bg-[var(--sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
 
 // Yellow CTA matches the customer portal — primary, non-booking action.
 const submitButtonClass =

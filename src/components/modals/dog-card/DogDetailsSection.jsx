@@ -52,7 +52,7 @@ export function DogDetailsSection({
         <span
           key={alert}
           className="px-3 py-1.5 rounded-full text-xs font-bold text-white"
-          style={{ background: "#C93D63" }}
+          style={{ background: "var(--color-brand-coral-dark)" }}
         >
           {alert}
         </span>
@@ -96,9 +96,9 @@ export function DogDetailsSection({
           onClick={() => setHasAllergy(!hasAllergy)}
           className="px-3 py-1.5 rounded-2xl text-xs font-bold cursor-pointer transition-all"
           style={{
-            background: hasAllergy ? "#E7546C" : "#FFFFFF",
-            color: hasAllergy ? "#FFFFFF" : "#E7546C",
-            border: "2px solid #E7546C",
+            background: hasAllergy ? "var(--color-brand-coral)" : "#FFFFFF",
+            color: hasAllergy ? "#FFFFFF" : "var(--color-brand-coral)",
+            border: "2px solid var(--color-brand-coral)",
           }}
         >
           Allergy

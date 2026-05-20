@@ -108,12 +108,12 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                 placeholder="Search by name, breed or owner..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
               />
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-cyan border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+              className="bg-white text-brand-cyan border-none rounded-control px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
             >
               + Add Dog
             </button>
@@ -289,7 +289,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           <button
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
             disabled={loadingMore}
-            className={`border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
+            className={`border border-slate-200 rounded-control px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
           >
             {loadingMore ? "Loading..." : "Load more"}
           </button>

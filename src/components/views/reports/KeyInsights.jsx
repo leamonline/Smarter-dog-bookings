@@ -61,7 +61,7 @@ export function KeyInsights({ stats, insights, days }) {
   const sizeSummary = buildSizeSummary(stats.sizes, stats.curRev);
 
   return (
-    <Section title="Key Insights" accent="#FECC13">
+    <Section title="Key Insights" accent="var(--color-brand-yellow)">
       {items.length === 0 && !sizeSummary ? (
         <div className="text-[13px] text-slate-400">Not enough data yet — bookings will reveal patterns.</div>
       ) : (
