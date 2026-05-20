@@ -70,6 +70,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     reopenConversation,
     sendTemplate,
     sendOutboundTemplate,
+    sendOutboundSMS,
     dogNames,
     dogNamesById,
     actionInFlight,
@@ -166,12 +167,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     if (res?.ok) {
       setComposeOpen(false);
       toast.show("Template sent — opening the thread.", "success");
-      // After refreshList settled inside sendOutboundTemplate, find the
-      // conversation by phone and select it. The list refresh already
-      // landed by the time this resolves, so the selection is reliable.
       const phoneDigits = (payload.phoneE164 ?? "").replace(/\D/g, "");
       const match = conversations.find(
-        (c) => (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits,
+        (c) =>
+          (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits &&
+          (c.channel ?? "whatsapp") === "whatsapp",
       );
       if (match) selectConversation(match.id);
     } else if (res?.reason) {
@@ -179,6 +179,24 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     }
     return res;
   }, [sendOutboundTemplate, conversations, selectConversation, toast]);
+
+  const handleComposeSMSSent = useCallback(async (payload) => {
+    const res = await sendOutboundSMS(payload);
+    if (res?.ok) {
+      setComposeOpen(false);
+      toast.show("SMS sent — opening the thread.", "success");
+      const phoneDigits = (payload.phoneE164 ?? "").replace(/\D/g, "");
+      const match = conversations.find(
+        (c) =>
+          (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits &&
+          c.channel === "sms",
+      );
+      if (match) selectConversation(match.id);
+    } else if (res?.reason) {
+      toast.show(`Could not send SMS: ${res.reason}`, "error");
+    }
+    return res;
+  }, [sendOutboundSMS, conversations, selectConversation, toast]);
 
   // Customer-context panel: docked third column at xl, slide-over below xl.
   // Track openness separately so the slide-over can close without
@@ -663,6 +681,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         <ComposeNewModal
           onClose={() => setComposeOpen(false)}
           onSent={handleComposeSent}
+          onSentSMS={handleComposeSMSSent}
         />
       )}
     </div>

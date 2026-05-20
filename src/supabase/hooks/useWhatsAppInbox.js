@@ -53,6 +53,7 @@ async function fetchConversationsList() {
       `
       id,
       phone_e164,
+      channel,
       state,
       human_id,
       last_inbound_at,
@@ -103,7 +104,7 @@ async function fetchConversationDetail(conversationId) {
   const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
     supabase
       .from("whatsapp_messages")
-      .select("id, direction, content, sent_at, status, meta_message_id")
+      .select("id, direction, content, sent_at, status, meta_message_id, channel")
       .eq("conversation_id", conversationId)
       .order("sent_at", { ascending: true })
       .limit(200),
@@ -838,6 +839,43 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  // ── Outbound SMS via Twilio ────────────────────────────────
+  // Compose-new flow's SMS path. Posts to the sms-send edge function
+  // which upserts the (phone_e164, channel='sms') conversation and
+  // records the outbound message. Free-form text — SMS has no Meta-
+  // style template gate.
+  const sendOutboundSMS = useCallback(
+    async ({ humanId, phoneE164, text }) => {
+      if (!phoneE164 || !text) {
+        return { ok: false, reason: "missing recipient or text" };
+      }
+      const { error } = await supabase.functions.invoke("sms-send", {
+        body: {
+          mode: "manual",
+          to: phoneE164,
+          text,
+          human_id: humanId ?? null,
+        },
+      });
+      if (error) {
+        let detail = error.message ?? "SMS send failed";
+        try {
+          const errorBody = await error.context?.json?.();
+          if (errorBody) {
+            const parts = [errorBody.error, errorBody.detail].filter(Boolean);
+            if (parts.length) detail = parts.join(": ");
+          }
+        } catch {
+          /* fall through */
+        }
+        return { ok: false, reason: detail };
+      }
+      await refreshList();
+      return { ok: true };
+    },
+    [refreshList],
+  );
+
   // ── Outbound (compose-new) template send ───────────────────
   // Used by the inbox header's "New message" button. Identical to
   // sendTemplate below except the conversation context is supplied
@@ -960,6 +998,7 @@ export function useWhatsAppInbox() {
     reopenConversation,
     sendTemplate,
     sendOutboundTemplate,
+    sendOutboundSMS,
     dogNames,
     dogNamesById,
     actionInFlight,

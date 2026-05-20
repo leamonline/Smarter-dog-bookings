@@ -75,6 +75,90 @@ async function fetchDogsForHuman(humanId) {
   return (data ?? []).map((d) => d.name).filter(Boolean);
 }
 
+// SMS segment estimator. Approximates Twilio's per-segment billing:
+//   - GSM-7 charset:  160 single, 153 per segment in concatenation
+//   - UCS-2 (any non-GSM-7 char): 70 single, 67 per segment
+// Real billing is computed Twilio-side; we surface a hint so staff
+// know roughly what a longer SMS will cost.
+const GSM7_EXTRA_CHARS = new Set(
+  "£¥§¿¡¤€äöüÄÖÜßéèìòùÉÈÌÒÙñÑàâêîôûÀÂÊÎÔÛ".split(""),
+);
+function isGsm7Char(ch) {
+  const code = ch.codePointAt(0);
+  if (code === undefined) return false;
+  if (code === 9 || code === 10 || code === 13) return true;
+  if (code >= 32 && code <= 126) return true;
+  return GSM7_EXTRA_CHARS.has(ch);
+}
+function smsSegmentInfo(text) {
+  const length = text.length;
+  if (length === 0) return { length, segments: 0, encoding: "GSM-7" };
+  let allGsm7 = true;
+  for (const ch of text) {
+    if (!isGsm7Char(ch)) { allGsm7 = false; break; }
+  }
+  if (allGsm7) {
+    return {
+      length,
+      encoding: "GSM-7",
+      segments: length <= 160 ? 1 : Math.ceil(length / 153),
+    };
+  }
+  return {
+    length,
+    encoding: "UCS-2",
+    segments: length <= 70 ? 1 : Math.ceil(length / 67),
+  };
+}
+
+function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
+  const info = smsSegmentInfo(value);
+  const hasText = value.trim().length > 0;
+  const firstDog = (dogNames ?? [])[0] ?? "";
+  const placeholder = customerFirstName
+    ? `Hi ${customerFirstName}${firstDog ? ", just wanted to say " : ", "}…`
+    : "Type your SMS…";
+
+  return (
+    <div className="flex flex-col gap-2 p-3 bg-sky-50 border border-sky-200 rounded-lg">
+      <div className="flex items-start gap-2">
+        <span aria-hidden="true" className="mt-0.5 text-sky-700">📱</span>
+        <div className="text-[12px] leading-snug text-sky-900">
+          <p className="font-bold">Sending as SMS via Twilio</p>
+          <p className="text-sky-800">
+            Free-form text — no template gate. Plain text only (no bold,
+            italics, or emoji shortcodes). Long messages split into segments,
+            each billed separately.
+          </p>
+        </div>
+      </div>
+
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={5}
+        maxLength={2000}
+        className="w-full text-[14px] p-2 bg-white border border-sky-300 rounded-lg font-[inherit] resize-y"
+      />
+
+      <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+        <span className="text-sky-900 tabular-nums">
+          {info.length} char{info.length === 1 ? "" : "s"} · {info.segments} segment{info.segments === 1 ? "" : "s"} · {info.encoding}
+        </span>
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={!hasText || sending}
+          className="inline-flex items-center h-9 px-4 rounded-full bg-sky-600 text-white text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-700 transition-colors font-[inherit]"
+        >
+          {sending ? "Sending…" : "Send SMS"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CustomerRow({ human, onSelect }) {
   const full = `${human.name ?? ""} ${human.surname ?? ""}`.trim() || "(no name)";
   return (
@@ -91,12 +175,14 @@ function CustomerRow({ human, onSelect }) {
   );
 }
 
-export function ComposeNewModal({ onClose, onSent }) {
+export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedHuman, setSelectedHuman] = useState(null);
   const [dogNames, setDogNames] = useState([]);
+  const [channel, setChannel] = useState("whatsapp"); // 'whatsapp' | 'sms'
+  const [smsText, setSmsText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -264,12 +350,90 @@ export function ComposeNewModal({ onClose, onSent }) {
                   {error}
                 </div>
               )}
-              <TemplatePicker
-                customerFirstName={compose?.customerFirstName ?? ""}
-                contextKey={compose?.contextKey ?? ""}
-                dogNames={dogNames}
-                onSend={handleSend}
-              />
+
+              {/* Channel toggle. WhatsApp is the default for first contact
+                  (cheaper, richer formatting, customer's preferred channel
+                  for most under-50s) but SMS is one click away when
+                  WhatsApp doesn't apply. */}
+              <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
+                <div
+                  role="radiogroup"
+                  aria-label="Send channel"
+                  className="inline-flex items-center bg-slate-100 rounded-full p-0.5 gap-0.5"
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={channel === "whatsapp"}
+                    onClick={() => setChannel("whatsapp")}
+                    title="Send via WhatsApp. Meta requires an approved template for first contact."
+                    className={[
+                      "inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer font-[inherit]",
+                      channel === "whatsapp"
+                        ? "bg-white text-emerald-700 shadow-sm"
+                        : "bg-transparent text-slate-600 hover:text-emerald-700",
+                    ].join(" ")}
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={channel === "sms"}
+                    onClick={() => setChannel("sms")}
+                    title="Send via SMS (Twilio). Free-form text, no template gate. Each segment ≤ 160 GSM chars; longer messages are billed per segment."
+                    className={[
+                      "inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer font-[inherit]",
+                      channel === "sms"
+                        ? "bg-white text-sky-700 shadow-sm"
+                        : "bg-transparent text-slate-600 hover:text-sky-700",
+                    ].join(" ")}
+                  >
+                    SMS
+                  </button>
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  {channel === "whatsapp"
+                    ? "Free for the first 24h after a customer replies; template required for cold contact."
+                    : "Twilio-billed per segment (~£0.04 / segment in UK)."}
+                </span>
+              </div>
+
+              {channel === "whatsapp" ? (
+                <TemplatePicker
+                  customerFirstName={compose?.customerFirstName ?? ""}
+                  contextKey={compose?.contextKey ?? ""}
+                  dogNames={dogNames}
+                  onSend={handleSend}
+                />
+              ) : (
+                <SMSComposer
+                  customerFirstName={compose?.customerFirstName ?? ""}
+                  dogNames={dogNames}
+                  value={smsText}
+                  onChange={setSmsText}
+                  onSend={async () => {
+                    setSending(true);
+                    setError(null);
+                    try {
+                      const res = await onSentSMS?.({
+                        humanId: selectedHuman.id,
+                        phoneE164: selectedHuman.phone,
+                        text: smsText.trim(),
+                      });
+                      if (!res?.ok) {
+                        throw new Error(res?.reason ?? "SMS send failed");
+                      }
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                    } finally {
+                      setSending(false);
+                    }
+                  }}
+                  sending={sending}
+                />
+              )}
+
               {sending && (
                 <div className="mt-2 text-[11px] text-slate-500">Sending…</div>
               )}
