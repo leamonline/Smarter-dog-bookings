@@ -9,6 +9,7 @@ import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,
 } from "../../supabase/rpc.js";
+import { logger } from "../../lib/logger.js";
 
 interface CalendarSubscribeModalProps {
   onClose: () => void;
@@ -38,7 +39,9 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
 
       if (controller.signal.aborted) return;
       if (error || !token) {
-        console.error("Failed to get calendar token:", error);
+        logger.error("Failed to get calendar token", error, {
+          tags: { surface: "customer", op: "calendar-subscribe-token" },
+        });
         setLoading(false);
         return;
       }
@@ -52,7 +55,9 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       setFeedUrl(webcalUrl);
     } catch (err) {
       if (controller.signal.aborted) return;
-      console.error("Calendar subscribe error:", err);
+      logger.error("Calendar subscribe error", err, {
+        tags: { surface: "customer", op: "calendar-subscribe" },
+      });
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
@@ -92,7 +97,9 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
       // Generate new one
       await fetchToken();
     } catch (err) {
-      console.error("Regenerate error:", err);
+      logger.error("Calendar token regenerate error", err, {
+        tags: { surface: "customer", op: "calendar-regenerate" },
+      });
     } finally {
       setRegenerating(false);
     }

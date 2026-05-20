@@ -5,6 +5,7 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { getOrCreateCalendarFeedToken } from "../../supabase/rpc.js";
+import { logger } from "../../lib/logger.js";
 
 interface AddToCalendarButtonProps {
   bookingId: string;
@@ -27,7 +28,9 @@ export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonP
       );
 
       if (error || !token) {
-        console.error("Failed to get calendar token:", error);
+        logger.error("Failed to get calendar token", error, {
+          tags: { surface: "customer", op: "calendar-download-token" },
+        });
         return;
       }
 
@@ -40,7 +43,9 @@ export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonP
       // Trigger download — this opens the native "Add to Calendar" dialog on mobile
       window.open(url, "_blank");
     } catch (err) {
-      console.error("Calendar download error:", err);
+      logger.error("Calendar download error", err, {
+        tags: { surface: "customer", op: "calendar-download" },
+      });
     } finally {
       setLoading(false);
     }
