@@ -58,3 +58,149 @@ sustained workstream (week+).
 | What hurts | Why it hurts | Cost |
 |---|---|---|
 | **25. Zero tests for the four heaviest data hooks + the WhatsApp agent.** `useBookings.js` (496 LoC), `useDogs.ts` (765), `useHumans.ts` (1050), `useCustomerAuth.js` (323), `useAuth.js` — none have a `.test.*` file. `supabase/functions/whatsapp-agent/index.ts` (2045 LoC, the AI receptionist) — entire `supabase/functions/` directory has no tests. The OTP login flow (`CustomerLoginPage.jsx` 316 LoC) and drag-and-drop reschedule (`useSlotDragAndDrop.ts`) are also untested. Strong tests do exist for pure engine logic (`engine/capacity.test.js` 838 LoC, `engine/bookingRules.test.ts` 428 LoC). | The capacity engine — the part that's never wrong — is the most-tested. The orchestration layer that breaks when DB columns drift, AI prompts change, or auth flows shift, is the least-tested. Any backend refactor lands blind. | L |
+
+## Proposed solutions
+
+Numbered to match the register. Each is one concrete next move, not a
+finished design — pick the ones that line up with your roadmap.
+
+### Mixed paradigms & weak typing
+
+1. **JS → TS, one hot file at a time.** Flip `tsconfig.json` to
+   `checkJs: true, noImplicitAny: true` to surface the blast radius, then
+   convert leaves first: `engine/pricing.js`, `data/sample.js`, then the
+   data hooks (`useBookings`, `useAuth`). Target `App.jsx` last because
+   it's the most-edited. Don't try a big-bang migration — keep PRs to ≤3
+   files. Allow `allowJs: true` to stay during the journey.
+2. **Generate DB row types and replace `any` at the hot spots.** Use
+   `mcp__supabase__generate_typescript_types` to produce
+   `Database['public']['Tables']['bookings']['Row']`, etc. Replace
+   `(row: any)` in `BookingWizard.tsx`, `useReportsData.ts`,
+   `useBookingEditState.ts` with the generated types. Turn on
+   `@typescript-eslint/no-explicit-any` at `warn` after the cleanup.
+3. **Re-enable ESLint rules incrementally.** Turn `react-hooks/exhaustive-deps`
+   to `warn` first; sweep `App.jsx`, `useBookings.js`, modals to fix the
+   loudest 20; promote to `error`. Same pattern for `no-unused-vars` and
+   `no-empty` (drop `allowEmptyCatch`). Add CI gate after the sweep so
+   no new violations land.
+4. **Codemod the `.js` import extensions off TS files.** A short script
+   (e.g. `jscodeshift` or just `grep | sed`) drops the extension where
+   the resolved file is `.ts`/`.tsx`. Vite already resolves extensionless
+   imports. Add an ESLint rule (`import/extensions: ["error", "never"]`)
+   to keep them off.
+
+### God files
+
+5. **`useHumans.ts` → 3 hooks.** Split into `useHumansData` (paginate +
+   realtime + add/update/delete), `useHumansSearch` (debounced search,
+   own cache), `useTrustedContacts` (bidirectional linking). Each hook
+   gets its own test file. App.jsx call site contracts to a single
+   `useHumansData()` for the directory.
+6. **`useWhatsAppInbox.js` → 4 hooks + a slice.** `useInboxList`,
+   `useInboxThread(id)`, `useInboxComposer`, `useInboxBookingActions`,
+   bound together by a thin reducer in `useWhatsAppInbox` for shared
+   state (selection, mode). Realtime channels move into each hook.
+7. **`HumanCardModal` → orchestrator + leaves.** Extract `HumanForm`
+   (edit fields + validation), `HumanBookingHistorySection`,
+   `TrustedContactsEditor`, `DogPillList`. Modal becomes a layout shell
+   that renders the right leaf based on mode.
+8. **`DogCardModal` → same pattern.** Extract `DogForm`,
+   `DogPhotoGallery`, `OwnerLinkEditor`. Move the chain-booking flow to
+   a sibling modal opened by callback so it doesn't pre-mount.
+9. **`BookingDetailModal` nested modals → portal-rendered siblings.**
+   Hoist DatePickerModal/RecurringBookingModal/RescheduleModal/
+   PhotoUploadModal out of the render tree; render them via portal from
+   App-level state or a `useModalStack()` hook. Lazy-load each.
+10. **`InboxView` modes → one component per mode.** Replace the
+    if/else cascade with `{ all: <InboxAll/>, drafts: <InboxDrafts/>, ... }[mode]`.
+    Each mode component takes only the data it needs. Move mode into
+    URL (`?mode=drafts`) so deep-links stop relying on local state.
+11. **`WeekCalendarView` 31 props → context.** A `<SalonProvider>` is
+    already wrapping app routes elsewhere — register the bookings,
+    dogs, humans, handlers there and consume via hooks
+    (`useBookingsForDate(dateStr)`, `useHandlers()`). Keep only the 3-4
+    truly local props (`selectedDay`, `setSelectedDay`, layout switch).
+
+### Leaky abstractions
+
+12. **Repository layer for customer surface.** Add
+    `src/supabase/repositories/bookingsRepo.ts`,
+    `dogsRepo.ts`, `humansRepo.ts` exposing intent-named methods
+    (`cancel(id, reason)`, `getMyDogs(humanId)`). All customer
+    components route through these. Lint rule:
+    `no-restricted-imports` blocks `supabase/client` from
+    `components/customer/**`.
+13. **Route customer queries through `transforms.ts`.** Snake_case
+    columns disappear from `BookingWizard.tsx` once the repo above wraps
+    the conversion. Combine with item 12 — same PR.
+14. **Pick one dog map shape.** Keep `dogsById` (UUID-keyed) as the
+    truth. Replace `dogs[name]` callsites with `selectDogByName(dogs, name)`
+    selector (one-line lookup). Migrate consumers over a few PRs, then
+    delete the `dogs` state and `setDogs` everywhere — net code
+    reduction in `useDogs.ts`.
+15. **Re-shape `PRICING` to a structured value.** `{ amount: 42, fromPrice: true, currency: 'GBP' }`.
+    Add `formatPrice(p)` for display. The 4 regex-parse sites
+    (`engine/pricing.js`, `useReportsData.ts`, `WeeklySnapshot.jsx`,
+    `BookingWizard.tsx:469`) become `p.amount` reads. Reports get
+    accurate "from-price" handling for free.
+16. **Helper for realtime channel names.** `makeChannelName('humans')`
+    returns `'humans-<uuid>'`. Update all 15 callsites. Removes the
+    HMR double-subscription class of bug.
+17. **Wrap storage once.** `src/lib/storage.ts` exports
+    `safeGet/safeSet/safeRemove` that swallow the privacy-mode throw.
+    Update `chunkReload.js`. Add `no-restricted-globals` lint rule
+    against direct `sessionStorage`/`localStorage` use.
+
+### Magic numbers / strings
+
+18. **Status as a frozen const + derived type.**
+    ```ts
+    export const BOOKING_STATUSES = ['Booked', 'Checked in', 'In bath',
+      'Ready for pick-up', 'Completed', 'Cancelled'] as const;
+    export type BookingStatus = typeof BOOKING_STATUSES[number];
+    ```
+    Codemod the 65 literals (jscodeshift or grep+sed) to import the
+    const. Add lint rule banning bare status strings in `components/**`.
+19. **Add `DOG_SIZES` runtime constant.** `['small', 'medium', 'large'] as const`;
+    derive the `DogSize` type from it. Update the ~10 callsites that
+    hardcode `"large"` or iterate sizes by hand.
+20. **Centralize salon contact info.** New `src/constants/salon-contact.ts`
+    exports `SALON_PHONE_E164`, `SALON_PHONE_NATIONAL`,
+    `SALON_PHONE_DISPLAY`, `SALON_WHATSAPP_URL`. Replace the 4 callsites
+    across `CustomerApp.jsx`, `CustomerDashboard.jsx`,
+    `CustomerUnavailablePage.jsx`.
+21. **Typed RPC wrappers.** `src/supabase/rpc.ts` exports typed
+    functions:
+    ```ts
+    export const applyWhatsappBookingAction = (params: {...}) =>
+      supabase.rpc('apply_whatsapp_booking_action', params);
+    ```
+    Replace 8 inline RPC names. Argument shape becomes compile-checked.
+    Re-generate when migrations rename functions.
+
+### Inconsistent error handling
+
+22. **Replace `console.error` with a `logger` module.** `src/lib/logger.ts`
+    gates by `import.meta.env.DEV`, forwards to Sentry in prod with
+    `tags: { hook: 'useWhatsAppInbox', op: 'sendReply' }`. Codemod the
+    ~80 callsites. Pair with item 23.
+23. **One error-UX pattern.** Document the rule: "If the user just did
+    a thing → toast. If background data failed to load → banner.
+    Always Sentry." Codemod the 20-ish `console.error` + `setError`
+    patterns to also call `toast.show(msg, "error")`. Add an
+    `useErrorHandler()` hook so future call sites do both in one line.
+24. **Lint + fix the catch + then issues.** Add a custom ESLint rule (or
+    use `unicorn/catch-error-name: ['error', { name: 'err' }]`) to
+    enforce `catch (err)`. Codemod the 4 outliers. Fix the unhandled
+    `.then()` in `ComposeNewModal.jsx:228` with `.catch(err => ...)`.
+
+### Missing tests
+
+25. **Spike on `useBookings.test.js` to set the pattern, then sweep.**
+    Mock `supabase` via `vi.mock('../client')` returning a stub object.
+    Test happy paths (add/update/remove/optimistic rollback) and the
+    realtime path. ~150-line test file per hook. For
+    `whatsapp-agent/index.ts`, set up `deno test` in
+    `supabase/functions/whatsapp-agent/__tests__/`; pure helpers first,
+    then the dispatch loop with stubbed Supabase/OpenAI clients. Add
+    Playwright coverage for the OTP login + drag-and-drop in `e2e/`.
