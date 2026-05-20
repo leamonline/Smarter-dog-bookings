@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconCamera } from "../icons/index.jsx";
+import { InlineError } from "../ui/InlineError.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
 
 /**
@@ -69,7 +70,7 @@ export function PhotoUploadModal({
     <AccessibleModal
       onClose={onClose}
       titleId="photo-upload-title"
-      className="bg-white rounded-2xl w-[min(380px,92vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(380px,92vw)] max-h-[90vh] overflow-auto shadow-modal"
       zIndex={1100}
     >
       {/* Header */}
@@ -153,9 +154,7 @@ export function PhotoUploadModal({
         </div>
 
         {/* Error */}
-        {error && (
-          <p className="text-xs text-brand-coral font-semibold m-0">{error}</p>
-        )}
+        <InlineError message={error} />
 
         {/* Actions */}
         <div className="flex gap-2">

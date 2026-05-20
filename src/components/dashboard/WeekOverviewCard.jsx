@@ -7,6 +7,7 @@ export function WeekOverviewCard({
   onSelectDay,
   bookingsByDate,
   dayOpenState,
+  loading = false,
 }) {
   const activeRef = useRef(null);
 
@@ -29,7 +30,12 @@ export function WeekOverviewCard({
       >
         {(dates || []).map((d, i) => {
           const isOpen = dayOpenState?.[d.dateStr] ?? true;
-          const dogCount = (bookingsByDate?.[d.dateStr] || []).length;
+          // Pass `null` while the week's bookings are still loading so
+          // each tab can suppress the count line instead of asserting
+          // "0 dogs" — which looks identical to a confirmed empty day.
+          const dogCount = loading
+            ? null
+            : (bookingsByDate?.[d.dateStr] || []).length;
           const isActive = selectedDay === i;
           return (
             <div

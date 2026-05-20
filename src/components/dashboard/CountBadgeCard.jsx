@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { SkeletonBlock } from "../ui/Skeleton.jsx";
 
 // Dashboard tile that shows a single count with an icon, label, and a
 // chevron hinting at "click to open". Shared shape used by the to-do
@@ -48,6 +49,7 @@ export function CountBadgeCard({
   ariaLabel,
   onOpen,
   bare = false,
+  loading = false,
 }) {
   const theme = ACCENT_THEMES[accent];
   const hasItems = count > 0;
@@ -56,6 +58,7 @@ export function CountBadgeCard({
       type="button"
       onClick={onOpen}
       aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       className={[
         "group w-full text-left cursor-pointer font-[inherit] border-none transition-colors",
         bare
@@ -74,15 +77,19 @@ export function CountBadgeCard({
 
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <div
-            className={`text-2xl font-black font-display leading-none ${
-              hasItems ? theme.countOn : theme.countOff
-            }`}
-          >
-            {count}
-          </div>
+          {loading ? (
+            <SkeletonBlock className="h-7 w-8 rounded-md" />
+          ) : (
+            <div
+              className={`text-2xl font-black font-display leading-none ${
+                hasItems ? theme.countOn : theme.countOff
+              }`}
+            >
+              {count}
+            </div>
+          )}
           <div className={`text-[11px] font-semibold ${theme.subText}`}>
-            {count === 1 ? singular : plural}
+            {loading ? "checking…" : count === 1 ? singular : plural}
           </div>
         </div>
         <ArrowRight

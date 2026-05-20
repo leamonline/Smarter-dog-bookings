@@ -63,17 +63,26 @@ export function SlotGrid({
     canDropAt,
   });
 
-  const block = useCallback((slot, seatIndex) => {
-    if (onOverride) {
-      onOverride(slot, seatIndex, "blocked");
-      toast.show("Seat blocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+  const block = useCallback(async (slot, seatIndex) => {
+    if (!onOverride) return;
+    // Surface the optimistic "Seat blocked" toast with an undo handle
+    // immediately, then await the mutation so we can flag a rollback
+    // if the upsert actually fails on the server.
+    const blockedToastId = toast.show("Seat blocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+    const result = await onOverride(slot, seatIndex, "blocked");
+    if (result?.ok === false) {
+      toast.dismiss?.(blockedToastId);
+      toast.show(result.error || "Couldn't block seat — try again?", "error");
     }
   }, [onOverride, toast]);
 
-  const unblock = useCallback((slot, seatIndex) => {
-    if (onOverride) {
-      onOverride(slot, seatIndex, "blocked");
-      toast.show("Seat unblocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+  const unblock = useCallback(async (slot, seatIndex) => {
+    if (!onOverride) return;
+    const unblockedToastId = toast.show("Seat unblocked", "info", () => onOverride(slot, seatIndex, "blocked"));
+    const result = await onOverride(slot, seatIndex, "blocked");
+    if (result?.ok === false) {
+      toast.dismiss?.(unblockedToastId);
+      toast.show(result.error || "Couldn't unblock seat — try again?", "error");
     }
   }, [onOverride, toast]);
 

@@ -13,6 +13,7 @@ export function LeftSidebar({
   daySettings,
   dogs,
   onSelectDate,
+  bookingsLoading = false,
 }) {
   return (
     <aside className="flex flex-col gap-4" aria-label="Calendar and capacity overview">
@@ -25,6 +26,7 @@ export function LeftSidebar({
           onSelectDay={onSelectDay}
           bookingsByDate={bookingsByDate}
           dayOpenState={dayOpenState}
+          loading={bookingsLoading}
         />
       </div>
       <MiniCalendarCard
@@ -44,6 +46,7 @@ export function LeftSidebar({
         bookingsByDate={bookingsByDate}
         dogs={dogs}
         currentDateObj={currentDateObj}
+        loading={bookingsLoading}
       />
     </aside>
   );

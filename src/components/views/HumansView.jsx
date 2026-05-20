@@ -5,10 +5,11 @@ import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
+import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -59,25 +60,37 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
             <div className="relative flex-1">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="rgba(255,255,255,0.5)" />
+                <IconSearch size={16} colour="rgba(255,255,255,0.85)" />
               </div>
               <input
                 type="text"
                 placeholder="Search rolodex..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-[10px] border border-white/25 bg-white/15 text-sm font-inherit outline-none text-white placeholder:text-white/50 transition-colors focus:bg-white/25 focus:border-white/40"
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white/25 text-sm font-inherit outline-none text-white placeholder:text-white/85 transition-colors focus:bg-white/35 focus:border-white/60"
               />
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-cyan border-none rounded-[10px] px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+              className="bg-white text-brand-cyan border-none rounded-control px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
             >
               + Add Human
             </button>
           </div>
         </div>
       </div>
+
+      {/* Surface the fetch error inline when the directory ended up
+          empty — the global page-level banner can be dismissed, and
+          we want the user to know where to retry from. */}
+      {loadError && sortedHumans.length === 0 && !isInitialLoading && (
+        <ErrorBanner
+          title="Couldn't load the humans directory"
+          message="Check your connection and try again."
+          retry={() => window.location.reload()}
+          retryLabel="Refresh"
+        />
+      )}
 
       {/* Card grid — skeleton during the initial fetch. */}
       {isInitialLoading && sortedHumans.length === 0 ? (
@@ -112,7 +125,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
             >
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Delete now lives inside the human profile. */}
-              <div className="h-[3px] bg-gradient-to-r from-brand-teal to-[#3BA594] shrink-0" />
+              <div className="h-[3px] bg-gradient-to-r from-brand-teal to-brand-teal-light shrink-0" />
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
                 {/* Name + flag */}
@@ -182,7 +195,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           );
         })}
 
-        {sortedHumans.length === 0 && !isSearching && (
+        {sortedHumans.length === 0 && !isSearching && !loadError && (
           <div className="col-span-full text-center py-16 px-5 text-slate-500">
             <div className="text-[32px] mb-3">{"\uD83D\uDD0D"}</div>
             <div className="text-[15px] font-semibold">
@@ -211,7 +224,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           <button
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
             disabled={loadingMore}
-            className={`border border-slate-200 rounded-[10px] px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
+            className={`border border-slate-200 rounded-control px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
           >
             {loadingMore ? "Loading..." : "Load more"}
           </button>

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { cardAnim } from "./dashboardConstants.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { Users, Plus, X } from "lucide-react";
 
 const ERR_LABEL = {
@@ -28,6 +29,7 @@ function avatarTintFor(id) {
 }
 
 export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAdded }) {
+  const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", surname: "", phone: "", relationship: "" });
@@ -57,8 +59,10 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
     }
     const row = Array.isArray(data) ? data[0] : data;
     if (row && onAdded) onAdded(row);
+    const trustedName = `${form.name || ""} ${form.surname || ""}`.trim();
     reset();
-  }, [form, onAdded, reset]);
+    toast.show(trustedName ? `${trustedName} added as a trusted human` : "Trusted human added", "success");
+  }, [form, onAdded, reset, toast]);
 
   const isEmpty = trustedHumans.length === 0;
 

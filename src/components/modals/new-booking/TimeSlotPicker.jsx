@@ -112,7 +112,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
                   ? `${displayTime} — ${reason}`
                   : displayTime
             }
-            className="py-2.5 rounded-[10px] border-2 text-sm font-bold font-inherit transition-all text-center"
+            className="py-2.5 rounded-control border-2 text-sm font-bold font-inherit transition-all text-center"
             style={baseStyle}
             onMouseEnter={(e) => {
               if (isAvailable && !isSelected) {

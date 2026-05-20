@@ -42,7 +42,7 @@ export function ConfirmDeleteModal({
     <AccessibleModal
       onClose={submitting ? () => {} : onClose}
       titleId="confirm-delete-title"
-      className="bg-white rounded-2xl w-[min(420px,92vw)] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(420px,92vw)] overflow-hidden shadow-modal"
       zIndex={1300}
     >
       <div className="px-5 py-5">

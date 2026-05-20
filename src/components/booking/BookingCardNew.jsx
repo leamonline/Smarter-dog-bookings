@@ -21,9 +21,9 @@ const BookingDetailModal = lazy(() =>
 );
 
 const SIZE_DOT = {
-  small:  { dot: "#F5C518", border: "#D4A500", gradient: "linear-gradient(90deg, #F5C518, #FACC15)", glow: "rgba(245,197,24," },
-  medium: { dot: "#2D8B7A", border: "#1E6B5C", gradient: "linear-gradient(90deg, #2D8B7A, #3BA594)", glow: "rgba(45,139,122," },
-  large:  { dot: "#E7546C", border: "#C93D63", gradient: "linear-gradient(90deg, #E7546C, #F472B6)", glow: "rgba(231,84,108," },
+  small:  { dot: "var(--color-size-small)", border: "var(--color-brand-yellow-dark)", gradient: "linear-gradient(90deg, var(--color-size-small), #FACC15)", glow: "rgba(245,197,24," },
+  medium: { dot: "var(--color-brand-teal)", border: "var(--color-brand-teal-dark)", gradient: "linear-gradient(90deg, var(--color-brand-teal), var(--color-brand-teal-light))", glow: "rgba(45,139,122," },
+  large:  { dot: "var(--color-brand-coral)", border: "var(--color-brand-coral-dark)", gradient: "linear-gradient(90deg, var(--color-brand-coral), #F472B6)", glow: "rgba(231,84,108," },
 };
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
@@ -32,12 +32,12 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 // "in the salon now", deep purple for "all done". Cancelled stays coral.
 // "Booked" is the default state for newly created bookings.
 const STATUS_DISPLAY = {
-  "Booked":             { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
-  "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
+  "Booked":             { bg: "#FFF6CC", color: "var(--color-brand-purple)", border: "var(--color-brand-yellow)", label: "Booked" },
+  "Checked in":         { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B", label: "Checked in" },
   "In bath":            { bg: "#CFFAFE", color: "#0E7490", border: "#22D3EE", label: "In bath" },
-  "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Ready" },
-  "Completed":          { bg: "#E2D9F0", color: "#2D004B", border: "#5B3D80", label: "Completed" },
-  "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E7546C", label: "Cancelled" },
+  "Ready for pick-up":  { bg: "#EDE3F5", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Ready" },
+  "Completed":          { bg: "#E2D9F0", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Completed" },
+  "Cancelled":          { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", label: "Cancelled" },
 };
 
 // The five-step inline progression. Cancelled is terminal and only
@@ -305,9 +305,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="dialog"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
               title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
+              className="self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -401,7 +401,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") e.stopPropagation();
                     }}
-                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-0.5 ${
+                    className={`w-full text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-1 ${
                       isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
                     }`}
                     style={{
@@ -411,7 +411,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       ...(isCurrent ? { "--tw-ring-color": s.color } : {}),
                     }}
                   >
-                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
+                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
                     {s.label}
                   </button>
                 );
@@ -431,12 +431,12 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="listbox"
               aria-expanded={statusOpen}
               aria-label={`Change status, currently ${statusObj.label}`}
-              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5 font-[inherit]"
+              className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-1 font-[inherit]"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
-              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
+              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
               {statusObj.label}
-              <span aria-hidden="true" className="text-[8px] opacity-60">{"\u25BE"}</span>
+              <span aria-hidden="true" className="text-[10px] opacity-60">{"\u25BE"}</span>
             </button>
           )}
         </div>

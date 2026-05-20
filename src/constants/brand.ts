@@ -8,23 +8,23 @@ export const SIZE_FALLBACK = {
 
 export const SIZE_THEME = {
   small: {
-    primary: "#D4A500",
+    primary: "var(--color-brand-yellow-dark)",
     light: "#FFF8E0",
-    gradient: ["#F5C518", "#D4A500"],
+    gradient: ["var(--color-size-small)", "var(--color-brand-yellow-dark)"],
     headerText: "#5C4600",
     headerTextSub: "rgba(92,70,0,0.7)",
   },
   medium: {
-    primary: "#1E6B5C",
+    primary: "var(--color-brand-teal-dark)",
     light: "#E6F5F2",
-    gradient: ["#2D8B7A", "#1E6B5C"],
+    gradient: ["var(--color-brand-teal)", "var(--color-brand-teal-dark)"],
     headerText: "#FFFFFF",
     headerTextSub: "rgba(255,255,255,0.8)",
   },
   large: {
-    primary: "#C93D63",
+    primary: "var(--color-brand-coral-dark)",
     light: "#FDE8EE",
-    gradient: ["#E7546C", "#C93D63"],
+    gradient: ["var(--color-brand-coral)", "var(--color-brand-coral-dark)"],
     headerText: "#FFFFFF",
     headerTextSub: "rgba(255,255,255,0.8)",
   },

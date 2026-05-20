@@ -122,6 +122,7 @@ export function useDaySettings(weekStart) {
 
   const upsertSetting = useCallback(async (dateStr, updater) => {
     let nextSetting;
+    let prevSetting;
 
     setDaySettings((prev) => {
       const current = prev[dateStr] || {
@@ -129,6 +130,7 @@ export function useDaySettings(weekStart) {
         overrides: {},
         extraSlots: [],
       };
+      prevSetting = current;
       const updates =
         typeof updater === "function" ? updater(current) : updater;
       nextSetting = mergeSetting(current, updates);
@@ -138,7 +140,7 @@ export function useDaySettings(weekStart) {
       };
     });
 
-    if (!supabase) return nextSetting;
+    if (!supabase) return { ok: true, value: nextSetting };
 
     const { error } = await supabase.from("day_settings").upsert(
       {
@@ -152,9 +154,13 @@ export function useDaySettings(weekStart) {
 
     if (error) {
       console.error("Failed to upsert day setting:", error);
+      // Roll back the optimistic mutation so the UI matches the
+      // server's authoritative state. Caller can toast the error.
+      setDaySettings((prev) => ({ ...prev, [dateStr]: prevSetting }));
+      return { ok: false, error: error.message || "Couldn't save change." };
     }
 
-    return nextSetting;
+    return { ok: true, value: nextSetting };
   }, []);
 
   const toggleDayOpen = useCallback(

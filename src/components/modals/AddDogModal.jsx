@@ -3,6 +3,7 @@ import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../..
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { BREED_LIST } from "../../constants/breeds.js";
 import { IconSearch } from "../icons/index.jsx";
+import { InlineError } from "../ui/InlineError.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text.js";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
@@ -164,7 +165,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
     <AccessibleModal
       onClose={onClose}
       titleId="add-dog-title"
-      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
     >
         {/* Header */}
         <div
@@ -278,7 +279,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 aria-describedby={fieldErrors.size ? "add-dog-size-error" : undefined}
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer"
                 style={{
-                  borderColor: fieldErrors.size ? "#E7546C" : sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "#E7546C" : undefined,
+                  borderColor: fieldErrors.size ? "var(--color-brand-coral)" : sizeAutoSet && !sizeOverridden ? "#16A34A" : !size && breed.trim() ? "var(--color-brand-coral)" : undefined,
                 }}>
                 <option value="">Select size</option>
                 <option value="small">Small</option>
@@ -469,9 +470,9 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                 onClick={() => setHasAllergy(!hasAllergy)}
                 className="px-2.5 py-1.5 rounded-2xl text-[11px] font-bold cursor-pointer transition-all"
                 style={{
-                  background: hasAllergy ? "#E7546C" : "#FFFFFF",
-                  color: hasAllergy ? "#FFFFFF" : "#E7546C",
-                  border: "1.5px solid #E7546C",
+                  background: hasAllergy ? "var(--color-brand-coral)" : "#FFFFFF",
+                  color: hasAllergy ? "#FFFFFF" : "var(--color-brand-coral)",
+                  border: "1.5px solid var(--color-brand-coral)",
                 }}
               >
                 Allergy
@@ -488,15 +489,11 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
             )}
           </div>
 
-          {fieldErrors.banner && (
-            <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
-              {fieldErrors.banner}
-            </div>
-          )}
+          <InlineError message={fieldErrors.banner} />
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-[10px] border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-control border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
               style={{
                 background: submitting ? undefined : headerTheme.from,
                 color: submitting ? undefined : headerTheme.text,
@@ -506,7 +503,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
               {submitting ? "Adding..." : "Add Dog"}
             </button>
             <button type="button" onClick={onClose}
-              className="py-3 px-5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
+              className="py-3 px-5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
               Cancel
             </button>
           </div>

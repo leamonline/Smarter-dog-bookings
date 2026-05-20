@@ -18,7 +18,7 @@ export function Trend({ cur, prev, invert }) {
   );
 }
 
-export function Kpi({ label, value, sub, cur, prev, color = "#2D8B7A", invert, hideDelta }) {
+export function Kpi({ label, value, sub, cur, prev, color = "var(--color-brand-teal)", invert, hideDelta }) {
   return (
     <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
       <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">{label}</div>
@@ -31,10 +31,10 @@ export function Kpi({ label, value, sub, cur, prev, color = "#2D8B7A", invert, h
   );
 }
 
-export function Section({ title, accent = "#2D8B7A", children, insight }) {
+export function Section({ title, accent = "var(--color-brand-teal)", children, insight }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
-      <div className="h-[3px]" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
+      <div className="h-[3px]" style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 53%, transparent))` }} />
       <div className="p-5">
         <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">{title}</div>
         {children}
@@ -50,7 +50,7 @@ export function Section({ title, accent = "#2D8B7A", children, insight }) {
 }
 
 // Display-level constants shared across report sub-components
-export const SIZE_COLORS = { small: "#F5C518", medium: "#2D8B7A", large: "#E7546C" };
+export const SIZE_COLORS = { small: "var(--color-size-small)", medium: "var(--color-brand-teal)", large: "var(--color-brand-coral)" };
 export const STATUS_COLORS = { "Booked": "#475569", "Checked in": "#16A34A", "Ready for pick-up": "#7C3AED" };
 export const STATUS_LABELS = { "Booked": "Booked / No-show", "Checked in": "Checked in", "Ready for pick-up": "Finished" };
 export const PERIODS = [{ v: 7, l: "7 days" }, { v: 30, l: "30 days" }, { v: 90, l: "90 days" }];

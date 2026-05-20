@@ -213,7 +213,7 @@ export function DogSearchSection({
               placeholder="Start typing a dog's name, breed, or owner..."
               value={dogQuery}
               onChange={(e) => { setDogQuery(e.target.value); setError(""); onSearchDogs?.(e.target.value); }}
-              className="w-full py-3 pl-9 pr-3.5 rounded-[10px] border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-cyan"
+              className="w-full py-3 pl-9 pr-3.5 rounded-control border-[1.5px] border-slate-200 text-[15px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
             />
 
             {/* Searching indicator — only when no local results */}
@@ -268,7 +268,7 @@ export function DogSearchSection({
                       <div className="flex flex-col gap-1">
                         {entry.humans.map((human) => {
                           const labelBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
-                          const labelColor = human.isTrusted ? "#2D8B7A" : "#0099BD";
+                          const labelColor = human.isTrusted ? "var(--color-brand-teal)" : "#0099BD";
                           const hoverBg = human.isTrusted ? "#E6F5F2" : "#E0F7FC";
                           // When the humans map hasn't loaded yet, the entry is
                           // marked missing. Show a shimmer instead of the

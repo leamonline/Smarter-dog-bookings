@@ -1,7 +1,10 @@
 import { Clock3 } from "lucide-react";
 import { CountBadgeCard } from "./CountBadgeCard.jsx";
 
-export function WaitlistCard({ count = 0, onOpen, bare = false }) {
+export function WaitlistCard({ count = 0, onOpen, bare = false, loading = false }) {
+  const ariaLabel = loading
+    ? "Waitlist, loading"
+    : `Waitlist, ${count} ${count === 1 ? "dog" : "dogs"} waiting — click to view`;
   return (
     <CountBadgeCard
       heading="Waitlist"
@@ -10,9 +13,10 @@ export function WaitlistCard({ count = 0, onOpen, bare = false }) {
       count={count}
       singular="dog waiting"
       plural="dogs waiting"
-      ariaLabel={`Waitlist, ${count} ${count === 1 ? "dog" : "dogs"} waiting — click to view`}
+      ariaLabel={ariaLabel}
       onOpen={onOpen}
       bare={bare}
+      loading={loading}
     />
   );
 }
