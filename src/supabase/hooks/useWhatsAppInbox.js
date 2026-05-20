@@ -33,6 +33,7 @@ import {
 } from "./inbox/helpers.js";
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
+import { useAIModeControls } from "./inbox/useAIModeControls.js";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -222,6 +223,19 @@ export function useWhatsAppInbox() {
     setActionInFlight,
     conversations,
   });
+
+  // AI-mode toggles (segmented control + per-conversation auto-send
+  // and autonomous-booking flags). Optimistic updates with rollback
+  // live in the dedicated hook so the InboxView never sees the
+  // setConversations plumbing.
+  const { setAutoSendEnabled, setAutonomousBookingEnabled, setAIMode } =
+    useAIModeControls({
+      selectedId,
+      actionInFlight,
+      setActionInFlight,
+      conversations,
+      setConversations,
+    });
 
   useEffect(() => {
     if (!supabase) {
@@ -664,133 +678,6 @@ export function useWhatsAppInbox() {
     }
   }, [actionInFlight]);
 
-
-  // Per-conversation auto-send opt-in. The agent only auto-sends a
-  // draft when ALL of the following are true:
-  //   1. AI_AUTO_SEND_LOW_RISK env flag on the function is 'true'
-  //   2. This row's auto_send_enabled is true (set here)
-  //   3. The draft itself is low-risk + handoff-free + in the auto-send
-  //      intent allowlist (computed by the agent at draft time)
-  // Optimistic: flip the local list state immediately so the toggle
-  // feels instant; realtime subscription will reconcile.
-  const setAutoSendEnabled = useCallback(async (enabled) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    const next = !!enabled;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: next } : c)),
-    );
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ auto_send_enabled: next })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAutoSendEnabled failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAutoSendEnabled" },
-      });
-      // Roll back the optimistic flip.
-      setConversations((prev) =>
-        prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: !next } : c)),
-      );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  const setAutonomousBookingEnabled = useCallback(async (enabled) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    const next = !!enabled;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: next } : c)),
-    );
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ autonomous_booking_enabled: next })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAutonomousBookingEnabled failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAutonomousBookingEnabled" },
-      });
-      // Roll back the optimistic flip.
-      setConversations((prev) =>
-        prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: !next } : c)),
-      );
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  // ── Consolidated AI mode selector ──────────────────────────
-  // Replaces the trio of (state column, auto_send_enabled, autonomous_booking_enabled)
-  // with a single semantic mode the header surfaces as a segmented control.
-  //
-  //   'ai_auto'       state='ai_handling', auto_send_enabled=true,  autonomous_booking_enabled=opts.allowAutonomousBooking
-  //   'human_only'    state='human_takeover', auto_send_enabled=false, autonomous_booking_enabled=false
-  //
-  // Post-Phase-G: 'ai_drafts' is retired. The on-demand "Generate reply"
-  // button covers the use case (manual draft on a per-message basis).
-  //
-  // The nested "Allow autonomous bookings" toggle is meaningful only in
-  // ai_auto. Switching away from ai_auto always disables it so a future
-  // switch back to ai_auto starts at the safe default.
-  const setAIMode = useCallback(async (mode, opts = {}) => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    if (!["ai_auto", "human_only"].includes(mode)) {
-      return { ok: false, reason: `unknown mode: ${mode}` };
-    }
-
-    const next = {
-      state: mode === "human_only" ? "human_takeover" : "ai_handling",
-      auto_send_enabled: mode === "ai_auto",
-      autonomous_booking_enabled:
-        mode === "ai_auto" ? !!opts.allowAutonomousBooking : false,
-    };
-
-    // Capture previous values so we can roll back on failure.
-    const prev = conversations.find((c) => c.id === selectedId);
-    const previousSnapshot = prev
-      ? {
-          state: prev.state,
-          auto_send_enabled: prev.auto_send_enabled,
-          autonomous_booking_enabled: prev.autonomous_booking_enabled,
-        }
-      : null;
-
-    setActionInFlight(true);
-    setConversations((list) =>
-      list.map((c) => (c.id === selectedId ? { ...c, ...next } : c)),
-    );
-
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update(next)
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("setAIMode failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "setAIMode" },
-      });
-      if (previousSnapshot) {
-        setConversations((list) =>
-          list.map((c) => (c.id === selectedId ? { ...c, ...previousSnapshot } : c)),
-        );
-      }
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight, conversations]);
 
   // ── Generate reply on demand (Phase G) ─────────────────────
   // Calls the whatsapp-generate-reply edge function, which authenticates
