@@ -12,6 +12,10 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS } from "../../constants/salon.js";
+import {
+  SALON_PHONE_DISPLAY,
+  SALON_TEL_HREF,
+} from "../../constants/salonContact.ts";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 // Trading hours, surfaced in the footer + booking flow. Hard-coded for now —
@@ -407,9 +411,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           <div className="portal-footer-inner">
             <div className="portal-footer-row">
               <p className="portal-footer-tagline">Smarter grooming, Smarter Dog.</p>
-              <a className="portal-footer-phone" href="tel:07507731487" aria-label="Call Smarter Dog on 07507 731487">
+              <a className="portal-footer-phone" href={SALON_TEL_HREF} aria-label={`Call Smarter Dog on ${SALON_PHONE_DISPLAY}`}>
                 <Phone size={16} aria-hidden="true" />
-                07507 731487
+                {SALON_PHONE_DISPLAY}
               </a>
             </div>
             <div className="portal-footer-row portal-footer-row--right">
