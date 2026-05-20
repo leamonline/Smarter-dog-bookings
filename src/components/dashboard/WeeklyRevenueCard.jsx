@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { computeRevenue } from "../../engine/pricing.js";
+import { computeRevenue } from "../../engine/pricing";
 import { toDateStr } from "../../supabase/transforms.js";
 import { SkeletonBlock } from "../ui/Skeleton.jsx";
 

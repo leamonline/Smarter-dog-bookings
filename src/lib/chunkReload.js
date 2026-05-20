@@ -1,4 +1,5 @@
 import { captureException } from "./sentry.js";
+import { safeGet, safeSet, safeRemove } from "./storage";
 
 const RELOAD_FLAG = "app:chunk-reload-attempted";
 const FLAG_TTL_MS = 10_000;
@@ -21,17 +22,13 @@ function isStaleChunkError(value) {
 }
 
 function reloadOnce(source, error) {
-  try {
-    if (sessionStorage.getItem(RELOAD_FLAG)) {
-      captureException(error ?? new Error(`stale chunk after reload (${source})`), {
-        tags: { chunkReload: "loop_guard_hit", source },
-      });
-      return;
-    }
-    sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
-  } catch {
-    // sessionStorage can throw in privacy modes; reload anyway.
+  if (safeGet("session", RELOAD_FLAG)) {
+    captureException(error ?? new Error(`stale chunk after reload (${source})`), {
+      tags: { chunkReload: "loop_guard_hit", source },
+    });
+    return;
   }
+  safeSet("session", RELOAD_FLAG, String(Date.now()));
 
   captureException(error ?? new Error(`stale chunk reload (${source})`), {
     tags: { chunkReload: "reloading", source },
@@ -47,11 +44,7 @@ export function installChunkReloadHandler() {
   // the current bundle. Without this, a user who keeps the tab open across
   // two consecutive deploys would only get one auto-reload.
   window.setTimeout(() => {
-    try {
-      sessionStorage.removeItem(RELOAD_FLAG);
-    } catch {
-      // ignore
-    }
+    safeRemove("session", RELOAD_FLAG);
   }, FLAG_TTL_MS);
 
   window.addEventListener("vite:preloadError", (event) => {

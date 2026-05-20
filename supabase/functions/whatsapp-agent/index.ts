@@ -85,6 +85,7 @@ import {
   RiskLevel,
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
+import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1438,27 +1439,8 @@ function isLeadComplete(payload: AgentState | null): boolean {
   return true;
 }
 
-// Heuristic: did the customer's latest message signal a positive
-// confirmation of the AI's summary? False positives are worse than
-// false negatives — bias strict. Token must match the start of the
-// trimmed message.
-// Deliberately omits "ye" — matches Irish/UK colloquial "ye" (= "you")
-// which is unambiguously not a confirmation. The "yeh"/"yep"/"yup"/"yeah"
-// entries cover the genuine phonetic variants.
-const POSITIVE_TOKENS = [
-  "yes", "yeah", "yep", "yup", "yeh",
-  "that's right", "thats right", "thats it", "that's it",
-  "correct", "perfect", "all good", "sounds good", "sounds right",
-  "looks good", "go ahead", "all correct",
-];
-
-function isPositiveConfirm(text: string): boolean {
-  const t = text.toLowerCase().trim();
-  if (!t) return false;
-  return POSITIVE_TOKENS.some((tok) =>
-    t === tok || t.startsWith(`${tok} `) || t.startsWith(`${tok}.`) || t.startsWith(`${tok},`),
-  );
-}
+// isPositiveConfirm + POSITIVE_TOKENS now live in ../_shared/agentHelpers.ts
+// so they can be exercised from src/lib/ai/agentHelpers.test.ts.
 
 async function createNewCustomerRecords(
   supabase: SupabaseClient,

@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
-import { SALON_SLOTS } from "../../../../constants/index.ts";
+import { SALON_SLOTS, BOOKING_STATUS } from "../../../../constants/index.ts";
 import { classifyProposedBooking } from "./slotCapacityPreview.js";
 
 export function useSlotCapacityPreview({ date, slot, size }) {
@@ -68,7 +68,7 @@ export function useSlotCapacityPreview({ date, slot, size }) {
         breed: "",
         service: "full-groom",
         owner: "",
-        status: "Booked",
+        status: BOOKING_STATUS.BOOKED,
         addons: [],
         pickupBy: "",
         payment: "",

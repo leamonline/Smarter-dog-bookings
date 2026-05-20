@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { SERVICES } from "../../../constants/index.js";
+import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
 import { SectionCard } from "../booking-detail/shared.jsx";
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
@@ -49,7 +49,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
   }, [dogId, fetchBookingHistoryForDog]);
 
   const completed = useMemo(
-    () => history.filter((b) => b.status === "Ready for pick-up"),
+    () => history.filter((b) => b.status === BOOKING_STATUS.READY_FOR_PICKUP),
     [history],
   );
 
@@ -167,10 +167,10 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
                   <span
                     className="font-semibold text-[11px]"
                     style={{
-                      color: b.status === "Ready for pick-up" ? "#16A34A" : undefined,
+                      color: b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "#16A34A" : undefined,
                     }}
                   >
-                    {b.status === "Ready for pick-up" ? "Finished" : b.status}
+                    {b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "Finished" : b.status}
                   </span>
                 </div>
               );

@@ -5,6 +5,7 @@
 
 import type { Human, Dog, Booking, SalonConfig, TrustedContact } from "../types/index.js";
 import { sanitiseFieldValue } from "../utils/sanitiseFieldValue.js";
+import { BOOKING_STATUS } from "../constants/salon.js";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)
@@ -312,7 +313,7 @@ export function dbBookingsToArray(
       size: row.size as Booking["size"],
       service: row.service as Booking["service"],
       owner,
-      status: (row.status || "Booked") as Booking["status"],
+      status: (row.status || BOOKING_STATUS.BOOKED) as Booking["status"],
       addons: row.addons || [],
       pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || ownerSnapshot || "",
       payment: row.payment || "Due at Pick-up",

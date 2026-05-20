@@ -3,6 +3,10 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "../../../supabase/client.js";
+import {
+  getOrCreateCalendarFeedToken,
+  revokeCalendarFeedToken,
+} from "../../../supabase/rpc";
 
 export function CalendarSettings() {
   const [feedUrl, setFeedUrl] = useState(null);
@@ -15,9 +19,9 @@ export function CalendarSettings() {
     setLoading(true);
 
     try {
-      const { data: token, error } = await supabase.rpc(
-        "get_or_create_calendar_feed_token",
-        { p_feed_type: "staff" },
+      const { data: token, error } = await getOrCreateCalendarFeedToken(
+        supabase,
+        "staff",
       );
 
       if (error || !token) {
@@ -66,7 +70,7 @@ export function CalendarSettings() {
     setRegenerating(true);
 
     try {
-      await supabase.rpc("revoke_calendar_feed_token", { p_feed_type: "staff" });
+      await revokeCalendarFeedToken(supabase, "staff");
       await fetchToken();
     } catch (err) {
       console.error("Regenerate error:", err);

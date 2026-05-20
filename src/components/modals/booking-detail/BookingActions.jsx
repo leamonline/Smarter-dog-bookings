@@ -3,6 +3,7 @@ import { IconTick, IconReopen } from "../../icons/index.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 import { ConfirmDeleteModal } from "../ConfirmDeleteModal.jsx";
+import { BOOKING_STATUS } from "../../../constants/salon.js";
 
 export function BookingActions({
   isEditing,
@@ -58,7 +59,7 @@ export function BookingActions({
     );
   }
 
-  const canSoftCancel = typeof onUpdate === "function" && booking?.status !== "Cancelled";
+  const canSoftCancel = typeof onUpdate === "function" && booking?.status !== BOOKING_STATUS.CANCELLED;
 
   return (
     <div className="px-4 pt-2 pb-5 flex gap-2 bg-slate-50/80">
@@ -112,10 +113,10 @@ export function BookingActions({
           variant="danger"
           onConfirm={async () => {
             setShowCancelConfirm(false);
-            const previousStatus = booking.status || "Booked";
+            const previousStatus = booking.status || BOOKING_STATUS.BOOKED;
             if (canSoftCancel) {
               await onUpdate(
-                { ...booking, status: "Cancelled" },
+                { ...booking, status: BOOKING_STATUS.CANCELLED },
                 currentDateStr,
                 currentDateStr,
               );

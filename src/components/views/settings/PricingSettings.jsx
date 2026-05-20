@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SERVICES } from "../../../constants/index.js";
+import { SERVICES, DOG_SIZES } from "../../../constants/index.js";
 import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
 export function PricingSettings({ config, onUpdateConfig }) {
@@ -81,7 +81,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
             <div className="text-sm font-semibold text-slate-800">
               {s.name}
             </div>
-            {["small", "medium", "large"].map((size) => {
+            {DOG_SIZES.map((size) => {
               const val = currentPricing[s.id]?.[size] || "";
               return (
                 <div key={size} className="relative">

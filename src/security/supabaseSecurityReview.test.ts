@@ -186,10 +186,17 @@ describe("Supabase security review regressions", () => {
   });
 
   it("does not pass a phone argument from the customer portal RPC call", () => {
+    // The customer hook routes through the typed RPC wrapper in
+    // src/supabase/rpc.ts; assert both the call site and the wrapper
+    // so the no-phone guarantee survives the indirection.
     const useCustomerAuth = readProjectFile("src/supabase/hooks/useCustomerAuth.js");
+    const rpcWrapper = readProjectFile("src/supabase/rpc.ts");
 
-    expect(useCustomerAuth).toMatch(/supabase\.rpc\("link_customer_to_human"\)/);
+    expect(useCustomerAuth).toMatch(/linkCustomerToHuman\(supabase\)/);
     expect(useCustomerAuth).not.toMatch(/link_customer_to_human["'][^)]*p_phone/);
+
+    expect(rpcWrapper).toMatch(/client\.rpc\("link_customer_to_human"\)/);
+    expect(rpcWrapper).not.toMatch(/link_customer_to_human["'][^)]*p_phone/);
   });
 
   it("does not runtime-cache authenticated Supabase API traffic in the PWA", () => {

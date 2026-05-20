@@ -9,6 +9,11 @@ import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { PawPrint } from "lucide-react";
+import {
+  SALON_PHONE_DISPLAY,
+  SALON_TEL_HREF,
+  SALON_WHATSAPP_URL,
+} from "./constants/salonContact.ts";
 import "./customer-portal.css";
 
 export default function CustomerApp() {
@@ -98,7 +103,7 @@ function CustomerAppContent() {
             Drop us a message and we&apos;ll add you in. Once we&apos;ve done that, come back here and try again.
           </div>
           <a
-            href="https://wa.me/447507731487"
+            href={SALON_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="portal-btn portal-btn--cta w-full inline-flex items-center justify-center gap-2 mb-2 no-underline"
@@ -106,10 +111,10 @@ function CustomerAppContent() {
             <span>Message Smarter Dog on WhatsApp</span>
           </a>
           <a
-            href="tel:07507731487"
+            href={SALON_TEL_HREF}
             className="portal-btn portal-btn--secondary w-full inline-block no-underline mb-3"
           >
-            Or call 07507 731487
+            Or call {SALON_PHONE_DISPLAY}
           </a>
           <button
             onClick={signOut}

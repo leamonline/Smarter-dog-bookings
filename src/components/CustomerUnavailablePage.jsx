@@ -1,5 +1,10 @@
 import { PawPrint } from "lucide-react";
 import { CenteredScreen, PortalCard } from "./ui/PageShell.jsx";
+import {
+  SALON_PHONE_DISPLAY,
+  SALON_TEL_HREF_E164,
+  SALON_WHATSAPP_URL,
+} from "../constants/salonContact.ts";
 
 export function CustomerUnavailablePage() {
   return (
@@ -19,18 +24,18 @@ export function CustomerUnavailablePage() {
             dog booked in.
           </p>
           <a
-            href="tel:+447507731487"
+            href={SALON_TEL_HREF_E164}
             className="block w-full bg-brand-purple text-white font-semibold py-3 rounded-lg hover:opacity-90 transition"
           >
-            Call 07507 731487
+            Call {SALON_PHONE_DISPLAY}
           </a>
           <a
-            href="https://wa.me/447507731487"
+            href={SALON_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full border border-brand-purple text-brand-purple font-semibold py-3 rounded-lg hover:bg-brand-purple/5 transition"
           >
-            WhatsApp 07507 731487
+            WhatsApp {SALON_PHONE_DISPLAY}
           </a>
           <p className="text-sm text-slate-500 pt-2">
             Smarter Dog Grooming
