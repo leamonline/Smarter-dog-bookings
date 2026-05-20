@@ -2,6 +2,7 @@ import { WhatsAppInboxCard } from "./WhatsAppInboxCard.jsx";
 import { TomorrowRemindersCard } from "./TomorrowRemindersCard.jsx";
 import { WaitlistCard } from "./WaitlistCard.jsx";
 import { TodoListCard } from "./TodoListCard.jsx";
+import { BookingHistoryCard } from "./BookingHistoryCard.jsx";
 
 export function RightWorkflowSidebar({
   waitlistCount,
@@ -16,6 +17,7 @@ export function RightWorkflowSidebar({
       <TomorrowRemindersCard />
       <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} />
       <TodoListCard count={todoCount} onOpen={onOpenTodos} />
+      <BookingHistoryCard />
     </aside>
   );
 }
