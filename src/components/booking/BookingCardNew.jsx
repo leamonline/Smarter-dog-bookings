@@ -305,9 +305,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="dialog"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
               title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
+              className="self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -401,7 +401,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") e.stopPropagation();
                     }}
-                    className={`w-full text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-0.5 ${
+                    className={`w-full text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center border cursor-pointer transition-all font-[inherit] flex items-center justify-center gap-1 ${
                       isCurrent ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
                     }`}
                     style={{
@@ -411,7 +411,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                       ...(isCurrent ? { "--tw-ring-color": s.color } : {}),
                     }}
                   >
-                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
+                    {(() => { const Icon = STATUS_ICONS[s.id] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
                     {s.label}
                   </button>
                 );
@@ -431,12 +431,12 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="listbox"
               aria-expanded={statusOpen}
               aria-label={`Change status, currently ${statusObj.label}`}
-              className="flex-1 min-w-0 text-[9px] md:text-[11px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-0.5 font-[inherit]"
+              className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-1 font-[inherit]"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
-              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={10} strokeWidth={2.5} aria-hidden="true" />; })()}
+              {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
               {statusObj.label}
-              <span aria-hidden="true" className="text-[8px] opacity-60">{"\u25BE"}</span>
+              <span aria-hidden="true" className="text-[10px] opacity-60">{"\u25BE"}</span>
             </button>
           )}
         </div>

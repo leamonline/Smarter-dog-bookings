@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Keyboard, UserCircle2 } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { DogSilhouette } from "../decor/index.jsx";
 
@@ -88,8 +89,11 @@ const PRIMARY_NAV = [
 const MOBILE_NAV = PRIMARY_NAV.slice(0, 5);
 
 export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOverview }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const desktopMenuRef = useRef(null);
+  // openMenu is null | "help" | "account" — only one dropdown is open at a
+  // time, and outside-click clears whichever one is showing.
+  const [openMenu, setOpenMenu] = useState(null);
+  const helpMenuRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,15 +101,17 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!openMenu) return;
     const handleClick = (e) => {
-      const insideDesktop = desktopMenuRef.current?.contains(e.target);
-      const insideMobile = mobileMenuRef.current?.contains(e.target);
-      if (!insideDesktop && !insideMobile) setMenuOpen(false);
+      const inside =
+        helpMenuRef.current?.contains(e.target) ||
+        accountMenuRef.current?.contains(e.target) ||
+        mobileMenuRef.current?.contains(e.target);
+      if (!inside) setOpenMenu(null);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  }, [openMenu]);
 
   return (
     <>
@@ -141,7 +147,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                 <span className="transition-transform duration-150 group-hover:scale-110 shrink-0" aria-hidden="true">
                   {item.icon}
                 </span>
-                <span className="text-sm leading-none tracking-tight hidden 2xl:inline">
+                <span className="text-sm leading-none tracking-tight">
                   {item.label}
                 </span>
                 {item.to === "/inbox" && waBadge && (
@@ -176,28 +182,66 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
           </button>
         )}
 
-        {/* Hamburger — Customer Portal, Shortcuts, Logout */}
-        <div ref={desktopMenuRef} className="relative">
+        {/* Help / shortcuts — keyboard-only reference. Split from the
+            account menu so users don't have to learn that shortcuts live
+            under "Account" to find them. */}
+        <div ref={helpMenuRef} className="relative">
           <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Account menu"
-            aria-expanded={menuOpen}
+            onClick={() => setOpenMenu((m) => (m === "help" ? null : "help"))}
+            aria-label="Keyboard shortcuts"
+            aria-expanded={openMenu === "help"}
+            aria-haspopup="dialog"
+            title="Keyboard shortcuts"
             className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
-              menuOpen
+              openMenu === "help"
                 ? "bg-brand-yellow text-brand-purple"
                 : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"
             }`}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
+            <Keyboard size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          {menuOpen && (
+          {openMenu === "help" && (
+            <div
+              role="dialog"
+              aria-label="Keyboard shortcuts"
+              className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out] p-4"
+            >
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Shortcuts</div>
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-600">
+                <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">N</kbd><span>New booking</span>
+                <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">T</kbd><span>Jump to today</span>
+                <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">&larr; &rarr;</kbd><span>Navigate weeks</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Account menu — Customer Portal + Log out. Single concern:
+            the user's identity and where they sign in/out. */}
+        <div ref={accountMenuRef} className="relative">
+          <button
+            onClick={() => setOpenMenu((m) => (m === "account" ? null : "account"))}
+            aria-label="Account menu"
+            aria-expanded={openMenu === "account"}
+            aria-haspopup="menu"
+            title="Account"
+            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
+              openMenu === "account"
+                ? "bg-brand-yellow text-brand-purple"
+                : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"
+            }`}
+          >
+            <UserCircle2 size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+
+          {openMenu === "account" && (
             <div className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
               <a
                 href="/customer"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => setMenuOpen(false)}
+                onClick={() => setOpenMenu(null)}
                 className="flex items-center gap-2.5 w-full px-4 py-3 no-underline text-sm font-semibold text-brand-purple hover:bg-slate-50 transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-teal"><ellipse cx="8" cy="7" rx="2.5" ry="3" /><ellipse cx="16" cy="7" rx="2.5" ry="3" /><ellipse cx="4.5" cy="13" rx="2" ry="2.5" /><ellipse cx="19.5" cy="13" rx="2" ry="2.5" /><ellipse cx="12" cy="17" rx="5" ry="4" /></svg>
@@ -207,20 +251,11 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                 </svg>
               </a>
 
-              <div className="px-4 py-2.5 border-t border-slate-100">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Shortcuts</div>
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">N</kbd><span>New booking</span>
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">T</kbd><span>Jump to today</span>
-                  <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">&larr; &rarr;</kbd><span>Navigate weeks</span>
-                </div>
-              </div>
-
               {isOnline && user && (
                 <>
                   <div className="h-px bg-slate-200 mx-3" />
                   <button
-                    onClick={() => { onSignOut(); setMenuOpen(false); }}
+                    onClick={() => { onSignOut(); setOpenMenu(null); }}
                     className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-coral bg-transparent hover:bg-brand-coral-light transition-colors text-left font-[inherit]"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
@@ -283,20 +318,21 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
         </button>
         <div ref={mobileMenuRef} className="relative shrink-0">
           <button
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={() => setOpenMenu((m) => (m === "account" ? null : "account"))}
             aria-label="Account menu"
-            aria-expanded={menuOpen}
+            aria-expanded={openMenu === "account"}
+            aria-haspopup="menu"
             className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all ${
-              menuOpen
+              openMenu === "account"
                 ? "bg-brand-yellow text-brand-purple"
                 : "text-white/80 hover:bg-white/10"
             }`}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
+            <UserCircle2 size={20} strokeWidth={2} aria-hidden="true" />
           </button>
-          {menuOpen && (
+          {openMenu === "account" && (
             <div className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[180px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
-              <a href="/customer" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}
+              <a href="/customer" target="_blank" rel="noopener noreferrer" onClick={() => setOpenMenu(null)}
                 className="flex items-center gap-2.5 w-full px-4 py-3 no-underline text-sm font-semibold text-brand-purple hover:bg-slate-50 transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-teal"><ellipse cx="8" cy="7" rx="2.5" ry="3" /><ellipse cx="16" cy="7" rx="2.5" ry="3" /><ellipse cx="4.5" cy="13" rx="2" ry="2.5" /><ellipse cx="19.5" cy="13" rx="2" ry="2.5" /><ellipse cx="12" cy="17" rx="5" ry="4" /></svg>
@@ -308,7 +344,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
               {isOnline && user && (
                 <>
                   <div className="h-px bg-slate-200 mx-3" />
-                  <button onClick={() => { onSignOut(); setMenuOpen(false); }}
+                  <button onClick={() => { onSignOut(); setOpenMenu(null); }}
                     className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-coral bg-transparent hover:bg-brand-coral-light transition-colors text-left font-[inherit]"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>

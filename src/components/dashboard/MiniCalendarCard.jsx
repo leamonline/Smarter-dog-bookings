@@ -74,7 +74,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
 
       <div className="p-3">
         <div className="grid grid-cols-7 gap-1 mb-1">
-          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d, i) => (
             <div key={i} className="text-center text-[10px] font-bold text-slate-400">{d}</div>
           ))}
         </div>

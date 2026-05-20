@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { CalendarDays } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { toDateStr } from "../../supabase/transforms.js";
@@ -12,6 +13,7 @@ import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { FloatingDecor } from "../decor/index.jsx";
+import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
 import { DashboardShell } from "../dashboard/DashboardShell.jsx";
 import { LeftSidebar } from "../dashboard/LeftSidebar.jsx";
@@ -374,20 +376,17 @@ export function WeekCalendarView({
       )}
 
       {rebookData && (
-        <div
-          onClick={() => {
+        <AccessibleModal
+          onClose={() => {
             setRebookData(null);
             setShowRebookDatePicker(false);
           }}
-          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[1000]"
+          titleId="rebook-dialog-title"
+          className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[92vh] overflow-y-auto py-5 px-6 shadow-modal"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl w-[420px] py-5 px-6 shadow-modal"
-          >
-            <div className="text-base font-extrabold text-brand-purple mb-1">
+            <h2 id="rebook-dialog-title" className="text-base font-extrabold text-brand-purple mb-1">
               Rebook {rebookData.dogName}
-            </div>
+            </h2>
             <div className="text-[13px] text-slate-500 mb-3">
               Pre-filled from previous appointment. Choose a date and slot, then confirm.
             </div>
@@ -407,7 +406,7 @@ export function WeekCalendarView({
                     })
                   : "Choose date"}
               </span>
-              <span>{"📅"}</span>
+              <CalendarDays size={16} strokeWidth={2} aria-hidden="true" className="text-brand-purple/60" />
             </button>
 
             {!rebookDayOpen && (
@@ -503,8 +502,7 @@ export function WeekCalendarView({
                 setShowRebookDatePicker(false);
               }}
             />
-          </div>
-        </div>
+        </AccessibleModal>
       )}
 
       {showRebookDatePicker && rebookData && (

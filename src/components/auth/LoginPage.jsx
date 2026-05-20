@@ -171,10 +171,6 @@ export function LoginPage({ onSignIn, error, isOffline }) {
       setLocalError("Please enter both email and password.");
       return;
     }
-    if (password.length < 12) {
-      setLocalError("Password must be at least 12 characters.");
-      return;
-    }
     setLocalError("");
     setSubmitting(true);
     try {
@@ -261,7 +257,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
               autoComplete="current-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
-              placeholder="Min. 12 characters"
+              placeholder="Your password"
               className={fieldInputClass}
             />
           </div>
@@ -306,7 +302,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
         <div className="mt-6 rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-3">
           <p className="text-[12px] text-[var(--sd-navy-soft)] leading-relaxed">
-            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to add your email in Supabase Auth, then use the password reset link to set your password.
+            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite, then use the password reset link to set your password.
           </p>
         </div>
       </PortalShell>

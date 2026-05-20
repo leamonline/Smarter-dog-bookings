@@ -22,7 +22,7 @@ function DetailRow({ label, value, editing, editor, addPrompt, onAdd }) {
   );
 }
 
-export function MyDetailsCard({ editing, setEditing, saving, details, setDetails, humanRecord, onSave, onCancel }) {
+export function MyDetailsCard({ editing, setEditing, saving, saveError, details, setDetails, humanRecord, onSave, onCancel }) {
   const fullName = `${details.name} ${details.surname}`.trim();
   const startEdit = () => setEditing(true);
 
@@ -142,6 +142,12 @@ export function MyDetailsCard({ editing, setEditing, saving, details, setDetails
           </>
         )}
       </div>
+
+      {editing && saveError && (
+        <div role="alert" className="portal-alert portal-alert--error mb-3 text-[13px]">
+          {saveError}
+        </div>
+      )}
 
       <div className="portal-card-bottom-action">
         {!editing ? (
