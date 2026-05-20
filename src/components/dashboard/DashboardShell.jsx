@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
  * Three-column dashboard shell.
  *
  * On xl+, all three columns are sticky-pinned to the viewport so they
- * don't scroll with the page. The middle column's max-height is mirrored
- * to the left column's measured height so the booking grid card always
- * ends at the same Y as the bottom of the left column (where the Revenue
- * card sits). The grid card scrolls internally if its content overflows.
+ * don't scroll with the page. The middle AND right columns mirror the
+ * left column's measured height (via ResizeObserver) so all three
+ * end at the same Y — the bottom of the left column (where the
+ * Revenue card sits). Middle + right both scroll internally if their
+ * content overflows.
  */
 export function DashboardShell({ left, main, right }) {
   const leftRef = useRef(null);
@@ -27,10 +28,14 @@ export function DashboardShell({ left, main, right }) {
     return () => ro.disconnect();
   }, []);
 
+  const matchedHeightStyle = matchedMaxHeight
+    ? { maxHeight: `${matchedMaxHeight}px` }
+    : undefined;
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_320px] gap-4 xl:gap-6 relative xl:items-start">
       {/* Left sidebar — visible on xl+, content drives the row height
-          for the middle column via ResizeObserver. */}
+          for the middle + right columns via ResizeObserver. */}
       {left && (
         <div
           ref={leftRef}
@@ -46,17 +51,18 @@ export function DashboardShell({ left, main, right }) {
           handles overflow. */}
       <div
         className="order-1 xl:order-2 min-w-0 xl:sticky xl:top-4 xl:overflow-hidden xl:flex xl:flex-col"
-        style={
-          matchedMaxHeight
-            ? { maxHeight: `${matchedMaxHeight}px` }
-            : undefined
-        }
+        style={matchedHeightStyle}
       >
         {main}
       </div>
 
+      {/* Right column — same height contract as middle. Long workflow
+          stacks (waitlist, to-do, booking history) scroll internally. */}
       {right && (
-        <div className="order-2 xl:order-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-100px)] xl:overflow-y-auto">
+        <div
+          className="order-2 xl:order-3 xl:sticky xl:top-4 xl:overflow-y-auto"
+          style={matchedHeightStyle}
+        >
           {right}
         </div>
       )}
