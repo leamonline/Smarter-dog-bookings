@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { SERVICES, SIZE_THEME, getSizeForBreed } from "../../constants/index.js";
+import { SERVICES, SIZE_THEME, getSizeForBreed, BOOKING_STATUS } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { IconSearch, IconEdit, IconTick } from "../icons/index.jsx";
@@ -70,7 +70,7 @@ function HumanBookingHistory({ human, dogs, bookingsByDate }) {
               className="font-semibold text-[11px]"
               style={{
                 color:
-                  booking.status === "Ready for pick-up"
+                  booking.status === BOOKING_STATUS.READY_FOR_PICKUP
                     ? "#16A34A"
                     : "#6B7280",
               }}

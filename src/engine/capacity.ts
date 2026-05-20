@@ -1,4 +1,4 @@
-import { LARGE_DOG_SLOTS } from "../constants/index.js";
+import { LARGE_DOG_SLOTS, BOOKING_STATUS } from "../constants/index.js";
 import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index.js";
 
 // ============================================================
@@ -449,7 +449,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     breed: "",
     service: "full-groom" as any,
     owner: "",
-    status: "Booked" as any,
+    status: BOOKING_STATUS.BOOKED,
     addons: [],
     pickupBy: "",
     payment: "",

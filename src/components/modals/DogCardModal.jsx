@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, BOOKING_STATUS } from "../../constants/index.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
@@ -709,7 +709,7 @@ export function DogCardModal({
                 ownerName: owner
                   ? `${owner.name || ""} ${owner.surname || ""}`.trim()
                   : "",
-                status: "Booked",
+                status: BOOKING_STATUS.BOOKED,
                 group_id: chainId,
                 // Per-link override flag from ChainBookingModal — useBookings.add
                 // conditionally spreads it into the insert payload so the

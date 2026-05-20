@@ -8,6 +8,7 @@ export {
   PRICING,
   ALERT_OPTIONS,
   BOOKING_STATUSES,
+  BOOKING_STATUS,
 } from "./salon.js";
 export {
   BREED_SIZE_MAP,

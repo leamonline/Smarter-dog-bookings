@@ -58,6 +58,20 @@ export function getAddonsTotal(addons: string[] | null | undefined): number {
   return addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
 }
 
+// Canonical status IDs. Importers compare and assign against these
+// constants rather than bare string literals, so the set is grep-
+// friendly and (in TS) compile-checked.
+export const BOOKING_STATUS = {
+  BOOKED: "Booked",
+  CHECKED_IN: "Checked in",
+  IN_BATH: "In bath",
+  READY_FOR_PICKUP: "Ready for pick-up",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const;
+
+export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
+
 // The five-step status progression for a booking. The card's
 // inline segmented control walks staff through these in order; the
 // detail modal still allows arbitrary jumps for edge cases.
@@ -65,11 +79,11 @@ export function getAddonsTotal(addons: string[] | null | undefined): number {
 // "Cancelled" is a terminal status reached via the detail modal —
 // it never appears in the inline progression.
 export const BOOKING_STATUSES = [
-  { id: "Booked", label: "Booked", color: "#475569", bg: "#F1F5F9" },
-  { id: "Checked in", label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
-  { id: "In bath", label: "In bath", color: "#0E7490", bg: "#CFFAFE" },
-  { id: "Ready for pick-up", label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
-  { id: "Completed", label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
+  { id: BOOKING_STATUS.BOOKED, label: "Booked", color: "#475569", bg: "#F1F5F9" },
+  { id: BOOKING_STATUS.CHECKED_IN, label: "Checked in", color: "#16A34A", bg: "#DCFCE7" },
+  { id: BOOKING_STATUS.IN_BATH, label: "In bath", color: "#0E7490", bg: "#CFFAFE" },
+  { id: BOOKING_STATUS.READY_FOR_PICKUP, label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
+  { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
 ];
 
 export const ALERT_OPTIONS = [

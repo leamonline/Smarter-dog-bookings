@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { SALON_SLOTS } from "../constants/index.js";
+import { SALON_SLOTS, BOOKING_STATUS } from "../constants/index.js";
 import { canBookSlot } from "../engine/capacity.js";
 import { toDateStr } from "../supabase/transforms.js";
 import { getDefaultOpenForDate } from "../engine/utils.js";
@@ -36,7 +36,7 @@ export function useRebookFlow({ currentDateObj, daySettings, dayOpenState, booki
         date: targetDate,
         dateStr: targetDateStr,
         slot: defaultSlot,
-        status: "Booked",
+        status: BOOKING_STATUS.BOOKED,
         payment: "Due at Pick-up",
         confirmed: false,
       });

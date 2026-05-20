@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
+import { BOOKING_STATUS } from "../../constants/salon.js";
 
 function groupBookingsByDate(rows, dogsById, humansById) {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);
@@ -234,7 +235,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         dog_id: dogId,
         size: booking.size,
         service: booking.service,
-        status: booking.status || "Booked",
+        status: booking.status || BOOKING_STATUS.BOOKED,
         addons: booking.addons || [],
         pickup_by_id: pickupHumanId || null,
         payment: booking.payment || "Due at Pick-up",
@@ -385,7 +386,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         pickup_by_id: pickupHumanId || null,
         payment: updatedBooking.payment || "Due at Pick-up",
         deposit_amount: updatedBooking.depositAmount ?? null,
-        status: updatedBooking.status || "Booked",
+        status: updatedBooking.status || BOOKING_STATUS.BOOKED,
         confirmed: updatedBooking.confirmed ?? false,
         // Reschedule / Rebook / Edit flows that override capacity flip
         // this flag on the in-memory booking before calling onUpdate.

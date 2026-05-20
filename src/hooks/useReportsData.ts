@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
-import { PRICING, SERVICES, SALON_SLOTS } from "../constants/index.js";
+import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS } from "../constants/index.js";
 import type { BookingsByDate, Dog, Human } from "../types/index.js";
 
 type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
@@ -181,7 +181,7 @@ export function buildReportSourceFromSalon(
         booking_date: booking.booking_date || booking._bookingDate || dateStr,
         service: booking.service || "full-groom",
         size: booking.size || dog?.size || "small",
-        status: booking.status || "Booked",
+        status: booking.status || BOOKING_STATUS.BOOKED,
         payment: booking.payment || "",
         slot: booking.slot || "",
         dog_id: dogId,
@@ -319,10 +319,10 @@ export function computeReportStats(
     statusAcc[b.status] = (statusAcc[b.status] || 0) + 1;
   });
   const totalPast = pastCur.length;
-  const noShowN = statusAcc.Booked || 0;
+  const noShowN = statusAcc[BOOKING_STATUS.BOOKED] || 0;
   const noShowRate = totalPast > 0 ? (noShowN / totalPast) * 100 : 0;
   const prevPastNoShow = prev.filter(
-    (b) => b.status === "Booked" && b.booking_date < cutoffStr,
+    (b) => b.status === BOOKING_STATUS.BOOKED && b.booking_date < cutoffStr,
   ).length;
   const prevPast = prev.filter((b) => b.booking_date < cutoffStr).length;
   const prevNoShowRate = prevPast > 0 ? (prevPastNoShow / prevPast) * 100 : 0;

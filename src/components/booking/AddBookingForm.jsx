@@ -8,7 +8,7 @@ import {
   getDogByIdOrName,
   getHumanByIdOrName,
 } from "../../engine/bookingRules.js";
-import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon.js";
+import { AVAILABLE_ADDONS, getAddonPrice, BOOKING_STATUS } from "../../constants/salon.js";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 
@@ -146,7 +146,7 @@ export function AddBookingForm({
       size,
       service,
       owner: ownerName,
-      status: prefill?.status || "Booked",
+      status: prefill?.status || BOOKING_STATUS.BOOKED,
       addons,
       pickupBy: prefill?.pickupBy || ownerName,
       payment: prefill?.payment || "Due at Pick-up",

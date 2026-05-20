@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { SALON_SLOTS } from "../../../constants/index.js";
+import { SALON_SLOTS, BOOKING_STATUS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import { PRICING } from "../../../constants/index.js";
 import { getSizeForBreed } from "../../../constants/breeds.js";
@@ -253,7 +253,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           dog_id: dog.dogId,
           size: dog.size,
           service: services[dog.dogId],
-          status: "Booked",
+          status: BOOKING_STATUS.BOOKED,
           confirmed: false,
           addons: [],
           payment: "Due at Pick-up",
@@ -281,7 +281,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         const { error: cancelError } = await supabase
           .from("bookings")
           .update({
-            status: "Cancelled",
+            status: BOOKING_STATUS.CANCELLED,
             cancel_reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
           })
           .in("id", idsToCancel);

@@ -5,6 +5,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
+import { BOOKING_STATUS } from "../../constants/salon.js";
 
 /**
  * Single source of truth for the dashboard's next-action block.
@@ -52,7 +53,7 @@ async function cancelBookingIds({ booking, reason, onChanged }) {
     : [booking.id];
   await supabase
     .from("bookings")
-    .update({ status: "Cancelled", cancel_reason: reason })
+    .update({ status: BOOKING_STATUS.CANCELLED, cancel_reason: reason })
     .in("id", ids);
   onChanged?.();
 }
