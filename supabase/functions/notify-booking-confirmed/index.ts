@@ -2,73 +2,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
-const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts (TWILIO_ACCOUNT_SID,
 // TWILIO_API_KEY/SECRET or TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID
 // or TWILIO_SMS_FROM, TWILIO_WHATSAPP_FROM).
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
-function sanitise(str: string): string {
-  return str
-    .replace(/<[^>]*>/g, "")          // strip HTML tags
-    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "") // strip control chars (keep \n for safety, but we join lines ourselves)
-    .replace(/\n/g, " ")              // collapse any newlines into spaces
-    .replace(/\s+/g, " ")            // normalise whitespace
-    .trim();
-}
-
-async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${SENDGRID_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: SENDGRID_FROM, name: "Smarter Dog Grooming" },
-      subject,
-      content: [{ type: "text/plain", value: text }],
-    }),
-  });
-  return res.status >= 200 && res.status < 300;
-}
-
-/** Format a date string (YYYY-MM-DD) as "Mon 29 Mar".
- *  Short form (no year, abbreviated weekday + month) — keeps SMS messages
- *  inside a single GSM-7 segment to save 4× cost per send. Customers know
- *  what year their booking is in from the context. */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-/** Format a slot string like "09:00" as "9:00am" */
-function formatTime(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
-}
-
-/** Join a list of names naturally: "Bella", "Bella and Max", "Bella, Max and Daisy" */
-function joinNames(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-}
+// SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
 
 // ── Main handler ───────────────────────────────────────────────────────────
 

@@ -28,6 +28,55 @@ export function normaliseUkMobile(raw) {
   return UK_MOBILE_E164_PATTERN.test(phone) ? phone : "";
 }
 
+// Normalise a phone number to international digits-only form (no leading +).
+// Used to build tel: and wa.me links from however the phone was typed.
+//   "07510053019"        → "447510053019"
+//   "+447510053019"      → "447510053019"
+//   "+44 (0)7510 053019" → "447510053019"
+//   "0044 7510 053019"   → "447510053019"
+//   "+1 415 555 0100"    → "14155550100"
+// Returns "" when the input has no usable digits.
+export function normalisePhoneDigits(phone) {
+  if (!phone) return "";
+  let digits = String(phone).replace(/\D/g, "");
+  if (!digits) return "";
+  digits = digits.replace(/^00/, "");
+  digits = digits.replace(/^440(7\d{9})$/, "44$1");
+  if (/^07\d{9}$/.test(digits)) digits = "44" + digits.slice(1);
+  return digits;
+}
+
+// `tel:` link with a safe "#" fallback. Use in `<a href={telLink(phone)}>`
+// where the anchor renders unconditionally.
+export function telLink(phone) {
+  const digits = normalisePhoneDigits(phone);
+  if (!digits) return "#";
+  return `tel:+${digits}`;
+}
+
+// `https://wa.me/<digits>` link with a safe "#" fallback. Always goes
+// through wa.me so the link opens in the browser rather than stealing
+// context to a desktop app.
+export function waLink(phone) {
+  const digits = normalisePhoneDigits(phone);
+  if (!digits) return "#";
+  return `https://wa.me/${digits}`;
+}
+
+// `tel:` link that returns null when there's no usable phone — use in
+// `{tel && <a href={tel}>}` patterns where the anchor should be omitted
+// rather than rendered as a dead "#".
+export function telLinkOrNull(phone) {
+  const digits = normalisePhoneDigits(phone);
+  return digits ? `tel:+${digits}` : null;
+}
+
+// `https://wa.me/<digits>` returning null when there's no usable phone.
+export function waMeLink(phone) {
+  const digits = normalisePhoneDigits(phone);
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
 /**
  * Format a phone number for display to staff. UK mobiles in E.164 form
  * (+447XXXXXXXXX) render as "07XXX XXXXXX" — the national form a salon

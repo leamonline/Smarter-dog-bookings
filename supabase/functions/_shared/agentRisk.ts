@@ -48,20 +48,6 @@ export type Intent =
   | "escalate"
   | "other";
 
-export const INTENTS: readonly Intent[] = [
-  "faq",
-  "greeting",
-  "booking_query",
-  "booking_propose",
-  "booking_confirm",
-  "booking_change",
-  "booking_cancel",
-  "confirm_time",
-  "smalltalk",
-  "escalate",
-  "other",
-] as const;
-
 // Base risk per intent before keyword/confidence overrides.
 //
 // Reasoning per row:

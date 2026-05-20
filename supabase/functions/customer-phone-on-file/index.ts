@@ -25,6 +25,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -49,26 +50,9 @@ const GLOBAL_BUCKET_KEY = "__global__";
 // from a victim's browser and use it as a "is this number a Smarter
 // Dog customer?" oracle. Keep this list in sync with whatsapp-send's
 // ALLOWED_ORIGINS — both functions are called by the same SPA.
-const ALLOWED_ORIGINS = new Set([
-  "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-]);
+const ALLOWED_ORIGINS = buildAllowedOrigins("CUSTOMER_PHONE_ALLOWED_ORIGINS");
 
-function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
+const corsFor = (req: Request) => buildCorsHeaders(req, ALLOWED_ORIGINS);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -149,13 +133,13 @@ async function lookupPhoneOnFile(phone: string): Promise<boolean> {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {
       status: 405,
-      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
+      headers: { ...corsFor(req), "content-type": "application/json" },
     });
   }
 
@@ -165,7 +149,7 @@ serve(async (req) => {
   } catch {
     return new Response(JSON.stringify({ error: "invalid_json" }), {
       status: 400,
-      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
+      headers: { ...corsFor(req), "content-type": "application/json" },
     });
   }
 
@@ -177,7 +161,7 @@ serve(async (req) => {
   if (!phone || phone.length < 7 || phone.length > 20) {
     return new Response(JSON.stringify({ error: "invalid_phone" }), {
       status: 400,
-      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
+      headers: { ...corsFor(req), "content-type": "application/json" },
     });
   }
 
@@ -196,7 +180,7 @@ serve(async (req) => {
       {
         status: 429,
         headers: {
-          ...buildCorsHeaders(req),
+          ...corsFor(req),
           "content-type": "application/json",
           "retry-after": String(RATE_LIMIT_WINDOW_SECONDS),
         },
@@ -214,7 +198,7 @@ serve(async (req) => {
       {
         status: 429,
         headers: {
-          ...buildCorsHeaders(req),
+          ...corsFor(req),
           "content-type": "application/json",
           "retry-after": String(RATE_LIMIT_WINDOW_SECONDS),
         },
@@ -226,12 +210,12 @@ serve(async (req) => {
     const onFile = await lookupPhoneOnFile(phone);
     return new Response(JSON.stringify({ on_file: onFile }), {
       status: 200,
-      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
+      headers: { ...corsFor(req), "content-type": "application/json" },
     });
   } catch {
     return new Response(JSON.stringify({ error: "internal" }), {
       status: 500,
-      headers: { ...buildCorsHeaders(req), "content-type": "application/json" },
+      headers: { ...corsFor(req), "content-type": "application/json" },
     });
   }
 });

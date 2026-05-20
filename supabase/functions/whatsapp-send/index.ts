@@ -64,6 +64,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import {
   type ConfirmButtonsBody,
   type ConfirmButtonsResult,
@@ -93,32 +94,10 @@ const MAX_MANUAL_TEXT_LEN = 2000;
 // Configured via WHATSAPP_SEND_ALLOWED_ORIGINS (comma-separated). The
 // hardcoded staging + dev defaults are kept as a safety net so deploys
 // without the secret still work in known environments.
-const DEFAULT_ALLOWED_ORIGINS = [
-  "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
-const ALLOWED_ORIGINS = new Set(
-  (Deno.env.get("WHATSAPP_SEND_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
+const ALLOWED_ORIGINS = buildAllowedOrigins("WHATSAPP_SEND_ALLOWED_ORIGINS");
 
-function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-internal-secret",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
+const corsFor = (req: Request) =>
+  buildCorsHeaders(req, ALLOWED_ORIGINS, { allowInternalSecret: true });
 
 interface DraftMode {
   mode: "draft";
@@ -642,7 +621,7 @@ function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...buildCorsHeaders(req),
+      ...corsFor(req),
       "Content-Type": "application/json",
     },
   });
@@ -650,7 +629,7 @@ function json(req: Request, body: unknown, status = 200): Response {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
 
   if (req.method !== "POST") {

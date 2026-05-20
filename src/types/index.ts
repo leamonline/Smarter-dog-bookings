@@ -19,13 +19,6 @@ export type BookingStatusId =
   | "Completed"
   | "Cancelled";
 
-export interface BookingStatus {
-  id: BookingStatusId;
-  label: string;
-  color: string;
-  bg: string;
-}
-
 export interface TrustedContact {
   id: string;
   fullName: string;
@@ -173,69 +166,3 @@ export interface SlotAllocation {
   groupId: string;
 }
 
-export interface WizardState {
-  step: 1 | 2 | 3 | 4 | 5;
-  selectedDogs: WizardDog[];
-  services: Record<string, ServiceId>;
-  selectedDate: string | null;
-  selectedSlot: string | null;
-  slotAllocation: SlotAllocation | null;
-}
-
-export interface PaginatedResult<T> {
-  items: T[];
-  hasMore: boolean;
-  totalCount: number;
-}
-
-export interface SearchState {
-  query: string;
-  isSearching: boolean;
-}
-
-export interface BookingHistoryEntry {
-  id: string;
-  date: string;
-  slot: string;
-  service: string;
-  status: string;
-  size: string;
-  addons: string[];
-  payment: string;
-}
-
-export interface GroomPhoto {
-  id: string;
-  dogId: string;
-  bookingId: string | null;
-  storagePath: string;
-  notes: string;
-  takenAt: string;
-  createdAt: string;
-  signedUrl?: string;
-}
-
-export interface NotificationLog {
-  id: string;
-  bookingId: string;
-  groupId: string | null;
-  humanId: string;
-  channel: "whatsapp" | "sms" | "email";
-  triggerType: "confirmed" | "reminder" | "cancelled" | "waitlist_joined" | "ready";
-  status: "sent" | "failed" | "pending";
-  errorMessage: string | null;
-  sentAt: string | null;
-  createdAt: string;
-}
-
-export interface CalendarFeedToken {
-  id: string;
-  humanId: string | null;
-  staffUserId: string | null;
-  token: string;
-  feedType: "customer" | "staff";
-  isActive: boolean;
-  createdAt: string;
-  expiresAt: string | null;
-  lastAccessed: string | null;
-}

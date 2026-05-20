@@ -2,97 +2,25 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
+import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
-const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts.
+// SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
 
 // CORS — only for the staff-JWT path (the cron call sends no Origin
 // header). Same allowlist pattern as whatsapp-send.
-const DEFAULT_ALLOWED_ORIGINS = [
-  "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
-const ALLOWED_ORIGINS = new Set(
-  (Deno.env.get("NOTIFY_REMINDER_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
-function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
+const ALLOWED_ORIGINS = buildAllowedOrigins("NOTIFY_REMINDER_ALLOWED_ORIGINS");
+
+const corsFor = (req: Request) => buildCorsHeaders(req, ALLOWED_ORIGINS);
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
-function sanitise(str: string): string {
-  return str
-    .replace(/<[^>]*>/g, "")
-    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "")
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${SENDGRID_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: SENDGRID_FROM, name: "Smarter Dog Grooming" },
-      subject,
-      content: [{ type: "text/plain", value: text }],
-    }),
-  });
-  return res.status >= 200 && res.status < 300;
-}
-
-/** Format a date string (YYYY-MM-DD) as "Monday 29 March 2026" */
-/** Short form "Mon 29 Mar" — keeps SMS in a single GSM-7 segment. */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-/** Format a slot string like "09:00" as "9:00am" */
-function formatTime(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
-}
-
-/** Join a list of names naturally: "Bella", "Bella and Max", "Bella, Max and Daisy" */
-function joinNames(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-}
 
 /** Tomorrow's date as a YYYY-MM-DD string */
 function tomorrowDateString(): string {
@@ -143,7 +71,7 @@ function groupBookings(bookings: Booking[]): Map<string | null, Booking[]> {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
 
   try {
@@ -161,18 +89,18 @@ serve(async (req) => {
     if (!cronAuthed) {
       const authHeader = req.headers.get("authorization");
       if (!authHeader) {
-        return new Response("Unauthorized", { status: 401, headers: buildCorsHeaders(req) });
+        return new Response("Unauthorized", { status: 401, headers: corsFor(req) });
       }
       const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: userRes, error: userErr } = await userClient.auth.getUser();
       if (userErr || !userRes?.user) {
-        return new Response("Unauthorized", { status: 401, headers: buildCorsHeaders(req) });
+        return new Response("Unauthorized", { status: 401, headers: corsFor(req) });
       }
       const { data: staffCheck } = await userClient.rpc("is_staff");
       if (!staffCheck) {
-        return new Response("Forbidden", { status: 403, headers: buildCorsHeaders(req) });
+        return new Response("Forbidden", { status: 403, headers: corsFor(req) });
       }
       authedAsStaff = true;
     }
@@ -204,13 +132,13 @@ serve(async (req) => {
       if (anchorErr || !anchor) {
         return new Response(
           JSON.stringify({ error: "booking not found" }),
-          { status: 404, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
+          { status: 404, headers: { ...corsFor(req), "Content-Type": "application/json" } },
         );
       }
       if (anchor.status === "Cancelled") {
         return new Response(
           JSON.stringify({ error: "booking is cancelled — won't remind" }),
-          { status: 422, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
+          { status: 422, headers: { ...corsFor(req), "Content-Type": "application/json" } },
         );
       }
       if (anchor.group_id) {
@@ -247,14 +175,14 @@ serve(async (req) => {
 
     if (bookingsError) {
       console.error("Bookings query failed:", bookingsError.message);
-      return new Response("Bookings query failed", { status: 500, headers: buildCorsHeaders(req) });
+      return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });
     }
 
     if (!bookings || bookings.length === 0) {
       const message = singleBookingId
         ? "Booking not eligible for reminder"
         : "No bookings to remind for tomorrow";
-      return new Response(message, { status: 200, headers: buildCorsHeaders(req) });
+      return new Response(message, { status: 200, headers: corsFor(req) });
     }
 
     // 2. Group by group_id (null = individual)
@@ -394,14 +322,14 @@ serve(async (req) => {
       }),
       {
         status: 200,
-        headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsFor(req), "Content-Type": "application/json" },
       },
     );
   } catch (err) {
     console.error("notify-booking-reminder error:", err);
     return new Response(
       JSON.stringify({ error: "internal error" }),
-      { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsFor(req), "Content-Type": "application/json" } },
     );
   }
 });

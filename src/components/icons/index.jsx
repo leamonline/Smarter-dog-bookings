@@ -21,10 +21,6 @@ export function IconMessage({ size = S, colour = "var(--color-brand-teal)" }) {
   return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h12v8H5l-3 3z" /></svg>);
 }
 
-export function IconPlus({ size = S, colour = "#10C2FC" }) {
-  return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round"><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></svg>);
-}
-
 export function IconSearch({ size = S, colour = "#6B7280" }) {
   return (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={colour} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5" /><line x1="10.5" y1="10.5" x2="14" y2="14" /></svg>);
 }

@@ -29,6 +29,25 @@ import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
 
 const SEND_FUNCTION_PATH = "whatsapp-send";
 
+// Pulls a useful failure message out of a supabase.functions.invoke
+// error. The transport-level `error.message` is usually generic ("Edge
+// Function returned a non-2xx status code"); the function body
+// typically carries the real `{ error, detail }` JSON. We try to parse
+// that and fall back to the transport message if parsing fails.
+async function parseSupabaseFunctionError(error, fallbackMessage) {
+  let detail = error.message ?? fallbackMessage;
+  try {
+    const errorBody = await error.context?.json?.();
+    if (errorBody) {
+      const parts = [errorBody.error, errorBody.detail].filter(Boolean);
+      if (parts.length) detail = parts.join(": ");
+    }
+  } catch {
+    /* fall through */
+  }
+  return detail;
+}
+
 // ── Pure helpers (exported for testing) ─────────────────────
 // Filters the bookingActions list down to the actions attached to the
 // current pending draft. An action is "attached" if its draft_id
@@ -890,16 +909,7 @@ export function useWhatsAppInbox() {
         },
       });
       if (error) {
-        let detail = error.message ?? "SMS send failed";
-        try {
-          const errorBody = await error.context?.json?.();
-          if (errorBody) {
-            const parts = [errorBody.error, errorBody.detail].filter(Boolean);
-            if (parts.length) detail = parts.join(": ");
-          }
-        } catch {
-          /* fall through */
-        }
+        const detail = await parseSupabaseFunctionError(error, "SMS send failed");
         return { ok: false, reason: detail };
       }
       await refreshList();
@@ -932,16 +942,7 @@ export function useWhatsAppInbox() {
         },
       });
       if (error) {
-        let detail = error.message ?? "Template send failed";
-        try {
-          const errorBody = await error.context?.json?.();
-          if (errorBody) {
-            const parts = [errorBody.error, errorBody.detail].filter(Boolean);
-            if (parts.length) detail = parts.join(": ");
-          }
-        } catch {
-          /* fall through */
-        }
+        const detail = await parseSupabaseFunctionError(error, "Template send failed");
         return { ok: false, reason: detail };
       }
       // Refresh the list so the newly-upserted conversation shows up.
