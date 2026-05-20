@@ -323,7 +323,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const showDetailOnMobile = !!selectedId;
 
   return (
-    <div className="py-2.5 flex flex-col gap-3 h-[calc(100vh-180px)]">
+    <div className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
