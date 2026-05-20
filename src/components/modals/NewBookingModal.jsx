@@ -163,9 +163,22 @@ export function NewBookingModal({
   };
 
   const handleConfirm = () => {
-    if (dogEntries.length === 0) { setError("Please select a dog."); return; }
-    if (!selectedDateStr) { setError("Please select a date."); return; }
-    if (!selectedSlot) { setError("Please select a time slot."); return; }
+    // Collect every missing field in one pass so staff don't have to re-submit
+    // three times to find out what's still empty. Closed-day + duplicate-dog
+    // checks remain separate because they only make sense once the basics
+    // (dog + date + slot) are filled in.
+    const missing = [];
+    if (dogEntries.length === 0) missing.push("Choose a dog");
+    if (!selectedDateStr) missing.push("Pick a date");
+    if (!selectedSlot) missing.push("Pick a time slot");
+    if (missing.length > 0) {
+      setError(
+        missing.length === 1
+          ? `${missing[0]} before saving the booking.`
+          : `Before saving, please: ${missing.join(", ").toLowerCase()}.`,
+      );
+      return;
+    }
 
     // Closed-day guard. The TimeSlotPicker is hidden for closed days, but
     // staff can land here via an initialSlot prefill from a closed-day URL
@@ -441,9 +454,12 @@ export function NewBookingModal({
         />
 
         {pendingPastConfirm && (
-          <PastDateConfirm
-            dateLabel={selectedDateDisplay}
-            slotLabel={selectedSlotLabel}
+          <ConfirmDialog
+            title="Log a historical booking?"
+            message={`${selectedDateDisplay || "This date"}${selectedSlotLabel ? ` at ${selectedSlotLabel}` : ""} is in the past. Save it anyway to keep a historical record?`}
+            confirmLabel="Log as historical"
+            cancelLabel="Cancel"
+            variant="primary"
             onConfirm={() => { setPendingPastConfirm(false); saveBooking(); }}
             onCancel={() => setPendingPastConfirm(false)}
           />
@@ -464,49 +480,3 @@ export function NewBookingModal({
   );
 }
 
-// Past-date confirmation. Rendered as a fixed-position overlay on top
-// of the main New Booking modal (z-index 1100 vs the modal's 1000) so
-// the question is unmistakable. Kept inline here because it only makes
-// sense in the booking flow.
-function PastDateConfirm({ dateLabel, slotLabel, onConfirm, onCancel }) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="past-date-confirm-title"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
-      style={{ zIndex: 1100 }}
-      onClick={onCancel}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.2)] p-5 max-w-[360px] w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div id="past-date-confirm-title" className="text-base font-extrabold text-slate-800 mb-1.5">
-          Log a historical booking?
-        </div>
-        <p className="text-[13px] text-slate-600 leading-relaxed mb-4">
-          {dateLabel || "This date"}{slotLabel ? ` at ${slotLabel}` : ""} is in the past.
-          {" "}Save it anyway to keep a historical record?
-        </p>
-        <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="py-2 px-4 rounded-lg border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-semibold cursor-pointer font-inherit"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            autoFocus
-            className="py-2 px-4 rounded-lg border-none bg-brand-coral text-white text-sm font-bold cursor-pointer font-inherit"
-          >
-            Log as historical
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
