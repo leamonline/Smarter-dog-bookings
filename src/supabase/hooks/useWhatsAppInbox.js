@@ -32,6 +32,7 @@ import {
   parseSupabaseFunctionError,
 } from "./inbox/helpers.js";
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
+import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -204,6 +205,22 @@ export function useWhatsAppInbox() {
   // newly-upserted conversation surfaces immediately.
   const { sendOutboundSMS, sendOutboundTemplate } = useOutboundSender({
     refreshList,
+  });
+
+  // Conversation state-transition callbacks (takeover / release /
+  // resolve / reopen) — extracted because they're a coherent
+  // semantic cluster operating on whatsapp_conversations and don't
+  // need the rest of the inbox state.
+  const {
+    takeoverConversation,
+    releaseConversation,
+    resolveConversation,
+    reopenConversation,
+  } = useConversationLifecycle({
+    selectedId,
+    actionInFlight,
+    setActionInFlight,
+    conversations,
   });
 
   useEffect(() => {
@@ -647,45 +664,6 @@ export function useWhatsAppInbox() {
     }
   }, [actionInFlight]);
 
-  const takeoverConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ state: "human_takeover" })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("takeoverConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "takeoverConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  const releaseConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({ state: "ai_handling" })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("releaseConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "releaseConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
 
   // Per-conversation auto-send opt-in. The agent only auto-sends a
   // draft when ALL of the following are true:
@@ -813,81 +791,6 @@ export function useWhatsAppInbox() {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight, conversations]);
-
-  // ── Resolve / reopen ──────────────────────────────────────
-  // resolveConversation marks the currently-selected conversation
-  // complete. closure_reason inherits the active suggestion if there
-  // is one (so a "Suggest closing" pill turning into a close keeps the
-  // semantic reason), otherwise it's 'manual'.
-  //
-  // closed_by is the staff member who clicked the button — pulled
-  // from the live auth session rather than trusting client-supplied
-  // user_id, so an attacker who can call the API can't backdate
-  // someone else's closure.
-  //
-  // reopenConversation clears closed_at + closure_reason. closed_by
-  // is preserved so a future audit surface can still show who closed
-  // it before it was reopened.
-  const resolveConversation = useCallback(async () => {
-    if (!selectedId || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-
-    const current = conversations.find((c) => c.id === selectedId);
-    const inheritedReason = current?.closure_suggested_reason ?? null;
-    const reason = inheritedReason || "manual";
-
-    try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes?.user?.id ?? null;
-
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({
-          closed_at: new Date().toISOString(),
-          closed_by: userId,
-          closure_reason: reason,
-          // Clear suggestion fields — they've been resolved.
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
-        .eq("id", selectedId);
-      if (error) throw error;
-      return { ok: true, reason };
-    } catch (err) {
-      logger.error("resolveConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "resolveConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight, conversations]);
-
-  const reopenConversation = useCallback(async (conversationId) => {
-    const id = conversationId ?? selectedId;
-    if (!id || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_conversations")
-        .update({
-          closed_at: null,
-          closure_reason: null,
-          closure_suggested_at: null,
-          closure_suggested_reason: null,
-        })
-        .eq("id", id);
-      if (error) throw error;
-      return { ok: true };
-    } catch (err) {
-      logger.error("reopenConversation failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "reopenConversation" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
 
   // ── Generate reply on demand (Phase G) ─────────────────────
   // Calls the whatsapp-generate-reply edge function, which authenticates
