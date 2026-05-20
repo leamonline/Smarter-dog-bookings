@@ -124,7 +124,7 @@ export function BookingHeader({
                 <span
                   key={alertLabel}
                   className="text-white py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap shadow-[0_2px_8px_rgba(201,61,99,0.3)]"
-                  style={{ background: "#C93D63" }}
+                  style={{ background: "var(--color-brand-coral-dark)" }}
                 >
                   {alertLabel}
                 </span>
@@ -132,7 +132,7 @@ export function BookingHeader({
             {allergyText && (
               <span
                 className="text-white py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap shadow-[0_2px_8px_rgba(201,61,99,0.3)]"
-                style={{ background: "#C93D63" }}
+                style={{ background: "var(--color-brand-coral-dark)" }}
               >
                 Allergic to {allergyText}
               </span>

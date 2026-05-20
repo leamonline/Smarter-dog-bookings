@@ -17,14 +17,14 @@ export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
       <div className="flex gap-2.5">
         <button
           onClick={onDiscard}
-          className="flex-1 py-2.5 rounded-[10px] border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-inherit"
+          className="flex-1 py-2.5 rounded-control border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-inherit"
         >
           Discard
         </button>
         <button
           onClick={onKeepEditing}
           autoFocus
-          className="flex-1 py-2.5 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
+          className="flex-1 py-2.5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
         >
           Keep editing
         </button>

@@ -62,7 +62,7 @@ export function WaitlistModal({
     <AccessibleModal
       onClose={onClose}
       titleId={titleId}
-      className="bg-emerald-50 rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-[0_8px_32px_rgba(0,0,0,0.18)] overflow-hidden border border-emerald-100"
+      className="bg-emerald-50 rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-modal overflow-hidden border border-emerald-100"
     >
       <div className="bg-emerald-500 px-4 py-3 border-b border-emerald-600 flex items-center justify-between">
         <div id={titleId} className="text-base font-bold text-white font-display tracking-wide">

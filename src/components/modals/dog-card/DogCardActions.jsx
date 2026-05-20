@@ -13,7 +13,7 @@ export function DogCardActions({
     <div className="px-6 py-4 pb-5 flex gap-2.5 bg-slate-50 border-t border-slate-200">
       <button
         onClick={onSave}
-        className="flex-1 py-3 rounded-[10px] border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
+        className="flex-1 py-3 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors"
         style={{
           background: sizeTheme.gradient[0],
           color: headerTextColour,
@@ -23,7 +23,7 @@ export function DogCardActions({
       </button>
       <button
         onClick={onCancel}
-        className="flex-1 py-3 rounded-[10px] border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
+        className="flex-1 py-3 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
       >
         Cancel
       </button>

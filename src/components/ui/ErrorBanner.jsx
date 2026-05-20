@@ -1,6 +1,6 @@
 export function ErrorBanner({ message, onClose }) {
   return (
-    <div className="bg-red-100 border border-brand-red rounded-[10px] py-4 px-5 my-5 flex items-center gap-2.5">
+    <div className="bg-red-100 border border-brand-red rounded-control py-4 px-5 my-5 flex items-center gap-2.5">
       <span className="text-xl">{"\u26A0\uFE0F"}</span>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-brand-red">Something went wrong</div>

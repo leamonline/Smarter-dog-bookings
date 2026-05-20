@@ -21,9 +21,9 @@ const BookingDetailModal = lazy(() =>
 );
 
 const SIZE_DOT = {
-  small:  { dot: "#F5C518", border: "#D4A500", gradient: "linear-gradient(90deg, #F5C518, #FACC15)", glow: "rgba(245,197,24," },
-  medium: { dot: "#2D8B7A", border: "#1E6B5C", gradient: "linear-gradient(90deg, #2D8B7A, #3BA594)", glow: "rgba(45,139,122," },
-  large:  { dot: "#E7546C", border: "#C93D63", gradient: "linear-gradient(90deg, #E7546C, #F472B6)", glow: "rgba(231,84,108," },
+  small:  { dot: "var(--color-size-small)", border: "var(--color-brand-yellow-dark)", gradient: "linear-gradient(90deg, var(--color-size-small), #FACC15)", glow: "rgba(245,197,24," },
+  medium: { dot: "var(--color-brand-teal)", border: "var(--color-brand-teal-dark)", gradient: "linear-gradient(90deg, var(--color-brand-teal), var(--color-brand-teal-light))", glow: "rgba(45,139,122," },
+  large:  { dot: "var(--color-brand-coral)", border: "var(--color-brand-coral-dark)", gradient: "linear-gradient(90deg, var(--color-brand-coral), #F472B6)", glow: "rgba(231,84,108," },
 };
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
@@ -32,12 +32,12 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 // "in the salon now", deep purple for "all done". Cancelled stays coral.
 // "Booked" is the default state for newly created bookings.
 const STATUS_DISPLAY = {
-  "Booked":             { bg: "#FFF6CC", color: "#2D004B", border: "#FECC13", label: "Booked" },
-  "Checked in":         { bg: "#E0F0EC", color: "#1E6B5C", border: "#2A6F6B", label: "Checked in" },
+  "Booked":             { bg: "#FFF6CC", color: "var(--color-brand-purple)", border: "var(--color-brand-yellow)", label: "Booked" },
+  "Checked in":         { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B", label: "Checked in" },
   "In bath":            { bg: "#CFFAFE", color: "#0E7490", border: "#22D3EE", label: "In bath" },
-  "Ready for pick-up":  { bg: "#EDE3F5", color: "#2D004B", border: "#5B3D80", label: "Ready" },
-  "Completed":          { bg: "#E2D9F0", color: "#2D004B", border: "#5B3D80", label: "Completed" },
-  "Cancelled":          { bg: "#FFE5EC", color: "#C93D63", border: "#E7546C", label: "Cancelled" },
+  "Ready for pick-up":  { bg: "#EDE3F5", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Ready" },
+  "Completed":          { bg: "#E2D9F0", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Completed" },
+  "Cancelled":          { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", label: "Cancelled" },
 };
 
 // The five-step inline progression. Cancelled is terminal and only

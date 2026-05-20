@@ -116,7 +116,7 @@ export function AccountSettings({ user, staffProfile }) {
           <button
             onClick={handlePasswordReset}
             disabled={pwSending || pwSent}
-            className={`px-[18px] py-[9px] rounded-[10px] border text-[13px] font-bold font-inherit transition-all ${
+            className={`px-[18px] py-[9px] rounded-control border text-[13px] font-bold font-inherit transition-all ${
               pwSent
                 ? "bg-[#E6F5F2] text-brand-teal border-brand-teal cursor-default"
                 : pwSending

@@ -224,7 +224,7 @@ export function AddBookingForm({
               setDogQuery(e.target.value);
               setError("");
             }}
-            className="w-full py-[7px] pl-[26px] pr-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border transition-colors focus:border-brand-cyan"
+            className="w-full py-[7px] pl-[26px] pr-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border transition-colors focus:border-brand-teal"
             autoFocus
           />
           {dogResults.length > 0 && (

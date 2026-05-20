@@ -304,7 +304,7 @@
 }
 
 .portal-card-iconbadge--sky      { background: #CDEBFF; color: var(--sd-cyan-dark); }
-.portal-card-iconbadge--coral    { background: #FFD8E0; color: #B83A4F; }
+.portal-card-iconbadge--coral    { background: #FFD8E0; color: var(--color-brand-coral-text); }
 .portal-card-iconbadge--buttercup{ background: #FFE9A8; color: #8A6300; }
 .portal-card-iconbadge--mint     { background: #BFF0CE; color: var(--sd-green-dark); }
 
@@ -676,7 +676,7 @@
 }
 .portal-alert--error {
   background: var(--sd-coral-tint);
-  color: #B83A4F;
+  color: var(--color-brand-coral-text);
   border: 1px solid rgba(231, 84, 108, 0.30);
 }
 .portal-alert--info {
@@ -913,7 +913,7 @@
   text-decoration: none;
 }
 .portal-booking-card-secondary:hover { color: var(--sd-navy); }
-.portal-booking-card-secondary--danger { color: #B83A4F; }
+.portal-booking-card-secondary--danger { color: var(--color-brand-coral-text); }
 .portal-booking-card-secondary--danger:hover { color: #8E2438; }
 
 /* --- Initials avatar (dogs / trusted humans) --- */
@@ -936,7 +936,7 @@
 .portal-avatar--sky      { background: #CDEBFF; color: var(--sd-cyan-dark); }
 .portal-avatar--buttercup{ background: #FFE9A8; color: #8A6300; }
 .portal-avatar--mint     { background: #BFF0CE; color: var(--sd-green-dark); }
-.portal-avatar--coral    { background: #FFD8E0; color: #B83A4F; }
+.portal-avatar--coral    { background: #FFD8E0; color: var(--color-brand-coral-text); }
 
 /* --- Compact entity row (dog / trusted human) --- */
 .portal-entity-row {

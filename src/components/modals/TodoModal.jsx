@@ -20,7 +20,7 @@ export function TodoModal({ onClose }) {
     <AccessibleModal
       onClose={onClose}
       titleId={titleId}
-      className="bg-[#FFFDF2] rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-[0_8px_32px_rgba(0,0,0,0.18)] overflow-hidden border border-amber-100"
+      className="bg-[#FFFDF2] rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-modal overflow-hidden border border-amber-100"
     >
       <div className="bg-brand-yellow px-4 py-3 border-b border-amber-200 flex items-center justify-between">
         <div id={titleId} className="text-base font-bold text-brand-purple font-display tracking-wide">
@@ -54,7 +54,7 @@ export function TodoModal({ onClose }) {
           />
           <button
             type="submit"
-            className="w-8 h-8 rounded-lg bg-brand-teal text-white border-none flex items-center justify-center cursor-pointer transition-all text-lg font-bold hover:bg-[#1E6B5C] shrink-0"
+            className="w-8 h-8 rounded-lg bg-brand-teal text-white border-none flex items-center justify-center cursor-pointer transition-all text-lg font-bold hover:bg-brand-teal-dark shrink-0"
           >
             +
           </button>
