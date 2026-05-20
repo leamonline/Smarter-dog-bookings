@@ -24,7 +24,7 @@
  * 2026-05-20 the salon has:
  *   - appointment_reminder_v1   (en_GB, 3 params, Active)
  *   - booking_confirmed_v1      (en_GB, 4 params, Active)
- *   - booking_changed_v1        (en,    not yet in picker)
+ *   - booking_changed_v1        (en,    3 params, Active)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
@@ -34,6 +34,7 @@ const PLACEHOLDER = {
   dog_name: "[dog's name]",
   when: "[date and time]",
   service: "[service]",
+  change_description: "[what changed]",
 };
 
 export const WHATSAPP_TEMPLATES = [
@@ -67,6 +68,19 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, ${values.dog_name || PLACEHOLDER.dog_name}'s ${values.service || PLACEHOLDER.service} is confirmed for ${values.appointment_when || PLACEHOLDER.when} at Smarter Dog Grooming Salon. We're looking forward to seeing you both. Reply here if anything changes.`,
+  },
+  {
+    name: "booking_changed_v1",
+    label: "Booking Update",
+    description: "Tell a customer their booking has changed",
+    language: "en",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+      { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "change_description", label: "What changed (e.g. moved to 10:30 instead of 9:00)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, a quick update on ${values.dog_name || PLACEHOLDER.dog_name}'s booking: ${values.change_description || PLACEHOLDER.change_description}. If this isn't right or you have any questions, just reply here.`,
   },
 ];
 

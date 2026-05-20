@@ -76,4 +76,21 @@ describe("buildTemplateParams", () => {
       "Hi [their name], just a friendly reminder that [dog's name] is booked in with us at Smarter Dog Grooming Salon for [date and time]. Reply here if you need to change anything — see you soon..",
     );
   });
+
+  it("preview renders the registered booking_changed_v1 wording", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_changed_v1");
+    const values = {
+      customer_first_name: "Sam",
+      dog_name: "Bella",
+      change_description: "moved to 10:30 instead of 9:00",
+    };
+    expect(template.preview(values)).toBe(
+      "Hi Sam, a quick update on Bella's booking: moved to 10:30 instead of 9:00. If this isn't right or you have any questions, just reply here.",
+    );
+  });
+
+  it("booking_changed_v1 uses the generic 'en' language code, not en_GB", () => {
+    const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_changed_v1");
+    expect(template.language).toBe("en");
+  });
 });
