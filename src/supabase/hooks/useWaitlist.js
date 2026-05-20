@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { toDateStr } from "../transforms.js";
+import { logger } from "../../lib/logger.js";
 
 export function useWaitlist(targetDateObj) {
   const [waitlist, setWaitlist] = useState([]);
@@ -28,7 +29,9 @@ export function useWaitlist(targetDateObj) {
 
     if (signal?.aborted) return;
     if (error) {
-      console.error("Error fetching waitlist:", error);
+      logger.error("Error fetching waitlist", error, {
+        tags: { hook: "useWaitlist", op: "fetch" },
+      });
       setError(error.message);
     } else {
       setWaitlist(data || []);

@@ -31,6 +31,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
+import { logger } from "../../lib/logger.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -105,10 +106,30 @@ export function useWhatsAppSummary() {
         .limit(5),
     ]);
 
-    if (convs.error) console.warn("useWhatsAppSummary convs:", convs.error.message);
-    if (drafts.error) console.warn("useWhatsAppSummary drafts:", drafts.error.message);
-    if (recentMsgs.error) console.warn("useWhatsAppSummary recent:", recentMsgs.error.message);
-    if (recentConvsRes.error) console.warn("useWhatsAppSummary recentConvs:", recentConvsRes.error.message);
+    if (convs.error) {
+      logger.warn("useWhatsAppSummary convs failed", {
+        tags: { hook: "useWhatsAppSummary", op: "fetch.convs" },
+        extra: { message: convs.error.message },
+      });
+    }
+    if (drafts.error) {
+      logger.warn("useWhatsAppSummary drafts failed", {
+        tags: { hook: "useWhatsAppSummary", op: "fetch.drafts" },
+        extra: { message: drafts.error.message },
+      });
+    }
+    if (recentMsgs.error) {
+      logger.warn("useWhatsAppSummary recent failed", {
+        tags: { hook: "useWhatsAppSummary", op: "fetch.recentMsgs" },
+        extra: { message: recentMsgs.error.message },
+      });
+    }
+    if (recentConvsRes.error) {
+      logger.warn("useWhatsAppSummary recentConvs failed", {
+        tags: { hook: "useWhatsAppSummary", op: "fetch.recentConvs" },
+        extra: { message: recentConvsRes.error.message },
+      });
+    }
 
     const uniqueConvIds = new Set((recentMsgs.data ?? []).map((r) => r.conversation_id));
 

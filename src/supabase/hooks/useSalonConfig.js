@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
 import { dbConfigToApp, appConfigToDb } from "../transforms.js";
 import { PRICING, LARGE_DOG_SLOTS } from "../../constants/salon.ts";
+import { logger } from "../../lib/logger.js";
 
 // Defaults used when there's no salon_config row yet (first-time deploys).
 // Mirrors what the constants file already exports — keeps DB and client in sync.
@@ -91,7 +92,9 @@ export function useSalonConfig({ canSeed = false } = {}) {
         .update(appConfigToDb(newConfig))
         .not("id", "is", null); // update the single row
       if (err) {
-        console.error("Failed to update config:", err);
+        logger.error("Failed to update config", err, {
+          tags: { hook: "useSalonConfig", op: "updateConfig" },
+        });
         setConfig(prev);
         return { ok: false, error: err.message || "Couldn't save settings." };
       }

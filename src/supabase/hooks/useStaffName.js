@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../client.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * useStaffName — resolves a `staff_profiles.user_id` to a display name.
@@ -31,7 +32,10 @@ async function fetchOne(userId) {
       .eq("user_id", userId)
       .maybeSingle();
     if (error) {
-      console.warn("useStaffName: failed to fetch staff_profile", userId, error);
+      logger.warn("useStaffName: failed to fetch staff_profile", {
+        tags: { hook: "useStaffName", op: "fetch" },
+        extra: { userId, message: error?.message },
+      });
       return null;
     }
     return data?.display_name || null;

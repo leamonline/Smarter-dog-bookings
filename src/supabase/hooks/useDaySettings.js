@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
 import { ALL_DAYS } from "../../constants/index.js";
 import { toDateStr } from "../transforms.js";
+import { logger } from "../../lib/logger.js";
 
 function getDefaultOpen(dateObj) {
   const dayOfWeek = dateObj.getDay(); // 0=Sun
@@ -72,7 +73,9 @@ export function useDaySettings(weekStart) {
       if (controller.signal.aborted) return;
 
       if (error) {
-        console.error("Failed to fetch day settings:", error);
+        logger.error("Failed to fetch day settings", error, {
+          tags: { hook: "useDaySettings", op: "fetch" },
+        });
         setDaySettings(defaults);
         setLoading(false);
         return;
@@ -153,7 +156,9 @@ export function useDaySettings(weekStart) {
     );
 
     if (error) {
-      console.error("Failed to upsert day setting:", error);
+      logger.error("Failed to upsert day setting", error, {
+        tags: { hook: "useDaySettings", op: "upsert" },
+      });
       // Roll back the optimistic mutation so the UI matches the
       // server's authoritative state. Caller can toast the error.
       setDaySettings((prev) => ({ ...prev, [dateStr]: prevSetting }));

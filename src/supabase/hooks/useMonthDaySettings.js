@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
 import { ALL_DAYS } from "../../constants/index.js";
 import { toDateStr } from "../transforms.js";
+import { logger } from "../../lib/logger.js";
 
 function getDefaultOpen(dateObj) {
   const dayOfWeek = dateObj.getDay(); // 0=Sun
@@ -67,7 +68,9 @@ export function useMonthDaySettings(year, month) {
       if (controller.signal.aborted) return;
 
       if (error) {
-        console.error("Failed to fetch month day settings:", error);
+        logger.error("Failed to fetch month day settings", error, {
+          tags: { hook: "useMonthDaySettings", op: "fetch" },
+        });
         setDaySettings(defaults);
         setLoading(false);
         return;
