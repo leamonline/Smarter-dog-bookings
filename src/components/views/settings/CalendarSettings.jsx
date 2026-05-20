@@ -6,7 +6,7 @@ import { supabase } from "../../../supabase/client.js";
 import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,
-} from "../../../supabase/rpc.ts";
+} from "../../../supabase/rpc";
 
 export function CalendarSettings() {
   const [feedUrl, setFeedUrl] = useState(null);

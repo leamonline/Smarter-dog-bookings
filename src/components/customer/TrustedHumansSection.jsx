@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { addCustomerTrustedHuman } from "../../supabase/rpc.ts";
+import { addCustomerTrustedHuman } from "../../supabase/rpc";
 import { cardAnim } from "./dashboardConstants.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { Users, Plus, X } from "lucide-react";

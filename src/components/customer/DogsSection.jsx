@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { updateCustomerDog } from "../../supabase/rpc.ts";
+import { updateCustomerDog } from "../../supabase/rpc";
 import { getSizeForBreed } from "../../constants/breeds.js";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";

@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
+import {
+  cancelMany,
+  createMany,
+  joinWaitlist,
+  listIdsInGroup,
+  listOnDateForCapacity,
+} from "../../../supabase/repositories/bookingsRepo";
+import { listForHuman } from "../../../supabase/repositories/dogsRepo";
 import { SALON_SLOTS, BOOKING_STATUS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
 import { PRICING } from "../../../constants/index.js";
@@ -156,16 +164,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setDogsLoading(true);
     setDogsError(null);
     try {
-      const { data, error: fetchErr } = await supabase
-        .from("dogs")
-        .select("id, name, breed, size")
-        .eq("human_id", humanRecord.id)
-        .order("name")
-        .abortSignal(controller.signal);
+      if (!supabase) throw new Error("Not connected");
+      const { dogs: rows, error: fetchErr } = await listForHuman(supabase, {
+        humanId: humanRecord.id,
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
       if (fetchErr) throw fetchErr;
       setDogs(
-        (data || []).map((d: any) => {
+        rows.map((d) => {
           const breed = d.breed || "";
           const storedSize = d.size || null;
           const derivedSize = !storedSize && breed ? (getSizeForBreed(breed) as DogSize | null) : null;
@@ -214,21 +221,11 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     try {
       if (!supabase) throw new Error("Not connected");
 
-      const { data: currentBookings } = await supabase
-        .from("bookings")
-        .select("id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date")
-        .eq("booking_date", selectedDate);
-
-      const bookings: Booking[] = (currentBookings || []).map((row: any) => ({
-        id: row.id, slot: row.slot, size: row.size, dogName: "", breed: "",
-        service: row.service, owner: "", status: row.status, addons: row.addons || [],
-        pickupBy: "", payment: row.payment || "", confirmed: row.confirmed || false,
-        dogNameSnapshot: null, breedSnapshot: null, ownerNameSnapshot: null,
-        whatsappConversationId: null, whatsappMessageId: null,
-        staffCapacityOverride: false, staffCapacityOverrideBy: null, staffCapacityOverrideAt: null,
-        _dogId: row.dog_id, _ownerId: null, _pickupById: row.pickup_by_id || null,
-        _bookingDate: row.booking_date, _groupId: row.group_id || null,
-      }));
+      const { bookings, error: rereadError } = await listOnDateForCapacity(
+        supabase,
+        selectedDate,
+      );
+      if (rereadError) throw rereadError;
 
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
       const stillAvailable = findGroupedSlots(dogsForSlots, bookings, SALON_SLOTS);
@@ -244,25 +241,30 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       const groupId = slotAllocation.groupId;
 
-      const records = selectedDogs.map((dog) => {
+      const inputs = selectedDogs.map((dog) => {
         const assignment = slotAllocation.assignments.find((a) => a.dogId === dog.dogId);
         const slot = assignment?.slot ?? slotAllocation.dropOffTime;
         return {
-          booking_date: selectedDate,
+          bookingDate: selectedDate,
           slot,
-          dog_id: dog.dogId,
+          dogId: dog.dogId,
           size: dog.size,
           service: services[dog.dogId],
-          status: BOOKING_STATUS.BOOKED,
-          confirmed: false,
-          addons: [],
-          payment: "Due at Pick-up",
-          group_id: selectedDogs.length > 1 ? groupId : null,
+          groupId: selectedDogs.length > 1 ? groupId : null,
         };
       });
 
-      const { data: inserted, error: insertError } = await supabase.from("bookings").insert(records).select("id");
-      if (insertError) throw insertError;
+      const { ids: insertedIds, error: insertError } = await createMany(
+        supabase,
+        inputs,
+      );
+      if (insertError) {
+        // Preserve the original Postgres error code so the catch
+        // block's trigger-error matcher (P0001) still fires.
+        const err = new Error(insertError.message);
+        (err as { code?: string }).code = insertError.code;
+        throw err;
+      }
 
       // If this run started as a reschedule, the original booking(s) only get
       // cancelled once the new insert has succeeded. Both writes share this
@@ -271,24 +273,19 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       // an error so the salon catches the rare duplicate, rather than us
       // silently leaving two active bookings.
       if (rescheduleFrom) {
-        const idsToCancel = rescheduleFrom.groupId
-          ? (await supabase
-              .from("bookings")
-              .select("id")
-              .eq("group_id", rescheduleFrom.groupId)).data?.map((r: { id: string }) => r.id) ?? [rescheduleFrom.id]
-          : [rescheduleFrom.id];
+        const idsToCancel = await listIdsInGroup(supabase, {
+          groupId: rescheduleFrom.groupId ?? null,
+          fallbackId: rescheduleFrom.id,
+        });
 
-        const { error: cancelError } = await supabase
-          .from("bookings")
-          .update({
-            status: BOOKING_STATUS.CANCELLED,
-            cancel_reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
-          })
-          .in("id", idsToCancel);
+        const { error: cancelError } = await cancelMany(supabase, {
+          ids: idsToCancel,
+          reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
+        });
         if (cancelError) throw cancelError;
       }
 
-      setBookedIds((inserted ?? []).map((r: { id: string }) => r.id));
+      setBookedIds(insertedIds);
       setBooked(true);
     } catch (e: any) {
       // The server-side capacity trigger raises useful messages like
@@ -310,9 +307,9 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setError(null);
     try {
       if (!supabase) throw new Error("Not connected");
-      const { error: waitErr } = await supabase.from("waitlist_entries").insert({
-        human_id: humanRecord.id,
-        target_date: selectedDate
+      const { error: waitErr } = await joinWaitlist(supabase, {
+        humanId: humanRecord.id,
+        targetDate: selectedDate,
       });
       if (waitErr) throw waitErr;
       setWaitlistJoined(true);

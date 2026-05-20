@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
-import { linkCustomerToHuman } from "../rpc.ts";
+import { linkCustomerToHuman } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_SEND_ERROR =

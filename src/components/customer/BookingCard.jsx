@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { cancelMany, listIdsInGroup } from "../../supabase/repositories/bookingsRepo.ts";
+import { cancelMany, listIdsInGroup } from "../../supabase/repositories/bookingsRepo";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";

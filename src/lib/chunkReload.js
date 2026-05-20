@@ -1,5 +1,5 @@
 import { captureException } from "./sentry.js";
-import { safeGet, safeSet, safeRemove } from "./storage.ts";
+import { safeGet, safeSet, safeRemove } from "./storage";
 
 const RELOAD_FLAG = "app:chunk-reload-attempted";
 const FLAG_TTL_MS = 10_000;
