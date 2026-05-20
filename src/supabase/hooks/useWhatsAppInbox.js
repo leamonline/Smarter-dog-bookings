@@ -31,6 +31,7 @@ import {
   SEND_FUNCTION_PATH,
   parseSupabaseFunctionError,
 } from "./inbox/helpers.js";
+import { useOutboundSender } from "./inbox/useOutboundSender.js";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -196,6 +197,14 @@ export function useWhatsAppInbox() {
       setLoadingList(false);
     }
   }, []);
+
+  // Outbound (compose-new) sends — extracted into their own hook
+  // because they don't share state with the rest of the inbox; only
+  // refreshList() is shared, and they call it explicitly so the
+  // newly-upserted conversation surfaces immediately.
+  const { sendOutboundSMS, sendOutboundTemplate } = useOutboundSender({
+    refreshList,
+  });
 
   useEffect(() => {
     if (!supabase) {
@@ -910,70 +919,6 @@ export function useWhatsAppInbox() {
     return { ok: true };
   }, [selectedId]);
 
-  // ── Outbound SMS via Twilio ────────────────────────────────
-  // Compose-new flow's SMS path. Posts to the sms-send edge function
-  // which upserts the (phone_e164, channel='sms') conversation and
-  // records the outbound message. Free-form text — SMS has no Meta-
-  // style template gate.
-  const sendOutboundSMS = useCallback(
-    async ({ humanId, phoneE164, text }) => {
-      if (!phoneE164 || !text) {
-        return { ok: false, reason: "missing recipient or text" };
-      }
-      const { error } = await supabase.functions.invoke("sms-send", {
-        body: {
-          mode: "manual",
-          to: phoneE164,
-          text,
-          human_id: humanId ?? null,
-        },
-      });
-      if (error) {
-        const detail = await parseSupabaseFunctionError(error, "SMS send failed");
-        return { ok: false, reason: detail };
-      }
-      await refreshList();
-      return { ok: true };
-    },
-    [refreshList],
-  );
-
-  // ── Outbound (compose-new) template send ───────────────────
-  // Used by the inbox header's "New message" button. Identical to
-  // sendTemplate below except the conversation context is supplied
-  // by the picker (humanId + phoneE164) rather than read from the
-  // selectedId — there's no selected thread when staff initiate
-  // contact. whatsapp-send mode:"template" upserts the conversation
-  // by phone_e164, so the message lands in the inbox immediately.
-  const sendOutboundTemplate = useCallback(
-    async ({ humanId, phoneE164, template, paramValues }) => {
-      if (!phoneE164 || !template) {
-        return { ok: false, reason: "missing recipient or template" };
-      }
-      const params = buildTemplateParams(template, paramValues);
-      const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
-        body: {
-          mode: "template",
-          to: phoneE164,
-          template_name: template.name,
-          language: template.language,
-          params,
-          human_id: humanId ?? null,
-        },
-      });
-      if (error) {
-        const detail = await parseSupabaseFunctionError(error, "Template send failed");
-        return { ok: false, reason: detail };
-      }
-      // Refresh the list so the newly-upserted conversation shows up.
-      // The realtime subscription on whatsapp_conversations will also
-      // pick this up, but the manual refresh keeps the post-send
-      // navigation flow synchronous.
-      await refreshList();
-      return { ok: true };
-    },
-    [refreshList],
-  );
 
   const sendTemplate = useCallback(
     async (template, paramValues) => {
