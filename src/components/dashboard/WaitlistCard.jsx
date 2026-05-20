@@ -1,12 +1,17 @@
 import { Clock3, ArrowRight } from "lucide-react";
+import { SkeletonBlock } from "../ui/Skeleton.jsx";
 
-export function WaitlistCard({ count = 0, onOpen, bare = false }) {
+export function WaitlistCard({ count = 0, onOpen, bare = false, loading = false }) {
   const hasWaiting = count > 0;
+  const ariaLabel = loading
+    ? "Waitlist, loading"
+    : `Waitlist, ${count} ${count === 1 ? "dog" : "dogs"} waiting — click to view`;
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Waitlist, ${count} ${count === 1 ? "dog" : "dogs"} waiting — click to view`}
+      aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       className={[
         "group w-full text-left cursor-pointer font-[inherit] border-none transition-colors",
         bare
@@ -25,15 +30,19 @@ export function WaitlistCard({ count = 0, onOpen, bare = false }) {
 
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <div
-            className={`text-2xl font-black font-display leading-none ${
-              hasWaiting ? "text-sky-700" : "text-sky-300"
-            }`}
-          >
-            {count}
-          </div>
+          {loading ? (
+            <SkeletonBlock className="h-7 w-8 rounded-md" />
+          ) : (
+            <div
+              className={`text-2xl font-black font-display leading-none ${
+                hasWaiting ? "text-sky-700" : "text-sky-300"
+              }`}
+            >
+              {count}
+            </div>
+          )}
           <div className="text-[11px] font-semibold text-sky-700/70">
-            {count === 1 ? "dog waiting" : "dogs waiting"}
+            {loading ? "checking…" : count === 1 ? "dog waiting" : "dogs waiting"}
           </div>
         </div>
         <ArrowRight

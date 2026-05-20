@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { InlineError } from "../ui/InlineError.jsx";
 
 export function WaitlistModal({
   onClose,
@@ -115,7 +116,7 @@ export function WaitlistModal({
           </div>
         )}
 
-        {error && <div className="text-xs text-brand-coral">{error}</div>}
+        <InlineError message={error} />
 
         {waitlist.length > 0 ? (
           <ul className="list-none m-0 p-0 flex flex-col gap-1">

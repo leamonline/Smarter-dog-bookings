@@ -12,6 +12,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
@@ -48,6 +49,7 @@ export function WeekCalendarView({
   currentDateStr,
   bookingsByDate,
   bookingsLoading,
+  bookingsError,
   daySettings,
   dayOpenState,
   dogs,
@@ -89,10 +91,16 @@ export function WeekCalendarView({
     return () => window.removeEventListener("smarterdog:open-overview", handler);
   }, []);
 
-  const { todos, addTodos } = useTodos();
+  const toast = useToast();
+  const { todos, addTodos, loading: todoLoading } = useTodos();
   const openTodoCount = todos.filter((t) => !t.done).length;
-  const { waitlist, error: waitlistError, joinWaitlist, leaveWaitlist } =
-    useWaitlist(currentDateObj);
+  const {
+    waitlist,
+    loading: waitlistLoading,
+    error: waitlistError,
+    joinWaitlist,
+    leaveWaitlist,
+  } = useWaitlist(currentDateObj);
   const { unread: waUnread } = useWhatsAppUnread();
 
   const isOpen = currentSettings.isOpen;
@@ -130,7 +138,7 @@ export function WeekCalendarView({
     if (typeof window !== "undefined") window.print();
   };
 
-  const handleConfirmDayToggle = (mode) => {
+  const handleConfirmDayToggle = async (mode) => {
     if (mode === "close" && dayBookings.length > 0) {
       const dateLabel = currentDateObj.toLocaleDateString("en-GB", {
         weekday: "short",
@@ -147,7 +155,12 @@ export function WeekCalendarView({
         else label = "Booking";
         return `Rearrange: ${label} — was ${dateLabel} ${b.slot}`;
       });
-      addTodos(items);
+      // Toast on failure so staff aren't left thinking the rearrange
+      // reminders went onto the to-do list when they actually didn't.
+      const result = await addTodos(items);
+      if (result?.ok === false) {
+        toast.show(result.error || "Couldn't add rearrange notes to the to-do list.", "error");
+      }
     }
     toggleDayOpen();
     setConfirmDayToggle(null);
@@ -234,6 +247,7 @@ export function WeekCalendarView({
               daySettings={daySettings}
               dogs={dogs}
               onSelectDate={handleDatePick}
+              bookingsLoading={bookingsLoading}
             />
           }
           main={
@@ -242,6 +256,8 @@ export function WeekCalendarView({
               currentDateStr={currentDateStr}
               bookings={dayBookings}
               bookingsLoading={bookingsLoading}
+              bookingsError={bookingsError}
+              onRetry={onRefresh}
               dogs={dogs}
               isOpen={isOpen}
               activeSlots={activeSlots}
@@ -286,6 +302,8 @@ export function WeekCalendarView({
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
                   onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
+                  waitlistLoading={waitlistLoading}
+                  todoLoading={todoLoading}
                 />
               </div>
               <div className="hidden xl:block">
@@ -295,6 +313,8 @@ export function WeekCalendarView({
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
                   onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
+                  waitlistLoading={waitlistLoading}
+                  todoLoading={todoLoading}
                 />
               </div>
             </>

@@ -27,12 +27,18 @@ interface OfflineFns {
   handleRemove: (bookingId: string) => void;
   handleUpdate: (booking: Booking) => void;
   toggleDayOpen: () => void;
-  handleOverride: (slot: string, seatIndex: number, action: string) => void;
+  handleOverride: (
+    slot: string,
+    seatIndex: number,
+    action: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }> | { ok: true };
   handleAddSlot: () => void;
   handleRemoveSlot: () => void;
   updateDog: (dog: Dog) => void;
   updateHuman: (human: Human) => void;
-  updateConfig: (config: SalonConfig) => void;
+  updateConfig: (
+    config: SalonConfig | ((prev: SalonConfig) => SalonConfig),
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   addHuman: (human: Human) => void;
   addDog: (dog: Dog) => void;
   dogs: Record<string, Dog>;

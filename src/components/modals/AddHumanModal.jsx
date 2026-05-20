@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconSearch } from "../icons/index.jsx";
+import { InlineError } from "../ui/InlineError.jsx";
 import { titleCase } from "../../utils/text.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
@@ -266,11 +267,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
           </div>
 
-          {error && (
-            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg">
-              {error}
-            </div>
-          )}
+          <InlineError message={error} />
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}

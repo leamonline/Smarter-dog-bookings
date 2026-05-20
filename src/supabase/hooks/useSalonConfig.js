@@ -71,6 +71,10 @@ export function useSalonConfig({ canSeed = false } = {}) {
     return () => { controller.abort(); };
   }, [canSeed]);
 
+  // Returns { ok: true } on success, or { ok: false, error } on failure.
+  // Optimistically updates local state, then rolls back on supabase error
+  // so the caller can surface a toast without the UI lying about the
+  // committed value.
   const updateConfig = useCallback(
     async (updaterOrValue) => {
       const safeConfig = config || DEFAULT_CONFIG;
@@ -81,7 +85,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
       const prev = config;
       setConfig(newConfig);
 
-      if (!supabase) return;
+      if (!supabase) return { ok: true };
       const { error: err } = await supabase
         .from("salon_config")
         .update(appConfigToDb(newConfig))
@@ -89,7 +93,9 @@ export function useSalonConfig({ canSeed = false } = {}) {
       if (err) {
         console.error("Failed to update config:", err);
         setConfig(prev);
+        return { ok: false, error: err.message || "Couldn't save settings." };
       }
+      return { ok: true };
     },
     [config]
   );

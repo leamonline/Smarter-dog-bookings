@@ -1,4 +1,4 @@
-import { Card, CardHead, CardBody, SettingRow, Toggle } from "./shared.jsx";
+import { Card, CardHead, CardBody, SettingRow, Toggle, useConfigSaver } from "./shared.jsx";
 
 const DEFAULT_PORTAL = {
   showUpcoming: true,
@@ -8,10 +8,11 @@ const DEFAULT_PORTAL = {
 };
 
 export function CustomerPortalSettings({ config, onUpdateConfig }) {
+  const save = useConfigSaver(onUpdateConfig);
   const portal = config?.customerPortal || DEFAULT_PORTAL;
 
   const togglePortal = (key) => {
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       customerPortal: { ...(prev.customerPortal || DEFAULT_PORTAL), [key]: !(prev.customerPortal || DEFAULT_PORTAL)[key] },
     }));

@@ -9,6 +9,7 @@ import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS } from "../../constants/salon.js";
 
@@ -19,6 +20,7 @@ const SALON_OPEN_LABEL = "8:30am–3pm";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [dogs, setDogs] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [trustedHumans, setTrustedHumans] = useState([]);
@@ -130,6 +132,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       .eq("id", humanRecord.id);
     setSaving(false);
     if (err) {
+      // Inline saveError is the primary feedback channel — it persists
+      // alongside the still-open form so the user can read and react.
+      // No error toast to avoid duplicating the same signal.
       setSaveError(
         err?.message
           ? `We couldn't save your changes: ${err.message}. Try again, or refresh if it keeps failing.`
@@ -138,7 +143,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       return;
     }
     setEditing(false);
-  }, [humanRecord, details]);
+    toast.show("Details saved", "success");
+  }, [humanRecord, details, toast]);
 
   const handleCancel = useCallback(() => {
     setSaveError(null);

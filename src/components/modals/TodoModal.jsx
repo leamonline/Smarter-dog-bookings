@@ -1,19 +1,46 @@
 import { useRef, useState } from "react";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { InlineError } from "../ui/InlineError.jsx";
 
 export function TodoModal({ onClose }) {
-  const { todos, loading, addTodo, toggleTodo, removeTodo, moveTodo } = useTodos();
+  const toast = useToast();
+  const { todos, loading, error, addTodo, toggleTodo, removeTodo, moveTodo } = useTodos();
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
   const titleId = "todo-modal-title";
+
+  // Thin wrapper so every mutation surface gets a consistent failure
+  // toast. Success is silent — the optimistic update is already visible.
+  const reportFailure = (result, fallback) => {
+    if (result?.ok === false) {
+      toast.show(result.error || fallback, "error");
+    }
+  };
 
   const handleAdd = async () => {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    await addTodo(text);
+    const result = await addTodo(text);
+    reportFailure(result, "Couldn't add task — try again?");
     inputRef.current?.focus();
+  };
+
+  const handleToggle = async (id) => {
+    const result = await toggleTodo(id);
+    reportFailure(result, "Couldn't update task — try again?");
+  };
+
+  const handleRemove = async (id) => {
+    const result = await removeTodo(id);
+    reportFailure(result, "Couldn't remove task — try again?");
+  };
+
+  const handleMove = async (index, direction) => {
+    const result = await moveTodo(index, direction);
+    reportFailure(result, "Couldn't reorder — try again?");
   };
 
   return (
@@ -60,9 +87,11 @@ export function TodoModal({ onClose }) {
           </button>
         </form>
 
+        <InlineError message={error} />
+
         {loading ? (
           <div className="text-center text-xs text-slate-400 py-3">Loading...</div>
-        ) : todos.length === 0 ? (
+        ) : todos.length === 0 && !error ? (
           <div className="text-center text-xs text-slate-400 py-3">No notes yet</div>
         ) : (
           <ul className="list-none m-0 p-0 flex flex-col gap-1">
@@ -73,7 +102,7 @@ export function TodoModal({ onClose }) {
               >
                 <button
                   type="button"
-                  onClick={() => toggleTodo(todo.id)}
+                  onClick={() => handleToggle(todo.id)}
                   aria-label={todo.done ? "Mark as not done" : "Mark as done"}
                   className={`w-4 h-4 mt-0.5 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
                     todo.done
@@ -96,7 +125,7 @@ export function TodoModal({ onClose }) {
                   {i > 0 && (
                     <button
                       type="button"
-                      onClick={() => moveTodo(i, -1)}
+                      onClick={() => handleMove(i, -1)}
                       aria-label="Move up"
                       title="Move up"
                       className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
@@ -107,7 +136,7 @@ export function TodoModal({ onClose }) {
                   {i < todos.length - 1 && (
                     <button
                       type="button"
-                      onClick={() => moveTodo(i, 1)}
+                      onClick={() => handleMove(i, 1)}
                       aria-label="Move down"
                       title="Move down"
                       className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
@@ -117,7 +146,7 @@ export function TodoModal({ onClose }) {
                   )}
                   <button
                     type="button"
-                    onClick={() => removeTodo(todo.id)}
+                    onClick={() => handleRemove(todo.id)}
                     aria-label="Delete"
                     title="Delete"
                     className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-brand-coral hover:bg-brand-coral/10"

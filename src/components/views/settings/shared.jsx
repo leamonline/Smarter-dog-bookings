@@ -1,7 +1,8 @@
 // src/components/views/settings/shared.jsx
 // Shared sub-components used by multiple settings sections.
 
-import { cloneElement, useState } from "react";
+import { cloneElement, useCallback, useState } from "react";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 
 const CARD_HEAD_THEMES = {
   teal:   { bg: "bg-[#E6F5F2]", color: "text-brand-teal-dark" },
@@ -109,6 +110,24 @@ export function SaveButton({ onClick, saving, saved, label = "Save changes" }) {
     <button onClick={onClick} disabled={saving} className={`${base} ${state}`}>
       {saving ? "Saving\u2026" : saved ? "\u2713 Saved" : label}
     </button>
+  );
+}
+
+// Wraps onUpdateConfig so each settings tab gets a single, consistent
+// error toast on save failure. Live-save tabs (every keystroke = one
+// save) call this on each interaction. Success is silent — the
+// optimistic value is already visible on screen.
+export function useConfigSaver(onUpdateConfig) {
+  const toast = useToast();
+  return useCallback(
+    async (updater) => {
+      const result = await onUpdateConfig(updater);
+      if (result?.ok === false) {
+        toast.show(result.error || "Couldn't save — try again?", "error");
+      }
+      return result;
+    },
+    [onUpdateConfig, toast],
   );
 }
 

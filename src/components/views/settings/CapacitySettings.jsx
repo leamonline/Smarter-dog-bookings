@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS } from "./shared.jsx";
+import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
 export function CapacitySettings({ config, onUpdateConfig }) {
+  const save = useConfigSaver(onUpdateConfig);
   const [newSlotTime, setNewSlotTime] = useState("");
 
   const toggleCapacity = () => {
-    onUpdateConfig((prev) => ({ ...prev, enforceCapacity: !prev.enforceCapacity }));
+    save((prev) => ({ ...prev, enforceCapacity: !prev.enforceCapacity }));
   };
 
   const addLargeDogSlot = () => {
     if (!newSlotTime) return;
     if (config.largeDogSlots[newSlotTime]) return;
-    onUpdateConfig((prev) => ({
+    save((prev) => ({
       ...prev,
       largeDogSlots: {
         ...prev.largeDogSlots,
@@ -22,7 +23,7 @@ export function CapacitySettings({ config, onUpdateConfig }) {
   };
 
   const removeLargeDogSlot = (time) => {
-    onUpdateConfig((prev) => {
+    save((prev) => {
       const updated = { ...prev.largeDogSlots };
       delete updated[time];
       return { ...prev, largeDogSlots: updated };
