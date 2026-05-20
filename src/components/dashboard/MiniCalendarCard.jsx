@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toDateStr } from "../../supabase/transforms.js";
-import { getDefaultOpenForDate } from "../../engine/utils.ts";
+import { getDefaultOpenForDate } from "../../engine/utils";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
-import { DAY_CAPACITY } from "../../engine/utilisation.js";
+import { DAY_CAPACITY } from "../../engine/utilisation";
 
 export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
   const todayStr = toDateStr(new Date());
