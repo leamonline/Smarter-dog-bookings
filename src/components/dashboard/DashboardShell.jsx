@@ -57,10 +57,13 @@ export function DashboardShell({ left, main, right }) {
       </div>
 
       {/* Right column — same height contract as middle. Long workflow
-          stacks (waitlist, to-do, booking history) scroll internally. */}
+          stacks (waitlist, to-do, booking history) scroll internally.
+          Bottom corners rounded so scrolled content fades into a
+          rounded edge instead of a hard clip — matches the visual
+          shape of the booking grid card in the middle column. */}
       {right && (
         <div
-          className="order-2 xl:order-3 xl:sticky xl:top-4 xl:overflow-y-auto"
+          className="order-2 xl:order-3 xl:sticky xl:top-4 xl:overflow-y-auto xl:rounded-b-2xl"
           style={matchedHeightStyle}
         >
           {right}
