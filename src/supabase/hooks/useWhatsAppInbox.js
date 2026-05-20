@@ -27,27 +27,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
 import { logger } from "../../lib/logger.js";
+import {
+  SEND_FUNCTION_PATH,
+  parseSupabaseFunctionError,
+} from "./inbox/helpers.js";
 
-const SEND_FUNCTION_PATH = "whatsapp-send";
-
-// Pulls a useful failure message out of a supabase.functions.invoke
-// error. The transport-level `error.message` is usually generic ("Edge
-// Function returned a non-2xx status code"); the function body
-// typically carries the real `{ error, detail }` JSON. We try to parse
-// that and fall back to the transport message if parsing fails.
-async function parseSupabaseFunctionError(error, fallbackMessage) {
-  let detail = error.message ?? fallbackMessage;
-  try {
-    const errorBody = await error.context?.json?.();
-    if (errorBody) {
-      const parts = [errorBody.error, errorBody.detail].filter(Boolean);
-      if (parts.length) detail = parts.join(": ");
-    }
-  } catch {
-    /* fall through */
-  }
-  return detail;
-}
 
 // ── Pure helpers (exported for testing) ─────────────────────
 // Filters the bookingActions list down to the actions attached to the
