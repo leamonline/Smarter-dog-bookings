@@ -24,6 +24,22 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
     ? SUGGESTED_REASON_LABEL[conv.closure_suggested_reason] ?? null
     : null;
 
+  // Decode the red dot into a specific reason. fetchConversationsList
+  // pulls draft.handoff_required + draft.risk_level so we can name the
+  // exact gate that pinned this conversation as "needs review".
+  const pendingDrafts = Array.isArray(conv.whatsapp_drafts)
+    ? conv.whatsapp_drafts.filter((d) => d.state === "pending")
+    : [];
+  const hasHandoffDraft = pendingDrafts.some((d) => d.handoff_required === true);
+  const hasHighRiskDraft = pendingDrafts.some((d) => d.risk_level === "high");
+  const reviewTitle = hasHandoffDraft && hasHighRiskDraft
+    ? "Needs review: AI flagged a handoff AND the draft is high-risk. Open to see the reason."
+    : hasHandoffDraft
+      ? "Needs review: the AI explicitly flagged this conversation for human handoff. Open to see why."
+      : hasHighRiskDraft
+        ? "Needs review: the draft is rated high-risk (bookings, refunds, complaints, medical). Open to read it."
+        : "Needs review: draft is awaiting your approval.";
+
   return (
     <button
       onClick={() => onSelect(conv.id)}
@@ -56,28 +72,28 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
           {conv.needs_human_review && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-rose-500"
-              title="High-risk draft — needs human review"
-              aria-label="Needs human review"
+              title={reviewTitle}
+              aria-label={reviewTitle}
             />
           )}
           {conv.has_pending_draft && !conv.needs_human_review && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-amber-400"
-              title="AI draft pending review"
+              title="AI has drafted a reply for this conversation — open to read it and approve, edit, or reject."
               aria-label="AI draft pending review"
             />
           )}
           {conv.has_pending_booking_action && (
             <span
               className="inline-block w-2 h-2 rounded-full bg-emerald-500"
-              title="Booking proposal pending approval"
+              title="The AI is proposing a booking (create / reschedule / cancel) — open to review the proposed dog, date, and slot before applying."
               aria-label="Booking proposal pending approval"
             />
           )}
           {conv.lead_status === "records_created" && !isClosed && (
             <span
               className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-800 border border-sky-200"
-              title="New customer onboarded by AI — spot-check before approving the first booking"
+              title="New customer — the AI created the human + dog records on its own (autonomous onboarding). Spot-check the details before approving the first booking, then this pill fades after the next inbound message."
               aria-label="New customer onboarded by AI"
             >
               🆕 New

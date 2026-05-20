@@ -547,10 +547,15 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 )}
               </div>
 
-              {/* Pending AI draft — only rendered when there is one */}
+              {/* Pending AI draft — only rendered when there is one.
+                  Passing the conversation lets the WhyHeldExplainer inside
+                  the panel narrate why this draft is awaiting your nod
+                  (mode='AI drafts', risk_level='high', handoff_required,
+                  etc.). */}
               {draft && (
                 <DraftPanel
                   draft={draft}
+                  conversation={selectedConversation}
                   attachedActions={attachedActions}
                   onApprove={handleApproveDraft}
                   onApproveAndApply={handleApproveAndApply}

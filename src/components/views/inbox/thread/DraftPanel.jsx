@@ -15,8 +15,9 @@
 import { useEffect, useState } from "react";
 import { confidenceLabel, formatShortDate } from "../helpers.js";
 import { RiskPill } from "../RiskPill.jsx";
+import { WhyHeldExplainer } from "./WhyHeldExplainer.jsx";
 
-export function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAndApply, onReject, inFlight }) {
+export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onApproveAndApply, onReject, inFlight }) {
   const [editing, setEditing] = useState(false);
   const [editedText, setEditedText] = useState(draft?.proposed_text ?? "");
   const [error, setError] = useState(null);
@@ -112,6 +113,13 @@ export function DraftPanel({ draft, attachedActions = [], onApprove, onApproveAn
         <div className="text-[14px] text-slate-800 whitespace-pre-wrap mb-2">
           {draft.proposed_text}
         </div>
+      )}
+
+      {/* Trust panel: explain in one sentence WHY this draft is held
+          for staff approval rather than auto-sending. Hidden in editing
+          and rejecting modes — the reasoning is irrelevant there. */}
+      {!editing && !rejecting && (
+        <WhyHeldExplainer draft={draft} conversation={conversation} />
       )}
 
       {attachedActions.length > 0 && !rejecting && (
