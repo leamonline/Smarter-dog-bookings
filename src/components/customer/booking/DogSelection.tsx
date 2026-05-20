@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { WizardDog, DogSize } from "../../../types/index.js";
+import { DOG_SIZES } from "../../../constants/index.js";
 import { AddDogInline } from "./AddDogInline.js";
 import { Check, PawPrint, ArrowRight } from "lucide-react";
 import { titleCase } from "../../../utils/text.js";
@@ -69,7 +70,7 @@ export function DogSelection({
         <div className="flex flex-col gap-2">
           {dogs.map((dog) => {
             const selected = isSelected(dog.id);
-            const sizeKnown = dog.size === "small" || dog.size === "medium" || dog.size === "large";
+            const sizeKnown = (DOG_SIZES as readonly string[]).includes(dog.size as string);
             const disabled = !sizeKnown || (!selected && selectedDogs.length >= 4);
             const sizeLabel = sizeKnown ? `${dog.size!.charAt(0).toUpperCase()}${dog.size!.slice(1)}` : null;
             return (

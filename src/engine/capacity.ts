@@ -1,4 +1,4 @@
-import { LARGE_DOG_SLOTS, BOOKING_STATUS } from "../constants/index.js";
+import { LARGE_DOG_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index.js";
 import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index.js";
 
 // ============================================================
@@ -6,7 +6,7 @@ import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, Booking
 // ============================================================
 
 export function getSeatsNeeded(size: DogSize, slot: string): number {
-  if (size === "large") {
+  if (size === DOG_SIZE.LARGE) {
     const rule = (LARGE_DOG_SLOTS as Record<string, LargeDogSlotRule>)[slot];
     return rule ? rule.seats : 2;
   }
@@ -28,7 +28,7 @@ export function getSeatsUsedMap(bookings: Booking[], activeSlots: string[]): Rec
 }
 
 export function hasLargeDog(bookings: Booking[], slot: string): boolean {
-  return bookings.some((b) => b.slot === slot && b.size === "large");
+  return bookings.some((b) => b.slot === slot && b.size === DOG_SIZE.LARGE);
 }
 
 // ============================================================
@@ -293,7 +293,7 @@ export function canBookSlot(
 
   const seatsNeeded = getSeatsNeeded(size, slot);
 
-  if (size === "large") {
+  if (size === DOG_SIZE.LARGE) {
     const rule = largeDogSlots[slot];
 
     // --- Mid-morning block: no LARGE_DOG_SLOTS entry ---
@@ -415,7 +415,7 @@ export function canBookSlot(
     return {
       allowed: false,
       reason:
-        size === "large"
+        size === DOG_SIZE.LARGE
           ? "Not enough capacity (2-2-1 rule)"
           : cap.isEarlyClosed
             ? "1:00pm closed — early close from 12:00 large dog"
@@ -426,7 +426,7 @@ export function canBookSlot(
   }
 
   // --- Small/medium blocked by full-takeover large dog ---
-  if (size !== "large" && cap.hasLargeDog && !override.capacity) {
+  if (size !== DOG_SIZE.LARGE && cap.hasLargeDog && !override.capacity) {
     const rule = largeDogSlots[slot];
     if (rule && !rule.canShare) {
       return { allowed: false, reason: "Large dog fills this slot" };

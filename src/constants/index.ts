@@ -9,6 +9,8 @@ export {
   ALERT_OPTIONS,
   BOOKING_STATUSES,
   BOOKING_STATUS,
+  DOG_SIZES,
+  DOG_SIZE,
 } from "./salon.js";
 export {
   BREED_SIZE_MAP,

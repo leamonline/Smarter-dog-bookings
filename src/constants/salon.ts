@@ -43,6 +43,20 @@ export const PRICING = {
   "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
 };
 
+// Canonical dog-size identifiers. The DogSize type in types/index.ts is
+// derived from this tuple so the runtime set and the compile-time set
+// can't drift.
+export const DOG_SIZES = ["small", "medium", "large"] as const;
+export type DogSize = (typeof DOG_SIZES)[number];
+
+// Named accessors for the size strings; use these for comparisons and
+// writes so the literal "large" doesn't leak into engine code.
+export const DOG_SIZE = {
+  SMALL: "small",
+  MEDIUM: "medium",
+  LARGE: "large",
+} as const satisfies Record<string, DogSize>;
+
 export const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"] as const;
 
 export const ADDON_PRICES: Record<string, number> = {

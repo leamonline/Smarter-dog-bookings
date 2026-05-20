@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
-import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS } from "../constants/index.js";
+import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index.js";
 import type { BookingsByDate, Dog, Human } from "../types/index.js";
 
 type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
@@ -410,7 +410,7 @@ export function buildReportInsights(stats: ReturnType<typeof computeReportStats>
     out.service = `${top.name} drives ${pct}% of your revenue (\u00A3${top.rev.toFixed(0)} from ${top.n} bookings).`;
   }
 
-  const large = stats.sizes.find((s) => s.size === "large");
+  const large = stats.sizes.find((s) => s.size === DOG_SIZE.LARGE);
   if (large && large.pct > 0 && stats.curRev > 0) {
     const revPct = ((large.rev / stats.curRev) * 100).toFixed(0);
     if (parseFloat(revPct) > large.pct + 5) {

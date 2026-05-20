@@ -2,7 +2,8 @@
 // Core type definitions for Smarter Dog Grooming booking app
 // ============================================================
 
-export type DogSize = "small" | "medium" | "large";
+import type { DogSize } from "../constants/salon.js";
+export type { DogSize };
 
 export type ServiceId = "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
 
