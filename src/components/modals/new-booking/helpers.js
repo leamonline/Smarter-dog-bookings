@@ -21,11 +21,6 @@ export function isDateOpen(dateStr, dayOpenState) {
   return Boolean(ALL_DAYS[dayIndex]?.defaultOpen);
 }
 
-export function getHumanPhone(humans, humanKey) {
-  const h = humans?.[humanKey];
-  return h?.phone || "";
-}
-
 /**
  * One entry per dog, with the owner and trusted humans grouped inside.
  * Shape: { dog, hasAlerts, humans: [{ key, phone, isTrusted, missing }] }.

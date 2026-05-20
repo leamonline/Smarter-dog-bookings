@@ -2,50 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
+import { sendEmail } from "../_shared/email.ts";
+import { sanitise, joinNames } from "../_shared/format.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
-const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 // Twilio creds are read inside ../_shared/twilio.ts.
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Strip HTML tags and control characters from user-supplied text (names, etc.) */
-function sanitise(str: string): string {
-  return str
-    .replace(/<[^>]*>/g, "")
-    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, "")
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${SENDGRID_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: SENDGRID_FROM, name: "Smarter Dog Grooming" },
-      subject,
-      content: [{ type: "text/plain", value: text }],
-    }),
-  });
-  return res.status >= 200 && res.status < 300;
-}
-
-/** Join a list of names naturally: "Bella", "Bella and Max", "Bella, Max and Daisy" */
-function joinNames(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-}
+// SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
 
 // ── Main handler ───────────────────────────────────────────────────────────
 //

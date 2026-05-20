@@ -44,6 +44,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
+import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,32 +56,10 @@ const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 // reply but still protects against paste-the-whole-document accidents.
 const MAX_SMS_TEXT_LEN = 2000;
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
-const ALLOWED_ORIGINS = new Set(
-  (Deno.env.get("SMS_SEND_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
+const ALLOWED_ORIGINS = buildAllowedOrigins("SMS_SEND_ALLOWED_ORIGINS");
 
-function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-internal-secret",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
+const corsFor = (req: Request) =>
+  buildCorsHeaders(req, ALLOWED_ORIGINS, { allowInternalSecret: true });
 
 interface ManualMode {
   mode: "manual";
@@ -294,7 +273,7 @@ function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...buildCorsHeaders(req),
+      ...corsFor(req),
       "Content-Type": "application/json",
     },
   });
@@ -302,7 +281,7 @@ function json(req: Request, body: unknown, status = 200): Response {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
   if (req.method !== "POST") {
     return json(req, { error: "method not allowed" }, 405);

@@ -21,6 +21,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -31,36 +32,14 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 const CLAUDE_MODEL = "claude-haiku-4-5";
 const CACHE_KEY = "whatsapp";
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  "https://smarterdog.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
-const ALLOWED_ORIGINS = new Set(
-  (Deno.env.get("DASHBOARD_SUMMARY_ALLOWED_ORIGINS") ?? DEFAULT_ALLOWED_ORIGINS.join(","))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
+const ALLOWED_ORIGINS = buildAllowedOrigins("DASHBOARD_SUMMARY_ALLOWED_ORIGINS");
 
-function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
+const corsFor = (req: Request) => buildCorsHeaders(req, ALLOWED_ORIGINS);
 
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
+    headers: { ...corsFor(req), "Content-Type": "application/json" },
   });
 }
 
@@ -176,7 +155,7 @@ async function callHaiku(awaiting: AwaitingConversation[]): Promise<string> {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(req) });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
   if (req.method !== "POST") {
     return json(req, { error: "method not allowed" }, 405);

@@ -99,9 +99,11 @@ describe("waMeLink", () => {
     expect(waMeLink(undefined)).toBeNull();
   });
 
-  it("strips non-digit characters and prefixes wa.me", () => {
+  it("normalises UK numbers to E.164 digits and prefixes wa.me", () => {
     expect(waMeLink("+44 7700 900000")).toBe("https://wa.me/447700900000");
-    expect(waMeLink("(0044) 7700 900000")).toBe("https://wa.me/00447700900000");
+    // Leading "00" international dial prefix is stripped — "0044…" is
+    // the international form of a UK number, not a separate country.
+    expect(waMeLink("(0044) 7700 900000")).toBe("https://wa.me/447700900000");
   });
 
   it("returns null when nothing-digit is left after stripping", () => {
@@ -116,8 +118,7 @@ describe("telLink", () => {
     expect(telLink("   ")).toBeNull();
   });
 
-  it("preserves the formatted phone in the tel: link", () => {
-    // tel: links accept formatted numbers — most browsers parse them.
-    expect(telLink("+44 7700 900000")).toBe("tel:+44 7700 900000");
+  it("normalises the phone into a clean tel: link", () => {
+    expect(telLink("+44 7700 900000")).toBe("tel:+447700900000");
   });
 });

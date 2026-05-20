@@ -56,21 +56,7 @@ export function formatBookingDate(dateStr) {
   });
 }
 
-// Build a `wa.me` link from a phone number. Strips everything that
-// isn't a digit; returns null when there's nothing usable. Always
-// goes through wa.me (not the local app) so the inbox stays in the
-// browser — opening WhatsApp Desktop would steal context.
-export function waMeLink(phone) {
-  if (!phone) return null;
-  const digits = String(phone).replace(/\D+/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits}`;
-}
-
-// `tel:` link. Returns null when the phone is empty.
-export function telLink(phone) {
-  if (!phone) return null;
-  const cleaned = String(phone).trim();
-  if (!cleaned) return null;
-  return `tel:${cleaned}`;
-}
+// Re-exported so existing imports from this module keep working — the
+// canonical phone-link helpers live in `src/utils/phone.js` next to
+// the rest of the phone utilities.
+export { telLinkOrNull as telLink, waMeLink } from "../../../../utils/phone.js";
