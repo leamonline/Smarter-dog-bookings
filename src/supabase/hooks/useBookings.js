@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
 import { BOOKING_STATUS } from "../../constants/salon.js";
+import { logger } from "../../lib/logger.js";
 
 function groupBookingsByDate(rows, dogsById, humansById) {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);
@@ -207,7 +208,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
 
       if (!dogId) {
         const message = `Dog not found for booking: ${booking.dogName}`;
-        console.error(message);
+        logger.error(message, undefined, {
+          tags: { hook: "useBookings", op: "addBooking" },
+          extra: { dogName: booking.dogName },
+        });
         setError(message);
         onErrorRef.current?.(message);
         return null;
@@ -256,7 +260,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
           ...prev,
           [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== tempId),
         }));
-        console.error("Failed to add booking:", err);
+        logger.error("Failed to add booking", err, {
+          tags: { hook: "useBookings", op: "addBooking" },
+        });
         setError(err.message);
         onErrorRef.current?.(err.message);
         return null;
@@ -311,7 +317,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
           [dateStr]: [...(prev[dateStr] || []), removed],
         }));
       }
-      console.error("Failed to remove booking:", err);
+      logger.error("Failed to remove booking", err, {
+        tags: { hook: "useBookings", op: "removeBooking" },
+      });
       setError(err.message);
       onErrorRef.current?.(err.message);
       return { success: false, error: err.message };
@@ -423,7 +431,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
             return next;
           });
         }
-        console.error("Failed to update booking:", err);
+        logger.error("Failed to update booking", err, {
+          tags: { hook: "useBookings", op: "updateBooking" },
+        });
         setError(err.message);
         onErrorRef.current?.(err.message);
         return null;
@@ -466,7 +476,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
       .limit(10);
 
     if (err) {
-      console.error("Failed to fetch booking history:", err);
+      logger.error("Failed to fetch booking history", err, {
+        tags: { hook: "useBookings", op: "fetchBookingHistoryForDog" },
+      });
       return [];
     }
 

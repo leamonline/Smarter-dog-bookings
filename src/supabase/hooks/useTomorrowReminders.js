@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../client.js";
 import { getNextWorkingDay } from "../../utils/nextWorkingDay.js";
+import { logger } from "../../lib/logger.js";
 
 export function useTomorrowReminders() {
   const targetDate = useMemo(() => getNextWorkingDay(), []);
@@ -81,7 +82,9 @@ export function useTomorrowReminders() {
       });
       setRows(result);
     } catch (err) {
-      console.error("useTomorrowReminders:", err);
+      logger.error("useTomorrowReminders fetch failed", err, {
+        tags: { hook: "useTomorrowReminders", op: "fetch" },
+      });
       setError(err);
     } finally {
       setLoading(false);

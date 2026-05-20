@@ -1,6 +1,6 @@
 /**
  * Seed script for Supabase.
- * Run: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node src/supabase/seed.js
+ * Run: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run seed
  *
  * ⚠️  Uses the service_role key to bypass RLS. Never expose this key client-side.
  * ⚠️  ONLY run against a local Supabase project. Do NOT point this at staging
@@ -12,15 +12,15 @@
  * substitution below is belt-and-braces — if an upstream caller ever pipes
  * faker output through, a null lastName won't reach the database.
  */
+import { createClient } from "@supabase/supabase-js";
+import { BOOKING_STATUS } from "../constants/salon.js";
 
-function safeSurname(value) {
+function safeSurname(value: unknown): string {
   if (value === null || value === undefined) return "";
   const trimmed = String(value).trim();
   if (!trimmed || ["null", "undefined"].includes(trimmed.toLowerCase())) return "";
   return trimmed;
 }
-
-import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -38,7 +38,43 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // -- Sample data (inline to avoid ESM import issues with Vite paths) --
 
-const SAMPLE_HUMANS = {
+interface SampleHuman {
+  name: string;
+  surname: string;
+  phone: string;
+  sms: boolean;
+  whatsapp: boolean;
+  email: string;
+  fb: string;
+  insta: string;
+  tiktok: string;
+  address: string;
+  notes: string;
+  trustedIds: string[];
+  historyFlag: string;
+}
+
+interface SampleDog {
+  name: string;
+  breed: string;
+  age: string;
+  humanId: string;
+  alerts: string[];
+  groomNotes: string;
+}
+
+interface SampleBooking {
+  slot: string;
+  dogName: string;
+  size: string;
+  service: string;
+  status?: string;
+  addons?: string[];
+  pickupBy?: string;
+  payment?: string;
+}
+
+const SAMPLE_HUMANS: Record<string, SampleHuman> = {
   "Sarah Jones": { name: "Sarah", surname: "Jones", phone: "07700 900111", sms: true, whatsapp: true, email: "sarah@example.com", fb: "", insta: "@sarahj", tiktok: "", address: "123 Main St", notes: "Prefers texts", trustedIds: ["Dave Smith"], historyFlag: "1 No-show (Oct 2023)" },
   "Dave Smith": { name: "Dave", surname: "Smith", phone: "07700 900112", sms: true, whatsapp: false, email: "dave@example.com", fb: "davesmith", insta: "", tiktok: "", address: "456 Side St", notes: "", trustedIds: ["Sarah Jones"], historyFlag: "" },
   "Emma Wilson": { name: "Emma", surname: "Wilson", phone: "07700 900113", sms: false, whatsapp: true, email: "emma@example.com", fb: "", insta: "", tiktok: "", address: "789 Park Rd", notes: "", trustedIds: [], historyFlag: "" },
@@ -51,7 +87,7 @@ const SAMPLE_HUMANS = {
   "Helen Wright": { name: "Helen", surname: "Wright", phone: "", sms: false, whatsapp: false, email: "", fb: "", insta: "", tiktok: "", address: "", notes: "", trustedIds: [], historyFlag: "" },
 };
 
-const SAMPLE_DOGS = {
+const SAMPLE_DOGS: Record<string, SampleDog> = {
   "Bella": { name: "Bella", breed: "Cockapoo", age: "3 yrs", humanId: "Sarah Jones", alerts: ["Allergic to oatmeal shampoo"], groomNotes: "Teddy bear cut, short on ears." },
   "Max": { name: "Max", breed: "Shih Tzu", age: "5 yrs", humanId: "Dave Smith", alerts: ["Bites / Nips"], groomNotes: "Leave tail long." },
   "Luna": { name: "Luna", breed: "Cavapoo", age: "2 yrs", humanId: "Emma Wilson", alerts: [], groomNotes: "" },
@@ -64,10 +100,10 @@ const SAMPLE_DOGS = {
   "Poppy": { name: "Poppy", breed: "Cocker Spaniel", age: "", humanId: "Helen Wright", alerts: [], groomNotes: "" },
 };
 
-const SAMPLE_BOOKINGS_BY_DAY = {
+const SAMPLE_BOOKINGS_BY_DAY: Record<string, SampleBooking[]> = {
   mon: [
     { slot: "08:30", dogName: "Bella", size: "small", service: "full-groom", status: "Checked in", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
-    { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: "Booked", addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
     { slot: "09:00", dogName: "Luna", size: "small", service: "full-groom" },
     { slot: "09:00", dogName: "Charlie", size: "medium", service: "bath-and-deshed" },
     { slot: "10:00", dogName: "Daisy", size: "small", service: "full-groom" },
@@ -82,10 +118,10 @@ const SAMPLE_BOOKINGS_BY_DAY = {
 };
 
 const PRICING = {
-  "full-groom": { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
-  "bath-and-brush": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  "bath-and-deshed": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
+  "full-groom": { small: "£42+", medium: "£46+", large: "£60+" },
+  "bath-and-brush": { small: "£38+", medium: "£42+", large: "£55+" },
+  "bath-and-deshed": { small: "£38+", medium: "£42+", large: "£55+" },
+  "puppy-groom": { small: "£38", medium: "£38", large: "N/A" },
 };
 
 const LARGE_DOG_SLOTS = {
@@ -98,11 +134,11 @@ const LARGE_DOG_SLOTS = {
 
 // --- Seed logic ---
 
-async function seed() {
+async function seed(): Promise<void> {
   console.log("Seeding Supabase...");
 
   // 1. Insert humans
-  const humanNameToUuid = {};
+  const humanNameToUuid: Record<string, string> = {};
   for (const [fullName, h] of Object.entries(SAMPLE_HUMANS)) {
     const { data, error } = await supabase.from("humans").insert({
       name: h.name, surname: safeSurname(h.surname), phone: h.phone,
@@ -130,7 +166,7 @@ async function seed() {
   console.log("  Trusted contacts inserted");
 
   // 3. Insert dogs
-  const dogNameToUuid = {};
+  const dogNameToUuid: Record<string, string> = {};
   for (const [dogName, d] of Object.entries(SAMPLE_DOGS)) {
     const humanUuid = humanNameToUuid[d.humanId];
     if (!humanUuid) { console.error(`  Dog ${dogName}: owner "${d.humanId}" not found`); continue; }
@@ -150,7 +186,7 @@ async function seed() {
   const monday = new Date(today);
   monday.setDate(today.getDate() + mondayOffset);
 
-  const dayToOffset = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+  const dayToOffset: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 
   for (const [dayKey, bookings] of Object.entries(SAMPLE_BOOKINGS_BY_DAY)) {
     const bookingDate = new Date(monday);
@@ -166,7 +202,7 @@ async function seed() {
       const { error } = await supabase.from("bookings").insert({
         booking_date: dateStr, slot: b.slot, dog_id: dogUuid,
         size: b.size, service: b.service,
-        status: b.status || "Booked",
+        status: b.status || BOOKING_STATUS.BOOKED,
         addons: b.addons || [],
         pickup_by_id: pickupUuid,
         payment: b.payment || "Due at Pick-up",

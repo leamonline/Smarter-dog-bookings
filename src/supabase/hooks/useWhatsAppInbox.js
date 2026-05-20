@@ -26,6 +26,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
+import { logger } from "../../lib/logger.js";
 
 const SEND_FUNCTION_PATH = "whatsapp-send";
 
@@ -203,7 +204,9 @@ export function useWhatsAppInbox() {
       setConversations(list);
       setListError(null);
     } catch (err) {
-      console.error("useWhatsAppInbox refreshList:", err);
+      logger.error("useWhatsAppInbox refreshList failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "refreshList" },
+      });
       setListError(err);
     } finally {
       setLoadingList(false);
@@ -261,7 +264,9 @@ export function useWhatsAppInbox() {
       setBookingActions(detail.bookingActions);
       setDetailError(null);
     } catch (err) {
-      console.error("useWhatsAppInbox refreshDetail:", err);
+      logger.error("useWhatsAppInbox refreshDetail failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "refreshDetail" },
+      });
       setDetailError(err);
     } finally {
       setLoadingDetail(false);
@@ -295,7 +300,12 @@ export function useWhatsAppInbox() {
     supabase
       .rpc("mark_whatsapp_conversation_read", { p_conversation_id: conversationId })
       .then(({ error }) => {
-        if (error) console.warn("mark_whatsapp_conversation_read:", error.message);
+        if (error) {
+          logger.warn("mark_whatsapp_conversation_read RPC error", {
+            tags: { hook: "useWhatsAppInbox", op: "markRead" },
+            extra: { message: error.message },
+          });
+        }
       });
 
     await refreshDetail(conversationId);
@@ -391,7 +401,9 @@ export function useWhatsAppInbox() {
       );
       return { ok: true, result: data };
     } catch (err) {
-      console.error("approveDraft:", err);
+      logger.error("approveDraft failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "approveDraft" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -472,7 +484,9 @@ export function useWhatsAppInbox() {
 
       return { ok: true, applied, sendResult: sendData };
     } catch (err) {
-      console.error("approveDraftAndApply:", err);
+      logger.error("approveDraftAndApply failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "approveDraftAndApply" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -511,7 +525,9 @@ export function useWhatsAppInbox() {
       );
       return { ok: true };
     } catch (err) {
-      console.error("rejectDraft:", err);
+      logger.error("rejectDraft failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "rejectDraft" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -551,7 +567,9 @@ export function useWhatsAppInbox() {
       // fold the new row into the thread. Nothing to do here.
       return { ok: true, result: data };
     } catch (err) {
-      console.error("sendManualReply:", err);
+      logger.error("sendManualReply failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "sendManualReply" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -591,7 +609,9 @@ export function useWhatsAppInbox() {
       });
       return { ok: true, bookingId: data };
     } catch (err) {
-      console.error("applyBookingAction:", err);
+      logger.error("applyBookingAction failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "applyBookingAction" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -625,7 +645,9 @@ export function useWhatsAppInbox() {
       });
       return { ok: true };
     } catch (err) {
-      console.error("rejectBookingAction:", err);
+      logger.error("rejectBookingAction failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "rejectBookingAction" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -643,7 +665,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("takeoverConversation:", err);
+      logger.error("takeoverConversation failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "takeoverConversation" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -661,7 +685,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("releaseConversation:", err);
+      logger.error("releaseConversation failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "releaseConversation" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -691,7 +717,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("setAutoSendEnabled:", err);
+      logger.error("setAutoSendEnabled failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "setAutoSendEnabled" },
+      });
       // Roll back the optimistic flip.
       setConversations((prev) =>
         prev.map((c) => (c.id === selectedId ? { ...c, auto_send_enabled: !next } : c)),
@@ -717,7 +745,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("setAutonomousBookingEnabled:", err);
+      logger.error("setAutonomousBookingEnabled failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "setAutonomousBookingEnabled" },
+      });
       // Roll back the optimistic flip.
       setConversations((prev) =>
         prev.map((c) => (c.id === selectedId ? { ...c, autonomous_booking_enabled: !next } : c)),
@@ -777,7 +807,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("setAIMode:", err);
+      logger.error("setAIMode failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "setAIMode" },
+      });
       if (previousSnapshot) {
         setConversations((list) =>
           list.map((c) => (c.id === selectedId ? { ...c, ...previousSnapshot } : c)),
@@ -829,7 +861,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true, reason };
     } catch (err) {
-      console.error("resolveConversation:", err);
+      logger.error("resolveConversation failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "resolveConversation" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);
@@ -853,7 +887,9 @@ export function useWhatsAppInbox() {
       if (error) throw error;
       return { ok: true };
     } catch (err) {
-      console.error("reopenConversation:", err);
+      logger.error("reopenConversation failed", err, {
+        tags: { hook: "useWhatsAppInbox", op: "reopenConversation" },
+      });
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     } finally {
       setActionInFlight(false);

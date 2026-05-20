@@ -20,6 +20,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { logger } from "../../lib/logger.js";
 
 export function useWhatsAppUnread() {
   const [unread, setUnread] = useState(0);
@@ -38,7 +39,10 @@ export function useWhatsAppUnread() {
       .select("unread_count");
 
     if (error) {
-      console.warn("useWhatsAppUnread refresh:", error.message);
+      logger.warn("useWhatsAppUnread refresh failed", {
+        tags: { hook: "useWhatsAppUnread", op: "refresh" },
+        extra: { message: error.message },
+      });
       setLoading(false);
       return;
     }

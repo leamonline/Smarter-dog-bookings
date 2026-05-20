@@ -7,8 +7,8 @@ import {
   findNextAvailable,
   utilisationColor,
   utilisationLabel,
-} from "../../engine/utilisation.js";
-import { getDefaultOpenForDate } from "../../engine/utils.ts";
+} from "../../engine/utilisation";
+import { getDefaultOpenForDate } from "../../engine/utils";
 
 function CapacityBar({ pct, isOpen, label, sub, statusLabel }) {
   return (

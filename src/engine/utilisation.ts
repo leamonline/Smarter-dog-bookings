@@ -1,30 +1,67 @@
-import { SALON_SLOTS } from "../constants/index.ts";
+import { SALON_SLOTS } from "../constants/index.js";
 import { canBookSlot } from "./capacity.js";
-import { getDefaultOpenForDate } from "./utils.ts";
+import { getDefaultOpenForDate } from "./utils.js";
 import { toDateStr } from "../supabase/transforms.js";
+import type {
+  Booking,
+  BookingsByDate,
+  DaySettings,
+  DogSize,
+} from "../types/index.js";
 
 export const DAY_CAPACITY = 14;
 
-export function utilisationColor(pct) {
+export interface WeekDate {
+  dateObj: Date;
+  dateStr: string;
+}
+
+export interface DayCapacity {
+  cap: number;
+  pct: number;
+}
+
+export interface WeekCapacity {
+  bookings: number;
+  cap: number;
+  pct: number;
+}
+
+export interface NextAvailable {
+  date: Date;
+  dateStr: string;
+  slot: string;
+  slotLabel: string;
+  dateLabel: string;
+}
+
+export function utilisationColor(pct: number): string {
   if (pct >= 70) return "bg-rose-500";
   if (pct >= 40) return "bg-amber-500";
   return "bg-emerald-500";
 }
 
-export function utilisationLabel(pct, isOpen) {
+export function utilisationLabel(pct: number, isOpen: boolean): string {
   if (!isOpen) return "Closed";
   if (pct >= 70) return "Full";
   if (pct >= 40) return "Steady";
   return "Quiet";
 }
 
-export function computeDayCapacity(bookingCount, isOpen) {
+export function computeDayCapacity(
+  bookingCount: number,
+  isOpen: boolean,
+): DayCapacity {
   const cap = isOpen ? DAY_CAPACITY : 0;
   const pct = cap > 0 ? Math.min(100, Math.round((bookingCount / cap) * 100)) : 0;
   return { cap, pct };
 }
 
-export function computeWeekCapacity(dates, bookingsByDate, dayOpenState) {
+export function computeWeekCapacity(
+  dates: WeekDate[] | null | undefined,
+  bookingsByDate: BookingsByDate | null | undefined,
+  dayOpenState: Record<string, boolean> | null | undefined,
+): WeekCapacity {
   let bookings = 0;
   let openDays = 0;
   (dates || []).forEach((d) => {
@@ -37,10 +74,20 @@ export function computeWeekCapacity(dates, bookingsByDate, dayOpenState) {
   return { bookings, cap, pct };
 }
 
-function formatSlot(slot) {
+function formatSlot(slot: string): string {
   const [h, m] = slot.split(":");
   const hour = parseInt(h, 10);
   return `${hour}:${m}`;
+}
+
+export interface FindNextAvailableArgs {
+  fromDate?: Date | null;
+  bookingsByDate?: BookingsByDate | null;
+  dayOpenState?: Record<string, boolean> | null;
+  daySettings?: Record<string, DaySettings> | null;
+  maxDaysAhead?: number;
+  size?: DogSize;
+  now?: Date;
 }
 
 export function findNextAvailable({
@@ -51,7 +98,7 @@ export function findNextAvailable({
   maxDaysAhead = 28,
   size = "small",
   now = new Date(),
-} = {}) {
+}: FindNextAvailableArgs = {}): NextAvailable | null {
   if (!fromDate) return null;
   const start = new Date(fromDate);
   start.setHours(0, 0, 0, 0);
@@ -68,11 +115,13 @@ export function findNextAvailable({
     const dateStr = toDateStr(d);
     const isOpen = dayOpenState?.[dateStr] ?? getDefaultOpenForDate(d);
     if (!isOpen) continue;
-    const settings = daySettings?.[dateStr] || {};
-    const slots = [...SALON_SLOTS, ...(settings.extraSlots || [])];
-    const dayBookings = bookingsByDate?.[dateStr] || [];
+    const settings = daySettings?.[dateStr];
+    const extraSlots = settings?.extraSlots ?? [];
+    const overridesForSlot = settings?.overrides ?? {};
+    const slots = [...SALON_SLOTS, ...extraSlots];
+    const dayBookings: Booking[] = bookingsByDate?.[dateStr] || [];
     for (const slot of slots) {
-      const overrides = settings.overrides?.[slot] || {};
+      const overrides = overridesForSlot[slot] || {};
       const check = canBookSlot(dayBookings, slot, size, slots, { overrides });
       if (check.allowed) {
         return {

@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
+import { logger } from "../../lib/logger.js";
 
 export function useBookingEvents({ limit = 10 } = {}) {
   const [events, setEvents] = useState([]);
@@ -35,7 +36,9 @@ export function useBookingEvents({ limit = 10 } = {}) {
       if (queryErr) throw queryErr;
       setEvents(data ?? []);
     } catch (err) {
-      console.error("useBookingEvents:", err);
+      logger.error("useBookingEvents fetch failed", err, {
+        tags: { hook: "useBookingEvents", op: "fetch" },
+      });
       setError(err);
     } finally {
       setLoading(false);

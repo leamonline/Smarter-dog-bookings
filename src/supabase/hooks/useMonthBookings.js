@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
 import { toDateStr } from "../transforms.js";
+import { logger } from "../../lib/logger.js";
 
 function groupByDate(rows) {
   const grouped = {};
@@ -47,7 +48,9 @@ export function useMonthBookings(year, month) {
       if (controller.signal.aborted) return;
 
       if (error) {
-        console.error("Failed to fetch month bookings:", error);
+        logger.error("Failed to fetch month bookings", error, {
+          tags: { hook: "useMonthBookings", op: "fetch" },
+        });
         setBookingsByDate({});
         setLoading(false);
         return;
