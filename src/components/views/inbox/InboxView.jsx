@@ -31,11 +31,10 @@ import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import { displayName } from "./helpers.js";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
-import { StatusPill } from "./StatusPill.jsx";
 import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
 import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
-import { AutoSendToggle } from "./thread/AutoSendToggle.jsx";
-import { AutonomousBookingToggle } from "./thread/AutonomousBookingToggle.jsx";
+import { AIModeSelector } from "./AIModeSelector.jsx";
+import { MarkCompleteButton } from "./MarkCompleteButton.jsx";
 import { MessageBubble } from "./thread/MessageBubble.jsx";
 import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
@@ -65,10 +64,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     sendManualReply,
     applyBookingAction,
     rejectBookingAction,
-    takeoverConversation,
-    releaseConversation,
-    setAutoSendEnabled,
-    setAutonomousBookingEnabled,
+    setAIMode,
+    resolveConversation,
+    reopenConversation,
     sendTemplate,
     dogNames,
     dogNamesById,
@@ -118,17 +116,44 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [rejectBookingAction, toast]);
 
-  const handleTakeover = useCallback(async () => {
-    const res = await takeoverConversation();
-    if (res?.ok) toast.show("You're handling this chat — AI paused.", "info");
+  // AIModeSelector calls this with (mode, opts) — single entry point.
+  const handleSetAIMode = useCallback(async (mode, opts) => {
+    const res = await setAIMode(mode, opts);
+    if (res?.ok) {
+      const label =
+        mode === "ai_auto"
+          ? opts?.allowAutonomousBooking
+            ? "AI auto — autonomous bookings allowed."
+            : "AI auto — drafts and auto-replies."
+          : mode === "ai_drafts"
+            ? "AI drafts — every reply waits for your nod."
+            : "Human only — AI is paused on this chat.";
+      toast.show(label, "info");
+    }
     return res;
-  }, [takeoverConversation, toast]);
+  }, [setAIMode, toast]);
 
-  const handleRelease = useCallback(async () => {
-    const res = await releaseConversation();
-    if (res?.ok) toast.show("AI is back in the loop.", "info");
+  // Resolve / reopen with an undo toast. The undo button only appears
+  // for the resolve path because reopen is already cheap (and on the
+  // exact same button) — clicking Mark complete again returns the
+  // conversation to the active queue if it was reopened in error.
+  const handleResolveConversation = useCallback(async () => {
+    const targetId = selectedId;
+    const res = await resolveConversation();
+    if (res?.ok) {
+      toast.show("Conversation closed.", "success", () => reopenConversation(targetId));
+    } else if (res?.reason) {
+      toast.show(`Could not close: ${res.reason}`, "error");
+    }
     return res;
-  }, [releaseConversation, toast]);
+  }, [resolveConversation, reopenConversation, selectedId, toast]);
+
+  const handleReopenConversation = useCallback(async () => {
+    const res = await reopenConversation();
+    if (res?.ok) toast.show("Conversation reopened.", "info");
+    else if (res?.reason) toast.show(`Could not reopen: ${res.reason}`, "error");
+    return res;
+  }, [reopenConversation, toast]);
 
   // Customer-context panel: docked third column at xl, slide-over below xl.
   // Track openness separately so the slide-over can close without
@@ -142,44 +167,78 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
-  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review".
-  // "all" is the default and shows every conversation. The other modes
-  // pre-filter the list to a specific subset so staff can triage in
-  // focused sweeps without losing the "scroll the full inbox" mode.
-  // Clicking the active chip clears the filter (returns to "all").
+  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review" | "done".
+  // "all" is the default and shows every ACTIVE conversation (closed
+  // conversations only appear under the "done" chip). The other active
+  // modes pre-filter to a specific subset so staff can triage in
+  // focused sweeps. Clicking the active chip clears the filter (back
+  // to "all"). "done" is its own filter — clicking it again returns
+  // to "all" (active queue).
   const [listFilter, setListFilter] = useState("all");
-  const unreadCount = useMemo(
-    () => conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+
+  // Split active vs closed once so each counter doesn't re-walk the list.
+  const activeConversations = useMemo(
+    () => conversations.filter((c) => !c.closed_at),
     [conversations],
+  );
+  const closedConversations = useMemo(
+    () => conversations.filter((c) => !!c.closed_at),
+    [conversations],
+  );
+
+  // Counts are computed over ACTIVE only (except Done, which is the
+  // closed-pile count). A conversation that's closed shouldn't bump
+  // the Unread or Needs review chips — closing it is what dropped it
+  // off the queue.
+  const unreadCount = useMemo(
+    () => activeConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+    [activeConversations],
   );
   const draftsCount = useMemo(
-    () => conversations.filter((c) => c.has_pending_draft).length,
-    [conversations],
+    () => activeConversations.filter((c) => c.has_pending_draft).length,
+    [activeConversations],
   );
   const bookingsCount = useMemo(
-    () => conversations.filter((c) => c.has_pending_booking_action).length,
-    [conversations],
+    () => activeConversations.filter((c) => c.has_pending_booking_action).length,
+    [activeConversations],
   );
   const needsReviewCount = useMemo(
-    () => conversations.filter((c) => c.needs_human_review).length,
-    [conversations],
+    () =>
+      activeConversations.filter(
+        (c) => c.needs_human_review || !!c.closure_suggested_at,
+      ).length,
+    [activeConversations],
   );
+  const doneCount = closedConversations.length;
 
   const filteredConversations = useMemo(() => {
     switch (listFilter) {
       case "unread":
-        return conversations.filter((c) => (c.unread_count || 0) > 0);
+        return activeConversations.filter((c) => (c.unread_count || 0) > 0);
       case "drafts":
-        return conversations.filter((c) => c.has_pending_draft);
+        return activeConversations.filter((c) => c.has_pending_draft);
       case "bookings":
-        return conversations.filter((c) => c.has_pending_booking_action);
-      case "needs_review":
-        return conversations.filter((c) => c.needs_human_review);
+        return activeConversations.filter((c) => c.has_pending_booking_action);
+      case "needs_review": {
+        // Sort suggested-close convs to the top of Needs review so they
+        // surface first; otherwise keep last_inbound_at order.
+        const matches = activeConversations.filter(
+          (c) => c.needs_human_review || !!c.closure_suggested_at,
+        );
+        return [...matches].sort((a, b) => {
+          const aSugg = a.closure_suggested_at ? 1 : 0;
+          const bSugg = b.closure_suggested_at ? 1 : 0;
+          if (aSugg !== bSugg) return bSugg - aSugg;
+          return 0;
+        });
+      }
+      case "done":
+        return closedConversations;
       case "all":
       default:
-        return conversations;
+        return activeConversations;
     }
-  }, [conversations, listFilter]);
+  }, [activeConversations, closedConversations, listFilter]);
 
   const toggleFilter = useCallback((next) => {
     setListFilter((prev) => (prev === next ? "all" : next));
@@ -189,7 +248,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     unread: "unread",
     drafts: "pending drafts",
     bookings: "pending booking proposals",
-    needs_review: "high-risk drafts",
+    needs_review: "needs review",
+    done: "closed conversations",
   };
 
   // Deep-link: open ?conversation=<id> on first load (and whenever
@@ -232,8 +292,10 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             </h2>
             <div className="text-[11px] text-slate-600 mt-0.5">
               {listFilter === "all"
-                ? `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`
-                : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${conversations.length}`}
+                ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
+                : listFilter === "done"
+                  ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
+                  : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
             </div>
           </div>
         </div>
@@ -272,7 +334,15 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             active={listFilter === "needs_review"}
             onClick={() => toggleFilter("needs_review")}
             color="rose"
-            hint="Show only conversations whose latest draft is high-risk or marked for human review."
+            hint="Show only conversations whose latest draft is high-risk, marked for human review, or auto-suggested for closure by the daily pass."
+          />
+          <InboxFilterChip
+            label="Done"
+            count={doneCount}
+            active={listFilter === "done"}
+            onClick={() => toggleFilter("done")}
+            color="slate"
+            hint="Show conversations that have been marked complete. They reopen automatically if the customer messages again."
           />
         </div>
       </div>
@@ -364,9 +434,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
                           {displayName(selectedConversation)}
                         </span>
-                        {selectedConversation?.state && (
-                          <StatusPill state={selectedConversation.state} size="xs" />
-                        )}
+                        {/* AI-state pill removed — AIModeSelector replaces it on
+                            active conversations, and the "Closed" pill above
+                            covers the closed case. */}
                       </div>
                       <div className="text-[11px] text-slate-600 truncate">
                         {formatPhoneForDisplay(selectedConversation?.phone_e164)}
@@ -374,35 +444,33 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <AutoSendToggle
+                    {selectedConversation?.closed_at ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[12px] font-semibold"
+                        title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
+                          selectedConversation.closure_reason && selectedConversation.closure_reason !== "manual"
+                            ? ` · auto-reason: ${selectedConversation.closure_reason}`
+                            : ""
+                        }. A new customer message will reopen it automatically.`}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Closed
+                      </span>
+                    ) : (
+                      <AIModeSelector
+                        conversation={selectedConversation}
+                        onChange={handleSetAIMode}
+                        disabled={actionInFlight}
+                      />
+                    )}
+                    <MarkCompleteButton
                       conversation={selectedConversation}
-                      onChange={setAutoSendEnabled}
+                      onResolve={handleResolveConversation}
+                      onReopen={handleReopenConversation}
                       disabled={actionInFlight}
                     />
-                    <AutonomousBookingToggle
-                      conversation={selectedConversation}
-                      onChange={setAutonomousBookingEnabled}
-                      disabled={actionInFlight}
-                    />
-                    {selectedConversation?.state === "ai_handling" ? (
-                      <button
-                        onClick={handleTakeover}
-                        disabled={actionInFlight}
-                        title="Take this conversation off the AI so you can drive it directly. Stops fresh AI drafts until you hand it back."
-                        className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                      >
-                        Take over
-                      </button>
-                    ) : selectedConversation?.state === "human_takeover" ? (
-                      <button
-                        onClick={handleRelease}
-                        disabled={actionInFlight}
-                        title="Hand control back to the AI. New customer messages will get fresh AI drafts again."
-                        className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer disabled:opacity-50 hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                      >
-                        Hand back to AI
-                      </button>
-                    ) : null}
                     {/* Customer info — slide-over below xl, redundant
                         at xl (the docked column is already visible). */}
                     <button
@@ -420,13 +488,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     </button>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-600 leading-snug">
-                  {selectedConversation?.state === "human_takeover"
-                    ? "Staff are handling this chat — the AI won't draft replies until you hand it back."
-                    : selectedConversation?.auto_send_enabled
-                      ? "Auto-send on: low-risk replies (FAQ, greetings, smalltalk, time confirmations) may go without your nod. Anything booking-related still waits for you."
-                      : "AI is drafting; every reply waits for your approval. Auto-send is off."}
-                </p>
               </div>
 
               {/* Thread — kept visible above any draft / booking / template

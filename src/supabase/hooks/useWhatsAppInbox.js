@@ -63,6 +63,11 @@ async function fetchConversationsList() {
       autonomous_booking_enabled,
       lead_status,
       lead_payload,
+      closed_at,
+      closed_by,
+      closure_reason,
+      closure_suggested_at,
+      closure_suggested_reason,
       humans:human_id ( name, surname ),
       whatsapp_drafts ( id, state, risk_level, handoff_required ),
       whatsapp_booking_actions ( id, state )
@@ -703,6 +708,136 @@ export function useWhatsAppInbox() {
     }
   }, [selectedId, actionInFlight]);
 
+  // ── Consolidated AI mode selector ──────────────────────────
+  // Replaces the trio of (state column, auto_send_enabled, autonomous_booking_enabled)
+  // with a single semantic mode the header surfaces as a segmented control.
+  //
+  //   'ai_auto'       state='ai_handling', auto_send_enabled=true,  autonomous_booking_enabled=opts.allowAutonomousBooking
+  //   'ai_drafts'     state='ai_handling', auto_send_enabled=false, autonomous_booking_enabled=false
+  //   'human_only'    state='human_takeover', auto_send_enabled=false, autonomous_booking_enabled=false
+  //
+  // The nested "Allow autonomous bookings" toggle is meaningful only in
+  // ai_auto. Switching away from ai_auto always disables it so a future
+  // switch back to ai_auto starts at the safe default.
+  const setAIMode = useCallback(async (mode, opts = {}) => {
+    if (!selectedId || actionInFlight) return { ok: false };
+    if (!["ai_auto", "ai_drafts", "human_only"].includes(mode)) {
+      return { ok: false, reason: `unknown mode: ${mode}` };
+    }
+
+    const next = {
+      state: mode === "human_only" ? "human_takeover" : "ai_handling",
+      auto_send_enabled: mode === "ai_auto",
+      autonomous_booking_enabled:
+        mode === "ai_auto" ? !!opts.allowAutonomousBooking : false,
+    };
+
+    // Capture previous values so we can roll back on failure.
+    const prev = conversations.find((c) => c.id === selectedId);
+    const previousSnapshot = prev
+      ? {
+          state: prev.state,
+          auto_send_enabled: prev.auto_send_enabled,
+          autonomous_booking_enabled: prev.autonomous_booking_enabled,
+        }
+      : null;
+
+    setActionInFlight(true);
+    setConversations((list) =>
+      list.map((c) => (c.id === selectedId ? { ...c, ...next } : c)),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update(next)
+        .eq("id", selectedId);
+      if (error) throw error;
+      return { ok: true };
+    } catch (err) {
+      console.error("setAIMode:", err);
+      if (previousSnapshot) {
+        setConversations((list) =>
+          list.map((c) => (c.id === selectedId ? { ...c, ...previousSnapshot } : c)),
+        );
+      }
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight, conversations]);
+
+  // ── Resolve / reopen ──────────────────────────────────────
+  // resolveConversation marks the currently-selected conversation
+  // complete. closure_reason inherits the active suggestion if there
+  // is one (so a "Suggest closing" pill turning into a close keeps the
+  // semantic reason), otherwise it's 'manual'.
+  //
+  // closed_by is the staff member who clicked the button — pulled
+  // from the live auth session rather than trusting client-supplied
+  // user_id, so an attacker who can call the API can't backdate
+  // someone else's closure.
+  //
+  // reopenConversation clears closed_at + closure_reason. closed_by
+  // is preserved so a future audit surface can still show who closed
+  // it before it was reopened.
+  const resolveConversation = useCallback(async () => {
+    if (!selectedId || actionInFlight) return { ok: false };
+    setActionInFlight(true);
+
+    const current = conversations.find((c) => c.id === selectedId);
+    const inheritedReason = current?.closure_suggested_reason ?? null;
+    const reason = inheritedReason || "manual";
+
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id ?? null;
+
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          closed_at: new Date().toISOString(),
+          closed_by: userId,
+          closure_reason: reason,
+          // Clear suggestion fields — they've been resolved.
+          closure_suggested_at: null,
+          closure_suggested_reason: null,
+        })
+        .eq("id", selectedId);
+      if (error) throw error;
+      return { ok: true, reason };
+    } catch (err) {
+      console.error("resolveConversation:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight, conversations]);
+
+  const reopenConversation = useCallback(async (conversationId) => {
+    const id = conversationId ?? selectedId;
+    if (!id || actionInFlight) return { ok: false };
+    setActionInFlight(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          closed_at: null,
+          closure_reason: null,
+          closure_suggested_at: null,
+          closure_suggested_reason: null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      return { ok: true };
+    } catch (err) {
+      console.error("reopenConversation:", err);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [selectedId, actionInFlight]);
+
   const sendTemplate = useCallback(
     async (template, paramValues) => {
       const conversation = conversations.find((c) => c.id === selectedId);
@@ -774,6 +909,9 @@ export function useWhatsAppInbox() {
     releaseConversation,
     setAutoSendEnabled,
     setAutonomousBookingEnabled,
+    setAIMode,
+    resolveConversation,
+    reopenConversation,
     sendTemplate,
     dogNames,
     dogNamesById,

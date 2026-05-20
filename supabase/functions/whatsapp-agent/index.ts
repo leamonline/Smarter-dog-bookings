@@ -732,6 +732,7 @@ async function buildContext(
   conversationId: string,
   humanId: string | null,
   agentState: AgentState | null,
+  autonomousBookingEnabled: boolean,
 ): Promise<string> {
   // Recent message history (last 20, oldest first)
   const { data: messages } = await supabase
@@ -825,6 +826,28 @@ async function buildContext(
   // conversation, and unmatched customers will see it via staff approval anyway.
   parts.push(await buildAvailabilityBlock(supabase, todayIso));
   parts.push(await buildLargeDogAvailabilityBlock(supabase, todayIso));
+
+  // Self-service nudge: when the customer is a known human AND staff
+  // have turned autonomous booking OFF (AI auto mode, booking sub-toggle
+  // off in the AIModeSelector), the agent should still help — but
+  // instead of proposing a booking_action, it should point the customer
+  // at the customer portal so they can pick their own slot. This block
+  // tells Claude to append a warm CTA on booking-intent turns. It's an
+  // additive instruction; the rest of the system prompt still applies
+  // (e.g. don't propose a booking_action for large dogs).
+  if (humanId && !autonomousBookingEnabled) {
+    parts.push(
+      [
+        `--- Self-service portal ---`,
+        `This customer is recognised AND staff have turned autonomous booking off for this conversation.`,
+        `When the latest message is booking-related (intents: booking_query, booking_propose, booking_confirm, booking_change), do NOT propose a booking_action. Instead, draft a warm, on-brand reply that:`,
+        `  1. Acknowledges what the customer asked for.`,
+        `  2. Tells them they can book themselves at https://smarterdog.vercel.app/customer/login (it's quicker and they'll see live availability).`,
+        `  3. Reassures them you'll happily handle it if they prefer — just ask.`,
+        `Keep the brand sign-off (🎓🐶❤️ X) on the final line as normal. Don't paste the URL more than once. For non-booking intents (faq, greeting, smalltalk, escalate, etc.) this block doesn't apply — reply normally without the self-service link.`,
+      ].join("\n"),
+    );
+  }
 
   return parts.join("\n\n");
 }
@@ -1809,12 +1832,17 @@ serve(async (req) => {
             continue;
           }
 
-          // Generate draft
+          // Generate draft. autonomous_booking_enabled gates the
+          // self-service nudge inside buildContext — when it's false
+          // and the customer is recognised, the prompt tells Claude
+          // to point them at the customer portal instead of proposing
+          // a booking_action.
           const context = await buildContext(
             supabase,
             conversation.id,
             conversation.human_id ?? humanId,
             conversation.agent_state,
+            conversation.autonomous_booking_enabled === true,
           );
           const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText);
 
