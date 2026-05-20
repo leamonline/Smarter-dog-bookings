@@ -98,6 +98,11 @@ export function SlotGrid({
     const allBlockedByStaff = seatStates.every((s) => s.type === "blocked" && s.staffBlocked);
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
+    // Subtle alternating row tint to give the eye an anchor as it
+    // scans down the day. Even-index rows (08:30, 09:30, 10:30…)
+    // pick up a hint of blue; odd-index rows stay clean white.
+    const rowBg = index % 2 === 0 ? "bg-sky-50/60" : "bg-white";
+
     return (
       <div
         key={slot}
@@ -106,6 +111,7 @@ export function SlotGrid({
           hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
           !hasBooking ? "opacity-70 hover:opacity-100 transition-opacity" : "",
+          rowBg,
         ].filter(Boolean).join(" ")}
       >
         <div className="border-r-2 border-slate-200 pr-1 md:pr-1.5 self-stretch flex items-center justify-center">
