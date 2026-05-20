@@ -2,22 +2,41 @@
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function busyStyle(count, isOpen) {
-  if (!isOpen) return "bg-rose-50 text-rose-400";
-  if (count === 0) return "bg-slate-100 text-slate-500";
-  if (count <= 3) return "bg-emerald-500 text-white";
-  if (count <= 6) return "bg-amber-500 text-white";
+// Style the date circle based on three temporal buckets:
+//   - past:    blue (the day has happened — "completed")
+//   - today:   green (we're here)
+//   - future:  colour-coded by how busy the day looks
+//
+// All three buckets use high-contrast text so the date number is
+// readable at a glance, especially on the muted "no bookings / closed"
+// surfaces where the previous slate-100/slate-500 combo was too washed
+// out to read.
+function dateCircleStyle({ isPast, isToday, dogCount, isOpen }) {
+  if (isToday) return "bg-emerald-500 text-white";
+  if (isPast) return "bg-sky-500 text-white";
+
+  // Future days
+  if (!isOpen) return "bg-rose-100 text-rose-700";
+  if (dogCount === 0) return "bg-slate-200 text-slate-700";
+  if (dogCount <= 3) return "bg-emerald-500 text-white";
+  if (dogCount <= 6) return "bg-amber-500 text-white";
   return "bg-rose-500 text-white";
+}
+
+function startOfDay(d) {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
 }
 
 export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const dayName = DAY_NAMES[dateObj.getDay()];
   const dateNum = dateObj.getDate();
-  const today = new Date();
-  const isToday =
-    dateObj.getFullYear() === today.getFullYear() &&
-    dateObj.getMonth() === today.getMonth() &&
-    dateObj.getDate() === today.getDate();
+
+  const today = startOfDay(new Date());
+  const thisDay = startOfDay(dateObj);
+  const isToday = thisDay.getTime() === today.getTime();
+  const isPast = thisDay.getTime() < today.getTime();
 
   // Two display modes: light (mobile/tablet, on white CalendarTabs bg) and
   // dark (xl+ inside the purple AppToolbar). Mode selected via Tailwind's xl: prefix.
@@ -25,7 +44,15 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
     <button
       role="tab"
       aria-selected={isActive}
-      aria-label={`${dayName} ${dateNum}, ${!isOpen ? "closed" : `${dogCount} dogs`}`}
+      aria-label={`${dayName} ${dateNum}, ${
+        !isOpen
+          ? "closed"
+          : isPast
+            ? `completed, ${dogCount} dogs`
+            : isToday
+              ? `today, ${dogCount} dogs`
+              : `${dogCount} dogs`
+      }`}
       tabIndex={isActive ? 0 : -1}
       id={id}
       onClick={onClick}
@@ -41,9 +68,13 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
         className={`text-[10px] font-bold uppercase tracking-wide leading-none ${
           isActive
             ? "text-brand-purple xl:text-brand-yellow"
-            : !isOpen
-              ? "text-rose-400 xl:text-rose-300"
-              : "text-slate-400 xl:text-white/60"
+            : isToday
+              ? "text-emerald-700 xl:text-emerald-300"
+              : isPast
+                ? "text-sky-700 xl:text-sky-200"
+                : !isOpen
+                  ? "text-rose-500 xl:text-rose-200"
+                  : "text-slate-500 xl:text-white/70"
         }`}
       >
         {dayName}
@@ -55,8 +86,8 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
           "relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
             ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
-            : busyStyle(dogCount, isOpen),
-          isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1 xl:ring-offset-brand-purple" : "",
+            : dateCircleStyle({ isPast, isToday, dogCount, isOpen }),
+          isToday && !isActive ? "ring-2 ring-emerald-300 ring-offset-1 xl:ring-offset-brand-purple" : "",
         ].join(" ")}
       >
         {dateNum}
@@ -67,7 +98,11 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
         className={`text-[9px] font-bold leading-none ${
           isActive
             ? "text-brand-purple xl:text-brand-yellow"
-            : "text-slate-500 xl:text-white/60"
+            : isToday
+              ? "text-emerald-700 xl:text-emerald-300"
+              : isPast
+                ? "text-sky-700 xl:text-sky-200"
+                : "text-slate-600 xl:text-white/70"
         }`}
       >
         {dogCount === 0 ? "—" : `${dogCount}`}

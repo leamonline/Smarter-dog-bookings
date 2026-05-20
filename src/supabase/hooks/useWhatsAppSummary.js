@@ -173,44 +173,58 @@ export function useWhatsAppSummary() {
     refresh();
     refreshAiSummary();
 
-    // Only the three events that can change our numbers. We don't
-    // subscribe to whatsapp_messages inserts directly — the trigger
-    // will bump unread_count which comes through as an UPDATE on
-    // whatsapp_conversations, and that's enough.
+    // Two channels with deliberately different cadences:
     //
-    // AI summary refreshes on the same triggers but is cheap because
-    // the dashboard-summary function caches against the inbox's max
-    // updated_at — unchanged state returns from cache without an
-    // LLM call.
-    const onAnyChange = () => {
-      refresh();
-      refreshAiSummary();
-    };
-    const channel = supabase
-      .channel("whatsapp-dashboard-summary")
+    //   1. Counts (refresh) — runs on every conversation/draft change
+    //      because awaiting/draft counts can change on read-receipts,
+    //      draft approvals, etc. These are cheap COUNT() queries.
+    //
+    //   2. AI summary (refreshAiSummary) — runs ONLY when a new
+    //      inbound customer message arrives. Read receipts, draft
+    //      state flips, conversation updates etc. don't re-summarise
+    //      because the underlying message content hasn't changed.
+    //      Even though the server-side cache would no-op such calls,
+    //      we don't want the "Summarising…" placeholder to flicker
+    //      every time staff opens a thread and marks it read.
+    const countsChannel = supabase
+      .channel("whatsapp-dashboard-counts")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_conversations" },
-        onAnyChange,
+        () => refresh(),
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_conversations" },
-        onAnyChange,
+        () => refresh(),
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_drafts" },
-        onAnyChange,
+        () => refresh(),
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_drafts" },
-        onAnyChange,
+        () => refresh(),
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    const summaryChannel = supabase
+      .channel("whatsapp-dashboard-summary")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "whatsapp_messages" },
+        (payload) => {
+          if (payload?.new?.direction === "inbound") refreshAiSummary();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(countsChannel);
+      supabase.removeChannel(summaryChannel);
+    };
   }, [refresh, refreshAiSummary]);
 
   return { ...summary, aiSummary, loading, refreshAiSummary };

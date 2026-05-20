@@ -25,12 +25,16 @@ export function WhatsAppInboxCard({ bare = false }) {
   const navigate = useNavigate();
   const {
     awaitingReply,
-    draftsPending,
     aiSummary,
     loading,
   } = useWhatsAppSummary();
 
-  const needsAttention = (awaitingReply ?? 0) + (draftsPending ?? 0);
+  // Count = unread inbound conversations only. Pending drafts used to
+  // be added in here but that surfaced stale AI suggestions on
+  // already-read threads (post-Phase-G the AI doesn't auto-draft, so
+  // a leftover pending draft is "nothing waiting" from the staff
+  // perspective). Drafts still appear inside /inbox where they belong.
+  const needsAttention = awaitingReply ?? 0;
 
   return (
     <section
