@@ -58,7 +58,7 @@ export default [
       "react/no-unescaped-entities": "off",
       "react/display-name": "off",
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/exhaustive-deps": "warn",
       "no-empty": ["warn", { allowEmptyCatch: true }],
       "no-constant-binary-expression": "warn",
       "no-useless-escape": "off",
