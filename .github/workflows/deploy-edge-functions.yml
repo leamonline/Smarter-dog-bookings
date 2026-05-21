@@ -103,7 +103,7 @@ jobs:
 
       - name: Install Supabase CLI
         if: steps.changed.outputs.functions != ''
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2
         with:
           version: latest
 
