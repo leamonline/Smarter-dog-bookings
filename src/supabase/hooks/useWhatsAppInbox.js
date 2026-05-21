@@ -34,6 +34,9 @@ import {
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
+import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
+import { useDraftActions } from "./inbox/useDraftActions.js";
+import { markWhatsappConversationRead } from "../rpc.js";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -237,6 +240,34 @@ export function useWhatsAppInbox() {
       setConversations,
     });
 
+  // Apply / reject decisions on AI-attached booking proposals. The
+  // RPC + UPDATE-row plumbing lives in the dedicated hook; this
+  // monolith just forwards setters.
+  const { applyBookingAction, rejectBookingAction } =
+    useBookingActionDecisions({
+      actionInFlight,
+      setActionInFlight,
+      setBookingActions,
+      setConversations,
+      selectedIdRef,
+    });
+
+  // Approve / reject / manual-reply actions on the thread's draft.
+  // approveDraftAndApply also runs the booking-action RPC when the
+  // draft has attached proposals.
+  const { approveDraft, approveDraftAndApply, rejectDraft, sendManualReply } =
+    useDraftActions({
+      draft,
+      attachedActions,
+      actionInFlight,
+      selectedId,
+      setActionInFlight,
+      setDraft,
+      setBookingActions,
+      setConversations,
+      selectedIdRef,
+    });
+
   useEffect(() => {
     if (!supabase) {
       setLoadingList(false);
@@ -321,16 +352,16 @@ export function useWhatsAppInbox() {
     setLoadingDetail(true);
     // Mark as read via RPC (migration 029). Fire and forget; realtime
     // (migration 031) will reconcile any drift with the actual DB state.
-    supabase
-      .rpc("mark_whatsapp_conversation_read", { p_conversation_id: conversationId })
-      .then(({ error }) => {
+    markWhatsappConversationRead(supabase, { conversationId }).then(
+      ({ error }) => {
         if (error) {
           logger.warn("mark_whatsapp_conversation_read RPC error", {
             tags: { hook: "useWhatsAppInbox", op: "markRead" },
             extra: { message: error.message },
           });
         }
-      });
+      },
+    );
 
     await refreshDetail(conversationId);
 
@@ -389,295 +420,6 @@ export function useWhatsAppInbox() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedId, refreshDetail]);
 
-  // ── Actions ────────────────────────────────────────────────
-  const approveDraft = useCallback(async ({ editedText } = {}) => {
-    if (!draft || actionInFlight) return { ok: false, reason: "no draft or action in flight" };
-    setActionInFlight(true);
-    try {
-      // Invoke the whatsapp-send Edge Function with the user's JWT so
-      // it can verify staff membership and return.
-      const { data, error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
-        body: {
-          mode: "draft",
-          draft_id: draft.id,
-          ...(editedText ? { edited_text: editedText } : {}),
-        },
-      });
-
-      if (error) {
-        // Surface Meta errors verbatim — staff can act on them.
-        return { ok: false, reason: error.message ?? String(error), detail: data };
-      }
-      if (data?.error) {
-        return { ok: false, reason: data.error, detail: data };
-      }
-
-      // Optimistic: clear the pending draft so the UI doesn't show the
-      // approve buttons twice; the realtime refresh will confirm.
-      setDraft(null);
-      // Also flip the list-pane badge for this conversation so the
-      // amber "draft pending" dot goes away at the same time as the
-      // draft panel below the thread.
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedIdRef.current ? { ...c, has_pending_draft: false } : c,
-        ),
-      );
-      return { ok: true, result: data };
-    } catch (err) {
-      logger.error("approveDraft failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "approveDraft" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [draft, actionInFlight]);
-
-  // Approve the draft AND apply each attached booking_action in one go.
-  // Order: apply each action sequentially (stop on first error), then
-  // send the reply only if all applies succeeded. If apply fails, no
-  // reply is sent and the error is surfaced. If apply succeeds and the
-  // subsequent send fails, the booking is real and the error message
-  // tells staff to send manually. See spec "Failure modes" table.
-  //
-  // Falls through to plain approveDraft when no actions are attached —
-  // keeps the call site agnostic about whether to call this or that.
-  const approveDraftAndApply = useCallback(async ({ editedText } = {}) => {
-    if (!draft || actionInFlight) {
-      return { ok: false, reason: "no draft or action in flight" };
-    }
-    if (attachedActions.length === 0) {
-      return approveDraft({ editedText });
-    }
-
-    setActionInFlight(true);
-    try {
-      // 1. Apply each attached action sequentially. Stop on first error.
-      const applied = [];
-      for (const action of attachedActions) {
-        const { data: bookingId, error: applyError } = await supabase.rpc(
-          "apply_whatsapp_booking_action",
-          { p_action_id: action.id },
-        );
-        if (applyError) {
-          const dogLabel = action.payload?.dog_name ?? "booking";
-          return {
-            ok: false,
-            reason: `Apply failed for ${dogLabel}: ${applyError.message}`,
-            appliedSoFar: applied,
-          };
-        }
-        applied.push({ actionId: action.id, bookingId });
-      }
-
-      // 2. Optimistic: clear applied actions from local state so the
-      //    BookingActionPanel doesn't briefly show them as pending.
-      setBookingActions((prev) =>
-        prev.filter((a) => !applied.some((x) => x.actionId === a.id)),
-      );
-
-      // 3. Send the reply via the whatsapp-send Edge Function.
-      const { data: sendData, error: sendError } = await supabase.functions
-        .invoke(SEND_FUNCTION_PATH, {
-          body: {
-            mode: "draft",
-            draft_id: draft.id,
-            ...(editedText ? { edited_text: editedText } : {}),
-          },
-        });
-      if (sendError || sendData?.error) {
-        const reason = sendError?.message ?? sendData?.error ?? "Send failed";
-        return {
-          ok: false,
-          reason: `${reason} (booking was applied — please send the reply manually)`,
-          appliedSoFar: applied,
-        };
-      }
-
-      // 4. Optimistic: clear the pending draft and flip both list-pane
-      //    badges off (mirrors approveDraft's optimistic update).
-      setDraft(null);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedIdRef.current
-            ? { ...c, has_pending_draft: false, has_pending_booking_action: false }
-            : c,
-        ),
-      );
-
-      return { ok: true, applied, sendResult: sendData };
-    } catch (err) {
-      logger.error("approveDraftAndApply failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "approveDraftAndApply" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [draft, attachedActions, actionInFlight, approveDraft]);
-
-  // rejectDraft accepts an optional free-text reason so we can learn
-  // WHY the draft was wrong. Reason is stored on the draft row itself
-  // (see migration 030). Null reason is allowed — some rejects are
-  // self-explanatory and forcing a reason adds friction that would
-  // make staff click "approve" on mediocre drafts just to clear them.
-  const rejectDraft = useCallback(async ({ reason } = {}) => {
-    if (!draft || actionInFlight) return { ok: false };
-    setActionInFlight(true);
-    try {
-      const trimmed = typeof reason === "string" ? reason.trim() : "";
-      const { error } = await supabase
-        .from("whatsapp_drafts")
-        .update({
-          state: "rejected",
-          decided_at: new Date().toISOString(),
-          // Cap at 500 chars — long enough for "tone too formal, we'd
-          // say 'pop along' not 'visit our premises'", short enough to
-          // scan a column of them later.
-          rejected_reason: trimmed ? trimmed.slice(0, 500) : null,
-        })
-        .eq("id", draft.id)
-        .eq("state", "pending");
-      if (error) throw error;
-      setDraft(null);
-      // Same optimistic list-badge flip as approveDraft — amber dot off.
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedIdRef.current ? { ...c, has_pending_draft: false } : c,
-        ),
-      );
-      return { ok: true };
-    } catch (err) {
-      logger.error("rejectDraft failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "rejectDraft" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [draft, actionInFlight]);
-
-  // Send a staff-typed manual reply. No AI draft involved — this is
-  // the compose-box path. whatsapp-send (mode:"manual") handles the
-  // 24h-window check, Meta call, and recording the outbound message
-  // to whatsapp_messages. Returns { ok, reason?, result? } in the
-  // same shape as approveDraft so the caller can render errors.
-  const sendManualReply = useCallback(async ({ text } = {}) => {
-    if (!selectedId || actionInFlight) {
-      return { ok: false, reason: "no conversation selected or action in flight" };
-    }
-    const trimmed = typeof text === "string" ? text.trim() : "";
-    if (!trimmed) return { ok: false, reason: "empty message" };
-
-    setActionInFlight(true);
-    try {
-      const { data, error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
-        body: {
-          mode: "manual",
-          conversation_id: selectedId,
-          text: trimmed,
-        },
-      });
-
-      if (error) {
-        return { ok: false, reason: error.message ?? String(error), detail: data };
-      }
-      if (data?.error) {
-        return { ok: false, reason: data.error, detail: data };
-      }
-
-      // Optimistic: realtime subscription on whatsapp_messages will
-      // fold the new row into the thread. Nothing to do here.
-      return { ok: true, result: data };
-    } catch (err) {
-      logger.error("sendManualReply failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "sendManualReply" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [selectedId, actionInFlight]);
-
-  const applyBookingAction = useCallback(async (actionId, editedPayload = null) => {
-    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
-    setActionInFlight(true);
-    try {
-      // If the staff member edited the proposal (e.g. moved the date,
-      // changed the slot, or fixed the service), persist the new
-      // payload onto the action row before running the RPC. The RPC
-      // reads payload from the row, so this is the contract.
-      if (editedPayload) {
-        const { error: upErr } = await supabase
-          .from("whatsapp_booking_actions")
-          .update({ payload: editedPayload })
-          .eq("id", actionId)
-          .eq("state", "pending");
-        if (upErr) throw upErr;
-      }
-      const { data, error } = await supabase.rpc("apply_whatsapp_booking_action", {
-        p_action_id: actionId,
-      });
-      if (error) throw error;
-      setBookingActions((prev) => {
-        const next = prev.filter((action) => action.id !== actionId);
-        setConversations((conversationsPrev) =>
-          conversationsPrev.map((c) =>
-            c.id === selectedIdRef.current
-              ? { ...c, has_pending_booking_action: next.length > 0 }
-              : c,
-          ),
-        );
-        return next;
-      });
-      return { ok: true, bookingId: data };
-    } catch (err) {
-      logger.error("applyBookingAction failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "applyBookingAction" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [actionInFlight]);
-
-  const rejectBookingAction = useCallback(async (actionId, reason = "") => {
-    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_booking_actions")
-        .update({
-          state: "rejected",
-          rejection_reason: typeof reason === "string" && reason.trim() ? reason.trim().slice(0, 500) : null,
-          decided_at: new Date().toISOString(),
-        })
-        .eq("id", actionId)
-        .eq("state", "pending");
-      if (error) throw error;
-      setBookingActions((prev) => {
-        const next = prev.filter((action) => action.id !== actionId);
-        setConversations((conversationsPrev) =>
-          conversationsPrev.map((c) =>
-            c.id === selectedIdRef.current
-              ? { ...c, has_pending_booking_action: next.length > 0 }
-              : c,
-          ),
-        );
-        return next;
-      });
-      return { ok: true };
-    } catch (err) {
-      logger.error("rejectBookingAction failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "rejectBookingAction" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [actionInFlight]);
-
 
   // ── Generate reply on demand (Phase G) ─────────────────────
   // Calls the whatsapp-generate-reply edge function, which authenticates
@@ -692,16 +434,7 @@ export function useWhatsAppInbox() {
       body: { conversation_id: id },
     });
     if (error) {
-      let detail = error.message ?? "Generate reply failed";
-      try {
-        const errorBody = await error.context?.json?.();
-        if (errorBody) {
-          const parts = [errorBody.error, errorBody.reason, errorBody.detail].filter(Boolean);
-          if (parts.length) detail = parts.join(": ");
-        }
-      } catch {
-        /* fall through */
-      }
+      const detail = await parseSupabaseFunctionError(error, "Generate reply failed");
       return { ok: false, reason: detail };
     }
     // Realtime subscription on whatsapp_drafts will pick up the new

@@ -96,3 +96,30 @@ export function addCustomerTrustedHuman(
 export function linkCustomerToHuman(client: SupabaseClient) {
   return client.rpc("link_customer_to_human");
 }
+
+// Staff WhatsApp inbox -------------------------------------------------
+
+// Apply a pending booking proposal that the AI agent attached to a
+// draft. The RPC reads the action's payload column (which the caller
+// may have updated to reflect staff edits beforehand) and creates /
+// reschedules / cancels the booking accordingly. Returns the resulting
+// booking id when applicable.
+export function applyWhatsappBookingAction(
+  client: SupabaseClient,
+  params: { actionId: string },
+) {
+  return client.rpc("apply_whatsapp_booking_action", {
+    p_action_id: params.actionId,
+  });
+}
+
+// Mark a WhatsApp conversation as read by the current staff user.
+// Fire-and-forget — realtime reconciles drift with the actual DB state.
+export function markWhatsappConversationRead(
+  client: SupabaseClient,
+  params: { conversationId: string },
+) {
+  return client.rpc("mark_whatsapp_conversation_read", {
+    p_conversation_id: params.conversationId,
+  });
+}
