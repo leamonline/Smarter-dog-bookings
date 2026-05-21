@@ -9,8 +9,7 @@
 // ============================================================
 
 import { useEffect, useRef } from "react";
-import { useDialog } from "@react-aria/dialog";
-import { FocusScope } from "@react-aria/focus";
+import { useDialog, FocusScope } from "react-aria";
 
 export function SlideOverPanel({
   children,
