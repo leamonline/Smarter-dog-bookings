@@ -104,6 +104,14 @@ const AI_AUTO_SEND_LOW_RISK =
   (Deno.env.get("AI_AUTO_SEND_LOW_RISK") ?? "false").toLowerCase() === "true";
 const AI_AUTONOMOUS_BOOKING_ENABLED =
   (Deno.env.get("AI_AUTONOMOUS_BOOKING_ENABLED") ?? "false").toLowerCase() === "true";
+// Per-conversation cap on AI-staged bookings in any rolling 24h window.
+// Counts rows in whatsapp_ai_action_audit with outcome='staged'. Rejected
+// proposals (capacity full, ownership mismatch, etc.) don't count.
+const AI_BOOKING_DAILY_CAP = (() => {
+  const raw = Deno.env.get("AI_BOOKING_DAILY_CAP");
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+})();
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -1173,6 +1181,108 @@ const VALID_SLOTS = new Set([
   "11:00", "11:30", "12:00", "12:30", "13:00",
 ]);
 
+// Write a row to whatsapp_ai_action_audit for every saveBookingAction
+// invocation, regardless of outcome. Inserts that fail are warned but
+// not thrown — audit must never block a staging decision.
+async function auditAiAction(
+  supabase: SupabaseClient,
+  conversationId: string,
+  draftId: string,
+  actionKind: "create" | "reschedule" | "cancel",
+  outcome:
+    | "staged"
+    | "rejected_capacity"
+    | "rejected_rate_limit"
+    | "rejected_ownership"
+    | "rejected_invalid",
+  payload: unknown,
+  reason: string | null = null,
+) {
+  const { error } = await supabase.from("whatsapp_ai_action_audit").insert({
+    conversation_id: conversationId,
+    draft_id: draftId,
+    action_kind: actionKind,
+    outcome,
+    reason,
+    payload,
+  });
+  if (error) {
+    console.warn("auditAiAction insert failed:", error.message);
+  }
+}
+
+// Count rows in whatsapp_ai_action_audit where outcome='staged' for this
+// conversation in the last 24h. Drives the AI_BOOKING_DAILY_CAP gate.
+async function countRecentStagedActions(
+  supabase: SupabaseClient,
+  conversationId: string,
+): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await supabase
+    .from("whatsapp_ai_action_audit")
+    .select("id", { count: "exact", head: true })
+    .eq("conversation_id", conversationId)
+    .eq("outcome", "staged")
+    .gte("created_at", since);
+  if (error) {
+    // Fail closed-ish: log and treat as 0 so we don't deadlock the AI on
+    // an audit-table outage, but the warn signals the operator.
+    console.warn("countRecentStagedActions failed:", error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+// Re-validate slot capacity at stage time using the SECURITY DEFINER
+// helpers added in 20260519055000_capacity_helpers_security_definer.
+// The model's availability data may be a few minutes stale; this catches
+// races where another booking landed between the model's read and now.
+// Mirror of engine/capacity.ts + the validate_booking_capacity trigger:
+// total slot capacity = 2 seats, large dog seats vary by slot, max one
+// large dog per slot.
+async function checkSlotCapacity(
+  supabase: SupabaseClient,
+  dogSize: string,
+  date: string,
+  slot: string,
+  excludeBookingId: string | null = null,
+): Promise<{ ok: boolean; reason: string | null }> {
+  const { data: seatsUsed, error: usedErr } = await supabase.rpc(
+    "get_seats_used",
+    { p_date: date, p_slot: slot, p_exclude_id: excludeBookingId },
+  );
+  if (usedErr) {
+    return { ok: false, reason: `get_seats_used failed: ${usedErr.message}` };
+  }
+  const seatsNeeded =
+    dogSize === "large"
+      ? slot === "08:30" || slot === "09:00" || slot === "12:00"
+        ? 1
+        : 2
+      : 1;
+  const SLOT_CAPACITY = 2;
+  const used = typeof seatsUsed === "number" ? seatsUsed : 0;
+  if (used + seatsNeeded > SLOT_CAPACITY) {
+    return {
+      ok: false,
+      reason: `seats_used=${used} + seats_needed=${seatsNeeded} > ${SLOT_CAPACITY}`,
+    };
+  }
+  if (dogSize === "large") {
+    const { data: hasLarge, error: lgErr } = await supabase.rpc(
+      "has_large_dog",
+      { p_date: date, p_slot: slot, p_exclude_id: excludeBookingId },
+    );
+    if (lgErr) {
+      return { ok: false, reason: `has_large_dog failed: ${lgErr.message}` };
+    }
+    if (hasLarge) {
+      return { ok: false, reason: "slot already has a large dog" };
+    }
+  }
+  return { ok: true, reason: null };
+}
+
 async function saveBookingAction(
   supabase: SupabaseClient,
   conversationId: string,
@@ -1182,29 +1292,100 @@ async function saveBookingAction(
   const action = draft.booking_action;
   if (!action) return;
 
+  // Rate-limit gate. Counts STAGED actions in the last 24h for this
+  // conversation; rejected attempts don't count, so a confused model
+  // burning the same slot 10 times in a row won't lock the customer out.
+  const recentStaged = await countRecentStagedActions(supabase, conversationId);
+  if (recentStaged >= AI_BOOKING_DAILY_CAP) {
+    await auditAiAction(
+      supabase,
+      conversationId,
+      draftId,
+      action.action,
+      "rejected_rate_limit",
+      action,
+      `staged count in last 24h (${recentStaged}) >= cap (${AI_BOOKING_DAILY_CAP})`,
+    );
+    return;
+  }
+
   if (action.action === "create") {
-    if (!VALID_SLOTS.has(action.slot)) return;
+    if (!VALID_SLOTS.has(action.slot)) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        "create",
+        "rejected_invalid",
+        action,
+        `slot "${action.slot}" not in VALID_SLOTS`,
+      );
+      return;
+    }
 
     const { data: dog } = await supabase
       .from("dogs")
       .select("id, size, human_id")
       .eq("id", action.dog_id)
       .maybeSingle();
-    if (!dog) return;
+    if (!dog) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        "create",
+        "rejected_invalid",
+        action,
+        `dog ${action.dog_id} not found`,
+      );
+      return;
+    }
 
     const { data: conversation } = await supabase
       .from("whatsapp_conversations")
       .select("human_id")
       .eq("id", conversationId)
       .maybeSingle();
-    if (conversation?.human_id && conversation.human_id !== dog.human_id) return;
+    if (conversation?.human_id && conversation.human_id !== dog.human_id) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        "create",
+        "rejected_ownership",
+        action,
+        `conversation.human_id=${conversation.human_id} dog.human_id=${dog.human_id}`,
+      );
+      return;
+    }
+
+    const effectiveSize = action.size ?? dog.size ?? "small";
+
+    const capacity = await checkSlotCapacity(
+      supabase,
+      effectiveSize,
+      action.booking_date,
+      action.slot,
+    );
+    if (!capacity.ok) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        "create",
+        "rejected_capacity",
+        action,
+        capacity.reason,
+      );
+      return;
+    }
 
     const payload = {
       dog_id: action.dog_id,
       booking_date: action.booking_date,
       slot: action.slot,
       service: action.service,
-      size: action.size ?? dog.size ?? "small",
+      size: effectiveSize,
       addons: [],
       payment: "Due at Pick-up",
       confirmed: true,
@@ -1220,25 +1401,54 @@ async function saveBookingAction(
       state: "pending",
     });
     if (error) throw new Error(`saveBookingAction(create) failed: ${error.message}`);
+
+    await auditAiAction(
+      supabase,
+      conversationId,
+      draftId,
+      "create",
+      "staged",
+      payload,
+      null,
+    );
     return;
   }
 
-  // For reschedule and cancel, the action references an existing booking
-  // via old_booking_id. Validate ownership by checking dogs.human_id of
-  // the bookings target against the conversation's human_id before
-  // staging the row — same safety the create branch applies to dog_id.
   if (action.action === "reschedule" || action.action === "cancel") {
-    if (action.action === "reschedule" && !VALID_SLOTS.has(action.new_slot)) return;
+    if (action.action === "reschedule" && !VALID_SLOTS.has(action.new_slot)) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        "reschedule",
+        "rejected_invalid",
+        action,
+        `new_slot "${action.new_slot}" not in VALID_SLOTS`,
+      );
+      return;
+    }
 
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, dogs!inner(human_id)")
+      .select("id, size, dogs!inner(human_id)")
       .eq("id", action.old_booking_id)
       .maybeSingle();
-    if (!booking) return;
+    if (!booking) {
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        action.action,
+        "rejected_invalid",
+        action,
+        `booking ${action.old_booking_id} not found`,
+      );
+      return;
+    }
 
     const bookingHumanId = (booking as { dogs?: { human_id?: string } | null })
       .dogs?.human_id ?? null;
+    const bookingSize = (booking as { size?: string }).size ?? "small";
 
     const { data: conversation } = await supabase
       .from("whatsapp_conversations")
@@ -1250,10 +1460,38 @@ async function saveBookingAction(
       bookingHumanId &&
       conversation.human_id !== bookingHumanId
     ) {
-      // Conversation customer doesn't own this booking — silently drop
-      // the proposal. apply-customer-confirm has its own ownership
-      // check, but defence-in-depth here keeps the staging table clean.
+      await auditAiAction(
+        supabase,
+        conversationId,
+        draftId,
+        action.action,
+        "rejected_ownership",
+        action,
+        `conversation.human_id=${conversation.human_id} booking.dogs.human_id=${bookingHumanId}`,
+      );
       return;
+    }
+
+    if (action.action === "reschedule") {
+      const capacity = await checkSlotCapacity(
+        supabase,
+        bookingSize,
+        action.new_date,
+        action.new_slot,
+        action.old_booking_id,
+      );
+      if (!capacity.ok) {
+        await auditAiAction(
+          supabase,
+          conversationId,
+          draftId,
+          "reschedule",
+          "rejected_capacity",
+          action,
+          capacity.reason,
+        );
+        return;
+      }
     }
 
     const payload =
@@ -1278,6 +1516,16 @@ async function saveBookingAction(
       state: "pending",
     });
     if (error) throw new Error(`saveBookingAction(${action.action}) failed: ${error.message}`);
+
+    await auditAiAction(
+      supabase,
+      conversationId,
+      draftId,
+      action.action,
+      "staged",
+      payload,
+      null,
+    );
     return;
   }
 }
