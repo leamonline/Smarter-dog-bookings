@@ -69,36 +69,48 @@ export function useBookingActions({
   offline,
   onlineData,
 }: UseBookingActionsParams) {
-  // --- Online callbacks bound to currentDateStr ---
+  // Destructure so the dep arrays below name the actual function
+  // references rather than a property access on `sb` — exhaustive-deps
+  // can't follow property reads and would otherwise demand the entire
+  // `sb` object as a dep.
+  const {
+    sbAddBooking,
+    sbRemoveBooking,
+    sbToggleDayOpen,
+    sbSetOverride,
+    sbAddExtraSlot,
+    sbRemoveExtraSlot,
+  } = sb;
+
   const onlineHandleAdd = useCallback(
     (booking: Booking, targetDateStr: string = currentDateStr) =>
-      sb.sbAddBooking(targetDateStr, booking),
-    [sb.sbAddBooking, currentDateStr],
+      sbAddBooking(targetDateStr, booking),
+    [sbAddBooking, currentDateStr],
   );
   const onlineHandleAddToDate = useCallback(
-    (booking: Booking, dateStr: string) => sb.sbAddBooking(dateStr, booking),
-    [sb.sbAddBooking],
+    (booking: Booking, dateStr: string) => sbAddBooking(dateStr, booking),
+    [sbAddBooking],
   );
   const onlineHandleRemove = useCallback(
-    (bookingId: string) => sb.sbRemoveBooking(currentDateStr, bookingId),
-    [sb.sbRemoveBooking, currentDateStr],
+    (bookingId: string) => sbRemoveBooking(currentDateStr, bookingId),
+    [sbRemoveBooking, currentDateStr],
   );
   const onlineToggleDayOpen = useCallback(
-    () => sb.sbToggleDayOpen(currentDateStr),
-    [sb.sbToggleDayOpen, currentDateStr],
+    () => sbToggleDayOpen(currentDateStr),
+    [sbToggleDayOpen, currentDateStr],
   );
   const onlineHandleOverride = useCallback(
     (slot: string, seatIndex: number, action: string) =>
-      sb.sbSetOverride(currentDateStr, slot, seatIndex, action),
-    [sb.sbSetOverride, currentDateStr],
+      sbSetOverride(currentDateStr, slot, seatIndex, action),
+    [sbSetOverride, currentDateStr],
   );
   const onlineHandleAddSlot = useCallback(
-    () => sb.sbAddExtraSlot(currentDateStr),
-    [sb.sbAddExtraSlot, currentDateStr],
+    () => sbAddExtraSlot(currentDateStr),
+    [sbAddExtraSlot, currentDateStr],
   );
   const onlineHandleRemoveSlot = useCallback(
-    () => sb.sbRemoveExtraSlot(currentDateStr),
-    [sb.sbRemoveExtraSlot, currentDateStr],
+    () => sbRemoveExtraSlot(currentDateStr),
+    [sbRemoveExtraSlot, currentDateStr],
   );
 
   // --- Resolve online vs offline ---
