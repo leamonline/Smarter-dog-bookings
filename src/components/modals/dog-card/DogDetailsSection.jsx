@@ -286,7 +286,7 @@ export function DogDetailsSection({
             value={ownerValue}
             onClick={ownerOpenValue ? () => {
               onClose();
-              onOpenHuman && onOpenHuman(ownerOpenValue);
+              onOpenHuman?.(ownerOpenValue);
             } : undefined}
           />
           <CardRow

@@ -21,7 +21,6 @@ function makeSupabaseStub({ countResult, rowsResult } = {}) {
   return {
     from: vi.fn(() => {
       const builder = {};
-      const terminal = vi.fn();
 
       builder.select = vi.fn((_cols, opts) => {
         // count query: select('*', { count: 'exact', head: true })
@@ -43,7 +42,6 @@ function makeSupabaseStub({ countResult, rowsResult } = {}) {
       builder.range = vi.fn(() => Promise.resolve(rowsResult ?? { data: [], error: null }));
       // Default abortSignal in case select() hasn't been called yet
       builder.abortSignal = vi.fn(() => Promise.resolve({ data: [], error: null }));
-      terminal;
       return builder;
     }),
     channel: vi.fn(() => channel),
