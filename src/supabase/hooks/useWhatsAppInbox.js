@@ -34,6 +34,8 @@ import {
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
+import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
+import { markWhatsappConversationRead } from "../rpc.js";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -237,6 +239,18 @@ export function useWhatsAppInbox() {
       setConversations,
     });
 
+  // Apply / reject decisions on AI-attached booking proposals. The
+  // RPC + UPDATE-row plumbing lives in the dedicated hook; this
+  // monolith just forwards setters.
+  const { applyBookingAction, rejectBookingAction } =
+    useBookingActionDecisions({
+      actionInFlight,
+      setActionInFlight,
+      setBookingActions,
+      setConversations,
+      selectedIdRef,
+    });
+
   useEffect(() => {
     if (!supabase) {
       setLoadingList(false);
@@ -321,16 +335,16 @@ export function useWhatsAppInbox() {
     setLoadingDetail(true);
     // Mark as read via RPC (migration 029). Fire and forget; realtime
     // (migration 031) will reconcile any drift with the actual DB state.
-    supabase
-      .rpc("mark_whatsapp_conversation_read", { p_conversation_id: conversationId })
-      .then(({ error }) => {
+    markWhatsappConversationRead(supabase, { conversationId }).then(
+      ({ error }) => {
         if (error) {
           logger.warn("mark_whatsapp_conversation_read RPC error", {
             tags: { hook: "useWhatsAppInbox", op: "markRead" },
             extra: { message: error.message },
           });
         }
-      });
+      },
+    );
 
     await refreshDetail(conversationId);
 
@@ -599,84 +613,6 @@ export function useWhatsAppInbox() {
       setActionInFlight(false);
     }
   }, [selectedId, actionInFlight]);
-
-  const applyBookingAction = useCallback(async (actionId, editedPayload = null) => {
-    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
-    setActionInFlight(true);
-    try {
-      // If the staff member edited the proposal (e.g. moved the date,
-      // changed the slot, or fixed the service), persist the new
-      // payload onto the action row before running the RPC. The RPC
-      // reads payload from the row, so this is the contract.
-      if (editedPayload) {
-        const { error: upErr } = await supabase
-          .from("whatsapp_booking_actions")
-          .update({ payload: editedPayload })
-          .eq("id", actionId)
-          .eq("state", "pending");
-        if (upErr) throw upErr;
-      }
-      const { data, error } = await supabase.rpc("apply_whatsapp_booking_action", {
-        p_action_id: actionId,
-      });
-      if (error) throw error;
-      setBookingActions((prev) => {
-        const next = prev.filter((action) => action.id !== actionId);
-        setConversations((conversationsPrev) =>
-          conversationsPrev.map((c) =>
-            c.id === selectedIdRef.current
-              ? { ...c, has_pending_booking_action: next.length > 0 }
-              : c,
-          ),
-        );
-        return next;
-      });
-      return { ok: true, bookingId: data };
-    } catch (err) {
-      logger.error("applyBookingAction failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "applyBookingAction" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [actionInFlight]);
-
-  const rejectBookingAction = useCallback(async (actionId, reason = "") => {
-    if (!actionId || actionInFlight) return { ok: false, reason: "no action or action in flight" };
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from("whatsapp_booking_actions")
-        .update({
-          state: "rejected",
-          rejection_reason: typeof reason === "string" && reason.trim() ? reason.trim().slice(0, 500) : null,
-          decided_at: new Date().toISOString(),
-        })
-        .eq("id", actionId)
-        .eq("state", "pending");
-      if (error) throw error;
-      setBookingActions((prev) => {
-        const next = prev.filter((action) => action.id !== actionId);
-        setConversations((conversationsPrev) =>
-          conversationsPrev.map((c) =>
-            c.id === selectedIdRef.current
-              ? { ...c, has_pending_booking_action: next.length > 0 }
-              : c,
-          ),
-        );
-        return next;
-      });
-      return { ok: true };
-    } catch (err) {
-      logger.error("rejectBookingAction failed", err, {
-        tags: { hook: "useWhatsAppInbox", op: "rejectBookingAction" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [actionInFlight]);
 
 
   // ── Generate reply on demand (Phase G) ─────────────────────
