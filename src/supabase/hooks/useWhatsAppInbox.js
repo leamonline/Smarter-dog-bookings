@@ -434,16 +434,7 @@ export function useWhatsAppInbox() {
       body: { conversation_id: id },
     });
     if (error) {
-      let detail = error.message ?? "Generate reply failed";
-      try {
-        const errorBody = await error.context?.json?.();
-        if (errorBody) {
-          const parts = [errorBody.error, errorBody.reason, errorBody.detail].filter(Boolean);
-          if (parts.length) detail = parts.join(": ");
-        }
-      } catch {
-        /* fall through */
-      }
+      const detail = await parseSupabaseFunctionError(error, "Generate reply failed");
       return { ok: false, reason: detail };
     }
     // Realtime subscription on whatsapp_drafts will pick up the new
