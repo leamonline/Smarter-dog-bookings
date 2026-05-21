@@ -34,6 +34,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
     setError(null);
     setRejecting(false);
     setRejectReason("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when a different draft is selected; supersede creates a new id, so same-id text changes are in-progress staff edits we shouldn't overwrite
   }, [draft?.id]);
 
   if (!draft) {

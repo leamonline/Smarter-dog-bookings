@@ -184,6 +184,7 @@ export function DogCardModal({
       setAllergyInput(allergy ? allergy.replace("Allergic to ", "") : "");
       setHasAllergy((resolvedDog.alerts || []).some((a) => a.startsWith("Allergic to ")));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form fields seed from props only when a different dog is loaded; isEditing transitions inside the modal must not overwrite the user's typing
   }, [resolvedDog]);
 
   // --- Trusted humans state ---

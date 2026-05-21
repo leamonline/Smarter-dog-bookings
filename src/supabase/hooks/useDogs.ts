@@ -174,6 +174,7 @@ export function useDogs(humansById: Record<string, any>) {
       controller.abort();
       supabase!.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime subscription set up once on mount; handlers read humansById/invalidateHuman via closure
   }, []);
 
   const loadMore = useCallback(async () => {

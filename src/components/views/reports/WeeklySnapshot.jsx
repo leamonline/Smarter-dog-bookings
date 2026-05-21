@@ -60,6 +60,7 @@ export function WeeklySnapshot() {
   const today = new Date();
   const todayStr = toDateStr(today);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- today and todayStr derive from the same render-time `new Date()`; todayStr in deps already covers it
   const thisWeekDates = useMemo(() => getWeekDates(today), [todayStr]);
   const lastWeekDates = useMemo(() => {
     const lastMon = new Date(thisWeekDates[0]);
