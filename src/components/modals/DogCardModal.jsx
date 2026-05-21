@@ -195,7 +195,10 @@ export function DogCardModal({
   const [newTrustedPhone, setNewTrustedPhone] = useState("");
   const [newTrustedRelationship, setNewTrustedRelationship] = useState("");
 
-  const trustedContacts = owner?.trustedContacts || [];
+  const trustedContacts = useMemo(
+    () => owner?.trustedContacts || [],
+    [owner?.trustedContacts],
+  );
 
   // Server-side fallback: humans past the paginated page boundary (50)
   // aren't in the local map, so a name/phone the user knows about may

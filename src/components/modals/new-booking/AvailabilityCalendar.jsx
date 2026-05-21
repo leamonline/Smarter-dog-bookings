@@ -1,10 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { SALON_SLOTS, ALL_DAYS } from "../../../constants/index.js";
 import { computeSlotCapacities } from "../../../engine/capacity.js";
 import { toDateStr } from "../../../supabase/transforms.js";
 
 export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSelectDate, selectedDateStr, sizeTheme }) {
-  const today = new Date();
+  // Snapshot of "today" at mount; the modal lifecycle is short enough that
+  // we don't need to track real-time midnight rollovers, and a stable
+  // reference lets the dateStatuses memo skip unnecessary recomputation.
+  const today = useMemo(() => new Date(), []);
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
@@ -30,7 +33,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   // Check availability for a date
-  const getDateStatus = (day) => {
+  const getDateStatus = useCallback((day) => {
     const date = new Date(viewYear, viewMonth, day);
     const dateStr = toDateStr(date);
 
@@ -57,7 +60,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
     const hasAvailability = Object.values(capacities).some(c => c.available > 0);
 
     return hasAvailability ? "available" : "full";
-  };
+  }, [viewYear, viewMonth, today, dayOpenState, bookingsByDate, daySettings]);
 
   // Memoize statuses for all days in the month to avoid recomputing on every render
   const dateStatuses = useMemo(() => {
@@ -66,7 +69,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
       statuses[d] = getDateStatus(d);
     }
     return statuses;
-  }, [viewYear, viewMonth, daysInMonth, bookingsByDate, dayOpenState, daySettings]);
+  }, [daysInMonth, getDateStatus]);
 
   return (
     <div>

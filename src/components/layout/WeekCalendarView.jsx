@@ -168,19 +168,30 @@ export function WeekCalendarView({
 
   // --- Rebook derived state ---
   const rebookDateStr = rebookData?.dateStr || "";
-  const rebookSettings = rebookData
-    ? daySettings[rebookDateStr] || {
-        isOpen:
-          dayOpenState[rebookDateStr] ?? getDefaultOpenForDate(rebookData.date),
-        overrides: {},
-        extraSlots: [],
-      }
-    : null;
+  const rebookSettings = useMemo(
+    () =>
+      rebookData
+        ? daySettings[rebookDateStr] || {
+            isOpen:
+              dayOpenState[rebookDateStr] ?? getDefaultOpenForDate(rebookData.date),
+            overrides: {},
+            extraSlots: [],
+          }
+        : null,
+    [rebookData, daySettings, rebookDateStr, dayOpenState],
+  );
 
-  const rebookSlots = rebookData
-    ? [...SALON_SLOTS, ...(rebookSettings?.extraSlots || [])]
-    : [];
-  const rebookBookings = rebookData ? bookingsByDate[rebookDateStr] || [] : [];
+  const rebookSlots = useMemo(
+    () =>
+      rebookData
+        ? [...SALON_SLOTS, ...(rebookSettings?.extraSlots || [])]
+        : [],
+    [rebookData, rebookSettings],
+  );
+  const rebookBookings = useMemo(
+    () => (rebookData ? bookingsByDate[rebookDateStr] || [] : []),
+    [rebookData, bookingsByDate, rebookDateStr],
+  );
   const rebookDayOpen = rebookData
     ? (rebookSettings?.isOpen ?? dayOpenState[rebookDateStr] ?? false)
     : false;
