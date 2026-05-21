@@ -1,7 +1,6 @@
 // src/components/shared/AccessibleModal.tsx
 import { useRef, useEffect, type ReactNode } from "react";
-import { useDialog } from "@react-aria/dialog";
-import { FocusScope } from "@react-aria/focus";
+import { useDialog, FocusScope } from "react-aria";
 
 interface AccessibleModalProps {
   children: ReactNode;
