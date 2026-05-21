@@ -185,17 +185,17 @@ export function BookingDetailModal({
   const activePrice = pricing.basePrice;
   const amountDue = pricing.amountDue;
 
-  const handleCloseAttempt = () => {
+  const handleCloseAttempt = useCallback(() => {
     if (isEditing) setShowExitConfirm(true);
     else onClose();
-  };
+  }, [isEditing, onClose, setShowExitConfirm]);
 
   // Custom Escape handler — checks for unsaved changes before closing
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") { e.stopPropagation(); handleCloseAttempt(); } };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  }, [isEditing, onClose]);
+  }, [handleCloseAttempt]);
 
   const handleSelectDate = (newDate) => {
     const newDateStr = toDateStr(newDate);

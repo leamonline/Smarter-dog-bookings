@@ -384,7 +384,7 @@ export function useWhatsAppInbox() {
       setDogNames([]);
       setDogNamesById({});
     }
-  }, [refreshDetail]);
+  }, [refreshDetail, conversations]);
 
   // Realtime for the currently-selected conversation
   useEffect(() => {

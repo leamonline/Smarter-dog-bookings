@@ -231,7 +231,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     } else if (!humanMatch && location.pathname.startsWith("/humans") && selectedHumanId) {
       setSelectedHumanId(null);
     }
-  }, [location.pathname]);
+  }, [
+    location.pathname,
+    selectedDogId,
+    selectedHumanId,
+    setSelectedDogId,
+    setSelectedHumanId,
+  ]);
 
   const handleOpenDog = useCallback(
     (id) => {
