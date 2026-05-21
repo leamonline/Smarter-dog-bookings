@@ -126,6 +126,7 @@ export function HumanCardModal({
       setEditWhatsapp(!!human.whatsapp);
       setEditHistoryFlag(human.historyFlag || "");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form fields seed from props only when a different human is selected; live edits and isEditing transitions must not overwrite the user's typing
   }, [human.id]);  
 
   const handleSaveHuman = async () => {

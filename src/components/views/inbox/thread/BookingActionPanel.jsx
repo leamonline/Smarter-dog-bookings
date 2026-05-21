@@ -21,12 +21,13 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   // service / size the AI proposed before adding it to the diary.
   const [edits, setEdits] = useState({});
 
+  const actionIdsKey = actions.map((action) => action.id).join("|");
   useEffect(() => {
     setError(null);
     setRejectingId(null);
     setReason("");
     setEdits({});
-  }, [actions.map((action) => action.id).join("|")]);
+  }, [actionIdsKey]);
 
   if (!actions?.length) return null;
 

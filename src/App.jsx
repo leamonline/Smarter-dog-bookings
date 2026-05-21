@@ -231,7 +231,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     } else if (!humanMatch && location.pathname.startsWith("/humans") && selectedHumanId) {
       setSelectedHumanId(null);
     }
-  }, [location.pathname]);
+  }, [
+    location.pathname,
+    selectedDogId,
+    selectedHumanId,
+    setSelectedDogId,
+    setSelectedHumanId,
+  ]);
 
   const handleOpenDog = useCallback(
     (id) => {
@@ -253,11 +259,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const handleCloseDogProfile = useCallback(() => {
     setSelectedDogId(null);
     if (/^\/dogs\/[^/]+$/.test(location.pathname)) navigate("/dogs");
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, setSelectedDogId]);
   const handleCloseHumanProfile = useCallback(() => {
     setSelectedHumanId(null);
     if (/^\/humans\/[^/]+$/.test(location.pathname)) navigate("/humans");
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, setSelectedHumanId]);
 
   const {
     weekStart,
@@ -277,7 +283,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       rawDatePick(pickedDate);
       setShowDatePicker(false);
     },
-    [rawDatePick],
+    [rawDatePick, setShowDatePicker],
   );
 
   useKeyboardShortcuts({
@@ -288,7 +294,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
     openNewBooking: useCallback(
       () => setShowNewBooking({ dateStr: currentDateStr, slot: "" }),
-      [currentDateStr],
+      [currentDateStr, setShowNewBooking],
     ),
   });
 

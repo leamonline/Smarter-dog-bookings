@@ -107,6 +107,7 @@ export function useWeekNav() {
     } else {
       initSynced.current = true;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial URL-honour pass; later URL changes go through navigation
   }, []);
 
   // Sync current date to URL params. Skipped while the URL is still being
@@ -126,6 +127,7 @@ export function useWeekNav() {
     if (current !== dateStr) {
       setSearchParams({ date: dateStr }, { replace: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- URL writer reacts to state changes only; including searchParams would re-fire on our own writes
   }, [selectedDay, dates]);
 
   return {
