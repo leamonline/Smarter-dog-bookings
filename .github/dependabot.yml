@@ -1,0 +1,50 @@
+# Dependabot configuration
+#
+# Weekly checks for outdated npm dependencies and GitHub Actions.
+# npm updates are grouped to cut PR noise — one PR per group per week.
+# The "production" group is reviewed more carefully than the dev/build
+# tooling groups, since prod deps reach the browser.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - "playwright*"
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - "vitest"
+          - "@vitest/*"
+          - "jsdom"
+    ignore:
+      # Major upgrades land manually — react, vite, supabase-js,
+      # typescript have all had recent breaking changes that needed
+      # a real read-through rather than an automated bump.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
