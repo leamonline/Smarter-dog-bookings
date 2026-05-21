@@ -610,7 +610,7 @@ export function HumanCardModal({
                       type="button"
                       onClick={() => {
                         onClose();
-                        onOpenHuman && onOpenHuman(trustedHuman?.id || contact.id);
+                        onOpenHuman?.(trustedHuman?.id || contact.id);
                       }}
                       className="text-[13px] font-semibold text-brand-teal-text cursor-pointer bg-transparent border-none p-0 text-left flex-1 min-w-0 truncate font-inherit"
                     >

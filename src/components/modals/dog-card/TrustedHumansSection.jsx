@@ -78,8 +78,7 @@ export function TrustedHumansSection({
                   onBlur={(e) => {
                     const nextValue = e.target.value.trim();
                     if (nextValue === (contact.relationship || "")) return;
-                    handleUpdateTrustedRelationship &&
-                      handleUpdateTrustedRelationship(contact.id || contact.fullName, nextValue);
+                    handleUpdateTrustedRelationship?.(contact.id || contact.fullName, nextValue);
                   }}
                   className={`${INPUT_CLS} mt-1.5 text-[12px]`}
                   aria-label={`Relationship for ${titleCase(trustedLabel)}`}
@@ -95,7 +94,7 @@ export function TrustedHumansSection({
               value={contact.relationship || ""}
               onClick={() => {
                 onClose();
-                onOpenHuman && onOpenHuman(trustedHuman?.id || contact.id);
+                onOpenHuman?.(trustedHuman?.id || contact.id);
               }}
               last={i === contacts.length - 1}
             />
@@ -226,7 +225,7 @@ export function TrustedHumansSection({
                         setNewTrustedName("");
                         setNewTrustedSurname("");
                         setNewTrustedPhone("");
-                        setNewTrustedRelationship && setNewTrustedRelationship("");
+                        setNewTrustedRelationship?.("");
                       }}
                       className="flex-1 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer font-inherit"
                     >
