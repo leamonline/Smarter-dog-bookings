@@ -13,12 +13,13 @@
 //   - any other process inserts a sent reminder row
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { supabase } from "../client.js";
 import { getNextWorkingDay } from "../../utils/nextWorkingDay.js";
 import { logger } from "../../lib/logger.js";
 
 export function useTomorrowReminders() {
+  const instanceId = useId();
   const targetDate = useMemo(() => getNextWorkingDay(), []);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,8 +95,12 @@ export function useTomorrowReminders() {
   useEffect(() => {
     if (!supabase) return;
     refresh();
+    // Per-instance channel name — Supabase reuses channels by name, so a
+    // shared name across mounts (e.g. sidebar + card simultaneously, or
+    // React strict-mode remount racing async cleanup) causes the second
+    // mount to call `.on()` on an already-subscribed channel and throw.
     const channel = supabase
-      .channel("dashboard-tomorrow-reminders")
+      .channel(`dashboard-tomorrow-reminders:${instanceId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notification_log" },
@@ -108,7 +113,7 @@ export function useTomorrowReminders() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [refresh]);
+  }, [refresh, instanceId]);
 
   const sentCount = rows.filter((r) => r.reminderStatus === "sent").length;
   const totalCount = rows.length;
