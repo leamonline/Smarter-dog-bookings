@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useId, useCallback } from "react";
 import { supabase } from "../client.js";
 
 export function useTodos() {
+  const instanceId = useId();
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,8 +31,13 @@ export function useTodos() {
     })();
 
     // ── Realtime ───────────────────────────────────────────────
+    // Per-instance channel name — Supabase reuses channels by name, so
+    // a shared name across simultaneous mounts (RightWorkflowSidebar +
+    // WeekCalendarView both mount on the Bookings page) causes the
+    // second mount to call `.on()` on an already-subscribed channel
+    // and throw.
     const channel = supabase
-      .channel("salon-todos")
+      .channel(`salon-todos:${instanceId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "salon_todos" },
@@ -52,7 +58,7 @@ export function useTodos() {
       .subscribe();
 
     return () => { controller.abort(); channel.unsubscribe(); };
-  }, []);
+  }, [instanceId]);
 
   // All mutations return { ok: true } | { ok: false, error: string } so
   // callers can toast on failure. Optimistic update + rollback keeps the
