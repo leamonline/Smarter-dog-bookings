@@ -49,6 +49,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 let state = {
   awaitingReply: 0,
+  // ISO timestamp of the oldest inbound message that's still ahead of
+  // the conversation's last outbound — i.e. the oldest message we
+  // haven't replied to. Drives the right-rail inbox card's attention
+  // tone (>= 2h since this timestamp → attention).
+  oldestUnansweredAt: null,
   draftsPending: 0,
   conversationsToday: 0,
   recentConversations: [],
@@ -90,7 +95,7 @@ async function refresh() {
   // this is fine; if it ever isn't, promote to an RPC.
   const sinceIso = new Date(Date.now() - DAY_MS).toISOString();
 
-  const [convs, drafts, recentMsgs, recentConvsRes] = await Promise.all([
+  const [convs, drafts, recentMsgs, recentConvsRes, unansweredRes] = await Promise.all([
     // Conversations with unread_count > 0 is our proxy for
     // "awaiting reply". It's maintained by the AFTER INSERT trigger
     // (migration 029) and reset to 0 by mark_whatsapp_conversation_read.
@@ -125,6 +130,20 @@ async function refresh() {
       )
       .order("last_inbound_at", { ascending: false, nullsFirst: false })
       .limit(5),
+
+    // Oldest unanswered inbound for the right-rail attention timer.
+    // Need rows where the customer wrote after we last replied
+    // (or we've never replied) — `unread_count > 0` alone would
+    // misclassify mid-conversation back-and-forth where staff has
+    // already responded but the customer keeps typing.
+    // We fetch the single oldest row and read its last_inbound_at.
+    supabase
+      .from("whatsapp_conversations")
+      .select("last_inbound_at, last_outbound_at")
+      .gt("unread_count", 0)
+      .not("last_inbound_at", "is", null)
+      .order("last_inbound_at", { ascending: true })
+      .limit(20),
   ]);
 
   if (convs.error) {
@@ -151,6 +170,24 @@ async function refresh() {
       extra: { message: recentConvsRes.error.message },
     });
   }
+  if (unansweredRes.error) {
+    logger.warn("useWhatsAppSummary unanswered failed", {
+      tags: { hook: "useWhatsAppSummary", op: "fetch.unanswered" },
+      extra: { message: unansweredRes.error.message },
+    });
+  }
+
+  // Pick the oldest inbound that hasn't been replied to. A row counts
+  // as unanswered when last_outbound_at is null or strictly before
+  // last_inbound_at — i.e. the customer's most recent message hasn't
+  // been answered. This avoids "oldest" jumping forward whenever a
+  // back-and-forth conversation receives a fresh message.
+  const oldestUnansweredAt =
+    (unansweredRes.data ?? []).find((r) => {
+      if (!r.last_inbound_at) return false;
+      if (!r.last_outbound_at) return true;
+      return new Date(r.last_inbound_at) > new Date(r.last_outbound_at);
+    })?.last_inbound_at ?? null;
 
   const uniqueConvIds = new Set((recentMsgs.data ?? []).map((r) => r.conversation_id));
 
@@ -168,6 +205,7 @@ async function refresh() {
 
   setState({
     awaitingReply: convs.count ?? 0,
+    oldestUnansweredAt,
     draftsPending: drafts.count ?? 0,
     conversationsToday: uniqueConvIds.size,
     recentConversations,

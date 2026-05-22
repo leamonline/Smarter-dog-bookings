@@ -319,13 +319,8 @@ export function WeekCalendarView({
               </div>
               <div className="hidden xl:block">
                 <RightWorkflowSidebar
-                  waitlistCount={waitlist.length}
-                  todoCount={openTodoCount}
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
-                  onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
-                  waitlistLoading={waitlistLoading}
-                  todoLoading={todoLoading}
                 />
               </div>
             </>
