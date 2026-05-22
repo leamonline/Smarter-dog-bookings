@@ -4,6 +4,7 @@ import { PanelShell } from "./PanelShell.jsx";
 import { SizeDot } from "../../ui/SizeDot.jsx";
 import { getSizeForBreed } from "../../../constants/index.js";
 import { titleCase } from "../../../utils/text.js";
+import { getDogsForHuman } from "../../../utils/directorySearch.js";
 
 // Replaces the amber DogPill chips. On the dashboard, amber means
 // "today / attention" — so an amber dog name was misleading. The new
@@ -47,27 +48,37 @@ export function DogsPanel({
   human,
   humanFullName,
   dogs,
+  dogsByHumanId,
   onClose,
   onOpenDog,
 }) {
   const { ownedDogs, trustedDogs } = useMemo(() => {
-    const owned = [];
+    // Pull owned dogs from dogsByHumanId first (populated by
+    // ensureDogsForHumans regardless of pagination) and only fall back
+    // to scanning the paginated `dogs` map. Without this, customers
+    // whose dogs sit past the dogs page boundary render with a partial
+    // list ("Luna but no Jelly") or none at all.
+    const owned = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
+
     const trusted = [];
     const trustedSet = new Set(human.trustedIds || []);
-
-    for (const dog of Object.values(dogs || {})) {
-      const ownerId = dog._humanId || null;
-      const ownerName = dog.humanId || "";
-      if (ownerId === human.id || ownerName === humanFullName) {
-        owned.push(dog);
-      } else if (trustedSet.has(ownerId) || trustedSet.has(ownerName)) {
-        trusted.push(dog);
+    if (trustedSet.size > 0) {
+      for (const dog of Object.values(dogs || {})) {
+        const ownerId = dog._humanId || null;
+        const ownerName = dog.humanId || "";
+        // Skip dogs already owned by this human.
+        if (ownerId === human.id || ownerName === humanFullName) continue;
+        if (trustedSet.has(ownerId) || trustedSet.has(ownerName)) {
+          trusted.push(dog);
+        }
       }
     }
-    owned.sort((a, b) => a.name.localeCompare(b.name));
+    const ownedSorted = [...owned].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
     trusted.sort((a, b) => a.name.localeCompare(b.name));
-    return { ownedDogs: owned, trustedDogs: trusted };
-  }, [dogs, human.id, humanFullName, human.trustedIds]);
+    return { ownedDogs: ownedSorted, trustedDogs: trusted };
+  }, [dogs, dogsByHumanId, human, humanFullName]);
 
   return (
     <PanelShell eyebrow="Dogs" icon={DogIcon} accent="teal">

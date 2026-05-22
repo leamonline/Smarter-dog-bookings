@@ -1,23 +1,29 @@
 import { useMemo } from "react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
 import { titleCase } from "../../../utils/text.js";
+import { getDogsForHuman } from "../../../utils/directorySearch.js";
+
+function formatBookingDate(iso) {
+  if (!iso) return "";
+  // ISO `YYYY-MM-DD` → `DD-MM-YYYY` for the staff-facing UK format.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const [, y, m, d] = match;
+  return `${d}-${m}-${y}`;
+}
 
 // Recent-bookings section of the HumanCardModal. Pure leaf — given a
 // human + the dogs map + bookingsByDate, surfaces the last five
 // bookings that belong to this owner (either directly or via one of
 // their dogs). Render hidden when the human has no bookings.
-export function HumanBookingHistory({ human, dogs, bookingsByDate }) {
+export function HumanBookingHistory({ human, dogs, dogsByHumanId, bookingsByDate }) {
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
 
     const humanDogNames = new Set(
-      Object.values(dogs || {})
-        .filter((dog) => {
-          const dogOwnerId = dog._humanId || null;
-          const dogOwnerName = dog.humanId || "";
-          return dogOwnerId === human.id || dogOwnerName === human.fullName;
-        })
-        .map((dog) => dog.name),
+      getDogsForHuman(human, dogs || {}, dogsByHumanId || {}).map(
+        (dog) => dog.name,
+      ),
     );
 
     const entries = [];
@@ -34,7 +40,7 @@ export function HumanBookingHistory({ human, dogs, bookingsByDate }) {
     }
 
     return entries.sort((a, b) => b.date.localeCompare(a.date));
-  }, [human, dogs, bookingsByDate]);
+  }, [human, dogs, dogsByHumanId, bookingsByDate]);
 
   if (history.length === 0) return null;
 
@@ -52,7 +58,7 @@ export function HumanBookingHistory({ human, dogs, bookingsByDate }) {
           >
             <div>
               <span className="font-semibold text-slate-800">
-                {booking.date}
+                {formatBookingDate(booking.date)}
               </span>
               <span className="text-slate-500 ml-1.5">
                 {titleCase(booking.dogName)}

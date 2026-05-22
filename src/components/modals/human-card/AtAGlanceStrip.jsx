@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { computeRevenue } from "../../../engine/pricing";
 import { BOOKING_STATUS } from "../../../constants/index.js";
 import { toDateStr } from "../../../supabase/transforms.js";
+import { getDogsForHuman } from "../../../utils/directorySearch.js";
 
 // At-a-glance stat strip — lifetime bookings · last visit · next
 // appointment · total spend. Mirrors the "Capacity / Revenue" mini
@@ -45,19 +46,19 @@ function Tile({ caption, value, sub, tone = "navy" }) {
   );
 }
 
-export function AtAGlanceStrip({ human, humanFullName, dogs, bookingsByDate }) {
+export function AtAGlanceStrip({
+  human,
+  humanFullName,
+  dogs,
+  dogsByHumanId,
+  bookingsByDate,
+}) {
   const stats = useMemo(() => {
-    const dogsArr = Object.values(dogs || {});
-    const ownedDogIds = new Set(
-      dogsArr
-        .filter((d) => d._humanId === human.id || d.humanId === humanFullName)
-        .map((d) => d.id),
-    );
-    const ownedDogNames = new Set(
-      dogsArr
-        .filter((d) => d._humanId === human.id || d.humanId === humanFullName)
-        .map((d) => d.name),
-    );
+    // Use the merged dogs lookup so customers whose dogs sit past the
+    // paginated dogs window still match their bookings here.
+    const owned = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
+    const ownedDogIds = new Set(owned.map((d) => d.id));
+    const ownedDogNames = new Set(owned.map((d) => d.name));
 
     const todayStr = toDateStr(new Date());
     const matchedBookings = [];
@@ -113,7 +114,7 @@ export function AtAGlanceStrip({ human, humanFullName, dogs, bookingsByDate }) {
       isNextToday: nextAppt === todayStr,
       totalSpend,
     };
-  }, [human.id, humanFullName, dogs, bookingsByDate]);
+  }, [human, humanFullName, dogs, dogsByHumanId, bookingsByDate]);
 
   return (
     <div
