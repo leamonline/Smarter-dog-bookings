@@ -53,6 +53,8 @@ function getDogsForHuman(
   );
 }
 
+export { getDogsForHuman };
+
 export function filterDogsForDirectory(
   dogs: Record<string, Dog>,
   humans: Record<string, Human>,

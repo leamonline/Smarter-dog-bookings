@@ -26,6 +26,8 @@ export function HumanCardModal({
   onOpenDog,
   humans,
   dogs,
+  dogsByHumanId,
+  ensureDogsForHumans,
   onUpdateHuman,
   onAddHuman,
   onDeleteHuman,
@@ -45,6 +47,15 @@ export function HumanCardModal({
     if (humans?.[humanId]) return;
     fetchHumanById(humanId);
   }, [humanId, humans, fetchHumanById]);
+
+  // Same pattern for dogs: useDogs paginates by name, so a customer's
+  // dogs may sit past the first page (one missing, all missing depending
+  // on the alphabetical cut-off). ensureDogsForHumans populates
+  // dogsByHumanId for the panels below.
+  useEffect(() => {
+    if (!humanId || !ensureDogsForHumans) return;
+    ensureDogsForHumans([humanId]);
+  }, [humanId, ensureDogsForHumans]);
 
   const human = getHumanByIdOrName(humans, humanId) || {
     id: humanId,
@@ -222,12 +233,14 @@ export function HumanCardModal({
                 human={human}
                 humanFullName={humanFullName}
                 dogs={dogs}
+                dogsByHumanId={dogsByHumanId}
                 bookingsByDate={bookingsByDate}
               />
               <DogsPanel
                 human={human}
                 humanFullName={humanFullName}
                 dogs={dogs}
+                dogsByHumanId={dogsByHumanId}
                 onClose={onClose}
                 onOpenDog={onOpenDog}
               />
@@ -251,6 +264,7 @@ export function HumanCardModal({
             <HumanBookingHistory
               human={human}
               dogs={dogs}
+              dogsByHumanId={dogsByHumanId}
               bookingsByDate={bookingsByDate}
             />
           </div>
