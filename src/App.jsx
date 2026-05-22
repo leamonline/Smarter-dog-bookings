@@ -33,6 +33,16 @@ import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
+// Dev-only preview catalogue for the right-rail tones. Tree-shaken
+// out of production bundles by Vite (the route below is gated on
+// `import.meta.env.DEV`, which folds to `false` in prod).
+const RightRailPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/RightRailPreview.jsx").then((module) => ({
+        default: module.RightRailPreview,
+      })),
+    )
+  : () => null;
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -637,6 +647,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onRefresh={refetchBookings}
                     />
                   } />
+                  {import.meta.env.DEV && (
+                    <Route
+                      path="/dev/right-rail-preview"
+                      element={<RightRailPreview />}
+                    />
+                  )}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </main>
