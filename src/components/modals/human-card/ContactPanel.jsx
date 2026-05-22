@@ -1,32 +1,35 @@
 import { MapPin } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 
-// Address + email shown as "tiny uppercase caption above, value below"
-// — the same hierarchy the DayHeader and dashboard panels use.
-// Replaces the previous label/value table that read as a settings dialog.
+// Compact contact rows: small uppercase prefix label inline with the
+// value rather than stacked as its own block. When both fields are
+// empty in view mode the panel collapses to a single "Add contact
+// details" link that drops the modal into edit mode focused on the
+// address input.
 
-function FieldStack({ caption, value, placeholder = "Not on file" }) {
+function InlineRow({ caption, value }) {
   return (
-    <div>
-      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+    <div className="flex items-baseline gap-2 min-w-0">
+      <span className="text-xs uppercase tracking-wide font-semibold text-slate-400 shrink-0">
         {caption}
-      </div>
-      <div
-        className={`text-sm mt-0.5 ${value ? "text-brand-purple font-semibold" : "text-slate-400 italic font-normal"} break-words`}
+      </span>
+      <span
+        className={`text-sm break-words min-w-0 ${value ? "text-brand-purple font-semibold" : "text-slate-400 italic"}`}
       >
-        {value || placeholder}
-      </div>
+        {value || "Not on file"}
+      </span>
     </div>
   );
 }
 
-function FieldInput({ caption, value, onChange, type = "text", placeholder }) {
+function FieldInput({ caption, value, onChange, type = "text", placeholder, inputRef }) {
   return (
     <label className="block">
       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
         {caption}
       </span>
       <input
+        ref={inputRef}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -45,16 +48,24 @@ export function ContactPanel({
   setEditAddress,
   editEmail,
   setEditEmail,
+  onStartEdit,
+  addressInputRef,
+  emailInputRef,
 }) {
+  const hasAddress = !!human.address;
+  const hasEmail = !!human.email;
+  const hasAny = hasAddress || hasEmail;
+
   return (
     <PanelShell eyebrow="Contact" icon={MapPin} accent="slate">
       {isEditing ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <FieldInput
             caption="Address"
             value={editAddress}
             onChange={setEditAddress}
             placeholder="Street, town, postcode"
+            inputRef={addressInputRef}
           />
           <FieldInput
             caption="Email"
@@ -62,12 +73,21 @@ export function ContactPanel({
             value={editEmail}
             onChange={setEditEmail}
             placeholder="name@example.com"
+            inputRef={emailInputRef}
           />
         </div>
+      ) : !hasAny ? (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          className="text-sm font-semibold text-brand-teal-text underline cursor-pointer bg-transparent border-none p-0 font-inherit hover:text-brand-teal transition-colors"
+        >
+          Add contact details
+        </button>
       ) : (
-        <div className="flex flex-col gap-3">
-          <FieldStack caption="Address" value={human.address} />
-          <FieldStack caption="Email" value={human.email} />
+        <div className="flex flex-col gap-1.5">
+          <InlineRow caption="Address" value={human.address} />
+          <InlineRow caption="Email" value={human.email} />
         </div>
       )}
     </PanelShell>

@@ -5,10 +5,12 @@ import { toDateStr } from "../../../supabase/transforms.js";
 import { getDogsForHuman } from "../../../utils/directorySearch.js";
 
 // At-a-glance stat strip — lifetime bookings · last visit · next
-// appointment · total spend. Mirrors the "Capacity / Revenue" mini
-// tile treatment on the dashboard: tiny caption above, bold value
-// below, neutral navy text except for the next-appointment tile,
-// which switches to amber when the appointment is today.
+// appointment · total spend. Flat 4-col tile row (no outer slate
+// wrapper) where each tile is a button when wired to a handler.
+//
+// Bookings + Last visit invoke `onOpenBookingsForHuman` with an optional
+// focus hint. Next appt invokes `onOpenBooking` with the upcoming
+// booking's id. Total stays inert.
 
 const COMPLETED_STATUSES = new Set([
   BOOKING_STATUS.READY_FOR_PICKUP,
@@ -22,19 +24,52 @@ function formatShortDate(iso) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Tile({ caption, value, sub, tone = "navy" }) {
+function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel }) {
   const valueClass =
     tone === "amber"
       ? "text-amber-700"
       : tone === "muted"
         ? "text-slate-400"
         : "text-brand-purple";
+
+  const isInteractive = !!onClick && !disabled;
+  const base =
+    "bg-white rounded-xl border border-gray-100 px-3 py-2.5 min-w-0 text-left font-inherit";
+  const interactive = isInteractive
+    ? "cursor-pointer transition-colors hover:bg-slate-50 hover:border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
+    : disabled
+      ? "cursor-default opacity-80"
+      : "cursor-default";
+
+  if (isInteractive) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel || caption}
+        className={`${base} ${interactive}`}
+      >
+        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">
+          {caption}
+        </div>
+        <div className={`text-lg font-semibold font-display leading-tight mt-0.5 truncate ${valueClass}`}>
+          {value}
+        </div>
+        {sub && (
+          <div className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate">
+            {sub}
+          </div>
+        )}
+      </button>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 min-w-0">
-      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
+    <div className={`${base} ${interactive}`}>
+      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">
         {caption}
       </div>
-      <div className={`text-base font-bold font-display leading-tight mt-0.5 truncate ${valueClass}`}>
+      <div className={`text-lg font-semibold font-display leading-tight mt-0.5 truncate ${valueClass}`}>
         {value}
       </div>
       {sub && (
@@ -52,24 +87,26 @@ export function AtAGlanceStrip({
   dogs,
   dogsByHumanId,
   bookingsByDate,
+  onOpenBookingsForHuman,
+  onOpenBooking,
 }) {
   const stats = useMemo(() => {
     // Use the merged dogs lookup so customers whose dogs sit past the
     // paginated dogs window still match their bookings here.
-    const owned = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
-    const ownedDogIds = new Set(owned.map((d) => d.id));
-    const ownedDogNames = new Set(owned.map((d) => d.name));
+    const ownedDogs = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
+    const ownedDogIds = new Set(ownedDogs.map((d) => d.id));
+    const ownedDogNames = new Set(ownedDogs.map((d) => d.name));
 
     const todayStr = toDateStr(new Date());
     const matchedBookings = [];
     for (const [dateStr, bookings] of Object.entries(bookingsByDate || {})) {
       for (const b of bookings || []) {
-        const owned =
+        const isOwned =
           ownedDogIds.has(b._dogId) ||
           ownedDogNames.has(b.dogName) ||
           b._ownerId === human.id ||
           b.owner === humanFullName;
-        if (owned) {
+        if (isOwned) {
           matchedBookings.push({ ...b, date: dateStr });
         }
       }
@@ -90,8 +127,6 @@ export function AtAGlanceStrip({
       }
     }
     if (!lastVisit) {
-      // Fall back to most recent past booking regardless of status — the
-      // staff still wants to know when they last saw this human.
       for (const b of matchedBookings) {
         if (b.date <= todayStr && (!lastVisit || b.date > lastVisit)) {
           lastVisit = b.date;
@@ -99,47 +134,64 @@ export function AtAGlanceStrip({
       }
     }
 
-    let nextAppt = null;
+    let nextApptDate = null;
+    let nextApptBooking = null;
     for (const b of matchedBookings) {
       if (b.status === BOOKING_STATUS.CANCELLED) continue;
-      if (b.date >= todayStr && (!nextAppt || b.date < nextAppt)) {
-        nextAppt = b.date;
+      if (b.date >= todayStr && (!nextApptDate || b.date < nextApptDate)) {
+        nextApptDate = b.date;
+        nextApptBooking = b;
       }
     }
 
     return {
       lifetime,
       lastVisit,
-      nextAppt,
-      isNextToday: nextAppt === todayStr,
+      nextAppt: nextApptDate,
+      nextApptBooking,
+      isNextToday: nextApptDate === todayStr,
       totalSpend,
     };
   }, [human, humanFullName, dogs, dogsByHumanId, bookingsByDate]);
 
+  const openBookings = (focus) => {
+    if (!onOpenBookingsForHuman) return;
+    onOpenBookingsForHuman(human.id, focus ? { focus } : undefined);
+  };
+
   return (
-    <div
-      aria-label="At a glance"
-      className="bg-slate-50 rounded-2xl border border-gray-100 p-2 grid grid-cols-2 md:grid-cols-4 gap-2"
-    >
+    <div aria-label="At a glance" className="grid grid-cols-4 gap-2">
       <Tile
         caption="Bookings"
         value={stats.lifetime}
-        sub={stats.lifetime === 1 ? "lifetime" : "lifetime"}
+        sub="lifetime"
         tone={stats.lifetime > 0 ? "navy" : "muted"}
+        onClick={() => openBookings()}
+        ariaLabel={`See all bookings (${stats.lifetime} lifetime)`}
       />
       <Tile
         caption="Last visit"
         value={formatShortDate(stats.lastVisit)}
         tone={stats.lastVisit ? "navy" : "muted"}
+        onClick={stats.lastVisit ? () => openBookings("last") : undefined}
+        disabled={!stats.lastVisit}
+        ariaLabel={stats.lastVisit ? `Open most recent visit` : undefined}
       />
       <Tile
         caption="Next appt"
         value={formatShortDate(stats.nextAppt)}
         sub={stats.isNextToday ? "today" : undefined}
         tone={stats.isNextToday ? "amber" : stats.nextAppt ? "navy" : "muted"}
+        onClick={
+          stats.nextApptBooking?.id
+            ? () => onOpenBooking?.(stats.nextApptBooking.id)
+            : undefined
+        }
+        disabled={!stats.nextApptBooking?.id}
+        ariaLabel={stats.nextAppt ? `Open upcoming appointment on ${stats.nextAppt}` : undefined}
       />
       <Tile
-        caption="Total spend"
+        caption="Total"
         value={stats.totalSpend > 0 ? `£${stats.totalSpend}` : "£0"}
         tone={stats.totalSpend > 0 ? "navy" : "muted"}
       />

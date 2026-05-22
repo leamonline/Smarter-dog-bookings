@@ -233,62 +233,76 @@ export function TrustedHumansPanel({
     }
   };
 
+  const hasTrusted =
+    human.trustedContacts && human.trustedContacts.length > 0;
+
   return (
     <PanelShell eyebrow="Trusted humans" icon={Users} accent="sky">
-      {human.trustedContacts && human.trustedContacts.length > 0 ? (
-        <div className="divide-y divide-slate-100">
-          {human.trustedContacts.map((contact) => {
-            const trustedHuman =
-              getHumanByIdOrName(humans, contact.id) ||
-              getHumanByIdOrName(humans, contact.fullName);
-            const rowKey =
-              contact.id ||
-              contact.fullName ||
-              trustedHuman?.id ||
-              Math.random().toString();
-            return (
-              <TrustedRow
-                key={rowKey}
-                contact={contact}
-                trustedHuman={trustedHuman}
-                onOpenHuman={onOpenHuman}
-                onClose={onClose}
-                onUpdateRelationship={(rel) => {
-                  const current = human.trustedContacts || [];
-                  const next = current.map((c) =>
-                    (c.id || c.fullName) === (contact.id || contact.fullName)
-                      ? { ...c, relationship: rel }
-                      : c,
-                  );
-                  onUpdateHuman(myId, { trustedContacts: next });
-                }}
-                onRemove={() => handleRemoveTrusted(contact)}
-              />
-            );
-          })}
-        </div>
+      {hasTrusted ? (
+        <>
+          <div className="divide-y divide-slate-100">
+            {human.trustedContacts.map((contact) => {
+              const trustedHuman =
+                getHumanByIdOrName(humans, contact.id) ||
+                getHumanByIdOrName(humans, contact.fullName);
+              const rowKey =
+                contact.id ||
+                contact.fullName ||
+                trustedHuman?.id ||
+                Math.random().toString();
+              return (
+                <TrustedRow
+                  key={rowKey}
+                  contact={contact}
+                  trustedHuman={trustedHuman}
+                  onOpenHuman={onOpenHuman}
+                  onClose={onClose}
+                  onUpdateRelationship={(rel) => {
+                    const current = human.trustedContacts || [];
+                    const next = current.map((c) =>
+                      (c.id || c.fullName) === (contact.id || contact.fullName)
+                        ? { ...c, relationship: rel }
+                        : c,
+                    );
+                    onUpdateHuman(myId, { trustedContacts: next });
+                  }}
+                  onRemove={() => handleRemoveTrusted(contact)}
+                />
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className={[
+              "w-full mt-3 py-2 rounded-control border-[1.5px] border-dashed text-xs font-bold cursor-pointer font-inherit transition-colors inline-flex items-center justify-center gap-1.5",
+              showAdd
+                ? "border-brand-teal bg-brand-teal text-white"
+                : "border-brand-teal/60 bg-transparent text-brand-teal-text hover:bg-[#E6F5F2]",
+            ].join(" ")}
+          >
+            {showAdd ? (
+              "Cancel"
+            ) : (
+              <>
+                <Plus size={12} strokeWidth={2.6} aria-hidden="true" /> Add a trusted Human
+              </>
+            )}
+          </button>
+        </>
       ) : (
-        <div className="text-sm text-slate-400 italic">None listed.</div>
+        <div className="text-sm text-slate-500 flex items-center flex-wrap gap-1.5">
+          <span className="text-slate-400 italic">No trusted humans</span>
+          <span aria-hidden="true" className="text-slate-300">·</span>
+          <button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className="text-brand-teal-text font-semibold underline cursor-pointer bg-transparent border-none p-0 font-inherit hover:text-brand-teal transition-colors"
+          >
+            {showAdd ? "Cancel" : "Add"}
+          </button>
+        </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setShowAdd((v) => !v)}
-        className={[
-          "w-full mt-3 py-2 rounded-control border-[1.5px] border-dashed text-xs font-bold cursor-pointer font-inherit transition-colors inline-flex items-center justify-center gap-1.5",
-          showAdd
-            ? "border-brand-teal bg-brand-teal text-white"
-            : "border-brand-teal/60 bg-transparent text-brand-teal-text hover:bg-[#E6F5F2]",
-        ].join(" ")}
-      >
-        {showAdd ? (
-          "Cancel"
-        ) : (
-          <>
-            <Plus size={12} strokeWidth={2.6} aria-hidden="true" /> Add a trusted Human
-          </>
-        )}
-      </button>
 
       {showAdd && (
         <div className="mt-3">
