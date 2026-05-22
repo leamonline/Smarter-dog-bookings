@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
@@ -19,6 +19,63 @@ import {
   RemindersPanel,
 } from "./human-card/index.js";
 
+const EMPTY_HUMAN = {
+  id: "",
+  fullName: "",
+  name: "",
+  surname: "",
+  phone: "",
+  sms: false,
+  whatsapp: false,
+  email: "",
+  fb: "",
+  insta: "",
+  tiktok: "",
+  address: "",
+  notes: "",
+  trustedIds: [],
+  trustedContacts: [],
+  historyFlag: "",
+};
+
+const DRAFT_KEYS = [
+  "name",
+  "surname",
+  "phone",
+  "email",
+  "address",
+  "fb",
+  "insta",
+  "tiktok",
+  "notes",
+  "sms",
+  "whatsapp",
+  "historyFlag",
+];
+
+function makeDraftFromHuman(h) {
+  return {
+    name: h.name || "",
+    surname: h.surname || "",
+    phone: h.phone || "",
+    email: h.email || "",
+    address: h.address || "",
+    fb: h.fb || "",
+    insta: h.insta || "",
+    tiktok: h.tiktok || "",
+    notes: h.notes || "",
+    sms: !!h.sms,
+    whatsapp: !!h.whatsapp,
+    historyFlag: h.historyFlag || "",
+  };
+}
+
+function draftsEqual(a, b) {
+  if (a === b) return true;
+  for (const k of DRAFT_KEYS) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 export function HumanCardModal({
   humanId,
   onClose,
@@ -35,9 +92,18 @@ export function HumanCardModal({
   fetchHumanById,
   findHumanByFullName,
   searchHumansByTerm,
+  // Optional callbacks the parent can wire later. When omitted we stub
+  // each one with a console.warn so they can be grepped.
+  onOpenBookingsForHuman,
+  onOpenBooking,
+  onNewBookingForHuman,
+  onSendMessage,
+  onMergeDuplicate,
+  onArchiveHuman,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
+  const [pendingExit, setPendingExit] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -57,63 +123,87 @@ export function HumanCardModal({
     ensureDogsForHumans([humanId]);
   }, [humanId, ensureDogsForHumans]);
 
-  const human = getHumanByIdOrName(humans, humanId) || {
-    id: humanId,
-    fullName: "",
-    name: "",
-    surname: "",
-    phone: "",
-    sms: false,
-    whatsapp: false,
-    email: "",
-    fb: "",
-    insta: "",
-    tiktok: "",
-    address: "",
-    notes: "",
-    trustedIds: [],
-    trustedContacts: [],
-    historyFlag: "",
-  };
+  const human = useMemo(
+    () =>
+      getHumanByIdOrName(humans, humanId) || { ...EMPTY_HUMAN, id: humanId },
+    [humans, humanId],
+  );
 
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
   // --- Edit state ---
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(human.name || "");
-  const [editSurname, setEditSurname] = useState(human.surname || "");
-  const [editPhone, setEditPhone] = useState(human.phone || "");
-  const [editEmail, setEditEmail] = useState(human.email || "");
-  const [editAddress, setEditAddress] = useState(human.address || "");
-  const [editFb, setEditFb] = useState(human.fb || "");
-  const [editInsta, setEditInsta] = useState(human.insta || "");
-  const [editTiktok, setEditTiktok] = useState(human.tiktok || "");
-  const [editNotes, setEditNotes] = useState(human.notes || "");
-  const [editSms, setEditSms] = useState(!!human.sms);
-  const [editWhatsapp, setEditWhatsapp] = useState(!!human.whatsapp);
-  const [editHistoryFlag, setEditHistoryFlag] = useState(human.historyFlag || "");
+  const [mode, setMode] = useState("view");
+  const [draft, setDraft] = useState(() => makeDraftFromHuman(human));
+  const [saving, setSaving] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [editFocusKey, setEditFocusKey] = useState(null);
 
+  const nameInputRef = useRef(null);
+  const addressInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const notesInputRef = useRef(null);
+
+  // Reseed when a different human is selected. Live edits and edit-mode
+  // transitions never overwrite the user's typing — so we deliberately
+  // depend on `human.id` rather than the whole `human` reference.
   useEffect(() => {
-    if (!isEditing) {
-      setEditName(human.name || "");
-      setEditSurname(human.surname || "");
-      setEditPhone(human.phone || "");
-      setEditEmail(human.email || "");
-      setEditAddress(human.address || "");
-      setEditFb(human.fb || "");
-      setEditInsta(human.insta || "");
-      setEditTiktok(human.tiktok || "");
-      setEditNotes(human.notes || "");
-      setEditSms(!!human.sms);
-      setEditWhatsapp(!!human.whatsapp);
-      setEditHistoryFlag(human.historyFlag || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- form fields seed from props only when a different human is selected; live edits and isEditing transitions must not overwrite the user's typing
+    setDraft(makeDraftFromHuman(human));
+    setMode("view");
+    setNotesExpanded(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [human.id]);
 
+  // Focus the right input when the modal enters edit mode.
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const ref =
+      editFocusKey === "address"
+        ? addressInputRef
+        : editFocusKey === "email"
+          ? emailInputRef
+          : editFocusKey === "notes"
+            ? notesInputRef
+            : nameInputRef;
+    const t = setTimeout(() => {
+      ref.current?.focus();
+      if (ref.current?.select) {
+        try {
+          ref.current.select();
+        } catch {
+          /* not all input types support select() */
+        }
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [mode, editFocusKey]);
+
+  const setDraftField = useCallback((key, value) => {
+    setDraft((d) => ({ ...d, [key]: value }));
+  }, []);
+
+  const dirty = useMemo(
+    () => !draftsEqual(draft, makeDraftFromHuman(human)),
+    [draft, human],
+  );
+
+  const startEdit = useCallback(
+    (focusKey = "name") => {
+      setEditFocusKey(focusKey);
+      setMode("edit");
+    },
+    [],
+  );
+
+  const cancelEdit = useCallback(() => {
+    setDraft(makeDraftFromHuman(human));
+    setMode("view");
+    setEditFocusKey(null);
+  }, [human]);
+
   const handleSaveHuman = async () => {
-    const trimmedPhone = editPhone.trim();
+    if (!dirty || saving) return;
+    const trimmedPhone = draft.phone.trim();
     if (trimmedPhone && normalisePhoneDigits(trimmedPhone).length < 10) {
       toast.show(
         "Please enter a valid phone number (at least 10 digits).",
@@ -121,40 +211,30 @@ export function HumanCardModal({
       );
       return;
     }
-    const updates = {
-      name: editName.trim(),
-      surname: editSurname.trim(),
-      fullName: `${editName.trim()} ${editSurname.trim()}`.trim(),
-      phone: trimmedPhone,
-      email: editEmail.trim(),
-      address: editAddress.trim(),
-      fb: editFb.trim(),
-      insta: editInsta.trim(),
-      tiktok: editTiktok.trim(),
-      notes: editNotes.trim(),
-      sms: editSms,
-      whatsapp: editWhatsapp,
-      historyFlag: editHistoryFlag.trim(),
-    };
-    await onUpdateHuman(human.id || humanId, updates);
-    setIsEditing(false);
-    toast.show("Profile saved", "success");
-  };
-
-  const handleCancelEdit = () => {
-    setEditName(human.name || "");
-    setEditSurname(human.surname || "");
-    setEditPhone(human.phone || "");
-    setEditEmail(human.email || "");
-    setEditAddress(human.address || "");
-    setEditFb(human.fb || "");
-    setEditInsta(human.insta || "");
-    setEditTiktok(human.tiktok || "");
-    setEditNotes(human.notes || "");
-    setEditSms(!!human.sms);
-    setEditWhatsapp(!!human.whatsapp);
-    setEditHistoryFlag(human.historyFlag || "");
-    setIsEditing(false);
+    setSaving(true);
+    try {
+      const updates = {
+        name: draft.name.trim(),
+        surname: draft.surname.trim(),
+        fullName: `${draft.name.trim()} ${draft.surname.trim()}`.trim(),
+        phone: trimmedPhone,
+        email: draft.email.trim(),
+        address: draft.address.trim(),
+        fb: draft.fb.trim(),
+        insta: draft.insta.trim(),
+        tiktok: draft.tiktok.trim(),
+        notes: draft.notes.trim(),
+        sms: draft.sms,
+        whatsapp: draft.whatsapp,
+        historyFlag: draft.historyFlag.trim(),
+      };
+      await onUpdateHuman(human.id || humanId, updates);
+      setMode("view");
+      setEditFocusKey(null);
+      toast.show("Profile saved", "success");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCopyPhone = () => {
@@ -167,74 +247,193 @@ export function HumanCardModal({
     }
   };
 
+  // Close request — if we're mid-edit with unsaved changes, ask first.
+  const requestClose = useCallback(() => {
+    if (mode === "edit" && dirty) {
+      setPendingExit(true);
+      return;
+    }
+    onClose?.();
+  }, [mode, dirty, onClose]);
+
+  // "E" toggles edit mode when no input is focused. Skipped while the
+  // overflow / confirm dialogs are open so it doesn't clash.
+  useEffect(() => {
+    if (!onUpdateHuman) return;
+    const handler = (e) => {
+      if (e.key !== "e" && e.key !== "E") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      if (pendingDelete || pendingExit) return;
+      e.preventDefault();
+      if (mode === "view") startEdit("name");
+      else if (!dirty) cancelEdit();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [mode, dirty, onUpdateHuman, pendingDelete, pendingExit, startEdit, cancelEdit]);
+
+  // Stubbed callbacks: keep the surface area visible in the modal and
+  // emit a console.warn so unwired handlers are grep-able.
+  const handleOpenBookingsForHuman = useCallback(
+    (id, opts) => {
+      if (onOpenBookingsForHuman) {
+        onOpenBookingsForHuman(id, opts);
+        return;
+      }
+      console.warn("[HumanCardModal] TODO: onOpenBookingsForHuman", {
+        humanId: id,
+        ...(opts || {}),
+      });
+    },
+    [onOpenBookingsForHuman],
+  );
+
+  const handleOpenBooking = useCallback(
+    (bookingId) => {
+      if (onOpenBooking) {
+        onOpenBooking(bookingId);
+        return;
+      }
+      console.warn("[HumanCardModal] TODO: onOpenBooking", { bookingId });
+    },
+    [onOpenBooking],
+  );
+
+  const overflowItems = useMemo(() => {
+    const items = [
+      {
+        label: "New booking for this human",
+        handler: onNewBookingForHuman,
+        name: "onNewBookingForHuman",
+      },
+      {
+        label: "Send message",
+        handler: onSendMessage,
+        name: "onSendMessage",
+      },
+      {
+        label: "Merge duplicate",
+        handler: onMergeDuplicate,
+        name: "onMergeDuplicate",
+      },
+      {
+        label: "Archive",
+        handler: onArchiveHuman,
+        name: "onArchiveHuman",
+      },
+    ];
+    return items.map(({ label, handler, name }) => ({
+      label,
+      onClick: () => {
+        if (handler) {
+          handler(human.id || humanId);
+        } else {
+          console.warn(`[HumanCardModal] TODO: ${name}`, {
+            humanId: human.id || humanId,
+          });
+        }
+      },
+    }));
+  }, [
+    human.id,
+    humanId,
+    onNewBookingForHuman,
+    onSendMessage,
+    onMergeDuplicate,
+    onArchiveHuman,
+  ]);
+
+  const isEditing = mode === "edit";
+
   return (
     <>
       <AccessibleModal
-        onClose={onClose}
+        onClose={requestClose}
         titleId="human-card-title"
         backdropClass="bg-[rgba(45,0,75,0.45)] animate-overlay-fade"
-        className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(820px,95vw)] max-h-[90vh] overflow-auto shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] animate-human-modal-in"
+        className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(820px,95vw)] max-h-[min(90vh,760px)] flex flex-col overflow-hidden shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] animate-human-modal-in"
       >
         <HumanHeader
           human={human}
           humanFullName={humanFullName}
           isEditing={isEditing}
-          editName={editName}
-          setEditName={setEditName}
-          editSurname={editSurname}
-          setEditSurname={setEditSurname}
-          editPhone={editPhone}
-          setEditPhone={setEditPhone}
-          onStartEdit={() => setIsEditing(true)}
-          onClose={onClose}
+          editName={draft.name}
+          setEditName={(v) => setDraftField("name", v)}
+          editSurname={draft.surname}
+          setEditSurname={(v) => setDraftField("surname", v)}
+          editPhone={draft.phone}
+          setEditPhone={(v) => setDraftField("phone", v)}
+          onStartEdit={() => startEdit("name")}
+          onClose={requestClose}
           canEdit={!!onUpdateHuman}
           onCopyPhone={handleCopyPhone}
+          overflowItems={overflowItems}
+          nameInputRef={nameInputRef}
         />
 
-        <div className="px-5 pb-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
             {/* Left column — Contact, Channels, Notes */}
-            <div className="flex flex-col gap-3 md:gap-4">
+            <div className="md:col-span-5 flex flex-col gap-3 min-h-0">
               <ContactPanel
                 isEditing={isEditing}
                 human={human}
-                editAddress={editAddress}
-                setEditAddress={setEditAddress}
-                editEmail={editEmail}
-                setEditEmail={setEditEmail}
+                editAddress={draft.address}
+                setEditAddress={(v) => setDraftField("address", v)}
+                editEmail={draft.email}
+                setEditEmail={(v) => setDraftField("email", v)}
+                onStartEdit={() => startEdit("address")}
+                addressInputRef={addressInputRef}
+                emailInputRef={emailInputRef}
               />
               <ChannelsPanel
                 isEditing={isEditing}
                 human={human}
-                editSms={editSms}
-                setEditSms={setEditSms}
-                editWhatsapp={editWhatsapp}
-                setEditWhatsapp={setEditWhatsapp}
-                editFb={editFb}
-                setEditFb={setEditFb}
-                editInsta={editInsta}
-                setEditInsta={setEditInsta}
-                editTiktok={editTiktok}
-                setEditTiktok={setEditTiktok}
+                onUpdateHuman={onUpdateHuman}
+                editSms={draft.sms}
+                setEditSms={(v) => setDraftField("sms", v)}
+                editWhatsapp={draft.whatsapp}
+                setEditWhatsapp={(v) => setDraftField("whatsapp", v)}
+                editFb={draft.fb}
+                setEditFb={(v) => setDraftField("fb", v)}
+                editInsta={draft.insta}
+                setEditInsta={(v) => setDraftField("insta", v)}
+                editTiktok={draft.tiktok}
+                setEditTiktok={(v) => setDraftField("tiktok", v)}
               />
               <NotesPanel
                 isEditing={isEditing}
                 human={human}
-                editNotes={editNotes}
-                setEditNotes={setEditNotes}
-                editHistoryFlag={editHistoryFlag}
-                setEditHistoryFlag={setEditHistoryFlag}
+                editNotes={draft.notes}
+                setEditNotes={(v) => setDraftField("notes", v)}
+                editHistoryFlag={draft.historyFlag}
+                setEditHistoryFlag={(v) => setDraftField("historyFlag", v)}
+                expanded={notesExpanded}
+                onToggleExpanded={() => setNotesExpanded((v) => !v)}
+                notesInputRef={notesInputRef}
               />
             </div>
 
             {/* Right column — At a glance, Dogs, Trusted, Reminders */}
-            <div className="flex flex-col gap-3 md:gap-4">
+            <div className="md:col-span-7 flex flex-col gap-3 min-h-0">
               <AtAGlanceStrip
                 human={human}
                 humanFullName={humanFullName}
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
                 bookingsByDate={bookingsByDate}
+                onOpenBookingsForHuman={handleOpenBookingsForHuman}
+                onOpenBooking={handleOpenBooking}
               />
               <DogsPanel
                 human={human}
@@ -260,49 +459,65 @@ export function HumanCardModal({
           </div>
 
           {/* Booking history spans both columns underneath the grid. */}
-          <div className="mt-3 md:mt-4 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] px-4 pt-3 pb-2">
+          <div className="mt-3 md:mt-4">
             <HumanBookingHistory
               human={human}
               dogs={dogs}
               dogsByHumanId={dogsByHumanId}
               bookingsByDate={bookingsByDate}
+              onOpenBooking={handleOpenBooking}
             />
           </div>
         </div>
 
         {isEditing && (
-          <div className="px-5 py-4 flex gap-2.5 border-t border-slate-100">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-3 flex items-center gap-2.5">
             <button
               type="button"
-              onClick={handleSaveHuman}
-              className="flex-1 py-2.5 rounded-control border-none text-sm font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors text-white bg-brand-teal hover:bg-brand-teal-dark"
-            >
-              <Check size={16} strokeWidth={2.4} aria-hidden="true" /> Save changes
-            </button>
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="flex-1 py-2.5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
+              onClick={cancelEdit}
+              disabled={saving}
+              className="px-4 py-2 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
-          </div>
-        )}
-
-        {/* Destructive action sits below the footer, calmer than a
-            danger button — staff has to deliberately reach for it. */}
-        {isEditing && onDeleteHuman && (
-          <div className="px-5 pb-5 -mt-2">
             <button
               type="button"
-              onClick={() => setPendingDelete(true)}
-              className="text-xs font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral-text transition-colors"
+              onClick={handleSaveHuman}
+              disabled={!dirty || saving}
+              className="ml-auto py-2 px-5 rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
             >
-              Delete this person…
+              <Check size={14} strokeWidth={2.4} aria-hidden="true" />{" "}
+              {saving ? "Saving…" : "Save changes"}
             </button>
+            {onDeleteHuman && (
+              <button
+                type="button"
+                onClick={() => setPendingDelete(true)}
+                disabled={saving}
+                className="text-xs font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete…
+              </button>
+            )}
           </div>
         )}
       </AccessibleModal>
+
+      {pendingExit && (
+        <ConfirmDialog
+          title="Discard changes?"
+          message="Your unsaved edits will be lost."
+          confirmLabel="Discard"
+          cancelLabel="Keep editing"
+          variant="danger"
+          onConfirm={() => {
+            setPendingExit(false);
+            cancelEdit();
+            onClose?.();
+          }}
+          onCancel={() => setPendingExit(false)}
+        />
+      )}
 
       {pendingDelete && (
         <ConfirmDialog

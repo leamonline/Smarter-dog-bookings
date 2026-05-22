@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Copy, Pencil, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Copy, MoreHorizontal, Pencil, X } from "lucide-react";
 import { titleCase } from "../../../utils/text.js";
 import { telLink, waLink } from "../dog-card/helpers.js";
 
 // Quiet dashboard-style header. Replaces the teal-gradient bar that
 // made the modal feel like a different product. Visual reference:
 // DayHeader (warm-navy heading) + dashboard right-column chip buttons.
+// Now sticky inside the modal shell and carries a small overflow menu
+// between the pencil and close buttons.
 
 export function HumanHeader({
   human,
@@ -21,11 +23,34 @@ export function HumanHeader({
   onClose,
   canEdit,
   onCopyPhone,
+  overflowItems,
+  nameInputRef,
 }) {
   const [hovering, setHovering] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocClick = (e) => {
+      if (!menuWrapRef.current?.contains(e.target)) setMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [menuOpen]);
 
   return (
-    <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+    <header className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
       <div className="flex-1 min-w-0">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           Human profile
@@ -34,6 +59,7 @@ export function HumanHeader({
           <>
             <div className="flex gap-2 mt-1">
               <input
+                ref={nameInputRef}
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder="First name"
@@ -118,12 +144,51 @@ export function HumanHeader({
             type="button"
             onClick={onStartEdit}
             aria-label="Edit profile"
-            title="Edit profile"
+            title="Edit profile (press E)"
             className="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 hover:bg-brand-purple/5 transition-colors shrink-0"
           >
             <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
         )}
+
+        {overflowItems && overflowItems.length > 0 && (
+          <div ref={menuWrapRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="More actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              title="More actions"
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 hover:bg-brand-purple/5 transition-colors shrink-0"
+            >
+              <MoreHorizontal size={16} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-1 z-20 min-w-[220px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(45,0,75,0.12)] py-1"
+              >
+                {overflowItems.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      item.onClick?.();
+                    }}
+                    disabled={item.disabled}
+                    className="w-full text-left px-3 py-1.5 text-sm font-semibold font-inherit text-slate-700 bg-transparent border-none cursor-pointer transition-colors hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={onClose}

@@ -1,9 +1,11 @@
 import { StickyNote } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 
-// Notes (free-form) + history flag (loud warning). History flag is
-// rendered as a coral-tinted strip at the top of the panel — same
-// pattern the booking card uses for the "attention" tone.
+// Notes (free-form) + history flag (loud warning). The Notes panel
+// grows to fill leftover vertical space in the left column so both
+// columns end at the same y. The body capped at ~4 lines by default,
+// with an Expand affordance in the panel header that lets the notes
+// scroll the full available height.
 
 export function NotesPanel({
   isEditing,
@@ -12,12 +14,36 @@ export function NotesPanel({
   setEditNotes,
   editHistoryFlag,
   setEditHistoryFlag,
+  expanded,
+  onToggleExpanded,
+  notesInputRef,
 }) {
   const flag = isEditing ? editHistoryFlag : human.historyFlag;
+
+  const headerSlot =
+    !isEditing && human.notes ? (
+      <button
+        type="button"
+        onClick={onToggleExpanded}
+        aria-label={expanded ? "Collapse notes" : "Expand notes"}
+        aria-pressed={expanded}
+        className="text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-brand-purple cursor-pointer bg-transparent border-none px-1 transition-colors"
+      >
+        {expanded ? "Collapse" : "Expand"}
+      </button>
+    ) : null;
+
   return (
-    <PanelShell eyebrow="Notes" icon={StickyNote} accent="slate">
+    <PanelShell
+      eyebrow="Notes"
+      icon={StickyNote}
+      accent="slate"
+      headerSlot={headerSlot}
+      className="flex-1"
+      bodyClassName="flex-1 flex flex-col min-h-0"
+    >
       {flag && !isEditing && (
-        <div className="mb-3 text-[12px] font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-3 py-2 rounded-control">
+        <div className="mb-2 text-[12px] font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-3 py-2 rounded-control shrink-0">
           <span aria-hidden="true">{"⚠️ "}</span>
           {flag}
         </div>
@@ -30,6 +56,7 @@ export function NotesPanel({
               General notes
             </span>
             <textarea
+              ref={notesInputRef}
               value={editNotes}
               onChange={(e) => setEditNotes(e.target.value)}
               placeholder="Anything worth remembering..."
@@ -52,12 +79,14 @@ export function NotesPanel({
             />
           </label>
         </div>
-      ) : (
+      ) : human.notes ? (
         <div
-          className={`text-sm whitespace-pre-line ${human.notes ? "text-brand-purple" : "text-slate-400 italic"}`}
+          className={`text-sm whitespace-pre-line text-brand-purple overflow-y-auto ${expanded ? "flex-1 min-h-0" : "max-h-32"}`}
         >
-          {human.notes || "No notes yet."}
+          {human.notes}
         </div>
+      ) : (
+        <div className="text-sm text-slate-400 italic">No notes yet.</div>
       )}
     </PanelShell>
   );

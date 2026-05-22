@@ -1,13 +1,14 @@
+import { useState } from "react";
 import { Radio, MessageSquare, MessageCircle } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 
-// Horizontal pill chips for the five contact channels — replaces the
-// "SMS … ✅ Active" / "Facebook … —" rows that read as a settings dialog.
-// Filled = active (teal for SMS/WA, emerald for social handle present),
-// ghosted slate = inactive. Edit mode flips SMS + WhatsApp to
-// click-to-toggle and shows text inputs for the social handles below.
+// Single wrapping pill row for the five channels. SMS + WhatsApp are
+// always click-to-toggle (live in view mode via onUpdateHuman; staged in
+// edit mode via setEditX) with a 200ms scale-tick to confirm the save.
+// FB / IG / TT pills only reflect handle presence; the handles are
+// edited via inputs that appear under the pills in edit mode.
 
-function Pill({ label, icon, active, activeClass, onClick, ariaLabel, title }) {
+function Pill({ label, icon, active, activeClass, onClick, ariaLabel, title, saving }) {
   const Icon = icon;
   return (
     <button
@@ -18,11 +19,10 @@ function Pill({ label, icon, active, activeClass, onClick, ariaLabel, title }) {
       aria-pressed={onClick ? active : undefined}
       title={title}
       className={[
-        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold font-inherit transition-colors border-none",
+        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold font-inherit border-none transition-[background-color,color,transform] duration-200",
         onClick ? "cursor-pointer" : "cursor-default",
-        active
-          ? activeClass
-          : "bg-slate-100 text-slate-400",
+        active ? activeClass : "bg-slate-100 text-slate-500",
+        saving ? "scale-110" : "scale-100",
       ].join(" ")}
     >
       {Icon && <Icon size={12} strokeWidth={2.4} aria-hidden="true" />}
@@ -52,6 +52,7 @@ function HandleInput({ caption, value, onChange, placeholder }) {
 export function ChannelsPanel({
   isEditing,
   human,
+  onUpdateHuman,
   editSms,
   setEditSms,
   editWhatsapp,
@@ -69,6 +70,41 @@ export function ChannelsPanel({
   const igHandle = isEditing ? editInsta : human.insta;
   const ttHandle = isEditing ? editTiktok : human.tiktok;
 
+  const [savingPill, setSavingPill] = useState(null);
+
+  const flashSaved = (key) => {
+    setSavingPill(key);
+    setTimeout(() => {
+      setSavingPill((current) => (current === key ? null : current));
+    }, 200);
+  };
+
+  const toggleSms = () => {
+    const next = !smsActive;
+    if (isEditing) {
+      setEditSms(next);
+      return;
+    }
+    if (!onUpdateHuman || !human.id) return;
+    flashSaved("sms");
+    onUpdateHuman(human.id, { sms: next });
+  };
+
+  const toggleWa = () => {
+    const next = !waActive;
+    if (isEditing) {
+      setEditWhatsapp(next);
+      return;
+    }
+    if (!onUpdateHuman || !human.id) return;
+    flashSaved("whatsapp");
+    onUpdateHuman(human.id, { whatsapp: next });
+  };
+
+  const liveToggleAvailable = !!onUpdateHuman && !!human.id;
+  const smsHandler = isEditing || liveToggleAvailable ? toggleSms : undefined;
+  const waHandler = isEditing || liveToggleAvailable ? toggleWa : undefined;
+
   return (
     <PanelShell eyebrow="Channels" icon={Radio} accent="teal">
       <div className="flex flex-wrap gap-1.5">
@@ -77,18 +113,20 @@ export function ChannelsPanel({
           icon={MessageSquare}
           active={smsActive}
           activeClass="bg-brand-teal text-white"
-          onClick={isEditing ? () => setEditSms(!smsActive) : undefined}
+          onClick={smsHandler}
+          saving={savingPill === "sms"}
           ariaLabel={`SMS reminders ${smsActive ? "active" : "off"}`}
-          title={isEditing ? `Toggle SMS ${smsActive ? "off" : "on"}` : undefined}
+          title={smsHandler ? `Toggle SMS ${smsActive ? "off" : "on"}` : undefined}
         />
         <Pill
           label="WhatsApp"
           icon={MessageCircle}
           active={waActive}
           activeClass="bg-emerald-500 text-white"
-          onClick={isEditing ? () => setEditWhatsapp(!waActive) : undefined}
+          onClick={waHandler}
+          saving={savingPill === "whatsapp"}
           ariaLabel={`WhatsApp reminders ${waActive ? "active" : "off"}`}
-          title={isEditing ? `Toggle WhatsApp ${waActive ? "off" : "on"}` : undefined}
+          title={waHandler ? `Toggle WhatsApp ${waActive ? "off" : "on"}` : undefined}
         />
         <Pill
           label="Facebook"
