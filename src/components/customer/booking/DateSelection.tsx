@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getDefaultOpenForDate } from "../../../engine/utils.js";
 import { ALL_DAYS } from "../../../constants/salon.js";
+import { logger } from "../../../lib/logger.js";
 import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {
@@ -79,15 +80,23 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
       setLoading(true);
       try {
         if (!supabase) return;
-        const { data } = await supabase
-          .from("day_settings")
-          .select("date, is_open")
-          .gte("date", rangeStart)
-          .lte("date", rangeEnd);
+        // day_settings is staff-only via RLS, so go through the
+        // get_open_days RPC which returns just (setting_date, is_open).
+        const { data, error } = await supabase.rpc("get_open_days", {
+          p_start: rangeStart,
+          p_end: rangeEnd,
+        });
         if (cancelled) return;
+        if (error) {
+          logger.error("Failed to fetch day closures", error, {
+            tags: { component: "DateSelection", op: "get_open_days" },
+          });
+          setDaySettings({});
+          return;
+        }
         const map: Record<string, { is_open: boolean }> = {};
-        (data || []).forEach((row: { date: string; is_open: boolean }) => {
-          map[row.date] = { is_open: row.is_open };
+        (data || []).forEach((row: { setting_date: string; is_open: boolean }) => {
+          map[row.setting_date] = { is_open: row.is_open };
         });
         setDaySettings(map);
       } finally {
