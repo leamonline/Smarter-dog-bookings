@@ -16,6 +16,8 @@ export function NewBookingModal({
   onAdd,
   dogs,
   humans,
+  dogsByHumanId,
+  ensureDogsForHumans,
   bookingsByDate,
   dayOpenState,
   daySettings,
@@ -92,6 +94,11 @@ export function NewBookingModal({
   }, [humans, initialHumanId, dogEntries.length, dogQuery, ownerName]);
 
   const hasDogs = dogEntries.length > 0;
+  // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on
+  // every dog object; all dogs in one booking share the same owner. Used to
+  // load the owner's full dog list for the "add another dog" picker, which
+  // can't rely on the paginated `dogs` map containing siblings.
+  const selectedHumanId = dogEntries[0]?.dog?._humanId || null;
   const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
   const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small", name: e.dog.name }));
 
@@ -411,10 +418,13 @@ export function NewBookingModal({
         <DogSearchSection
           dogs={dogs}
           humans={humans}
+          dogsByHumanId={dogsByHumanId}
+          ensureDogsForHumans={ensureDogsForHumans}
           dogEntries={dogEntries}
           dogQuery={dogQuery}
           setDogQuery={setDogQuery}
           selectedHumanKey={selectedHumanKey}
+          selectedHumanId={selectedHumanId}
           addingAnotherDog={addingAnotherDog}
           setAddingAnotherDog={setAddingAnotherDog}
           primaryTheme={primaryTheme}

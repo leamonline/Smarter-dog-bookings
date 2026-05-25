@@ -723,6 +723,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   }}
                   dogs={dogs}
                   humans={humans}
+                  dogsByHumanId={dogsByHumanId}
+                  ensureDogsForHumans={ensureDogsForHumans}
                   bookingsByDate={bookingsByDate}
                   dayOpenState={dayOpenState}
                   daySettings={daySettings}
