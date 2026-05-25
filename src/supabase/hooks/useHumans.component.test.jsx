@@ -13,7 +13,7 @@ vi.mock("../client.js", () => ({
 
 const { useHumans } = await import("./useHumans.js");
 
-function makeSupabaseStub({ counts = {}, rows = {} } = {}) {
+function makeSupabaseStub({ counts = {}, rows = {}, inRows = {} } = {}) {
   const channel = {};
   channel.on = vi.fn(() => channel);
   channel.subscribe = vi.fn(() => channel);
@@ -43,6 +43,12 @@ function makeSupabaseStub({ counts = {}, rows = {} } = {}) {
       builder.order = vi.fn(() => builder);
       builder.limit = vi.fn(() => builder);
       builder.eq = vi.fn(() => builder);
+      // `.in(...)` is terminal in the trusted-name resolution path; it
+      // serves a separate dataset so a test can model a trusted human who
+      // sits past the initial paginated window.
+      builder.in = vi.fn(() =>
+        Promise.resolve({ data: inRows[table] ?? [], error: null }),
+      );
       builder.abortSignal = vi.fn(() => Promise.resolve({ data: [], error: null }));
       return builder;
     }),
@@ -94,6 +100,34 @@ describe("useHumans", () => {
     // check the linkage made it through buildTrustedMaps.
     const sarah = result.current.humans["Sarah Jones"];
     expect(sarah?.trustedContacts?.[0]?.fullName).toBe("Dave Smith");
+  });
+
+  it("resolves a trusted contact whose human sits past the paginated window", async () => {
+    // Only Fiona is on the first page; her trusted human (Dale) is not.
+    // buildTrustedMaps must fetch Dale's name by id, otherwise the link
+    // is dropped and the Trusted Humans panel renders empty.
+    const humanRows = [{ id: "h1", name: "Fiona", surname: "", phone: "07700900111" }];
+    const trustedRows = [{ human_id: "h1", trusted_id: "h2", relationship: "dog walker" }];
+
+    setSupabase(
+      makeSupabaseStub({
+        counts: { humans: 1 },
+        rows: { humans: humanRows, human_trusted_contacts: trustedRows },
+        inRows: { humans: [{ id: "h2", name: "Dale", surname: "" }] },
+      }),
+    );
+
+    const { result } = renderHook(() => useHumans());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await waitFor(() =>
+      expect(result.current.humans["Fiona"]?.trustedContacts?.length ?? 0).toBeGreaterThan(0),
+    );
+    expect(result.current.humans["Fiona"].trustedContacts[0]).toMatchObject({
+      id: "h2",
+      fullName: "Dale",
+      relationship: "dog walker",
+    });
   });
 
   it("propagates the humans count-query error via state.error", async () => {
