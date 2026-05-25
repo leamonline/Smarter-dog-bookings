@@ -31,19 +31,30 @@ function tomorrowDateString(): string {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface Booking {
+// A booking enriched with its dog's name + owner (human_id), resolved via
+// the bookings → dogs FK so we can group per customer without a second
+// round trip per dog.
+interface EnrichedBooking {
   id: string;
   booking_date: string;
   slot: string;
-  dog_id: string;
   service: string;
+  dog_id: string;
+  dog_name: string;
+  human_id: string;
   group_id: string | null;
 }
 
-interface Dog {
+// Raw shape of a bookings row with an embedded dog select. PostgREST
+// returns a to-one embed as an object, but we tolerate the array form too.
+interface RawBookingRow {
   id: string;
-  name: string;
-  human_id: string;
+  booking_date: string;
+  slot: string;
+  service: string;
+  dog_id: string;
+  group_id: string | null;
+  dogs: { human_id: string; name: string } | { human_id: string; name: string }[] | null;
 }
 
 interface Human {
@@ -55,14 +66,33 @@ interface Human {
   email: string | null;
 }
 
-// ── Group bookings by group_id (null = individual) ─────────────────────────
+function toEnriched(rows: RawBookingRow[]): EnrichedBooking[] {
+  const out: EnrichedBooking[] = [];
+  for (const r of rows) {
+    const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
+    if (!dog?.human_id) continue; // orphaned booking (dog deleted) — can't remind
+    out.push({
+      id: r.id,
+      booking_date: r.booking_date,
+      slot: r.slot,
+      service: r.service,
+      dog_id: r.dog_id,
+      dog_name: dog.name,
+      human_id: dog.human_id,
+      group_id: r.group_id ?? null,
+    });
+  }
+  return out;
+}
 
-function groupBookings(bookings: Booking[]): Map<string | null, Booking[]> {
-  const groups = new Map<string | null, Booking[]>();
-  for (const b of bookings) {
-    const key = b.group_id ?? null;
+// ── Group by (human_id, booking_date) — one reminder per customer per day ──
+
+function groupByCustomerDay(rows: EnrichedBooking[]): Map<string, EnrichedBooking[]> {
+  const groups = new Map<string, EnrichedBooking[]>();
+  for (const r of rows) {
+    const key = `${r.human_id}|${r.booking_date}`;
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(b);
+    groups.get(key)!.push(r);
   }
   return groups;
 }
@@ -106,8 +136,9 @@ serve(async (req) => {
     }
 
     // Optional body — staff path can pass { booking_id } to send a
-    // reminder for one specific booking (or all bookings sharing its
-    // group_id). The cron path sends no body.
+    // reminder for that booking's customer. The function expands it to
+    // every dog the customer has booked that day and sends ONE combined
+    // reminder. The cron path sends no body.
     let body: { booking_id?: string } = {};
     if (req.body) {
       try { body = await req.json(); } catch { body = {}; }
@@ -116,17 +147,19 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Fetch bookings — either the staff-targeted single booking
-    //    (plus any group siblings so a recurring chain or large-dog
-    //    pair gets one combined reminder), or all of tomorrow's
-    //    active bookings via the cron path.
-    let bookings: Booking[] | null = null;
-    let bookingsError: { message: string } | null = null;
+    // 1. Build the list of bookings to remind, each enriched with its dog
+    //    name + owner (human_id) via the bookings → dogs FK. We group on
+    //    (human_id, booking_date) so a customer with several dogs that day
+    //    gets ONE combined reminder. group_id is unreliable for this —
+    //    dogs booked in separate sessions share no group_id.
+    let enriched: EnrichedBooking[] = [];
+
     if (singleBookingId) {
-      // First fetch the named booking, then expand to its group.
+      // Staff path: resolve the anchor booking, then gather every active
+      // booking this customer has on the same day.
       const { data: anchor, error: anchorErr } = await supabase
         .from("bookings")
-        .select("id, booking_date, slot, dog_id, service, group_id, status")
+        .select("id, booking_date, slot, service, group_id, status, dog_id, dogs(human_id, name)")
         .eq("id", singleBookingId)
         .maybeSingle();
       if (anchorErr || !anchor) {
@@ -141,111 +174,123 @@ serve(async (req) => {
           { status: 422, headers: { ...corsFor(req), "Content-Type": "application/json" } },
         );
       }
-      if (anchor.group_id) {
-        const { data: siblings, error: siblingsErr } = await supabase
-          .from("bookings")
-          .select("id, booking_date, slot, dog_id, service, group_id")
-          .eq("group_id", anchor.group_id)
-          .neq("status", "Cancelled");
-        if (siblingsErr) {
-          bookingsError = siblingsErr;
-        } else {
-          bookings = siblings as Booking[];
-        }
-      } else {
-        bookings = [{
-          id: anchor.id,
-          booking_date: anchor.booking_date,
-          slot: anchor.slot,
-          dog_id: anchor.dog_id,
-          service: anchor.service,
-          group_id: null,
-        }];
+      const anchorDog = Array.isArray(anchor.dogs) ? anchor.dogs[0] : anchor.dogs;
+      const anchorHumanId = anchorDog?.human_id ?? null;
+      if (!anchorHumanId) {
+        return new Response(
+          JSON.stringify({ error: "booking has no linked customer — can't remind" }),
+          { status: 422, headers: { ...corsFor(req), "Content-Type": "application/json" } },
+        );
       }
-    } else {
-      const tomorrow = tomorrowDateString();
-      const res = await supabase
+      // Filter on the embedded relationship (dogs!inner) to fetch only this
+      // customer's bookings for the day, each row already carrying its dog name.
+      const { data: rows, error: gatherErr } = await supabase
         .from("bookings")
-        .select("id, booking_date, slot, dog_id, service, group_id")
+        .select("id, booking_date, slot, service, group_id, dog_id, dogs!inner(human_id, name)")
+        .eq("booking_date", anchor.booking_date)
+        .eq("dogs.human_id", anchorHumanId)
+        .neq("status", "Cancelled");
+      if (gatherErr) {
+        console.error("Customer-day gather failed:", gatherErr.message);
+        return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });
+      }
+      enriched = toEnriched((rows ?? []) as RawBookingRow[]);
+    } else {
+      // Cron path: every active booking for tomorrow, grouped per customer.
+      const tomorrow = tomorrowDateString();
+      const { data: rows, error: cronErr } = await supabase
+        .from("bookings")
+        .select("id, booking_date, slot, service, group_id, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", tomorrow)
         .eq("status", "Booked");
-      if (res.error) bookingsError = res.error;
-      else bookings = (res.data ?? []) as Booking[];
+      if (cronErr) {
+        console.error("Bookings query failed:", cronErr.message);
+        return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });
+      }
+      enriched = toEnriched((rows ?? []) as RawBookingRow[]);
     }
 
-    if (bookingsError) {
-      console.error("Bookings query failed:", bookingsError.message);
-      return new Response("Bookings query failed", { status: 500, headers: corsFor(req) });
-    }
-
-    if (!bookings || bookings.length === 0) {
+    if (enriched.length === 0) {
       const message = singleBookingId
         ? "Booking not eligible for reminder"
         : "No bookings to remind for tomorrow";
       return new Response(message, { status: 200, headers: corsFor(req) });
     }
 
-    // 2. Group by group_id (null = individual)
-    const groups = groupBookings(bookings as Booking[]);
+    // 2. Group by (human_id, booking_date) — one message per customer per day.
+    const groups = groupByCustomerDay(enriched);
 
-    const results: Array<{ groupKey: string | null; success: boolean; channel?: string }> = [];
+    const results: Array<{ groupKey: string; success: boolean; channel?: string }> = [];
 
-    for (const [groupKey, groupBookings] of groups) {
-      // Use the first booking as the reference for date/slot/service
-      const ref = groupBookings[0];
+    for (const [groupKey, groupRows] of groups) {
+      const humanId = groupRows[0].human_id;
+      const bookingDate = groupRows[0].booking_date;
 
-      // 3. Collect all dog IDs in the group
-      const dogIds = [...new Set(groupBookings.map((b) => b.dog_id))];
-
-      const { data: dogs, error: dogsError } = await supabase
-        .from("dogs")
-        .select("id, name, human_id")
-        .in("id", dogIds);
-
-      if (dogsError || !dogs || dogs.length === 0) {
-        console.error(`Dogs lookup failed for group ${groupKey}:`, dogsError?.message);
-        results.push({ groupKey, success: false });
-        continue;
-      }
-
-      // 4. All dogs in a group belong to the same customer — use the first
-      const ownerDog = dogs[0] as Dog;
+      // 3. Fetch the customer once (dog names already came from the embed).
       const { data: human, error: humanError } = await supabase
         .from("humans")
         .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, reminder_hours, reminder_channels")
-        .eq("id", ownerDog.human_id)
+        .eq("id", humanId)
         .single();
 
       if (humanError || !human) {
-        console.error(`Human lookup failed for dog ${ownerDog.id}:`, humanError?.message);
+        console.error(`Human lookup failed for ${humanId}:`, humanError?.message);
         results.push({ groupKey, success: false });
         continue;
       }
 
-      // 5. Build message
-      const dogNames = joinNames((dogs as Dog[]).map((d) => sanitise(d.name)));
-      const isPlural = dogNames.includes(" and ");
-      const dateFormatted = formatDate(ref.booking_date);
-      const timeFormatted = formatTime(ref.slot);
-      const serviceName = ref.service;
-
-      // Tight — single GSM-7 segment, no emoji, no em-dash. £0.04 per send.
-      // The reminder is for someone who knows they have a booking; we only
-      // need to confirm the time and which dog(s).
-      const firstName = sanitise(human.name.split(" ")[0]);
-      const message =
-        `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} ` +
-        `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
-
-      // 6. Pick channel BEFORE we send. WhatsApp → SMS → email. Skip any
-      //    channel the customer has opted out of (PECR, mig 041).
-      let channel: "whatsapp" | "sms" | "email";
       const h = human as Human & {
         whatsapp_opted_out?: boolean;
         sms_opted_out?: boolean;
         email_opted_out?: boolean;
       };
 
+      // 4. De-dupe dogs by id (earliest slot wins) for the name list.
+      const dogMap = new Map<string, { name: string; slot: string }>();
+      for (const r of groupRows) {
+        const existing = dogMap.get(r.dog_id);
+        if (!existing || r.slot < existing.slot) {
+          dogMap.set(r.dog_id, { name: r.dog_name, slot: r.slot });
+        }
+      }
+      const uniqueDogs = [...dogMap.values()].sort((a, b) => a.slot.localeCompare(b.slot));
+      const dogNames = joinNames(uniqueDogs.map((d) => sanitise(d.name)));
+      const isPlural = uniqueDogs.length > 1;
+
+      // 5. Build the message. Tight — single GSM-7 segment where possible,
+      //    no emoji/em-dash. The reminder only confirms time + dog(s).
+      const firstName = sanitise(human.name.split(" ")[0]);
+      const dateFormatted = formatDate(bookingDate);
+      const slots = [...new Set(groupRows.map((r) => r.slot))].sort();
+      const services = [...new Set(groupRows.map((r) => r.service))];
+
+      let message: string;
+      if (slots.length === 1 && services.length === 1) {
+        // Common case (incl. multi-dog at the same slot) — wording unchanged.
+        const timeFormatted = formatTime(slots[0]);
+        message =
+          `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${services[0]} ` +
+          `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+      } else if (slots.length === 1) {
+        // Same time, different services — stay generic so we never name the
+        // wrong service for a dog.
+        const timeFormatted = formatTime(slots[0]);
+        message =
+          `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in ` +
+          `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+      } else {
+        // Dogs at different times — list each dog with its own time.
+        const perDog = joinNames(
+          uniqueDogs.map((d) => `${sanitise(d.name)} at ${formatTime(d.slot)}`),
+        );
+        message =
+          `Hi ${firstName}, just a reminder about your bookings ` +
+          `tomorrow (${dateFormatted}): ${perDog}. See you then!`;
+      }
+
+      // 6. Pick channel BEFORE we send. WhatsApp → SMS → email. Skip any
+      //    channel the customer has opted out of (PECR, mig 041).
+      let channel: "whatsapp" | "sms" | "email";
       if (h.whatsapp && h.phone && !h.whatsapp_opted_out) {
         channel = "whatsapp";
       } else if (h.sms && h.phone && !h.sms_opted_out) {
@@ -258,13 +303,14 @@ serve(async (req) => {
         continue;
       }
 
-      // 7. IDEMPOTENCY: insert pending log rows for ALL bookings in the
-      //    group atomically. Partial unique index (mig 042) prevents the
-      //    cron from sending the same reminder twice (e.g., if the cron
-      //    job overlaps a manual replay).
-      const pendingEntries = groupBookings.map((b) => ({
-        booking_id: b.id,
-        group_id: groupKey ?? null,
+      // 7. IDEMPOTENCY: insert one pending log row per booking, atomically.
+      //    The partial unique index (booking_id, trigger_type) WHERE status
+      //    IN ('pending','sent') (mig 042) means a re-click where ANY of the
+      //    customer's dogs already has a pending/sent reminder makes the whole
+      //    insert fail with 23505 — so we skip the group rather than double-send.
+      const pendingEntries = groupRows.map((r) => ({
+        booking_id: r.id,
+        group_id: r.group_id ?? null,
         human_id: h.id,
         channel,
         trigger_type: "reminder",
@@ -278,11 +324,11 @@ serve(async (req) => {
 
       if (pendingError) {
         if (pendingError.code === "23505") {
-          // Already reminded this booking — skip silently
+          // Already reminded this customer for this day — skip silently.
           results.push({ groupKey, success: true, channel: "skipped (duplicate)" });
           continue;
         }
-        console.error(`Pending log insert failed for group ${groupKey}:`, pendingError.message);
+        console.error(`Pending log insert failed for ${groupKey}:`, pendingError.message);
         results.push({ groupKey, success: false });
         continue;
       }
@@ -294,7 +340,7 @@ serve(async (req) => {
       } else if (channel === "sms") {
         sent = await sendSmsBoolean(h.phone, message);
       } else {
-        const subject = `Reminder — ${dogNames} is booked in tomorrow at Smarter Dog Grooming`;
+        const subject = `Reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in tomorrow at Smarter Dog Grooming`;
         sent = await sendEmail(h.email, subject, message);
       }
 

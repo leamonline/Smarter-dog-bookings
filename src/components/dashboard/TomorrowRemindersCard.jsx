@@ -69,10 +69,19 @@ function ReminderRow({ row, onSend, busy }) {
       </span>
       <span className="flex-1 truncate">
         <span className="font-semibold">{row.customerName}</span>
-        <span className="text-amber-800/70"> · {row.dogName}</span>
+        <span className="text-amber-800/70"> · {row.dogNamesDisplay}</span>
       </span>
       <span className="shrink-0 tabular-nums text-amber-800/70">
         {formatSlot(row.slot)}
+        {row.multiSlot && (
+          <span
+            className="text-amber-500"
+            title={row.slots.map(formatSlot).join(", ")}
+          >
+            {" "}
+            +{row.slots.length - 1}
+          </span>
+        )}
       </span>
     </button>
   );
@@ -84,24 +93,26 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
     data ?? fallback;
 
   const toast = useToast();
-  const [busyBookingIds, setBusyBookingIds] = useState(new Set());
+  const [busyKeys, setBusyKeys] = useState(new Set());
 
   const tone = useMemo(
     () => resolveRemindersTone({ targetDate, sentCount, totalCount }),
     [targetDate, sentCount, totalCount],
   );
 
-  const handleSend = async (booking) => {
-    if (busyBookingIds.has(booking.bookingId)) return;
-    setBusyBookingIds((prev) => {
+  const handleSend = async (row) => {
+    if (busyKeys.has(row.customerKey)) return;
+    setBusyKeys((prev) => {
       const next = new Set(prev);
-      next.add(booking.bookingId);
+      next.add(row.customerKey);
       return next;
     });
     try {
+      // One anchor booking_id — the edge function expands it to every dog
+      // this customer has that day and sends a single combined reminder.
       const { data: result, error: invokeErr } =
         await supabase.functions.invoke("notify-booking-reminder", {
-          body: { booking_id: booking.bookingId },
+          body: { booking_id: row.anchorBookingId },
         });
       if (invokeErr) {
         let detail = invokeErr.message ?? "Reminder failed";
@@ -116,19 +127,19 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       const anyFail = (result?.results ?? []).some((r) => !r.success);
       if (anyFail) {
         toast.show(
-          `Could not send reminder to ${booking.customerName} — check the customer's contact preferences.`,
+          `Could not send reminder to ${row.customerName} — check the customer's contact preferences.`,
           "error",
         );
       } else {
-        toast.show(`Reminder sent to ${booking.customerName}.`, "success");
+        toast.show(`Reminder sent to ${row.customerName}.`, "success");
       }
       refresh?.();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : String(err), "error");
     } finally {
-      setBusyBookingIds((prev) => {
+      setBusyKeys((prev) => {
         const next = new Set(prev);
-        next.delete(booking.bookingId);
+        next.delete(row.customerKey);
         return next;
       });
     }
@@ -136,10 +147,10 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
 
   const handleSendRemaining = async () => {
     const pending = (rows ?? []).filter((r) => r.reminderStatus !== "sent");
-    for (const booking of pending) {
+    for (const row of pending) {
       // Serial — the edge function rate-limits per WhatsApp send, and
       // staff don't expect a flood of toast notifications.
-      await handleSend(booking);
+      await handleSend(row);
     }
   };
 
@@ -162,11 +173,11 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       )}
       <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">
         {(rows ?? []).map((r) => (
-          <li key={r.bookingId}>
+          <li key={r.customerKey}>
             <ReminderRow
               row={r}
               onSend={() => handleSend(r)}
-              busy={busyBookingIds.has(r.bookingId)}
+              busy={busyKeys.has(r.customerKey)}
             />
           </li>
         ))}
@@ -177,7 +188,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
   const ctaLabel =
     tone.tone === "calm"
       ? "View reminders"
-      : busyBookingIds.size > 0
+      : busyKeys.size > 0
         ? "Sending…"
         : "Send remaining";
 

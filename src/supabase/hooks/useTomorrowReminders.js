@@ -1,10 +1,11 @@
 // ============================================================
 // src/supabase/hooks/useTomorrowReminders.js
 //
-// Dashboard helper for the "Tomorrow's reminders" panel. Returns the
-// bookings on the next salon-open day, the owner + dog names, the
-// time slot, and whether a reminder has already been sent for that
-// booking (via notification_log).
+// Dashboard helper for the "Tomorrow's reminders" panel. Returns ONE
+// row per customer on the next salon-open day (a customer with several
+// dogs booked that day is collapsed into a single row and gets one
+// combined reminder), the owner + dog names, the time slot(s), and
+// whether a reminder has already been sent (via notification_log).
 //
 // Realtime: subscribes to notification_log inserts so the tick state
 // updates live when:
@@ -17,6 +18,7 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { supabase } from "../client.js";
 import { getNextWorkingDay } from "../../utils/nextWorkingDay.js";
 import { logger } from "../../lib/logger.js";
+import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
 
 export function useTomorrowReminders() {
   const instanceId = useId();
@@ -32,13 +34,16 @@ export function useTomorrowReminders() {
     }
     setError(null);
     try {
-      // Pull bookings + the snapshot columns Phase B added so we don't
-      // need joins to humans/dogs. Excludes Cancelled (no point
-      // reminding) and Completed (already happened).
+      // Embed dogs(human_id, name) so we can group by customer — bookings
+      // has no human_id of its own. Plain embed (not !inner) so a booking
+      // whose dog was deleted still appears (it falls back to the snapshot
+      // name and an orphan key). Snapshot columns stay as the fallback.
+      // Excludes Cancelled (no point reminding) and Completed (already
+      // happened).
       const { data: bookings, error: bookingsErr } = await supabase
         .from("bookings")
         .select(
-          "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot",
+          "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot, dogs(human_id, name)",
         )
         .eq("booking_date", targetDate)
         .not("status", "in", "(Cancelled,Completed)")
@@ -46,7 +51,7 @@ export function useTomorrowReminders() {
       if (bookingsErr) throw bookingsErr;
 
       const bookingIds = (bookings ?? []).map((b) => b.id);
-      let sentMap = new Map();
+      const sentMap = new Map();
       if (bookingIds.length > 0) {
         const { data: logs, error: logsErr } = await supabase
           .from("notification_log")
@@ -65,23 +70,8 @@ export function useTomorrowReminders() {
         }
       }
 
-      const result = (bookings ?? []).map((b) => {
-        const dogName = b.dog_name_snapshot || "Unknown dog";
-        const customerName = b.owner_name_snapshot || "Unknown customer";
-        const reminder = sentMap.get(b.id);
-        return {
-          bookingId: b.id,
-          slot: b.slot,
-          service: b.service,
-          status: b.status,
-          dogName,
-          customerName,
-          reminderStatus: reminder?.status ?? null,
-          reminderSentAt: reminder?.sent_at ?? null,
-          reminderChannel: reminder?.channel ?? null,
-        };
-      });
-      setRows(result);
+      // Collapse to one row per customer (keyed on human_id).
+      setRows(groupRemindersByCustomer(bookings ?? [], sentMap));
     } catch (err) {
       logger.error("useTomorrowReminders fetch failed", err, {
         tags: { hook: "useTomorrowReminders", op: "fetch" },
