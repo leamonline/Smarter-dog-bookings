@@ -4,14 +4,18 @@ import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon.js";
 import { IconSearch } from "../../icons/index.jsx";
 import { SkeletonBlock } from "../../ui/Skeleton.jsx";
 import { titleCase, buildSearchEntries } from "./helpers.js";
+import { getDogsForHuman } from "../../../utils/directorySearch.js";
 
 export function DogSearchSection({
   dogs,
   humans,
+  dogsByHumanId,
+  ensureDogsForHumans,
   dogEntries,
   dogQuery,
   setDogQuery,
   selectedHumanKey,
+  selectedHumanId,
   addingAnotherDog,
   setAddingAnotherDog,
   primaryTheme,
@@ -52,14 +56,30 @@ export function DogSearchSection({
     ).slice(0, 8);
   }, [dogs, humans, hasDogs, dogQuery]);
 
-  // Same owner's other dogs for "add another" picker
+  // Load the owner's full dog list on demand. The paginated `dogs` map (and
+  // the last dog-name search that replaced it) often won't contain the
+  // owner's other dogs, so we fetch them into dogsByHumanId — same pattern
+  // HumanCardModal uses.
+  useEffect(() => {
+    if (selectedHumanId && ensureDogsForHumans) {
+      ensureDogsForHumans([selectedHumanId]);
+    }
+  }, [selectedHumanId, ensureDogsForHumans]);
+
+  // Same owner's other dogs for "add another" picker. Source the list from
+  // dogsByHumanId (pagination-proof, populated above) and fall back to the
+  // in-memory map only when we don't have the owner UUID.
   const sameOwnerDogs = useMemo(() => {
-    if (!selectedHumanKey) return [];
-    return Object.values(dogs || {}).filter(d =>
-      d.humanId === selectedHumanKey &&
-      !dogEntries.some(e => e.dog.id === d.id)
-    );
-  }, [dogs, selectedHumanKey, dogEntries]);
+    if (!selectedHumanId && !selectedHumanKey) return [];
+    const ownerDogs = selectedHumanId
+      ? getDogsForHuman(
+          { id: selectedHumanId, fullName: selectedHumanKey },
+          dogs || {},
+          dogsByHumanId || {},
+        )
+      : Object.values(dogs || {}).filter(d => d.humanId === selectedHumanKey);
+    return ownerDogs.filter(d => !dogEntries.some(e => e.dog.id === d.id));
+  }, [dogs, dogsByHumanId, selectedHumanId, selectedHumanKey, dogEntries]);
 
   return (
     <div className="px-6 pt-5 overflow-visible shrink-0 relative z-10">
