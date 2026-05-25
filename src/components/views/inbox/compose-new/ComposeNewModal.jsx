@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
+import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
 
 // Parallel ilike across humans (name / surname / phone) and dogs
 // (name), then resolve dogs back to their owner. Mirrors the
@@ -73,42 +74,6 @@ async function fetchDogsForHuman(humanId) {
     .eq("human_id", humanId)
     .order("name");
   return (data ?? []).map((d) => d.name).filter(Boolean);
-}
-
-// SMS segment estimator. Approximates Twilio's per-segment billing:
-//   - GSM-7 charset:  160 single, 153 per segment in concatenation
-//   - UCS-2 (any non-GSM-7 char): 70 single, 67 per segment
-// Real billing is computed Twilio-side; we surface a hint so staff
-// know roughly what a longer SMS will cost.
-const GSM7_EXTRA_CHARS = new Set(
-  "£¥§¿¡¤€äöüÄÖÜßéèìòùÉÈÌÒÙñÑàâêîôûÀÂÊÎÔÛ".split(""),
-);
-function isGsm7Char(ch) {
-  const code = ch.codePointAt(0);
-  if (code === undefined) return false;
-  if (code === 9 || code === 10 || code === 13) return true;
-  if (code >= 32 && code <= 126) return true;
-  return GSM7_EXTRA_CHARS.has(ch);
-}
-function smsSegmentInfo(text) {
-  const length = text.length;
-  if (length === 0) return { length, segments: 0, encoding: "GSM-7" };
-  let allGsm7 = true;
-  for (const ch of text) {
-    if (!isGsm7Char(ch)) { allGsm7 = false; break; }
-  }
-  if (allGsm7) {
-    return {
-      length,
-      encoding: "GSM-7",
-      segments: length <= 160 ? 1 : Math.ceil(length / 153),
-    };
-  }
-  return {
-    length,
-    encoding: "UCS-2",
-    segments: length <= 70 ? 1 : Math.ceil(length / 67),
-  };
 }
 
 function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
