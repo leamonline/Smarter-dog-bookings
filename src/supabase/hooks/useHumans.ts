@@ -18,21 +18,112 @@ function mergeRowsById(rows: any[][]) {
   return Array.from(map.values());
 }
 
-function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
+function fullNameFromRow(row: { name?: string | null; surname?: string | null }): string {
+  const name = sanitiseFieldValue(row.name);
+  const surname = sanitiseFieldValue(row.surname);
+  return name && surname ? `${name} ${surname}` : name || surname || "";
+}
+
+// Resolve { id -> fullName } for a set of human ids. Used to label
+// trusted contacts whose row sits past the paginated humans window —
+// the trusted human can easily live on a different page than the human
+// who trusts them, so we can't rely on the current batch alone.
+async function fetchHumanNamesByIds(ids: string[]): Promise<Record<string, string>> {
+  const names: Record<string, string> = {};
+  if (!supabase || ids.length === 0) return names;
+
+  const { data } = await supabase
+    .from("humans")
+    .select("id, name, surname")
+    .in("id", ids);
+
+  for (const row of data || []) {
+    names[row.id] = fullNameFromRow(row);
+  }
+  return names;
+}
+
+// Load a single human's trusted contacts, fully resolving each trusted
+// human's display name. buildHumanMapEntry leaves trustedContacts empty,
+// so any on-demand human fetch (fetchHumanById / findHumanByFullName)
+// must hydrate them separately or the Trusted Humans panel renders blank.
+async function fetchTrustedContactsForHuman(
+  humanId: string,
+): Promise<{ trustedContacts: { id: string; fullName: string; relationship: string }[]; trustedIds: string[] }> {
+  const empty = { trustedContacts: [], trustedIds: [] };
+  if (!supabase || !humanId) return empty;
+
+  const { data: trustedRows } = await supabase
+    .from("human_trusted_contacts")
+    .select("trusted_id, relationship")
+    .eq("human_id", humanId);
+
+  if (!trustedRows || trustedRows.length === 0) return empty;
+
+  const names = await fetchHumanNamesByIds(
+    trustedRows.map((row: any) => row.trusted_id).filter(Boolean),
+  );
+
+  const trustedContacts: { id: string; fullName: string; relationship: string }[] = [];
+  for (const row of trustedRows) {
+    const fullName = names[row.trusted_id];
+    if (!fullName) continue;
+    trustedContacts.push({
+      id: row.trusted_id,
+      fullName,
+      relationship: row.relationship || "",
+    });
+  }
+
+  return { trustedContacts, trustedIds: trustedContacts.map((c) => c.fullName) };
+}
+
+async function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
   const trustedMap: Record<string, string[]> = {};
   const trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
 
-  for (const row of trustedRows || []) {
-    const trustedHuman = humansById[row.trusted_id];
-    if (!trustedHuman?.fullName) continue;
+  // Only this batch's humans end up in the resulting maps, so ignore
+  // rows owned by anyone outside it (the main mount loads the whole
+  // trusted table). The per-human callers already scope their query.
+  const relevantRows = (trustedRows || []).filter(
+    (row) => row.human_id && humansById[row.human_id],
+  );
+
+  // Resolve a display name for every trusted_id up front. Names already
+  // in this batch come from humansById; anyone past the paginated window
+  // is fetched on demand. Without this, a trusted contact whose human row
+  // wasn't in the current batch (the common case for a targeted search
+  // result) was silently dropped, so the Trusted Humans panel rendered
+  // empty even though the link exists.
+  const nameById: Record<string, string> = {};
+  for (const row of relevantRows) {
+    const id = row.trusted_id;
+    if (!id || nameById[id]) continue;
+    const loaded = humansById[id];
+    if (loaded?.fullName) nameById[id] = loaded.fullName;
+  }
+  const missingIds = Array.from(
+    new Set(
+      relevantRows
+        .map((row) => row.trusted_id)
+        .filter((id) => id && !nameById[id]),
+    ),
+  );
+  if (missingIds.length > 0) {
+    Object.assign(nameById, await fetchHumanNamesByIds(missingIds));
+  }
+
+  for (const row of relevantRows) {
+    const fullName = nameById[row.trusted_id];
+    if (!fullName) continue;
 
     if (!trustedMap[row.human_id]) trustedMap[row.human_id] = [];
-    trustedMap[row.human_id].push(trustedHuman.fullName);
+    trustedMap[row.human_id].push(fullName);
 
     if (!trustedContactsMap[row.human_id]) trustedContactsMap[row.human_id] = [];
     trustedContactsMap[row.human_id].push({
       id: row.trusted_id,
-      fullName: trustedHuman.fullName,
+      fullName,
       relationship: row.relationship || "",
     });
   }
@@ -80,6 +171,11 @@ export function useHumans() {
   const [isSearching, setIsSearching] = useState(false);
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks which humans we've loaded a full profile for (including their
+  // trusted contacts). fetchHumanById serves those from cache so the
+  // modal's effect — which re-runs every time the humans map changes —
+  // doesn't re-query in a loop.
+  const trustedHydratedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!supabase) {
@@ -144,7 +240,7 @@ export function useHumans() {
       }
 
       const byId = buildHumansById(humanRows || []);
-      const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows, byId);
+      const { trustedMap, trustedContactsMap } = await buildTrustedMaps(trustedRows, byId);
 
       // Merge instead of replacing — see the matching comment in useDogs.
       // Previous calls to ensureHumansByIds may have populated humans past
@@ -248,7 +344,7 @@ export function useHumans() {
         .in("human_id", newIds);
 
       const mergedById = { ...humansById, ...newHumansById };
-      const maps = buildTrustedMaps(trustedRows || [], mergedById);
+      const maps = await buildTrustedMaps(trustedRows || [], mergedById);
       trustedMap = maps.trustedMap;
       trustedContactsMap = maps.trustedContactsMap;
     }
@@ -297,7 +393,7 @@ export function useHumans() {
           .select("human_id, trusted_id, relationship");
 
         const byId = buildHumansById(humanRows || []);
-        const { trustedMap, trustedContactsMap } = buildTrustedMaps(trustedRows || [], byId);
+        const { trustedMap, trustedContactsMap } = await buildTrustedMaps(trustedRows || [], byId);
 
         // Merge into humansById — it doubles as the booking/dog lookup cache,
         // and a paginated refetch must not evict owners loaded via
@@ -397,7 +493,7 @@ export function useHumans() {
           .select("human_id, trusted_id, relationship")
           .in("human_id", ids);
 
-        const maps = buildTrustedMaps(trustedRows || [], byId);
+        const maps = await buildTrustedMaps(trustedRows || [], byId);
         trustedMap = maps.trustedMap;
         trustedContactsMap = maps.trustedContactsMap;
       }
@@ -806,9 +902,16 @@ export function useHumans() {
   const fetchHumanById = useCallback(
     async (humanId: string) => {
       if (!humanId) return null;
-      if (humans[humanId]) return humans[humanId];
-      if (humansById[humanId]) return humansById[humanId];
-      if (!supabase) return null;
+
+      // Once a full profile (including trusted contacts) is hydrated for
+      // this id, serve it from the local maps. buildHumanMapEntry and the
+      // owner-hydration paths (ensureHumansByIds, search) leave
+      // trustedContacts empty, so we can't trust a cache hit alone — only
+      // skip the round-trip once we've explicitly loaded the trusted side.
+      if (trustedHydratedIdsRef.current.has(humanId)) {
+        return humans[humanId] || humansById[humanId] || null;
+      }
+      if (!supabase) return humans[humanId] || humansById[humanId] || null;
 
       const { data, error: err } = await supabase
         .from("humans")
@@ -818,7 +921,17 @@ export function useHumans() {
 
       if (err || !data) return null;
 
-      const entry = buildHumanMapEntry(data);
+      const entry: any = buildHumanMapEntry(data);
+      // buildHumanMapEntry stubs trustedContacts to []; the human profile
+      // modal reads them, so hydrate the trusted side here. Without this,
+      // any customer past the first paginated page (PAGE_SIZE = 50) opened
+      // their profile with an empty Trusted Humans panel even when links
+      // existed.
+      const { trustedContacts, trustedIds } = await fetchTrustedContactsForHuman(data.id);
+      entry.trustedContacts = trustedContacts;
+      entry.trustedIds = trustedIds;
+      trustedHydratedIdsRef.current.add(humanId);
+
       setHumansById((prev) => ({ ...prev, [data.id]: entry }));
       // humans is fullName-keyed (see ensureHumansByIds comment). Insert
       // under the name and remove any prior UUID-keyed copy of the same
@@ -863,38 +976,10 @@ export function useHumans() {
 
       const entry: any = buildHumanMapEntry(data);
 
-      const { data: trustedRows } = await supabase
-        .from("human_trusted_contacts")
-        .select("trusted_id, relationship")
-        .eq("human_id", data.id);
-
-      if (trustedRows && trustedRows.length > 0) {
-        const trustedIds = trustedRows.map((row: any) => row.trusted_id).filter(Boolean);
-        const { data: trustedHumans } = await supabase
-          .from("humans")
-          .select("id, name, surname")
-          .in("id", trustedIds);
-        const byId: Record<string, { fullName: string }> = {};
-        for (const h of trustedHumans || []) {
-          const cleanName = sanitiseFieldValue(h.name);
-          const cleanSurname = sanitiseFieldValue(h.surname);
-          const fullName =
-            cleanName && cleanSurname ? `${cleanName} ${cleanSurname}` : cleanName || cleanSurname || "";
-          byId[h.id] = { fullName };
-        }
-        const trustedContacts: { id: string; fullName: string; relationship: string }[] = [];
-        for (const row of trustedRows) {
-          const th = byId[row.trusted_id];
-          if (!th?.fullName) continue;
-          trustedContacts.push({
-            id: row.trusted_id,
-            fullName: th.fullName,
-            relationship: row.relationship || "",
-          });
-        }
-        entry.trustedContacts = trustedContacts;
-        entry.trustedIds = trustedContacts.map((c) => c.fullName);
-      }
+      const { trustedContacts, trustedIds } = await fetchTrustedContactsForHuman(data.id);
+      entry.trustedContacts = trustedContacts;
+      entry.trustedIds = trustedIds;
+      trustedHydratedIdsRef.current.add(data.id);
 
       setHumansById((prev) => ({ ...prev, [data.id]: entry }));
       setHumans((prev) => {
