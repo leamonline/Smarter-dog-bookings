@@ -17,6 +17,7 @@ import { supabase } from "../../supabase/client.js";
 import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveRemindersTone } from "./tone/reminders";
+import { SendReminderModal } from "../modals/send-reminder/SendReminderModal.jsx";
 
 function formatSlot(slot) {
   if (!slot) return "";
@@ -34,25 +35,25 @@ function formatSentTime(iso) {
   });
 }
 
-function ReminderRow({ row, onSend, busy }) {
+function ReminderRow({ row, onOpen, busy }) {
   const sent = row.reminderStatus === "sent";
-  const isClickable = !sent && !busy;
+  const clickable = !busy;
   return (
     <button
       type="button"
-      onClick={isClickable ? onSend : undefined}
-      disabled={!isClickable}
+      onClick={clickable ? onOpen : undefined}
+      disabled={!clickable}
       title={
         sent
-          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""}`
+          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""} — click to view`
           : busy
             ? "Sending…"
-            : "Click to send a reminder to this customer now"
+            : "Click to choose a channel and send a reminder"
       }
       className={[
         "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-[12px]",
         sent
-          ? "bg-emerald-50/80 text-emerald-900 cursor-default"
+          ? "bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100/80 cursor-pointer"
           : busy
             ? "bg-amber-100 text-amber-900"
             : "bg-white/70 hover:bg-white border border-amber-100 text-amber-900 cursor-pointer",
@@ -94,6 +95,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
 
   const toast = useToast();
   const [busyKeys, setBusyKeys] = useState(new Set());
+  const [modalRow, setModalRow] = useState(null);
 
   const tone = useMemo(
     () => resolveRemindersTone({ targetDate, sentCount, totalCount }),
@@ -176,7 +178,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
           <li key={r.customerKey}>
             <ReminderRow
               row={r}
-              onSend={() => handleSend(r)}
+              onOpen={() => setModalRow(r)}
               busy={busyKeys.has(r.customerKey)}
             />
           </li>
@@ -193,25 +195,35 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
         : "Send remaining";
 
   return (
-    <RightRailCard
-      tone={tone.tone}
-      accent="amber"
-      heading={`Reminders for ${formatTargetDateShort(targetDate)}`}
-      icon={Clock}
-      pillLabel={tone.pillLabel}
-      primaryNumber={tone.primaryNumber}
-      primaryLine={tone.primaryLine}
-      subtitle={tone.subtitle}
-      progress={tone.progress}
-      ariaLabel={tone.ariaSummary}
-      loading={loading}
-      bare={bare}
-      loudChildren={tone.tone === "calm" ? null : loudList}
-      cta={{
-        label: ctaLabel,
-        onClick: tone.tone === "calm" ? (onOpen ?? (() => {})) : handleSendRemaining,
-      }}
-    />
+    <>
+      <RightRailCard
+        tone={tone.tone}
+        accent="amber"
+        heading={`Reminders for ${formatTargetDateShort(targetDate)}`}
+        icon={Clock}
+        pillLabel={tone.pillLabel}
+        primaryNumber={tone.primaryNumber}
+        primaryLine={tone.primaryLine}
+        subtitle={tone.subtitle}
+        progress={tone.progress}
+        ariaLabel={tone.ariaSummary}
+        loading={loading}
+        bare={bare}
+        loudChildren={tone.tone === "calm" ? null : loudList}
+        cta={{
+          label: ctaLabel,
+          onClick: tone.tone === "calm" ? (onOpen ?? (() => {})) : handleSendRemaining,
+        }}
+      />
+      {modalRow && (
+        <SendReminderModal
+          row={modalRow}
+          targetDate={targetDate}
+          onClose={() => setModalRow(null)}
+          onSent={refresh}
+        />
+      )}
+    </>
   );
 }
 
