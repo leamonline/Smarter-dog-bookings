@@ -12,6 +12,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
+import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
@@ -102,6 +103,8 @@ export function WeekCalendarView({
     leaveWaitlist,
   } = useWaitlist(currentDateObj);
   const { unread: waUnread } = useWhatsAppUnread();
+  const reminders = useTomorrowReminders();
+  const pendingReminderCount = reminders.totalCount - reminders.sentCount;
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -310,6 +313,8 @@ export function WeekCalendarView({
                   waitlistCount={waitlist.length}
                   todoCount={openTodoCount}
                   messageCount={waUnread}
+                  reminderCount={pendingReminderCount}
+                  reminderData={reminders}
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
                   onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
