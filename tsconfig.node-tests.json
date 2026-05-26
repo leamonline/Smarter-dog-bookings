@@ -3,8 +3,13 @@
   "compilerOptions": {
     "types": ["node"],
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/security/**/*.test.ts", "src/supabase/seed.ts"],
+  "include": [
+    "src/security/**/*.test.ts",
+    "src/supabase/seed.ts",
+    "src/lib/whatsapp/**/*.test.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
