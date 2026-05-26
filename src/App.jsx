@@ -678,6 +678,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   fetchHumanById={sbFetchHumanById}
                   findHumanByFullName={sbFindHumanByFullName}
                   searchHumansByTerm={sbSearchHumansByTerm}
+                  onNewBookingForHuman={(hid) => {
+                    handleCloseHumanProfile();
+                    setShowNewBooking({
+                      dateStr: currentDateStr,
+                      slot: "",
+                      initialHumanId: hid,
+                    });
+                  }}
                 />
               </Suspense>
             </ErrorBoundary>
