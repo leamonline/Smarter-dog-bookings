@@ -25,6 +25,9 @@
  *   - appointment_reminder_v1   (en_GB, 3 params, Active)
  *   - booking_confirmed_v1      (en_GB, 4 params, Active)
  *   - booking_changed_v1        (en,    3 params, Active)
+ *   - ready_for_collection_v1   (en_GB, 2 params, PENDING Meta approval —
+ *                                {{1}} dog name, {{2}} minutes. Sends fail
+ *                                with a 132xxx gateway error until Approved.)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
@@ -35,6 +38,7 @@ const PLACEHOLDER = {
   when: "[date and time]",
   service: "[service]",
   change_description: "[what changed]",
+  minutes: "[mins]",
 };
 
 export const WHATSAPP_TEMPLATES = [
@@ -81,6 +85,18 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, a quick update on ${values.dog_name || PLACEHOLDER.dog_name}'s booking: ${values.change_description || PLACEHOLDER.change_description}. If this isn't right or you have any questions, just reply here.`,
+  },
+  {
+    name: "ready_for_collection_v1",
+    label: "Ready for Collection",
+    description: "Tell the owner or a trusted contact the dog is ready to collect",
+    language: "en_GB",
+    params: [
+      { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
+      { key: "minutes", label: "Minutes until ready (e.g. 15)", autoFill: null },
+    ],
+    preview: (values) =>
+      `Hi! ${values.dog_name || PLACEHOLDER.dog_name} is all done and ready for collection in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon — Smarter Dog Grooming Salon.`,
   },
 ];
 

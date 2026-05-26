@@ -18,7 +18,7 @@ function groupBookingsByDate(rows, dogsById, humansById) {
   return grouped;
 }
 
-export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
+export function useBookings(weekStart, dogsById, humansById, { onError, onReadyForPickup } = {}) {
   const [bookingsByDate, setBookingsByDate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,6 +31,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
 
   const onErrorRef = useRef(onError);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
+  const onReadyForPickupRef = useRef(onReadyForPickup);
+  useEffect(() => { onReadyForPickupRef.current = onReadyForPickup; }, [onReadyForPickup]);
 
   useEffect(() => {
     if (!supabase || !weekStart) {
@@ -459,6 +462,16 @@ export function useBookings(weekStart, dogsById, humansById, { onError } = {}) {
         }
         return next;
       });
+
+      // Fire the staff "ready for collection" prompt only on the actual
+      // transition into Ready (not on edits to an already-Ready booking,
+      // and not on undo, which sets status back to the previous value).
+      if (
+        snapshot?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
+        persisted.status === BOOKING_STATUS.READY_FOR_PICKUP
+      ) {
+        onReadyForPickupRef.current?.(persisted);
+      }
 
       return persisted;
     },

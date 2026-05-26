@@ -3,6 +3,7 @@
  * Extracted from App.jsx to reduce its size and improve testability.
  */
 import { useState, useCallback } from "react";
+import type { Booking } from "../types/index.js";
 
 interface NewBookingData {
   dateStr: string;
@@ -27,6 +28,8 @@ interface UseModalStateReturn {
   setRebookData: (data: any | null) => void;
   showRebookDatePicker: boolean;
   setShowRebookDatePicker: (show: boolean) => void;
+  collectionNotice: Booking | null;
+  setCollectionNotice: (booking: Booking | null) => void;
   // Callbacks
   openNewBooking: (dateStr: string, slot: string) => void;
   closeNewBooking: () => void;
@@ -42,6 +45,7 @@ export function useModalState(): UseModalStateReturn {
   const [showAddDogModal, setShowAddDogModal] = useState<boolean>(false);
   const [showAddHumanModal, setShowAddHumanModal] = useState<boolean>(false);
   const [showRebookDatePicker, setShowRebookDatePicker] = useState<boolean>(false);
+  const [collectionNotice, setCollectionNotice] = useState<Booking | null>(null);
 
   const openNewBooking = useCallback((dateStr: string, slot: string) => {
     setShowNewBooking({ dateStr, slot });
@@ -73,6 +77,8 @@ export function useModalState(): UseModalStateReturn {
     setRebookData,
     showRebookDatePicker,
     setShowRebookDatePicker,
+    collectionNotice,
+    setCollectionNotice,
     openNewBooking,
     closeNewBooking,
     closeRebook,

@@ -98,6 +98,11 @@ const AddHumanModal = lazy(() =>
     default: module.AddHumanModal,
   })),
 );
+const CollectionNoticeModal = lazy(() =>
+  import("./components/modals/collection-notice/CollectionNoticeModal.jsx").then((module) => ({
+    default: module.CollectionNoticeModal,
+  })),
+);
 const LoginPage = lazy(() =>
   import("./components/auth/LoginPage.jsx").then((module) => ({
     default: module.LoginPage,
@@ -219,6 +224,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showAddHumanModal, setShowAddHumanModal,
     rebookData, setRebookData,
     showRebookDatePicker, setShowRebookDatePicker,
+    collectionNotice, setCollectionNotice,
     openNewBooking,
   } = useModalState();
 
@@ -356,7 +362,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     updateBooking: sbUpdateBooking,
     fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
     refetch: refetchBookings,
-  } = useBookings(weekStart, dogsById, humansById);
+  } = useBookings(weekStart, dogsById, humansById, {
+    onReadyForPickup: setCollectionNotice,
+  });
   const {
     config: sbConfig,
     loading: cl,
@@ -771,6 +779,17 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {collectionNotice && (
+            <ErrorBoundary>
+              <Suspense fallback={null}>
+                <CollectionNoticeModal
+                  booking={collectionNotice}
+                  onClose={() => setCollectionNotice(null)}
                 />
               </Suspense>
             </ErrorBoundary>
