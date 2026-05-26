@@ -14,5 +14,11 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
-  "exclude": ["node_modules", "dist", "src/security/**/*.test.ts", "src/supabase/seed.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/security/**/*.test.ts",
+    "src/supabase/seed.ts",
+    "src/lib/whatsapp/**/*.test.ts"
+  ]
 }

@@ -70,6 +70,7 @@ import {
   type ConfirmButtonsResult,
   runConfirmButtons,
 } from "../_shared/confirmButtons.ts";
+import { buildFlowMetaBody, validateFlowMessageParams } from "../_shared/flowMessage.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -133,7 +134,24 @@ interface ConfirmButtonsMode {
   action_kind: "book" | "reschedule" | "cancel";
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode;
+interface FlowMode {
+  mode: "flow";
+  to: string;
+  flow_id: string;
+  human_id?: string | null;
+  flow_type?: "appointment_booking" | "new_client_intake" | "cancel_reschedule";
+  initial_screen?: string;
+  initial_data?: Record<string, unknown>;
+  body_text: string;
+  cta: string;
+  header_text?: string;
+  footer_text?: string;
+  // "draft" to test an unpublished Flow; omit for the published one.
+  flow_display_mode?: "published" | "draft";
+  conversation_id?: string;
+}
+
+type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -617,6 +635,108 @@ async function handleConfirmButtons(
   );
 }
 
+// ── Flow-mode handler ─────────────────────────────────────────
+// Delivers a WhatsApp Flow. Mints the flow_token, creates the
+// whatsapp_flow_sessions row (so the Flow Data Endpoint can resolve the
+// customer on the first data_exchange), then sends the interactive
+// "flow" message. The message builder lives in _shared/flowMessage.ts.
+async function handleFlowMode(
+  req: Request,
+  supabase: SupabaseClient,
+  body: FlowMode,
+): Promise<Response> {
+  const initialScreen = body.initial_screen ?? "WELCOME";
+  const flowToken = crypto.randomUUID();
+
+  const v = validateFlowMessageParams({
+    toDigits: toMetaTo(body.to),
+    flowId: body.flow_id,
+    flowToken,
+    bodyText: body.body_text,
+    ctaLabel: body.cta,
+    initialScreen,
+  });
+  if (!v.ok) return json(req, { error: v.reason }, 400);
+
+  const phoneE164 = toE164(body.to);
+
+  // The WELCOME screen binds greeting + intro; default them (resolving the
+  // customer's name when we know who they are) if the caller didn't supply.
+  let initialData: Record<string, unknown> = body.initial_data ?? {};
+  if (initialScreen === "WELCOME" && (!initialData.greeting || !initialData.intro)) {
+    let name = "";
+    if (body.human_id) {
+      const { data } = await supabase.from("humans").select("name").eq("id", body.human_id).maybeSingle();
+      name = (data as { name?: string } | null)?.name ?? "";
+    }
+    initialData = {
+      greeting: name ? `Hi ${name}! 🐾` : "Hi there! 🐾",
+      intro: "Let's get your dog booked in for a groom.",
+      ...initialData,
+    };
+  }
+
+  // Create the session BEFORE sending — the endpoint rejects unknown tokens.
+  const { error: sessErr } = await supabase.from("whatsapp_flow_sessions").insert({
+    flow_token: flowToken,
+    phone_e164: phoneE164,
+    human_id: body.human_id ?? null,
+    flow_type: body.flow_type ?? "appointment_booking",
+    screen: initialScreen,
+    state: {},
+    status: "active",
+  });
+  if (sessErr) {
+    return json(req, { error: "could not create flow session", detail: sessErr.message }, 500);
+  }
+
+  const metaBody = buildFlowMetaBody({
+    toDigits: toMetaTo(body.to),
+    flowId: body.flow_id,
+    flowToken,
+    bodyText: body.body_text,
+    ctaLabel: body.cta,
+    initialScreen,
+    initialData,
+    headerText: body.header_text,
+    footerText: body.footer_text,
+    mode: body.flow_display_mode,
+  });
+
+  let metaRes: MetaSendSuccess;
+  try {
+    metaRes = await callMeta(metaBody);
+  } catch (err) {
+    await supabase.from("whatsapp_flow_sessions").update({ status: "failed" }).eq("flow_token", flowToken);
+    return json(
+      req,
+      { error: "Meta send failed", detail: err instanceof Error ? err.message : String(err) },
+      502,
+    );
+  }
+
+  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+
+  // Link/record the conversation (mirrors template mode).
+  let conversationId = body.conversation_id ?? null;
+  if (!conversationId) {
+    const { data: conv } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, human_id")
+      .eq("phone_e164", phoneE164)
+      .maybeSingle();
+    if (conv?.id) {
+      conversationId = conv.id;
+      if (body.human_id && !conv.human_id) {
+        await supabase.from("whatsapp_conversations").update({ human_id: body.human_id }).eq("id", conv.id);
+      }
+    }
+  }
+  await recordOutbound(supabase, conversationId, metaMessageId, `[flow:${body.flow_id}] ${body.body_text}`, metaBody);
+
+  return json(req, { ok: true, flow_token: flowToken, meta_message_id: metaMessageId });
+}
+
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -649,7 +769,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons' | 'flow')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -663,6 +783,8 @@ serve(async (req) => {
       return await handleTemplateMode(req, supabase, parsed);
     } else if (parsed.mode === "confirm_buttons") {
       return await handleConfirmButtons(req, supabase, parsed);
+    } else if (parsed.mode === "flow") {
+      return await handleFlowMode(req, supabase, parsed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }

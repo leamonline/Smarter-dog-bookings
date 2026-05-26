@@ -1,0 +1,404 @@
+{
+  "version": "5.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "WELCOME": ["SELECT_PET", "NO_PETS"],
+    "SELECT_PET": ["SELECT_SERVICE"],
+    "SELECT_SERVICE": ["SELECT_ADDONS"],
+    "SELECT_ADDONS": ["SELECT_DATE"],
+    "SELECT_DATE": ["SELECT_TIME"],
+    "SELECT_TIME": ["CONFIRM"],
+    "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME"],
+    "NO_PETS": [],
+    "SUCCESS": [],
+    "BOOKING_FAILED": []
+  },
+  "screens": [
+    {
+      "id": "WELCOME",
+      "title": "Smarter Dog",
+      "data": {
+        "greeting": {
+          "type": "string",
+          "__example__": "Hi Sam! 🐾"
+        },
+        "intro": {
+          "type": "string",
+          "__example__": "Let's get your dog booked in for a groom."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "${data.greeting}" },
+          { "type": "TextBody", "text": "${data.intro}" },
+          {
+            "type": "Footer",
+            "label": "Book appointment",
+            "on-click-action": { "name": "data_exchange", "payload": {} }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_PET",
+      "title": "Your dog",
+      "data": {
+        "pets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "11111111-1111-1111-1111-111111111111", "title": "Bella", "description": "Cockapoo · small" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "pet_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "dog_id",
+                "label": "Which dog is this for?",
+                "required": true,
+                "data-source": "${data.pets}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "dog_id": "${form.dog_id}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_SERVICE",
+      "title": "Service",
+      "data": {
+        "dog_name": { "type": "string", "__example__": "Bella" },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £46" },
+            { "id": "bath-and-brush", "title": "Bath & Brush", "description": "from £42" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
+          {
+            "type": "Form",
+            "name": "service_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "service",
+                "label": "Service",
+                "required": true,
+                "data-source": "${data.services}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "service": "${form.service}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_ADDONS",
+      "title": "Add-ons",
+      "data": {
+        "addons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" },
+            { "id": "Sensitive Shampoo", "title": "Sensitive Shampoo", "description": "" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "Optional extras — tap any you'd like, or just continue." },
+          {
+            "type": "Form",
+            "name": "addons_form",
+            "children": [
+              {
+                "type": "CheckboxGroup",
+                "name": "addons",
+                "label": "Add-ons",
+                "required": false,
+                "data-source": "${data.addons}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "addons": "${form.addons}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_DATE",
+      "title": "Choose a day",
+      "data": {
+        "dates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "2026-06-02", "title": "Tuesday 2 June" },
+            { "id": "2026-06-03", "title": "Wednesday 3 June" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "We're open Mon–Wed. Here are the next available days:" },
+          {
+            "type": "Form",
+            "name": "date_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "date",
+                "label": "Drop-off day",
+                "required": true,
+                "data-source": "${data.dates}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "date": "${form.date}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_TIME",
+      "title": "Choose a time",
+      "data": {
+        "date_label": { "type": "string", "__example__": "Tuesday 2 June" },
+        "show_error": { "type": "boolean", "__example__": false },
+        "error_message": { "type": "string", "__example__": "" },
+        "time_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "09:00", "title": "9:00 am" },
+            { "id": "09:30", "title": "9:30 am" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.error_message}",
+            "visible": "${data.show_error}"
+          },
+          { "type": "TextSubheading", "text": "Drop-off times for ${data.date_label}" },
+          {
+            "type": "Form",
+            "name": "time_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "slot",
+                "label": "Drop-off time",
+                "required": true,
+                "data-source": "${data.time_slots}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continue",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "slot": "${form.slot}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRM",
+      "title": "Confirm booking",
+      "data": {
+        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am\nFrom £46" },
+        "fine_print": { "type": "string", "__example__": "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon." }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "Please check the details" },
+          { "type": "TextBody", "text": "${data.summary}" },
+          { "type": "TextCaption", "text": "${data.fine_print}" },
+          {
+            "type": "Form",
+            "name": "confirm_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "Confirm booking",
+                "on-click-action": { "name": "data_exchange", "payload": {} }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "You're booked!",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "booking_ref": { "type": "string", "__example__": "SD-3F9A2C" },
+        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "All booked in 🐶" },
+          { "type": "TextBody", "text": "${data.summary}" },
+          { "type": "TextCaption", "text": "Your reference: ${data.booking_ref}" },
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "Done",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": { "booking_ref": "${data.booking_ref}" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "NO_PETS",
+      "title": "Let's set you up",
+      "terminal": true,
+      "data": {
+        "message": {
+          "type": "string",
+          "__example__": "We couldn't find a dog on your file yet. Reply \"new\" and we'll get you registered, then you can book."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "${data.message}" },
+          {
+            "type": "Form",
+            "name": "no_pets_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "Close",
+                "on-click-action": { "name": "complete", "payload": {} }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "BOOKING_FAILED",
+      "title": "Couldn't book",
+      "terminal": true,
+      "data": {
+        "message": {
+          "type": "string",
+          "__example__": "Sorry — something went wrong saving that booking. Please try again, or message us and we'll sort it."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "${data.message}" },
+          {
+            "type": "Form",
+            "name": "failed_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "Close",
+                "on-click-action": { "name": "complete", "payload": {} }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

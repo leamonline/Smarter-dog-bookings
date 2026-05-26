@@ -1,0 +1,366 @@
+// ============================================================
+// supabase/functions/whatsapp-flow-endpoint/index.ts
+//
+// The WhatsApp Flows Data Endpoint. Meta POSTs an ENCRYPTED request for
+// every screen transition of an endpoint-driven Flow; we decrypt it,
+// run the screen state machine, and return the ENCRYPTED next screen.
+//
+// Pipeline per request:
+//   1. (optional) verify X-Hub-Signature-256 with META_APP_SECRET
+//   2. RSA-OAEP + AES-GCM decrypt (FLOW_PRIVATE_KEY / FLOW_PASSPHRASE)
+//   3. route by action: ping | INIT | BACK | data_exchange
+//   4. drive the Flow A (appointment booking) screens off the
+//      whatsapp_flow_sessions row keyed by flow_token
+//   5. AES-GCM encrypt the response (flipped IV), return text/plain 200
+//
+// Booking is written at the CONFIRM data_exchange (not at flow
+// completion) via the bookings table; the capacity trigger is the hard
+// guard and a rejection becomes a "slot taken" retry.
+//
+// Deploy WITHOUT JWT verification — Meta sends no JWT; the encryption +
+// signature are the auth:
+//   supabase functions deploy whatsapp-flow-endpoint --no-verify-jwt
+//
+// Env vars required:
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (auto)
+//   FLOW_PRIVATE_KEY   — RSA private key PEM (literal \n are normalised)
+//   FLOW_PASSPHRASE    — passphrase for the private key
+//   META_APP_SECRET    — for X-Hub-Signature-256 (shared with the webhook)
+// ============================================================
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  decryptFlowRequest,
+  type DecryptedFlowRequest,
+  type DecryptResult,
+  type EncryptedFlowRequest,
+  encryptFlowResponse,
+  FlowDecryptError,
+  verifyFlowSignature,
+} from "../_shared/flowCrypto.ts";
+import {
+  addonOptions,
+  availableDateOptions,
+  availableSlotOptions,
+  bookingRef,
+  bookingSummary,
+  confirmBooking,
+  type FlowDb,
+  formatDateLong,
+  listPetOptions,
+  serviceName,
+  serviceOptions,
+} from "../_shared/flowBooking.ts";
+import { slotLabel } from "../_shared/salonConstants.ts";
+import {
+  completeSession,
+  createServiceClient,
+  failSession,
+  type FlowSessionRow,
+  type FlowState,
+  loadSession,
+  makeFlowDb,
+  saveSession,
+} from "./db.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const DATA_API_VERSION = "3.0";
+const FLOW_PRIVATE_KEY = (Deno.env.get("FLOW_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+const FLOW_PASSPHRASE = Deno.env.get("FLOW_PASSPHRASE") ?? "";
+const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
+
+const NO_PETS_MSG =
+  'We couldn\'t find a dog on your file yet. Reply "new" and we\'ll get you registered, then you can book.';
+const FINE_PRINT =
+  "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon.";
+
+function screenResponse(screen: string, data: Record<string, unknown>): unknown {
+  return { version: DATA_API_VERSION, screen, data };
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+function strArr(v: unknown): string[] {
+  return Array.isArray(v) ? v.map((x) => String(x)) : [];
+}
+
+function successResponse(bookingId: string, state: FlowState): unknown {
+  const parts = [`${state.dog_name ?? "Your dog"} — ${serviceName(state.service ?? "")}`];
+  if (state.date) parts.push(`${formatDateLong(state.date)}${state.slot ? ` at ${slotLabel(state.slot)}` : ""}`);
+  return screenResponse("SUCCESS", { booking_ref: bookingRef(bookingId), summary: parts.join("\n") });
+}
+
+async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient): Promise<unknown> {
+  let name = "";
+  if (session.human_id) {
+    const { data } = await supabase.from("humans").select("name").eq("id", session.human_id).maybeSingle();
+    name = (data as { name?: string } | null)?.name ?? "";
+  }
+  return screenResponse("WELCOME", {
+    greeting: name ? `Hi ${name}! 🐾` : "Hi there! 🐾",
+    intro: "Let's get your dog booked in for a groom.",
+  });
+}
+
+/** Build any screen's data purely from session state (used by INIT/BACK and after each advance). */
+async function buildScreen(
+  target: string,
+  session: FlowSessionRow,
+  db: FlowDb,
+  supabase: SupabaseClient,
+): Promise<unknown> {
+  const state = session.state;
+  switch (target) {
+    case "WELCOME":
+      return renderWelcome(session, supabase);
+
+    case "SELECT_PET": {
+      const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
+      if (!pets.length) return screenResponse("NO_PETS", { message: NO_PETS_MSG });
+      return screenResponse("SELECT_PET", { pets });
+    }
+
+    case "SELECT_SERVICE": {
+      const pricing = await db.getPricing();
+      return screenResponse("SELECT_SERVICE", {
+        dog_name: state.dog_name ?? "your dog",
+        services: serviceOptions(state.size ?? "small", pricing),
+      });
+    }
+
+    case "SELECT_ADDONS":
+      return screenResponse("SELECT_ADDONS", { addons: addonOptions() });
+
+    case "SELECT_DATE": {
+      const dates = await availableDateOptions(db, state.size ?? "small", new Date());
+      if (!dates.length) {
+        return screenResponse("BOOKING_FAILED", {
+          message: "We've no availability in the next 60 days. Please message us and we'll help.",
+        });
+      }
+      return screenResponse("SELECT_DATE", { dates });
+    }
+
+    case "SELECT_TIME": {
+      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      if (!slots.length) {
+        return screenResponse("BOOKING_FAILED", {
+          message: 'That day just filled up. Reply "book" to choose another day.',
+        });
+      }
+      return screenResponse("SELECT_TIME", {
+        date_label: state.date ? formatDateLong(state.date) : "",
+        time_slots: slots,
+        show_error: false,
+        error_message: "",
+      });
+    }
+
+    case "CONFIRM": {
+      const pricing = await db.getPricing();
+      return screenResponse("CONFIRM", {
+        summary: bookingSummary({
+          dogName: state.dog_name ?? "",
+          serviceId: state.service ?? "",
+          size: state.size ?? "small",
+          pricing,
+          addons: state.addons ?? [],
+          dateStr: state.date ?? "",
+          slot: state.slot ?? "",
+        }),
+        fine_print: FINE_PRINT,
+      });
+    }
+
+    case "NO_PETS":
+      return screenResponse("NO_PETS", { message: NO_PETS_MSG });
+
+    default:
+      return screenResponse("BOOKING_FAILED", { message: "Please start again." });
+  }
+}
+
+async function handleConfirm(
+  session: FlowSessionRow,
+  state: FlowState,
+  db: FlowDb,
+  supabase: SupabaseClient,
+): Promise<unknown> {
+  // Idempotency: a duplicate confirm returns the existing booking.
+  if (session.booking_id) return successResponse(session.booking_id, state);
+
+  if (!session.human_id || !state.dog_id || !state.service || !state.date || !state.slot) {
+    return screenResponse("BOOKING_FAILED", { message: "Some details were missing. Please start again." });
+  }
+
+  const res = await confirmBooking(db, {
+    humanId: session.human_id,
+    dogId: state.dog_id,
+    serviceId: state.service,
+    dateStr: state.date,
+    slot: state.slot,
+    addons: state.addons ?? [],
+  });
+
+  if (res.ok) {
+    await completeSession(supabase, session.flow_token, res.bookingId);
+    return successResponse(res.bookingId, state);
+  }
+
+  if (res.kind === "slot_taken") {
+    const slots = await availableSlotOptions(db, state.size ?? "small", state.date);
+    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME", state });
+    return screenResponse("SELECT_TIME", {
+      date_label: formatDateLong(state.date),
+      time_slots: slots.length ? slots : [{ id: state.slot, title: slotLabel(state.slot) }],
+      show_error: true,
+      error_message: res.message,
+    });
+  }
+
+  await failSession(supabase, session.flow_token);
+  return screenResponse("BOOKING_FAILED", { message: res.message });
+}
+
+async function handleDataExchange(
+  req: DecryptedFlowRequest,
+  session: FlowSessionRow,
+  db: FlowDb,
+  supabase: SupabaseClient,
+): Promise<unknown> {
+  const token = session.flow_token;
+  const state: FlowState = { ...session.state };
+  const data = req.data ?? {};
+  const current = req.screen ?? session.screen ?? "WELCOME";
+
+  if (current === "CONFIRM") {
+    return handleConfirm(session, state, db, supabase);
+  }
+
+  let target: string;
+  switch (current) {
+    case "WELCOME": {
+      const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
+      target = pets.length ? "SELECT_PET" : "NO_PETS";
+      break;
+    }
+    case "SELECT_PET": {
+      state.dog_id = str(data.dog_id);
+      const dog = state.dog_id ? await db.getDogById(state.dog_id) : null;
+      if (!dog || dog.human_id !== session.human_id) {
+        // Re-ask rather than trust a stray/incorrect dog id.
+        await saveSession(supabase, token, { screen: "SELECT_PET", state });
+        return buildScreen("SELECT_PET", { ...session, state }, db, supabase);
+      }
+      state.size = dog.size;
+      state.dog_name = dog.name;
+      target = "SELECT_SERVICE";
+      break;
+    }
+    case "SELECT_SERVICE":
+      state.service = str(data.service);
+      target = "SELECT_ADDONS";
+      break;
+    case "SELECT_ADDONS":
+      state.addons = strArr(data.addons);
+      target = "SELECT_DATE";
+      break;
+    case "SELECT_DATE":
+      state.date = str(data.date);
+      target = "SELECT_TIME";
+      break;
+    case "SELECT_TIME":
+      state.slot = str(data.slot);
+      target = "CONFIRM";
+      break;
+    default:
+      target = "WELCOME";
+  }
+
+  await saveSession(supabase, token, { screen: target, state });
+  return buildScreen(target, { ...session, state }, db, supabase);
+}
+
+async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
+  // Health check — Meta pings the endpoint periodically.
+  if (req.action === "ping") {
+    return { version: DATA_API_VERSION, data: { status: "active" } };
+  }
+
+  // Client-reported error notification — acknowledge per Meta's spec.
+  if (req.data && typeof (req.data as Record<string, unknown>).error_message === "string") {
+    return { version: DATA_API_VERSION, data: { acknowledged: true } };
+  }
+
+  const token = req.flow_token;
+  if (!token) {
+    return screenResponse("BOOKING_FAILED", { message: "Session expired. Please start again." });
+  }
+
+  const supabase = createServiceClient();
+  const session = await loadSession(supabase, token);
+  if (!session || session.status !== "active" || new Date(session.expires_at) < new Date()) {
+    return screenResponse("BOOKING_FAILED", {
+      message: 'This booking session has expired. Reply "book" to start again.',
+    });
+  }
+
+  const db = makeFlowDb(supabase);
+
+  if (req.action === "INIT") {
+    return renderWelcome(session, supabase);
+  }
+  if (req.action === "BACK") {
+    return buildScreen(req.screen ?? session.screen ?? "WELCOME", session, db, supabase);
+  }
+  return handleDataExchange(req, session, db, supabase);
+}
+
+serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response("method not allowed", { status: 405 });
+  }
+
+  const rawBody = new Uint8Array(await req.arrayBuffer());
+
+  // Verify the signature when present (defence-in-depth on top of the
+  // encryption). If Meta omits the header, the RSA envelope + the
+  // flow_token session lookup remain the auth.
+  const sigHeader = req.headers.get("x-hub-signature-256");
+  if (sigHeader && META_APP_SECRET && !verifyFlowSignature(rawBody, sigHeader, META_APP_SECRET)) {
+    console.warn("whatsapp-flow-endpoint: invalid X-Hub-Signature-256");
+    return new Response("invalid signature", { status: 401 });
+  }
+
+  let envelope: EncryptedFlowRequest;
+  try {
+    envelope = JSON.parse(new TextDecoder().decode(rawBody)) as EncryptedFlowRequest;
+  } catch {
+    return new Response("bad request", { status: 400 });
+  }
+
+  let decryptResult: DecryptResult;
+  try {
+    decryptResult = decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
+  } catch (err) {
+    // 421 tells WhatsApp to refresh our public key and retry.
+    console.error("whatsapp-flow-endpoint: decryption failed", err instanceof FlowDecryptError ? err.message : err);
+    return new Response("decryption failed", { status: 421 });
+  }
+
+  const { aesKey, initialVector } = decryptResult;
+  try {
+    const responseObj = await handleFlow(decryptResult.decrypted);
+    const encrypted = encryptFlowResponse(responseObj, aesKey, initialVector);
+    return new Response(encrypted, { status: 200, headers: { "Content-Type": "text/plain" } });
+  } catch (err) {
+    console.error("whatsapp-flow-endpoint: handler error", err);
+    const fallback = screenResponse("BOOKING_FAILED", {
+      message: "Sorry, something went wrong. Please message us and we'll help.",
+    });
+    const encrypted = encryptFlowResponse(fallback, aesKey, initialVector);
+    return new Response(encrypted, { status: 200, headers: { "Content-Type": "text/plain" } });
+  }
+});

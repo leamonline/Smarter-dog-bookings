@@ -181,6 +181,14 @@ Full operational details — function secrets, intent vocabulary,
 risk levels, the auto-send allowlist, the kill switch, and the safe
 rollout procedure — live in [docs/whatsapp-agent.md](docs/whatsapp-agent.md).
 
+### WhatsApp Flows (interactive booking)
+
+Customers can self-book through an encrypted, form-based WhatsApp Flow
+(`whatsapp-flow-endpoint`), guarded by the same 2-2-1 capacity trigger as
+the web wizard. **Flow A (Appointment Booking)** is implemented; intake and
+cancel/reschedule are planned. Setup, key generation, publishing, and
+troubleshooting are in [docs/whatsapp-flows.md](docs/whatsapp-flows.md).
+
 ### Capacity engine (2-2-1)
 
 See [docs/capacity-engine.md](docs/capacity-engine.md) for what the

@@ -6,6 +6,10 @@ coverage/
 .env.production
 .DS_Store
 *.log
+
+# WhatsApp Flow RSA keys — NEVER commit private keys
+flow-keys/
+*.pem
 supabase/.temp/
 .vercel
 docs/private/
