@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { MessageCircle, Clock3, ListChecks } from "lucide-react";
+import { MessageCircle, Clock3, ListChecks, BellRing } from "lucide-react";
 import { WhatsAppInboxCard } from "./WhatsAppInboxCard.jsx";
 import { WaitlistCard } from "./WaitlistCard.jsx";
 import { TodoListCard } from "./TodoListCard.jsx";
+import { TomorrowRemindersCard } from "./TomorrowRemindersCard.jsx";
 
 const TABS = [
   { id: "inbox", label: "Inbox", icon: MessageCircle },
+  { id: "reminders", label: "Reminders", icon: BellRing },
   { id: "waitlist", label: "Waitlist", icon: Clock3 },
   { id: "tasks", label: "Tasks", icon: ListChecks },
 ];
@@ -14,6 +16,8 @@ export function UtilityTabs({
   waitlistCount,
   todoCount,
   messageCount,
+  reminderCount,
+  reminderData,
   onOpenWaitlist,
   onOpenTodos,
   onCreateBookingFromWhatsApp,
@@ -25,6 +29,7 @@ export function UtilityTabs({
 
   const badge = (id) => {
     if (id === "inbox" && messageCount > 0) return messageCount;
+    if (id === "reminders" && reminderCount > 0) return reminderCount;
     if (id === "waitlist" && waitlistCount > 0) return waitlistCount;
     if (id === "tasks" && todoCount > 0) return todoCount;
     return null;
@@ -53,14 +58,14 @@ export function UtilityTabs({
               id={`utility-tab-${t.id}`}
               type="button"
               onClick={() => setActive(t.id)}
-              className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-2 py-2 text-[12px] font-semibold transition-all border-none cursor-pointer font-[inherit] relative ${
+              className={`flex-1 min-w-0 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-1.5 py-2 text-[12px] font-semibold transition-all border-none cursor-pointer font-[inherit] relative ${
                 isActive
                   ? "text-brand-purple bg-white"
                   : "text-slate-500 bg-transparent hover:text-brand-purple hover:bg-white/60"
               }`}
             >
-              <Icon size={14} strokeWidth={2.2} aria-hidden="true" />
-              <span>{t.label}</span>
+              <Icon size={14} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
+              <span className="truncate">{t.label}</span>
               {count != null && (
                 <span
                   className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center leading-none ${
@@ -91,6 +96,9 @@ export function UtilityTabs({
       >
         {active === "inbox" && (
           <WhatsAppInboxCard onCreateBooking={onCreateBookingFromWhatsApp} bare />
+        )}
+        {active === "reminders" && (
+          <TomorrowRemindersCard bare data={reminderData} />
         )}
         {active === "waitlist" && (
           <WaitlistCard count={waitlistCount} onOpen={onOpenWaitlist} bare loading={waitlistLoading} />
