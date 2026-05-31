@@ -65,7 +65,22 @@ import {
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DATA_API_VERSION = "3.0";
-const FLOW_PRIVATE_KEY = (Deno.env.get("FLOW_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+
+function readPrivateKey(): string {
+  const b64 = Deno.env.get("FLOW_PRIVATE_KEY_B64");
+  if (b64) {
+    try {
+      return new TextDecoder().decode(
+        Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+      );
+    } catch {
+      // fall through to FLOW_PRIVATE_KEY
+    }
+  }
+  return (Deno.env.get("FLOW_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+}
+
+const FLOW_PRIVATE_KEY = readPrivateKey();
 const FLOW_PASSPHRASE = Deno.env.get("FLOW_PASSPHRASE") ?? "";
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
