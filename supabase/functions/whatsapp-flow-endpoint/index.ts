@@ -368,6 +368,19 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
 }
 
 serve(async (req) => {
+  if (req.method === "GET") {
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        privateKeyLen: FLOW_PRIVATE_KEY.length,
+        privateKeyStartsWith: FLOW_PRIVATE_KEY.slice(0, 27),
+        privateKeySource: Deno.env.get("FLOW_PRIVATE_KEY_B64") ? "B64" : "PEM",
+        passphraseLen: FLOW_PASSPHRASE.length,
+        appSecretSet: Boolean(Deno.env.get("META_APP_SECRET")),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }
   if (req.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
   }
