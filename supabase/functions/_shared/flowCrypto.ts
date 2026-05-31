@@ -42,6 +42,7 @@ import {
   createCipheriv,
   createDecipheriv,
   createHmac,
+  createPrivateKey,
   privateDecrypt,
   timingSafeEqual,
 } from "node:crypto";
@@ -120,19 +121,27 @@ export function decryptFlowRequest(
 
   // 1. RSA-OAEP(SHA-256) → recover the one-time AES key.
   //
-  // Pass the PEM string + passphrase directly to privateDecrypt rather than
-  // going through createPrivateKey first. Deno's node:crypto polyfill
-  // rejects a KeyObject created from an encrypted PKCS#8 PEM with
-  // "Invalid key type"; the inline form works in both Deno and Node.
+  // Deno's node:crypto polyfill rejects both ways of passing an encrypted
+  // PKCS#8 PEM to privateDecrypt:
+  //   - KeyObject from createPrivateKey → "Invalid key type"
+  //   - inline {key, passphrase}        → "expecting PRIVATE KEY"
+  // Workaround: unwrap the passphrase via createPrivateKey (which DOES work),
+  // then export back to an UNENCRYPTED PKCS#8 PEM and use that. Node accepts
+  // this path unchanged.
+  let plainPem: string;
+  try {
+    const key = createPrivateKey(
+      passphrase ? { key: privatePem, passphrase } : { key: privatePem },
+    );
+    plainPem = key.export({ type: "pkcs8", format: "pem" }) as string;
+  } catch (err) {
+    throw new FlowDecryptError("Failed to load FLOW_PRIVATE_KEY", { cause: err });
+  }
+
   let aesKey: Buffer;
   try {
     aesKey = privateDecrypt(
-      {
-        key: privatePem,
-        passphrase: passphrase || undefined,
-        padding: constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
-      },
+      { key: plainPem, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
       encryptedAesKey,
     );
   } catch (err) {
