@@ -42,8 +42,6 @@ import {
   createCipheriv,
   createDecipheriv,
   createHmac,
-  createPrivateKey,
-  type KeyObject,
   privateDecrypt,
   timingSafeEqual,
 } from "node:crypto";
@@ -98,16 +96,6 @@ function aesAlgoForKey(aesKey: Buffer): "aes-128-gcm" | "aes-256-gcm" {
   );
 }
 
-function loadPrivateKey(privatePem: string, passphrase?: string): KeyObject {
-  try {
-    return createPrivateKey(
-      passphrase ? { key: privatePem, passphrase } : { key: privatePem },
-    );
-  } catch (err) {
-    throw new FlowDecryptError("Failed to load FLOW_PRIVATE_KEY", { cause: err });
-  }
-}
-
 /**
  * Decrypt an incoming Flow request envelope.
  * Returns the parsed body plus the AES key + IV so the caller can encrypt
@@ -131,11 +119,20 @@ export function decryptFlowRequest(
   }
 
   // 1. RSA-OAEP(SHA-256) → recover the one-time AES key.
-  const privateKey = loadPrivateKey(privatePem, passphrase);
+  //
+  // Pass the PEM string + passphrase directly to privateDecrypt rather than
+  // going through createPrivateKey first. Deno's node:crypto polyfill
+  // rejects a KeyObject created from an encrypted PKCS#8 PEM with
+  // "Invalid key type"; the inline form works in both Deno and Node.
   let aesKey: Buffer;
   try {
     aesKey = privateDecrypt(
-      { key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+      {
+        key: privatePem,
+        passphrase: passphrase || undefined,
+        padding: constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: "sha256",
+      },
       encryptedAesKey,
     );
   } catch (err) {
