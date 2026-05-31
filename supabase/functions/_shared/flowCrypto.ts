@@ -96,12 +96,16 @@ function aesAlgoForKey(aesKey: Buffer): "aes-128-gcm" | "aes-256-gcm" {
   );
 }
 
-function pemToDer(pem: string): Uint8Array {
+function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
   const body = pem
     .replace(/-----BEGIN [^-]+-----/g, "")
     .replace(/-----END [^-]+-----/g, "")
     .replace(/\s+/g, "");
-  return Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
+  const binary = atob(body);
+  const buf = new ArrayBuffer(binary.length);
+  const der = new Uint8Array(buf);
+  for (let i = 0; i < binary.length; i++) der[i] = binary.charCodeAt(i);
+  return der;
 }
 
 /**
@@ -157,10 +161,14 @@ export async function decryptFlowRequest(
       false,
       ["decrypt"],
     );
+    // Copy Buffer into an ArrayBuffer-backed Uint8Array so the strict
+    // BufferSource type matches (Node's Buffer is ArrayBufferLike-backed).
+    const encryptedAesKeyView = new Uint8Array(new ArrayBuffer(encryptedAesKey.length));
+    encryptedAesKeyView.set(encryptedAesKey);
     const decryptedBuf = await webcrypto.subtle.decrypt(
       { name: "RSA-OAEP" },
       cryptoKey,
-      encryptedAesKey,
+      encryptedAesKeyView,
     );
     aesKey = Buffer.from(decryptedBuf);
   } catch (err) {
