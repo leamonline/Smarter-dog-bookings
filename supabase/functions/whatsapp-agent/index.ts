@@ -2048,6 +2048,28 @@ serve(async (req) => {
             }
           }
 
+          // Reminder confirm: customer tapped the "Confirm" Quick Reply on
+          // their appointment_reminder template. This arrives as a
+          // *template button reply* (msg.button.text), NOT an interactive
+          // button_reply. It is its own path because the matching is
+          // looser — we stamp every recent, sent WhatsApp reminder for
+          // this customer's active bookings in one atomic RPC.
+          if (msg.button?.text?.trim().toLowerCase() === "confirm" && conversation.human_id) {
+            try {
+              const { data: stampedIds, error: stampErr } = await supabase
+                .rpc("mark_reminder_confirmed", { p_human_id: conversation.human_id });
+              if (stampErr) {
+                console.warn("mark_reminder_confirmed rpc failed:", stampErr.message);
+              } else {
+                const count = Array.isArray(stampedIds) ? stampedIds.length : 0;
+                console.log(`mark_reminder_confirmed: stamped ${count} booking(s) for human ${conversation.human_id}`);
+              }
+            } catch (err) {
+              console.warn("mark_reminder_confirmed dispatch failed:", err);
+            }
+            continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
+          }
+
           // Phase G — AI on demand. Skip the Claude path entirely
           // when the conversation is in Human only mode for a KNOWN
           // customer, unless the caller explicitly forced a draft

@@ -1,0 +1,102 @@
+# Supabase config — Smarter Dog Bookings
+#
+# ── How verify_jwt is applied (read before editing) ──────────────────
+# There are TWO deploy paths, and they set verify_jwt by DIFFERENT means:
+#
+#   1. CI (.github/workflows/deploy-edge-functions.yml) deploys every
+#      changed function with the `--no-verify-jwt` CLI flag, hardcoded.
+#      It does NOT read this file. So on a normal merge-to-main, the
+#      [functions.*] verify_jwt values below are ignored.
+#
+#   2. Local `supabase functions deploy <fn>` DOES read this file, and
+#      the [functions.*] blocks below govern what gets set.
+#
+# Keep the two in sync: every function here is verify_jwt = false, which
+# matches CI's --no-verify-jwt. In-function auth (x-agent-secret, HMAC,
+# x-internal-secret, Supabase session) is what actually protects these
+# endpoints — see each function's header.
+#
+# ⚠️ If you ever add a function that NEEDS gateway JWT verification
+# (verify_jwt = true): setting it here is not enough. CI's blanket
+# --no-verify-jwt loop will override it back to false. You must also
+# deploy that function separately in the workflow WITHOUT the flag.
+# ─────────────────────────────────────────────────────────────────────
+project_id = "smarter-dog-bookings"
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+[db.pooler]
+enabled = false
+default_pool_size = 20
+max_client_conn = 100
+[realtime]
+enabled = true
+[studio]
+enabled = true
+port = 54323
+[inbucket]
+enabled = true
+port = 54324
+[storage]
+enabled = true
+[storage.buckets.dog-photos]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+[auth]
+enabled = true
+site_url = "https://smarterdoggrooming.co.uk"
+additional_redirect_urls = ["https://smarterdoggrooming.co.uk/admin"]
+jwt_expiry = 3600
+enable_signup = true
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+[functions.whatsapp-webhook]
+verify_jwt = false
+[functions.whatsapp-flow-endpoint]
+verify_jwt = false
+[functions.whatsapp-agent]
+verify_jwt = false
+[functions.whatsapp-send]
+[functions.whatsapp-register]
+[functions.whatsapp-admin]
+[functions.whatsapp-generate-reply]
+verify_jwt = false
+[functions.notify-booking-confirmed]
+verify_jwt = false
+[functions.notify-booking-cancelled]
+verify_jwt = false
+[functions.notify-booking-reminder]
+verify_jwt = false
+[functions.notify-booking-ready]
+verify_jwt = false
+[functions.notify-waitlist-joined]
+verify_jwt = false
+[functions.calendar-feed]
+verify_jwt = false
+[functions.calendar-ics]
+verify_jwt = false
+[functions.customer-phone-on-file]
+verify_jwt = false
+[functions.apply-customer-confirm]
+verify_jwt = false
+[functions.sms-send]
+verify_jwt = false
+[functions.dashboard-summary]
+verify_jwt = false
+[functions.reminder-send]
+verify_jwt = false
+[functions.ai-briefing]
+verify_jwt = false
+[edge_runtime]
+policy = "per_worker"
+[analytics]
+enabled = false
