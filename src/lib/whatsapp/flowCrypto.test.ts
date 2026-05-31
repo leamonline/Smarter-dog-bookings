@@ -67,7 +67,7 @@ function simulateMetaEncryption(
 }
 
 describe("decryptFlowRequest / encryptFlowResponse round-trip", () => {
-  it("decrypts a Meta-encrypted AES-128 request", () => {
+  it("decrypts a Meta-encrypted AES-128 request", async () => {
     const { publicKey, privateKey } = makeKeyPair();
     const payload = {
       version: "3.0",
@@ -80,25 +80,25 @@ describe("decryptFlowRequest / encryptFlowResponse round-trip", () => {
     const iv = randomBytes(16);
 
     const envelope = simulateMetaEncryption(publicKey, payload, aesKey, iv);
-    const result = decryptFlowRequest(envelope, privateKey, PASSPHRASE);
+    const result = await decryptFlowRequest(envelope, privateKey, PASSPHRASE);
 
     expect(result.decrypted).toEqual(payload);
     expect(result.aesKey.equals(aesKey)).toBe(true);
     expect(result.initialVector.equals(iv)).toBe(true);
   });
 
-  it("supports an AES-256 session key", () => {
+  it("supports an AES-256 session key", async () => {
     const { publicKey, privateKey } = makeKeyPair();
     const payload = { version: "3.0", action: "ping" };
     const aesKey = randomBytes(32);
     const iv = randomBytes(16);
 
     const envelope = simulateMetaEncryption(publicKey, payload, aesKey, iv);
-    const result = decryptFlowRequest(envelope, privateKey, PASSPHRASE);
+    const result = await decryptFlowRequest(envelope, privateKey, PASSPHRASE);
     expect(result.decrypted).toEqual(payload);
   });
 
-  it("re-encrypts the response with a bit-flipped IV that Meta can decrypt", () => {
+  it("re-encrypts the response with a bit-flipped IV that Meta can decrypt", async () => {
     const { publicKey, privateKey } = makeKeyPair();
     const aesKey = randomBytes(16);
     const iv = randomBytes(16);
@@ -108,7 +108,7 @@ describe("decryptFlowRequest / encryptFlowResponse round-trip", () => {
       aesKey,
       iv,
     );
-    const { aesKey: recoveredKey, initialVector } = decryptFlowRequest(
+    const { aesKey: recoveredKey, initialVector } = await decryptFlowRequest(
       envelope,
       privateKey,
       PASSPHRASE,
@@ -132,7 +132,7 @@ describe("decryptFlowRequest / encryptFlowResponse round-trip", () => {
 });
 
 describe("decryptFlowRequest error handling", () => {
-  it("throws FlowDecryptError when the GCM tag is tampered", () => {
+  it("throws FlowDecryptError when the GCM tag is tampered", async () => {
     const { publicKey, privateKey } = makeKeyPair();
     const aesKey = randomBytes(16);
     const iv = randomBytes(16);
@@ -147,10 +147,10 @@ describe("decryptFlowRequest error handling", () => {
     corrupted[corrupted.length - 1] ^= 0xff; // flip a byte in the auth tag
     const bad = { ...envelope, encrypted_flow_data: corrupted.toString("base64") };
 
-    expect(() => decryptFlowRequest(bad, privateKey, PASSPHRASE)).toThrow(FlowDecryptError);
+    await expect(decryptFlowRequest(bad, privateKey, PASSPHRASE)).rejects.toThrow(FlowDecryptError);
   });
 
-  it("throws FlowDecryptError on the wrong passphrase", () => {
+  it("throws FlowDecryptError on the wrong passphrase", async () => {
     const { publicKey, privateKey } = makeKeyPair();
     const envelope = simulateMetaEncryption(
       publicKey,
@@ -158,15 +158,15 @@ describe("decryptFlowRequest error handling", () => {
       randomBytes(16),
       randomBytes(16),
     );
-    expect(() => decryptFlowRequest(envelope, privateKey, "wrong-pass")).toThrow(
+    await expect(decryptFlowRequest(envelope, privateKey, "wrong-pass")).rejects.toThrow(
       FlowDecryptError,
     );
   });
 
-  it("throws FlowDecryptError on a missing field", () => {
+  it("throws FlowDecryptError on a missing field", async () => {
     const { privateKey } = makeKeyPair();
     const bad = { encrypted_aes_key: "x", initial_vector: "y" } as unknown as EncryptedFlowRequest;
-    expect(() => decryptFlowRequest(bad, privateKey, PASSPHRASE)).toThrow(FlowDecryptError);
+    await expect(decryptFlowRequest(bad, privateKey, PASSPHRASE)).rejects.toThrow(FlowDecryptError);
   });
 });
 

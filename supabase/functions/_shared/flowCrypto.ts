@@ -38,13 +38,12 @@
 
 import { Buffer } from "node:buffer";
 import {
-  constants,
   createCipheriv,
   createDecipheriv,
   createHmac,
   createPrivateKey,
-  privateDecrypt,
   timingSafeEqual,
+  webcrypto,
 } from "node:crypto";
 
 /** GCM authentication tag length in bytes (128-bit tag). */
@@ -97,16 +96,24 @@ function aesAlgoForKey(aesKey: Buffer): "aes-128-gcm" | "aes-256-gcm" {
   );
 }
 
+function pemToDer(pem: string): Uint8Array {
+  const body = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  return Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
+}
+
 /**
  * Decrypt an incoming Flow request envelope.
  * Returns the parsed body plus the AES key + IV so the caller can encrypt
  * the matching response without re-deriving them.
  */
-export function decryptFlowRequest(
+export async function decryptFlowRequest(
   body: EncryptedFlowRequest,
   privatePem: string,
   passphrase?: string,
-): DecryptResult {
+): Promise<DecryptResult> {
   if (!body?.encrypted_aes_key || !body?.encrypted_flow_data || !body?.initial_vector) {
     throw new FlowDecryptError("Encrypted request is missing required fields");
   }
@@ -119,16 +126,16 @@ export function decryptFlowRequest(
     throw new FlowDecryptError("encrypted_flow_data shorter than the GCM tag");
   }
 
-  // 1. RSA-OAEP(SHA-256) → recover the one-time AES key.
+  // 1. RSA-OAEP(SHA-256, MGF1-SHA-256) → recover the one-time AES key.
   //
-  // If the PEM is already unencrypted ("-----BEGIN PRIVATE KEY-----") we
-  // pass it straight to privateDecrypt — works in Node and Deno.
+  // We use Web Crypto (subtle.decrypt) rather than node:crypto.privateDecrypt
+  // because Deno's node:crypto polyfill defaulted MGF1 to SHA-1 regardless of
+  // oaepHash, so the latter's OAEP output couldn't decrypt envelopes that
+  // Meta encrypted with the standard MGF1-SHA-256. Web Crypto pins MGF1 to
+  // the same hash as the key's import-time hash, eliminating the mismatch.
   //
-  // If it's encrypted ("-----BEGIN ENCRYPTED PRIVATE KEY-----") we have to
-  // unwrap it via createPrivateKey + export-to-pkcs8. This path works under
-  // Node but Deno's node:crypto polyfill round-trips the key incorrectly,
-  // so production setups should ship the UNENCRYPTED PEM via
-  // FLOW_PRIVATE_KEY_B64 to avoid this branch.
+  // Web Crypto imports only UNENCRYPTED PKCS#8, so an encrypted PEM is first
+  // unwrapped via node:crypto.createPrivateKey + export-to-pkcs8.
   let plainPem = privatePem;
   if (privatePem.includes("BEGIN ENCRYPTED")) {
     try {
@@ -143,18 +150,19 @@ export function decryptFlowRequest(
 
   let aesKey: Buffer;
   try {
-    aesKey = privateDecrypt(
-      {
-        key: plainPem,
-        padding: constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
-        // Pin MGF1 explicitly. Node defaults it to oaepHash; Deno's
-        // node:crypto polyfill defaults to sha1 — the mismatch was the
-        // last cause of "decryption error" against a known-good envelope.
-        mgf1Hash: "sha256",
-      },
+    const cryptoKey = await webcrypto.subtle.importKey(
+      "pkcs8",
+      pemToDer(plainPem),
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["decrypt"],
+    );
+    const decryptedBuf = await webcrypto.subtle.decrypt(
+      { name: "RSA-OAEP" },
+      cryptoKey,
       encryptedAesKey,
     );
+    aesKey = Buffer.from(decryptedBuf);
   } catch (err) {
     throw new FlowDecryptError("RSA decryption of the AES key failed", { cause: err });
   }

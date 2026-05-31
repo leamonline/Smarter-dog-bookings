@@ -405,7 +405,7 @@ serve(async (req) => {
 
   let decryptResult: DecryptResult;
   try {
-    decryptResult = decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
+    decryptResult = await decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
   } catch (err) {
     // 421 tells WhatsApp to refresh our public key and retry.
     const detail = err instanceof FlowDecryptError ? err.message : String(err);
