@@ -144,7 +144,15 @@ export function decryptFlowRequest(
   let aesKey: Buffer;
   try {
     aesKey = privateDecrypt(
-      { key: plainPem, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+      {
+        key: plainPem,
+        padding: constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: "sha256",
+        // Pin MGF1 explicitly. Node defaults it to oaepHash; Deno's
+        // node:crypto polyfill defaults to sha1 — the mismatch was the
+        // last cause of "decryption error" against a known-good envelope.
+        mgf1Hash: "sha256",
+      },
       encryptedAesKey,
     );
   } catch (err) {
