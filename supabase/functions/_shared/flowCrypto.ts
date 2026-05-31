@@ -121,21 +121,24 @@ export function decryptFlowRequest(
 
   // 1. RSA-OAEP(SHA-256) → recover the one-time AES key.
   //
-  // Deno's node:crypto polyfill rejects both ways of passing an encrypted
-  // PKCS#8 PEM to privateDecrypt:
-  //   - KeyObject from createPrivateKey → "Invalid key type"
-  //   - inline {key, passphrase}        → "expecting PRIVATE KEY"
-  // Workaround: unwrap the passphrase via createPrivateKey (which DOES work),
-  // then export back to an UNENCRYPTED PKCS#8 PEM and use that. Node accepts
-  // this path unchanged.
-  let plainPem: string;
-  try {
-    const key = createPrivateKey(
-      passphrase ? { key: privatePem, passphrase } : { key: privatePem },
-    );
-    plainPem = key.export({ type: "pkcs8", format: "pem" }) as string;
-  } catch (err) {
-    throw new FlowDecryptError("Failed to load FLOW_PRIVATE_KEY", { cause: err });
+  // If the PEM is already unencrypted ("-----BEGIN PRIVATE KEY-----") we
+  // pass it straight to privateDecrypt — works in Node and Deno.
+  //
+  // If it's encrypted ("-----BEGIN ENCRYPTED PRIVATE KEY-----") we have to
+  // unwrap it via createPrivateKey + export-to-pkcs8. This path works under
+  // Node but Deno's node:crypto polyfill round-trips the key incorrectly,
+  // so production setups should ship the UNENCRYPTED PEM via
+  // FLOW_PRIVATE_KEY_B64 to avoid this branch.
+  let plainPem = privatePem;
+  if (privatePem.includes("BEGIN ENCRYPTED")) {
+    try {
+      const key = createPrivateKey(
+        passphrase ? { key: privatePem, passphrase } : { key: privatePem },
+      );
+      plainPem = key.export({ type: "pkcs8", format: "pem" }) as string;
+    } catch (err) {
+      throw new FlowDecryptError("Failed to unwrap encrypted FLOW_PRIVATE_KEY", { cause: err });
+    }
   }
 
   let aesKey: Buffer;
