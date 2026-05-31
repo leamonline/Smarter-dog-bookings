@@ -82,6 +82,18 @@ function readPrivateKey(): string {
 
 const FLOW_PRIVATE_KEY = readPrivateKey();
 const FLOW_PASSPHRASE = Deno.env.get("FLOW_PASSPHRASE") ?? "";
+
+// Startup diagnostic — lengths only, never values. Remove once Flow publish is healthy.
+console.log(
+  "whatsapp-flow-endpoint config:",
+  JSON.stringify({
+    privateKeyLen: FLOW_PRIVATE_KEY.length,
+    privateKeyStartsWith: FLOW_PRIVATE_KEY.slice(0, 27),
+    privateKeySource: Deno.env.get("FLOW_PRIVATE_KEY_B64") ? "B64" : "PEM",
+    passphraseLen: FLOW_PASSPHRASE.length,
+    appSecretSet: Boolean(Deno.env.get("META_APP_SECRET")),
+  }),
+);
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
 const NO_PETS_MSG =
@@ -383,8 +395,13 @@ serve(async (req) => {
     decryptResult = decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
   } catch (err) {
     // 421 tells WhatsApp to refresh our public key and retry.
-    console.error("whatsapp-flow-endpoint: decryption failed", err instanceof FlowDecryptError ? err.message : err);
-    return new Response("decryption failed", { status: 421 });
+    const detail = err instanceof FlowDecryptError ? err.message : String(err);
+    const cause = err instanceof FlowDecryptError && err.cause ? String((err.cause as Error)?.message ?? err.cause) : null;
+    console.error("whatsapp-flow-endpoint: decryption failed", detail, cause);
+    return new Response(JSON.stringify({ error: "decryption failed", detail, cause }), {
+      status: 421,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const { aesKey, initialVector } = decryptResult;
