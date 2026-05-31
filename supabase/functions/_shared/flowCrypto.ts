@@ -38,14 +38,12 @@
 
 import { Buffer } from "node:buffer";
 import {
-  constants,
   createCipheriv,
   createDecipheriv,
   createHmac,
   createPrivateKey,
-  type KeyObject,
-  privateDecrypt,
   timingSafeEqual,
+  webcrypto,
 } from "node:crypto";
 
 /** GCM authentication tag length in bytes (128-bit tag). */
@@ -98,14 +96,16 @@ function aesAlgoForKey(aesKey: Buffer): "aes-128-gcm" | "aes-256-gcm" {
   );
 }
 
-function loadPrivateKey(privatePem: string, passphrase?: string): KeyObject {
-  try {
-    return createPrivateKey(
-      passphrase ? { key: privatePem, passphrase } : { key: privatePem },
-    );
-  } catch (err) {
-    throw new FlowDecryptError("Failed to load FLOW_PRIVATE_KEY", { cause: err });
-  }
+function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
+  const body = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const binary = atob(body);
+  const buf = new ArrayBuffer(binary.length);
+  const der = new Uint8Array(buf);
+  for (let i = 0; i < binary.length; i++) der[i] = binary.charCodeAt(i);
+  return der;
 }
 
 /**
@@ -113,11 +113,11 @@ function loadPrivateKey(privatePem: string, passphrase?: string): KeyObject {
  * Returns the parsed body plus the AES key + IV so the caller can encrypt
  * the matching response without re-deriving them.
  */
-export function decryptFlowRequest(
+export async function decryptFlowRequest(
   body: EncryptedFlowRequest,
   privatePem: string,
   passphrase?: string,
-): DecryptResult {
+): Promise<DecryptResult> {
   if (!body?.encrypted_aes_key || !body?.encrypted_flow_data || !body?.initial_vector) {
     throw new FlowDecryptError("Encrypted request is missing required fields");
   }
@@ -130,14 +130,47 @@ export function decryptFlowRequest(
     throw new FlowDecryptError("encrypted_flow_data shorter than the GCM tag");
   }
 
-  // 1. RSA-OAEP(SHA-256) → recover the one-time AES key.
-  const privateKey = loadPrivateKey(privatePem, passphrase);
+  // 1. RSA-OAEP(SHA-256, MGF1-SHA-256) → recover the one-time AES key.
+  //
+  // We use Web Crypto (subtle.decrypt) rather than node:crypto.privateDecrypt
+  // because Deno's node:crypto polyfill defaulted MGF1 to SHA-1 regardless of
+  // oaepHash, so the latter's OAEP output couldn't decrypt envelopes that
+  // Meta encrypted with the standard MGF1-SHA-256. Web Crypto pins MGF1 to
+  // the same hash as the key's import-time hash, eliminating the mismatch.
+  //
+  // Web Crypto imports only UNENCRYPTED PKCS#8, so an encrypted PEM is first
+  // unwrapped via node:crypto.createPrivateKey + export-to-pkcs8.
+  let plainPem = privatePem;
+  if (privatePem.includes("BEGIN ENCRYPTED")) {
+    try {
+      const key = createPrivateKey(
+        passphrase ? { key: privatePem, passphrase } : { key: privatePem },
+      );
+      plainPem = key.export({ type: "pkcs8", format: "pem" }) as string;
+    } catch (err) {
+      throw new FlowDecryptError("Failed to unwrap encrypted FLOW_PRIVATE_KEY", { cause: err });
+    }
+  }
+
   let aesKey: Buffer;
   try {
-    aesKey = privateDecrypt(
-      { key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
-      encryptedAesKey,
+    const cryptoKey = await webcrypto.subtle.importKey(
+      "pkcs8",
+      pemToDer(plainPem),
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["decrypt"],
     );
+    // Copy Buffer into an ArrayBuffer-backed Uint8Array so the strict
+    // BufferSource type matches (Node's Buffer is ArrayBufferLike-backed).
+    const encryptedAesKeyView = new Uint8Array(new ArrayBuffer(encryptedAesKey.length));
+    encryptedAesKeyView.set(encryptedAesKey);
+    const decryptedBuf = await webcrypto.subtle.decrypt(
+      { name: "RSA-OAEP" },
+      cryptoKey,
+      encryptedAesKeyView,
+    );
+    aesKey = Buffer.from(decryptedBuf);
   } catch (err) {
     throw new FlowDecryptError("RSA decryption of the AES key failed", { cause: err });
   }

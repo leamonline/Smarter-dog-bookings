@@ -65,8 +65,35 @@ import {
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DATA_API_VERSION = "3.0";
-const FLOW_PRIVATE_KEY = (Deno.env.get("FLOW_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+
+function readPrivateKey(): string {
+  const b64 = Deno.env.get("FLOW_PRIVATE_KEY_B64");
+  if (b64) {
+    try {
+      return new TextDecoder().decode(
+        Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+      );
+    } catch {
+      // fall through to FLOW_PRIVATE_KEY
+    }
+  }
+  return (Deno.env.get("FLOW_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+}
+
+const FLOW_PRIVATE_KEY = readPrivateKey();
 const FLOW_PASSPHRASE = Deno.env.get("FLOW_PASSPHRASE") ?? "";
+
+// Startup diagnostic — lengths only, never values. Remove once Flow publish is healthy.
+console.log(
+  "whatsapp-flow-endpoint config:",
+  JSON.stringify({
+    privateKeyLen: FLOW_PRIVATE_KEY.length,
+    privateKeyStartsWith: FLOW_PRIVATE_KEY.slice(0, 27),
+    privateKeySource: Deno.env.get("FLOW_PRIVATE_KEY_B64") ? "B64" : "PEM",
+    passphraseLen: FLOW_PASSPHRASE.length,
+    appSecretSet: Boolean(Deno.env.get("META_APP_SECRET")),
+  }),
+);
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
 const NO_PETS_MSG =
@@ -158,6 +185,20 @@ async function buildScreen(
       });
     }
 
+    case "SELECT_TIME_RETRY": {
+      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      if (!slots.length) {
+        return screenResponse("BOOKING_FAILED", {
+          message: 'That day just filled up. Reply "book" to choose another day.',
+        });
+      }
+      return screenResponse("SELECT_TIME_RETRY", {
+        date_label: state.date ? formatDateLong(state.date) : "",
+        time_slots: slots,
+        error_message: "That slot just got taken — please pick another.",
+      });
+    }
+
     case "CONFIRM": {
       const pricing = await db.getPricing();
       return screenResponse("CONFIRM", {
@@ -187,7 +228,10 @@ async function handleConfirm(
   state: FlowState,
   db: FlowDb,
   supabase: SupabaseClient,
+  opts: { allowRetry?: boolean } = {},
 ): Promise<unknown> {
+  const allowRetry = opts.allowRetry ?? true;
+
   // Idempotency: a duplicate confirm returns the existing booking.
   if (session.booking_id) return successResponse(session.booking_id, state);
 
@@ -209,13 +253,12 @@ async function handleConfirm(
     return successResponse(res.bookingId, state);
   }
 
-  if (res.kind === "slot_taken") {
+  if (res.kind === "slot_taken" && allowRetry) {
     const slots = await availableSlotOptions(db, state.size ?? "small", state.date);
-    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME", state });
-    return screenResponse("SELECT_TIME", {
+    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
+    return screenResponse("SELECT_TIME_RETRY", {
       date_label: formatDateLong(state.date),
       time_slots: slots.length ? slots : [{ id: state.slot, title: slotLabel(state.slot) }],
-      show_error: true,
       error_message: res.message,
     });
   }
@@ -237,6 +280,12 @@ async function handleDataExchange(
 
   if (current === "CONFIRM") {
     return handleConfirm(session, state, db, supabase);
+  }
+
+  if (current === "SELECT_TIME_RETRY") {
+    state.slot = str(data.slot);
+    await saveSession(supabase, token, { screen: "SELECT_TIME_RETRY", state });
+    return handleConfirm({ ...session, state }, state, db, supabase, { allowRetry: false });
   }
 
   let target: string;
@@ -319,6 +368,19 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
 }
 
 serve(async (req) => {
+  if (req.method === "GET") {
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        privateKeyLen: FLOW_PRIVATE_KEY.length,
+        privateKeyStartsWith: FLOW_PRIVATE_KEY.slice(0, 27),
+        privateKeySource: Deno.env.get("FLOW_PRIVATE_KEY_B64") ? "B64" : "PEM",
+        passphraseLen: FLOW_PASSPHRASE.length,
+        appSecretSet: Boolean(Deno.env.get("META_APP_SECRET")),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }
   if (req.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
   }
@@ -343,11 +405,24 @@ serve(async (req) => {
 
   let decryptResult: DecryptResult;
   try {
-    decryptResult = decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
+    decryptResult = await decryptFlowRequest(envelope, FLOW_PRIVATE_KEY, FLOW_PASSPHRASE);
   } catch (err) {
     // 421 tells WhatsApp to refresh our public key and retry.
-    console.error("whatsapp-flow-endpoint: decryption failed", err instanceof FlowDecryptError ? err.message : err);
-    return new Response("decryption failed", { status: 421 });
+    const detail = err instanceof FlowDecryptError ? err.message : String(err);
+    const cause = err instanceof FlowDecryptError && err.cause ? String((err.cause as Error)?.message ?? err.cause) : null;
+    const sizes = {
+      encrypted_aes_key_b64: envelope.encrypted_aes_key?.length ?? 0,
+      encrypted_aes_key_bytes: envelope.encrypted_aes_key
+        ? Math.floor((envelope.encrypted_aes_key.length * 3) / 4)
+        : 0,
+      initial_vector_b64: envelope.initial_vector?.length ?? 0,
+      encrypted_flow_data_b64: envelope.encrypted_flow_data?.length ?? 0,
+    };
+    console.error("whatsapp-flow-endpoint: decryption failed", detail, cause, sizes);
+    return new Response(JSON.stringify({ error: "decryption failed", detail, cause, sizes }), {
+      status: 421,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const { aesKey, initialVector } = decryptResult;

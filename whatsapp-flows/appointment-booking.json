@@ -1,5 +1,5 @@
 {
-  "version": "5.0",
+  "version": "7.1",
   "data_api_version": "3.0",
   "routing_model": {
     "WELCOME": ["SELECT_PET", "NO_PETS"],
@@ -8,7 +8,8 @@
     "SELECT_ADDONS": ["SELECT_DATE"],
     "SELECT_DATE": ["SELECT_TIME"],
     "SELECT_TIME": ["CONFIRM"],
-    "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME"],
+    "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME_RETRY"],
+    "SELECT_TIME_RETRY": ["SUCCESS", "BOOKING_FAILED"],
     "NO_PETS": [],
     "SUCCESS": [],
     "BOOKING_FAILED": []
@@ -306,6 +307,56 @@
                 "type": "Footer",
                 "label": "Confirm booking",
                 "on-click-action": { "name": "data_exchange", "payload": {} }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SELECT_TIME_RETRY",
+      "title": "Pick another time",
+      "data": {
+        "date_label": { "type": "string", "__example__": "Tuesday 2 June" },
+        "error_message": { "type": "string", "__example__": "That slot just got taken — please pick another." },
+        "time_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "10:00", "title": "10:00 am" },
+            { "id": "10:30", "title": "10:30 am" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "${data.error_message}" },
+          { "type": "TextSubheading", "text": "Other times on ${data.date_label}" },
+          {
+            "type": "Form",
+            "name": "time_retry_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "slot",
+                "label": "Drop-off time",
+                "required": true,
+                "data-source": "${data.time_slots}"
+              },
+              {
+                "type": "Footer",
+                "label": "Book this time",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": { "slot": "${form.slot}" }
+                }
               }
             ]
           }
