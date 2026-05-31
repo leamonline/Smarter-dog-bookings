@@ -82,6 +82,19 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
     }
     const reminderStatus = allSent ? "sent" : anyPending ? "pending" : null;
 
+    let confirmed = false;
+    let latestConfirmedAt = null;
+    for (const b of bookings ?? []) {
+      const groupKey = (b.dogs?.human_id ?? null) ?? `orphan:${b.id}`;
+      if (groupKey !== g.customerKey) continue;
+      if (b.reminder_confirmed_at) {
+        confirmed = true;
+        if (!latestConfirmedAt || b.reminder_confirmed_at > latestConfirmedAt) {
+          latestConfirmedAt = b.reminder_confirmed_at;
+        }
+      }
+    }
+
     return {
       customerKey: g.customerKey,
       customerName: g.customerName,
@@ -95,6 +108,8 @@ export function groupRemindersByCustomer(bookings, sentMap = new Map()) {
       reminderStatus,
       reminderSentAt: latestSentAt,
       reminderChannel: sentChannel ?? pendingChannel ?? null,
+      confirmed,
+      reminderConfirmedAt: latestConfirmedAt,
     };
   });
 }

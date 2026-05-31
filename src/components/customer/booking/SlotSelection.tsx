@@ -79,6 +79,7 @@ export function SlotSelection({
           staffCapacityOverride: false,
           staffCapacityOverrideBy: null,
           staffCapacityOverrideAt: null,
+          reminderConfirmedAt: null,
           _dogId: row.dog_id,
           _ownerId: null,
           _pickupById: row.pickup_by_id || null,

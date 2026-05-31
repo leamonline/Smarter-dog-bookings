@@ -462,6 +462,7 @@ function makeTempBooking(dog: { id: string; size: DogSize }, slot: string): Book
     staffCapacityOverride: false,
     staffCapacityOverrideBy: null,
     staffCapacityOverrideAt: null,
+    reminderConfirmedAt: null,
     _dogId: dog.id,
     _ownerId: null,
     _pickupById: null,

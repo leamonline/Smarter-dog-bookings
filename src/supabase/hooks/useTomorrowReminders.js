@@ -43,7 +43,7 @@ export function useTomorrowReminders() {
       const { data: bookings, error: bookingsErr } = await supabase
         .from("bookings")
         .select(
-          "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot, dogs(human_id, name)",
+          "id, slot, service, status, booking_date, dog_id, dog_name_snapshot, owner_name_snapshot, reminder_confirmed_at, dogs(human_id, name)",
         )
         .eq("booking_date", targetDate)
         .not("status", "in", "(Cancelled,Completed)")

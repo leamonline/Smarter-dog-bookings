@@ -86,6 +86,7 @@ export interface Booking {
   staffCapacityOverride: boolean;
   staffCapacityOverrideBy: string | null;
   staffCapacityOverrideAt: string | null;
+  reminderConfirmedAt: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

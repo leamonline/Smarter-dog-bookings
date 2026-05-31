@@ -780,3 +780,58 @@ describe("findDogByIdOrName", () => {
     expect(result!.name).toBe("Rex");
   });
 });
+
+describe("dbBookingsToArray — reminder_confirmed_at", () => {
+  it("maps reminder_confirmed_at to reminderConfirmedAt", () => {
+    const dogsById = buildDogsById([{ id: "d-1", name: "Bella", human_id: "h-1" } as any]);
+    const humansById = buildHumansById([{ id: "h-1", name: "Jane", surname: "S" } as any]);
+    const out = dbBookingsToArray(
+      [
+        {
+          id: "b-1",
+          slot: "09:00",
+          size: "small",
+          service: "Full Groom",
+          status: "Booked",
+          addons: null,
+          payment: null,
+          confirmed: null,
+          dog_id: "d-1",
+          pickup_by_id: null,
+          booking_date: "2026-06-01",
+          group_id: null,
+          reminder_confirmed_at: "2026-05-31T15:53:00Z",
+        } as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderConfirmedAt).toBe("2026-05-31T15:53:00Z");
+  });
+
+  it("defaults reminderConfirmedAt to null when absent", () => {
+    const dogsById = buildDogsById([{ id: "d-1", name: "Bella", human_id: "h-1" } as any]);
+    const humansById = buildHumansById([{ id: "h-1", name: "Jane", surname: "S" } as any]);
+    const out = dbBookingsToArray(
+      [
+        {
+          id: "b-1",
+          slot: "09:00",
+          size: "small",
+          service: "Full Groom",
+          status: "Booked",
+          addons: null,
+          payment: null,
+          confirmed: null,
+          dog_id: "d-1",
+          pickup_by_id: null,
+          booking_date: "2026-06-01",
+          group_id: null,
+        } as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderConfirmedAt).toBeNull();
+  });
+});

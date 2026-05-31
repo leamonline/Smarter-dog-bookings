@@ -658,6 +658,10 @@ export function BookingDetailModal({
             </div>
           )}
 
+          {booking.reminderConfirmedAt && (
+            <ConfirmedByCustomerFooter at={booking.reminderConfirmedAt} />
+          )}
+
           {booking.staffCapacityOverride && (
             <OverrideAuditFooter
               by={booking.staffCapacityOverrideBy}
@@ -806,6 +810,32 @@ function OverrideAuditFooter({ by, at }) {
     <div className="px-3 py-2.5 mb-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
       <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Override</span>
       Capacity overridden by {who}{when}.
+    </div>
+  );
+}
+
+function ConfirmedByCustomerFooter({ at }) {
+  if (!at) return null;
+  const when = (() => {
+    const d = new Date(at);
+    if (Number.isNaN(d.getTime())) return at;
+    const date = d.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    const time = d.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `${date} at ${time}`;
+  })();
+
+  return (
+    <div className="px-3 py-2.5 mb-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
+      <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Confirmed</span>
+      Customer confirmed via WhatsApp on {when}.
     </div>
   );
 }

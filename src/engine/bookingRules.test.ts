@@ -311,6 +311,7 @@ describe("resolveBookingDisplay", () => {
     staffCapacityOverride: false,
     staffCapacityOverrideBy: null,
     staffCapacityOverrideAt: null,
+    reminderConfirmedAt: null,
     _dogId: "d-1",
     _ownerId: "h-1",
     _pickupById: null,

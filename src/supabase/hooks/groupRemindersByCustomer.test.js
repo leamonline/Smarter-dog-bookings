@@ -137,3 +137,71 @@ describe("groupRemindersByCustomer", () => {
     expect(rows.map((r) => r.customerName)).toEqual(["Jayne", "Sam"]);
   });
 });
+
+describe("groupRemindersByCustomer — confirmed flag", () => {
+  it("sets confirmed=true when any of the customer's bookings has reminder_confirmed_at", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: "2026-05-31T15:53:00Z",
+      },
+      {
+        id: "b-2",
+        slot: "11:00",
+        dog_id: "d-2",
+        dog_name_snapshot: "Rex",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Rex" },
+        reminder_confirmed_at: null,
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.confirmed).toBe(true);
+  });
+
+  it("sets confirmed=false when no booking has been confirmed", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: null,
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.confirmed).toBe(false);
+  });
+
+  it("exposes the latest reminderConfirmedAt across the customer's bookings", () => {
+    const bookings = [
+      {
+        id: "b-1",
+        slot: "09:00",
+        dog_id: "d-1",
+        dog_name_snapshot: "Bella",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Bella" },
+        reminder_confirmed_at: "2026-05-31T15:53:00Z",
+      },
+      {
+        id: "b-2",
+        slot: "11:00",
+        dog_id: "d-2",
+        dog_name_snapshot: "Rex",
+        owner_name_snapshot: "Jane",
+        dogs: { human_id: "h-1", name: "Rex" },
+        reminder_confirmed_at: "2026-05-31T15:55:30Z",
+      },
+    ];
+    const [row] = groupRemindersByCustomer(bookings, new Map());
+    expect(row.reminderConfirmedAt).toBe("2026-05-31T15:55:30Z");
+  });
+});

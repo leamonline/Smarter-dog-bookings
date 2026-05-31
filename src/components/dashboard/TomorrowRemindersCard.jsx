@@ -45,7 +45,7 @@ function ReminderRow({ row, onOpen, busy }) {
       disabled={!clickable}
       title={
         sent
-          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""} — click to view`
+          ? `Reminder sent at ${formatSentTime(row.reminderSentAt)}${row.reminderChannel ? ` via ${row.reminderChannel}` : ""}${row.confirmed && row.reminderConfirmedAt ? ` — customer confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""} — click to view`
           : busy
             ? "Sending…"
             : "Click to choose a channel and send a reminder"
@@ -59,9 +59,22 @@ function ReminderRow({ row, onOpen, busy }) {
             : "bg-white/70 hover:bg-white border border-amber-100 text-amber-900 cursor-pointer",
       ].join(" ")}
     >
-      <span className="shrink-0">
+      <span className="shrink-0 flex items-center gap-0.5">
         {sent ? (
-          <CheckCircle2 size={16} className="text-emerald-600" aria-label="Reminder sent" />
+          <>
+            <CheckCircle2 size={16} className="text-emerald-600" aria-label="Reminder sent" />
+            {row.confirmed && (
+              <CheckCircle2
+                size={16}
+                className="text-emerald-700 fill-emerald-100"
+                aria-label={
+                  row.reminderConfirmedAt
+                    ? `Customer confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                    : "Customer confirmed"
+                }
+              />
+            )}
+          </>
         ) : busy ? (
           <Send size={14} className="text-amber-600 animate-pulse" aria-label="Sending" />
         ) : (

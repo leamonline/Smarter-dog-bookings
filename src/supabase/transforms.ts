@@ -64,6 +64,7 @@ interface DbBookingRow {
   staff_capacity_override?: boolean | null;
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
+  reminder_confirmed_at?: string | null;
 }
 
 interface DbConfigRow {
@@ -327,6 +328,7 @@ export function dbBookingsToArray(
       staffCapacityOverride: row.staff_capacity_override === true,
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
+      reminderConfirmedAt: row.reminder_confirmed_at ?? null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

@@ -78,6 +78,23 @@ function formatOverrideAt(iso) {
   return `${date} at ${time}`;
 }
 
+function formatConfirmedAt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${date} at ${time}`;
+}
+
 /**
  * AlertsPopover — small popup that lists every alert on a dog.
  * Rendered via portal so it escapes the booking card's overflow:
@@ -330,6 +347,18 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               className="self-center text-[8px] md:text-[9px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-1 py-0.5 rounded-md shrink-0 leading-none"
             >
               Over
+            </span>
+          )}
+          {booking.reminderConfirmedAt && (
+            <span
+              role="img"
+              aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+              title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-emerald-700 bg-emerald-50 border border-emerald-200 shrink-0"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </span>
           )}
           {pricing.isPaidInFull ? (
