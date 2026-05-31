@@ -410,8 +410,16 @@ serve(async (req) => {
     // 421 tells WhatsApp to refresh our public key and retry.
     const detail = err instanceof FlowDecryptError ? err.message : String(err);
     const cause = err instanceof FlowDecryptError && err.cause ? String((err.cause as Error)?.message ?? err.cause) : null;
-    console.error("whatsapp-flow-endpoint: decryption failed", detail, cause);
-    return new Response(JSON.stringify({ error: "decryption failed", detail, cause }), {
+    const sizes = {
+      encrypted_aes_key_b64: envelope.encrypted_aes_key?.length ?? 0,
+      encrypted_aes_key_bytes: envelope.encrypted_aes_key
+        ? Math.floor((envelope.encrypted_aes_key.length * 3) / 4)
+        : 0,
+      initial_vector_b64: envelope.initial_vector?.length ?? 0,
+      encrypted_flow_data_b64: envelope.encrypted_flow_data?.length ?? 0,
+    };
+    console.error("whatsapp-flow-endpoint: decryption failed", detail, cause, sizes);
+    return new Response(JSON.stringify({ error: "decryption failed", detail, cause, sizes }), {
       status: 421,
       headers: { "Content-Type": "application/json" },
     });
