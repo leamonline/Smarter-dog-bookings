@@ -158,6 +158,20 @@ async function buildScreen(
       });
     }
 
+    case "SELECT_TIME_RETRY": {
+      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      if (!slots.length) {
+        return screenResponse("BOOKING_FAILED", {
+          message: 'That day just filled up. Reply "book" to choose another day.',
+        });
+      }
+      return screenResponse("SELECT_TIME_RETRY", {
+        date_label: state.date ? formatDateLong(state.date) : "",
+        time_slots: slots,
+        error_message: "That slot just got taken — please pick another.",
+      });
+    }
+
     case "CONFIRM": {
       const pricing = await db.getPricing();
       return screenResponse("CONFIRM", {
@@ -187,7 +201,10 @@ async function handleConfirm(
   state: FlowState,
   db: FlowDb,
   supabase: SupabaseClient,
+  opts: { allowRetry?: boolean } = {},
 ): Promise<unknown> {
+  const allowRetry = opts.allowRetry ?? true;
+
   // Idempotency: a duplicate confirm returns the existing booking.
   if (session.booking_id) return successResponse(session.booking_id, state);
 
@@ -209,13 +226,12 @@ async function handleConfirm(
     return successResponse(res.bookingId, state);
   }
 
-  if (res.kind === "slot_taken") {
+  if (res.kind === "slot_taken" && allowRetry) {
     const slots = await availableSlotOptions(db, state.size ?? "small", state.date);
-    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME", state });
-    return screenResponse("SELECT_TIME", {
+    await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
+    return screenResponse("SELECT_TIME_RETRY", {
       date_label: formatDateLong(state.date),
       time_slots: slots.length ? slots : [{ id: state.slot, title: slotLabel(state.slot) }],
-      show_error: true,
       error_message: res.message,
     });
   }
@@ -237,6 +253,12 @@ async function handleDataExchange(
 
   if (current === "CONFIRM") {
     return handleConfirm(session, state, db, supabase);
+  }
+
+  if (current === "SELECT_TIME_RETRY") {
+    state.slot = str(data.slot);
+    await saveSession(supabase, token, { screen: "SELECT_TIME_RETRY", state });
+    return handleConfirm({ ...session, state }, state, db, supabase, { allowRetry: false });
   }
 
   let target: string;
