@@ -86,6 +86,11 @@ import {
   requiresHandoff,
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
+import {
+  extractMessageText,
+  reactionFields,
+  type MetaInboundMessage,
+} from "../_shared/inboundMessage.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -117,19 +122,10 @@ const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
 
 // ── Types ───────────────────────────────────────────────────
-interface MetaMessage {
-  id?: string;
-  from?: string;
-  type?: string;
-  timestamp?: string;
-  text?: { body?: string };
-  button?: { text?: string; payload?: string };
-  // button_reply.id is the round-tripped payload set by whatsapp-send
-  // confirm_buttons mode — e.g. "<booking_action_id>:yes". Task 12's
-  // detector keys off this field, so it must be on the type, not just
-  // the runtime payload.
-  interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
-}
+// The inbound-message shape + its interpreters live in _shared so they
+// can be unit-tested under Vitest. Aliased here so existing references
+// (MetaChangeValue.messages, insertInboundMessage) read unchanged.
+type MetaMessage = MetaInboundMessage;
 
 interface MetaStatus {
   id?: string;
@@ -541,6 +537,7 @@ async function insertInboundMessage(
   raw: MetaMessage,
   sentAt: string,
 ) {
+  const { reaction_emoji, in_reply_to_meta_id } = reactionFields(raw);
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
     event_id: eventId,
@@ -549,6 +546,8 @@ async function insertInboundMessage(
     meta_message_id: metaMsgId,
     content: text,
     raw,
+    reaction_emoji,
+    in_reply_to_meta_id,
     status: "delivered", // inbound from Meta is by definition already delivered to us
     sent_at: sentAt,
   });
@@ -2285,13 +2284,5 @@ serve(async (req) => {
 });
 
 // ── Text extractor ───────────────────────────────────────────
-// Meta inbound messages come in several shapes. Pull the best
-// plaintext representation for logging + Claude context.
-function extractMessageText(msg: MetaMessage): string | null {
-  if (msg.text?.body) return msg.text.body;
-  if (msg.button?.text) return msg.button.text;
-  if (msg.interactive?.button_reply?.title) return msg.interactive.button_reply.title;
-  if (msg.interactive?.list_reply?.title) return msg.interactive.list_reply.title;
-  if (msg.type) return `[${msg.type} message — no text content]`;
-  return null;
-}
+// extractMessageText now lives in ../_shared/inboundMessage.ts (with
+// reactionFields) so the reaction/quoted-reply handling is unit-tested.

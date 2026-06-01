@@ -114,7 +114,7 @@ async function fetchConversationDetail(conversationId) {
   const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
     supabase
       .from("whatsapp_messages")
-      .select("id, direction, content, sent_at, status, meta_message_id, channel")
+      .select("id, direction, content, sent_at, status, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id")
       .eq("conversation_id", conversationId)
       .order("sent_at", { ascending: true })
       .limit(200),
