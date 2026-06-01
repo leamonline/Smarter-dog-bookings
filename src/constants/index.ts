@@ -9,6 +9,8 @@ export {
   ALERT_OPTIONS,
   BOOKING_STATUSES,
   BOOKING_STATUS,
+  STATUS_DISPLAY,
+  getStatusDisplay,
   DOG_SIZES,
   DOG_SIZE,
 } from "./salon.js";

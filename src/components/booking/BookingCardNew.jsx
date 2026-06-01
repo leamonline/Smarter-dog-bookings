@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
 import { createPortal } from "react-dom";
-import { SERVICES } from "../../constants/index.js";
+import { SERVICES, STATUS_DISPLAY } from "../../constants/index.js";
 import { useSalon } from "../../contexts/SalonContext.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
@@ -28,17 +28,9 @@ const SIZE_DOT = {
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };
 
-// Status palette — pulls from the brand: mustard for "still to come", teal for
-// "in the salon now", deep purple for "all done". Cancelled stays coral.
-// "Booked" is the default state for newly created bookings.
-const STATUS_DISPLAY = {
-  "Booked":             { bg: "#FFF6CC", color: "var(--color-brand-purple)", border: "var(--color-brand-yellow)", label: "Booked" },
-  "Checked in":         { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B", label: "Checked in" },
-  "In bath":            { bg: "#CFFAFE", color: "#0E7490", border: "#22D3EE", label: "In bath" },
-  "Ready for pick-up":  { bg: "#EDE3F5", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Ready" },
-  "Completed":          { bg: "#E2D9F0", color: "var(--color-brand-purple)", border: "#5B3D80", label: "Completed" },
-  "Cancelled":          { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", label: "Cancelled" },
-};
+// Status palette (bg / text / border per status) now lives in
+// src/constants/salon.ts as STATUS_DISPLAY — the single source of truth shared
+// with the detail modal so card and pop-up can't drift. Imported above.
 
 // The five-step inline progression. Cancelled is terminal and only
 // reachable via the detail modal — never appears here.
