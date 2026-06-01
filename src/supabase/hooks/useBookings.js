@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
@@ -10,8 +10,7 @@ function groupBookingsByDate(rows, dogsById, humansById) {
   const grouped = {};
 
   for (let i = 0; i < transformed.length; i++) {
-    const row = rows[i];
-    const dateKey = row.booking_date;
+    const dateKey = rows[i].booking_date;
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(transformed[i]);
   }
@@ -19,16 +18,24 @@ function groupBookingsByDate(rows, dogsById, humansById) {
   return grouped;
 }
 
+// Online-only hook. Offline mode is served by useOfflineState upstream
+// (useBookingActions picks offline.* when !supabase), so the !supabase
+// branches here are defensive — the app never drives them.
 export function useBookings(weekStart, dogsById, humansById, { onError, onReadyForPickup } = {}) {
-  const [bookingsByDate, setBookingsByDate] = useState({});
+  // Raw DB rows for the current week are the single source of truth.
+  // `bookingsByDate` is DERIVED from them + the dogs/humans maps, so:
+  //   - the schedule paints as soon as the rows arrive (names fall back
+  //     to the booking's *_snapshot columns until the join resolves), and
+  //   - names + owner ids re-resolve automatically as the paginated
+  //     dogs/humans maps fill in, WITHOUT re-fetching the week.
+  // Previously the fetch effect depended on the map identities, so
+  // ensureDogsByIds/ensureHumansByIds growing the maps re-ran it and
+  // re-pulled the whole week 1-2 extra times — and it blocked the first
+  // fetch until both maps were populated (a load waterfall).
+  const [rows, setRows] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  const dogsByIdRef = useRef(dogsById);
-  const humansByIdRef = useRef(humansById);
-  useEffect(() => { dogsByIdRef.current = dogsById; }, [dogsById]);
-  useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
 
   const onErrorRef = useRef(onError);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
@@ -38,23 +45,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
   useEffect(() => {
     if (!supabase || !weekStart) {
-      setBookingsByDate({});
-      setLoading(false);
-      return;
-    }
-
-    if (!dogsById || !humansById) {
-      setLoading(true);
-      return;
-    }
-
-    const dogIds = Object.keys(dogsById);
-    const humanIds = Object.keys(humansById);
-
-    // Empty humans or dogs should not deadlock the app.
-    // A fresh project can legitimately have no records yet.
-    if (dogIds.length === 0 || humanIds.length === 0) {
-      setBookingsByDate({});
+      setRows(null);
       setLoading(false);
       return;
     }
@@ -65,6 +56,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     weekEnd.setDate(weekEnd.getDate() + 6);
     const startStr = toDateStr(weekStart);
     const endStr = toDateStr(weekEnd);
+    const inRange = (d) => !!d && d >= startStr && d <= endStr;
 
     async function fetchBookings() {
       setLoading(true);
@@ -83,18 +75,21 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
       if (err) {
         setError(err.message);
-        setBookingsByDate({});
+        setRows([]);
         setLoading(false);
         return;
       }
 
-      setBookingsByDate(groupBookingsByDate(data || [], dogsById, humansById));
+      setRows(data || []);
       setLoading(false);
     }
 
     fetchBookings();
 
-    // Real-time subscription for bookings within the current week
+    // Realtime keeps the raw rows in sync within the current week; the
+    // memo below re-derives the grouped/transformed view. Handlers only
+    // need the row + the week range now — no transform or dogs/humans
+    // lookup here (that moved into the memo).
     const channel = supabase
       .channel(`bookings-realtime-${Date.now()}-${Math.random()}`)
       .on(
@@ -102,19 +97,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         { event: "INSERT", schema: "public", table: "bookings" },
         (payload) => {
           const newRow = payload.new;
-          if (newRow.booking_date < startStr || newRow.booking_date > endStr)
-            return;
-          const transformed = dbBookingsToArray(
-            [newRow],
-            dogsByIdRef.current,
-            humansByIdRef.current,
-          )[0];
-          setBookingsByDate((prev) => {
-            const dateKey = newRow.booking_date;
-            const existing = (prev[dateKey] || []).filter(
-              (b) => b.id !== newRow.id,
-            );
-            return { ...prev, [dateKey]: [...existing, transformed] };
+          if (!inRange(newRow?.booking_date)) return;
+          setRows((prev) => {
+            const base = prev || [];
+            return base.some((r) => r.id === newRow.id)
+              ? base.map((r) => (r.id === newRow.id ? newRow : r))
+              : [...base, newRow];
           });
         },
       )
@@ -124,41 +112,17 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         (payload) => {
           const newRow = payload.new;
           const oldRow = payload.old;
-          if (newRow.booking_date < startStr || newRow.booking_date > endStr) {
-            // Updated booking moved outside our week — remove it if it was here
-            if (oldRow.id) {
-              setBookingsByDate((prev) => {
-                const next = { ...prev };
-                for (const dateKey of Object.keys(next)) {
-                  next[dateKey] = next[dateKey].filter(
-                    (b) => b.id !== oldRow.id,
-                  );
-                }
-                return next;
-              });
+          const id = newRow?.id ?? oldRow?.id;
+          if (!id) return;
+          setRows((prev) => {
+            const base = prev || [];
+            // Moved outside the visible week → drop it.
+            if (!inRange(newRow?.booking_date)) {
+              return base.filter((r) => r.id !== id);
             }
-            return;
-          }
-          const transformed = dbBookingsToArray(
-            [newRow],
-            dogsByIdRef.current,
-            humansByIdRef.current,
-          )[0];
-          setBookingsByDate((prev) => {
-            const next = { ...prev };
-            // Remove from old date if date changed
-            if (oldRow.booking_date && oldRow.booking_date !== newRow.booking_date) {
-              next[oldRow.booking_date] = (next[oldRow.booking_date] || []).filter(
-                (b) => b.id !== newRow.id,
-              );
-            }
-            // Upsert on new date
-            const dateKey = newRow.booking_date;
-            const existing = (next[dateKey] || []).filter(
-              (b) => b.id !== newRow.id,
-            );
-            next[dateKey] = [...existing, transformed];
-            return next;
+            return base.some((r) => r.id === id)
+              ? base.map((r) => (r.id === id ? newRow : r))
+              : [...base, newRow];
           });
         },
       )
@@ -166,23 +130,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "bookings" },
         (payload) => {
-          const oldRow = payload.old;
-          if (!oldRow.id) return;
-          setBookingsByDate((prev) => {
-            const dateKey = oldRow.booking_date;
-            if (dateKey && prev[dateKey]) {
-              return {
-                ...prev,
-                [dateKey]: prev[dateKey].filter((b) => b.id !== oldRow.id),
-              };
-            }
-            // If we don't have the date, search all dates
-            const next = { ...prev };
-            for (const key of Object.keys(next)) {
-              next[key] = next[key].filter((b) => b.id !== oldRow.id);
-            }
-            return next;
-          });
+          const id = payload.old?.id;
+          if (!id) return;
+          setRows((prev) => (prev || []).filter((r) => r.id !== id));
         },
       )
       .subscribe();
@@ -191,17 +141,19 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       controller.abort();
       supabase.removeChannel(channel);
     };
-  }, [weekStart, dogsById, humansById, refreshKey]);
+  }, [weekStart, refreshKey]);
+
+  // Derived view. Recomputes when the rows change OR when the dogs/humans
+  // maps change — the latter re-resolves names without a network round
+  // trip, which is what lets us drop the maps from the fetch effect.
+  const bookingsByDate = useMemo(
+    () => groupBookingsByDate(rows || [], dogsById, humansById),
+    [rows, dogsById, humansById],
+  );
 
   const addBooking = useCallback(
     async (dateStr, booking) => {
-      if (!supabase) {
-        setBookingsByDate((prev) => ({
-          ...prev,
-          [dateStr]: [...(prev[dateStr] || []), booking],
-        }));
-        return booking;
-      }
+      if (!supabase) return booking;
 
       setError(null);
 
@@ -220,14 +172,6 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         onErrorRef.current?.(message);
         return null;
       }
-
-      // Optimistic: add temp booking to state immediately
-      const tempId = `_temp_${Date.now()}`;
-      const tempBooking = { ...booking, id: tempId };
-      setBookingsByDate((prev) => ({
-        ...prev,
-        [dateStr]: [...(prev[dateStr] || []), tempBooking],
-      }));
 
       const pickupHumanId =
         booking._pickupById ||
@@ -252,6 +196,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         ...(booking.staff_capacity_override ? { staff_capacity_override: true } : {}),
       };
 
+      // Optimistic: insert a temp RAW row so the derived view shows it
+      // immediately; replaced with the server row on success.
+      const tempId = `_temp_${Date.now()}`;
+      const tempRow = { id: tempId, ...insertPayload };
+      setRows((prev) => [...(prev || []), tempRow]);
+
       const { data, error: err } = await supabase
         .from("bookings")
         .insert(insertPayload)
@@ -259,11 +209,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         .single();
 
       if (err) {
-        // Rollback optimistic change
-        setBookingsByDate((prev) => ({
-          ...prev,
-          [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== tempId),
-        }));
+        setRows((prev) => (prev || []).filter((r) => r.id !== tempId));
         logger.error("Failed to add booking", err, {
           tags: { hook: "useBookings", op: "addBooking" },
         });
@@ -272,115 +218,55 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return null;
       }
 
-      const inserted = dbBookingsToArray([data], dogsById, humansById)[0];
+      setRows((prev) => (prev || []).map((r) => (r.id === tempId ? data : r)));
 
-      // Replace temp entry with real server data
-      setBookingsByDate((prev) => ({
-        ...prev,
-        [dateStr]: (prev[dateStr] || []).map((b) =>
-          b.id === tempId ? inserted : b,
-        ),
-      }));
-
-      return inserted;
+      return dbBookingsToArray([data], dogsById, humansById)[0];
     },
     [dogsById, humansById],
   );
 
-  const removeBooking = useCallback(async (dateStr, bookingId) => {
-    if (!supabase) {
-      setBookingsByDate((prev) => ({
-        ...prev,
-        [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
-      }));
-      return { success: true };
-    }
-
-    setError(null);
-
-    // Snapshot for rollback, then remove optimistically
-    let removed = null;
-    setBookingsByDate((prev) => {
-      removed = (prev[dateStr] || []).find((b) => b.id === bookingId) || null;
-      return {
-        ...prev,
-        [dateStr]: (prev[dateStr] || []).filter((b) => b.id !== bookingId),
-      };
-    });
-
-    const { error: err } = await supabase
-      .from("bookings")
-      .delete()
-      .eq("id", bookingId);
-
-    if (err) {
-      // Rollback: re-add the removed booking
-      if (removed) {
-        setBookingsByDate((prev) => ({
-          ...prev,
-          [dateStr]: [...(prev[dateStr] || []), removed],
-        }));
-      }
-      logger.error("Failed to remove booking", err, {
-        tags: { hook: "useBookings", op: "removeBooking" },
-      });
-      setError(err.message);
-      onErrorRef.current?.(err.message);
-      return { success: false, error: err.message };
-    }
-
-    return { success: true, removed };
-  }, []);
-
-  const updateBooking = useCallback(
-    async (updatedBooking, fromDateStr, toDateStrValue) => {
-      if (!supabase) {
-        setBookingsByDate((prev) => {
-          const next = { ...prev };
-          if (fromDateStr === toDateStrValue) {
-            next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
-              b.id === updatedBooking.id ? updatedBooking : b,
-            );
-          } else {
-            next[fromDateStr] = (next[fromDateStr] || []).filter(
-              (b) => b.id !== updatedBooking.id,
-            );
-            next[toDateStrValue] = [
-              ...(next[toDateStrValue] || []),
-              updatedBooking,
-            ];
-          }
-          return next;
-        });
-        return updatedBooking;
-      }
+  const removeBooking = useCallback(
+    async (dateStr, bookingId) => {
+      if (!supabase) return { success: true };
 
       setError(null);
 
-      // Snapshot for rollback, then apply optimistically
-      let snapshot = null;
-      setBookingsByDate((prev) => {
-        snapshot =
-          (prev[fromDateStr] || []).find(
-            (b) => b.id === updatedBooking.id,
-          ) || null;
-
-        const next = { ...prev };
-        if (fromDateStr === toDateStrValue) {
-          next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
-            b.id === updatedBooking.id ? updatedBooking : b,
-          );
-        } else {
-          next[fromDateStr] = (next[fromDateStr] || []).filter(
-            (b) => b.id !== updatedBooking.id,
-          );
-          next[toDateStrValue] = [
-            ...(next[toDateStrValue] || []),
-            updatedBooking,
-          ];
-        }
-        return next;
+      // Snapshot the raw row for rollback, then remove optimistically.
+      let removedRow = null;
+      setRows((prev) => {
+        const base = prev || [];
+        removedRow = base.find((r) => r.id === bookingId) || null;
+        return base.filter((r) => r.id !== bookingId);
       });
+
+      const { error: err } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", bookingId);
+
+      if (err) {
+        if (removedRow) setRows((prev) => [...(prev || []), removedRow]);
+        logger.error("Failed to remove booking", err, {
+          tags: { hook: "useBookings", op: "removeBooking" },
+        });
+        setError(err.message);
+        onErrorRef.current?.(err.message);
+        return { success: false, error: err.message };
+      }
+
+      const removed = removedRow
+        ? dbBookingsToArray([removedRow], dogsById, humansById)[0]
+        : null;
+      return { success: true, removed };
+    },
+    [dogsById, humansById],
+  );
+
+  const updateBooking = useCallback(
+    async (updatedBooking, fromDateStr, toDateStrValue) => {
+      if (!supabase) return updatedBooking;
+
+      setError(null);
 
       const pickupHumanId =
         updatedBooking._pickupById ||
@@ -410,6 +296,18 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
             : {}),
       };
 
+      // Optimistic: patch the raw row (incl. booking_date, so a move to
+      // another day regroups automatically). Snapshot the previous row
+      // for rollback + the ready-for-pickup transition check.
+      let prevRow = null;
+      setRows((prev) => {
+        const base = prev || [];
+        prevRow = base.find((r) => r.id === updatedBooking.id) || null;
+        return base.map((r) =>
+          r.id === updatedBooking.id ? { ...r, ...updatePayload } : r,
+        );
+      });
+
       const { data, error: err } = await supabase
         .from("bookings")
         .update(updatePayload)
@@ -418,22 +316,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         .single();
 
       if (err) {
-        // Rollback to snapshot
-        if (snapshot) {
-          setBookingsByDate((prev) => {
-            const next = { ...prev };
-            if (fromDateStr === toDateStrValue) {
-              next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
-                b.id === snapshot.id ? snapshot : b,
-              );
-            } else {
-              next[toDateStrValue] = (next[toDateStrValue] || []).filter(
-                (b) => b.id !== snapshot.id,
-              );
-              next[fromDateStr] = [...(next[fromDateStr] || []), snapshot];
-            }
-            return next;
-          });
+        if (prevRow) {
+          setRows((prev) =>
+            (prev || []).map((r) => (r.id === prevRow.id ? prevRow : r)),
+          );
         }
         logger.error("Failed to update booking", err, {
           tags: { hook: "useBookings", op: "updateBooking" },
@@ -443,32 +329,15 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return null;
       }
 
-      const persisted = dbBookingsToArray([data], dogsById, humansById)[0];
+      setRows((prev) => (prev || []).map((r) => (r.id === data.id ? data : r)));
 
-      // Replace optimistic entry with confirmed server data
-      setBookingsByDate((prev) => {
-        const next = { ...prev };
-        if (fromDateStr === toDateStrValue) {
-          next[fromDateStr] = (next[fromDateStr] || []).map((b) =>
-            b.id === persisted.id ? persisted : b,
-          );
-        } else {
-          next[fromDateStr] = (next[fromDateStr] || []).filter(
-            (b) => b.id !== persisted.id,
-          );
-          const existing = (next[toDateStrValue] || []).filter(
-            (b) => b.id !== persisted.id,
-          );
-          next[toDateStrValue] = [...existing, persisted];
-        }
-        return next;
-      });
+      const persisted = dbBookingsToArray([data], dogsById, humansById)[0];
 
       // Fire the staff "ready for collection" prompt only on the actual
       // transition into Ready (not on edits to an already-Ready booking,
       // and not on undo, which sets status back to the previous value).
       if (
-        snapshot?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
+        prevRow?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
         persisted.status === BOOKING_STATUS.READY_FOR_PICKUP
       ) {
         onReadyForPickupRef.current?.(persisted);
@@ -476,7 +345,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
       return persisted;
     },
-    [humansById, dogsById],
+    [dogsById, humansById],
   );
 
   const fetchBookingHistoryForDog = useCallback(async (dogId) => {

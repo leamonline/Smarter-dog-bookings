@@ -59,15 +59,27 @@ function makeBuilder({ data = null, error = null } = {}) {
 }
 
 function makeChannel() {
-  const channel = { _events: {} };
-  channel.on = vi.fn(() => channel);
+  const handlers = [];
+  const channel = { _handlers: handlers };
+  channel.on = vi.fn((_event, filter, cb) => {
+    handlers.push({ filter, cb });
+    return channel;
+  });
   channel.subscribe = vi.fn(() => channel);
+  // Invoke a captured postgres_changes handler by event name, so tests
+  // can simulate realtime INSERT/UPDATE/DELETE payloads.
+  channel.fire = (event, payload) => {
+    for (const h of handlers) {
+      if (h.filter?.event === event) h.cb(payload);
+    }
+  };
   return channel;
 }
 
 function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResult } = {}) {
   const channel = makeChannel();
   const fromCalls = [];
+  let fetchCount = 0;
   const stub = {
     _channel: channel,
     from: vi.fn((table) => {
@@ -94,9 +106,10 @@ function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResu
       builder.eq = vi.fn(() => builder);
       builder.order = vi.fn(() => builder);
       builder.limit = vi.fn(() => builder);
-      builder.abortSignal = vi.fn(() =>
-        Promise.resolve(selectResult ?? { data: [], error: null }),
-      );
+      builder.abortSignal = vi.fn(() => {
+        fetchCount += 1;
+        return Promise.resolve(selectResult ?? { data: [], error: null });
+      });
       builder.single = vi.fn(() =>
         Promise.resolve(
           fromCalls.at(-1)?.op === "insert"
@@ -117,6 +130,8 @@ function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResu
     channel: vi.fn(() => channel),
     removeChannel: vi.fn(),
   };
+  // Number of week-range select fetches issued (one per fetchBookings).
+  stub.getFetchCount = () => fetchCount;
   return stub;
 }
 
@@ -346,5 +361,77 @@ describe("useBookings", () => {
 
     expect(outcome.success).toBe(true);
     expect(result.current.bookingsByDate["2026-05-18"] ?? []).toHaveLength(0);
+  });
+
+  it("does not refetch the week when the dogs/humans map identities change", async () => {
+    const initialRow = {
+      id: "booking-7",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const stub = makeSupabaseStub({
+      selectResult: { data: [initialRow], error: null },
+    });
+    setSupabase(stub);
+
+    const { result, rerender } = renderHook(
+      ({ d, h }) => useBookings(weekStart, d, h),
+      { initialProps: { d: dogsById, h: humansById } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(stub.getFetchCount()).toBe(1);
+
+    // New object identities, same content — mimics ensureDogsByIds /
+    // ensureHumansByIds replacing the maps shortly after the load. The
+    // old hook re-ran the fetch effect here (the duplicate week pull).
+    rerender({ d: { ...dogsById }, h: { ...humansById } });
+    rerender({ d: { ...dogsById }, h: { ...humansById } });
+
+    await waitFor(() =>
+      expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1),
+    );
+    expect(stub.getFetchCount()).toBe(1);
+  });
+
+  it("applies realtime INSERT / UPDATE / DELETE to the derived view", async () => {
+    const stub = makeSupabaseStub({ selectResult: { data: [], error: null } });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // INSERT within the visible week.
+    act(() => {
+      stub._channel.fire("INSERT", {
+        new: { id: "rt-1", booking_date: "2026-05-20", slot: "09:00", dog_id: "dog-1" },
+      });
+    });
+    expect(result.current.bookingsByDate["2026-05-20"]).toHaveLength(1);
+    expect(result.current.bookingsByDate["2026-05-20"][0].id).toBe("rt-1");
+
+    // UPDATE that moves it to another in-week day — the memo regroups.
+    act(() => {
+      stub._channel.fire("UPDATE", {
+        new: { id: "rt-1", booking_date: "2026-05-21", slot: "10:00", dog_id: "dog-1" },
+        old: { id: "rt-1", booking_date: "2026-05-20" },
+      });
+    });
+    expect(result.current.bookingsByDate["2026-05-20"]).toBeUndefined();
+    expect(result.current.bookingsByDate["2026-05-21"]).toHaveLength(1);
+
+    // DELETE removes it entirely.
+    act(() => {
+      stub._channel.fire("DELETE", { old: { id: "rt-1", booking_date: "2026-05-21" } });
+    });
+    expect(result.current.bookingsByDate["2026-05-21"] ?? []).toHaveLength(0);
   });
 });
