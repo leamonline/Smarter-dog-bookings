@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
+import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger.js";
 
 export function useBookingEvents({ limit = 10 } = {}) {
@@ -58,6 +59,9 @@ export function useBookingEvents({ limit = 10 } = {}) {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [refresh]);
+
+  // Reconcile on resume so booking_events missed while asleep appear.
+  useEffect(() => registerResume(refresh), [refresh]);
 
   return { events, loading, error, refresh };
 }

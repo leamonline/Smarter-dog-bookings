@@ -42,6 +42,7 @@
 
 import { useSyncExternalStore, useCallback } from "react";
 import { supabase } from "../client.js";
+import { registerResume } from "../refreshOnResume.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 import { logger } from "../../lib/logger.js";
 
@@ -329,6 +330,12 @@ function subscribe(listener) {
 function getSnapshot() {
   return state;
 }
+
+// Reconcile the inbox counts on resume (tab visible again / reconnect).
+// Only the cheap count queries — not the cached AI summary. Guarded.
+registerResume(() => {
+  if (listeners.size > 0) refresh();
+});
 
 export function useWhatsAppSummary() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
