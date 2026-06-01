@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
+import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms.js";
 import { BOOKING_STATUS } from "../../constants/salon.js";
 import { logger } from "../../lib/logger.js";
@@ -508,6 +509,11 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   }, []);
 
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // On resume (tab visible again / reconnect) refetch the week so a
+  // booking made elsewhere while the device slept is backfilled — its
+  // realtime delta would have been missed.
+  useEffect(() => registerResume(refetch), [refetch]);
 
   return {
     bookingsByDate,

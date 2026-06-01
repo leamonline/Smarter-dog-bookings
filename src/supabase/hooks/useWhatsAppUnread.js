@@ -30,6 +30,7 @@
 
 import { useSyncExternalStore } from "react";
 import { supabase } from "../client.js";
+import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger.js";
 
 let state = { unread: 0, loading: true };
@@ -100,6 +101,12 @@ function subscribe(listener) {
 function getSnapshot() {
   return state;
 }
+
+// Reconcile the unread badge on resume so it isn't stale after the iPad
+// wakes from sleep. Guarded on listeners.
+registerResume(() => {
+  if (listeners.size > 0) refresh();
+});
 
 export function useWhatsAppUnread() {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
+import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger.js";
 
 function toDateStr(d) {
@@ -89,6 +90,10 @@ export function useWaitlistUpcoming() {
       supabase.removeChannel(channel);
     };
   }, [fetchEntries]);
+
+  // Reconcile on resume — waitlist_entries realtime can miss events
+  // while the tab is backgrounded (e.g. the iPad asleep).
+  useEffect(() => registerResume(() => fetchEntries()), [fetchEntries]);
 
   return { entries, loading };
 }
