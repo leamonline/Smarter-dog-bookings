@@ -26,7 +26,7 @@ export function FinanceLabel({ text }) {
 /** White card wrapper for grouped sections */
 export function SectionCard({ title, children }) {
   return (
-    <div className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)] mb-3 overflow-hidden">
+    <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 overflow-hidden">
       {title && (
         <div className="px-4 pt-3.5 pb-1">
           <span className="text-[13px] font-extrabold text-slate-700">
@@ -104,65 +104,10 @@ export function DetailRow({
   );
 }
 
-/**
- * Maps booking status IDs to Tailwind accent classes for the redesigned card.
- * Status IDs come from BOOKING_STATUSES in src/constants/salon.ts and are
- * used in the engine + DB — we don't rename them, only style them.
- */
-export const STATUS_ACCENT = {
-  "Booked": {
-    stripe: "bg-amber-400",
-    fill: "bg-amber-50",
-    ring: "ring-amber-200",
-    text: "text-amber-700",
-    pillBg: "bg-amber-100",
-    pillText: "text-amber-800",
-  },
-  "Checked in": {
-    stripe: "bg-sky-400",
-    fill: "bg-sky-50",
-    ring: "ring-sky-200",
-    text: "text-sky-700",
-    pillBg: "bg-sky-100",
-    pillText: "text-sky-800",
-  },
-  "In bath": {
-    stripe: "bg-cyan-400",
-    fill: "bg-cyan-50",
-    ring: "ring-cyan-200",
-    text: "text-cyan-700",
-    pillBg: "bg-cyan-100",
-    pillText: "text-cyan-800",
-  },
-  "Ready for pick-up": {    // labelled "Ready" in the UI
-    stripe: "bg-emerald-400",
-    fill: "bg-emerald-50",
-    ring: "ring-emerald-200",
-    text: "text-emerald-700",
-    pillBg: "bg-emerald-100",
-    pillText: "text-emerald-800",
-  },
-  "Completed": {
-    stripe: "bg-violet-400",
-    fill: "bg-violet-50",
-    ring: "ring-violet-200",
-    text: "text-violet-700",
-    pillBg: "bg-violet-100",
-    pillText: "text-violet-800",
-  },
-  "Cancelled": {
-    stripe: "bg-rose-400",
-    fill: "bg-rose-50",
-    ring: "ring-rose-200",
-    text: "text-rose-700",
-    pillBg: "bg-rose-100",
-    pillText: "text-rose-800",
-  },
-};
-
-export function getStatusAccent(statusId) {
-  return STATUS_ACCENT[statusId] || STATUS_ACCENT["Booked"];
-}
+// Status colours (header accent bar, active stepper step, primary button) now
+// come from the shared STATUS_DISPLAY map in src/constants/salon.ts so the
+// modal always colour-matches the dashboard card it was opened from. The old
+// Tailwind-class STATUS_ACCENT map has been removed.
 
 /**
  * Single key-value row for the redesigned view-mode card.
@@ -188,8 +133,8 @@ export function Row({ label, value, last = false, onClick }) {
 }
 
 /**
- * Circular ghost icon button used in the redesigned header.
- * White/20 fill on coloured headers; lifts on hover.
+ * Circular ghost icon button used in the header. Slate fill that reads on the
+ * light (soft-tinted) header surface; lifts on hover.
  */
 export function IconBtn({ children, onClick, ariaLabel, className = "" }) {
   return (
@@ -197,7 +142,7 @@ export function IconBtn({ children, onClick, ariaLabel, className = "" }) {
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={`w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-sm flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-1 focus-visible:ring-offset-amber-400 ${className}`}
+      className={`w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1 focus-visible:ring-offset-white ${className}`}
     >
       {children}
     </button>

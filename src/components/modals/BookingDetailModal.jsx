@@ -10,6 +10,7 @@ import {
   SIZE_THEME,
   SIZE_FALLBACK,
   SALON_SLOTS,
+  getStatusDisplay,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity.js";
 import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
@@ -33,7 +34,6 @@ import {
   CardRow,
   MODAL_INPUT_CLS,
   Row,
-  getStatusAccent,
 } from "./booking-detail/shared.jsx";
 import { IconMessage } from "../icons/index.jsx";
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
@@ -111,6 +111,10 @@ export function BookingDetailModal({
   );
 
   const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
+  // The booking's status colour — same map as the dashboard card pill — drives
+  // the header accent bar, the active stepper step and the primary button so
+  // the pop-up colour-matches the card it was opened from.
+  const statusObj = getStatusDisplay(booking.status || "Booked");
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
@@ -323,13 +327,16 @@ export function BookingDetailModal({
     <AccessibleModal
       onClose={handleCloseAttempt}
       titleId="booking-detail-title"
-      className="relative bg-white rounded-2xl w-[min(460px,92vw)] max-h-[90vh] overflow-auto shadow-[0_30px_60px_-20px_rgba(15,23,42,0.35),_0_8px_20px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 animate-card-pop-in"
-      backdropClass="bg-slate-900/40 animate-overlay-fade"
+      className="relative bg-white rounded-2xl w-[min(480px,92vw)] max-h-[90vh] overflow-auto shadow-[0_40px_80px_-24px_rgba(15,23,42,0.45),_0_12px_28px_-12px_rgba(15,23,42,0.3)] ring-1 ring-slate-900/5 animate-card-pop-in"
+      backdropClass="bg-slate-900/55 animate-overlay-fade"
       dismissOnEscape={false}
     >
+        {/* Status-coloured top accent bar — mirrors the dashboard card's bar so
+            the pop-up reads as a floating extension of the card. */}
         <div
           aria-hidden="true"
-          className={`absolute left-0 top-0 bottom-0 w-[1.5px] rounded-l-2xl ${getStatusAccent(booking.status || "Booked").stripe}`}
+          className="h-[3px]"
+          style={{ background: statusObj.border }}
         />
 
         <BookingHeader
@@ -342,6 +349,7 @@ export function BookingDetailModal({
           setEditData={setEditData}
           setSaveError={setSaveError}
           allowedServices={allowedServices}
+          pricing={pricing}
           onClose={handleCloseAttempt}
           onEnterEdit={() => { resetEditState(); setIsEditing(true); }}
           onOpenCamera={() => setShowPhotoUpload(true)}
@@ -351,7 +359,7 @@ export function BookingDetailModal({
           allergyText={hasAllergy && allergyInput ? allergyInput : ""}
         />
 
-        <div className="px-4 pt-4 pb-2 bg-slate-50/80">
+        <div className="px-5 pt-4 pb-2 bg-slate-50/80">
           <BookingStatusBar
             booking={booking}
             currentDateStr={currentDateStr}
@@ -482,7 +490,7 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <div className="bg-white rounded-xl ring-1 ring-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] mb-3 px-4">
+            <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4">
               <Row
                 label="Time & Date"
                 value={`${booking.slot} · ${formatFullDate(currentDateObj)}`}
@@ -553,40 +561,40 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <div className="bg-emerald-50/60 rounded-xl ring-1 ring-emerald-100 mb-3 px-4 py-3">
-              <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
-                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
+            <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4 py-1">
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
                   {serviceObj?.name || currentService}
                 </span>
-                <span className="text-[13px] font-bold text-slate-900">{"\u00A3"}{activePrice}</span>
+                <span className="text-[14px] text-slate-700 tabular-nums">{"\u00A3"}{activePrice}</span>
               </div>
               {activeAddons.map((addon) => (
-                <div key={addon} className="flex justify-between items-center py-2 border-b border-emerald-100/70">
-                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
-                    {addon} <span className="text-emerald-500/80 font-semibold normal-case tracking-normal">{"\u2014 Add-on"}</span>
+                <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
+                    {addon} <span className="text-slate-400 font-semibold normal-case tracking-normal">{"\u2014 Add-on"}</span>
                   </span>
-                  <span className="text-[13px] font-bold text-slate-900">
-                    {getAddonPrice(addon) > 0 ? `\u00A3${getAddonPrice(addon)}` : <span className="text-emerald-600/70 font-medium italic">Included</span>}
+                  <span className="text-[14px] text-slate-700 tabular-nums">
+                    {getAddonPrice(addon) > 0 ? `\u00A3${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
                   </span>
                 </div>
               ))}
               {activePayment === "Deposit Paid" && (
-                <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
-                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">Deposit Paid</span>
-                  <span className="text-[13px] font-bold text-emerald-700">{"\u2212\u00A3"}{Number(activeDepositAmount || 0)}</span>
+                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">Deposit Paid</span>
+                  <span className="text-[14px] text-slate-500 tabular-nums">{"\u2212\u00A3"}{Number(activeDepositAmount || 0)}</span>
                 </div>
               )}
               {activePayment === "Paid in Full" && (
-                <div className="flex justify-between items-center py-2 border-b border-emerald-100/70">
-                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">Paid in Full</span>
-                  <span className="text-[13px] font-bold text-emerald-700">{"\u2212\u00A3"}{pricing.subtotal}</span>
+                <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                  <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">Paid in Full</span>
+                  <span className="text-[14px] text-slate-500 tabular-nums">{"\u2212\u00A3"}{pricing.subtotal}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-3 pb-1">
-                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-emerald-700">
+              <div className="flex justify-between items-center pt-3 pb-2.5">
+                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
                   {activePayment === "Paid in Full" ? "Paid" : "Total Due"}
                 </span>
-                <span className={`text-[20px] font-extrabold leading-none ${amountDue > 0 ? "text-emerald-800" : "text-emerald-700"}`}>
+                <span className="text-[20px] font-extrabold leading-none text-brand-purple tabular-nums">
                   {"\u00A3"}{Math.max(0, amountDue)}
                 </span>
               </div>
@@ -633,7 +641,7 @@ export function BookingDetailModal({
               />
             </SectionCard>
           ) : (
-            <div className="bg-white rounded-xl ring-1 ring-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] mb-3 px-4">
+            <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4">
               <Row
                 label="Pick-up Human"
                 value={titleCase(booking.pickupBy || booking.owner)}
@@ -642,10 +650,11 @@ export function BookingDetailModal({
               {pickupHuman?.phone && (
                 <a
                   href={`sms:${pickupHuman.phone}?body=${encodeURIComponent(`Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon \uD83C\uDF93\uD83D\uDC36\u2764\uFE0F X`)}`}
-                  className="flex items-center justify-center gap-2 my-3 py-3 rounded-xl text-[14px] font-bold text-amber-900 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 no-underline transition-all duration-150 hover:-translate-y-0.5 shadow-[0_4px_10px_-2px_rgba(251,191,36,0.5)] hover:shadow-[0_8px_18px_-4px_rgba(251,191,36,0.55)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                  className="flex items-center justify-center gap-2 my-3 py-3 rounded-xl text-[14px] font-bold no-underline transition-all duration-150 hover:-translate-y-0.5 hover:brightness-95 shadow-[0_6px_16px_-6px_rgba(15,23,42,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  style={{ background: statusObj.border, color: statusObj.onAccent }}
                   aria-label={`Send pickup-ready SMS to ${titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}`}
                 >
-                  <IconMessage size={16} colour="#7C2D12" />
+                  <IconMessage size={16} colour="currentColor" />
                   <span>Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}</span>
                 </a>
               )}

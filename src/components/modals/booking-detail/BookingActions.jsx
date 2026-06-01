@@ -62,43 +62,47 @@ export function BookingActions({
   const canSoftCancel = typeof onUpdate === "function" && booking?.status !== BOOKING_STATUS.CANCELLED;
 
   return (
-    <div className="px-4 pt-2 pb-5 flex gap-2 bg-slate-50/80">
-      {onReschedule && (
+    <div className="px-5 pt-2 pb-4 bg-slate-50/80">
+      <div className="flex gap-2">
+        {onReschedule && (
+          <button
+            onClick={onReschedule}
+            aria-label="Reschedule booking"
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-bold text-slate-700 bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+          >
+            <IconReopen size={14} colour="#475569" />
+            <span>Reschedule</span>
+          </button>
+        )}
         <button
-          onClick={onReschedule}
-          aria-label="Reschedule booking"
-          className="flex-1 py-3 rounded-xl border-[1.5px] border-amber-300 text-[13px] font-bold text-amber-800 bg-white hover:bg-amber-50 active:bg-amber-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_10px_-2px_rgba(251,191,36,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1"
+          onClick={() => setShowCancelConfirm(true)}
+          disabled={!canSoftCancel}
+          aria-label="Cancel booking"
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
         >
-          <IconReopen size={14} colour="#92400E" />
-          <span>Reschedule</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6" />
+            <line x1="5" y1="5" x2="11" y2="11" />
+            <line x1="11" y1="5" x2="5" y2="11" />
+          </svg>
+          <span>Cancel</span>
         </button>
-      )}
-      <button
-        onClick={() => setShowCancelConfirm(true)}
-        disabled={!canSoftCancel}
-        aria-label="Cancel booking"
-        className="flex-1 py-3 rounded-xl border-[1.5px] border-rose-300 text-[13px] font-bold text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_10px_-2px_rgba(244,63,94,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-white"
-      >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9F1239" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="8" cy="8" r="6" />
-          <line x1="5" y1="5" x2="11" y2="11" />
-          <line x1="11" y1="5" x2="5" y2="11" />
-        </svg>
-        <span>Cancel</span>
-      </button>
-      <button
-        onClick={() => setShowDeleteConfirm(true)}
-        aria-label="Delete booking"
-        className="flex-1 py-3 rounded-xl border-[1.5px] border-rose-500 text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_10px_-2px_rgba(190,18,60,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-1"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6M14 11v6" />
-          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-        </svg>
-        <span>Delete</span>
-      </button>
+      </div>
+      <div className="mt-2 flex justify-center">
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          aria-label="Delete booking"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-slate-400 hover:text-rose-600 bg-transparent border-none cursor-pointer font-inherit transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          </svg>
+          <span>Delete</span>
+        </button>
+      </div>
 
       {showCancelConfirm && (
         <ConfirmDialog

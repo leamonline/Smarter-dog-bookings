@@ -100,6 +100,40 @@ export const BOOKING_STATUSES = [
   { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-purple)", bg: "#E2D9F0" },
 ];
 
+export interface StatusDisplay {
+  /** Pale fill — the card pill background and the soft modal-header tint. */
+  bg: string;
+  /** Readable text on `bg`. */
+  color: string;
+  /** Saturated mid-tone — the accent bar and the solid primary button fill. */
+  border: string;
+  /** Readable text on a `border`-filled button. */
+  onAccent: string;
+  /** Short UI label. */
+  label: string;
+}
+
+/**
+ * Status palette — the single source of truth for the colour each booking
+ * status shows in the UI. Used by the dashboard card pill (BookingCardNew)
+ * AND the detail modal's header accent bar, active stepper step and primary
+ * button, so the card and its pop-up can never drift apart. Mustard for
+ * "still to come", teal/cyan for "in the salon now", deep purple for "all
+ * done", coral for cancelled.
+ */
+export const STATUS_DISPLAY: Record<string, StatusDisplay> = {
+  "Booked":            { bg: "#FFF6CC", color: "var(--color-brand-purple)",    border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-purple)", label: "Booked" },
+  "Checked in":        { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Checked in" },
+  "In bath":           { bg: "#CFFAFE", color: "#0E7490",                      border: "#22D3EE",                   onAccent: "var(--color-brand-purple)", label: "In bath" },
+  "Ready for pick-up": { bg: "#EDE3F5", color: "var(--color-brand-purple)",    border: "#5B3D80",                   onAccent: "#FFFFFF",                   label: "Ready" },
+  "Completed":         { bg: "#E2D9F0", color: "var(--color-brand-purple)",    border: "#5B3D80",                   onAccent: "#FFFFFF",                   label: "Completed" },
+  "Cancelled":         { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", onAccent: "#FFFFFF",                   label: "Cancelled" },
+};
+
+export function getStatusDisplay(statusId: string): StatusDisplay {
+  return STATUS_DISPLAY[statusId] || STATUS_DISPLAY["Booked"];
+}
+
 export const ALERT_OPTIONS = [
   { label: "Bites / Nips", color: "var(--color-brand-coral)" },
   { label: "Reactive to dogs", color: "var(--color-brand-coral)" },

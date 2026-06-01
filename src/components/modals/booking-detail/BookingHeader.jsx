@@ -1,4 +1,4 @@
-import { SERVICES } from "../../../constants/index.js";
+import { SERVICES, getStatusDisplay } from "../../../constants/index.js";
 import {
   getNumericPrice,
   getServicePriceLabel,
@@ -6,7 +6,7 @@ import {
 } from "../../../engine/bookingRules.js";
 import { IconEdit, IconCamera } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text.js";
-import { IconBtn, PawWatermark } from "./shared.jsx";
+import { IconBtn } from "./shared.jsx";
 
 export function BookingHeader({
   booking,
@@ -18,6 +18,7 @@ export function BookingHeader({
   setEditData,
   setSaveError,
   allowedServices,
+  pricing,
   onClose,
   onEnterEdit,
   onOpenDog,
@@ -30,6 +31,10 @@ export function BookingHeader({
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
 
+  // The booking's status colour — the same map the dashboard card uses, so the
+  // header colour-matches the card it was opened from.
+  const statusObj = getStatusDisplay(booking.status || "Booked");
+
   // Use the shared selector so the modal header can never disagree with
   // the grid card on dog/breed/owner. resolveBookingDisplay prefers the
   // live join and falls back to bookings.breed_snapshot when the dog
@@ -41,45 +46,84 @@ export function BookingHeader({
     ageYo,
   ].filter(Boolean).join(" · ");
 
-  return (
-    <div className="relative px-6 py-6 rounded-t-2xl bg-gradient-to-br from-amber-300 to-amber-400 overflow-hidden">
-      <PawWatermark className="absolute -top-3 -right-2 w-32 h-32 text-white/15 rotate-12" />
-      <PawWatermark className="absolute -bottom-4 left-4 w-20 h-20 text-white/10 -rotate-12" />
+  // Price echoed top-right, mirroring the dashboard card exactly: a "Paid"
+  // badge when settled, otherwise the amount still due (with a "dep." marker
+  // when a deposit has been taken).
+  const renderPrice = () => {
+    if (!pricing) return null;
+    if (pricing.isPaidInFull) {
+      return (
+        <span
+          className="text-[12px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap"
+          title={`Paid in full (£${pricing.subtotal})`}
+        >
+          Paid
+        </span>
+      );
+    }
+    if (pricing.subtotal > 0) {
+      return (
+        <span
+          className="text-[13px] font-bold text-slate-500 tabular-nums whitespace-nowrap"
+          title={pricing.isDepositPaid ? `£${pricing.amountDue} due (deposit of £${pricing.depositPaid} paid)` : undefined}
+        >
+          {"£"}{pricing.amountDue}
+          {pricing.isDepositPaid && (
+            <span className="ml-1 text-[10px] font-semibold text-emerald-600 align-middle">
+              dep.
+            </span>
+          )}
+        </span>
+      );
+    }
+    return null;
+  };
 
-      <div className="absolute top-5 right-5 flex items-center gap-2 z-10">
+  return (
+    <div
+      className="relative px-5 pt-4 pb-5 overflow-hidden"
+      style={{ background: statusObj.bg }}
+    >
+      {/* Icon button strip — sits above the title so the price can take the
+          card's top-right slot. */}
+      <div className="flex justify-end items-center gap-2 mb-2">
         {!isEditing && onOpenCamera && (
           <IconBtn onClick={onOpenCamera} ariaLabel="Add groom photo">
-            <IconCamera size={16} colour="#7C2D12" />
+            <IconCamera size={16} colour="#475569" />
           </IconBtn>
         )}
         {!isEditing && onEnterEdit && (
           <IconBtn onClick={onEnterEdit} ariaLabel="Edit booking">
-            <IconEdit size={16} colour="#7C2D12" />
+            <IconEdit size={16} colour="#475569" />
           </IconBtn>
         )}
         <IconBtn onClick={onClose} ariaLabel="Close booking details">
-          <span className="text-base font-bold leading-none text-amber-900">{"×"}</span>
+          <span className="text-base font-bold leading-none text-slate-600">{"×"}</span>
         </IconBtn>
       </div>
 
-      <span
-        id={titleId}
-        className="relative z-10 text-[28px] font-extrabold leading-tight cursor-pointer hover:underline text-amber-900 font-display"
-        role="button"
-        tabIndex={0}
-        onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
-      >
-        {titleCase(display.dogMissing ? "Unnamed booking" : display.dogName)}
-      </span>
+      {/* Name + price — mirrors the card's first row (plum name, price right). */}
+      <div className="flex items-start justify-between gap-3">
+        <span
+          id={titleId}
+          className="text-[22px] md:text-[24px] font-extrabold leading-tight cursor-pointer hover:underline text-brand-purple font-display min-w-0"
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
+        >
+          {titleCase(display.dogMissing ? "Unnamed booking" : display.dogName)}
+        </span>
+        {!isEditing && <span className="shrink-0 pt-1.5">{renderPrice()}</span>}
+      </div>
 
       {subtitle && (
-        <div className="relative z-10 text-[14px] font-medium mt-1 text-amber-800/90">
+        <div className="text-[13px] font-medium mt-0.5 text-slate-500">
           {subtitle}
         </div>
       )}
 
-      <div className="relative z-10 mt-2.5 flex justify-between items-end gap-2">
+      <div className="mt-3 flex justify-between items-end gap-2">
         <div>
           {isEditing ? (
             <select
@@ -97,7 +141,7 @@ export function BookingHeader({
                 }));
                 setSaveError("");
               }}
-              className="bg-white/30 border border-white/40 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-amber-900"
+              className="bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800"
             >
               {allowedServices.map((service) => (
                 <option
@@ -110,14 +154,17 @@ export function BookingHeader({
               ))}
             </select>
           ) : (
-            <span className="relative z-10 inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold bg-white/30 text-amber-900 ring-1 ring-white/40 backdrop-blur-sm">
+            <span
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold bg-white"
+              style={{ color: statusObj.color, border: `1px solid ${statusObj.border}` }}
+            >
               {serviceObj?.name}
             </span>
           )}
         </div>
 
         {!isEditing && (alerts.length > 0 || allergyText) && (
-          <div className="relative z-10 flex flex-wrap gap-1 justify-end max-w-[55%]">
+          <div className="flex flex-wrap gap-1 justify-end max-w-[55%]">
             {alerts
               .filter((a) => !a.startsWith("Allergic to "))
               .map((alertLabel) => (
