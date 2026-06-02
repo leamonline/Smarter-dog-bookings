@@ -327,31 +327,27 @@ export function DogCardModal({
     };
 
     try {
+      // Reuse an existing customer with this name rather than creating a
+      // duplicate. The humans directory no longer enforces a unique
+      // (name, surname), so onAddHuman would otherwise insert a second
+      // record; and the existing row may be paginated out of the local
+      // map, so the search above never offered it. A direct lookup links
+      // the real person instead.
+      const existing = findHumanByFullName
+        ? await findHumanByFullName(name, surname)
+        : null;
+      if (existing) {
+        await linkAsTrusted(
+          existing,
+          `Linked existing ${existing.fullName} as trusted human`,
+        );
+        return;
+      }
       const newHuman = await onAddHuman({ name, surname, phone });
       if (!newHuman) return;
       await linkAsTrusted(newHuman, "Trusted human added");
     } catch (err) {
-      // If the directory already has a row with this (name, surname),
-      // the unique constraint fires. The existing row may be paginated
-      // out of the local map, so the search above never offered it.
-      // Look it up by name and link the existing record as trusted —
-      // saves the user from manually scrolling the directory.
-      const isDuplicate =
-        typeof err?.message === "string" && err.message.includes("already exists");
-      if (isDuplicate && findHumanByFullName) {
-        try {
-          const existing = await findHumanByFullName(name, surname);
-          if (existing) {
-            await linkAsTrusted(
-              existing,
-              `Linked existing ${existing.fullName} as trusted human`,
-            );
-            return;
-          }
-        } catch (lookupErr) {
-          console.error("findHumanByFullName failed:", lookupErr);
-        }
-      }
+      console.error("Failed to add trusted human:", err);
       toast.show(err?.message || "Could not add trusted human.", "error");
     }
   };
