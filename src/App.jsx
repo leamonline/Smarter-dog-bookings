@@ -561,6 +561,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -583,6 +584,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -809,6 +811,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
+                  findHumanByFullName={sbFindHumanByFullName}
                 />
               </Suspense>
             </ErrorBoundary>

@@ -6,8 +6,9 @@ import { InlineError } from "../ui/InlineError.jsx";
 import { titleCase } from "../../utils/text.js";
 import { getHumanByIdOrName } from "../../engine/bookingRules.js";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
+import { formatPhoneForDisplay } from "../../utils/phone.js";
 
-export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
+export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findHumanByFullName }) {
   const toast = useToast();
 
   const [name, setName] = useState("");
@@ -20,6 +21,10 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Existing customer with the same (name, surname), surfaced as a soft,
+  // non-blocking warning before we create a potential duplicate. Null means
+  // no clash (or not yet checked); it's cleared whenever the name is edited.
+  const [duplicate, setDuplicate] = useState(null);
 
   const [dogQuery, setDogQuery] = useState("");
   const [selectedDogIds, setSelectedDogIds] = useState([]);
@@ -78,6 +83,24 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
     if (phoneDigits.length < 10) {
       setError("Please enter a valid phone number (at least 10 digits).");
       return;
+    }
+    // Soft duplicate guard. The DB no longer enforces a unique (name, surname),
+    // so a same-named customer would otherwise be created silently. Surface any
+    // existing match once and let the user decide — two real people can share a
+    // name, so this never hard-blocks. A second submit (duplicate already set)
+    // goes through as "Add anyway". findHumanByFullName queries the DB directly,
+    // so it also catches customers paginated out of the local `humans` map.
+    if (!duplicate && findHumanByFullName) {
+      try {
+        const existing = await findHumanByFullName(name.trim(), surname.trim());
+        if (existing) {
+          setDuplicate(existing);
+          return;
+        }
+      } catch (lookupErr) {
+        // Never block adding on a lookup failure — log and carry on.
+        console.error("findHumanByFullName failed:", lookupErr);
+      }
     }
     setSubmitting(true);
     setError("");
@@ -141,14 +164,14 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-human-first" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
-              <input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); }} placeholder="Sarah"
+              <input id="add-human-first" value={name} onChange={e => { setName(e.target.value); setError(""); setDuplicate(null); }} placeholder="Sarah"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                 autoFocus />
             </div>
             <div>
               <label htmlFor="add-human-surname" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Surname *</label>
-              <input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); }} placeholder="Jones"
+              <input id="add-human-surname" value={surname} onChange={e => { setSurname(e.target.value); setError(""); setDuplicate(null); }} placeholder="Jones"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
@@ -267,12 +290,21 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog }) {
               className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal resize-y" />
           </div>
 
+          {duplicate && (
+            <div role="alert" className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
+              A customer called{" "}
+              <strong>{duplicate.fullName || `${duplicate.name} ${duplicate.surname}`.trim()}</strong>
+              {duplicate.phone ? ` (${formatPhoneForDisplay(duplicate.phone)})` : ""} already exists.
+              Adding will create a separate record — press <strong>Add anyway</strong> to continue, or change the name.
+            </div>
+          )}
+
           <InlineError message={error} />
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
               className="flex-1 py-3 rounded-control border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed">
-              {submitting ? "Adding..." : "Add Human"}
+              {submitting ? "Adding..." : duplicate ? "Add anyway" : "Add Human"}
             </button>
             <button type="button" onClick={onClose}
               className="py-3 px-5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">

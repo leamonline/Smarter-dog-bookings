@@ -10,7 +10,7 @@ import { SizeDot } from "../ui/SizeDot.jsx";
 import { Button, EmptyState } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, findHumanByFullName, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -234,6 +234,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           onAdd={onAddHuman}
           dogs={dogs}
           humans={humans}
+          findHumanByFullName={findHumanByFullName}
         />
       )}
     </div>
