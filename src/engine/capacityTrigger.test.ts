@@ -15,9 +15,9 @@ function migrationSqlsSorted(): string[] {
   const dir = join(root, "supabase/migrations");
 
   return readdirSync(dir)
-    .filter((file) => file.endsWith(".sql"))
+    .filter((file: string) => file.endsWith(".sql"))
     .sort()
-    .map((file) => readFileSync(join(dir, file), "utf8"));
+    .map((file: string) => readFileSync(join(dir, file), "utf8"));
 }
 
 // SQL of the LAST migration (filename order) that matches — i.e. the one
