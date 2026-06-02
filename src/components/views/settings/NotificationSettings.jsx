@@ -80,7 +80,7 @@ export function NotificationSettings({ config, onUpdateConfig }) {
                     <span
                       key={ch}
                       onClick={() => toggleNotifChannel(row.key, ch)}
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight cursor-pointer transition-all select-none ${
+                      className={`text-micro font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight cursor-pointer motion-safe:transition-all select-none ${
                         n.enabled ? "opacity-100" : "opacity-40 pointer-events-none"
                       }`}
                       style={{

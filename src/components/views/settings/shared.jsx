@@ -13,7 +13,7 @@ const CARD_HEAD_THEMES = {
 
 export function Card({ id, children }) {
   return (
-    <div id={id} className="bg-white border border-slate-200 rounded-xl mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div id={id} className="bg-white border border-slate-200 rounded-xl mb-4 shadow-card-resting overflow-hidden">
       {children}
     </div>
   );
@@ -25,7 +25,7 @@ export function CardHead({ variant = "teal", title, desc, right }) {
     <div className={`p-3.5 px-4 border-b border-slate-200 flex justify-between items-center ${t.bg}`}>
       <div>
         <div className={`text-base font-extrabold ${t.color}`}>{title}</div>
-        {desc && <div className="text-[13px] font-semibold text-slate-800 mt-0.5">{desc}</div>}
+        {desc && <div className="text-body font-semibold text-slate-800 mt-0.5">{desc}</div>}
       </div>
       {right}
     </div>
@@ -90,16 +90,16 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
           type="number"
           value={value}
           onChange={onChange}
-          className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 text-right outline-none w-20 transition-colors focus:border-brand-teal"
+          className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 text-body font-[inherit] text-slate-800 text-right outline-none w-20 transition-colors focus:border-brand-teal"
         />
-        <span className="text-[13px] text-slate-500">{suffix}</span>
+        <span className="text-body text-slate-500">{suffix}</span>
       </div>
     </div>
   );
 }
 
 export function SaveButton({ onClick, saving, saved, label = "Save changes" }) {
-  const base = "px-4 py-2.5 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit transition-colors duration-200";
+  const base = "px-4 py-2.5 rounded-control border-none text-body font-bold cursor-pointer font-[inherit] motion-safe:transition-colors duration-200";
   const state = saving
     ? "bg-slate-200 text-slate-500 cursor-not-allowed"
     : saved
@@ -132,6 +132,6 @@ export function useConfigSaver(onUpdateConfig) {
 }
 
 // Reusable class strings
-export const LABEL_CLS = "text-[11px] font-extrabold text-brand-teal-dark uppercase tracking-wide block mb-1.5";
-export const SECTION_LABEL_CLS = "text-[11px] font-extrabold text-brand-teal-dark uppercase tracking-wide mb-2";
-export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal";
+export const LABEL_CLS = "text-label text-brand-teal-dark block mb-1.5";
+export const SECTION_LABEL_CLS = "text-label text-brand-teal-dark mb-2";
+export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-control border-[1.5px] border-slate-200 text-body font-[inherit] outline-none text-slate-800 transition-colors focus:border-brand-teal";
