@@ -43,6 +43,15 @@ const RightRailPreview = import.meta.env.DEV
       })),
     )
   : () => null;
+// Dev-only kitchen-sink catalogue for the shared UI primitives + tokens.
+// Same tree-shaking guarantee as RightRailPreview above.
+const UiKitchenSink = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/UiKitchenSink.jsx").then((module) => ({
+        default: module.UiKitchenSink,
+      })),
+    )
+  : () => null;
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -131,6 +140,19 @@ export default function App() {
   } = useAuth();
   const isOnline = !!supabase;
   const from = location.state?.from;
+
+  // Dev-only: render the UI kitchen sink before the auth gate so the primitive
+  // catalogue is reviewable without signing in. Tree-shaken from production
+  // (import.meta.env.DEV folds to false). Placed after the hooks above to keep
+  // hook order stable.
+  if (import.meta.env.DEV && location.pathname === "/dev/ui") {
+    return (
+      <Suspense fallback={appLoadingShell}>
+        <UiKitchenSink />
+      </Suspense>
+    );
+  }
+
   const authRoute = getStaffAuthRouteState({
     isOnline,
     loading: authLoading,
