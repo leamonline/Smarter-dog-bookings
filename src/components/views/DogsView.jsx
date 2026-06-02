@@ -9,6 +9,7 @@ import { filterDogsForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
+import { Button, Badge, EmptyState } from "../ui/index.js";
 
 function computeAge(dog) {
   if (dog.dob) {
@@ -125,7 +126,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
       {/* Filters — size chips + alert/incomplete chips. Click an active
           chip again to clear it. */}
       <div className="flex items-center gap-3 mb-3 flex-wrap" role="group" aria-label="Filter dogs">
-        <span className="text-slate-400 uppercase tracking-wide text-[10px] font-bold">Size:</span>
+        <span className="text-label text-ink-muted">Size:</span>
         {SIZE_FILTERS.map((s) => {
           const active = sizeFilter === s.value;
           return (
@@ -174,7 +175,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           <button
             type="button"
             onClick={() => { setSizeFilter(null); setAlertFilter(false); setIncompleteFilter(false); }}
-            className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+            className="text-caption font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
           >
             Clear filters
           </button>
@@ -215,7 +216,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
               type="button"
               onClick={() => onOpenDog(dog.id || dog.name)}
               aria-label={`Open ${titleCase(dog.name)}'s profile`}
-              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col text-left p-0 font-[inherit]"
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover h-[140px] flex flex-col text-left p-0 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1"
             >
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Bulk delete from the directory was too easy to mis-fire;
@@ -227,21 +228,18 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex items-center gap-1.5 truncate">
                     <SizeDot size={dog.size} dim={14} />
-                    <span className="text-[15px] font-extrabold text-slate-800 truncate">
+                    <span className="text-title font-extrabold text-slate-800 truncate">
                       {titleCase(dog.name)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {incomplete && (
-                      <span
-                        className="text-[9px] font-extrabold uppercase tracking-wide text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full"
-                        title="Missing size, breed or owner"
-                      >
+                      <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
                         Incomplete
-                      </span>
+                      </Badge>
                     )}
                     {alertCount > 0 && (
-                      <span className="text-[11px] font-bold text-brand-coral">
+                      <span className="text-caption font-bold text-brand-coral">
                         {"⚠️"} {alertCount}
                       </span>
                     )}
@@ -249,15 +247,15 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
                 </div>
 
                 {/* Breed + age */}
-                <div className="text-[13px] text-slate-500 font-semibold leading-snug mt-0.5 truncate">
-                  {titleCase(dog.breed) || <span className="italic text-slate-400">No breed</span>}{age ? ` · ${age}` : ""}
+                <div className="text-body text-slate-500 font-semibold leading-snug mt-0.5 truncate">
+                  {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
                 </div>
 
                 {/* Owner — pushed to bottom. While humans are still
                     loading we can't tell "missing owner" from "owner
                     row hasn't arrived yet", so show a skeleton instead
                     of the misleading "Unknown owner" flash. */}
-                <div className="mt-auto text-[12px] font-semibold text-slate-400 truncate">
+                <div className="mt-auto text-xs font-semibold text-ink-muted truncate">
                   {ownerMissing && Object.keys(humans).length === 0
                     ? <SkeletonBlock className="h-3 w-24" />
                     : ownerMissing
@@ -270,20 +268,22 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
         })}
 
         {sortedDogs.length === 0 && !isSearching && !loadError && (
-          <div className="col-span-full text-center py-16 px-5 text-slate-500">
-            <div className="text-[32px] mb-3">{"🐾"}</div>
-            <div className="text-[15px] font-semibold">
-              {searchQuery
-                ? `No dogs found matching "${searchQuery}"`
-                : anyFilterActive
-                  ? "No dogs match the active filters."
-                  : "No dogs yet."}
-            </div>
-            {(searchQuery || anyFilterActive) && (
-              <div className="text-[13px] mt-1.5">
-                Try clearing some filters or searching by breed or owner name.
-              </div>
-            )}
+          <div className="col-span-full">
+            <EmptyState
+              icon="🐾"
+              title={
+                searchQuery
+                  ? `No dogs found matching "${searchQuery}"`
+                  : anyFilterActive
+                    ? "No dogs match the active filters."
+                    : "No dogs yet."
+              }
+              description={
+                searchQuery || anyFilterActive
+                  ? "Try clearing some filters or searching by breed or owner name."
+                  : null
+              }
+            />
           </div>
         )}
       </div>
@@ -291,7 +291,7 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
-        <div className="text-[13px] text-slate-500">
+        <div className="text-body text-slate-500">
           {isSearching ? (
             <span className="italic">Searching...</span>
           ) : (
@@ -299,13 +299,13 @@ export function DogsView({ dogs, humans, onOpenDog, onAddDog, onAddHuman, hasMor
           )}
         </div>
         {hasMore && !isSearching && !hasSearchQuery && !anyFilterActive && (
-          <button
+          <Button
+            variant="ghost"
+            loading={loadingMore}
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
-            disabled={loadingMore}
-            className={`border border-slate-200 rounded-control px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
           >
-            {loadingMore ? "Loading..." : "Load more"}
-          </button>
+            Load more
+          </Button>
         )}
       </div>
 
