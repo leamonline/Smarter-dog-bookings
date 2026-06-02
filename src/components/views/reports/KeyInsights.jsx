@@ -63,13 +63,13 @@ export function KeyInsights({ stats, insights, days }) {
   return (
     <Section title="Key Insights" accent="var(--color-brand-yellow)">
       {items.length === 0 && !sizeSummary ? (
-        <div className="text-[13px] text-slate-400">Not enough data yet — bookings will reveal patterns.</div>
+        <div className="text-body text-ink-muted">Not enough data yet — bookings will reveal patterns.</div>
       ) : (
         <ul className="flex flex-col gap-2 list-none p-0 m-0">
           {items.map((item) => (
             <li key={item.key} className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-yellow mt-1.5 shrink-0" aria-hidden="true" />
-              <span className="text-[12px] text-slate-600 leading-relaxed">{item.text}</span>
+              <span className="text-xs text-slate-600 leading-relaxed">{item.text}</span>
             </li>
           ))}
         </ul>
@@ -77,7 +77,7 @@ export function KeyInsights({ stats, insights, days }) {
 
       {sizeSummary && (
         <div className="mt-3 pt-3 border-t border-slate-100">
-          <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">
+          <div className="text-label text-ink-muted mb-1.5">
             Size mix
           </div>
           <div className="flex items-center gap-2 mb-1.5">
@@ -87,11 +87,11 @@ export function KeyInsights({ stats, insights, days }) {
                   className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                   style={{ background: SIZE_COLORS[s.size] }}
                 />
-                <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
+                <span className="text-caption font-bold text-slate-600">{s.label}</span>
               </div>
             ))}
           </div>
-          <div className="text-[12px] text-slate-500 font-medium">{sizeSummary.text}</div>
+          <div className="text-xs text-slate-500 font-medium">{sizeSummary.text}</div>
         </div>
       )}
     </Section>

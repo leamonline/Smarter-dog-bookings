@@ -7,14 +7,14 @@ export function ServiceMix({ svcs, maxSvcRev, insight }) {
   return (
     <Section title="Service Mix" accent="#10C2FC" insight={insight}>
       {active.length === 0 ? (
-        <div className="text-[13px] text-slate-400">No services booked in this period</div>
+        <div className="text-body text-ink-muted">No services booked in this period</div>
       ) : (
         <div className="flex flex-col gap-3">
           {active.map((s) => (
             <div key={s.id}>
               <div className="flex justify-between items-baseline mb-1">
-                <span className="text-[13px] font-bold text-slate-700">{s.name}</span>
-                <span className="text-[13px] font-extrabold text-slate-800">{"£"}{s.rev.toFixed(0)}</span>
+                <span className="text-body font-bold text-slate-700">{s.name}</span>
+                <span className="text-body font-extrabold text-slate-800">{"£"}{s.rev.toFixed(0)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
@@ -27,7 +27,7 @@ export function ServiceMix({ svcs, maxSvcRev, insight }) {
                     style={{ width: `${(s.rev / maxSvcRev) * 100}%` }}
                   />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 w-[65px] text-right shrink-0">
+                <span className="text-caption font-semibold text-ink-muted w-[65px] text-right shrink-0">
                   {s.n} booking{s.n !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -37,7 +37,7 @@ export function ServiceMix({ svcs, maxSvcRev, insight }) {
       )}
 
       {inactive.length > 0 && active.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+        <div className="mt-3 pt-3 border-t border-slate-100 text-caption text-ink-muted font-medium">
           <span className="font-bold text-slate-500">No activity:</span>{" "}
           {inactive.map((s) => s.name).join(", ")}
         </div>
