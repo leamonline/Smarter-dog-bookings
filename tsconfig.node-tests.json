@@ -8,6 +8,7 @@
   },
   "include": [
     "src/security/**/*.test.ts",
+    "src/engine/capacityTrigger.test.ts",
     "src/supabase/seed.ts",
     "src/lib/whatsapp/**/*.test.ts"
   ],
