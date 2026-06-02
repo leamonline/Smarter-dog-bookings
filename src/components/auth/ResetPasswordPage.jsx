@@ -82,7 +82,7 @@ export function ResetPasswordPage() {
           <div className="text-lg font-extrabold text-slate-800 mb-2">
             Password updated!
           </div>
-          <div className="text-[13px] text-slate-500">
+          <div className="text-body text-slate-500">
             Taking you to the dashboard...
           </div>
         </PortalCard>
@@ -99,7 +99,7 @@ export function ResetPasswordPage() {
           <div className="text-lg font-extrabold text-slate-800 mb-2">
             Link expired
           </div>
-          <div className="text-[13px] text-slate-500 mb-5">
+          <div className="text-body text-slate-500 mb-5">
             This reset link has expired or is invalid. Request a new one from the sign-in page.
           </div>
           <a
@@ -118,7 +118,7 @@ export function ResetPasswordPage() {
     return (
       <CenteredScreen>
         <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
-          <div className="text-[13px] text-slate-500">Verifying reset link...</div>
+          <div className="text-body text-slate-500">Verifying reset link...</div>
         </PortalCard>
       </CenteredScreen>
     );
@@ -132,13 +132,13 @@ export function ResetPasswordPage() {
           <div className="text-[28px] font-display font-bold text-brand-purple">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
-          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
+          <div className="text-body text-slate-500 mt-1">Salon Bookings</div>
         </div>
 
         <div className="text-lg font-extrabold text-slate-800 mb-1">
           Set a new password
         </div>
-        <div className="text-[13px] text-slate-500 mb-5">
+        <div className="text-body text-slate-500 mb-5">
           Choose something strong — at least 12 characters.
         </div>
 
@@ -167,7 +167,7 @@ export function ResetPasswordPage() {
           </div>
 
           {error && (
-            <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
+            <div className="text-body text-brand-coral font-semibold bg-brand-coral-light py-2 px-3 rounded-lg">
               {error}
             </div>
           )}

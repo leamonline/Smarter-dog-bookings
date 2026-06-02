@@ -211,14 +211,14 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
           <div className="text-[28px] font-display font-bold text-brand-purple">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
-          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
+          <div className="text-body text-slate-500 mt-1">Salon Bookings</div>
         </div>
 
         <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-lg font-extrabold text-brand-purple mb-2">
             Staff access needed
           </div>
-          <div className="text-[13px] text-slate-500 mb-5 leading-relaxed">
+          <div className="text-body text-slate-500 mb-5 leading-relaxed">
             {user?.email || "This account"} is signed in with Supabase Auth, but it does not have a staff profile for this salon.
           </div>
           <button
