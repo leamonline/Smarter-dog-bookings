@@ -32,7 +32,7 @@ const fieldInputClass =
   "outline-none transition-colors focus:border-[var(--sd-navy)] " + focusRing;
 
 const alertErrorClass =
-  "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-[13px] leading-[1.45] " +
+  "flex items-start gap-2.5 px-3.5 py-3 rounded-xl font-semibold text-body leading-[1.45] " +
   "bg-[var(--sd-coral-tint)] text-brand-coral-text border border-[rgba(231,84,108,0.30)]";
 
 // Yellow CTA matches the customer portal — primary, non-booking action.
@@ -235,7 +235,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
                 options={{ theme: "light", size: "normal" }}
               />
             </div>
-            <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+            <p className="text-xs text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
               Just confirms you&apos;re human — no clicks needed.
             </p>
           </div>
@@ -260,7 +260,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
         </form>
 
         <div className="mt-6 rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-3">
-          <p className="text-[12px] text-[var(--sd-navy-soft)] leading-relaxed">
+          <p className="text-xs text-[var(--sd-navy-soft)] leading-relaxed">
             <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite, then use the password reset link to set your password.
           </p>
         </div>

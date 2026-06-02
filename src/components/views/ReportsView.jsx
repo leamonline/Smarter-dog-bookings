@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useReportsData } from "../../hooks/useReportsData.ts";
-import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
+import { SkeletonKpiRow, SkeletonChart, EmptyState, Card } from "../ui/index.js";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { Kpi, PERIODS } from "./reports/ReportWidgets.jsx";
 import { RevenueTrend } from "./reports/RevenueTrend.jsx";
@@ -63,7 +63,7 @@ export function ReportsView({ loadError = null }) {
           <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
             Reports
           </h1>
-          <p className="text-[11px] sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
+          <p className="text-caption sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
             Showing last {activePeriod.l.toLowerCase()}
           </p>
         </div>
@@ -81,7 +81,7 @@ export function ReportsView({ loadError = null }) {
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Show last ${p.l}`}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-[12px] font-bold border-none cursor-pointer transition-all font-[inherit] ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-caption sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
                   selected
                     ? "bg-white text-slate-800 shadow-sm"
                     : "bg-transparent text-slate-500 hover:text-slate-700"
@@ -100,7 +100,7 @@ export function ReportsView({ loadError = null }) {
       {isLowN && (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-[12px] font-medium px-3 py-2"
+          className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium px-3 py-2"
         >
           Insufficient data for reliable comparisons — showing absolute values only.
           Period-over-period deltas hidden below {LOW_N_THRESHOLD} bookings.
@@ -108,7 +108,13 @@ export function ReportsView({ loadError = null }) {
       )}
 
       {loading ? (
-        <LoadingSpinner />
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <SkeletonKpiRow />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <SkeletonChart />
+            <SkeletonChart />
+          </div>
+        </div>
       ) : loadError && stats.curN === 0 ? (
         <ErrorBanner
           title="Couldn't load reports right now"
@@ -117,10 +123,13 @@ export function ReportsView({ loadError = null }) {
           retryLabel="Refresh"
         />
       ) : stats.curN === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
-          <div className="text-lg font-bold text-slate-400 mb-1">No bookings in this period</div>
-          <div className="text-sm text-slate-400">Try selecting a longer time range.</div>
-        </div>
+        <Card padding="none">
+          <EmptyState
+            icon="📊"
+            title="No bookings in this period"
+            description="Try selecting a longer time range."
+          />
+        </Card>
       ) : (
         <>
           {/* Band 3 — KPI row */}

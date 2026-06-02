@@ -53,7 +53,7 @@ export function InboxFilterChip({ label, count, active, color, onClick, hint }) 
             : `${label}: ${count}. Click to filter.`
       }
       title={hint}
-      className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold border transition-colors font-[inherit] ${
+      className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-bold border motion-safe:transition-colors font-[inherit] ${
         active ? palette.active : palette.idle
       } ${isEmpty ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
     >

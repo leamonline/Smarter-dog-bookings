@@ -60,3 +60,69 @@ export function ThreadSkeleton({ bubbles = 5 }) {
   );
 }
 
+// Stacked text lines — body/paragraph placeholder. Last line is shorter.
+export function SkeletonText({ lines = 3, lastWidth = "60%", className = "" }) {
+  return (
+    <div className={`flex flex-col gap-2 ${className}`} role="status" aria-label="Loading">
+      {Array.from({ length: lines }).map((_, i) => (
+        <Block
+          key={i}
+          className="h-3 rounded"
+          style={{ width: i === lines - 1 ? lastWidth : "100%" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Circular placeholder — avatars, dots.
+export function SkeletonCircle({ size = 40, className = "" }) {
+  return <Block className={`rounded-full ${className}`} style={{ width: size, height: size }} />;
+}
+
+// Reports: a row of KPI cards while metrics load.
+export function SkeletonKpiRow({ count = 4 }) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading metrics"
+      className="grid grid-cols-2 md:grid-cols-4 gap-3"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl border border-slate-200 shadow-card-resting p-3 md:p-5 flex flex-col gap-2"
+        >
+          <Block className="h-2.5 w-2/3" />
+          <Block className="h-7 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Reports: a card-shaped chart placeholder with a faux bar row.
+export function SkeletonChart({ bars = 7 }) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading chart"
+      className="bg-white rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden"
+    >
+      <Block className="h-[3px] rounded-none" />
+      <div className="p-5">
+        <Block className="h-2.5 w-1/3 mb-4" />
+        <div className="flex items-end gap-2 h-32">
+          {Array.from({ length: bars }).map((_, i) => (
+            <Block
+              key={i}
+              className="flex-1 rounded-t"
+              style={{ height: `${40 + ((i * 17) % 55)}%` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

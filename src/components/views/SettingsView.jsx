@@ -55,7 +55,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
       {/* Page header */}
       <div className="mb-5">
         <h2 className="text-2xl font-extrabold m-0 text-slate-800 font-display">Salon Settings</h2>
-        <div className="text-[13px] text-slate-500 mt-1">
+        <div className="text-body text-slate-500 mt-1">
           Manage your business, pricing, booking rules, and more.
         </div>
       </div>
@@ -79,9 +79,9 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
               aria-controls="settings-panel"
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(s.id)}
-              className={`rounded-[7px] px-3 py-[7px] text-xs font-semibold cursor-pointer font-inherit transition-all border-none ${
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer font-[inherit] motion-safe:transition-all border-none ${
                 isActive
-                  ? "bg-white text-brand-teal shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                  ? "bg-white text-brand-teal shadow-sm"
                   : "bg-transparent text-slate-500 hover:text-slate-800 hover:bg-white/60"
               }`}
             >

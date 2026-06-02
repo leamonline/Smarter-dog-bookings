@@ -19,7 +19,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
     <Section title={isWeekly ? "Weekly Revenue Trend" : "Daily Revenue"} accent="var(--color-brand-teal)" insight={insight}>
       <div className="flex gap-2 h-[90px]">
         {/* Y-axis: three ticks (max, half, 0) for readability. */}
-        <div className="flex flex-col justify-between text-[9px] text-slate-400 font-semibold tabular-nums w-7 text-right pr-0.5 shrink-0">
+        <div className="flex flex-col justify-between text-micro text-ink-muted font-semibold tabular-nums w-7 text-right pr-0.5 shrink-0">
           {ticks.map((t) => (
             <span key={t} aria-hidden="true">£{t}</span>
           ))}
@@ -30,7 +30,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
             {ticks.map((_, i) => (
               <div
                 key={i}
-                className="border-t border-slate-100"
+                className="border-t border-slate-200/70"
                 style={{ height: 0 }}
                 aria-hidden="true"
               />
@@ -39,7 +39,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
           <div className="flex items-end gap-[2px] h-full">
             {chart.map((bar, i) => (
               <div key={i} className="flex-1 flex flex-col justify-end h-full group relative">
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-micro font-bold px-2 py-1 rounded-md shadow opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 motion-safe:transition-opacity whitespace-nowrap pointer-events-none z-10">
                   {fmtLabel(bar.date, true)} · {"£"}{bar.rev.toFixed(0)} · {bar.count} dog{bar.count !== 1 ? "s" : ""}
                 </div>
                 <div
@@ -60,7 +60,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
         {chart.map((bar, i) => (
           <div key={i} className="flex-1 text-center">
             {chartLabels.includes(i) && (
-              <span className="text-[9px] text-slate-400 font-semibold">
+              <span className="text-micro text-ink-muted font-semibold">
                 {days <= 7 ? fmtLabel(bar.date, false) : fmtLabel(bar.date, true)}
               </span>
             )}
@@ -68,7 +68,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
         ))}
       </div>
       {isWeekly && (
-        <div className="mt-2 text-[11px] text-slate-400 font-medium">
+        <div className="mt-2 text-caption text-ink-muted font-medium">
           {activeCount === 0
             ? "No active weeks in this period."
             : `${activeCount} of ${chart.length} week${chart.length !== 1 ? "s" : ""} had bookings.`}

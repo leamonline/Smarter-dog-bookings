@@ -17,13 +17,13 @@ function CapacityBar({ pct, isOpen, label, sub, statusLabel }) {
         <div className="text-xs font-semibold text-brand-purple truncate">
           {label}
           {sub && (
-            <span className="text-slate-400 font-medium ml-1">{sub}</span>
+            <span className="text-ink-muted font-medium ml-1">{sub}</span>
           )}
         </div>
         <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
-          {isOpen ? `${pct}%` : <span className="italic text-slate-400">closed</span>}
+          {isOpen ? `${pct}%` : <span className="italic text-ink-muted">closed</span>}
           {isOpen && (
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-label text-ink-muted">
               {statusLabel}
             </span>
           )}
@@ -76,9 +76,9 @@ export function CapacityCard({
   return (
     <section
       aria-label="Capacity summary"
-      className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-4"
+      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting p-4"
     >
-      <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+      <h2 className="text-label text-ink-muted mb-3">
         Capacity
       </h2>
 
@@ -99,7 +99,7 @@ export function CapacityCard({
       </div>
 
       <div className="mt-4 pt-3 border-t border-slate-100">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+        <div className="text-label text-ink-muted mb-1">
           Next available
         </div>
         {nextAvailable ? (

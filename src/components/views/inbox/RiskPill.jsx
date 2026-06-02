@@ -19,7 +19,7 @@ export function RiskPill({ risk }) {
   const style = RISK_STYLES[risk] ?? RISK_STYLES.medium;
   return (
     <span
-      className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${style}`}
+      className={`text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${style}`}
       title={`Risk level: ${risk}`}
     >
       {risk} risk

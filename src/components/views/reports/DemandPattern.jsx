@@ -11,13 +11,13 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
       {/* Peak day headline + day strip */}
       <div className="mb-4">
         <div className="flex items-baseline justify-between mb-2">
-          <div className="text-[12px] font-semibold text-slate-500">
+          <div className="text-xs font-semibold text-slate-500">
             Peak day:{" "}
             <span className="text-slate-800 font-extrabold">
               {hasDayData ? busiestDay.label : "—"}
             </span>
             {hasDayData && (
-              <span className="text-slate-400 font-medium">
+              <span className="text-ink-muted font-medium">
                 {" · "}
                 {busiestDay.n} booking{busiestDay.n !== 1 ? "s" : ""}
               </span>
@@ -37,7 +37,7 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
                   style={{ height: `${h}%` }}
                   aria-label={`${d.label}: ${d.n} booking${d.n !== 1 ? "s" : ""}`}
                 />
-                <div className="text-[10px] font-bold text-slate-600 mt-1">{d.label}</div>
+                <div className="text-micro font-bold text-slate-600 mt-1">{d.label}</div>
               </div>
             );
           })}
@@ -46,26 +46,26 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
 
       {/* Peak slot + active slots */}
       <div className="pt-3 border-t border-slate-100">
-        <div className="text-[12px] font-semibold text-slate-500 mb-2">
+        <div className="text-xs font-semibold text-slate-500 mb-2">
           Peak slot:{" "}
           <span className="text-slate-800 font-extrabold">
             {hasSlotData ? busiestSlot.label : "—"}
           </span>
           {hasSlotData && (
-            <span className="text-slate-400 font-medium">
+            <span className="text-ink-muted font-medium">
               {" · "}
               {busiestSlot.n} booking{busiestSlot.n !== 1 ? "s" : ""}
             </span>
           )}
         </div>
         {activeSlots.length === 0 ? (
-          <div className="text-[11px] text-slate-400 font-medium">No slot activity in this period.</div>
+          <div className="text-caption text-ink-muted font-medium">No slot activity in this period.</div>
         ) : (
           <>
             <div className="flex flex-col gap-1.5">
               {activeSlots.map((s) => (
                 <div key={s.slot} className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-600 w-[50px] shrink-0">{s.label}</span>
+                  <span className="text-caption font-bold text-slate-600 w-[50px] shrink-0">{s.label}</span>
                   <div
                     className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"
                     role="img"
@@ -76,12 +76,12 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
                       style={{ width: `${(s.n / maxSlotN) * 100}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-extrabold text-slate-500 w-[20px] text-right">{s.n}</span>
+                  <span className="text-micro font-extrabold text-slate-500 w-[20px] text-right">{s.n}</span>
                 </div>
               ))}
             </div>
             {inactiveSlots.length > 0 && (
-              <div className="mt-2 text-[11px] text-slate-400 font-medium">
+              <div className="mt-2 text-caption text-ink-muted font-medium">
                 {inactiveSlots.length} quiet slot{inactiveSlots.length !== 1 ? "s" : ""} (no bookings)
               </div>
             )}

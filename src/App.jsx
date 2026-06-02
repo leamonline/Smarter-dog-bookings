@@ -43,6 +43,15 @@ const RightRailPreview = import.meta.env.DEV
       })),
     )
   : () => null;
+// Dev-only kitchen-sink catalogue for the shared UI primitives + tokens.
+// Same tree-shaking guarantee as RightRailPreview above.
+const UiKitchenSink = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/UiKitchenSink.jsx").then((module) => ({
+        default: module.UiKitchenSink,
+      })),
+    )
+  : () => null;
 const HumanCardModal = lazy(() =>
   import("./components/modals/HumanCardModal.jsx").then((module) => ({
     default: module.HumanCardModal,
@@ -131,6 +140,19 @@ export default function App() {
   } = useAuth();
   const isOnline = !!supabase;
   const from = location.state?.from;
+
+  // Dev-only: render the UI kitchen sink before the auth gate so the primitive
+  // catalogue is reviewable without signing in. Tree-shaken from production
+  // (import.meta.env.DEV folds to false). Placed after the hooks above to keep
+  // hook order stable.
+  if (import.meta.env.DEV && location.pathname === "/dev/ui") {
+    return (
+      <Suspense fallback={appLoadingShell}>
+        <UiKitchenSink />
+      </Suspense>
+    );
+  }
+
   const authRoute = getStaffAuthRouteState({
     isOnline,
     loading: authLoading,
@@ -189,14 +211,14 @@ function StaffAccessDeniedPage({ user, onSignOut }) {
           <div className="text-[28px] font-display font-bold text-brand-purple">
             Smarter<span className="text-brand-yellow">Dog</span>
           </div>
-          <div className="text-[13px] text-slate-500 mt-1">Salon Bookings</div>
+          <div className="text-body text-slate-500 mt-1">Salon Bookings</div>
         </div>
 
         <div className="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-lg font-extrabold text-brand-purple mb-2">
             Staff access needed
           </div>
-          <div className="text-[13px] text-slate-500 mb-5 leading-relaxed">
+          <div className="text-body text-slate-500 mb-5 leading-relaxed">
             {user?.email || "This account"} is signed in with Supabase Auth, but it does not have a staff profile for this salon.
           </div>
           <button

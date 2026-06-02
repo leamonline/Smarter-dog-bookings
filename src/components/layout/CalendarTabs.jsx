@@ -50,7 +50,7 @@ export function CalendarTabs({
       role="tablist"
       aria-label="Day navigation"
       onKeyDown={handleKeyDown}
-      className="grid grid-cols-7 items-center px-2 py-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
+      className="grid grid-cols-7 items-center px-2 py-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
     >
       {dates.map((d, i) => {
         const isOpen = dayOpenState[d.dateStr] ?? true;

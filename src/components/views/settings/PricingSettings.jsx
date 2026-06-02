@@ -124,7 +124,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
           </button>
         </div>
 
-        <div className="mt-3.5 text-[11px] font-semibold text-slate-400">
+        <div className="mt-3.5 text-caption font-semibold text-ink-muted">
           Changes save as you type.
         </div>
       </CardBody>

@@ -216,13 +216,13 @@ export function RightRailCard({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <h2
-            className={`text-[10px] font-bold uppercase tracking-wider truncate ${theme.heading}`}
+            className={`text-label truncate ${theme.heading}`}
           >
             {heading}
           </h2>
           {!isCalm && pillLabel && (
             <span
-              className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 ${theme.pill}`}
+              className={`text-label rounded-full px-2 py-0.5 ${theme.pill}`}
             >
               {pillLabel}
             </span>

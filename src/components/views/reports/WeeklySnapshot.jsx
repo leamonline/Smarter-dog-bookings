@@ -102,12 +102,12 @@ export function WeeklySnapshot() {
   return (
     <section
       aria-label="This week at a glance"
-      className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.05)]"
+      className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-card-resting"
     >
       <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-[15px] sm:text-base font-extrabold text-white m-0">This week so far</h2>
-          <div className="text-[11px] sm:text-xs font-semibold text-white/80">
+          <div className="text-caption sm:text-xs font-semibold text-white/80">
             Last week £{lastWeekTotal.toFixed(0)}
           </div>
         </div>
@@ -120,14 +120,14 @@ export function WeeklySnapshot() {
             <span className="text-3xl sm:text-4xl font-black text-slate-800 font-display leading-none">
               £{thisWeekTotal.toFixed(0)}
             </span>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">revenue</span>
+            <span className="text-label text-ink-muted">revenue</span>
             <Trend cur={thisWeekTotal} prev={lastWeekTotal} />
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-black text-slate-700 font-display leading-none">
               {thisWeekCount}
             </span>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-label text-ink-muted">
               booking{thisWeekCount !== 1 ? "s" : ""}
             </span>
           </div>
@@ -135,13 +135,13 @@ export function WeeklySnapshot() {
             <span className="text-xl font-black text-slate-700 font-display leading-none">
               {fillPct.toFixed(0)}%
             </span>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">filled</span>
+            <span className="text-label text-ink-muted">filled</span>
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-black text-slate-700 font-display leading-none">
               £{avgPerDog.toFixed(0)}
             </span>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">/ dog</span>
+            <span className="text-label text-ink-muted">/ dog</span>
           </div>
         </div>
 
@@ -158,10 +158,10 @@ export function WeeklySnapshot() {
                   style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
                   aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
                 />
-                <div className={`text-[10px] sm:text-[11px] font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
+                <div className={`text-micro sm:text-caption font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
                   {day.label}
                 </div>
-                <div className="text-[10px] font-semibold text-slate-400">
+                <div className="text-micro font-semibold text-ink-muted">
                   {isClosed ? "—" : `£${day.revenue}`}
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function WeeklySnapshot() {
         </div>
 
         {/* Insight */}
-        <div className="text-[12px] sm:text-[13px] font-medium leading-relaxed">
+        <div className="text-xs sm:text-body font-medium leading-relaxed">
           <span className="text-brand-teal-text font-bold">Insight: </span>
           <span className="text-slate-600">{insight}</span>
         </div>

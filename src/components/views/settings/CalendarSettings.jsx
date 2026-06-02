@@ -90,7 +90,7 @@ export function CalendarSettings() {
         </p>
 
         {loading ? (
-          <div className="text-slate-400 text-sm py-4">Loading feed URL...</div>
+          <div className="text-ink-muted text-sm py-4">Loading feed URL...</div>
         ) : feedUrl ? (
           <>
             {/* URL + copy */}
@@ -123,7 +123,7 @@ export function CalendarSettings() {
               <button
                 onClick={handleRegenerate}
                 disabled={regenerating}
-                className="bg-transparent border-none text-[12px] text-slate-400 cursor-pointer hover:text-slate-600 transition-colors disabled:opacity-50"
+                className="bg-transparent border-none text-xs text-ink-muted cursor-pointer hover:text-slate-600 motion-safe:transition-colors disabled:opacity-50"
               >
                 {regenerating ? "Regenerating..." : "Regenerate URL (invalidates old link)"}
               </button>

@@ -135,10 +135,10 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
       ref={popRef}
       onClick={(e) => e.stopPropagation()}
       style={{ position: "fixed", top, left, width: POPUP_WIDTH, zIndex: 1100 }}
-      className="bg-white border border-[#FCA5A5] rounded-2xl shadow-elevated p-3 animate-pop-in"
+      className="bg-white border border-red-300 rounded-2xl shadow-elevated p-3 animate-pop-in"
     >
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#B91C1C]">
+        <div className="flex items-center gap-1.5 text-label text-red-700">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
@@ -162,7 +162,7 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
         {alerts.map((alert, idx) => (
           <li
             key={idx}
-            className="text-[12px] font-medium text-[#7F1D1D] bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg px-2.5 py-1.5 leading-snug break-words"
+            className="text-xs font-medium text-red-900 bg-red-50 border border-red-300 rounded-lg px-2.5 py-1.5 leading-snug break-words"
           >
             {alert}
           </li>
@@ -314,7 +314,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="dialog"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
               title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-[#B91C1C] bg-[#FEF2F2] border border-[#FCA5A5] cursor-pointer transition-colors hover:bg-[#B91C1C] hover:text-white font-[inherit] shrink-0"
+              className="self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-red-700 bg-red-50 border border-red-300 cursor-pointer transition-colors hover:bg-red-700 hover:text-white font-[inherit] shrink-0"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />

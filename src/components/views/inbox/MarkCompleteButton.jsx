@@ -69,7 +69,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
           : "Mark this conversation complete and remove it from the active queue. Shortcut: E"
       }
       className={[
-        "inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-semibold cursor-pointer transition-colors font-[inherit]",
+        "inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit]",
         isClosed
           ? "bg-white border border-slate-200 text-brand-purple hover:border-brand-yellow/60"
           : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100",

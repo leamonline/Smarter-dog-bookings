@@ -7,6 +7,7 @@ import { filterHumansForDirectory } from "../../utils/directorySearch.js";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
+import { Button, EmptyState } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
 export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
@@ -121,7 +122,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                   onOpenHuman(human.id || fullName);
                 }
               }}
-              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-[0_6px_16px_rgba(45,139,122,0.12)] h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+              className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
             >
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Delete now lives inside the human profile. */}
@@ -130,7 +131,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
                 {/* Name + flag */}
                 <div className="flex justify-between items-start gap-2">
-                  <div className="text-[15px] font-extrabold text-slate-800 truncate">
+                  <div className="text-title font-extrabold text-slate-800 truncate">
                     {titleCase(fullName)}
                   </div>
                   {human.historyFlag && (
@@ -148,7 +149,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                   >
                     <a
                       href={telLink(human.phone)}
-                      className="text-[13px] text-slate-500 font-semibold no-underline hover:text-brand-teal"
+                      className="text-body text-slate-500 font-semibold no-underline hover:text-brand-teal"
                     >
                       {human.phone}
                     </a>
@@ -157,13 +158,13 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Open in WhatsApp"
-                      className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100"
+                      className="text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100"
                     >
                       WA
                     </a>
                   </div>
                 ) : (
-                  <div className="text-[13px] text-slate-400 italic leading-snug">No phone</div>
+                  <div className="text-body text-ink-muted italic leading-snug">No phone</div>
                 )}
 
                 {/* Dogs — pushed to bottom */}
@@ -175,19 +176,19 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
                         return (
                           <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
                             <SizeDot size={dogSize} dim={10} />
-                            <span className="text-[12px] font-semibold text-slate-600">
+                            <span className="text-xs font-semibold text-slate-600">
                               {titleCase(dog.name)}
-                              {dog.breed && <span className="font-medium text-slate-400"> ({titleCase(dog.breed)})</span>}
+                              {dog.breed && <span className="font-medium text-ink-muted"> ({titleCase(dog.breed)})</span>}
                             </span>
                           </span>
                         );
                       })}
                       {overflow > 0 && (
-                        <span className="text-[11px] font-semibold text-slate-400 shrink-0">+{overflow}</span>
+                        <span className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
                       )}
                     </>
                   ) : (
-                    <span className="text-[12px] text-slate-400 italic">No dogs</span>
+                    <span className="text-xs text-ink-muted italic">No dogs</span>
                   )}
                 </div>
               </div>
@@ -196,16 +197,12 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
         })}
 
         {sortedHumans.length === 0 && !isSearching && !loadError && (
-          <div className="col-span-full text-center py-16 px-5 text-slate-500">
-            <div className="text-[32px] mb-3">{"\uD83D\uDD0D"}</div>
-            <div className="text-[15px] font-semibold">
-              {searchQuery ? `No humans found matching "${searchQuery}"` : "No humans yet."}
-            </div>
-            {searchQuery && (
-              <div className="text-[13px] mt-1.5">
-                Try searching by phone number or dog breed instead.
-              </div>
-            )}
+          <div className="col-span-full">
+            <EmptyState
+              icon="\uD83D\uDD0D"
+              title={searchQuery ? `No humans found matching "${searchQuery}"` : "No humans yet."}
+              description={searchQuery ? "Try searching by phone number or dog breed instead." : null}
+            />
           </div>
         )}
       </div>
@@ -213,7 +210,7 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
-        <div className="text-[13px] text-slate-500">
+        <div className="text-body text-slate-500">
           {isSearching ? (
             <span className="italic">Searching...</span>
           ) : (
@@ -221,13 +218,13 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           )}
         </div>
         {hasMore && !isSearching && !hasSearchQuery && (
-          <button
+          <Button
+            variant="ghost"
+            loading={loadingMore}
             onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
-            disabled={loadingMore}
-            className={`border border-slate-200 rounded-control px-4 py-2 text-[13px] font-semibold font-inherit transition-all ${loadingMore ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white text-slate-800 cursor-pointer hover:border-brand-teal hover:text-brand-teal"}`}
           >
-            {loadingMore ? "Loading..." : "Load more"}
-          </button>
+            Load more
+          </Button>
         )}
       </div>
 

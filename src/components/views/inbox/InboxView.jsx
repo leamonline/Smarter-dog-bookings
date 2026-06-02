@@ -404,7 +404,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         </div>
       </div>
 
-      <div className="flex-1 flex bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div className="flex-1 flex bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden">
         {/* List pane */}
         <div
           className={`w-full md:w-[320px] border-r border-slate-200 flex flex-col ${
@@ -427,21 +427,21 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 Try again
               </button>
               {import.meta.env.DEV && (
-                <details className="mt-3 text-[10px] text-amber-700">
+                <details className="mt-3 text-micro text-amber-700">
                   <summary>Dev: error details</summary>
                   <pre className="whitespace-pre-wrap mt-1">{String(listError?.message || listError)}</pre>
                 </details>
               )}
             </div>
           ) : conversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-600 text-[13px]">
+            <div className="p-6 text-center text-slate-600 text-body">
               <p className="font-semibold text-brand-purple mb-1">No WhatsApp conversations yet</p>
-              <p className="text-[12px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 When a customer messages your WhatsApp number, their thread will appear here.
               </p>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="p-6 text-center text-slate-600 text-[13px]">
+            <div className="p-6 text-center text-slate-600 text-body">
               <p className="mb-1">
                 No conversations match <span className="font-semibold">{FILTER_LABELS[listFilter] ?? listFilter}</span>.
               </p>
@@ -558,7 +558,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 {loadingDetail ? (
                   <ThreadSkeleton bubbles={5} />
                 ) : detailError ? (
-                  <div className="text-center text-slate-600 text-[13px] py-8">
+                  <div className="text-center text-slate-600 text-body py-8">
                     Couldn&apos;t load the thread.
                     <button
                       type="button"
@@ -569,7 +569,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     </button>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-slate-500 text-[13px] py-8">
+                  <div className="text-center text-slate-500 text-body py-8">
                     No messages yet.
                   </div>
                 ) : (

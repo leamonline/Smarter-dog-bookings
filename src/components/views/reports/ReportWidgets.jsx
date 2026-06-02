@@ -1,18 +1,19 @@
 // Shared presentational widgets used by all report sub-components.
 
 import { formatDelta } from "../../../utils/intl.js";
+import { SectionLabel } from "../../ui/index.js";
 
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's
   // no meaningful percentage to display in that case, so the badge is
   // suppressed entirely (rendered as a small em-dash placeholder).
   const delta = formatDelta(cur, prev);
-  if (delta === "\u2014") return <span className="text-[11px] font-bold text-slate-400 px-1.5">{"\u2014"}</span>;
+  if (delta === "\u2014") return <span className="text-caption font-bold text-ink-muted px-1.5">{"\u2014"}</span>;
   if (prev === 0 && cur === 0) return null;
   const up = delta.startsWith("+");
   const good = invert ? !up : up;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${good ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-caption font-bold px-1.5 py-0.5 rounded-full ${good ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"}`}>
       {up ? "\u2191" : "\u2193"} {delta.replace(/^[+-]/, "")}
     </span>
   );
@@ -20,28 +21,28 @@ export function Trend({ cur, prev, invert }) {
 
 export function Kpi({ label, value, sub, cur, prev, color = "var(--color-brand-teal)", invert, hideDelta }) {
   return (
-    <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
-      <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">{label}</div>
+    <div className="bg-white p-3 md:p-5 rounded-2xl border border-slate-200 shadow-card-resting">
+      <SectionLabel className="mb-1">{label}</SectionLabel>
       <div className="flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-xl sm:text-2xl md:text-[28px] font-black leading-none font-display" style={{ color }}>{value}</span>
+        <span className="text-xl sm:text-2xl md:text-display font-black leading-none font-display" style={{ color }}>{value}</span>
         {!hideDelta && cur != null && prev != null && <Trend cur={cur} prev={prev} invert={invert} />}
       </div>
-      {sub && <div className="text-[11px] text-slate-400 font-medium mt-0.5 md:mt-1">{sub}</div>}
+      {sub && <div className="text-caption text-ink-muted font-medium mt-0.5 md:mt-1">{sub}</div>}
     </div>
   );
 }
 
 export function Section({ title, accent = "var(--color-brand-teal)", children, insight }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden">
       <div className="h-[3px]" style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 53%, transparent))` }} />
       <div className="p-5">
-        <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">{title}</div>
+        <SectionLabel as="h3" className="mb-4">{title}</SectionLabel>
         {children}
         {insight && (
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[12px] font-medium leading-relaxed">
+          <div className="mt-4 pt-3 border-t border-slate-100 text-xs font-medium leading-relaxed">
             <span className="text-brand-teal-text font-bold">Insight: </span>
-            <span className="text-slate-500">{insight}</span>
+            <span className="text-ink-muted">{insight}</span>
           </div>
         )}
       </div>

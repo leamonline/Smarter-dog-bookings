@@ -4,23 +4,23 @@ export function BookingHealth({ statusAcc, totalPast, noShowN, noShowRate, prevN
   return (
     <Section title="Booking Health" accent="var(--color-brand-coral)" insight={insight}>
       {totalPast === 0 ? (
-        <div className="text-[13px] text-slate-400">No completed bookings to analyse yet</div>
+        <div className="text-body text-ink-muted">No completed bookings to analyse yet</div>
       ) : (
         <div className="flex items-center gap-3">
           {/* No-show callout */}
           <div className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200/60">
             <div className="text-center">
-              <div className="text-[20px] font-black text-amber-600 leading-none">
+              <div className="text-xl font-black text-amber-600 leading-none">
                 {noShowRate.toFixed(0)}%
               </div>
-              <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wide mt-0.5">
+              <div className="text-micro font-bold text-amber-600 uppercase tracking-wide mt-0.5">
                 no-show
               </div>
             </div>
-            <div className="text-[11px] text-amber-700 font-medium leading-snug">
+            <div className="text-caption text-amber-700 font-medium leading-snug">
               {noShowN}/{totalPast} past
               {prevNoShowRate > 0 && (
-                <div className="text-[10px] text-amber-600/80">
+                <div className="text-micro text-amber-600/80">
                   was {prevNoShowRate.toFixed(0)}%
                 </div>
               )}
@@ -45,7 +45,7 @@ export function BookingHealth({ statusAcc, totalPast, noShowN, noShowRate, prevN
                 return (
                   <div key={status} className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-sm inline-block shrink-0" style={{ background: color }} />
-                    <span className="text-[11px] font-semibold text-slate-600">
+                    <span className="text-caption font-semibold text-slate-600">
                       {STATUS_LABELS[status] || status} {pct}%
                     </span>
                   </div>

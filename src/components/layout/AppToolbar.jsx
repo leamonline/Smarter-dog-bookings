@@ -51,8 +51,8 @@ const PRIMARY_NAV = [
   {
     to: "/inbox",
     label: "Inbox",
-    activeBg: "bg-[#25D366] text-white shadow-[0_2px_8px_rgba(37,211,102,0.5)]",
-    activeText: "text-[#25D366]",
+    activeBg: "bg-brand-whatsapp text-white shadow-[0_2px_8px_rgba(37,211,102,0.5)]",
+    activeText: "text-brand-whatsapp",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -171,7 +171,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
           <button
             type="button"
             onClick={onNewBooking}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark hover:-translate-y-0.5 shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
             aria-label="New booking (press N)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -207,7 +207,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
               aria-label="Keyboard shortcuts"
               className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out] p-4"
             >
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Shortcuts</div>
+              <div className="text-label text-ink-muted mb-2">Shortcuts</div>
               <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-600">
                 <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">N</kbd><span>New booking</span>
                 <kbd className="bg-slate-100 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700">T</kbd><span>Jump to today</span>
@@ -295,7 +295,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             type="button"
             onClick={onNewBooking}
             aria-label="New booking"
-            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-[0_2px_8px_rgba(254,204,19,0.4)] font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow font-[inherit] focus-visible:outline-2 focus-visible:outline-brand-purple focus-visible:outline-offset-2"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             <span className="hidden sm:inline">New booking</span>
