@@ -1,6 +1,23 @@
 const UK_MOBILE_E164_PATTERN = /^\+447\d{9}$/;
 
 /**
+ * Strip invisible Unicode format characters (general category Cf) from a string.
+ *
+ * Covers bidirectional marks (U+202A–202E embeddings/overrides, U+2066–2069
+ * isolates), zero-width characters (U+200B–200D), LRM/RLM (U+200E/200F), the
+ * byte-order mark (U+FEFF) and the soft hyphen (U+00AD). iOS Contacts and
+ * WhatsApp wrap copied phone numbers in these (e.g. "‪07…‬"), which is invisible
+ * on screen but silently breaks number validation — the digits no longer sit at
+ * the start of the string. Note: Unicode NFC normalisation does NOT remove them,
+ * so they must be stripped explicitly.
+ *
+ * Returns "" for non-string input.
+ */
+export function stripFormatChars(raw) {
+  return typeof raw === "string" ? raw.replace(/\p{Cf}/gu, "") : "";
+}
+
+/**
  * Normalise a UK mobile to the E.164 form Supabase Auth expects (+447XXXXXXXXX).
  *
  * Accepts the formats a UK customer is most likely to type:
@@ -19,7 +36,7 @@ const UK_MOBILE_E164_PATTERN = /^\+447\d{9}$/;
 export function normaliseUkMobile(raw) {
   if (typeof raw !== "string") return "";
 
-  let phone = raw.replace(/[\s\-().]/g, "");
+  let phone = stripFormatChars(raw).replace(/[\s\-().]/g, "");
   if (phone.startsWith("00")) phone = "+" + phone.slice(2);
   phone = phone.replace(/^\+440/, "+44");
   if (/^447\d{9}$/.test(phone)) phone = "+" + phone;

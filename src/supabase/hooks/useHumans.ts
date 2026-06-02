@@ -6,6 +6,7 @@ import {
   findHumanByIdOrName,
 } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
+import { stripFormatChars } from "../../utils/phone.js";
 import { logger } from "../../lib/logger.js";
 
 const PAGE_SIZE = 50;
@@ -566,7 +567,7 @@ export function useHumans() {
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.surname !== undefined) dbUpdates.surname = updates.surname;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-      if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+      if (updates.phone !== undefined) dbUpdates.phone = stripFormatChars(updates.phone);
       if (updates.sms !== undefined) dbUpdates.sms = updates.sms;
       if (updates.whatsapp !== undefined) dbUpdates.whatsapp = updates.whatsapp;
       if (updates.email !== undefined) dbUpdates.email = updates.email;
@@ -751,13 +752,17 @@ export function useHumans() {
 
   const addHuman = useCallback(async (humanData: Record<string, any>) => {
     const fullName = `${humanData.name} ${humanData.surname}`.trim();
+    // Strip invisible Unicode format chars before they reach the DB — iOS
+    // Contacts / WhatsApp wrap pasted numbers in bidi marks (see
+    // stripFormatChars in utils/phone), which otherwise break number validation.
+    const phone = stripFormatChars(humanData.phone || "");
 
     const optimisticHuman = {
       id: `temp-${Date.now()}`,
       name: humanData.name,
       surname: humanData.surname,
       fullName,
-      phone: humanData.phone || "",
+      phone,
       sms: humanData.sms || false,
       whatsapp: humanData.whatsapp || false,
       email: humanData.email || "",
@@ -802,7 +807,7 @@ export function useHumans() {
         .insert({
           name: humanData.name,
           surname: humanData.surname,
-          phone: humanData.phone || "",
+          phone,
           sms: humanData.sms || false,
           whatsapp: humanData.whatsapp || false,
           email: humanData.email || "",

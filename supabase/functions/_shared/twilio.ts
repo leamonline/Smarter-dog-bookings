@@ -55,8 +55,13 @@ const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM");
  */
 export function normaliseUkPhone(raw: string): string {
   if (!raw) return raw;
-  // Strip whitespace, dashes, parens, dots — Twilio doesn't want them anyway
-  const stripped = raw.replace(/[\s\-().]/g, "");
+  // Strip whitespace, dashes, parens, dots, and invisible Unicode format
+  // characters (\p{Cf}) — Twilio doesn't want them, and iOS Contacts / WhatsApp
+  // wrap copied numbers in bidi marks (e.g. U+202A…U+202C) that aren't
+  // whitespace. Without stripping those, the digits don't sit at the start of
+  // the string, every UK pattern below misses, and the number is returned
+  // unchanged → toValidE164() rejects it (or the marks reach Twilio → 21211).
+  const stripped = raw.replace(/[\s\-().]|\p{Cf}/gu, "");
   // Already E.164 (any country) — pass through
   if (stripped.startsWith("+")) return stripped;
   // 00-prefixed international (UK convention) — convert to +
