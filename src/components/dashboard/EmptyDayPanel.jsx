@@ -19,7 +19,7 @@ export function EmptyDayPanel({
   return (
     <section
       aria-label="No bookings today"
-      className="relative bg-white rounded-2xl border border-gray-100 shadow-card-resting p-6 md:p-8 overflow-hidden text-center"
+      className="relative shrink-0 bg-white rounded-2xl border border-gray-100 shadow-card-resting p-6 md:p-8 overflow-hidden text-center"
     >
       {/* Soft brand decor */}
       <div className="absolute -right-6 -bottom-8 opacity-[0.08] pointer-events-none" aria-hidden="true">
