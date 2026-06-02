@@ -25,6 +25,18 @@ function getMigrationBySql(predicate: (sql: string) => boolean): string {
   return candidates[0];
 }
 
+// Like getMigrationBySql, but returns the LAST (latest by filename) match.
+// Use for invariants whose policy/function is re-issued across several
+// migrations, where only the final definition is the effective one — so a
+// later migration that re-opens the hole makes the assertion fail.
+function lastMigrationSqlMatching(predicate: (sql: string) => boolean): string {
+  const matches = getAllMigrationSqls().filter(predicate);
+
+  expect(matches.length).toBeGreaterThan(0);
+
+  return matches[matches.length - 1];
+}
+
 function fixMigration(): string {
   return getMigrationBySql(
     (sql: string) =>
@@ -436,5 +448,45 @@ describe("Supabase security review regressions", () => {
     expect(fn).toMatch(/applyPostCreationCorrections\b/);
     expect(fn).toMatch(/HUMAN_UPDATE_WHITELIST/);
     expect(fn).toMatch(/DOG_UPDATE_WHITELIST/);
+  });
+
+  it("pins feed_type so a customer cannot mint a staff calendar feed token", () => {
+    // Regression for the calendar-feed token-type escalation (Critical).
+    // The customer branch of manage_own_feed_tokens originally constrained
+    // only human_id, so a logged-in customer could INSERT a feed_type='staff'
+    // row with their own human_id and then read the ENTIRE salon's bookings
+    // (plus every customer's name) via /calendar-feed. The effective policy
+    // must pin feed_type in BOTH the using and with-check clauses of each
+    // branch, and direct INSERT/UPDATE on the table must be revoked from the
+    // JWT roles (token creation goes through the SECURITY DEFINER RPCs).
+    const migration = lastMigrationSqlMatching((sql) =>
+      /create\s+policy\s+manage_own_feed_tokens\s+on\s+(?:public\.)?calendar_feed_tokens/i.test(
+        sql,
+      ),
+    );
+
+    // Isolate the policy statement itself (up to its terminating semicolon)
+    // so prose in the migration header can't satisfy these assertions.
+    const fromPolicy = migration.slice(
+      migration.search(/create\s+policy\s+manage_own_feed_tokens/i),
+    );
+    const policyStmt = fromPolicy.split(";")[0];
+
+    const customerPins = policyStmt.match(/feed_type\s*=\s*'customer'/gi) ?? [];
+    const staffPins = policyStmt.match(/feed_type\s*=\s*'staff'/gi) ?? [];
+
+    expect(
+      customerPins.length,
+      "customer branch must pin feed_type='customer' in both using and with check",
+    ).toBe(2);
+    expect(
+      staffPins.length,
+      "staff branch must pin feed_type='staff' in both using and with check",
+    ).toBe(2);
+
+    // Belt-and-braces: the JWT roles cannot write tokens directly.
+    expect(migration).toMatch(
+      /revoke\s+insert,\s*update\s+on\s+(?:table\s+)?public\.calendar_feed_tokens\s+from\s+authenticated,\s*anon/i,
+    );
   });
 });
