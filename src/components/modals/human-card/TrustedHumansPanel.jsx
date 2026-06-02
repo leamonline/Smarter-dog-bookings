@@ -198,6 +198,23 @@ export function TrustedHumansPanel({
     }
     const relationship = (newRelationship || "").trim();
     try {
+      // Reuse an existing customer with this name rather than creating a
+      // duplicate. The humans directory no longer enforces a unique
+      // (name, surname), so onAddHuman would otherwise insert a second
+      // record; and the existing row may be paginated out of the local
+      // map, so the search above never offered it. A direct lookup links
+      // the real person instead.
+      const existing = findHumanByFullName
+        ? await findHumanByFullName(newName.trim(), newSurname.trim())
+        : null;
+      if (existing) {
+        await linkAsTrusted(
+          existing,
+          `Linked existing ${existing.fullName} as trusted human`,
+          relationship,
+        );
+        return;
+      }
       const result = await onAddHuman({
         name: newName.trim(),
         surname: newSurname.trim(),
@@ -209,26 +226,6 @@ export function TrustedHumansPanel({
       }
     } catch (err) {
       console.error("Failed to create new trusted human:", err);
-      const isDuplicate =
-        typeof err?.message === "string" && err.message.includes("already exists");
-      if (isDuplicate && findHumanByFullName) {
-        try {
-          const existing = await findHumanByFullName(
-            newName.trim(),
-            newSurname.trim(),
-          );
-          if (existing) {
-            await linkAsTrusted(
-              existing,
-              `Linked existing ${existing.fullName} as trusted human`,
-              relationship,
-            );
-            return;
-          }
-        } catch (lookupErr) {
-          console.error("findHumanByFullName failed:", lookupErr);
-        }
-      }
       toast.show(err?.message || "Could not add trusted human.", "error");
     }
   };
