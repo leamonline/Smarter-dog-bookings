@@ -82,6 +82,9 @@
   /* Lighter teal — gradient companion for the canonical brand-teal. */
   --color-brand-teal-light: #3BA594;
   --color-brand-green: #00D94A;
+  /* WhatsApp brand green — Inbox nav accent + unread badges. Lifts the two
+     inline bg-[#25D366]/text-[#25D366] copies into a token. */
+  --color-brand-whatsapp: #25D366;
   --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
   /* Mustard family — waitlist tab/tag palette. Lifted out of WaitlistNote
@@ -258,6 +261,11 @@
 .bg-card         { background-color: var(--color-surface-card); }
 .border-accent   { border-color: var(--color-border-accent); }
 .border-focus    { border-color: var(--color-border-focus); }
+/* `text-label` (the @theme type step) carries size/weight/tracking; font
+   tokens can't express text-transform, so this completes the uppercase kicker
+   — `text-label` alone now matches the old `text-[10px] font-bold uppercase
+   tracking-wider` pattern. */
+.text-label      { text-transform: uppercase; }
 
 /* ── Global focus ─────────────────────────────────────────────── */
 :focus-visible {

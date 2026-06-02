@@ -52,7 +52,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
   return (
     <section
       aria-label="Monthly calendar"
-      className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden"
+      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
         <button
@@ -79,7 +79,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
       <div className="p-3">
         <div className="grid grid-cols-7 gap-1 mb-1">
           {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d, i) => (
-            <div key={i} className="text-center text-[10px] font-bold text-slate-400">{d}</div>
+            <div key={i} className="text-center text-micro font-bold text-ink-muted">{d}</div>
           ))}
         </div>
 
@@ -164,7 +164,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
           })}
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-3 text-[9px] font-semibold text-slate-400">
+        <div className="mt-3 flex items-center justify-center gap-3 text-micro font-semibold text-ink-muted">
           <span className="inline-flex items-center gap-1">
             <span className="w-2 h-2 rounded-full ring-2 ring-brand-purple inline-block" />
             Today

@@ -67,7 +67,7 @@ export function CountBadgeCard({
       ].join(" ")}
     >
       <div className="flex items-center justify-between mb-1">
-        <h2 className={`text-[10px] font-bold ${theme.headingText} uppercase tracking-wider`}>
+        <h2 className={`text-label ${theme.headingText}`}>
           {heading}
         </h2>
         <span className={`w-7 h-7 rounded-full ${theme.iconBg} flex items-center justify-center`}>
@@ -88,7 +88,7 @@ export function CountBadgeCard({
               {count}
             </div>
           )}
-          <div className={`text-[11px] font-semibold ${theme.subText}`}>
+          <div className={`text-caption font-semibold ${theme.subText}`}>
             {loading ? "checking…" : count === 1 ? singular : plural}
           </div>
         </div>

@@ -30,7 +30,7 @@ export function DayHeader({
   const isToday = todayStr === currentStr;
 
   return (
-    <header className="flex items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] py-2 px-3 md:py-2.5 md:px-4">
+    <header className="flex items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting py-2 px-3 md:py-2.5 md:px-4">
       <button
         type="button"
         onClick={() => onNavigateDay(-1)}
@@ -61,7 +61,7 @@ export function DayHeader({
           type="button"
           onClick={onJumpToToday}
           aria-label="Jump to today"
-          className="hidden sm:inline-flex items-center h-9 px-3 rounded-full text-[12px] font-semibold text-brand-purple bg-white border border-slate-200 cursor-pointer transition-colors hover:border-brand-yellow/60 hover:bg-brand-yellow/10 font-[inherit] shrink-0"
+          className="hidden sm:inline-flex items-center h-9 px-3 rounded-full text-xs font-semibold text-brand-purple bg-white border border-slate-200 cursor-pointer transition-colors hover:border-brand-yellow/60 hover:bg-brand-yellow/10 font-[inherit] shrink-0"
         >
           Today
         </button>

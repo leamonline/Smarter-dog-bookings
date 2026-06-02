@@ -93,7 +93,7 @@ export function BookingMainPanel({
               vertical space in the middle column and scrolls
               internally so the bottom edge lines up with the
               Revenue card on the left. */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
             <div className="xl:flex-1 xl:min-h-0 xl:overflow-y-auto">
               {viewMode === "grid" ? (
                 <SlotGrid

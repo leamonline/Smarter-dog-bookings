@@ -1,5 +1,6 @@
 import { Plus, Clock3, XCircle } from "lucide-react";
 import { DogSilhouette } from "../decor/index.jsx";
+import { Button } from "../ui/index.js";
 
 function formatLong(dateObj) {
   return dateObj.toLocaleDateString("en-GB", {
@@ -18,7 +19,7 @@ export function EmptyDayPanel({
   return (
     <section
       aria-label="No bookings today"
-      className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 md:p-8 overflow-hidden text-center"
+      className="relative bg-white rounded-2xl border border-gray-100 shadow-card-resting p-6 md:p-8 overflow-hidden text-center"
     >
       {/* Soft brand decor */}
       <div className="absolute -right-6 -bottom-8 opacity-[0.08] pointer-events-none" aria-hidden="true">
@@ -38,22 +39,20 @@ export function EmptyDayPanel({
         </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2 flex-wrap">
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={onAddBooking}
-            className="btn btn-primary inline-flex items-center justify-center gap-1.5"
+            iconLeft={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
           >
-            <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
             Add booking
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
             onClick={onOpenWaitlist}
-            className="btn btn-ghost inline-flex items-center justify-center gap-1.5"
+            iconLeft={<Clock3 size={15} strokeWidth={2.2} aria-hidden="true" />}
           >
-            <Clock3 size={15} strokeWidth={2.2} aria-hidden="true" />
             Open waitlist
-          </button>
+          </Button>
           <button
             type="button"
             onClick={onCloseDay}

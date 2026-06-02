@@ -32,7 +32,7 @@ function RevenueBar({ amount, pct, label, sub, statusLabel, loading = false }) {
         <div className="text-xs font-semibold text-brand-purple truncate">
           {label}
           {sub && (
-            <span className="text-slate-400 font-medium ml-1">{sub}</span>
+            <span className="text-ink-muted font-medium ml-1">{sub}</span>
           )}
         </div>
         <div className="text-xs font-semibold text-slate-500 tabular-nums shrink-0 flex items-center gap-1.5">
@@ -41,7 +41,7 @@ function RevenueBar({ amount, pct, label, sub, statusLabel, loading = false }) {
           ) : (
             <>
               <span className="font-bold text-brand-teal-text">£{amount}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-label text-ink-muted">
                 {statusLabel}
               </span>
             </>
@@ -90,9 +90,9 @@ export function WeeklyRevenueCard({
   return (
     <section
       aria-label="Revenue summary"
-      className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-4"
+      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting p-4"
     >
-      <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+      <h2 className="text-label text-ink-muted mb-3">
         Revenue
       </h2>
 
