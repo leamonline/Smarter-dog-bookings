@@ -11,7 +11,7 @@ const TONES = {
   soft: {
     neutral: "bg-slate-100 text-slate-700 border-slate-200",
     info: "bg-sky-100 text-sky-800 border-sky-200",
-    success: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    success: "bg-brand-green-100 text-brand-green-800 border-brand-green-200",
     warning: "bg-amber-100 text-amber-900 border-amber-300",
     danger: "bg-red-100 text-red-800 border-red-200",
     brand: "bg-brand-purple/10 text-brand-purple border-brand-purple/20",
@@ -19,7 +19,7 @@ const TONES = {
   solid: {
     neutral: "bg-slate-600 text-white border-transparent",
     info: "bg-sky-600 text-white border-transparent",
-    success: "bg-emerald-600 text-white border-transparent",
+    success: "bg-brand-green-600 text-white border-transparent",
     warning: "bg-amber-500 text-white border-transparent",
     danger: "bg-brand-coral text-white border-transparent",
     brand: "bg-brand-purple text-white border-transparent",
@@ -27,7 +27,7 @@ const TONES = {
   outline: {
     neutral: "bg-white text-slate-700 border-slate-300",
     info: "bg-white text-sky-700 border-sky-300",
-    success: "bg-white text-emerald-700 border-emerald-300",
+    success: "bg-white text-brand-green-700 border-brand-green-300",
     warning: "bg-white text-amber-800 border-amber-300",
     danger: "bg-white text-red-700 border-red-300",
     brand: "bg-white text-brand-purple border-brand-purple/30",

@@ -82,6 +82,17 @@
   /* Lighter teal — gradient companion for the canonical brand-teal. */
   --color-brand-teal-light: #3BA594;
   --color-brand-green: #00D94A;
+  /* Numbered success scale (green == confirmed/done). 500 == --color-brand-green. */
+  --color-brand-green-50: #ECFDF3;
+  --color-brand-green-100: #CFF8DE;
+  --color-brand-green-200: #A3EFC1;
+  --color-brand-green-300: #5FE293;
+  --color-brand-green-400: #1ECF64;
+  --color-brand-green-500: #00D94A;
+  --color-brand-green-600: #009A39;
+  --color-brand-green-700: #0A7D30;
+  --color-brand-green-800: #0B5C26;
+  --color-brand-green-900: #08401C;
   /* WhatsApp brand green — Inbox nav accent + unread badges. Lifts the two
      inline bg-[#25D366]/text-[#25D366] copies into a token. */
   --color-brand-whatsapp: #25D366;
