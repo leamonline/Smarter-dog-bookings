@@ -84,6 +84,7 @@ export function BookingMainPanel({
 
           <BookingGridControls
             bookingCount={(bookings || []).length}
+            isOpen={isOpen}
             viewMode={viewMode}
             setViewMode={setViewMode}
             onOpenDaySettings={onOpenDaySettings}

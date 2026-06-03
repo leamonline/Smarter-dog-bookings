@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { toDateStr } from "../../supabase/transforms.js";
-import { getDefaultOpenForDate } from "../../engine/utils.js";
+import { isDateOpen } from "../../engine/utils.js";
 
 export function DatePickerModal({
   currentDate,
@@ -81,9 +81,7 @@ export function DatePickerModal({
 
             const cellDate = new Date(viewYear, viewMonth, d);
             const dateStr = toDateStr(cellDate);
-            const isOpen = dayOpenState?.[dateStr] !== undefined
-              ? dayOpenState[dateStr]
-              : getDefaultOpenForDate(cellDate);
+            const isOpen = isDateOpen(dateStr, dayOpenState);
             const disabled = !isOpen;
             const selected = isSelected(d);
             const today = isToday(d);
@@ -124,9 +122,7 @@ export function DatePickerModal({
             onClick={() => {
               const today = new Date();
               const todayStr = toDateStr(today);
-              const isOpen = dayOpenState?.[todayStr] !== undefined
-                ? dayOpenState[todayStr]
-                : getDefaultOpenForDate(today);
+              const isOpen = isDateOpen(todayStr, dayOpenState);
               if (isOpen) onSelectDate(today);
             }}
             className="bg-transparent border-[1.5px] border-brand-cyan rounded-lg px-5 py-2 text-[13px] font-semibold text-brand-cyan cursor-pointer font-[inherit] hover:bg-sky-50"

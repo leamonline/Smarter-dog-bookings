@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { getDefaultOpenForDate } from "../../engine/utils.js";
+import { isDateOpen } from "../../engine/utils.js";
 import { toDateStr } from "../../supabase/transforms.js";
 
 function addDays(date, n) {
@@ -38,18 +38,11 @@ export function RescheduleModal({
     for (let i = 1; i <= 7; i++) {
       const d = addDays(currentDateObj, i);
       const dateStr = toDateStr(d);
-      const settings = daySettings?.[dateStr] || {
-        isOpen:
-          dayOpenState?.[dateStr] !== undefined
-            ? dayOpenState[dateStr]
-            : getDefaultOpenForDate(d),
-        overrides: {},
-        extraSlots: [],
-      };
-      const isOpen =
-        dayOpenState?.[dateStr] !== undefined
-          ? dayOpenState[dateStr]
-          : settings.isOpen;
+      // Open/closed via the shared resolver (explicit override >
+      // daySettings.isOpen > weekday default). settings still supplies the
+      // slot overrides/extras for the picker below.
+      const settings = daySettings?.[dateStr] || { overrides: {}, extraSlots: [] };
+      const isOpen = isDateOpen(dateStr, dayOpenState, daySettings);
 
       result.push({ date: d, dateStr, settings, isOpen });
     }
@@ -62,6 +55,15 @@ export function RescheduleModal({
   // shape: { dateStr: string, slot: string, reason: string }
 
   const selectedDay = days.find((d) => d.dateStr === selectedDateStr);
+
+  // If the chosen day flips closed while the modal is open (e.g. a staff
+  // member closes it elsewhere), drop the held slot so we can't confirm a
+  // reschedule onto a closed day.
+  useEffect(() => {
+    if (selectedSlot && selectedDay && !selectedDay.isOpen) {
+      setSelectedSlot(null);
+    }
+  }, [selectedSlot, selectedDay]);
 
   // Slots split into two lists: directly bookable (green), and
   // capacity-blocked but staff-overridable (amber). Data-integrity
@@ -103,7 +105,7 @@ export function RescheduleModal({
   };
 
   const handleConfirm = () => {
-    if (!selectedDateStr || !selectedSlot) return;
+    if (!selectedDateStr || !selectedSlot || !selectedDay?.isOpen) return;
     onConfirm(selectedDateStr, selectedSlot);
   };
 
@@ -160,6 +162,14 @@ export function RescheduleModal({
 
         {/* Slot picker */}
         {selectedDay && (
+          !selectedDay.isOpen ? (
+            <div
+              role="status"
+              className="mb-5 py-2.5 px-3 rounded-lg bg-brand-coral-light text-brand-coral text-xs font-bold"
+            >
+              This day is now closed. Pick another date.
+            </div>
+          ) : (
           <>
             <div className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide mb-2">
               Available Slots
@@ -207,6 +217,7 @@ export function RescheduleModal({
               </div>
             )}
           </>
+          )
         )}
 
         {/* Actions */}

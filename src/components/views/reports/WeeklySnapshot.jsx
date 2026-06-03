@@ -1,16 +1,9 @@
 import { useMemo } from "react";
-import { PRICING, SALON_SLOTS } from "../../../constants/index.js";
+import { SALON_SLOTS } from "../../../constants/index.js";
 import { useSalon } from "../../../contexts/SalonContext.js";
-import { getDogByIdOrName } from "../../../engine/bookingRules.js";
+import { computeRevenue } from "../../../engine/pricing.js";
 import { toDateStr } from "../../../supabase/transforms.js";
 import { Trend } from "./ReportWidgets.jsx";
-
-function parsePrice(service, size, customPrice) {
-  if (customPrice != null && customPrice > 0) return customPrice;
-  const priceStr = PRICING[service]?.[size] || "";
-  const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
-  return isNaN(num) ? 0 : num;
-}
 
 function getWeekDates(refDate) {
   const d = new Date(refDate);
@@ -28,13 +21,6 @@ function getWeekDates(refDate) {
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function revenueForDay(bookings, dogs) {
-  return bookings.reduce((sum, b) => {
-    const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-    return sum + parsePrice(b.service, b.size, dog?.customPrice);
-  }, 0);
-}
 
 function buildInsight(thisWeekData, thisWeekTotal, thisWeekCount, openSlots, fillPct) {
   if (thisWeekCount === 0) {
@@ -72,7 +58,7 @@ export function WeeklySnapshot() {
     return thisWeekDates.map((date, i) => {
       const dateStr = toDateStr(date);
       const dayBookings = bookingsByDate[dateStr] || [];
-      const revenue = revenueForDay(dayBookings, dogs);
+      const revenue = computeRevenue(dayBookings, dogs);
       return {
         label: DAY_LABELS[i],
         dateStr,
@@ -86,7 +72,7 @@ export function WeeklySnapshot() {
   const lastWeekTotal = useMemo(() => {
     return lastWeekDates.reduce((sum, date) => {
       const dateStr = toDateStr(date);
-      return sum + revenueForDay(bookingsByDate[dateStr] || [], dogs);
+      return sum + computeRevenue(bookingsByDate[dateStr] || [], dogs);
     }, 0);
   }, [lastWeekDates, bookingsByDate, dogs]);
 

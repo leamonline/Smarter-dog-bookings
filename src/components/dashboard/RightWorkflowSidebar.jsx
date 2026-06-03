@@ -64,12 +64,6 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
     remindersData.loading ||
     waitlistLoading ||
     todosLoading;
-  const allCalm =
-    !anyLoading &&
-    tones.inbox.tone === "calm" &&
-    tones.reminders.tone === "calm" &&
-    tones.waitlist.tone === "calm" &&
-    tones.todos.tone === "calm";
 
   // Render each card with stable identity so the DOM reorder doesn't
   // remount them (the inbox AI summary panel would otherwise flicker).
@@ -135,24 +129,47 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
     ],
   );
 
+  // While anything is still loading we don't yet know each card's true tone,
+  // so keep them all as full cards rather than collapsing prematurely.
+  const loud = anyLoading ? cards : cards.filter((c) => c.tone.tone !== "calm");
+  const calm = anyLoading ? [] : cards.filter((c) => c.tone.tone === "calm");
+
+  // Each calm card folds into a single tertiary-link chip in the summary row.
+  const calmChipFor = (key) => {
+    switch (key) {
+      case "inbox":
+        return { key, label: "Inbox clear", hue: "emerald", onClick: () => navigate("/whatsapp") };
+      case "reminders":
+        return {
+          key,
+          label: remindersData.targetDate ? "All reminders sent" : "No bookings tomorrow",
+          hue: "amber",
+          onClick: () => {
+            /* no destination — TomorrowRemindersCard owns the loud UI */
+          },
+        };
+      case "waitlist":
+        return { key, label: "Waitlist empty", hue: "sky", onClick: onOpenWaitlist };
+      case "todos":
+        return { key, label: "No open tasks", hue: "rose", onClick: onOpenTodos };
+      default:
+        return null;
+    }
+  };
+  const calmChips = calm.map((c) => calmChipFor(c.key)).filter(Boolean);
+
   return (
     <aside
       className="flex flex-col gap-4"
       aria-label="Workflow inbox and quick actions"
     >
-      {allCalm ? (
-        <RightRailCalmRow
-          onOpenInbox={() => navigate("/whatsapp")}
-          onOpenReminders={() => {
-            /* no destination — TomorrowRemindersCard owns the loud UI */
-          }}
-          onOpenWaitlist={onOpenWaitlist}
-          onOpenTodos={onOpenTodos}
-          remindersTargetLabel={remindersData.targetDate}
-        />
-      ) : (
-        cards.map((c) => <div key={c.key}>{c.node}</div>)
-      )}
+      {/* Loud cards (attention / active) stay full and sit on top; the calm
+          remainder collapses into one compact summary row beneath them so it
+          supports the schedule rather than competing with it. */}
+      {loud.map((c) => (
+        <div key={c.key}>{c.node}</div>
+      ))}
+      {calmChips.length > 0 && <RightRailCalmRow chips={calmChips} />}
       <BookingHistoryCard />
     </aside>
   );

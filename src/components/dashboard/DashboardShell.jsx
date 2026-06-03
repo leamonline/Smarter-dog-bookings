@@ -33,7 +33,7 @@ export function DashboardShell({ left, main, right }) {
     : undefined;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_320px] gap-4 xl:gap-6 relative xl:items-start">
+    <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-4 xl:gap-6 relative xl:items-start">
       {/* Left sidebar — visible on xl+, content drives the row height
           for the middle + right columns via ResizeObserver. */}
       {left && (

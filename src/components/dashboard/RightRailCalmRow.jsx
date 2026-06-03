@@ -1,13 +1,14 @@
 // ============================================================
 // src/components/dashboard/RightRailCalmRow.jsx
 //
-// Collapsed fallback for the right rail. Renders only when all four
-// resolved tones are calm — replaces the four stacked cards with a
-// single one-line summary, reclaiming vertical space when the salon
-// is fully on top of things. Each chip is a tertiary link to its
-// own destination, matching the per-card CTA in the calm tone.
+// Compact summary row for the right rail's calm cards. Replaces a
+// stack of muted cards with a single one-line strip of tertiary-link
+// chips — used both when every card is calm (the full four) and when
+// only some are (the calm remainder sitting below the loud cards).
+// Each chip keeps its card's hue so it stays identifiable at a glance.
 // ============================================================
 
+import { Fragment } from "react";
 import { ArrowRight } from "lucide-react";
 
 function Chip({ label, onClick, hue }) {
@@ -31,30 +32,29 @@ function Chip({ label, onClick, hue }) {
   );
 }
 
-export function RightRailCalmRow({
-  onOpenInbox,
-  onOpenReminders,
-  onOpenWaitlist,
-  onOpenTodos,
-  remindersTargetLabel,
-}) {
+// chips: [{ key, label, onClick, hue }] — one per calm card, in display order.
+export function RightRailCalmRow({ chips }) {
+  if (!chips || chips.length === 0) return null;
+  // The full four collapsing means "all clear"; a calm remainder sitting
+  // beneath loud cards is just the quiet items.
+  const summaryLabel =
+    chips.length >= 4
+      ? "Right rail summary, all clear"
+      : "Right rail summary, quiet items";
   return (
     <div
       role="status"
-      aria-label="Right rail summary, all clear"
+      aria-label={summaryLabel}
       className="rounded-2xl bg-neutral-50 border border-neutral-200/60 px-3 py-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-neutral-600"
     >
-      <Chip label="Inbox clear" onClick={onOpenInbox} hue="emerald" />
-      <span className="text-neutral-300" aria-hidden="true">·</span>
-      <Chip
-        label={remindersTargetLabel ? `All reminders sent` : "No bookings tomorrow"}
-        onClick={onOpenReminders}
-        hue="amber"
-      />
-      <span className="text-neutral-300" aria-hidden="true">·</span>
-      <Chip label="Waitlist empty" onClick={onOpenWaitlist} hue="sky" />
-      <span className="text-neutral-300" aria-hidden="true">·</span>
-      <Chip label="No open tasks" onClick={onOpenTodos} hue="rose" />
+      {chips.map((chip, i) => (
+        <Fragment key={chip.key}>
+          {i > 0 && (
+            <span className="text-neutral-300" aria-hidden="true">·</span>
+          )}
+          <Chip label={chip.label} onClick={chip.onClick} hue={chip.hue} />
+        </Fragment>
+      ))}
     </div>
   );
 }

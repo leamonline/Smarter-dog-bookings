@@ -336,10 +336,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                   ? `Capacity overridden on ${formatOverrideAt(booking.staffCapacityOverrideAt)}`
                   : "Capacity overridden by staff"
               }
-              className="self-center text-[8px] md:text-[9px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-1 py-0.5 rounded-md shrink-0 leading-none"
-            >
-              Over
-            </span>
+              className="self-center inline-block w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-100 shrink-0"
+            />
           )}
           {booking.reminderConfirmedAt && (
             <span
@@ -353,26 +351,31 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               </svg>
             </span>
           )}
-          {pricing.isPaidInFull ? (
-            <span
-              className="text-[10px] md:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md ml-auto shrink-0"
-              title={`Paid in full (£${pricing.subtotal})`}
-            >
-              Paid
-            </span>
-          ) : pricing.subtotal > 0 ? (
-            <span
-              className="text-[10px] md:text-[11px] font-bold text-slate-500 ml-auto shrink-0 tabular-nums"
-              title={pricing.isDepositPaid ? `£${pricing.amountDue} due (deposit of £${pricing.depositPaid} paid)` : undefined}
-            >
-              {"\u00A3"}{pricing.amountDue}
-              {pricing.isDepositPaid && (
-                <span className="ml-1 text-[9px] md:text-[10px] font-semibold text-emerald-600 align-middle">
-                  dep.
+          {pricing.subtotal > 0 && (
+            // Main number is always the full appointment value (service +
+            // add-ons + custom price). Payment state is secondary: a "due"
+            // figure so the till sees what to collect, or a "Paid" chip.
+            <span className="ml-auto shrink-0 inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums">
+              <span className="text-[12px] md:text-[13px] font-bold text-slate-800">
+                {"£"}{pricing.subtotal}
+              </span>
+              {pricing.isPaidInFull ? (
+                <span
+                  className="text-[9px] md:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded leading-none"
+                  title={`Paid in full (£${pricing.subtotal})`}
+                >
+                  Paid
                 </span>
-              )}
+              ) : pricing.isDepositPaid ? (
+                <span
+                  className="text-[10px] md:text-[11px] font-semibold text-slate-500"
+                  title={`£${pricing.amountDue} due at pick-up (deposit of £${pricing.depositPaid} paid)`}
+                >
+                  {"\u00A3"}{pricing.amountDue} due
+                </span>
+              ) : null}
             </span>
-          ) : null}
+          )}
         </div>
 
         {/* Row 2: service — what we're doing today */}

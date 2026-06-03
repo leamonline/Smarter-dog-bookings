@@ -1,25 +1,12 @@
 // ─── helpers shared across NewBookingModal sub-components ─────────────────
 
 import { looksLikeUuid } from "../../../utils/formatOwnerLabel.js";
-import { ALL_DAYS } from "../../../constants/index.js";
 
-/**
- * True when the salon is open on dateStr. Uses dayOpenState when an override
- * is present, otherwise falls back to the day-of-week default from ALL_DAYS.
- * Mirrors AvailabilityCalendar's rule so every part of the new-booking flow
- * agrees on which days are bookable.
- */
-export function isDateOpen(dateStr, dayOpenState) {
-  if (!dateStr) return false;
-  if (dayOpenState && dayOpenState[dateStr] !== undefined) {
-    return Boolean(dayOpenState[dateStr]);
-  }
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  const dayOfWeek = date.getDay();
-  const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  return Boolean(ALL_DAYS[dayIndex]?.defaultOpen);
-}
+// The salon open/closed resolver now lives in the engine so every picker,
+// calendar and capacity calc shares one implementation (precedence:
+// dayOpenState > daySettings.isOpen > weekday default). Re-exported here so the
+// existing new-booking imports — and their test suite — keep working unchanged.
+export { isDateOpen } from "../../../engine/utils.js";
 
 /**
  * One entry per dog, with the owner and trusted humans grouped inside.

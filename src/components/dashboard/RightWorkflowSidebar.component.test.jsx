@@ -118,21 +118,29 @@ describe("RightWorkflowSidebar", () => {
     expect(screen.getByLabelText(/WhatsApp inbox/i)).toBeInTheDocument();
   });
 
-  it("renders all four cards stacked when at least one is loud", () => {
+  it("keeps loud cards full but collapses the calm ones into a summary row", () => {
     setupHooks({
+      // active inbox is loud; reminders / waitlist / todos stay calm.
       inbox: {
         awaitingReply: 2,
         oldestUnansweredAt: new Date(Date.now() - 30 * 60_000).toISOString(),
       },
     });
     renderRail();
+    // The loud inbox stays a full card...
     expect(screen.getByLabelText(/WhatsApp inbox/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Reminders for/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Waitlist/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/To-do list/i)).toBeInTheDocument();
+    // ...while the calm cards drop into the compact summary row instead of
+    // competing as full cards.
+    expect(screen.queryByLabelText(/Waitlist/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/To-do list/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /right rail summary/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/waitlist empty/i)).toBeInTheDocument();
+    expect(screen.getByText(/no open tasks/i)).toBeInTheDocument();
   });
 
-  it("orders attention cards before active cards before calm cards", () => {
+  it("orders attention before active among the loud cards", () => {
     setupHooks({
       // active: 2 messages, oldest 30 mins ago
       inbox: {
@@ -157,10 +165,11 @@ describe("RightWorkflowSidebar", () => {
       .filter(Boolean);
     const inboxIdx = labels.findIndex((l) => l?.startsWith("WhatsApp inbox"));
     const todoIdx = labels.findIndex((l) => l?.startsWith("To-do list"));
-    const waitlistIdx = labels.findIndex((l) => l?.startsWith("Waitlist"));
 
-    // To-do (attention) comes before Inbox (active) comes before Waitlist (calm).
+    // To-do (attention) sorts before Inbox (active) among the full cards; the
+    // calm waitlist/reminders are now chips in the summary row, not regions.
+    expect(todoIdx).toBeGreaterThanOrEqual(0);
+    expect(inboxIdx).toBeGreaterThanOrEqual(0);
     expect(todoIdx).toBeLessThan(inboxIdx);
-    expect(inboxIdx).toBeLessThan(waitlistIdx);
   });
 });

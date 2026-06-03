@@ -8,6 +8,8 @@ import { SkeletonCard } from "../shared/SkeletonCard.jsx";
 import { SlotRowMenu } from "./SlotRowMenu.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop.js";
+import { currentSlotIndex } from "../../engine/utilisation.js";
+import { toDateStr } from "../../supabase/transforms.js";
 
 export function SlotGrid({
   bookings,
@@ -89,6 +91,13 @@ export function SlotGrid({
   const searchActive = searchQuery && searchQuery.trim().length > 0;
   const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
 
+  // Today-only "Now" row: the slot currently in progress. -1 (no marker) when
+  // viewing any other date or when outside salon hours.
+  const nowIdx = useMemo(() => {
+    if (currentDateStr !== toDateStr(new Date())) return -1;
+    return currentSlotIndex(activeSlots, new Date());
+  }, [currentDateStr, activeSlots]);
+
   const rows = useMemo(() => {
     const result = activeSlots.map((slot, i) => {
       const slotOverrides = overrides?.[slot] || {};
@@ -111,18 +120,30 @@ export function SlotGrid({
     // scans down the day. Even-index rows (08:30, 09:30, 10:30…)
     // pick up a hint of blue; odd-index rows stay clean white.
     const rowBg = index % 2 === 0 ? "bg-sky-50/60" : "bg-white";
+    const isNow = index === nowIdx;
 
     return (
       <div
         key={slot}
         className={[
-          `grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr] md:grid-cols-[52px_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
+          `relative grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr] md:grid-cols-[52px_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
           hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
-          !hasBooking ? "opacity-70 hover:opacity-100 transition-opacity" : "",
+          !hasBooking && !isNow ? "opacity-70 hover:opacity-100 transition-opacity" : "",
           rowBg,
         ].filter(Boolean).join(" ")}
       >
+        {isNow && (
+          <>
+            <span
+              className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-brand-teal"
+              aria-hidden="true"
+            />
+            <span className="pointer-events-none absolute top-0 left-0 z-10 inline-flex items-center rounded-br-lg bg-brand-teal px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+              Now
+            </span>
+          </>
+        )}
         <div className="border-r-2 border-slate-200 pr-1 md:pr-1.5 self-stretch flex items-center justify-center">
           <SlotRowMenu
             slot={slot}
@@ -196,7 +217,7 @@ export function SlotGrid({
                 return (
                   <div
                     key={seat.seatIndex}
-                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-400 text-[11px] font-semibold italic"
+                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
                   >
                     (large dog)
                   </div>
@@ -214,13 +235,13 @@ export function SlotGrid({
                 return (
                   <div
                     key={seat.seatIndex}
-                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-300"
+                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="#D1D5DB" strokeWidth="2" />
-                      <line x1="6" y1="6" x2="18" y2="18" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" />
+                      <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
+                      <line x1="6" y1="6" x2="18" y2="18" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" />
                     </svg>
-                    <span className="text-[10px] font-semibold text-slate-300">Closed</span>
+                    <span className="text-[10px] font-semibold text-slate-600">Closed</span>
                   </div>
                 );
               }
@@ -240,7 +261,7 @@ export function SlotGrid({
         </div>
       </div>
     );
-  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride, onMoveBooking, dnd]);
+  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
 
   return (
     <div>

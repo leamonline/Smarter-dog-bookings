@@ -85,3 +85,47 @@ describe("BookingCardNew — confirm tick", () => {
     expect(screen.queryByRole("img", { name: /customer confirmed/i })).toBeNull();
   });
 });
+
+describe("BookingCardNew — appointment value & payment state", () => {
+  // full-groom / small = £42 base, no add-ons → subtotal £42.
+  it("shows the full appointment value as the main number for a plain booking", () => {
+    renderCard(bookingFixture({ service: "full-groom", size: "small", payment: "Due at Pick-up" }));
+    expect(screen.getByText("£42")).toBeInTheDocument();
+    // Nothing still owed beyond the headline number, so no separate "due" line.
+    expect(screen.queryByText(/due/i)).toBeNull();
+  });
+
+  it("keeps the full value as the main number AND shows the amount still due for a deposit-paid booking", () => {
+    renderCard(
+      bookingFixture({ service: "full-groom", size: "small", payment: "Deposit Paid", depositAmount: null }),
+    );
+    // Main number is the appointment value (£42), not the £32 still due.
+    expect(screen.getByText("£42")).toBeInTheDocument();
+    // Secondary figure tells the till what to collect.
+    expect(screen.getByText(/£32 due/i)).toBeInTheDocument();
+  });
+
+  it("shows the full value plus a 'Paid' chip for a paid-in-full booking", () => {
+    renderCard(bookingFixture({ service: "full-groom", size: "small", payment: "Paid in Full" }));
+    // The headline number must still be the appointment value, even when settled.
+    expect(screen.getByText("£42")).toBeInTheDocument();
+    expect(screen.getByText("Paid")).toBeInTheDocument();
+  });
+});
+
+describe("BookingCardNew — wordless override marker", () => {
+  it("marks a staff capacity override without the shouty 'Over' word", () => {
+    renderCard(
+      bookingFixture({
+        service: "full-groom",
+        size: "small",
+        staffCapacityOverride: true,
+        staffCapacityOverrideAt: "2026-05-31T10:00:00Z",
+      }),
+    );
+    // The meaning survives for screen readers / hover...
+    expect(screen.getByRole("img", { name: /capacity overridden/i })).toBeInTheDocument();
+    // ...but the visible "Over" text is gone.
+    expect(screen.queryByText("Over")).toBeNull();
+  });
+});

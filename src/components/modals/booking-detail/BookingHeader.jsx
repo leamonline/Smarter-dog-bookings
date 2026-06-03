@@ -46,37 +46,34 @@ export function BookingHeader({
     ageYo,
   ].filter(Boolean).join(" · ");
 
-  // Price echoed top-right, mirroring the dashboard card exactly: a "Paid"
-  // badge when settled, otherwise the amount still due (with a "dep." marker
-  // when a deposit has been taken).
+  // Price echoed top-right, mirroring the dashboard card exactly: the full
+  // appointment value as the main number for every payment state, with the
+  // payment status as a smaller secondary — a "£X due" figure when a deposit
+  // has been taken, or a "Paid" chip when settled.
   const renderPrice = () => {
-    if (!pricing) return null;
-    if (pricing.isPaidInFull) {
-      return (
-        <span
-          className="text-[12px] font-bold text-brand-green-700 bg-brand-green-50 border border-brand-green-200 px-1.5 py-0.5 rounded-md whitespace-nowrap"
-          title={`Paid in full (£${pricing.subtotal})`}
-        >
-          Paid
+    if (!pricing || pricing.subtotal <= 0) return null;
+    return (
+      <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums">
+        <span className="text-[15px] font-bold text-slate-800">
+          {"£"}{pricing.subtotal}
         </span>
-      );
-    }
-    if (pricing.subtotal > 0) {
-      return (
-        <span
-          className="text-[13px] font-bold text-slate-500 tabular-nums whitespace-nowrap"
-          title={pricing.isDepositPaid ? `£${pricing.amountDue} due (deposit of £${pricing.depositPaid} paid)` : undefined}
-        >
-          {"£"}{pricing.amountDue}
-          {pricing.isDepositPaid && (
-            <span className="ml-1 text-[10px] font-semibold text-brand-green-600 align-middle">
-              dep.
-            </span>
-          )}
-        </span>
-      );
-    }
-    return null;
+        {pricing.isPaidInFull ? (
+          <span
+            className="text-[11px] font-bold text-brand-green-700 bg-brand-green-50 border border-brand-green-200 px-1.5 py-0.5 rounded-md"
+            title={`Paid in full (£${pricing.subtotal})`}
+          >
+            Paid
+          </span>
+        ) : pricing.isDepositPaid ? (
+          <span
+            className="text-[12px] font-semibold text-slate-500"
+            title={`£${pricing.amountDue} due at pick-up (deposit of £${pricing.depositPaid} paid)`}
+          >
+            {"£"}{pricing.amountDue} due
+          </span>
+        ) : null}
+      </span>
+    );
   };
 
   return (

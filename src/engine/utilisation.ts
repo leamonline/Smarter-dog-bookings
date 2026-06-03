@@ -1,6 +1,6 @@
 import { SALON_SLOTS } from "../constants/index.js";
 import { canBookSlot } from "./capacity.js";
-import { getDefaultOpenForDate } from "./utils.js";
+import { isDateOpen } from "./utils.js";
 import { toDateStr } from "../supabase/transforms.js";
 import type {
   Booking,
@@ -57,6 +57,50 @@ export function computeDayCapacity(
   return { cap, pct };
 }
 
+export interface CapacityRatio {
+  cap: number;
+  count: number;
+  /** Uncapped count / cap (0 when closed). Lets the bar signal "over". */
+  ratio: number;
+  over: boolean;
+}
+
+/**
+ * Wordless capacity signal for the schedule controls. The ratio is deliberately
+ * uncapped (unlike computeDayCapacity's pct) so the bar + count/cap number can
+ * convey an over-booked day without ever printing the word "OVER".
+ */
+export function capacityRatio(count: number, isOpen: boolean): CapacityRatio {
+  const cap = isOpen ? DAY_CAPACITY : 0;
+  const ratio = cap > 0 ? count / cap : 0;
+  return { cap, count, ratio, over: cap > 0 && count > cap };
+}
+
+const SLOT_MINUTES = 30;
+
+function slotToMinutes(slot: string): number {
+  const [h, m] = slot.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Index of the slot currently in progress for the "Now" row, or -1 when `now`
+ * is outside salon hours. A slot owns the window [its start, the next slot's
+ * start); the final slot gets a 30-minute tail. Callers should only use this
+ * when viewing today's date.
+ */
+export function currentSlotIndex(activeSlots: string[], now: Date): number {
+  if (!activeSlots || activeSlots.length === 0) return -1;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const starts = activeSlots.map(slotToMinutes);
+  if (nowMins < starts[0]) return -1;
+  for (let i = 0; i < starts.length; i++) {
+    const end = i + 1 < starts.length ? starts[i + 1] : starts[i] + SLOT_MINUTES;
+    if (nowMins >= starts[i] && nowMins < end) return i;
+  }
+  return -1;
+}
+
 export function computeWeekCapacity(
   dates: WeekDate[] | null | undefined,
   bookingsByDate: BookingsByDate | null | undefined,
@@ -66,7 +110,7 @@ export function computeWeekCapacity(
   let openDays = 0;
   (dates || []).forEach((d) => {
     bookings += (bookingsByDate?.[d.dateStr] || []).length;
-    const isOpen = dayOpenState?.[d.dateStr] ?? getDefaultOpenForDate(d.dateObj);
+    const isOpen = isDateOpen(d.dateStr, dayOpenState);
     if (isOpen) openDays += 1;
   });
   const cap = openDays * DAY_CAPACITY;
@@ -113,7 +157,7 @@ export function findNextAvailable({
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     const dateStr = toDateStr(d);
-    const isOpen = dayOpenState?.[dateStr] ?? getDefaultOpenForDate(d);
+    const isOpen = isDateOpen(dateStr, dayOpenState);
     if (!isOpen) continue;
     const settings = daySettings?.[dateStr];
     const extraSlots = settings?.extraSlots ?? [];

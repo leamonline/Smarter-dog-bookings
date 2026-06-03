@@ -1,11 +1,20 @@
 import { PawPrint, LayoutGrid, List, Settings as SettingsIcon } from "lucide-react";
+import { capacityRatio, utilisationColor } from "../../engine/utilisation.js";
 
 export function BookingGridControls({
   bookingCount = 0,
+  isOpen = true,
   viewMode,
   setViewMode,
   onOpenDaySettings,
 }) {
+  // Wordless capacity signal: a slim colour-coded bar + count/cap number.
+  // Over-capacity reads as a full rose bar and a number past the cap (e.g.
+  // 15/14) — never the word "OVER".
+  const cap = capacityRatio(bookingCount, isOpen);
+  const barPct = Math.min(100, Math.round(cap.ratio * 100));
+  const barColor = utilisationColor(barPct);
+
   return (
     <div className="flex flex-wrap items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-2.5">
       {/* Dogs-booked pill — at-a-glance count, replaces the old
@@ -19,6 +28,25 @@ export function BookingGridControls({
         <PawPrint size={13} strokeWidth={2.4} aria-hidden="true" />
         {bookingCount} {bookingCount === 1 ? "dog booked" : "dogs booked"}
       </span>
+
+      {isOpen && cap.cap > 0 && (
+        <span
+          role="img"
+          aria-label={`${cap.count} of ${cap.cap} places booked${cap.over ? ", over capacity" : ""}`}
+          title={cap.over ? `Over capacity (${cap.count}/${cap.cap})` : `${cap.count} of ${cap.cap} places booked`}
+          className="inline-flex items-center gap-1.5"
+        >
+          <span className="relative w-14 sm:w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+            <span
+              className={`absolute inset-y-0 left-0 rounded-full ${barColor}`}
+              style={{ width: `${barPct}%` }}
+            />
+          </span>
+          <span className={`text-[11px] font-bold tabular-nums ${cap.over ? "text-rose-600" : "text-slate-500"}`}>
+            {cap.count}/{cap.cap}
+          </span>
+        </span>
+      )}
 
       <div className="flex-1" />
 

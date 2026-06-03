@@ -4,6 +4,7 @@ import {
   getDefaultOpenForDate,
   getDefaultPickupTime,
   generateTimeOptions,
+  isDateOpen,
 } from "./utils.js";
 
 describe("formatFullDate", () => {
@@ -87,5 +88,41 @@ describe("generateTimeOptions", () => {
 
   it("returns empty array for empty start", () => {
     expect(generateTimeOptions("")).toEqual([]);
+  });
+});
+
+// The single shared day-state resolver. Precedence:
+//   explicit dayOpenState[dateStr]  >  daySettings[dateStr].isOpen  >  weekday default
+describe("isDateOpen", () => {
+  it("returns false for an empty or missing dateStr", () => {
+    expect(isDateOpen("", { "2026-05-18": true })).toBe(false);
+    expect(isDateOpen(null)).toBe(false);
+    expect(isDateOpen(undefined)).toBe(false);
+  });
+
+  it("lets an explicit dayOpenState override win over daySettings and the default", () => {
+    // Thursday is closed by default and daySettings opens it, but the
+    // explicit override closes it — the override is top of the hierarchy.
+    expect(
+      isDateOpen("2026-05-21", { "2026-05-21": false }, { "2026-05-21": { isOpen: true } }),
+    ).toBe(false);
+    // Monday is open by default; the override forces it closed.
+    expect(isDateOpen("2026-05-18", { "2026-05-18": false })).toBe(false);
+  });
+
+  it("uses daySettings.isOpen when there is no dayOpenState entry for the date", () => {
+    // Thursday closed by default, but daySettings opens it.
+    expect(isDateOpen("2026-05-21", {}, { "2026-05-21": { isOpen: true } })).toBe(true);
+    // Monday open by default, but daySettings closes it.
+    expect(isDateOpen("2026-05-18", undefined, { "2026-05-18": { isOpen: false } })).toBe(false);
+  });
+
+  it("falls back to the weekday default when neither override applies", () => {
+    expect(isDateOpen("2026-05-18")).toBe(true); // Mon
+    expect(isDateOpen("2026-05-19")).toBe(true); // Tue
+    expect(isDateOpen("2026-05-21")).toBe(false); // Thu
+    expect(isDateOpen("2026-05-24")).toBe(false); // Sun
+    // daySettings present but with no entry for this date → still the default.
+    expect(isDateOpen("2026-05-21", {}, { "2026-05-22": { isOpen: true } })).toBe(false);
   });
 });

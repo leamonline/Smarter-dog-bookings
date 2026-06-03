@@ -1,20 +1,28 @@
-import { PRICING } from "../constants/index.js";
+import { computeBookingPricing, getDogByIdOrName } from "./bookingRules.js";
 import type { Booking, Dog } from "../types/index.js";
 
+/**
+ * Day / week / lifetime money figure. Delegates to the single pricing source
+ * (computeBookingPricing) and sums each booking's `subtotal` — the full
+ * appointment value (service + add-ons + the dog's custom price), independent
+ * of how much has actually been paid. This is what the booking cards show, so
+ * card totals and revenue totals can't drift. "Revenue" here means appointment
+ * value, not the amount still due at pick-up.
+ */
 export function computeRevenue(
   bookings: Booking[] | null | undefined,
   dogs: Record<string, Dog> | null | undefined,
 ): number {
   let total = 0;
   for (const b of bookings || []) {
-    const dog = dogs ? Object.values(dogs).find((d) => d.id === b._dogId) : null;
-    if (dog?.customPrice != null && dog.customPrice > 0) {
-      total += dog.customPrice;
-    } else {
-      const priceStr = PRICING[b.service]?.[b.size] || "";
-      const num = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
-      if (!isNaN(num)) total += num;
-    }
+    const dog = dogs ? getDogByIdOrName(dogs, b._dogId || b.dogName) : null;
+    const { subtotal } = computeBookingPricing({
+      service: b.service,
+      size: b.size,
+      addons: b.addons,
+      customPrice: dog?.customPrice,
+    });
+    total += subtotal;
   }
   return total;
 }

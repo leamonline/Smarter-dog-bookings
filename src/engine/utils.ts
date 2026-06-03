@@ -17,6 +17,34 @@ export const getDefaultOpenForDate = (date: Date): boolean => {
   return (ALL_DAYS as DayConfig[])[dayIndex]?.defaultOpen ?? false;
 };
 
+/**
+ * The single source of truth for "is the salon open on this date?". Every
+ * picker, calendar and capacity calc resolves open/closed through here so they
+ * can't disagree. Precedence, highest first:
+ *   1. an explicit `dayOpenState[dateStr]` (the App-level pre-resolved map, or a
+ *      staff toggle) — wins outright when present;
+ *   2. `daySettings[dateStr].isOpen` (the per-day override row from the DB);
+ *   3. the weekday default from ALL_DAYS via getDefaultOpenForDate.
+ *
+ * The 2-argument form (dateStr, dayOpenState) is still valid — callers that
+ * already pass the pre-resolved map just omit daySettings.
+ */
+export const isDateOpen = (
+  dateStr: string | null | undefined,
+  dayOpenState?: Record<string, boolean> | null,
+  daySettings?: Record<string, { isOpen?: boolean }> | null,
+): boolean => {
+  if (!dateStr) return false;
+  if (dayOpenState && dayOpenState[dateStr] !== undefined) {
+    return Boolean(dayOpenState[dateStr]);
+  }
+  if (daySettings && daySettings[dateStr]?.isOpen !== undefined) {
+    return Boolean(daySettings[dateStr]!.isOpen);
+  }
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return getDefaultOpenForDate(new Date(y, m - 1, d));
+};
+
 export const getDefaultPickupTime = (startStr: string): string => {
   if (!startStr) return "\u2014";
   let [h, m] = startStr.split(":").map(Number);

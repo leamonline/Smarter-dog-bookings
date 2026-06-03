@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "./DayTab.jsx";
+import { isDateOpen } from "../../engine/utils.js";
 
 export function CalendarTabs({
   dates,
@@ -53,7 +54,7 @@ export function CalendarTabs({
       className="grid grid-cols-7 items-center px-2 py-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
     >
       {dates.map((d, i) => {
-        const isOpen = dayOpenState[d.dateStr] ?? true;
+        const isOpen = isDateOpen(d.dateStr, dayOpenState);
         const dogCount = (bookingsByDate[d.dateStr] || []).length;
         const isActive = calendarMode !== "month" && selectedDay === i;
 

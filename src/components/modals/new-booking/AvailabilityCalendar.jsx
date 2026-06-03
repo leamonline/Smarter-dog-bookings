@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
-import { SALON_SLOTS, ALL_DAYS } from "../../../constants/index.js";
+import { SALON_SLOTS } from "../../../constants/index.js";
 import { computeSlotCapacities } from "../../../engine/capacity.js";
+import { isDateOpen } from "../../../engine/utils.js";
 import { toDateStr } from "../../../supabase/transforms.js";
 
 export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSelectDate, selectedDateStr, sizeTheme }) {
@@ -41,16 +42,9 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (date < todayStart) return "past";
 
-    // Check if day is open — use dayOpenState if available, else check default from ALL_DAYS
-    const dayOfWeek = date.getDay();
-    const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-    if (dayOpenState && dayOpenState[dateStr] !== undefined) {
-      if (!dayOpenState[dateStr]) return "closed";
-    } else {
-      // Fall back to default open state
-      if (!ALL_DAYS[dayIndex]?.defaultOpen) return "closed";
-    }
+    // Closed days aren't bookable. Resolve open/closed through the shared
+    // resolver so this picker can't disagree with the rest of the app.
+    if (!isDateOpen(dateStr, dayOpenState)) return "closed";
 
     // Check if there's any availability (at least one slot not full)
     const dayBookings = bookingsByDate?.[dateStr] || [];
