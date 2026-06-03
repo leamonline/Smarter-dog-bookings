@@ -82,8 +82,8 @@ export function eventSentence(event) {
 
 const EVENT_TONE = {
   created: {
-    dot: "bg-emerald-500",
-    pill: "text-emerald-700",
+    dot: "bg-brand-green-500",
+    pill: "text-brand-green-700",
     label: "Booked",
   },
   rescheduled: {

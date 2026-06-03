@@ -72,7 +72,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
         "inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit]",
         isClosed
           ? "bg-white border border-slate-200 text-brand-purple hover:border-brand-yellow/60"
-          : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100",
+          : "bg-brand-green-50 border border-brand-green-200 text-brand-green-800 hover:bg-brand-green-100",
         "disabled:opacity-50 disabled:cursor-not-allowed",
       ].join(" ")}
     >
