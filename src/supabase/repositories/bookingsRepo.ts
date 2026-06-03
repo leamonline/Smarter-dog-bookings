@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon.js";
 import type { Booking } from "../../types/index.js";
-import { getSlotOccupancy } from "../rpc.js";
+import { createCustomerBookingGroup, getSlotOccupancy } from "../rpc.js";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -94,24 +94,32 @@ export async function listIdsInGroup(
   return ids.length > 0 ? ids : [fallbackId];
 }
 
-// Insert a batch of bookings; returns the inserted IDs in insert order.
+// Insert a group of bookings (one row per dog) and return the inserted IDs.
+// Routes through the create_customer_booking_group SECURITY DEFINER RPC
+// rather than a raw INSERT: the RPC verifies the caller owns every dog,
+// takes the authoritative size from the dog record, assigns the group_id
+// server-side, and inserts atomically. Calendar safety (open/future/
+// unblocked day) and seat capacity are enforced by the bookings triggers,
+// which raise P0001 — preserved on `error.code` below so the wizard's
+// capacity/calendar error matcher still fires. All rows share one date
+// (a group is always a single day); status/confirmed are set by the RPC.
 export async function createMany(
   client: SupabaseClient,
   inputs: CreateBookingInput[],
 ): Promise<{ ids: string[]; error: { code?: string; message: string } | null }> {
-  const records = inputs.map((input) => ({
-    booking_date: input.bookingDate,
-    slot: input.slot,
-    dog_id: input.dogId,
-    size: input.size,
-    service: input.service,
-    status: input.status ?? BOOKING_STATUS.BOOKED,
-    confirmed: input.confirmed ?? false,
-    addons: input.addons ?? [],
-    payment: input.payment ?? "Due at Pick-up",
-    group_id: input.groupId ?? null,
-  }));
-  const { data, error } = await client.from("bookings").insert(records).select("id");
+  if (inputs.length === 0) return { ids: [], error: null };
+
+  const { data, error } = await createCustomerBookingGroup(client, {
+    bookingDate: inputs[0].bookingDate,
+    bookings: inputs.map((input) => ({
+      dog_id: input.dogId,
+      slot: input.slot,
+      service: input.service,
+      size: input.size,
+      addons: input.addons ?? [],
+      payment: input.payment ?? "Due at Pick-up",
+    })),
+  });
   if (error) {
     return {
       ids: [],
@@ -119,7 +127,7 @@ export async function createMany(
     };
   }
   return {
-    ids: (data ?? []).map((row: { id: string }) => row.id),
+    ids: ((data ?? []) as Array<{ id: string }>).map((row) => row.id),
     error: null,
   };
 }

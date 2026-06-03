@@ -107,6 +107,36 @@ export function getSlotOccupancy(client: SupabaseClient, dateStr: string) {
   return client.rpc("get_slot_occupancy", { p_date: dateStr });
 }
 
+// Customer booking creation -------------------------------------------
+
+// One row per dog in the group. group_id is assigned server-side; status
+// and confirmed are set by the RPC (customers can't choose them). size is
+// optional — the RPC takes the authoritative size from the dog record and
+// only falls back to this when the dog has no size on file.
+export interface CreateBookingGroupRow {
+  dog_id: string;
+  slot: string;
+  service: string;
+  size?: string;
+  addons?: string[];
+  payment?: string;
+}
+
+// Sole customer write path into bookings. The raw INSERT was replaced by
+// this SECURITY DEFINER RPC, which validates ownership and 1–4-dog groups
+// and inserts atomically; the bookings BEFORE-INSERT triggers enforce
+// calendar safety (open/future/unblocked) and seat capacity (raising the
+// same P0001 messages the wizard already surfaces).
+export function createCustomerBookingGroup(
+  client: SupabaseClient,
+  params: { bookingDate: string; bookings: CreateBookingGroupRow[] },
+) {
+  return client.rpc("create_customer_booking_group", {
+    p_booking_date: params.bookingDate,
+    p_bookings: params.bookings,
+  });
+}
+
 // Staff WhatsApp inbox -------------------------------------------------
 
 // Apply a pending booking proposal that the AI agent attached to a
