@@ -566,6 +566,49 @@ describe("Supabase security review regressions", () => {
     );
   });
 
+  it("locks day_settings to staff-only direct access, leaving get_open_days as the customer read path", () => {
+    // day_settings carries internal fields (overrides, extra_slots) that must
+    // stay staff-only. The leaky SELECT existed under TWO names: the file name
+    // customer_select_day_settings (20260401142945) and the live prod-drift
+    // name combined_select_day_settings (USING (true)). Both must end 'dropped'
+    // so the lockdown converges on a fresh db reset AND on drifted prod.
+    expect(finalPolicyState("customer_select_day_settings", "day_settings")).toBe(
+      "dropped",
+    );
+    expect(finalPolicyState("combined_select_day_settings", "day_settings")).toBe(
+      "dropped",
+    );
+
+    // Staff must retain a SELECT path: their calendar reads, upserts (the
+    // ON CONFLICT path needs a SELECT policy) and realtime postgres_changes
+    // subscriptions (RLS-gated on SELECT) all depend on it. Full reconciliation
+    // retires the broad FOR ALL policy in favour of explicit per-command ones.
+    expect(finalPolicyState("staff_select_day_settings", "day_settings")).toBe(
+      "created",
+    );
+    expect(finalPolicyState("staff_all_day_settings", "day_settings")).toBe(
+      "dropped",
+    );
+    expect(finalPolicyState("staff_insert_day_settings", "day_settings")).toBe(
+      "created",
+    );
+    expect(finalPolicyState("staff_update_day_settings", "day_settings")).toBe(
+      "created",
+    );
+    expect(finalPolicyState("staff_delete_day_settings", "day_settings")).toBe(
+      "created",
+    );
+
+    // The customer-safe RPC remains the sole customer read path: returns only
+    // (setting_date, is_open).
+    const rpc = getMigrationBySql((sql) =>
+      sql.includes("create or replace function public.get_open_days"),
+    );
+    expect(rpc).toMatch(
+      /returns\s+table\s*\(\s*setting_date\s+date\s*,\s*is_open\s+boolean\s*\)/i,
+    );
+  });
+
   it("makes every non-staff booking insert calendar-safe via a trigger + the customer RPC", () => {
     // The capacity trigger never checked day_settings.is_open/overrides or
     // booking_date, so a direct insert could land on a closed/past/blocked
