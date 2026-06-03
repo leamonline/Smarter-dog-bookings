@@ -70,13 +70,18 @@ function finalPolicyState(
 ): "created" | "dropped" | "absent" {
   const tablePat = `(?:public\\.)?${table}`;
 
+  // Policy names may be quoted ("staff_select_waitlist") or bare
+  // (staff_select_waitlist) in our migrations — both are valid SQL. Match
+  // either so the guard sees unquoted drops too (the form that hid the
+  // waitlist staff-lockout regression). The required trailing `\s+on`
+  // prevents a bare name matching a longer identifier prefix.
   const createRe = new RegExp(
-    `create\\s+policy\\s+"${policyName}"\\s+on\\s+${tablePat}`,
+    `create\\s+policy\\s+"?${policyName}"?\\s+on\\s+${tablePat}`,
     "gi",
   );
 
   const dropRe = new RegExp(
-    `drop\\s+policy(?:\\s+if\\s+exists)?\\s+"${policyName}"\\s+on\\s+${tablePat}`,
+    `drop\\s+policy(?:\\s+if\\s+exists)?\\s+"?${policyName}"?\\s+on\\s+${tablePat}`,
     "gi",
   );
 
@@ -621,5 +626,27 @@ describe("Supabase security review regressions", () => {
     // re-opens a permissive customer insert would flip these and fail.
     expect(finalPolicyState("staff_insert_bookings", "bookings")).toBe("created");
     expect(finalPolicyState("customer_insert_own_bookings", "bookings")).toBe("dropped");
+  });
+
+  it("keeps a combined staff+customer access policy on waitlist_entries after every migration", () => {
+    // Regression for 20260422081058_performance_advisors.sql, which dropped
+    // staff_*_waitlist citing combined_* replacements that were never
+    // committed (they existed only as live-DB drift). On a fresh
+    // `supabase db reset` that left waitlist_entries with customer own-row
+    // policies but NO staff access. The corrective migration commits the
+    // combined policies so a from-scratch build reproduces prod.
+    for (const cmd of ["select", "insert", "delete"]) {
+      expect(
+        finalPolicyState(`combined_${cmd}_waitlist_entries`, "waitlist_entries"),
+        `combined_${cmd}_waitlist_entries must survive to the final migration state`,
+      ).toBe("created");
+    }
+
+    // The legacy per-role staff policies are intentionally retired. Asserting
+    // "dropped" also proves the now quote-insensitive finalPolicyState sees
+    // the unquoted drops the old (quoted-only) helper was blind to.
+    expect(finalPolicyState("staff_select_waitlist", "waitlist_entries")).toBe("dropped");
+    expect(finalPolicyState("staff_insert_waitlist", "waitlist_entries")).toBe("dropped");
+    expect(finalPolicyState("staff_delete_waitlist", "waitlist_entries")).toBe("dropped");
   });
 });
