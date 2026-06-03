@@ -33,7 +33,6 @@ import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
 import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
 import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
-import { AIModeSelector } from "./AIModeSelector.jsx";
 import { MarkCompleteButton } from "./MarkCompleteButton.jsx";
 import { ComposeNewModal } from "./compose-new/ComposeNewModal.jsx";
 import { MessageBubble } from "./thread/MessageBubble.jsx";
@@ -66,7 +65,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     sendManualReply,
     applyBookingAction,
     rejectBookingAction,
-    setAIMode,
     resolveConversation,
     reopenConversation,
     sendTemplate,
@@ -120,23 +118,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     if (res?.ok) toast.show("Booking proposal rejected.", "info");
     return res;
   }, [rejectBookingAction, toast]);
-
-  // AIModeSelector calls this with (mode, opts) — single entry point.
-  const handleSetAIMode = useCallback(async (mode, opts) => {
-    const res = await setAIMode(mode, opts);
-    if (res?.ok) {
-      const label =
-        mode === "ai_auto"
-          ? opts?.allowAutonomousBooking
-            ? "AI auto — autonomous bookings allowed."
-            : "AI auto — drafts and auto-replies."
-          : mode === "ai_drafts"
-            ? "AI drafts — every reply waits for your nod."
-            : "Human only — AI is paused on this chat.";
-      toast.show(label, "info");
-    }
-    return res;
-  }, [setAIMode, toast]);
 
   // Resolve / reopen with an undo toast. The undo button only appears
   // for the resolve path because reopen is already cheap (and on the
@@ -491,9 +472,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
                           {displayName(selectedConversation)}
                         </span>
-                        {/* AI-state pill removed — AIModeSelector replaces it on
-                            active conversations, and the "Closed" pill above
-                            covers the closed case. */}
                       </div>
                       <div className="text-[11px] text-slate-600 truncate">
                         {formatPhoneForDisplay(selectedConversation?.phone_e164)}
@@ -501,7 +479,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {selectedConversation?.closed_at ? (
+                    {selectedConversation?.closed_at && (
                       <span
                         className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[12px] font-semibold"
                         title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
@@ -515,12 +493,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         </svg>
                         Closed
                       </span>
-                    ) : (
-                      <AIModeSelector
-                        conversation={selectedConversation}
-                        onChange={handleSetAIMode}
-                        disabled={actionInFlight}
-                      />
                     )}
                     <MarkCompleteButton
                       conversation={selectedConversation}
