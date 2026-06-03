@@ -560,4 +560,66 @@ describe("Supabase security review regressions", () => {
       /grant\s+execute\s+on\s+function\s+public\.get_open_days\(date,\s*date\)\s+to\s+[^;]*\banon\b/i,
     );
   });
+
+  it("makes every non-staff booking insert calendar-safe via a trigger + the customer RPC", () => {
+    // The capacity trigger never checked day_settings.is_open/overrides or
+    // booking_date, so a direct insert could land on a closed/past/blocked
+    // slot. A BEFORE INSERT trigger now runs the shared calendar gate for
+    // every non-staff insert (customer RPC, WhatsApp autonomous, Flow endpoint).
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("create or replace function public.create_customer_booking_group"),
+    );
+
+    // Enforcement trigger fires BEFORE INSERT on bookings.
+    expect(migration).toMatch(
+      /create\s+trigger\s+trg_enforce_booking_calendar\s+before\s+insert\s+on\s+public\.bookings/i,
+    );
+
+    // The shared gate is internal-only — revoked from anon, so it is never
+    // reachable via /rest/v1/rpc.
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.validate_booking_calendar\(date,\s*text\)\s+from\s+[^;]*\banon\b/i,
+    );
+
+    // The customer RPC is locked to authenticated: anon revoked, authenticated
+    // granted, anon never re-granted (Supabase's default-privilege trap).
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+from\s+anon/i,
+    );
+    expect(migration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+to\s+authenticated/i,
+    );
+    expect(migration).not.toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+to\s+[^;]*\banon\b/i,
+    );
+  });
+
+  it("removes raw customer booking inserts, leaving table inserts staff-only", () => {
+    // 'combined_insert_bookings' is the live (drift) policy that allowed
+    // is_staff() OR <owns the dog>; only this migration references it.
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("combined_insert_bookings"),
+    );
+
+    expect(migration).toMatch(
+      /drop\s+policy\s+if\s+exists\s+"combined_insert_bookings"\s+on\s+public\.bookings/i,
+    );
+    expect(migration).toMatch(
+      /drop\s+policy\s+if\s+exists\s+"customer_insert_own_bookings"\s+on\s+public\.bookings/i,
+    );
+
+    // Replacement insert policy is staff-only: WITH CHECK is is_staff() ALONE,
+    // with no dogs/humans ownership branch a customer could satisfy.
+    const insertPolicyBlock =
+      migration.match(/create\s+policy\s+"staff_insert_bookings"[\s\S]*?;/i)?.[0] ?? "";
+    expect(insertPolicyBlock).toMatch(
+      /for\s+insert\s+to\s+authenticated\s+with\s+check\s*\(\s*is_staff\(\)\s*\)/i,
+    );
+    expect(insertPolicyBlock).not.toMatch(/customer_user_id/i);
+
+    // Final effective state across ALL migrations: a later migration that
+    // re-opens a permissive customer insert would flip these and fail.
+    expect(finalPolicyState("staff_insert_bookings", "bookings")).toBe("created");
+    expect(finalPolicyState("customer_insert_own_bookings", "bookings")).toBe("dropped");
+  });
 });
