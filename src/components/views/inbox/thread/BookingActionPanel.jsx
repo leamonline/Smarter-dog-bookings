@@ -74,9 +74,15 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
   }
 
   return (
-    <div className="px-4 pt-3 pb-2 bg-emerald-50/60 border-t border-emerald-200">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/80 mb-2">
-        Booking proposal
+    <div className="px-4 pt-3 pb-2 bg-brand-yellow/10 border-t border-brand-yellow/30">
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-purple">
+          Booking proposal
+        </span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-yellow/20 text-brand-purple border border-brand-yellow/60">
+          <span aria-hidden="true" className="text-[8px]">●</span>
+          Proposed · awaiting your OK
+        </span>
       </div>
 
       {error && (
@@ -103,14 +109,14 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
           return (
             <div
               key={action.id}
-              className="bg-white border border-emerald-200 rounded-2xl px-3 py-2.5 shadow-[0_1px_3px_rgba(16,185,129,0.06)]"
+              className="bg-white border border-brand-yellow/30 rounded-2xl px-3 py-2.5 shadow-card-resting"
             >
               {isRejecting ? (
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Reason for rejecting (optional)"
-                  className="w-full text-[13px] p-2 bg-white border border-emerald-200 rounded-lg font-[inherit] resize-y mb-2"
+                  className="w-full text-[13px] p-2 bg-white border border-slate-200 rounded-lg font-[inherit] resize-y mb-2"
                   rows={2}
                   maxLength={500}
                   autoFocus
