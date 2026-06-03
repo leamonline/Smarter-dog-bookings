@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getDefaultOpenForDate } from "../../../engine/utils.js";
-import { ALL_DAYS } from "../../../constants/salon.js";
 import { logger } from "../../../lib/logger.js";
 import { ArrowRight } from "lucide-react";
 
@@ -13,27 +12,6 @@ interface DateSelectionProps {
 }
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-// Build a hint like "We're open Monday–Wednesday." from ALL_DAYS so the
-// copy stays in sync if salon hours change. Handles single days, contiguous
-// runs, and scattered open days.
-function openDaysHint(): string {
-  const openDays = ALL_DAYS.filter((d) => d.defaultOpen);
-  if (openDays.length === 0) return "Message us to book — we set hours week-by-week.";
-  if (openDays.length === 7) return "We're open every day.";
-  if (openDays.length === 1) return `We're open ${openDays[0].full}s.`;
-
-  const indices = openDays.map((d) => ALL_DAYS.findIndex((x) => x.key === d.key));
-  const isContiguous = indices.every((idx, i) => i === 0 || idx === indices[i - 1] + 1);
-  if (isContiguous) {
-    return `We're open ${openDays[0].full}–${openDays[openDays.length - 1].full}.`;
-  }
-
-  const labels = openDays.map((d) => d.full);
-  return `We're open ${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}.`;
-}
-
-const OPEN_DAYS_HINT = openDaysHint();
 
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
@@ -132,7 +110,7 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
       <div className="wizard-calendar">
         <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
         <p className="wizard-calendar-hint">
-          {OPEN_DAYS_HINT} Closed days are dimmed.
+          Closed days are dimmed — pick any available day.
         </p>
 
         <div className="wizard-calendar-grid">

@@ -2069,16 +2069,15 @@ serve(async (req) => {
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
           }
 
-          // Phase G — AI on demand. Skip the Claude path entirely
-          // when the conversation is in Human only mode for a KNOWN
-          // customer, unless the caller explicitly forced a draft
-          // via the "Generate reply" button (body.force_draft).
-          // Unknown customers (human_id IS NULL) still get the agent
-          // pass so the onboarding state machine can collect their
-          // details — staff don't have to babysit every cold inbound.
-          const isHumanOnly = conversation.state !== "ai_handling";
+          // AI on demand. AI replies are generated ONLY on an explicit
+          // staff click (force_draft via the "Generate reply" button). A
+          // KNOWN customer never gets an automatic draft regardless of
+          // conversation state — the inbound is persisted and waits.
+          // Unknown customers (human_id IS NULL) still get one agent pass
+          // so the onboarding state machine can collect their details —
+          // staff don't have to babysit every cold inbound.
           const isKnownCustomer = conversation.human_id != null;
-          if (isHumanOnly && isKnownCustomer && !forceDraft) {
+          if (isKnownCustomer && !forceDraft) {
             continue;
           }
 
@@ -2247,7 +2246,11 @@ serve(async (req) => {
               await dispatchConfirmButtons(supabase, conversation.id, draftId, draft.booking_action);
             }
           }
-          await dispatchIfEligible(draftId, policy);
+          // A staff-clicked (force_draft) draft always waits for approval —
+          // never auto-send it, regardless of env/conversation flags.
+          if (!forceDraft) {
+            await dispatchIfEligible(draftId, policy);
+          }
         }
 
         // Status updates on our previously-sent messages

@@ -220,7 +220,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
           )}
 
           {isSent ? (
-            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-[13px] text-emerald-900">
+            <div className="p-3 rounded-lg bg-brand-green-50 border border-brand-green-200 text-[13px] text-brand-green-900">
               Reminder already sent
               {row.reminderChannel ? ` via ${CHANNEL_LABEL[row.reminderChannel] ?? row.reminderChannel}` : ""}
               {row.reminderSentAt

@@ -38,7 +38,7 @@ export function BookingCreatedCard({ action, dogNamesById }) {
     <div className="flex justify-center my-2">
       <Link
         to={href}
-        className="inline-flex items-center gap-2 max-w-[80%] px-3 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[12px] font-semibold no-underline hover:bg-emerald-100 transition-colors"
+        className="inline-flex items-center gap-2 max-w-[80%] px-3 py-2 rounded-full bg-brand-green-50 border border-brand-green-200 text-brand-green-900 text-[12px] font-semibold no-underline hover:bg-brand-green-100 transition-colors"
       >
         <span aria-hidden="true">✓</span>
         <span>
@@ -46,7 +46,7 @@ export function BookingCreatedCard({ action, dogNamesById }) {
           {slot ? ` ${slot}` : ""}
           {autoApplied ? " (auto-applied)" : ""}
         </span>
-        <span className="text-[10px] text-emerald-700/70">
+        <span className="text-[10px] text-brand-green-700/70">
           · {formatWhen(action?.applied_at || action?.created_at)}
         </span>
       </Link>

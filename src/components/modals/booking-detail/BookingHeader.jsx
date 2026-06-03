@@ -54,7 +54,7 @@ export function BookingHeader({
     if (pricing.isPaidInFull) {
       return (
         <span
-          className="text-[12px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md whitespace-nowrap"
+          className="text-[12px] font-bold text-brand-green-700 bg-brand-green-50 border border-brand-green-200 px-1.5 py-0.5 rounded-md whitespace-nowrap"
           title={`Paid in full (£${pricing.subtotal})`}
         >
           Paid
@@ -69,7 +69,7 @@ export function BookingHeader({
         >
           {"£"}{pricing.amountDue}
           {pricing.isDepositPaid && (
-            <span className="ml-1 text-[10px] font-semibold text-emerald-600 align-middle">
+            <span className="ml-1 text-[10px] font-semibold text-brand-green-600 align-middle">
               dep.
             </span>
           )}

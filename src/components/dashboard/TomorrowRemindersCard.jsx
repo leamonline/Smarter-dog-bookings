@@ -53,7 +53,7 @@ function ReminderRow({ row, onOpen, busy }) {
       className={[
         "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-[12px]",
         sent
-          ? "bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100/80 cursor-pointer"
+          ? "bg-brand-green-50/80 text-brand-green-900 hover:bg-brand-green-100/80 cursor-pointer"
           : busy
             ? "bg-amber-100 text-amber-900"
             : "bg-white/70 hover:bg-white border border-amber-100 text-amber-900 cursor-pointer",
@@ -62,11 +62,11 @@ function ReminderRow({ row, onOpen, busy }) {
       <span className="shrink-0 flex items-center gap-0.5">
         {sent ? (
           <>
-            <CheckCircle2 size={16} className="text-emerald-600" aria-label="Reminder sent" />
+            <CheckCircle2 size={16} className="text-brand-green-600" aria-label="Reminder sent" />
             {row.confirmed && (
               <CheckCircle2
                 size={16}
-                className="text-emerald-700 fill-emerald-100"
+                className="text-brand-green-700 fill-brand-green-100"
                 aria-label={
                   row.reminderConfirmedAt
                     ? `Customer confirmed at ${new Date(row.reminderConfirmedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`

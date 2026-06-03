@@ -842,7 +842,7 @@ function ConfirmedByCustomerFooter({ at }) {
   })();
 
   return (
-    <div className="px-3 py-2.5 mb-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
+    <div className="px-3 py-2.5 mb-3 bg-brand-green-50 border border-brand-green-200 text-brand-green-800 rounded-xl text-[12px] font-semibold leading-snug shadow-sm">
       <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1">Confirmed</span>
       Customer confirmed via WhatsApp on {when}.
     </div>
