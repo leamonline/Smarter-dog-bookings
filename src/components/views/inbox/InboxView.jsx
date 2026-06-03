@@ -576,6 +576,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 )}
               </div>
 
+              {/* Action dock — pending draft, booking proposal, and the
+                  generate-reply button. Bounded height + internal scroll so
+                  a tall stack can't push the pinned composer off-screen. */}
+              <div className="shrink-0 max-h-[45%] overflow-y-auto">
+
               {/* Pending AI draft — only rendered when there is one.
                   Passing the conversation lets the WhyHeldExplainer inside
                   the panel narrate why this draft is awaiting your nod
@@ -616,9 +621,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   }
                 }}
               />
+              </div>
 
               {/* Free-form compose box — always available when a
-                  conversation is selected, gated on the 24h window */}
+                  conversation is selected, gated on the 24h window. Sits
+                  OUTSIDE the action dock above, so it stays pinned at the
+                  bottom of the detail pane and never scrolls away. */}
               <ComposePanel
                 conversation={selectedConversation}
                 onSend={handleSendManualReply}
