@@ -97,6 +97,16 @@ export function linkCustomerToHuman(client: SupabaseClient) {
   return client.rpc("link_customer_to_human");
 }
 
+// Customer slot availability ------------------------------------------
+
+// Read (slot, size) for every non-cancelled booking on a date. The
+// bookings RLS only exposes the caller's own rows, so the capacity
+// engine needs this SECURITY DEFINER RPC to see the full occupancy.
+// Returns no PII — just what the engine reads.
+export function getSlotOccupancy(client: SupabaseClient, dateStr: string) {
+  return client.rpc("get_slot_occupancy", { p_date: dateStr });
+}
+
 // Staff WhatsApp inbox -------------------------------------------------
 
 // Apply a pending booking proposal that the AI agent attached to a
