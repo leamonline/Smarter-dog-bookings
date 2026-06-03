@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon.js";
 import type { Booking } from "../../types/index.js";
+import { getSlotOccupancy } from "../rpc.js";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -23,35 +24,26 @@ export interface CreateBookingInput {
   groupId?: string | null;
 }
 
-interface DbBookingRow {
-  id: string;
-  slot: string;
-  size: string;
-  service: string;
-  status: string;
-  addons: string[] | null;
-  payment: string | null;
-  confirmed: boolean | null;
-  dog_id: string;
-  pickup_by_id: string | null;
-  booking_date: string;
-  group_id?: string | null;
-}
-
-function dbRowToCapacityBooking(row: DbBookingRow): Booking {
+// Build the minimal Booking the capacity engine reads. The engine only
+// looks at `slot` and `size` (see src/engine/capacity.ts); every other
+// field is inert filler so the object satisfies the Booking type. PII
+// (names, owner, pickup) is intentionally absent — it never leaves the
+// server for this path. Rows arrive already filtered to non-cancelled,
+// so labelling them BOOKED keeps the object internally honest.
+function occupancyRowToBooking(row: { slot: string; size: string }): Booking {
   return {
-    id: row.id,
+    id: "",
     slot: row.slot,
     size: row.size as Booking["size"],
     dogName: "",
     breed: "",
-    service: row.service as Booking["service"],
+    service: "" as Booking["service"],
     owner: "",
-    status: row.status as Booking["status"],
-    addons: row.addons ?? [],
+    status: BOOKING_STATUS.BOOKED as Booking["status"],
+    addons: [],
     pickupBy: "",
-    payment: row.payment ?? "",
-    confirmed: row.confirmed ?? false,
+    payment: "",
+    confirmed: false,
     dogNameSnapshot: null,
     breedSnapshot: null,
     ownerNameSnapshot: null,
@@ -61,30 +53,29 @@ function dbRowToCapacityBooking(row: DbBookingRow): Booking {
     staffCapacityOverrideBy: null,
     staffCapacityOverrideAt: null,
     reminderConfirmedAt: null,
-    _dogId: row.dog_id,
+    _dogId: "",
     _ownerId: null,
-    _pickupById: row.pickup_by_id ?? null,
-    _bookingDate: row.booking_date,
-    _groupId: row.group_id ?? null,
+    _pickupById: null,
+    _bookingDate: "",
+    _groupId: null,
   };
 }
 
-// Read bookings for a single date in the engine's expected Booking[]
-// shape. The customer wizard uses this for a last-second capacity
-// recheck before insert.
+// Read (slot, size) for non-cancelled bookings on a date, mapped into
+// the engine's Booking[] shape. Backed by the get_slot_occupancy
+// SECURITY DEFINER RPC so the customer client sees the FULL occupancy —
+// the per-customer bookings RLS would otherwise hide other customers'
+// rows, making availability calculate from incomplete data. Used by
+// both the slot picker (SlotSelection) and the wizard's pre-insert
+// capacity recheck.
 export async function listOnDateForCapacity(
   client: SupabaseClient,
   dateStr: string,
 ): Promise<{ bookings: Booking[]; error: Error | null }> {
-  const { data, error } = await client
-    .from("bookings")
-    .select(
-      "id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date, group_id",
-    )
-    .eq("booking_date", dateStr);
+  const { data, error } = await getSlotOccupancy(client, dateStr);
   if (error) return { bookings: [], error: new Error(error.message) };
-  const rows = (data ?? []) as DbBookingRow[];
-  return { bookings: rows.map(dbRowToCapacityBooking), error: null };
+  const rows = (data ?? []) as Array<{ slot: string; size: string }>;
+  return { bookings: rows.map(occupancyRowToBooking), error: null };
 }
 
 // Resolve a "cancel one or cancel the whole group" intent to an array

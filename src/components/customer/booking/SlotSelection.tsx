@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { SALON_SLOTS } from "../../../constants/index.js";
 import { findGroupedSlots } from "../../../engine/capacity.js";
-import type { WizardDog, SlotAllocation, Booking } from "../../../types/index.js";
+import { listOnDateForCapacity } from "../../../supabase/repositories/bookingsRepo.js";
+import type { WizardDog, SlotAllocation } from "../../../types/index.js";
 import { Clock, ArrowRight, PawPrint } from "lucide-react";
 
 interface SlotSelectionProps {
@@ -39,6 +40,7 @@ export function SlotSelection({
 }: SlotSelectionProps) {
   const [availableSlots, setAvailableSlots] = useState<SlotAllocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedDate || selectedDogs.length === 0) return;
@@ -46,46 +48,32 @@ export function SlotSelection({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         if (!supabase) {
           setAvailableSlots([]);
           return;
         }
-        const { data } = await supabase
-          .from("bookings")
-          .select("id, slot, size, service, status, addons, payment, confirmed, dog_id, pickup_by_id, booking_date")
-          .eq("booking_date", selectedDate);
+        // Full occupancy via the get_slot_occupancy SECURITY DEFINER RPC —
+        // the per-customer bookings RLS would otherwise hide other
+        // customers' bookings and let full slots show as available.
+        const { bookings, error } = await listOnDateForCapacity(
+          supabase,
+          selectedDate,
+        );
 
         if (cancelled) return;
 
-        const bookings: Booking[] = (data || []).map((row: any) => ({
-          id: row.id,
-          slot: row.slot,
-          size: row.size,
-          dogName: "",
-          breed: "",
-          service: row.service,
-          owner: "",
-          status: row.status,
-          addons: row.addons || [],
-          pickupBy: "",
-          payment: row.payment || "",
-          confirmed: row.confirmed || false,
-          dogNameSnapshot: null,
-          breedSnapshot: null,
-          ownerNameSnapshot: null,
-          whatsappConversationId: null,
-          whatsappMessageId: null,
-          staffCapacityOverride: false,
-          staffCapacityOverrideBy: null,
-          staffCapacityOverrideAt: null,
-          reminderConfirmedAt: null,
-          _dogId: row.dog_id,
-          _ownerId: null,
-          _pickupById: row.pickup_by_id || null,
-          _bookingDate: row.booking_date,
-          _groupId: row.group_id || null,
-        }));
+        if (error) {
+          // Distinguish a transient fetch failure from a genuinely
+          // fully-booked day so we don't mislabel a network blip as
+          // "fully booked" (and nudge the customer onto the waitlist).
+          setAvailableSlots([]);
+          setLoadError(
+            "We couldn't check availability just now. Please try again.",
+          );
+          return;
+        }
 
         const dogs = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
         const results = findGroupedSlots(dogs, bookings, SALON_SLOTS);
@@ -143,7 +131,13 @@ export function SlotSelection({
           </div>
         )}
 
-        {!loading && availableSlots.length === 0 && (
+        {!loading && loadError && (
+          <div role="alert" className="portal-alert portal-alert--error">
+            {loadError}
+          </div>
+        )}
+
+        {!loading && !loadError && availableSlots.length === 0 && (
           <div className="wizard-empty-slots" style={{ background: "var(--sd-coral-tint)", borderRadius: "var(--radius-sd-card)", padding: 20 }}>
             <div className="portal-polaroid">
               <div className="portal-polaroid-frame">

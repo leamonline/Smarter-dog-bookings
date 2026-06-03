@@ -489,4 +489,75 @@ describe("Supabase security review regressions", () => {
       /revoke\s+insert,\s*update\s+on\s+(?:table\s+)?public\.calendar_feed_tokens\s+from\s+authenticated,\s*anon/i,
     );
   });
+
+  it("exposes slot occupancy to customers via a PII-free, Cancelled-excluding, authenticated-only SECURITY DEFINER RPC", () => {
+    // Regression for "availability ignores other customers' bookings". The
+    // customer client only sees its own bookings under RLS, so the capacity
+    // engine computed availability from incomplete data and offered full
+    // slots (failing only at checkout). get_slot_occupancy is SECURITY
+    // DEFINER so it sees ALL rows — but it must stay locked down: only
+    // (slot, size) out (no PII/ids/status), Cancelled excluded so its seat
+    // math matches get_seats_used / has_large_dog, and authenticated-only
+    // (the booking wizard is login-gated).
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("create or replace function public.get_slot_occupancy"),
+    );
+
+    // SECURITY DEFINER + pinned search_path (matches the capacity helpers).
+    expect(migration).toMatch(
+      /create\s+or\s+replace\s+function\s+public\.get_slot_occupancy\(p_date\s+date\)/i,
+    );
+    expect(migration).toMatch(/security\s+definer/i);
+    expect(migration).toMatch(/set\s+search_path\s*=\s*public,\s*pg_temp/i);
+
+    // Returns ONLY (slot, size) — no ids, no PII, no status leaked out.
+    expect(migration).toMatch(
+      /returns\s+table\s*\(\s*slot\s+text\s*,\s*size\s+text\s*\)/i,
+    );
+
+    // Excludes Cancelled so its seat math matches get_seats_used/has_large_dog.
+    expect(migration).toMatch(/status\s*<>\s*'Cancelled'/i);
+
+    // Locked down: revoked from public, granted to authenticated, NOT anon.
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.get_slot_occupancy\(date\)\s+from\s+public/i,
+    );
+    // Explicit anon revoke is REQUIRED, not optional: Supabase's default
+    // privileges auto-grant EXECUTE to anon on new public functions, so
+    // revoking only PUBLIC (as get_open_days originally did — since fixed)
+    // leaves anon able to call it. This positive assertion stops a future
+    // re-issue from regressing to the leaky pattern.
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.get_slot_occupancy\(date\)\s+from\s+anon/i,
+    );
+    expect(migration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.get_slot_occupancy\(date\)\s+to\s+authenticated/i,
+    );
+    // Scope the anon check to a GRANT statement for THIS function — the
+    // migration comment and the revoke statement both mention "anon", which
+    // is fine; only a grant to anon would be the bug.
+    expect(migration).not.toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.get_slot_occupancy\(date\)\s+to\s+[^;]*\banon\b/i,
+    );
+  });
+
+  it("locks get_open_days to authenticated by explicitly revoking the anon default-privilege grant", () => {
+    // get_open_days's original migration only revoked PUBLIC, so Supabase's
+    // default-privilege grant left anon able to read the closure calendar
+    // via /rest/v1/rpc/get_open_days without signing in. The follow-up
+    // migration must explicitly revoke anon (and re-grant authenticated).
+    const migration = getMigrationBySql((sql) =>
+      sql.includes("Lock get_open_days to authenticated only"),
+    );
+
+    expect(migration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.get_open_days\(date,\s*date\)\s+from\s+anon/i,
+    );
+    expect(migration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.get_open_days\(date,\s*date\)\s+to\s+authenticated/i,
+    );
+    expect(migration).not.toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.get_open_days\(date,\s*date\)\s+to\s+[^;]*\banon\b/i,
+    );
+  });
 });
