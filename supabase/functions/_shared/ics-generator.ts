@@ -80,7 +80,7 @@ export interface VEventInput {
 /** Map app booking status to ICS STATUS */
 function mapStatus(appStatus: string): string {
   const lower = appStatus.toLowerCase();
-  if (lower === "completed" || lower === "no-show") return "CANCELLED";
+  if (lower === "cancelled") return "CANCELLED";
   return "CONFIRMED";
 }
 
