@@ -3,9 +3,11 @@
  * Components use name-keyed maps and camelCase; DB uses UUID FKs and snake_case.
  */
 
-import type { Human, Dog, Booking, SalonConfig, TrustedContact } from "../types/index.js";
+import type { Human, Dog, Booking, SalonConfig, SalonSettings, TrustedContact } from "../types/index.js";
 import { sanitiseFieldValue } from "../utils/sanitiseFieldValue.js";
 import { BOOKING_STATUS } from "../constants/salon.js";
+import { createDefaultSalonConfig, mergeSalonSettings } from "../constants/salonSettings.js";
+import type { PersistedSalonSettings } from "../constants/salonSettings.js";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)
@@ -72,6 +74,7 @@ interface DbConfigRow {
   pricing: Record<string, Record<string, string>> | null;
   enforce_capacity: boolean | null;
   large_dog_slots: Record<string, unknown> | null;
+  settings?: PersistedSalonSettings | null;
 }
 
 interface DbConfigOut {
@@ -79,6 +82,7 @@ interface DbConfigOut {
   pricing: Record<string, Record<string, string>>;
   enforce_capacity: boolean;
   large_dog_slots: Record<string, unknown>;
+  settings: SalonSettings;
 }
 
 // ============================================================
@@ -344,20 +348,27 @@ export function dbBookingsToArray(
 
 export function dbConfigToApp(row: DbConfigRow | null): SalonConfig | null {
   if (!row) return null;
+  const defaults = createDefaultSalonConfig();
+  const settings = mergeSalonSettings(row.settings);
   return {
-    defaultPickupOffset: row.default_pickup_offset || 120,
-    pricing: row.pricing || {},
-    enforceCapacity: row.enforce_capacity !== false,
-    largeDogSlots: (row.large_dog_slots || {}) as SalonConfig["largeDogSlots"],
+    ...defaults,
+    ...settings,
+    defaultPickupOffset: row.default_pickup_offset ?? defaults.defaultPickupOffset,
+    pricing: row.pricing || defaults.pricing,
+    enforceCapacity: row.enforce_capacity ?? defaults.enforceCapacity,
+    largeDogSlots: (row.large_dog_slots || defaults.largeDogSlots) as SalonConfig["largeDogSlots"],
   };
 }
 
 export function appConfigToDb(config: SalonConfig): DbConfigOut {
+  const defaults = createDefaultSalonConfig();
+  const settings = mergeSalonSettings(config);
   return {
-    default_pickup_offset: config.defaultPickupOffset,
-    pricing: config.pricing,
-    enforce_capacity: config.enforceCapacity,
-    large_dog_slots: config.largeDogSlots,
+    default_pickup_offset: config.defaultPickupOffset ?? defaults.defaultPickupOffset,
+    pricing: config.pricing || defaults.pricing,
+    enforce_capacity: config.enforceCapacity ?? defaults.enforceCapacity,
+    large_dog_slots: config.largeDogSlots || defaults.largeDogSlots,
+    settings,
   };
 }
 

@@ -14,6 +14,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../constants/salon.js";
+import { createDefaultSalonConfig } from "../constants/salonSettings.js";
 
 function safeSurname(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -117,21 +118,6 @@ const SAMPLE_BOOKINGS_BY_DAY: Record<string, SampleBooking[]> = {
   ],
 };
 
-const PRICING = {
-  "full-groom": { small: "£42+", medium: "£46+", large: "£60+" },
-  "bath-and-brush": { small: "£38+", medium: "£42+", large: "£55+" },
-  "bath-and-deshed": { small: "£38+", medium: "£42+", large: "£55+" },
-  "puppy-groom": { small: "£38", medium: "£38", large: "N/A" },
-};
-
-const LARGE_DOG_SLOTS = {
-  "08:30": { seats: 1, canShare: true, needsApproval: false },
-  "09:00": { seats: 1, canShare: true, needsApproval: false, conditional: true },
-  "12:00": { seats: 1, canShare: true, needsApproval: false },
-  "12:30": { seats: 2, canShare: false, needsApproval: false },
-  "13:00": { seats: 2, canShare: false, needsApproval: false },
-};
-
 // --- Seed logic ---
 
 async function seed(): Promise<void> {
@@ -213,12 +199,23 @@ async function seed(): Promise<void> {
   }
 
   // 5. Insert salon config
-  const { error: configErr } = await supabase.from("salon_config").insert({
-    default_pickup_offset: 120,
-    pricing: PRICING,
-    enforce_capacity: true,
-    large_dog_slots: LARGE_DOG_SLOTS,
-  });
+  const defaultConfig = createDefaultSalonConfig();
+  const {
+    defaultPickupOffset,
+    pricing,
+    enforceCapacity,
+    largeDogSlots,
+    ...settings
+  } = defaultConfig;
+  const { error: configErr } = await supabase
+    .from("salon_config")
+    .insert({
+      default_pickup_offset: defaultPickupOffset,
+      pricing,
+      enforce_capacity: enforceCapacity,
+      large_dog_slots: largeDogSlots,
+      settings,
+    });
   if (configErr) console.error("Salon config:", configErr.message);
   else console.log("  Salon config inserted");
 

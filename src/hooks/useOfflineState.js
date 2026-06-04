@@ -6,8 +6,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ALL_DAYS,
   SALON_SLOTS,
-  PRICING,
-  LARGE_DOG_SLOTS,
+  createDefaultSalonConfig,
 } from "../constants/index.js";
 import {
   SAMPLE_BOOKINGS_BY_DAY,
@@ -58,12 +57,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
   const [offlineBookings, setOfflineBookings] = useState(() =>
     buildOfflineBookingsByDate(weekStart),
   );
-  const [offlineConfig, setOfflineConfig] = useState({
-    defaultPickupOffset: 120,
-    pricing: { ...PRICING },
-    enforceCapacity: true,
-    largeDogSlots: { ...LARGE_DOG_SLOTS },
-  });
+  const [offlineConfig, setOfflineConfig] = useState(() => createDefaultSalonConfig());
   const [offlineDaySettings, setOfflineDaySettings] = useState(() =>
     buildDefaultDaySettings(weekStart),
   );

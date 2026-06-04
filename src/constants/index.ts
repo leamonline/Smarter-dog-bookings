@@ -15,6 +15,15 @@ export {
   DOG_SIZE,
 } from "./salon.js";
 export {
+  DEFAULT_BUSINESS_NAME,
+  DEFAULT_BUSINESS_HOURS,
+  DEFAULT_CUSTOMER_PORTAL_SETTINGS,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  createDefaultSalonConfig,
+  createDefaultSalonSettings,
+  mergeSalonSettings,
+} from "./salonSettings.js";
+export {
   BREED_SIZE_MAP,
   BREED_LIST,
   DOG_BREEDS,

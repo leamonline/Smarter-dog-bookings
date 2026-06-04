@@ -1,22 +1,13 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, SECTION_LABEL_CLS, INPUT_CLS } from "./shared.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
+import { DEFAULT_BUSINESS_HOURS } from "../../../constants/index.js";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-const DEFAULT_HOURS = {
-  Monday: { open: "08:00", close: "17:00", closed: false },
-  Tuesday: { open: "08:00", close: "17:00", closed: false },
-  Wednesday: { open: "08:00", close: "17:00", closed: false },
-  Thursday: { open: "08:00", close: "17:00", closed: false },
-  Friday: { open: "08:00", close: "17:00", closed: false },
-  Saturday: { open: "09:00", close: "14:00", closed: false },
-  Sunday: { open: "", close: "", closed: true },
-};
-
-export function HoursSettings({ config, onUpdateConfig }) {
+export function HoursSettings({ config, onUpdateConfig, canEdit = true }) {
   const toast = useToast();
-  const [hours, setHours] = useState(config?.businessHours || DEFAULT_HOURS);
+  const [hours, setHours] = useState(config?.businessHours || DEFAULT_BUSINESS_HOURS);
   const [closures, setClosures] = useState(config?.closures || []);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -24,14 +15,17 @@ export function HoursSettings({ config, onUpdateConfig }) {
   const [newClosureLabel, setNewClosureLabel] = useState("");
 
   const updateDay = (day, field, value) => {
+    if (!canEdit) return;
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
   };
 
   const toggleDayClosed = (day) => {
+    if (!canEdit) return;
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], closed: !prev[day].closed } }));
   };
 
   const addClosure = () => {
+    if (!canEdit) return;
     if (!newClosureDate) return;
     setClosures((prev) => [...prev, { date: newClosureDate, label: newClosureLabel || "Closed" }]);
     setNewClosureDate("");
@@ -39,10 +33,12 @@ export function HoursSettings({ config, onUpdateConfig }) {
   };
 
   const removeClosure = (index) => {
+    if (!canEdit) return;
     setClosures((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
+    if (!canEdit) return;
     setSaving(true);
     const result = await onUpdateConfig((prev) => ({ ...prev, businessHours: hours, closures }));
     setSaving(false);
@@ -61,7 +57,7 @@ export function HoursSettings({ config, onUpdateConfig }) {
         <div className={SECTION_LABEL_CLS}>Weekly Hours</div>
         <div className="flex flex-col gap-1">
           {DAYS.map((day) => {
-            const d = hours[day] || DEFAULT_HOURS[day];
+            const d = hours[day] || DEFAULT_BUSINESS_HOURS[day];
             return (
               <div key={day} className="grid grid-cols-[80px_1fr_1fr_32px] gap-2 items-center py-1">
                 <span className={`text-[13px] font-bold ${d.closed ? "text-brand-red" : "text-slate-800"}`}>
@@ -75,12 +71,14 @@ export function HoursSettings({ config, onUpdateConfig }) {
                   <>
                     <input
                       type="time"
+                      disabled={!canEdit}
                       value={d.open}
                       onChange={(e) => updateDay(day, "open", e.target.value)}
                       className={`${INPUT_CLS} !py-2 !px-2.5 text-center`}
                     />
                     <input
                       type="time"
+                      disabled={!canEdit}
                       value={d.close}
                       onChange={(e) => updateDay(day, "close", e.target.value)}
                       className={`${INPUT_CLS} !py-2 !px-2.5 text-center`}
@@ -89,7 +87,9 @@ export function HoursSettings({ config, onUpdateConfig }) {
                 )}
                 <div
                   onClick={() => toggleDayClosed(day)}
-                  className={`w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer text-[13px] transition-all ${
+                  className={`w-8 h-8 rounded-lg border flex items-center justify-center text-[13px] transition-all ${
+                    canEdit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                  } ${
                     d.closed
                       ? "border-brand-red bg-red-100 text-brand-red"
                       : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
@@ -114,7 +114,7 @@ export function HoursSettings({ config, onUpdateConfig }) {
                 {c.date}{c.label ? ` \u2014 ${c.label}` : ""}
                 <span
                   onClick={() => removeClosure(i)}
-                  className="cursor-pointer opacity-60 hover:opacity-100 text-sm"
+                  className={`${canEdit ? "cursor-pointer hover:opacity-100" : "cursor-not-allowed"} opacity-60 text-sm`}
                 >
                   {"\u00D7"}
                 </span>
@@ -124,12 +124,14 @@ export function HoursSettings({ config, onUpdateConfig }) {
           <div className="flex gap-1.5 mt-2.5 items-center flex-wrap">
             <input
               type="date"
+              disabled={!canEdit}
               value={newClosureDate}
               onChange={(e) => setNewClosureDate(e.target.value)}
               className={`${INPUT_CLS} !w-40 !py-1.5 !px-2.5`}
             />
             <input
               type="text"
+              disabled={!canEdit}
               value={newClosureLabel}
               onChange={(e) => setNewClosureLabel(e.target.value)}
               placeholder="Label (optional)"
@@ -137,14 +139,15 @@ export function HoursSettings({ config, onUpdateConfig }) {
             />
             <button
               onClick={addClosure}
-              className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal"
+              disabled={!canEdit}
+              className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-3.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all hover:border-brand-teal hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-slate-200 disabled:hover:text-slate-500"
             >
               + Add
             </button>
           </div>
         </div>
         <div className="mt-3.5">
-          <SaveButton onClick={handleSave} saving={saving} saved={saved} label="Save hours" />
+          <SaveButton onClick={handleSave} saving={saving} saved={saved} label="Save hours" disabled={!canEdit} />
         </div>
       </CardBody>
     </Card>

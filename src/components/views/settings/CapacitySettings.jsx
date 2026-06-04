@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
-export function CapacitySettings({ config, onUpdateConfig }) {
-  const save = useConfigSaver(onUpdateConfig);
+export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
+  const save = useConfigSaver(onUpdateConfig, { canEdit });
   const [newSlotTime, setNewSlotTime] = useState("");
 
   const toggleCapacity = () => {
+    if (!canEdit) return;
     save((prev) => ({ ...prev, enforceCapacity: !prev.enforceCapacity }));
   };
 
   const addLargeDogSlot = () => {
+    if (!canEdit) return;
     if (!newSlotTime) return;
-    if (config.largeDogSlots[newSlotTime]) return;
+    if (config?.largeDogSlots?.[newSlotTime]) return;
     save((prev) => ({
       ...prev,
       largeDogSlots: {
@@ -23,6 +25,7 @@ export function CapacitySettings({ config, onUpdateConfig }) {
   };
 
   const removeLargeDogSlot = (time) => {
+    if (!canEdit) return;
     save((prev) => {
       const updated = { ...prev.largeDogSlots };
       delete updated[time];
@@ -66,7 +69,7 @@ export function CapacitySettings({ config, onUpdateConfig }) {
         <SettingRow
           label="Enforce 2-2-1 strict capacity"
           sublabel="Prevents overbooking beyond safe limits"
-          control={<Toggle on={config?.enforceCapacity} onToggle={toggleCapacity} />}
+          control={<Toggle on={config?.enforceCapacity} onToggle={toggleCapacity} disabled={!canEdit} />}
         />
         <div className="pt-2">
           <div className={SECTION_LABEL_CLS}>Large Dog Approved Slots</div>
@@ -78,7 +81,9 @@ export function CapacitySettings({ config, onUpdateConfig }) {
               <span
                 key={time}
                 onClick={() => removeLargeDogSlot(time)}
-                className="inline-flex items-center gap-1 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold cursor-pointer transition-all hover:bg-brand-coral hover:text-white"
+                className={`inline-flex items-center gap-1 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold transition-all ${
+                  canEdit ? "cursor-pointer hover:bg-brand-coral hover:text-white" : "cursor-not-allowed opacity-60"
+                }`}
               >
                 {time} {"\u00D7"}
               </span>
@@ -86,13 +91,15 @@ export function CapacitySettings({ config, onUpdateConfig }) {
             <span className="inline-flex items-center gap-1.5">
               <input
                 type="time"
+                disabled={!canEdit}
                 value={newSlotTime}
                 onChange={(e) => setNewSlotTime(e.target.value)}
-                className="py-[5px] px-2 rounded-lg border-[1.5px] border-dashed border-slate-500 text-xs font-inherit text-slate-800 outline-none w-20"
+                className="py-[5px] px-2 rounded-lg border-[1.5px] border-dashed border-slate-500 text-xs font-inherit text-slate-800 outline-none w-20 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
               />
               <button
                 onClick={addLargeDogSlot}
-                className="bg-slate-50 border-[1.5px] border-dashed border-slate-500 text-slate-500 px-3 py-[5px] rounded-lg text-xs font-bold cursor-pointer font-inherit transition-all hover:bg-[#E6F5F2] hover:text-brand-teal"
+                disabled={!canEdit}
+                className="bg-slate-50 border-[1.5px] border-dashed border-slate-500 text-slate-500 px-3 py-[5px] rounded-lg text-xs font-bold cursor-pointer font-inherit transition-all hover:bg-[#E6F5F2] hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-slate-50 disabled:hover:text-slate-500"
               >
                 + Add
               </button>

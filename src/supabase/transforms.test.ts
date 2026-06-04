@@ -583,6 +583,11 @@ describe("dbConfigToApp", () => {
       pricing: { small: { "full-groom": "35" } },
       enforce_capacity: true,
       large_dog_slots: { "12:00": { seats: 2, canShare: true } },
+      settings: {
+        businessName: "Bleep's Groom Room",
+        businessPhone: "07507 731487",
+        customerPortal: { allowCancellations: false },
+      },
     };
     const config = dbConfigToApp(row);
 
@@ -591,6 +596,10 @@ describe("dbConfigToApp", () => {
     expect(config!.pricing).toEqual({ small: { "full-groom": "35" } });
     expect(config!.enforceCapacity).toBe(true);
     expect(config!.largeDogSlots).toEqual({ "12:00": { seats: 2, canShare: true } });
+    expect(config!.businessName).toBe("Bleep's Groom Room");
+    expect(config!.businessPhone).toBe("07507 731487");
+    expect(config!.customerPortal.allowCancellations).toBe(false);
+    expect(config!.customerPortal.showUpcoming).toBe(true);
   });
 
   it("returns null when row is null", () => {
@@ -608,9 +617,12 @@ describe("dbConfigToApp", () => {
 
     expect(config).not.toBeNull();
     expect(config!.defaultPickupOffset).toBe(120);
-    expect(config!.pricing).toEqual({});
+    expect(config!.pricing["full-groom"]).toEqual({ small: "£42+", medium: "£46+", large: "£60+" });
     expect(config!.enforceCapacity).toBe(true); // null !== false => true
-    expect(config!.largeDogSlots).toEqual({});
+    expect(config!.largeDogSlots["08:30"]).toEqual({ seats: 1, canShare: true, needsApproval: false });
+    expect(config!.businessName).toBe("Smarter Dog Grooming");
+    expect(config!.advanceBookingWeeks).toBe(8);
+    expect(config!.notifications.dayBeforeReminder.channels).toEqual(["whatsapp"]);
   });
 
   it("sets enforceCapacity to false when explicitly false", () => {
@@ -635,6 +647,13 @@ describe("appConfigToDb", () => {
       pricing: { small: { "full-groom": "35" } },
       enforceCapacity: true,
       largeDogSlots: { "12:00": { seats: 2, canShare: true } },
+      businessName: "Bleep's Groom Room",
+      businessPhone: "07507 731487",
+      businessEmail: "hello@example.com",
+      businessAddress: "1 High Street",
+      advanceBookingWeeks: 12,
+      minCancellationHours: 48,
+      autoConfirm: false,
     } as any;
     const dbRow = appConfigToDb(config);
 
@@ -642,14 +661,49 @@ describe("appConfigToDb", () => {
     expect(dbRow.pricing).toEqual({ small: { "full-groom": "35" } });
     expect(dbRow.enforce_capacity).toBe(true);
     expect(dbRow.large_dog_slots).toEqual({ "12:00": { seats: 2, canShare: true } });
+    expect(dbRow.settings.businessName).toBe("Bleep's Groom Room");
+    expect(dbRow.settings.businessPhone).toBe("07507 731487");
+    expect(dbRow.settings.businessEmail).toBe("hello@example.com");
+    expect(dbRow.settings.businessAddress).toBe("1 High Street");
+    expect(dbRow.settings.advanceBookingWeeks).toBe(12);
+    expect(dbRow.settings.minCancellationHours).toBe(48);
+    expect(dbRow.settings.autoConfirm).toBe(false);
   });
 
-  it("round-trips with dbConfigToApp", () => {
+  it("round-trips every editable settings field with dbConfigToApp", () => {
     const original = {
       defaultPickupOffset: 60,
       pricing: { medium: { "bath-and-brush": "25" } },
       enforceCapacity: false,
       largeDogSlots: { "08:30": { seats: 1, canShare: true } },
+      businessName: "Smarter Dog Grooming Salon",
+      businessPhone: "07507 731487",
+      businessEmail: "hello@smarterdog.co.uk",
+      businessAddress: "Ashton-under-Lyne",
+      businessHours: {
+        Monday: { open: "08:30", close: "15:00", closed: false },
+        Tuesday: { open: "08:30", close: "15:00", closed: false },
+      },
+      closures: [{ date: "2026-12-25", label: "Christmas Day" }],
+      advanceBookingWeeks: 16,
+      minCancellationHours: 72,
+      autoConfirm: false,
+      customerPortal: {
+        showUpcoming: true,
+        showHistory: false,
+        allowRebooking: true,
+        allowCancellations: false,
+      },
+      notifications: {
+        bookingConfirmation: { enabled: true, channels: ["email"] },
+        dayBeforeReminder: { enabled: false, channels: ["sms"] },
+        readyForCollection: { enabled: true, channels: ["whatsapp", "sms"] },
+        followUp: { enabled: true, channels: ["email"] },
+      },
+      services: [
+        { id: "full-groom", name: "Full Groom" },
+        { id: "tidy-up", name: "Tidy Up", icon: "Scissors" },
+      ],
     } as any;
     const dbRow = appConfigToDb(original);
     const restored = dbConfigToApp(dbRow);
@@ -659,6 +713,20 @@ describe("appConfigToDb", () => {
     expect(restored!.pricing).toEqual(original.pricing);
     expect(restored!.enforceCapacity).toBe(original.enforceCapacity);
     expect(restored!.largeDogSlots).toEqual(original.largeDogSlots);
+    expect(restored!.businessName).toBe(original.businessName);
+    expect(restored!.businessPhone).toBe(original.businessPhone);
+    expect(restored!.businessEmail).toBe(original.businessEmail);
+    expect(restored!.businessAddress).toBe(original.businessAddress);
+    expect(restored!.businessHours.Monday).toEqual(original.businessHours.Monday);
+    expect(restored!.businessHours.Tuesday).toEqual(original.businessHours.Tuesday);
+    expect(restored!.businessHours.Sunday).toEqual({ open: "", close: "", closed: true });
+    expect(restored!.closures).toEqual(original.closures);
+    expect(restored!.advanceBookingWeeks).toBe(original.advanceBookingWeeks);
+    expect(restored!.minCancellationHours).toBe(original.minCancellationHours);
+    expect(restored!.autoConfirm).toBe(original.autoConfirm);
+    expect(restored!.customerPortal).toEqual(original.customerPortal);
+    expect(restored!.notifications).toEqual(original.notifications);
+    expect(restored!.services).toEqual(original.services);
   });
 });
 

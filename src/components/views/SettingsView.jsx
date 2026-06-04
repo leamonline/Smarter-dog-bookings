@@ -22,7 +22,7 @@ const SECTIONS = [
   { id: "calendar", label: "Calendar Sync" },
 ];
 
-export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
+export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEdit = true }) {
   const [activeTab, setActiveTab] = useState("business");
   const tablistRef = useRef(null);
   const keyboardNav = useRef(false);
@@ -59,6 +59,15 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
           Manage your business, pricing, booking rules, and more.
         </div>
       </div>
+
+      {!canEdit && (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-900"
+        >
+          Settings are read-only for staff accounts. Ask a salon owner to make changes.
+        </div>
+      )}
 
       {/* Tab bar */}
       <div
@@ -99,14 +108,14 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile }) {
         tabIndex={0}
         className="focus:outline-none"
       >
-        {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} />}
-        {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} />}
-        {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} />}
-        {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} />}
-        {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} />}
-        {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} />}
-        {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} />}
+        {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "calendar" && <CalendarSettings />}
       </div>
     </div>
