@@ -548,6 +548,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       config={salonConfig}
                       onUpdateConfig={updateConfig}
                       isOwner={isOwner}
+                      canEdit={isOwner || !isOnline}
                       user={user}
                       staffProfile={staffProfile}
                     />

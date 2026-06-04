@@ -2,8 +2,8 @@ import { useState } from "react";
 import { SERVICES, DOG_SIZES } from "../../../constants/index.js";
 import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
-export function PricingSettings({ config, onUpdateConfig }) {
-  const save = useConfigSaver(onUpdateConfig);
+export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
+  const save = useConfigSaver(onUpdateConfig, { canEdit });
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceIcon, setNewServiceIcon] = useState("");
 
@@ -11,6 +11,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
   const currentPricing = config?.pricing || {};
 
   const updatePricing = (serviceId, size, value) => {
+    if (!canEdit) return;
     save((prev) => ({
       ...prev,
       pricing: {
@@ -21,6 +22,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
   };
 
   const deleteService = (serviceId) => {
+    if (!canEdit) return;
     save((prev) => {
       const updatedServices = (prev.services || SERVICES).filter((s) => s.id !== serviceId);
       const updatedPricing = { ...prev.pricing };
@@ -30,6 +32,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
   };
 
   const addService = () => {
+    if (!canEdit) return;
     const name = newServiceName.trim();
     if (!name) return;
     const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -42,7 +45,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
     setNewServiceIcon("");
   };
 
-  const priceInputCls = "w-full py-2 px-2 pl-10 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 outline-none transition-colors focus:border-brand-teal";
+  const priceInputCls = "w-full py-2 px-2 pl-10 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit text-slate-800 outline-none transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";
 
   return (
     <Card id="settings-pricing">
@@ -90,6 +93,7 @@ export function PricingSettings({ config, onUpdateConfig }) {
                   </span>
                   <input
                     type="text"
+                    disabled={!canEdit}
                     value={val}
                     onChange={(e) => updatePricing(s.id, size, e.target.value)}
                     className={priceInputCls}
@@ -100,7 +104,11 @@ export function PricingSettings({ config, onUpdateConfig }) {
             <div
               onClick={() => deleteService(s.id)}
               title="Delete service"
-              className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer text-sm text-slate-500 transition-all hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
+              className={`w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all ${
+                canEdit
+                  ? "cursor-pointer hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
+                  : "cursor-not-allowed opacity-60"
+              }`}
             >
               {"\u2715"}
             </div>
@@ -111,14 +119,16 @@ export function PricingSettings({ config, onUpdateConfig }) {
         <div className="flex gap-2 mt-3 items-center">
           <input
             type="text"
+            disabled={!canEdit}
             value={newServiceName}
             onChange={(e) => setNewServiceName(e.target.value)}
             placeholder="Service name"
-            className="flex-1 py-2 px-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal"
+            className="flex-1 py-2 px-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-inherit outline-none text-slate-800 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
           />
           <button
             onClick={addService}
-            className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-4 py-2 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all whitespace-nowrap hover:border-brand-teal hover:text-brand-teal"
+            disabled={!canEdit}
+            className="border-[1.5px] border-dashed border-slate-200 rounded-control bg-transparent px-4 py-2 text-xs font-bold text-slate-500 cursor-pointer font-inherit transition-all whitespace-nowrap hover:border-brand-teal hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-slate-200 disabled:hover:text-slate-500"
           >
             + Add service
           </button>

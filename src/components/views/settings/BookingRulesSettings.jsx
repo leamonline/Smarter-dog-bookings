@@ -1,7 +1,7 @@
 import { Card, CardHead, CardBody, SettingRow, Toggle, InlineField, useConfigSaver } from "./shared.jsx";
 
-export function BookingRulesSettings({ config, onUpdateConfig }) {
-  const save = useConfigSaver(onUpdateConfig);
+export function BookingRulesSettings({ config, onUpdateConfig, canEdit = true }) {
+  const save = useConfigSaver(onUpdateConfig, { canEdit });
 
   const updatePickupOffset = (value) => {
     save((prev) => ({ ...prev, defaultPickupOffset: Number(value) }));
@@ -21,6 +21,7 @@ export function BookingRulesSettings({ config, onUpdateConfig }) {
           suffix="weeks"
           value={config?.advanceBookingWeeks ?? 8}
           onChange={(e) => updateConfigField("advanceBookingWeeks", Number(e.target.value))}
+          disabled={!canEdit}
         />
         <InlineField
           label="Minimum cancellation notice"
@@ -28,6 +29,7 @@ export function BookingRulesSettings({ config, onUpdateConfig }) {
           suffix="hours"
           value={config?.minCancellationHours ?? 24}
           onChange={(e) => updateConfigField("minCancellationHours", Number(e.target.value))}
+          disabled={!canEdit}
         />
         <InlineField
           label="Default pick-up offset"
@@ -35,6 +37,7 @@ export function BookingRulesSettings({ config, onUpdateConfig }) {
           suffix="mins"
           value={config?.defaultPickupOffset ?? 120}
           onChange={(e) => updatePickupOffset(e.target.value)}
+          disabled={!canEdit}
         />
         <SettingRow
           label="Auto-confirm bookings"
@@ -43,6 +46,7 @@ export function BookingRulesSettings({ config, onUpdateConfig }) {
             <Toggle
               on={config?.autoConfirm !== false}
               onToggle={() => updateConfigField("autoConfirm", !(config?.autoConfirm !== false))}
+              disabled={!canEdit}
             />
           }
           border={false}

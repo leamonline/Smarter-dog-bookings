@@ -1,11 +1,5 @@
 import { Card, CardHead, CardBody, Toggle, useConfigSaver } from "./shared.jsx";
-
-const DEFAULT_NOTIFICATIONS = {
-  bookingConfirmation: { enabled: true, channels: ["whatsapp", "email"] },
-  dayBeforeReminder: { enabled: true, channels: ["whatsapp"] },
-  readyForCollection: { enabled: true, channels: ["whatsapp", "sms"] },
-  followUp: { enabled: false, channels: ["email"] },
-};
+import { DEFAULT_NOTIFICATION_SETTINGS } from "../../../constants/index.js";
 
 const ALL_CHANNELS = ["whatsapp", "email", "sms"];
 
@@ -22,22 +16,24 @@ const NOTIF_ROWS = [
   { key: "followUp", label: "Follow-up / review request", sub: "Sent 24 hours after the appointment" },
 ];
 
-export function NotificationSettings({ config, onUpdateConfig }) {
-  const save = useConfigSaver(onUpdateConfig);
-  const notifs = config?.notifications || DEFAULT_NOTIFICATIONS;
+export function NotificationSettings({ config, onUpdateConfig, canEdit = true }) {
+  const save = useConfigSaver(onUpdateConfig, { canEdit });
+  const notifs = config?.notifications || DEFAULT_NOTIFICATION_SETTINGS;
 
   const toggleNotif = (key) => {
+    if (!canEdit) return;
     const current = notifs[key];
     save((prev) => ({
       ...prev,
       notifications: {
-        ...(prev.notifications || DEFAULT_NOTIFICATIONS),
+        ...(prev.notifications || DEFAULT_NOTIFICATION_SETTINGS),
         [key]: { ...current, enabled: !current.enabled },
       },
     }));
   };
 
   const toggleNotifChannel = (notifKey, channel) => {
+    if (!canEdit) return;
     const current = notifs[notifKey] || { enabled: false, channels: [] };
     const channels = current.channels || [];
     const updated = channels.includes(channel)
@@ -46,7 +42,7 @@ export function NotificationSettings({ config, onUpdateConfig }) {
     save((prev) => ({
       ...prev,
       notifications: {
-        ...(prev.notifications || DEFAULT_NOTIFICATIONS),
+        ...(prev.notifications || DEFAULT_NOTIFICATION_SETTINGS),
         [notifKey]: { ...current, channels: updated },
       },
     }));
@@ -69,7 +65,7 @@ export function NotificationSettings({ config, onUpdateConfig }) {
                   <div className="text-sm font-semibold text-slate-800">{row.label}</div>
                   <div className="text-xs text-slate-500 mt-0.5">{row.sub}</div>
                 </div>
-                <Toggle on={n.enabled} onToggle={() => toggleNotif(row.key)} />
+                <Toggle on={n.enabled} onToggle={() => toggleNotif(row.key)} disabled={!canEdit} />
               </div>
               {/* Channel badges */}
               <div className="flex gap-1.5 mt-2">
@@ -80,8 +76,10 @@ export function NotificationSettings({ config, onUpdateConfig }) {
                     <span
                       key={ch}
                       onClick={() => toggleNotifChannel(row.key, ch)}
-                      className={`text-micro font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight cursor-pointer motion-safe:transition-all select-none ${
-                        n.enabled ? "opacity-100" : "opacity-40 pointer-events-none"
+                      className={`text-micro font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight motion-safe:transition-all select-none ${
+                        canEdit && n.enabled
+                          ? "cursor-pointer opacity-100"
+                          : "cursor-not-allowed opacity-40 pointer-events-none"
                       }`}
                       style={{
                         background: isActive ? s.bg : "#F1F3F5",

@@ -60,15 +60,18 @@ export function SettingRow({ label, sublabel, control, border = true }) {
   );
 }
 
-export function Toggle({ on, onToggle, ...rest }) {
+export function Toggle({ on, onToggle, disabled = false, ...rest }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
-      onClick={onToggle}
+      disabled={disabled}
+      onClick={disabled ? undefined : onToggle}
       {...rest}
-      className={`w-11 h-6 rounded-xl relative cursor-pointer transition-colors duration-200 border-none p-0 ${on ? "bg-brand-green" : "bg-slate-200"}`}
+      className={`w-11 h-6 rounded-xl relative transition-colors duration-200 border-none p-0 ${
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+      } ${on ? "bg-brand-green" : "bg-slate-200"}`}
     >
       <div
         className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-[left] duration-200"
@@ -78,7 +81,7 @@ export function Toggle({ on, onToggle, ...rest }) {
   );
 }
 
-export function InlineField({ label, sublabel, suffix, value, onChange, border = true }) {
+export function InlineField({ label, sublabel, suffix, value, onChange, border = true, disabled = false }) {
   return (
     <div className={`flex justify-between items-center py-3.5 ${border ? "border-b border-slate-200" : ""}`}>
       <div>
@@ -90,7 +93,8 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
           type="number"
           value={value}
           onChange={onChange}
-          className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 text-body font-[inherit] text-slate-800 text-right outline-none w-20 transition-colors focus:border-brand-teal"
+          disabled={disabled}
+          className="py-2 px-3 rounded-lg border-[1.5px] border-slate-200 text-body font-[inherit] text-slate-800 text-right outline-none w-20 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
         />
         <span className="text-body text-slate-500">{suffix}</span>
       </div>
@@ -98,16 +102,18 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
   );
 }
 
-export function SaveButton({ onClick, saving, saved, label = "Save changes" }) {
-  const base = "px-4 py-2.5 rounded-control border-none text-body font-bold cursor-pointer font-[inherit] motion-safe:transition-colors duration-200";
-  const state = saving
+export function SaveButton({ onClick, saving, saved, label = "Save changes", disabled = false }) {
+  const base = "px-4 py-2.5 rounded-control border-none text-body font-bold font-[inherit] motion-safe:transition-colors duration-200";
+  const state = disabled
+    ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+    : saving
     ? "bg-slate-200 text-slate-500 cursor-not-allowed"
     : saved
       ? "bg-brand-teal text-white"
-      : "bg-brand-teal text-white hover:bg-brand-teal-dark";
+      : "bg-brand-teal text-white cursor-pointer hover:bg-brand-teal-dark";
 
   return (
-    <button onClick={onClick} disabled={saving} className={`${base} ${state}`}>
+    <button onClick={onClick} disabled={saving || disabled} className={`${base} ${state}`}>
       {saving ? "Saving\u2026" : saved ? "\u2713 Saved" : label}
     </button>
   );
@@ -117,21 +123,26 @@ export function SaveButton({ onClick, saving, saved, label = "Save changes" }) {
 // error toast on save failure. Live-save tabs (every keystroke = one
 // save) call this on each interaction. Success is silent — the
 // optimistic value is already visible on screen.
-export function useConfigSaver(onUpdateConfig) {
+export function useConfigSaver(onUpdateConfig, { canEdit = true } = {}) {
   const toast = useToast();
   return useCallback(
     async (updater) => {
+      if (!canEdit) {
+        const error = "Only salon owners can edit settings.";
+        toast.show(error, "error");
+        return { ok: false, error };
+      }
       const result = await onUpdateConfig(updater);
       if (result?.ok === false) {
         toast.show(result.error || "Couldn't save — try again?", "error");
       }
       return result;
     },
-    [onUpdateConfig, toast],
+    [canEdit, onUpdateConfig, toast],
   );
 }
 
 // Reusable class strings
 export const LABEL_CLS = "text-label text-brand-teal-dark block mb-1.5";
 export const SECTION_LABEL_CLS = "text-label text-brand-teal-dark mb-2";
-export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-control border-[1.5px] border-slate-200 text-body font-[inherit] outline-none text-slate-800 transition-colors focus:border-brand-teal";
+export const INPUT_CLS = "w-full py-2.5 px-3.5 rounded-control border-[1.5px] border-slate-200 text-body font-[inherit] outline-none text-slate-800 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed";

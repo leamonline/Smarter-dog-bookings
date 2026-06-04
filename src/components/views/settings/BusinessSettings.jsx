@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
+import { DEFAULT_BUSINESS_NAME } from "../../../constants/index.js";
 
-const PLACEHOLDER_BIZ_NAME = "Smarter Dog Grooming";
-
-export function BusinessSettings({ config, onUpdateConfig }) {
+export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
   const toast = useToast();
   // Track whether the salon has actively configured its details so we
   // can warn that customers are seeing the default placeholders rather
@@ -14,10 +13,10 @@ export function BusinessSettings({ config, onUpdateConfig }) {
     !config?.businessPhone &&
     !config?.businessEmail &&
     !config?.businessAddress &&
-    (!config?.businessName || config?.businessName === PLACEHOLDER_BIZ_NAME);
+    (!config?.businessName || config?.businessName === DEFAULT_BUSINESS_NAME);
 
   const [business, setBusiness] = useState({
-    name: config?.businessName || PLACEHOLDER_BIZ_NAME,
+    name: config?.businessName || DEFAULT_BUSINESS_NAME,
     phone: config?.businessPhone || "",
     email: config?.businessEmail || "",
     address: config?.businessAddress || "",
@@ -26,6 +25,7 @@ export function BusinessSettings({ config, onUpdateConfig }) {
   const [saved, setSaved] = useState(false);
 
   const handleSave = async () => {
+    if (!canEdit) return;
     setSaving(true);
     const result = await onUpdateConfig((prev) => ({
       ...prev,
@@ -61,10 +61,11 @@ export function BusinessSettings({ config, onUpdateConfig }) {
           <label className={LABEL_CLS}>Salon Name</label>
           <input
             type="text"
+            disabled={!canEdit}
             value={business.name}
             onChange={(e) => setBusiness((b) => ({ ...b, name: e.target.value }))}
             className={`${INPUT_CLS} ${
-              business.name === PLACEHOLDER_BIZ_NAME ? "italic text-slate-500/60" : ""
+              business.name === DEFAULT_BUSINESS_NAME ? "italic text-slate-500/60" : ""
             }`}
           />
         </div>
@@ -73,6 +74,7 @@ export function BusinessSettings({ config, onUpdateConfig }) {
             <label className={LABEL_CLS}>Phone</label>
             <input
               type="tel"
+              disabled={!canEdit}
               value={business.phone}
               onChange={(e) => setBusiness((b) => ({ ...b, phone: e.target.value }))}
               className={INPUT_CLS}
@@ -83,6 +85,7 @@ export function BusinessSettings({ config, onUpdateConfig }) {
             <label className={LABEL_CLS}>Email</label>
             <input
               type="email"
+              disabled={!canEdit}
               value={business.email}
               onChange={(e) => setBusiness((b) => ({ ...b, email: e.target.value }))}
               className={INPUT_CLS}
@@ -94,13 +97,14 @@ export function BusinessSettings({ config, onUpdateConfig }) {
           <label className={LABEL_CLS}>Address</label>
           <input
             type="text"
+            disabled={!canEdit}
             value={business.address}
             onChange={(e) => setBusiness((b) => ({ ...b, address: e.target.value }))}
             className={INPUT_CLS}
             placeholder="123 High Street, Exampletown"
           />
         </div>
-        <SaveButton onClick={handleSave} saving={saving} saved={saved} />
+        <SaveButton onClick={handleSave} saving={saving} saved={saved} disabled={!canEdit} />
       </CardBody>
     </Card>
   );

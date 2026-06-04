@@ -129,7 +129,51 @@ export interface BookingResult {
 
 export type SlotOverrides = Record<number, "blocked" | "open">;
 
-export interface SalonConfig {
+export interface SalonService {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
+export interface BusinessDayHours {
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+export interface SalonClosure {
+  date: string;
+  label: string;
+}
+
+export interface CustomerPortalSettings {
+  showUpcoming: boolean;
+  showHistory: boolean;
+  allowRebooking: boolean;
+  allowCancellations: boolean;
+}
+
+export interface NotificationSetting {
+  enabled: boolean;
+  channels: string[];
+}
+
+export interface SalonSettings {
+  businessName: string;
+  businessPhone: string;
+  businessEmail: string;
+  businessAddress: string;
+  businessHours: Record<string, BusinessDayHours>;
+  closures: SalonClosure[];
+  advanceBookingWeeks: number;
+  minCancellationHours: number;
+  autoConfirm: boolean;
+  customerPortal: CustomerPortalSettings;
+  notifications: Record<string, NotificationSetting>;
+  services: SalonService[];
+}
+
+export interface SalonConfig extends SalonSettings {
   defaultPickupOffset: number;
   pricing: Record<string, Record<string, string>>;
   enforceCapacity: boolean;
@@ -167,4 +211,3 @@ export interface SlotAllocation {
   assignments: Array<{ dogId: string; slot: string }>;
   groupId: string;
 }
-
