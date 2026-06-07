@@ -15,6 +15,7 @@ export default [
       "public/**",
       "scripts/**",
       "supabase/functions/**",
+      "archive/**",
       "docs/**",
       "coverage/**",
       ".firecrawl/**",
