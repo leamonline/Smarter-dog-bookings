@@ -94,8 +94,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.reminder-send]
 verify_jwt = false
-[functions.ai-briefing]
-verify_jwt = false
 [edge_runtime]
 policy = "per_worker"
 [analytics]
