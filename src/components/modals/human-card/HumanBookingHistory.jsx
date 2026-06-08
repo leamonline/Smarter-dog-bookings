@@ -23,6 +23,7 @@ export function HumanBookingHistory({
   dogsByHumanId,
   bookingsByDate,
   onOpenBooking,
+  onBookAgain,
 }) {
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
@@ -80,7 +81,8 @@ export function HumanBookingHistory({
           ) : (
             rows.map((booking, i) => {
               const service = SERVICES.find((s) => s.id === booking.service);
-              const isClickable = !!onOpenBooking && !!booking.id;
+              const canOpen = !!onOpenBooking && !!booking.id;
+              const canRebook = !!onBookAgain && !!booking._dogId;
               const label = (
                 <>
                   <div className="flex-1 min-w-0 truncate">
@@ -108,32 +110,42 @@ export function HumanBookingHistory({
                 </>
               );
 
-              if (isClickable) {
-                return (
-                  <button
-                    key={`${booking.id}-${i}`}
-                    type="button"
-                    onClick={() => onOpenBooking(booking.id)}
-                    aria-label={`Open booking on ${booking.date} for ${booking.dogName}`}
-                    className="group/row w-full flex items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-x-0 border-t-0 border-b border-slate-100 last:border-b-0 cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
-                  >
-                    {label}
-                    <ChevronRight
-                      size={13}
-                      strokeWidth={2.4}
-                      aria-hidden="true"
-                      className="shrink-0 text-slate-300 group-hover/row:text-brand-teal transition-colors"
-                    />
-                  </button>
-                );
-              }
-
               return (
                 <div
                   key={`${booking.id || booking.date}-${i}`}
-                  className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-100 last:border-b-0 text-xs"
+                  className="group/row flex items-center gap-1 border-b border-slate-100 last:border-b-0"
                 >
-                  {label}
+                  {canOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenBooking(booking.id)}
+                      aria-label={`Open booking on ${booking.date} for ${booking.dogName}`}
+                      className="flex-1 min-w-0 flex items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-none cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
+                    >
+                      {label}
+                      <ChevronRight
+                        size={13}
+                        strokeWidth={2.4}
+                        aria-hidden="true"
+                        className="shrink-0 text-slate-300 group-hover/row:text-brand-teal transition-colors"
+                      />
+                    </button>
+                  ) : (
+                    <div className="flex-1 min-w-0 flex items-center gap-2 py-1.5 text-xs">
+                      {label}
+                    </div>
+                  )}
+                  {canRebook && (
+                    <button
+                      type="button"
+                      onClick={() => onBookAgain(booking)}
+                      aria-label={`Book ${titleCase(booking.dogName)} again`}
+                      title="Book again with the same dog and service"
+                      className="shrink-0 text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+                    >
+                      Book again
+                    </button>
+                  )}
                 </div>
               );
             })

@@ -8,6 +8,11 @@ import type { Booking } from "../types/index.js";
 interface NewBookingData {
   dateStr: string;
   slot: string;
+  initialHumanId?: string;
+  // "Book again" prefill — seed the wizard with a specific dog + service.
+  initialDogId?: string;
+  initialService?: string;
+  initialAddons?: string[];
 }
 
 interface UseModalStateReturn {

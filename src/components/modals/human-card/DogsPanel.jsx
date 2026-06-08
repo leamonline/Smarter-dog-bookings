@@ -2,16 +2,27 @@ import { useMemo } from "react";
 import { Dog as DogIcon } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 import { SizeDot } from "../../ui/SizeDot.jsx";
-import { getSizeForBreed } from "../../../constants/index.js";
+import { getSizeForBreed, BOOKING_STATUS } from "../../../constants/index.js";
 import { titleCase } from "../../../utils/text.js";
 import { getDogsForHuman } from "../../../utils/directorySearch.js";
+import { toDateStr } from "../../../supabase/transforms.js";
+
+function formatGroomDate(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 // Replaces the amber DogPill chips. On the dashboard, amber means
 // "today / attention" — so an amber dog name was misleading. The new
 // rows mirror the Humans directory list (size badge + name + breed
 // muted) so the modal visually echoes the list it was opened from.
 
-function DogRow({ dog, onClose, onOpenDog }) {
+function DogRow({ dog, lastGroom, onClose, onOpenDog }) {
   const dogSize = dog.size || getSizeForBreed(dog.breed);
   const hasAlerts = dog.alerts && dog.alerts.length > 0;
   return (
@@ -25,13 +36,20 @@ function DogRow({ dog, onClose, onOpenDog }) {
       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg bg-transparent border-none cursor-pointer text-left font-inherit hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
     >
       <SizeDot size={dogSize} dim={20} />
-      <span className="flex-1 min-w-0 truncate">
-        <span className="text-sm font-semibold text-brand-purple">
-          {titleCase(dog.name)}
+      <span className="flex-1 min-w-0">
+        <span className="block truncate">
+          <span className="text-sm font-semibold text-brand-purple">
+            {titleCase(dog.name)}
+          </span>
+          {dog.breed && (
+            <span className="text-xs font-medium text-slate-500 ml-1.5">
+              {titleCase(dog.breed)}
+            </span>
+          )}
         </span>
-        {dog.breed && (
-          <span className="text-xs font-medium text-slate-500 ml-1.5">
-            {titleCase(dog.breed)}
+        {lastGroom && (
+          <span className="block text-[11px] text-slate-400 truncate">
+            Last groom {lastGroom}
           </span>
         )}
       </span>
@@ -49,9 +67,24 @@ export function DogsPanel({
   humanFullName,
   dogs,
   dogsByHumanId,
+  bookingsByDate,
   onClose,
   onOpenDog,
 }) {
+  // Most-recent past (non-cancelled) booking date per dog, straight from the
+  // bookings already in memory — no extra query.
+  const lastGroomByDogId = useMemo(() => {
+    const todayStr = toDateStr(new Date());
+    const map = {};
+    for (const [dateStr, list] of Object.entries(bookingsByDate || {})) {
+      if (dateStr > todayStr) continue;
+      for (const b of list || []) {
+        if (!b._dogId || b.status === BOOKING_STATUS.CANCELLED) continue;
+        if (!map[b._dogId] || dateStr > map[b._dogId]) map[b._dogId] = dateStr;
+      }
+    }
+    return map;
+  }, [bookingsByDate]);
   const { ownedDogs, trustedDogs } = useMemo(() => {
     // Pull owned dogs from dogsByHumanId first (populated by
     // ensureDogsForHumans regardless of pagination) and only fall back
@@ -89,7 +122,17 @@ export function DogsPanel({
           {ownedDogs.length > 0 && (
             <div className="flex flex-col gap-0.5">
               {ownedDogs.map((d) => (
-                <DogRow key={d.id} dog={d} onClose={onClose} onOpenDog={onOpenDog} />
+                <DogRow
+                  key={d.id}
+                  dog={d}
+                  lastGroom={
+                    lastGroomByDogId[d.id]
+                      ? formatGroomDate(lastGroomByDogId[d.id])
+                      : null
+                  }
+                  onClose={onClose}
+                  onOpenDog={onOpenDog}
+                />
               ))}
             </div>
           )}
@@ -101,7 +144,17 @@ export function DogsPanel({
               </div>
               <div className="flex flex-col gap-0.5">
                 {trustedDogs.map((d) => (
-                  <DogRow key={d.id} dog={d} onClose={onClose} onOpenDog={onOpenDog} />
+                  <DogRow
+                  key={d.id}
+                  dog={d}
+                  lastGroom={
+                    lastGroomByDogId[d.id]
+                      ? formatGroomDate(lastGroomByDogId[d.id])
+                      : null
+                  }
+                  onClose={onClose}
+                  onOpenDog={onOpenDog}
+                />
                 ))}
               </div>
             </div>

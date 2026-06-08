@@ -162,6 +162,53 @@ describe("HumanCardModal", () => {
     expect(screen.getByLabelText("General notes")).toBeInTheDocument();
   });
 
+  it("header shows call + WhatsApp actions, WhatsApp only when whatsapp is on", () => {
+    renderModal();
+    expect(
+      screen.getByRole("link", { name: "Call 07700 900111" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Message 07700 900111 on WhatsApp" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the WhatsApp action when whatsapp is off but keeps the call action", () => {
+    renderModal({
+      humans: { "Sarah Jones": { ...human, whatsapp: false } },
+    });
+    expect(
+      screen.queryByRole("link", { name: /WhatsApp/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Call 07700 900111" }),
+    ).toBeInTheDocument();
+  });
+
+  it("contact-row copy buttons copy the value to the clipboard", () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderModal({
+      humans: {
+        "Sarah Jones": { ...human, address: "1 Dog Lane", email: "sarah@example.com" },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
+    expect(writeText).toHaveBeenCalledWith("1 Dog Lane");
+    fireEvent.click(screen.getByRole("button", { name: "Copy email" }));
+    expect(writeText).toHaveBeenCalledWith("sarah@example.com");
+  });
+
+  it("Book again on a history row calls onBookAgain with that booking", () => {
+    const onBookAgain = vi.fn();
+    renderModal({ bookingsByDate: bookingsWithHistory, onBookAgain });
+    fireEvent.click(screen.getByRole("button", { name: "Book Rex again" }));
+    expect(onBookAgain).toHaveBeenCalledTimes(1);
+    expect(onBookAgain.mock.calls[0][0]).toMatchObject({
+      _dogId: "dog-1",
+      service: "full-groom",
+    });
+  });
+
   it("Archive asks for confirmation before calling onArchiveHuman", () => {
     const onArchiveHuman = vi.fn(() => Promise.resolve({ id: "human-1" }));
     renderModal({ onArchiveHuman });

@@ -96,6 +96,7 @@ export function HumanCardModal({
   // Optional callbacks the parent can wire later. When omitted we stub
   // each one with a console.warn so they can be grepped.
   onOpenBooking,
+  onBookAgain,
   onNewBookingForHuman,
   onSendMessage,
   onMergeHumans,
@@ -432,6 +433,7 @@ export function HumanCardModal({
                 humanFullName={humanFullName}
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
+                bookingsByDate={bookingsByDate}
                 onClose={onClose}
                 onOpenDog={onOpenDog}
               />
@@ -458,6 +460,7 @@ export function HumanCardModal({
               dogsByHumanId={dogsByHumanId}
               bookingsByDate={bookingsByDate}
               onOpenBooking={handleOpenBooking}
+              onBookAgain={onBookAgain}
             />
           </div>
         </div>

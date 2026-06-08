@@ -26,6 +26,12 @@ export function NewBookingModal({
   initialDateStr,
   initialSlot,
   initialHumanId,
+  // "Book again" prefill: drop straight to a chosen dog + service so staff
+  // don't have to re-search. initialDogId resolves to a dog entry; service
+  // and addons seed that entry.
+  initialDogId,
+  initialService,
+  initialAddons,
   // When true, saveBooking skips the over-capacity ConfirmDialog and
   // stamps staff_capacity_override on every booking object from the
   // first attempt. Set by the day-view's time-click flow, which has
@@ -92,6 +98,51 @@ export function NewBookingModal({
     }
     prefilledOwnerRef.current = true;
   }, [humans, initialHumanId, dogEntries.length, dogQuery, ownerName]);
+
+  // "Book again" prefill. Make sure the owner's dogs are loaded (the chosen
+  // dog may sit past the paginated window), then seed a single dog entry
+  // with the original service + addons once that dog is in the map.
+  useEffect(() => {
+    if (initialDogId && initialHumanId && ensureDogsForHumans) {
+      ensureDogsForHumans([initialHumanId]);
+    }
+  }, [initialDogId, initialHumanId, ensureDogsForHumans]);
+
+  const prefilledDogRef = useRef(false);
+  useEffect(() => {
+    if (prefilledDogRef.current || !initialDogId) return;
+    if (dogEntries.length > 0) {
+      prefilledDogRef.current = true;
+      return;
+    }
+    const fromOwner =
+      initialHumanId && dogsByHumanId?.[initialHumanId]
+        ? dogsByHumanId[initialHumanId].find((d) => d.id === initialDogId)
+        : null;
+    const dog =
+      fromOwner || Object.values(dogs || {}).find((d) => d.id === initialDogId);
+    if (!dog) return; // not loaded yet — re-runs when the dogs map updates
+    const humanKey = dog.humanId || dog._humanId || "";
+    setDogEntries([
+      {
+        dog,
+        humanKey,
+        service: initialService || "full-groom",
+        addons: initialAddons || [],
+      },
+    ]);
+    setSelectedHumanKey(humanKey);
+    setDogQuery(dog.name);
+    prefilledDogRef.current = true;
+  }, [
+    initialDogId,
+    initialHumanId,
+    initialService,
+    initialAddons,
+    dogs,
+    dogsByHumanId,
+    dogEntries.length,
+  ]);
 
   const hasDogs = dogEntries.length > 0;
   // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on

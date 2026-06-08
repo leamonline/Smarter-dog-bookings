@@ -754,6 +754,17 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     navigate(`/inbox?human=${hid}`);
                   }}
                   onOpenBooking={handleOpenBooking}
+                  onBookAgain={(booking) => {
+                    handleCloseHumanProfile();
+                    setShowNewBooking({
+                      dateStr: currentDateStr,
+                      slot: "",
+                      initialHumanId: booking._ownerId || selectedHumanId,
+                      initialDogId: booking._dogId,
+                      initialService: booking.service,
+                      initialAddons: booking.addons || [],
+                    });
+                  }}
                   onMergeHumans={sbMergeHumans}
                   onArchiveHuman={(hid) =>
                     updateHuman(hid, { archivedAt: new Date().toISOString() })
@@ -813,6 +824,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
                   initialHumanId={showNewBooking.initialHumanId}
+                  initialDogId={showNewBooking.initialDogId}
+                  initialService={showNewBooking.initialService}
+                  initialAddons={showNewBooking.initialAddons}
                   initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
                   sourceConversationId={showNewBooking.sourceConversationId}
                   sourceMessageText={showNewBooking.sourceMessageText}
