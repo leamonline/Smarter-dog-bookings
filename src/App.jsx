@@ -97,6 +97,11 @@ const NewBookingModal = lazy(() =>
     default: module.NewBookingModal,
   })),
 );
+const BookingDetailModal = lazy(() =>
+  import("./components/modals/BookingDetailModal.jsx").then((module) => ({
+    default: module.BookingDetailModal,
+  })),
+);
 const AddDogModal = lazy(() =>
   import("./components/modals/AddDogModal.jsx").then((module) => ({
     default: module.AddDogModal,
@@ -247,6 +252,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     rebookData, setRebookData,
     showRebookDatePicker, setShowRebookDatePicker,
     collectionNotice, setCollectionNotice,
+    selectedBooking, setSelectedBooking,
     openNewBooking,
   } = useModalState();
 
@@ -344,6 +350,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
+    mergeHumans: sbMergeHumans,
+    fetchArchivedHumans: sbFetchArchivedHumans,
     fetchHumanById: sbFetchHumanById,
     findHumanByFullName: sbFindHumanByFullName,
     searchHumansByTerm: sbSearchHumansByTerm,
@@ -491,6 +499,24 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     setRebookData, setShowRebookDatePicker,
   });
 
+  // Open a single booking's detail modal by id. Used by the human profile
+  // (at-a-glance + booking history) which only has booking ids to hand.
+  // The week calendar opens its own per-card BookingDetailModal; this is
+  // the global entry point so any view can deep-open a booking.
+  const handleOpenBooking = useCallback(
+    (bookingId) => {
+      if (!bookingId) return;
+      for (const list of Object.values(bookingsByDate || {})) {
+        const match = (list || []).find((b) => b.id === bookingId);
+        if (match) {
+          setSelectedBooking(match);
+          return;
+        }
+      }
+    },
+    [bookingsByDate, setSelectedBooking],
+  );
+
   // Task 11 of the May 2026 review pass: don't return a full-screen
   // overlay during the initial data fetch. Render the toolbar and
   // routes immediately; each view shows a skeleton when its own data
@@ -562,6 +588,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onUpdateHuman={updateHuman}
+                      fetchArchivedHumans={sbFetchArchivedHumans}
                       findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
@@ -585,6 +613,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onUpdateHuman={updateHuman}
+                      fetchArchivedHumans={sbFetchArchivedHumans}
                       findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
@@ -719,6 +749,26 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       initialHumanId: hid,
                     });
                   }}
+                  onSendMessage={(hid) => {
+                    handleCloseHumanProfile();
+                    navigate(`/inbox?human=${hid}`);
+                  }}
+                  onOpenBooking={handleOpenBooking}
+                  onBookAgain={(booking) => {
+                    handleCloseHumanProfile();
+                    setShowNewBooking({
+                      dateStr: currentDateStr,
+                      slot: "",
+                      initialHumanId: booking._ownerId || selectedHumanId,
+                      initialDogId: booking._dogId,
+                      initialService: booking.service,
+                      initialAddons: booking.addons || [],
+                    });
+                  }}
+                  onMergeHumans={sbMergeHumans}
+                  onArchiveHuman={(hid) =>
+                    updateHuman(hid, { archivedAt: new Date().toISOString() })
+                  }
                 />
               </Suspense>
             </ErrorBoundary>
@@ -774,12 +824,40 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
                   initialHumanId={showNewBooking.initialHumanId}
+                  initialDogId={showNewBooking.initialDogId}
+                  initialService={showNewBooking.initialService}
+                  initialAddons={showNewBooking.initialAddons}
                   initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
                   sourceConversationId={showNewBooking.sourceConversationId}
                   sourceMessageText={showNewBooking.sourceMessageText}
                   ownerName={showNewBooking.ownerName}
                   onSearchDogs={dogsSearchDogs}
                   isSearchingDogs={dogsIsSearching}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {selectedBooking && (
+            <ErrorBoundary>
+              <Suspense fallback={null}>
+                <BookingDetailModal
+                  booking={selectedBooking}
+                  onClose={() => setSelectedBooking(null)}
+                  onAdd={handleAdd}
+                  onRemove={handleRemove}
+                  onOpenHuman={handleOpenHuman}
+                  onOpenDog={handleOpenDog}
+                  onUpdate={handleUpdate}
+                  currentDateStr={currentDateStr}
+                  currentDateObj={currentDateObj}
+                  bookingsByDate={bookingsByDate}
+                  dayOpenState={dayOpenState}
+                  dogs={dogs}
+                  humans={humans}
+                  onUpdateDog={updateDog}
+                  onRebook={handleOpenRebook}
+                  daySettings={daySettings}
                 />
               </Suspense>
             </ErrorBoundary>

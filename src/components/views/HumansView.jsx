@@ -10,9 +10,12 @@ import { SizeDot } from "../ui/SizeDot.jsx";
 import { Button, EmptyState } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
-export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, findHumanByFullName, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
+export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, onOpenHuman, onAddHuman, onUpdateHuman, fetchArchivedHumans, findHumanByFullName, hasMore, totalCount, loadMore, onSearch, searchQuery, isSearching, isInitialLoading = false, isOnline = true, loadError = null }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedList, setArchivedList] = useState(null);
+  const [loadingArchived, setLoadingArchived] = useState(false);
 
   const hasSearchQuery = Boolean(searchQuery?.trim());
   const sortedHumans = useMemo(() => {
@@ -20,21 +23,59 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
       hasSearchQuery && !isOnline
         ? filterHumansForDirectory(humans, dogs, dogsByHumanId, searchQuery)
         : Object.values(humans);
-    return visibleHumans.sort((a, b) => a.name.localeCompare(b.name));
+    // Archived humans can still be in the map (e.g. opened by direct URL,
+    // which hydrates them via fetchHumanById); keep them out of the
+    // directory regardless of how they got there.
+    return visibleHumans
+      .filter((h) => !h.archivedAt)
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [dogs, dogsByHumanId, hasSearchQuery, humans, isOnline, searchQuery]);
+
+  // Load the archived set the first time the toggle is switched on.
+  useEffect(() => {
+    if (!showArchived || archivedList !== null || !fetchArchivedHumans) return;
+    let cancelled = false;
+    setLoadingArchived(true);
+    fetchArchivedHumans()
+      .then((rows) => {
+        if (!cancelled) setArchivedList(rows || []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingArchived(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showArchived, archivedList, fetchArchivedHumans]);
+
+  const handleUnarchive = async (humanId) => {
+    if (!onUpdateHuman) return;
+    await onUpdateHuman(humanId, { archivedAt: null });
+    setArchivedList((prev) => (prev || []).filter((h) => h.id !== humanId));
+  };
+
+  const displayList = useMemo(
+    () => (showArchived ? archivedList || [] : sortedHumans),
+    [showArchived, archivedList, sortedHumans],
+  );
   const registeredTotal = hasSearchQuery
     ? sortedHumans.length
     : Math.max(Number(totalCount) || 0, Object.keys(humans).length);
-  const headerCountText = hasSearchQuery
-    ? `${sortedHumans.length} matching human${sortedHumans.length !== 1 ? "s" : ""}`
-    : `${registeredTotal} human${registeredTotal !== 1 ? "s" : ""} registered`;
-  const footerText = hasSearchQuery
-    ? `${sortedHumans.length} match${sortedHumans.length !== 1 ? "es" : ""} for "${searchQuery.trim()}"`
-    : `Showing ${sortedHumans.length} of ${registeredTotal} humans`;
+  const archivedCount = (archivedList || []).length;
+  const headerCountText = showArchived
+    ? `${archivedCount} archived`
+    : hasSearchQuery
+      ? `${sortedHumans.length} matching human${sortedHumans.length !== 1 ? "s" : ""}`
+      : `${registeredTotal} human${registeredTotal !== 1 ? "s" : ""} registered`;
+  const footerText = showArchived
+    ? `${archivedCount} archived human${archivedCount !== 1 ? "s" : ""}`
+    : hasSearchQuery
+      ? `${sortedHumans.length} match${sortedHumans.length !== 1 ? "es" : ""} for "${searchQuery.trim()}"`
+      : `Showing ${sortedHumans.length} of ${registeredTotal} humans`;
 
   const visibleHumanIdsKey = useMemo(
-    () => sortedHumans.map((h) => h.id).filter(Boolean).join(","),
-    [sortedHumans],
+    () => displayList.map((h) => h.id).filter(Boolean).join(","),
+    [displayList],
   );
 
   useEffect(() => {
@@ -94,11 +135,15 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
       )}
 
       {/* Card grid — skeleton during the initial fetch. */}
-      {isInitialLoading && sortedHumans.length === 0 ? (
+      {!showArchived && isInitialLoading && sortedHumans.length === 0 ? (
         <CardGridSkeleton rows={3} cols={3} />
+      ) : showArchived && archivedList === null ? (
+        <div className="py-12 text-center text-body text-slate-500 italic">
+          Loading archived…
+        </div>
       ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedHumans.map((human) => {
+        {displayList.map((human) => {
           const cleanSurname = normaliseSurname(human.surname);
           const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
           const humanDogs =
@@ -127,6 +172,20 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
               {/* Trash icon removed in task 4 of the May 2026 review pass.
                   Delete now lives inside the human profile. */}
               <div className="h-[3px] bg-gradient-to-r from-brand-teal to-brand-teal-light shrink-0" />
+
+              {showArchived && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUnarchive(human.id);
+                  }}
+                  title="Unarchive this person"
+                  className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+                >
+                  Unarchive
+                </button>
+              )}
 
               <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
                 {/* Name + flag */}
@@ -196,12 +255,22 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
           );
         })}
 
-        {sortedHumans.length === 0 && !isSearching && !loadError && (
+        {displayList.length === 0 && !isSearching && !loadError && (
           <div className="col-span-full">
             <EmptyState
-              icon="\uD83D\uDD0D"
-              title={searchQuery ? `No humans found matching "${searchQuery}"` : "No humans yet."}
-              description={searchQuery ? "Try searching by phone number or dog breed instead." : null}
+              icon={showArchived ? "\uD83D\uDDC4\uFE0F" : "\uD83D\uDD0D"}
+              title={
+                showArchived
+                  ? "No archived humans."
+                  : searchQuery
+                    ? `No humans found matching "${searchQuery}"`
+                    : "No humans yet."
+              }
+              description={
+                !showArchived && searchQuery
+                  ? "Try searching by phone number or dog breed instead."
+                  : null
+              }
             />
           </div>
         )}
@@ -217,15 +286,26 @@ export function HumansView({ humans, dogs, dogsByHumanId, ensureDogsForHumans, o
             <span>{footerText}</span>
           )}
         </div>
-        {hasMore && !isSearching && !hasSearchQuery && (
-          <Button
-            variant="ghost"
-            loading={loadingMore}
-            onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
-          >
-            Load more
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {fetchArchivedHumans && !hasSearchQuery && (
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              className="text-body font-semibold text-slate-500 hover:text-brand-teal bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
+            >
+              {showArchived ? "← Back to active" : "Show archived"}
+            </button>
+          )}
+          {hasMore && !isSearching && !hasSearchQuery && !showArchived && (
+            <Button
+              variant="ghost"
+              loading={loadingMore}
+              onClick={async () => { setLoadingMore(true); await loadMore(); setLoadingMore(false); }}
+            >
+              Load more
+            </Button>
+          )}
+        </div>
       </div>
 
       {showAddModal && (

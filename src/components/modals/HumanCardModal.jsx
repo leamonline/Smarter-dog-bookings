@@ -17,6 +17,7 @@ import {
   DogsPanel,
   TrustedHumansPanel,
   RemindersPanel,
+  MergeHumanDialog,
 } from "./human-card/index.js";
 
 const EMPTY_HUMAN = {
@@ -94,16 +95,18 @@ export function HumanCardModal({
   searchHumansByTerm,
   // Optional callbacks the parent can wire later. When omitted we stub
   // each one with a console.warn so they can be grepped.
-  onOpenBookingsForHuman,
   onOpenBooking,
+  onBookAgain,
   onNewBookingForHuman,
   onSendMessage,
-  onMergeDuplicate,
+  onMergeHumans,
   onArchiveHuman,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
+  const [pendingArchive, setPendingArchive] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -143,6 +146,7 @@ export function HumanCardModal({
   const addressInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const notesInputRef = useRef(null);
+  const historyRef = useRef(null);
 
   // Reseed when a different human is selected. Live edits and edit-mode
   // transitions never overwrite the user's typing — so we deliberately
@@ -282,22 +286,14 @@ export function HumanCardModal({
     return () => document.removeEventListener("keydown", handler);
   }, [mode, dirty, onUpdateHuman, pendingDelete, pendingExit, startEdit, cancelEdit]);
 
+  // Scroll the booking-history section into view. Used by the at-a-glance
+  // "Bookings" tile, which has no separate list view to open.
+  const handleShowHistory = useCallback(() => {
+    historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   // Stubbed callbacks: keep the surface area visible in the modal and
   // emit a console.warn so unwired handlers are grep-able.
-  const handleOpenBookingsForHuman = useCallback(
-    (id, opts) => {
-      if (onOpenBookingsForHuman) {
-        onOpenBookingsForHuman(id, opts);
-        return;
-      }
-      console.warn("[HumanCardModal] TODO: onOpenBookingsForHuman", {
-        humanId: id,
-        ...(opts || {}),
-      });
-    },
-    [onOpenBookingsForHuman],
-  );
-
   const handleOpenBooking = useCallback(
     (bookingId) => {
       if (onOpenBooking) {
@@ -310,46 +306,38 @@ export function HumanCardModal({
   );
 
   const overflowItems = useMemo(() => {
+    const call = (handler, name) => () => {
+      if (handler) {
+        handler(human.id || humanId);
+      } else {
+        console.warn(`[HumanCardModal] TODO: ${name}`, {
+          humanId: human.id || humanId,
+        });
+      }
+    };
     const items = [
       {
         label: "New booking for this human",
-        handler: onNewBookingForHuman,
-        name: "onNewBookingForHuman",
+        onClick: call(onNewBookingForHuman, "onNewBookingForHuman"),
       },
       {
         label: "Send message",
-        handler: onSendMessage,
-        name: "onSendMessage",
-      },
-      {
-        label: "Merge duplicate",
-        handler: onMergeDuplicate,
-        name: "onMergeDuplicate",
-      },
-      {
-        label: "Archive",
-        handler: onArchiveHuman,
-        name: "onArchiveHuman",
+        onClick: call(onSendMessage, "onSendMessage"),
       },
     ];
-    return items.map(({ label, handler, name }) => ({
-      label,
-      onClick: () => {
-        if (handler) {
-          handler(human.id || humanId);
-        } else {
-          console.warn(`[HumanCardModal] TODO: ${name}`, {
-            humanId: human.id || humanId,
-          });
-        }
-      },
-    }));
+    if (onMergeHumans) {
+      items.push({ label: "Merge duplicate", onClick: () => setShowMerge(true) });
+    }
+    if (onArchiveHuman) {
+      items.push({ label: "Archive", onClick: () => setPendingArchive(true) });
+    }
+    return items;
   }, [
     human.id,
     humanId,
     onNewBookingForHuman,
     onSendMessage,
-    onMergeDuplicate,
+    onMergeHumans,
     onArchiveHuman,
   ]);
 
@@ -420,26 +408,32 @@ export function HumanCardModal({
                 setEditHistoryFlag={(v) => setDraftField("historyFlag", v)}
                 expanded={notesExpanded}
                 onToggleExpanded={() => setNotesExpanded((v) => !v)}
+                onStartEdit={onUpdateHuman ? () => startEdit("notes") : undefined}
                 notesInputRef={notesInputRef}
               />
             </div>
 
-            {/* Right column — At a glance, Dogs, Trusted, Reminders */}
-            <div className="md:col-span-7 flex flex-col gap-3 min-h-0">
+            {/* Right column — At a glance, Dogs, Trusted, Reminders.
+                On mobile (single column) it floats above the left column so
+                Dogs + the at-a-glance stats — the day-to-day stuff — lead,
+                ahead of Channels/Notes. Reset to DOM order at md. */}
+            <div className="order-first md:order-none md:col-span-7 flex flex-col gap-3 min-h-0">
               <AtAGlanceStrip
                 human={human}
                 humanFullName={humanFullName}
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
                 bookingsByDate={bookingsByDate}
-                onOpenBookingsForHuman={handleOpenBookingsForHuman}
+                onShowHistory={handleShowHistory}
                 onOpenBooking={handleOpenBooking}
+                onNewBookingForHuman={onNewBookingForHuman}
               />
               <DogsPanel
                 human={human}
                 humanFullName={humanFullName}
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
+                bookingsByDate={bookingsByDate}
                 onClose={onClose}
                 onOpenDog={onOpenDog}
               />
@@ -459,13 +453,14 @@ export function HumanCardModal({
           </div>
 
           {/* Booking history spans both columns underneath the grid. */}
-          <div className="mt-3 md:mt-4">
+          <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
             <HumanBookingHistory
               human={human}
               dogs={dogs}
               dogsByHumanId={dogsByHumanId}
               bookingsByDate={bookingsByDate}
               onOpenBooking={handleOpenBooking}
+              onBookAgain={onBookAgain}
             />
           </div>
         </div>
@@ -536,6 +531,49 @@ export function HumanCardModal({
             }
           }}
           onCancel={() => setPendingDelete(false)}
+        />
+      )}
+
+      {pendingArchive && (
+        <ConfirmDialog
+          title="Archive this person?"
+          message="They'll be hidden from the directory and left out of new-booking and trusted-contact search. Their dogs and booking history are kept — you can unarchive them later from the directory's “Show archived” view."
+          confirmLabel="Archive"
+          cancelLabel="Cancel"
+          variant="primary"
+          onConfirm={async () => {
+            const result = await onArchiveHuman?.(human.id || humanId);
+            setPendingArchive(false);
+            if (result) {
+              toast.show("Archived", "success");
+              onClose?.();
+            } else {
+              toast.show("Couldn't archive — please try again", "error");
+            }
+          }}
+          onCancel={() => setPendingArchive(false)}
+        />
+      )}
+
+      {showMerge && onMergeHumans && (
+        <MergeHumanDialog
+          human={human}
+          humans={humans}
+          dogs={dogs}
+          dogsByHumanId={dogsByHumanId}
+          bookingsByDate={bookingsByDate}
+          ensureDogsForHumans={ensureDogsForHumans}
+          searchHumansByTerm={searchHumansByTerm}
+          onMerge={onMergeHumans}
+          onMerged={(winnerId) => {
+            setShowMerge(false);
+            // If the kept record is the other one (user swapped), jump to it;
+            // otherwise the current modal is the winner and just refreshes.
+            if (winnerId && winnerId !== (human.id || humanId)) {
+              onOpenHuman?.(winnerId);
+            }
+          }}
+          onClose={() => setShowMerge(false)}
         />
       )}
     </>

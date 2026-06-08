@@ -9,3 +9,4 @@ export { AtAGlanceStrip } from "./AtAGlanceStrip.jsx";
 export { DogsPanel } from "./DogsPanel.jsx";
 export { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
 export { RemindersPanel } from "./RemindersPanel.jsx";
+export { MergeHumanDialog } from "./MergeHumanDialog.jsx";

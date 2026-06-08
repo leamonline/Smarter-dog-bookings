@@ -1,15 +1,17 @@
-import { MapPin } from "lucide-react";
+import { Copy, MapPin } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 
 // Compact contact rows: small uppercase prefix label inline with the
-// value rather than stacked as its own block. When both fields are
-// empty in view mode the panel collapses to a single "Add contact
-// details" link that drops the modal into edit mode focused on the
+// value rather than stacked as its own block. Each populated row carries
+// a hover-revealed copy button (mirrors the header's copy-phone). When both
+// fields are empty in view mode the panel collapses to a single "Add
+// contact details" link that drops the modal into edit mode focused on the
 // address input.
 
-function InlineRow({ caption, value }) {
+function InlineRow({ caption, value, onCopy }) {
   return (
-    <div className="flex items-baseline gap-2 min-w-0">
+    <div className="group flex items-center gap-2 min-w-0">
       <span className="text-xs uppercase tracking-wide font-semibold text-slate-400 shrink-0">
         {caption}
       </span>
@@ -18,6 +20,17 @@ function InlineRow({ caption, value }) {
       >
         {value || "Not on file"}
       </span>
+      {value && onCopy && (
+        <button
+          type="button"
+          onClick={() => onCopy(value, caption)}
+          aria-label={`Copy ${caption.toLowerCase()}`}
+          title="Copy to clipboard"
+          className="ml-auto shrink-0 w-6 h-6 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
@@ -52,9 +65,21 @@ export function ContactPanel({
   addressInputRef,
   emailInputRef,
 }) {
+  const toast = useToast();
   const hasAddress = !!human.address;
   const hasEmail = !!human.email;
   const hasAny = hasAddress || hasEmail;
+
+  // Mirror handleCopyPhone's toast pattern from the modal header.
+  const handleCopy = (value, label) => {
+    if (!value) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(value);
+      toast.show(`Copied ${label.toLowerCase()}`, "success");
+    } else {
+      toast.show("Clipboard not available", "error");
+    }
+  };
 
   return (
     <PanelShell eyebrow="Contact" icon={MapPin} accent="slate">
@@ -86,8 +111,8 @@ export function ContactPanel({
         </button>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <InlineRow caption="Address" value={human.address} />
-          <InlineRow caption="Email" value={human.email} />
+          <InlineRow caption="Address" value={human.address} onCopy={handleCopy} />
+          <InlineRow caption="Email" value={human.email} onCopy={handleCopy} />
         </div>
       )}
     </PanelShell>

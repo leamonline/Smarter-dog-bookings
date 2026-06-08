@@ -8,6 +8,11 @@ import type { Booking } from "../types/index.js";
 interface NewBookingData {
   dateStr: string;
   slot: string;
+  initialHumanId?: string;
+  // "Book again" prefill — seed the wizard with a specific dog + service.
+  initialDogId?: string;
+  initialService?: string;
+  initialAddons?: string[];
 }
 
 interface UseModalStateReturn {
@@ -30,6 +35,8 @@ interface UseModalStateReturn {
   setShowRebookDatePicker: (show: boolean) => void;
   collectionNotice: Booking | null;
   setCollectionNotice: (booking: Booking | null) => void;
+  selectedBooking: Booking | null;
+  setSelectedBooking: (booking: Booking | null) => void;
   // Callbacks
   openNewBooking: (dateStr: string, slot: string) => void;
   closeNewBooking: () => void;
@@ -46,6 +53,7 @@ export function useModalState(): UseModalStateReturn {
   const [showAddHumanModal, setShowAddHumanModal] = useState<boolean>(false);
   const [showRebookDatePicker, setShowRebookDatePicker] = useState<boolean>(false);
   const [collectionNotice, setCollectionNotice] = useState<Booking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   const openNewBooking = useCallback((dateStr: string, slot: string) => {
     setShowNewBooking({ dateStr, slot });
@@ -79,6 +87,8 @@ export function useModalState(): UseModalStateReturn {
     setShowRebookDatePicker,
     collectionNotice,
     setCollectionNotice,
+    selectedBooking,
+    setSelectedBooking,
     openNewBooking,
     closeNewBooking,
     closeRebook,

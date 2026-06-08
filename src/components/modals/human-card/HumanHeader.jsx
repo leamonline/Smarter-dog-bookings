@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy, MoreHorizontal, Pencil, X } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Phone, X } from "lucide-react";
 import { titleCase } from "../../../utils/text.js";
 import { telLink, waLink } from "../dog-card/helpers.js";
 
@@ -120,15 +120,27 @@ export function HumanHeader({
                     <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
                   </button>
                   <a
-                    href={waLink(human.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={telLink(human.phone)}
                     onClick={(e) => e.stopPropagation()}
-                    title="Open in WhatsApp"
-                    className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md no-underline hover:bg-emerald-100 transition-colors"
+                    aria-label={`Call ${human.phone}`}
+                    title="Call"
+                    className="w-6 h-6 rounded-md flex items-center justify-center bg-transparent text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all no-underline"
                   >
-                    WA
+                    <Phone size={12} strokeWidth={2.4} aria-hidden="true" />
                   </a>
+                  {human.whatsapp && (
+                    <a
+                      href={waLink(human.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Message ${human.phone} on WhatsApp`}
+                      title="Open in WhatsApp"
+                      className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md no-underline hover:bg-emerald-100 transition-colors"
+                    >
+                      WA
+                    </a>
+                  )}
                 </>
               ) : (
                 <span className="text-[13px] text-slate-400 italic">No phone</span>

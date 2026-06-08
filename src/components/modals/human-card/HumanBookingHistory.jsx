@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
 import { titleCase } from "../../../utils/text.js";
 import { getDogsForHuman } from "../../../utils/directorySearch.js";
@@ -22,6 +23,7 @@ export function HumanBookingHistory({
   dogsByHumanId,
   bookingsByDate,
   onOpenBooking,
+  onBookAgain,
 }) {
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
@@ -59,6 +61,11 @@ export function HumanBookingHistory({
         <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-teal-text/70">
             Recent bookings
+            {history.length > 0 && (
+              <span className="ml-1.5 text-slate-400 normal-case tracking-normal">
+                · {history.length}
+              </span>
+            )}
           </h3>
           {history.length > rows.length && (
             <span className="text-[10px] font-semibold text-slate-400">
@@ -74,10 +81,11 @@ export function HumanBookingHistory({
           ) : (
             rows.map((booking, i) => {
               const service = SERVICES.find((s) => s.id === booking.service);
-              const isClickable = !!onOpenBooking && !!booking.id;
+              const canOpen = !!onOpenBooking && !!booking.id;
+              const canRebook = !!onBookAgain && !!booking._dogId;
               const label = (
                 <>
-                  <div className="min-w-0 truncate">
+                  <div className="flex-1 min-w-0 truncate">
                     <span className="font-semibold text-slate-800">
                       {formatBookingDate(booking.date)}
                     </span>
@@ -102,26 +110,42 @@ export function HumanBookingHistory({
                 </>
               );
 
-              if (isClickable) {
-                return (
-                  <button
-                    key={`${booking.id}-${i}`}
-                    type="button"
-                    onClick={() => onOpenBooking(booking.id)}
-                    aria-label={`Open booking on ${booking.date} for ${booking.dogName}`}
-                    className="w-full flex justify-between items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-x-0 border-t-0 border-b border-slate-100 last:border-b-0 cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
-                  >
-                    {label}
-                  </button>
-                );
-              }
-
               return (
                 <div
                   key={`${booking.id || booking.date}-${i}`}
-                  className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-100 last:border-b-0 text-xs"
+                  className="group/row flex items-center gap-1 border-b border-slate-100 last:border-b-0"
                 >
-                  {label}
+                  {canOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenBooking(booking.id)}
+                      aria-label={`Open booking on ${booking.date} for ${booking.dogName}`}
+                      className="flex-1 min-w-0 flex items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-none cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
+                    >
+                      {label}
+                      <ChevronRight
+                        size={13}
+                        strokeWidth={2.4}
+                        aria-hidden="true"
+                        className="shrink-0 text-slate-300 group-hover/row:text-brand-teal transition-colors"
+                      />
+                    </button>
+                  ) : (
+                    <div className="flex-1 min-w-0 flex items-center gap-2 py-1.5 text-xs">
+                      {label}
+                    </div>
+                  )}
+                  {canRebook && (
+                    <button
+                      type="button"
+                      onClick={() => onBookAgain(booking)}
+                      aria-label={`Book ${titleCase(booking.dogName)} again`}
+                      title="Book again with the same dog and service"
+                      className="shrink-0 text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+                    >
+                      Book again
+                    </button>
+                  )}
                 </div>
               );
             })

@@ -43,6 +43,8 @@ function makeSupabaseStub({ counts = {}, rows = {}, inRows = {} } = {}) {
       builder.order = vi.fn(() => builder);
       builder.limit = vi.fn(() => builder);
       builder.eq = vi.fn(() => builder);
+      builder.is = vi.fn(() => builder);
+      builder.not = vi.fn(() => builder);
       // `.in(...)` is terminal in the trusted-name resolution path; it
       // serves a separate dataset so a test can model a trusted human who
       // sits past the initial paginated window.
@@ -142,6 +144,8 @@ describe("useHumans", () => {
         });
         builder.order = vi.fn(() => builder);
         builder.limit = vi.fn(() => builder);
+        builder.is = vi.fn(() => builder);
+        builder.not = vi.fn(() => builder);
         builder.abortSignal = vi.fn(() => Promise.resolve({ data: [], error: null }));
         return builder;
       }),
