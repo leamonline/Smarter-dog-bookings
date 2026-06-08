@@ -374,14 +374,11 @@ async function handleDraftMode(
       })
       .eq("id", draft.id);
 
-    return json(
-      req,
-      {
-        error: "Meta send failed",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      502,
+    console.error(
+      "whatsapp-send draft mode: Meta send failed:",
+      err instanceof Error ? err.message : String(err),
     );
+    return json(req, { error: "Meta send failed" }, 502);
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -458,14 +455,11 @@ async function handleManualMode(
       text: { body: text },
     });
   } catch (err) {
-    return json(
-      req,
-      {
-        error: "Meta send failed",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      502,
+    console.error(
+      "whatsapp-send manual mode: Meta send failed:",
+      err instanceof Error ? err.message : String(err),
     );
+    return json(req, { error: "Meta send failed" }, 502);
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -514,14 +508,11 @@ async function handleTemplateMode(
       },
     });
   } catch (err) {
-    return json(
-      req,
-      {
-        error: "Meta send failed",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      502,
+    console.error(
+      "whatsapp-send template mode: Meta send failed:",
+      err instanceof Error ? err.message : String(err),
     );
+    return json(req, { error: "Meta send failed" }, 502);
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -687,7 +678,8 @@ async function handleFlowMode(
     status: "active",
   });
   if (sessErr) {
-    return json(req, { error: "could not create flow session", detail: sessErr.message }, 500);
+    console.error("whatsapp-send flow mode: flow session create failed:", sessErr.message);
+    return json(req, { error: "could not create flow session" }, 500);
   }
 
   const metaBody = buildFlowMetaBody({
@@ -708,11 +700,11 @@ async function handleFlowMode(
     metaRes = await callMeta(metaBody);
   } catch (err) {
     await supabase.from("whatsapp_flow_sessions").update({ status: "failed" }).eq("flow_token", flowToken);
-    return json(
-      req,
-      { error: "Meta send failed", detail: err instanceof Error ? err.message : String(err) },
-      502,
+    console.error(
+      "whatsapp-send flow mode: Meta send failed:",
+      err instanceof Error ? err.message : String(err),
     );
+    return json(req, { error: "Meta send failed" }, 502);
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
@@ -791,6 +783,6 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("whatsapp-send unhandled error:", message);
-    return json(req, { error: "internal error", detail: message }, 500);
+    return json(req, { error: "internal error" }, 500);
   }
 });
