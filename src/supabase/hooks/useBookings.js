@@ -196,20 +196,26 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         ...(booking.staff_capacity_override ? { staff_capacity_override: true } : {}),
       };
 
-      // Optimistic: insert a temp RAW row so the derived view shows it
-      // immediately; replaced with the server row on success.
-      const tempId = `_temp_${Date.now()}`;
-      const tempRow = { id: tempId, ...insertPayload };
-      setRows((prev) => [...(prev || []), tempRow]);
+      // Optimistic: insert a RAW row keyed by a client-generated id that we
+      // ALSO send to the DB, so the row's id stays stable across the
+      // optimistic insert, the server response, AND the realtime INSERT
+      // echo. With a temp id the echo (carrying the server id) couldn't be
+      // matched to the optimistic row and got appended as a duplicate —
+      // which made two-dog group bookings briefly show doubled until a
+      // manual refetch. Always a FRESH uuid (never booking.id) so a rebook
+      // flow carrying a persisted id can't cause a PK collision.
+      const newId = crypto.randomUUID();
+      const rowPayload = { id: newId, ...insertPayload };
+      setRows((prev) => [...(prev || []), rowPayload]);
 
       const { data, error: err } = await supabase
         .from("bookings")
-        .insert(insertPayload)
+        .insert(rowPayload)
         .select("*")
         .single();
 
       if (err) {
-        setRows((prev) => (prev || []).filter((r) => r.id !== tempId));
+        setRows((prev) => (prev || []).filter((r) => r.id !== newId));
         logger.error("Failed to add booking", err, {
           tags: { hook: "useBookings", op: "addBooking" },
         });
@@ -218,7 +224,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         return null;
       }
 
-      setRows((prev) => (prev || []).map((r) => (r.id === tempId ? data : r)));
+      setRows((prev) => (prev || []).map((r) => (r.id === newId ? data : r)));
 
       return dbBookingsToArray([data], dogsById, humansById)[0];
     },
