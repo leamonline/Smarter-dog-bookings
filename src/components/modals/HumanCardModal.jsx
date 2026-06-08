@@ -407,12 +407,16 @@ export function HumanCardModal({
                 setEditHistoryFlag={(v) => setDraftField("historyFlag", v)}
                 expanded={notesExpanded}
                 onToggleExpanded={() => setNotesExpanded((v) => !v)}
+                onStartEdit={onUpdateHuman ? () => startEdit("notes") : undefined}
                 notesInputRef={notesInputRef}
               />
             </div>
 
-            {/* Right column — At a glance, Dogs, Trusted, Reminders */}
-            <div className="md:col-span-7 flex flex-col gap-3 min-h-0">
+            {/* Right column — At a glance, Dogs, Trusted, Reminders.
+                On mobile (single column) it floats above the left column so
+                Dogs + the at-a-glance stats — the day-to-day stuff — lead,
+                ahead of Channels/Notes. Reset to DOM order at md. */}
+            <div className="order-first md:order-none md:col-span-7 flex flex-col gap-3 min-h-0">
               <AtAGlanceStrip
                 human={human}
                 humanFullName={humanFullName}
@@ -421,6 +425,7 @@ export function HumanCardModal({
                 bookingsByDate={bookingsByDate}
                 onShowHistory={handleShowHistory}
                 onOpenBooking={handleOpenBooking}
+                onNewBookingForHuman={onNewBookingForHuman}
               />
               <DogsPanel
                 human={human}

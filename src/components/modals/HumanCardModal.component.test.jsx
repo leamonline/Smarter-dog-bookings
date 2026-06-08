@@ -146,6 +146,22 @@ describe("HumanCardModal", () => {
     expect(onSendMessage).toHaveBeenCalledWith("human-1");
   });
 
+  it("shows a Book now affordance when there's no next appointment", () => {
+    const onNewBookingForHuman = vi.fn();
+    renderModal({ onNewBookingForHuman });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Book a new appointment for this human" }),
+    );
+    expect(onNewBookingForHuman).toHaveBeenCalledWith("human-1");
+  });
+
+  it("the Notes empty state offers Add a note and jumps into edit mode", () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
+    // Edit mode is now active with the notes textarea available to type into.
+    expect(screen.getByLabelText("General notes")).toBeInTheDocument();
+  });
+
   it("Archive asks for confirmation before calling onArchiveHuman", () => {
     const onArchiveHuman = vi.fn(() => Promise.resolve({ id: "human-1" }));
     renderModal({ onArchiveHuman });

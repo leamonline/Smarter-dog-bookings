@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
 import { titleCase } from "../../../utils/text.js";
 import { getDogsForHuman } from "../../../utils/directorySearch.js";
@@ -59,6 +60,11 @@ export function HumanBookingHistory({
         <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-teal-text/70">
             Recent bookings
+            {history.length > 0 && (
+              <span className="ml-1.5 text-slate-400 normal-case tracking-normal">
+                · {history.length}
+              </span>
+            )}
           </h3>
           {history.length > rows.length && (
             <span className="text-[10px] font-semibold text-slate-400">
@@ -77,7 +83,7 @@ export function HumanBookingHistory({
               const isClickable = !!onOpenBooking && !!booking.id;
               const label = (
                 <>
-                  <div className="min-w-0 truncate">
+                  <div className="flex-1 min-w-0 truncate">
                     <span className="font-semibold text-slate-800">
                       {formatBookingDate(booking.date)}
                     </span>
@@ -109,9 +115,15 @@ export function HumanBookingHistory({
                     type="button"
                     onClick={() => onOpenBooking(booking.id)}
                     aria-label={`Open booking on ${booking.date} for ${booking.dogName}`}
-                    className="w-full flex justify-between items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-x-0 border-t-0 border-b border-slate-100 last:border-b-0 cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
+                    className="group/row w-full flex items-center gap-2 py-1.5 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-x-0 border-t-0 border-b border-slate-100 last:border-b-0 cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
                   >
                     {label}
+                    <ChevronRight
+                      size={13}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                      className="shrink-0 text-slate-300 group-hover/row:text-brand-teal transition-colors"
+                    />
                   </button>
                 );
               }

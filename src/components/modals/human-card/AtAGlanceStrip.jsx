@@ -28,9 +28,11 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
   const valueClass =
     tone === "amber"
       ? "text-amber-700"
-      : tone === "muted"
-        ? "text-slate-400"
-        : "text-brand-purple";
+      : tone === "teal"
+        ? "text-brand-teal-text"
+        : tone === "muted"
+          ? "text-slate-400"
+          : "text-brand-purple";
 
   const isInteractive = !!onClick && !disabled;
   const base =
@@ -89,6 +91,7 @@ export function AtAGlanceStrip({
   bookingsByDate,
   onShowHistory,
   onOpenBooking,
+  onNewBookingForHuman,
 }) {
   const stats = useMemo(() => {
     // Use the merged dogs lookup so customers whose dogs sit past the
@@ -181,19 +184,32 @@ export function AtAGlanceStrip({
         disabled={!stats.lastVisitBooking?.id}
         ariaLabel={stats.lastVisit ? `Open most recent visit` : undefined}
       />
-      <Tile
-        caption="Next appt"
-        value={formatShortDate(stats.nextAppt)}
-        sub={stats.isNextToday ? "today" : undefined}
-        tone={stats.isNextToday ? "amber" : stats.nextAppt ? "navy" : "muted"}
-        onClick={
-          stats.nextApptBooking?.id
-            ? () => onOpenBooking?.(stats.nextApptBooking.id)
-            : undefined
-        }
-        disabled={!stats.nextApptBooking?.id}
-        ariaLabel={stats.nextAppt ? `Open upcoming appointment on ${stats.nextAppt}` : undefined}
-      />
+      {stats.nextAppt ? (
+        <Tile
+          caption="Next appt"
+          value={formatShortDate(stats.nextAppt)}
+          sub={stats.isNextToday ? "today" : undefined}
+          tone={stats.isNextToday ? "amber" : "navy"}
+          onClick={
+            stats.nextApptBooking?.id
+              ? () => onOpenBooking?.(stats.nextApptBooking.id)
+              : undefined
+          }
+          disabled={!stats.nextApptBooking?.id}
+          ariaLabel={`Open upcoming appointment on ${stats.nextAppt}`}
+        />
+      ) : (
+        <Tile
+          caption="Next appt"
+          value="Book now"
+          tone="teal"
+          onClick={
+            onNewBookingForHuman ? () => onNewBookingForHuman(human.id) : undefined
+          }
+          disabled={!onNewBookingForHuman}
+          ariaLabel="Book a new appointment for this human"
+        />
+      )}
       <Tile
         caption="Total"
         value={stats.totalSpend > 0 ? `£${stats.totalSpend}` : "£0"}
