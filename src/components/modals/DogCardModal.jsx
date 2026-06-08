@@ -653,17 +653,35 @@ export function DogCardModal({
           headerTextColour={headerTextColour}
         />
 
-        {/* Delete moved here in task 4 of the May 2026 review pass —
-            bulk delete from the /dogs grid was too easy to mis-fire. */}
-        {isEditing && onDeleteDog && (
-          <div className="px-6 pb-5 -mt-2 bg-slate-50">
-            <button
-              type="button"
-              onClick={() => setPendingDelete(true)}
-              className="text-[12px] font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
-            >
-              Delete this dog…
-            </button>
+        {/* Archive (primary, reversible) + permanent delete (secondary). Archive
+            hides the dog from the directory while keeping its booking history and
+            groom photos; delete is the irreversible removal (delete moved here in
+            task 4 of the May 2026 review pass — bulk delete from the /dogs grid
+            was too easy to mis-fire). */}
+        {isEditing && (onUpdateDog || onDeleteDog) && (
+          <div className="px-6 pb-5 -mt-2 bg-slate-50 flex items-center gap-4">
+            {onUpdateDog && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await onUpdateDog(resolvedDog.id, { archivedAt: new Date().toISOString() });
+                  toast.show(`Archived ${resolvedDog.name}`, "success");
+                  onClose?.();
+                }}
+                className="text-[12px] font-bold text-brand-purple underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+              >
+                Archive this dog
+              </button>
+            )}
+            {onDeleteDog && (
+              <button
+                type="button"
+                onClick={() => setPendingDelete(true)}
+                className="text-[11px] font-semibold text-slate-400 underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral"
+              >
+                Delete permanently…
+              </button>
+            )}
           </div>
         )}
     </AccessibleModal>

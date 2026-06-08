@@ -3,7 +3,7 @@
 // lazily — the goal here is to lock current behaviour so the upcoming
 // extraction can be verified end-to-end, not to cover every branch.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
 vi.mock("../../hooks/useGroomPhotos.js", () => ({
@@ -104,5 +104,23 @@ describe("DogCardModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit Bella" }));
     const nameInput = screen.getByRole("textbox", { name: "Dog name" });
     expect(nameInput).toHaveValue("Bella");
+  });
+
+  it("archiving from edit mode soft-archives via onUpdateDog and closes", async () => {
+    const onUpdateDog = vi.fn(() => Promise.resolve());
+    const { onClose } = renderModal({ onUpdateDog });
+    fireEvent.click(screen.getByRole("button", { name: "Edit Bella" }));
+    fireEvent.click(screen.getByRole("button", { name: "Archive this dog" }));
+    expect(onUpdateDog).toHaveBeenCalledWith(
+      "dog-1",
+      expect.objectContaining({ archivedAt: expect.any(String) }),
+    );
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("still offers a permanent delete as a secondary action in edit mode", () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Bella" }));
+    expect(screen.getByRole("button", { name: "Delete permanently…" })).toBeInTheDocument();
   });
 });
