@@ -35,6 +35,8 @@ function renderView(overrides = {}) {
     onSortModeChange: vi.fn(),
     activeLetter: null,
     onLetterChange: vi.fn(),
+    filters: { flagged: false, noDogs: false, noPhone: false, whatsapp: false },
+    onToggleFilter: vi.fn(),
     ...overrides,
   };
   render(<HumansView {...props} />);
@@ -118,5 +120,30 @@ describe("HumansView directory", () => {
     expect(localStorage.getItem("humansViewMode")).toBe("list");
     // Cards still render in list mode.
     expect(screen.getByRole("button", { name: "Open Dave Smith's profile" })).toBeInTheDocument();
+  });
+
+  it("filter chips toggle the server-side filter and reflect active state", () => {
+    const { onToggleFilter } = renderView();
+    fireEvent.click(screen.getByRole("button", { name: "No dogs" }));
+    expect(onToggleFilter).toHaveBeenCalledWith("noDogs");
+  });
+
+  it("an active filter is pressed and listed in the footer", () => {
+    renderView({
+      filters: { flagged: true, noDogs: false, noPhone: true, whatsapp: false },
+      totalCount: 4,
+    });
+    expect(screen.getByRole("button", { name: "Flagged" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Showing 2 of 4 humans · Flagged, No phone/)).toBeInTheDocument();
+  });
+
+  it("a no-dogs human shows the add-a-dog hint, which opens the profile", () => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [sarah],
+      dogs: {},
+      dogsByHumanId: {},
+    });
+    fireEvent.click(screen.getByRole("button", { name: "No dogs registered — add one" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 });

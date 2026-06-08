@@ -220,13 +220,35 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
 
         {human.historyFlag && <FlagChip flag={human.historyFlag} className="mt-1 self-start" />}
 
-        <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
-          <DogChips dogs={humanDogs} max={4} dim={10} />
-        </div>
+        {humanDogs.length === 0 && !showArchived ? (
+          // Data-hygiene nudge: a one-off enquiry with no dog on file. Opens
+          // the profile, where a dog can be added.
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              open();
+            }}
+            className="mt-auto self-start text-xs font-semibold italic text-brand-coral-text/80 bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
+          >
+            No dogs registered — add one
+          </button>
+        ) : (
+          <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
+            <DogChips dogs={humanDogs} max={4} dim={10} />
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const FILTER_CHIPS = [
+  { key: "flagged", label: "Flagged" },
+  { key: "noDogs", label: "No dogs" },
+  { key: "noPhone", label: "No phone" },
+  { key: "whatsapp", label: "WhatsApp" },
+];
 
 export function HumansView({
   humans,
@@ -254,6 +276,8 @@ export function HumansView({
   onSortModeChange,
   activeLetter = null,
   onLetterChange,
+  filters = null,
+  onToggleFilter,
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -318,16 +342,21 @@ export function HumansView({
       ? totalCount
       : offlineList.length;
 
+  const activeFilters = FILTER_CHIPS.filter((c) => filters?.[c.key]).map((c) => c.label);
+  const hasFilters = activeFilters.length > 0;
+  const narrowed = hasSearchQuery || hasFilters; // showing a subset, not the full list
+  const filterSuffix = hasFilters ? ` · ${activeFilters.join(", ")}` : "";
+
   const headerCountText = showArchived
     ? `${archivedCount} archived`
-    : hasSearchQuery
+    : narrowed
       ? `${total} matching human${total !== 1 ? "s" : ""}`
       : `${total} human${total !== 1 ? "s" : ""} registered`;
   const footerText = showArchived
     ? `${archivedCount} archived human${archivedCount !== 1 ? "s" : ""}`
     : hasSearchQuery
-      ? `Showing ${loadedCount} of ${total} match${total !== 1 ? "es" : ""} for "${searchQuery.trim()}"`
-      : `Showing ${loadedCount} of ${total} human${total !== 1 ? "s" : ""}`;
+      ? `Showing ${loadedCount} of ${total} match${total !== 1 ? "es" : ""} for "${searchQuery.trim()}"${filterSuffix}`
+      : `Showing ${loadedCount} of ${total} human${total !== 1 ? "s" : ""}${filterSuffix}`;
 
   const visibleHumanIdsKey = useMemo(
     () => displayList.map((h) => h.id).filter(Boolean).join(","),
@@ -415,8 +444,31 @@ export function HumansView({
         </div>
       </div>
 
-      {/* Toolbar: sort toggle (server-driven) + grid/list view toggle.
-          Filter chips land here too (data-hygiene pass). */}
+      {/* Filter chips — server-side (combine with search and each other). */}
+      {showRailAndSort && onToggleFilter && (
+        <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filters">
+          {FILTER_CHIPS.map(({ key, label }) => {
+            const active = !!filters?.[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onToggleFilter(key)}
+                aria-pressed={active}
+                className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                  active
+                    ? "bg-brand-teal text-white border-brand-teal"
+                    : "bg-white text-slate-500 border-slate-200 hover:border-brand-teal hover:text-brand-teal"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Toolbar: sort toggle (server-driven) + grid/list view toggle. */}
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {showRailAndSort ? (
           <div className="inline-flex items-center gap-2">
