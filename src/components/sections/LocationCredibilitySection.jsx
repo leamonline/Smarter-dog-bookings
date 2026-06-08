@@ -22,7 +22,7 @@ const LocationCredibilitySection = () => {
                     <article className="rounded-3xl p-6 md:p-8 card-glow" style={{ backgroundColor: colors.yellow }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <MapPinTrailIcon />
-                            <h2 className="heading-font text-3xl md:text-4xl font-bold">Easy To Find</h2>
+                            <h2 className="heading-font text-3xl md:text-4xl font-bold">Easy to find</h2>
                         </div>
                         <p className="body-font text-lg mb-4" style={{ color: colors.plum }}>
                             183 Kings Road, Ashton-under-Lyne, OL6 8HD
@@ -61,7 +61,7 @@ const LocationCredibilitySection = () => {
                     <article className="rounded-3xl p-6 card-glow" style={{ backgroundColor: colors.offWhite }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <RouteClockIcon />
-                            <h3 className="heading-font text-2xl font-bold">Typical Travel Times</h3>
+                            <h3 className="heading-font text-2xl font-bold">Typical travel times</h3>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {TRAVEL_NOTES.map((entry) => (
@@ -80,7 +80,7 @@ const LocationCredibilitySection = () => {
                     <article className="rounded-3xl p-6 card-glow" style={{ backgroundColor: colors.cyan }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <ParkingIcon />
-                            <h3 className="heading-font text-2xl font-bold">Parking & Drop-Off</h3>
+                            <h3 className="heading-font text-2xl font-bold">Parking and drop-off</h3>
                         </div>
                         <ul className="space-y-3 body-font text-base" style={{ color: colors.plum }}>
                             <li>Free street parking nearby on Kings Road and side streets.</li>

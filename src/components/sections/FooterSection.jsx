@@ -78,7 +78,7 @@ const FooterSection = () => {
                             className="heading-font font-semibold mb-4"
                             style={{ color: 'white' }}
                         >
-                            Opening Hours
+                            Opening hours
                         </h2>
                         <div
                             className="body-font text-lg space-y-2"
@@ -93,7 +93,7 @@ const FooterSection = () => {
                                 <span style={{ color: colors.yellow, fontWeight: '600' }}>Closed</span>
                             </p>
                             <p className="text-base mt-3" style={{ opacity: 0.85 }}>
-                                * We close on Bank Holidays but open the Thursday after instead.
+                                * We close on bank holidays but open the Thursday after instead.
                             </p>
                         </div>
                     </div>
@@ -103,7 +103,7 @@ const FooterSection = () => {
                             className="heading-font font-semibold mb-4"
                             style={{ color: 'white' }}
                         >
-                            Find Us
+                            Find us
                         </h2>
                         <div
                             className="body-font text-lg space-y-2"
@@ -120,7 +120,7 @@ const FooterSection = () => {
                             className="heading-font font-semibold mb-4"
                             style={{ color: 'white' }}
                         >
-                            Get in Touch
+                            Get in touch
                         </h2>
                         <div
                             className="body-font text-lg space-y-2"
@@ -170,7 +170,7 @@ const FooterSection = () => {
                                 className="underline hover:opacity-70 transition-opacity"
                                 style={{ color: 'rgba(255,255,255,0.8)' }}
                             >
-                                Matted Coats
+                                Matted coats
                             </Link>
                             <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
                             <Link

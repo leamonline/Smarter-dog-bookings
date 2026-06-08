@@ -121,8 +121,8 @@ const ServicesSection = () => {
                                     </picture>
                                 }
                                 title="Puppy Intro"
-                                desc="First salon visit? We take it nice and slow — no rushing, no drama. Just gentle introductions for pups under 6 months."
-                                bestFor="puppies under 6 months or nervous first-timers"
+                                desc="First salon visit? We take it nice and slow — no rushing, no drama. Just gentle introductions for pups under six months."
+                                bestFor="puppies under six months or nervous first-timers"
                                 bgColor={'white'}
                                 accentColor={colors.pink}
                             />

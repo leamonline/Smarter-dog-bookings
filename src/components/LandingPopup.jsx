@@ -3,40 +3,49 @@ import { colors } from '../constants/colors';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion';
 import { trackEvent } from '../utils/analytics';
+import { fetchBankHolidayEvents, isInBankHolidayWindow } from '../utils/bankHolidayWindow';
 
-const STORAGE_KEY = 'landingPopupDismissed_v2';
 const SHOW_DELAY_MS = 1200;
 
 const LandingPopup = ({ onBookClick }) => {
     const [isOpen, setIsOpen] = useState(false);
     const prefersReducedMotion = usePrefersReducedMotion();
 
+    // Close only hides for the current page view. We deliberately don't persist
+    // dismissal, so the next visit gets the heads-up again if we're still in
+    // the bank-holiday window.
     const handleClose = React.useCallback(() => {
         setIsOpen(false);
-        try {
-            localStorage.setItem(STORAGE_KEY, 'true');
-        } catch {
-            // localStorage unavailable (private mode etc) — ignore
-        }
     }, []);
 
     const dialogRef = useFocusTrap(isOpen, handleClose);
 
     useEffect(() => {
-        let dismissed = false;
-        try {
-            dismissed = localStorage.getItem(STORAGE_KEY) === 'true';
-        } catch {
-            // ignore
-        }
-        if (dismissed) return;
+        // Two-phase guard: first ask gov.uk whether we're in a Monday bank-holiday
+        // window, then (only if yes) schedule the popup. If the fetch fails for
+        // any reason — network, CORS, bad payload — we fail closed and stay quiet.
+        let cancelled = false;
+        let timer = null;
 
-        const timer = setTimeout(() => {
-            setIsOpen(true);
-            trackEvent('Engagement', 'Landing Popup Shown', 'Bank Holiday');
-        }, SHOW_DELAY_MS);
+        fetchBankHolidayEvents()
+            .then((events) => {
+                if (cancelled) return;
+                if (!isInBankHolidayWindow(events)) return;
 
-        return () => clearTimeout(timer);
+                timer = setTimeout(() => {
+                    if (cancelled) return;
+                    setIsOpen(true);
+                    trackEvent('Engagement', 'Landing Popup Shown', 'Bank Holiday');
+                }, SHOW_DELAY_MS);
+            })
+            .catch(() => {
+                // Silent — better to under-show than to show stale info.
+            });
+
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+        };
     }, []);
 
     const handleBookNow = () => {

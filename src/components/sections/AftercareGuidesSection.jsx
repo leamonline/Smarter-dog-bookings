@@ -7,38 +7,38 @@ const GUIDE_GROUPS = [
     {
         id: 'curly',
         label: 'Curly / Doodle',
-        rhythm: 'Every 6 weeks',
+        rhythm: 'Every six weeks',
         breeds: ['Cockapoo', 'Cavapoo', 'Poodle mixes'],
         checklist: [
-            'Line-brush coat 4 times weekly',
+            'Line-brush coat four times weekly',
             'Comb legs, armpits, and behind ears daily',
             'Dry beard after meals to avoid knotting',
         ],
-        tools: 'Slicker brush + metal comb',
+        tools: 'Slicker brush and metal comb',
     },
     {
         id: 'double',
         label: 'Double Coat',
-        rhythm: 'Every 8 weeks',
+        rhythm: 'Every eight weeks',
         breeds: ['Golden Retriever', 'Spaniel', 'Collie'],
         checklist: [
             'De-shed brush twice weekly',
             'Check feathering for compacted undercoat',
             'Rinse muddy areas and fully dry after walks',
         ],
-        tools: 'Undercoat rake + finishing brush',
+        tools: 'Undercoat rake and finishing brush',
     },
     {
         id: 'wire',
         label: 'Wire / Terrier',
-        rhythm: 'Every 6 to 8 weeks',
+        rhythm: 'Every six to eight weeks',
         breeds: ['Schnauzer', 'Border Terrier', 'Westie'],
         checklist: [
-            'Brush jacket and furnishings 3 times weekly',
+            'Brush jacket and furnishings three times weekly',
             'Wipe eye corners and beard daily',
             'Keep paw pads clipped between visits',
         ],
-        tools: 'Pin brush + fine comb',
+        tools: 'Pin brush and fine comb',
     },
 ];
 
@@ -96,7 +96,7 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                     <article className="rounded-3xl p-6 card-glow texture-speckle" style={{ backgroundColor: 'white' }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <BrushIcon />
-                            <h3 className="heading-font text-2xl font-bold">Best For</h3>
+                            <h3 className="heading-font text-2xl font-bold">Best for</h3>
                         </div>
                         <ul className="space-y-2">
                             {activeGuide.breeds.map((breed) => (
@@ -113,7 +113,7 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                     <article className="rounded-3xl p-6 card-glow texture-speckle" style={{ backgroundColor: 'white' }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <ChecklistIcon />
-                            <h3 className="heading-font text-2xl font-bold">Home Routine</h3>
+                            <h3 className="heading-font text-2xl font-bold">Home routine</h3>
                         </div>
                         <ul className="space-y-3">
                             {activeGuide.checklist.map((item) => (
@@ -128,7 +128,7 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                     <article className="rounded-3xl p-6 card-glow texture-speckle" style={{ backgroundColor: colors.cyan }}>
                         <div className="flex items-center gap-3 mb-4" style={{ color: colors.plum }}>
                             <CalendarCycleIcon />
-                            <h3 className="heading-font text-2xl font-bold">Rebook Rhythm</h3>
+                            <h3 className="heading-font text-2xl font-bold">Rebook rhythm</h3>
                         </div>
                         <p className="heading-font text-3xl font-bold mb-4" style={{ color: colors.plum }}>
                             {activeGuide.rhythm}
