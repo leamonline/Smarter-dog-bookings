@@ -3,7 +3,6 @@ import { supabase } from "../client.js";
 import {
   dbDogsToMap,
   buildDogsById,
-  buildHumansById,
   findHumanByIdOrName,
 } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
@@ -11,12 +10,33 @@ import { logger } from "../../lib/logger.js";
 
 const PAGE_SIZE = 50;
 
-function mergeRowsById(rows: any[][]) {
-  const map = new Map<string, any>();
-  rows.flat().forEach((row) => {
-    if (row?.id) map.set(row.id, row);
-  });
-  return Array.from(map.values());
+// Build a Dogs Directory entry from a search_dogs_directory row. Mirrors
+// dbDogsToMap's dog shape but also folds on the joined owner_* fields the RPC
+// returns, so the card can render the owner name + tel/WhatsApp links without
+// depending on the paginated humansById map. Owner placeholders ("Null" etc.)
+// are stripped via sanitiseFieldValue, same as the rest of the directory.
+function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
+  const owner = humansById?.[row.human_id || ""];
+  const ownerName = sanitiseFieldValue(row.owner_name);
+  const ownerSurname = sanitiseFieldValue(row.owner_surname);
+  const ownerFullName =
+    [ownerName, ownerSurname].filter(Boolean).join(" ") || owner?.fullName || "";
+  return {
+    id: row.id,
+    name: row.name,
+    breed: sanitiseFieldValue(row.breed),
+    age: row.age || "",
+    size: row.size || null,
+    humanId: ownerFullName || row.human_id || "",
+    _humanId: row.human_id || null,
+    alerts: row.alerts || [],
+    groomNotes: row.groom_notes || "",
+    customPrice: row.custom_price,
+    // Server-resolved owner display fields (from the RPC's join), read by DogsView.
+    ownerFullName,
+    ownerPhone: row.owner_phone || "",
+    ownerWhatsapp: row.owner_whatsapp || false,
+  };
 }
 
 export function useDogs(humansById: Record<string, any>) {
@@ -30,11 +50,48 @@ export function useDogs(humansById: Record<string, any>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
+  // Server-driven directory state (mirrors useHumans). directoryDogs is the
+  // ordered / filtered / paginated list the grid renders; the dogs / dogsById
+  // maps stay the lookup caches other views read. effectiveSearch is the
+  // debounced term that actually drives the fetch; searchQuery mirrors the input.
+  const [directoryDogs, setDirectoryDogs] = useState<any[]>([]);
+  const [dogAvailableLetters, setDogAvailableLetters] = useState<string[]>([]);
+  const [effectiveSearch, setEffectiveSearch] = useState("");
+  const [dirSort, setDirSortState] = useState<"name" | "recent">(() =>
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("dogsDirSort") === "recent"
+      ? "recent"
+      : "name",
+  );
+  // Unlike humans, the size filter is an enum (small/medium/large/unset), not a
+  // boolean — alert and incomplete are plain booleans.
+  const [dirFilters, setDirFilters] = useState<{
+    size: string | null;
+    alert: boolean;
+    incomplete: boolean;
+  }>({ size: null, alert: false, incomplete: false });
+  const [dirLetter, setDirLetterState] = useState<string | null>(null);
+
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchedHumanIdsRef = useRef<Set<string>>(new Set());
   const inflightHumanIdsRef = useRef<Set<string>>(new Set());
   const fetchedDogIdsRef = useRef<Set<string>>(new Set());
   const inflightDogIdsRef = useRef<Set<string>>(new Set());
+
+  // Refs of the loaded directory list (for load-more's offset) and the active
+  // query (so realtime refetches and load-more reuse the current params).
+  const directoryRef = useRef<any[]>([]);
+  const queryRef = useRef<{
+    search: string;
+    filters: { size: string | null; alert: boolean; incomplete: boolean };
+    sort: "name" | "recent";
+    letter: string | null;
+  }>({
+    search: "",
+    filters: { size: null, alert: false, incomplete: false },
+    sort: "name",
+    letter: null,
+  });
 
   // The main fetch effect can't depend on humansById: every time
   // ensureHumansByIds (in useHumans) resolves a missing owner, the
@@ -58,85 +115,104 @@ export function useDogs(humansById: Record<string, any>) {
     });
   }, []);
 
+  // Keep the directory-list ref current for load-more's offset and the
+  // once-mounted realtime handlers.
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    directoryRef.current = directoryDogs;
+  }, [directoryDogs]);
 
-    const controller = new AbortController();
-
-    async function fetchDogs(limit = PAGE_SIZE) {
-      setLoading(true);
-      setError(null);
-
-      const { count, error: countErr } = await supabase!
-        .from("dogs")
-        .select("*", { count: "exact", head: true })
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-
-      if (countErr) {
-        setError(countErr.message);
+  // One server-side directory page via the search_dogs_directory RPC, which
+  // returns { rows, total, letters } already filtered, sorted and paginated —
+  // the client never holds or re-sorts the full set. Reset replaces the ordered
+  // list; append (load-more) extends it. Rows always MERGE into the dogs /
+  // dogsById caches (never evict) so booking and day views can resolve any dog
+  // the directory has loaded. The rows carry joined owner_* fields, which
+  // buildDirectoryDogEntry folds onto each entry for the card.
+  const fetchDirectory = useCallback(
+    async (
+      params: {
+        search: string;
+        filters: { size: string | null; alert: boolean; incomplete: boolean };
+        sort: "name" | "recent";
+        letter: string | null;
+      },
+      { append = false }: { append?: boolean } = {},
+    ) => {
+      if (!supabase) {
         setLoading(false);
         return;
       }
+      queryRef.current = params;
+      const offset = append ? directoryRef.current.length : 0;
+      setError(null);
+      if (!append) setLoading(true);
 
-      setTotalCount(count ?? 0);
+      const { data, error: err } = await supabase.rpc("search_dogs_directory", {
+        p_search: params.search || null,
+        p_size: params.filters.size || null,
+        p_alert: !!params.filters.alert,
+        p_incomplete: !!params.filters.incomplete,
+        p_letter: params.letter || null,
+        p_sort: params.sort || "name",
+        p_limit: PAGE_SIZE,
+        p_offset: offset,
+      });
 
-      const { data, error: err } = await supabase!
-        .from("dogs")
-        .select("*")
-        .order("name")
-        .limit(limit)
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-
+      setIsSearching(false);
       if (err) {
         setError(err.message);
         setLoading(false);
         return;
       }
 
-      const rows = data || [];
-      // Merge instead of replacing. Previous calls to ensureDogsByIds may
-      // have populated rows beyond the paginated window (so bookings whose
-      // dogs sit past the first page can resolve names); a raw replace
-      // here would wipe them out and — because fetchedDogIdsRef still
-      // remembers the IDs — ensureDogsByIds would refuse to re-fetch
-      // them, leaving the cards stuck on "Unknown". This effect re-runs
-      // whenever humansById changes, so the destructive variant caused
-      // names to flash in correctly and then revert.
-      const byIdAdditions = buildDogsById(rows);
-      const mapAdditions = dbDogsToMap(rows, humansById || {});
-      setDogsById((prev) => ({ ...prev, ...byIdAdditions }));
-      setDogs((prev) => ({ ...prev, ...mapAdditions }));
-      // Merge rather than replace: dogs added by ensureDogsByIds (rows
-      // past the first paginated page) would otherwise be wiped out
-      // when a realtime INSERT/UPDATE triggers a refetch, and then
-      // never re-added because fetchedDogIdsRef has already marked
-      // them as resolved.
-      const nextById = buildDogsById(rows);
-      const nextMap = dbDogsToMap(rows, humansByIdRef.current || {});
-      setDogsById((prev) => ({ ...prev, ...nextById }));
-      setDogs((prev) => ({ ...prev, ...nextMap }));
-      setHasMore(rows.length >= limit);
+      const result = (data || {}) as { rows?: any[]; total?: number; letters?: string[] };
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      const entries = rows.map((row) =>
+        buildDirectoryDogEntry(row, humansByIdRef.current || {}),
+      );
+
+      // Merge bare dog fields into the lookup caches (never evict) so other
+      // views keep resolving dogs the directory has loaded.
+      setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
+      setDogs((prev) => ({ ...prev, ...dbDogsToMap(rows, humansByIdRef.current || {}) }));
+
+      setDirectoryDogs((prev) => (append ? [...prev, ...entries] : entries));
+      setTotalCount(result.total ?? 0);
+      setDogAvailableLetters(result.letters || []);
+      setHasMore(offset + rows.length < (result.total ?? 0));
       setLoading(false);
+    },
+    [],
+  );
+
+  // Refetch page 0 whenever the active query changes; also the initial load on
+  // mount. effectiveSearch is the debounced search term (see searchDogs);
+  // filters / sort / letter apply immediately.
+  useEffect(() => {
+    fetchDirectory(
+      { search: effectiveSearch, filters: dirFilters, sort: dirSort, letter: dirLetter },
+      { append: false },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSearch, dirFilters, dirSort, dirLetter]);
+
+  // Real-time subscription for dogs. Insert/update refetch the current
+  // directory page (which reseeds the caches); delete drops the row from the
+  // caches and the directory list.
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
     }
 
-    fetchDogs();
-
-    // Real-time subscription for dogs
-    const channel = supabase!
+    const channel = supabase
       .channel(`dogs-realtime-${Date.now()}-${Math.random()}`)
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dogs" },
         (payload: any) => {
           const oldRow = payload.old;
-          if (!oldRow.id) return;
+          if (!oldRow?.id) return;
           setDogsById((prev) => {
             const next = { ...prev };
             const cached = next[oldRow.id];
@@ -149,6 +225,8 @@ export function useDogs(humansById: Record<string, any>) {
             delete next[oldRow.id];
             return next;
           });
+          setDirectoryDogs((prev) => prev.filter((d) => d.id !== oldRow.id));
+          setTotalCount((c) => Math.max(0, c - 1));
         },
       )
       .on(
@@ -156,7 +234,7 @@ export function useDogs(humansById: Record<string, any>) {
         { event: "INSERT", schema: "public", table: "dogs" },
         (payload: any) => {
           invalidateHuman(payload.new?.human_id);
-          fetchDogs();
+          fetchDirectory(queryRef.current, { append: false });
         },
       )
       .on(
@@ -165,168 +243,107 @@ export function useDogs(humansById: Record<string, any>) {
         (payload: any) => {
           invalidateHuman(payload.old?.human_id);
           invalidateHuman(payload.new?.human_id);
-          fetchDogs();
+          fetchDirectory(queryRef.current, { append: false });
         },
       )
       .subscribe();
 
     return () => {
-      controller.abort();
       supabase!.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime subscription set up once on mount; handlers read humansById/invalidateHuman via closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime set up once on mount; handlers read fetchDirectory/invalidateHuman/queryRef via closure
   }, []);
 
+  // Append the next page of the current directory query.
   const loadMore = useCallback(async () => {
-    if (!supabase) return;
+    await fetchDirectory(queryRef.current, { append: true });
+  }, [fetchDirectory]);
 
-    const currentCount = Object.keys(dogsById).length;
-
-    const { data, error: err } = await supabase
-      .from("dogs")
-      .select("*")
-      .order("name")
-      .range(currentCount, currentCount + PAGE_SIZE - 1);
-
-    if (err) {
-      setError(err.message);
-      return;
-    }
-
-    const rows = data || [];
-    const newDogsById = buildDogsById(rows);
-    const newDogs = dbDogsToMap(rows, humansById || {});
-
-    setDogsById((prev) => ({ ...prev, ...newDogsById }));
-    setDogs((prev) => ({ ...prev, ...newDogs }));
-    setHasMore(rows.length >= PAGE_SIZE);
-  }, [dogsById, humansById]);
-
+  // Reset the search box and let the directory effect refetch the unfiltered
+  // page. Used by the new-booking modal's dog picker on open/close.
   const clearSearch = useCallback(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     setSearchQuery("");
     setIsSearching(false);
+    setEffectiveSearch("");
+  }, []);
 
-    if (!supabase) return;
+  // Update the search box immediately, but debounce the term that drives the
+  // fetch so typing doesn't fire a request per keystroke. Shared by the Dogs
+  // Directory and the new-booking dog picker (which filters the merged dogs map
+  // client-side); both just need matching dogs loaded into the cache.
+  const searchDogs = useCallback((query: string) => {
+    setSearchQuery(query);
+    setIsSearching(true);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      setEffectiveSearch(query.trim());
+    }, 300);
+  }, []);
 
-    (async () => {
-      const { count } = await supabase!
-        .from("dogs")
-        .select("*", { count: "exact", head: true });
+  // Sort toggle (name vs recently-added). Persisted so it sticks across reloads;
+  // changing it re-runs the directory fetch effect.
+  const setDirSort = useCallback((mode: "name" | "recent") => {
+    setDirSortState(mode);
+    try {
+      localStorage.setItem("dogsDirSort", mode);
+    } catch {
+      /* localStorage unavailable (private mode) — non-fatal */
+    }
+  }, []);
 
-      setTotalCount(count ?? 0);
-
-      const { data, error: err } = await supabase!
-        .from("dogs")
-        .select("*")
-        .order("name")
-        .limit(PAGE_SIZE);
-
-      if (err) {
-        setError(err.message);
-        return;
-      }
-
-      const rows = data || [];
-      // Merge rather than replace: dogsById doubles as a lookup cache for
-      // booking cards (populated via ensureDogsByIds). Replacing it here
-      // wipes any dog past the first paginated page, which then shows up
-      // as "Unknown" on the day view after a quick trip through /dogs.
-      setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
-      setDogs(dbDogsToMap(rows, humansById || {}));
-      setHasMore(rows.length >= PAGE_SIZE);
-    })();
-  }, [humansById]);
-
-  const searchDogs = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
-
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
-      if (!query.trim()) {
-        clearSearch();
-        return;
-      }
-
-      searchTimeoutRef.current = setTimeout(async () => {
-        if (!supabase) return;
-
-        setIsSearching(true);
-
-        const term = query.trim();
-        const likeTerm = `%${term}%`;
-        const [
-          dogNameResult,
-          dogBreedResult,
-          ownerNameResult,
-          ownerSurnameResult,
-          ownerPhoneResult,
-        ] = await Promise.all([
-          supabase.from("dogs").select("*").ilike("name", likeTerm).order("name").limit(50),
-          supabase.from("dogs").select("*").ilike("breed", likeTerm).order("name").limit(50),
-          supabase.from("humans").select("*").ilike("name", likeTerm).order("surname").order("name").limit(50),
-          supabase.from("humans").select("*").ilike("surname", likeTerm).order("surname").order("name").limit(50),
-          supabase.from("humans").select("*").ilike("phone", likeTerm).order("surname").order("name").limit(50),
-        ]);
-
-        const firstError =
-          dogNameResult.error ||
-          dogBreedResult.error ||
-          ownerNameResult.error ||
-          ownerSurnameResult.error ||
-          ownerPhoneResult.error;
-
-        if (firstError) {
-          setIsSearching(false);
-          setError(firstError.message);
-          return;
-        }
-
-        const ownerRows = mergeRowsById([
-          ownerNameResult.data || [],
-          ownerSurnameResult.data || [],
-          ownerPhoneResult.data || [],
-        ]);
-        const ownerIds = ownerRows.map((row) => row.id).filter(Boolean);
-        let ownerDogRows: any[] = [];
-
-        if (ownerIds.length > 0) {
-          const { data, error: ownerDogErr } = await supabase
-            .from("dogs")
-            .select("*")
-            .in("human_id", ownerIds);
-
-          if (ownerDogErr) {
-            setIsSearching(false);
-            setError(ownerDogErr.message);
-            return;
-          }
-
-          ownerDogRows = data || [];
-        }
-
-        setIsSearching(false);
-
-        const rows = mergeRowsById([
-          dogNameResult.data || [],
-          dogBreedResult.data || [],
-          ownerDogRows,
-        ]).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        const ownerHumansById = buildHumansById(ownerRows);
-        // Merge into the lookup cache (see clearSearch for the reason).
-        setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
-        setDogs(dbDogsToMap(rows, { ...(humansById || {}), ...ownerHumansById }));
-        setTotalCount(rows.length);
-        setHasMore(false);
-      }, 300);
+  // Filter chips. Size is an enum (small/medium/large/unset) so its toggle
+  // takes a value and clears when the active value is re-selected; alert and
+  // incomplete are plain booleans. Each change re-runs the fetch effect.
+  const toggleDirFilter = useCallback(
+    (key: "size" | "alert" | "incomplete", value?: string) => {
+      setDirFilters((prev) =>
+        key === "size"
+          ? { ...prev, size: prev.size === value ? null : value ?? null }
+          : { ...prev, [key]: !prev[key] },
+      );
     },
-    [humansById, clearSearch],
+    [],
   );
+
+  // A–Z jump. Clicking the active letter again clears it (back to the full list).
+  const setDirLetter = useCallback(
+    (letter: string | null) =>
+      setDirLetterState((prev) => (prev === letter ? null : letter)),
+    [],
+  );
+
+  // Fetch the archived dogs for the directory's "Show archived" view. Returned
+  // as a plain list (not merged into the active caches) so archived dogs never
+  // leak into the grid, search or the lookup caches bookings read. The archived
+  // set is small, so a single unpaginated read with the owner embedded is fine.
+  const fetchArchivedDogs = useCallback(async (): Promise<any[]> => {
+    if (!supabase) return [];
+    const { data, error: err } = await supabase
+      .from("dogs")
+      .select("*, humans(name, surname, phone, whatsapp)")
+      .not("archived_at", "is", null)
+      .order("name")
+      .limit(200);
+    if (err) {
+      logger.error("fetchArchivedDogs failed", err, {
+        tags: { hook: "useDogs", op: "fetchArchivedDogs" },
+      });
+      return [];
+    }
+    return (data || []).map((row: any) =>
+      buildDirectoryDogEntry(
+        {
+          ...row,
+          owner_name: row.humans?.name,
+          owner_surname: row.humans?.surname,
+          owner_phone: row.humans?.phone,
+          owner_whatsapp: row.humans?.whatsapp,
+        },
+        humansByIdRef.current || {},
+      ),
+    );
+  }, []);
 
   const updateDog = useCallback(
     async (dogIdentifier: string, updates: Record<string, any>) => {
@@ -376,6 +393,10 @@ export function useDogs(humansById: Record<string, any>) {
       if (updates.customPrice !== undefined)
         dbUpdates.custom_price = updates.customPrice;
       if (updates.size !== undefined) dbUpdates.size = updates.size;
+      // Soft-archive marker. Handles both archive ({ archivedAt: <iso> }) and
+      // unarchive ({ archivedAt: null }); the realtime UPDATE then refetches the
+      // directory, which excludes archived dogs.
+      if (updates.archivedAt !== undefined) dbUpdates.archived_at = updates.archivedAt;
 
       if (updates.humanId !== undefined) {
         const owner = findHumanByIdOrName(humansById, updates.humanId);
@@ -778,5 +799,15 @@ export function useDogs(humansById: Record<string, any>) {
     clearSearch,
     searchQuery,
     isSearching,
+    // Server-driven directory list + controls
+    directoryDogs,
+    dogAvailableLetters,
+    dirSort,
+    setDirSort,
+    dirFilters,
+    toggleDirFilter,
+    dirLetter,
+    setDirLetter,
+    fetchArchivedDogs,
   };
 }

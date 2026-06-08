@@ -390,6 +390,16 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     clearSearch: dogsClearSearch,
     searchQuery: dogsSearchQuery,
     isSearching: dogsIsSearching,
+    // Server-driven directory list + controls
+    directoryDogs: sbDirectoryDogs,
+    dogAvailableLetters: sbDogAvailableLetters,
+    dirSort: sbDogDirSort,
+    setDirSort: sbSetDogDirSort,
+    dirFilters: sbDogDirFilters,
+    toggleDirFilter: sbToggleDogDirFilter,
+    dirLetter: sbDogDirLetter,
+    setDirLetter: sbSetDogDirLetter,
+    fetchArchivedDogs: sbFetchArchivedDogs,
   } = useDogs(humansById);
   const {
     bookingsByDate: sbBookings,
@@ -664,6 +674,16 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      directoryDogs={isOnline ? sbDirectoryDogs : null}
+                      availableLetters={sbDogAvailableLetters}
+                      sortMode={sbDogDirSort}
+                      onSortModeChange={sbSetDogDirSort}
+                      filters={sbDogDirFilters}
+                      onToggleFilter={sbToggleDogDirFilter}
+                      activeLetter={sbDogDirLetter}
+                      onLetterChange={sbSetDogDirLetter}
+                      fetchArchivedDogs={sbFetchArchivedDogs}
+                      onUpdateDog={sbUpdateDog}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
                       loadError={de}
@@ -682,6 +702,16 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={dogsSearchDogs}
                       searchQuery={dogsSearchQuery}
                       isSearching={dogsIsSearching}
+                      directoryDogs={isOnline ? sbDirectoryDogs : null}
+                      availableLetters={sbDogAvailableLetters}
+                      sortMode={sbDogDirSort}
+                      onSortModeChange={sbSetDogDirSort}
+                      filters={sbDogDirFilters}
+                      onToggleFilter={sbToggleDogDirFilter}
+                      activeLetter={sbDogDirLetter}
+                      onLetterChange={sbSetDogDirLetter}
+                      fetchArchivedDogs={sbFetchArchivedDogs}
+                      onUpdateDog={sbUpdateDog}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
                       loadError={de}
