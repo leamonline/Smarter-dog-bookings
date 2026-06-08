@@ -126,6 +126,10 @@ export async function decryptFlowRequest(
   const initialVector = Buffer.from(body.initial_vector, "base64");
   const flowDataWithTag = Buffer.from(body.encrypted_flow_data, "base64");
 
+  if (initialVector.length !== 16) {
+    throw new FlowDecryptError("invalid initial vector length");
+  }
+
   if (flowDataWithTag.length <= GCM_TAG_LENGTH) {
     throw new FlowDecryptError("encrypted_flow_data shorter than the GCM tag");
   }

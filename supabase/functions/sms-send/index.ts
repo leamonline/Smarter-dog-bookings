@@ -227,16 +227,11 @@ async function handleSend(
   }
 
   if (!twilioResult.ok) {
-    return json(
-      req,
-      {
-        error: "Twilio send failed",
-        detail: `${twilioResult.errorCode ?? twilioResult.status}: ${twilioResult.errorMessage ?? "(no message)"}`,
-        twilio_status: twilioResult.status,
-        twilio_code: twilioResult.errorCode,
-      },
-      502,
+    console.error(
+      "sms-send: Twilio send failed:",
+      `${twilioResult.errorCode ?? twilioResult.status}: ${twilioResult.errorMessage ?? "(no message)"}`,
     );
+    return json(req, { error: "send failed" }, 502);
   }
 
   let conversationId = body.conversation_id ?? null;
@@ -303,7 +298,7 @@ serve(async (req) => {
     return json(req, { error: "mode is required ('manual' | 'template')" }, 400);
   }
   if (parsed.mode !== "manual" && parsed.mode !== "template") {
-    return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
+    return json(req, { error: "unknown mode" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -313,6 +308,6 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("sms-send unhandled error:", message);
-    return json(req, { error: "internal error", detail: message }, 500);
+    return json(req, { error: "internal error" }, 500);
   }
 });

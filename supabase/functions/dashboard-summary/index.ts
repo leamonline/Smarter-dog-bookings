@@ -225,6 +225,6 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("dashboard-summary error:", message);
-    return json(req, { error: "internal error", detail: message }, 500);
+    return json(req, { error: "internal error" }, 500);
   }
 });

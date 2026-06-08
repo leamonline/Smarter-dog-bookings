@@ -35,6 +35,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -158,7 +159,7 @@ serve(async (req) => {
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
-    if (mode === "subscribe" && token === META_WEBHOOK_VERIFY_TOKEN && challenge) {
+    if (mode === "subscribe" && timingSafeEqualHeader(token, META_WEBHOOK_VERIFY_TOKEN) && challenge) {
       return new Response(challenge, {
         status: 200,
         headers: { "Content-Type": "text/plain" },

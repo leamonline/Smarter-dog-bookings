@@ -159,7 +159,7 @@ serve(async (req) => {
       req,
       {
         ok: false,
-        reason: `Agent returned ${res.status}: ${detail.slice(0, 200)}`,
+        reason: "Could not generate a reply right now. Please try again.",
       },
       502,
     );

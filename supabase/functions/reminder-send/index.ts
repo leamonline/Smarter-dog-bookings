@@ -386,13 +386,14 @@ serve(async (req) => {
       .in("id", pendingIds);
 
     if (!sent) {
-      return json(req, { error: "send failed", detail: failDetail, channel }, 502);
+      console.error(`reminder-send: ${channel} send failed:`, failDetail);
+      return json(req, { error: "send failed", channel }, 502);
     }
     return json(req, { ok: true, channel, provider_message_id: providerMessageId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("reminder-send unhandled error:", message);
-    return json(req, { error: "internal error", detail: message }, 500);
+    return json(req, { error: "internal error" }, 500);
   }
 });
 
