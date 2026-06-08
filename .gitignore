@@ -30,3 +30,6 @@ test-results/
 *.njsproj
 *.sln
 *.sw?
+
+# Local tooling
+.codex/
