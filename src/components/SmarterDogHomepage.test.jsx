@@ -43,9 +43,6 @@ vi.mock('./sections/FooterSection', () => ({
 vi.mock('./SectionDivider', () => ({
   default: () => <div data-testid="section-divider">SectionDivider</div>
 }));
-vi.mock('./BookingModal', () => ({
-  default: () => null
-}));
 vi.mock('./ScrollToTop', () => ({
   default: () => null
 }));

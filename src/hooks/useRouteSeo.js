@@ -25,11 +25,6 @@ const ROUTE_SEO = {
     description: 'Answers to common questions about appointments, nervous dogs, pricing, and first visits at our Ashton-under-Lyne dog grooming salon.',
     robots: 'index,follow',
   },
-  '/book': {
-    canonical: '/book',
-    description: 'Request your dog grooming appointment online with Smarter Dog Grooming Salon in Ashton-under-Lyne. Open Monday to Wednesday, 8:30am-3pm.',
-    robots: 'index,follow',
-  },
   '/privacy': {
     canonical: '/privacy',
     description: 'Read the Smarter Dog Grooming Salon privacy policy, including data collection, retention, sharing, and your UK GDPR rights.',

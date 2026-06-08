@@ -1,12 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Navigation from './Navigation';
+import { BOOKING_URL } from '../../constants/links';
 
 const renderNavigation = (props = {}) =>
   render(
     <MemoryRouter>
-      <Navigation isLoaded={true} onBookClick={vi.fn()} {...props} />
+      <Navigation isLoaded={true} {...props} />
     </MemoryRouter>
   );
 
@@ -35,9 +36,9 @@ describe('Navigation', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('renders book link fallback when no click handler is provided', () => {
-    renderNavigation({ onBookClick: undefined });
+  it('points "Book your visit" at the external booking portal', () => {
+    renderNavigation();
 
-    expect(screen.getByRole('link', { name: /Book your visit/i })).toHaveAttribute('href', '/book');
+    expect(screen.getByRole('link', { name: /Book your visit/i })).toHaveAttribute('href', BOOKING_URL);
   });
 });

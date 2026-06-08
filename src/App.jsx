@@ -4,10 +4,11 @@ import SmarterDogHomepage from './components/SmarterDogHomepage';
 import CookieConsent from './components/CookieConsent';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollRestoration from './components/ScrollRestoration';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './context/AuthContext';
+import ExternalRedirect from './components/ExternalRedirect';
 import { usePageTracking } from './hooks/usePageTracking';
 import { useRouteSeo } from './hooks/useRouteSeo';
+import { goToBooking } from './utils/booking';
+import { BOOKING_URL } from './constants/links';
 
 // Lazy-loaded routes for code splitting (homepage is eagerly loaded)
 const ServicesPage = lazy(() => import('./components/pages/ServicesPage'));
@@ -17,14 +18,8 @@ const OurApproachPage = lazy(() => import('./components/pages/OurApproachPage'))
 const FAQPage = lazy(() => import('./components/pages/FAQPage'));
 const TermsPage = lazy(() => import('./components/pages/TermsPage'));
 const MattedCoatPolicyPage = lazy(() => import('./components/pages/MattedCoatPolicyPage'));
-const BookingPage = lazy(() => import('./components/pages/BookingPage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const NotFoundPage = lazy(() => import('./components/pages/NotFoundPage'));
-const LoginPage = lazy(() => import('./components/pages/LoginPage'));
-const AccountPage = lazy(() => import('./components/pages/AccountPage'));
-const AccountProfilePage = lazy(() => import('./components/pages/AccountProfilePage'));
-const AccountDogsPage = lazy(() => import('./components/pages/AccountDogsPage'));
-const AccountBookingsPage = lazy(() => import('./components/pages/AccountBookingsPage'));
 
 // Lightweight loading fallback
 const PageFallback = () => (
@@ -47,44 +42,25 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <AuthProvider>
-          <PageTracker />
-          <ScrollRestoration />
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              <Route path="/" element={<SmarterDogHomepage />} />
-              <Route path="/services" element={<ServicesPage />} />
-              <Route path="/houndsly" element={<HoundslyPage />} />
-              <Route path="/privacy" element={<PrivacyPolicyPage />} />
-              <Route path="/approach" element={<OurApproachPage />} />
-              <Route path="/faq" element={<FAQPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/matted-coat-policy" element={<MattedCoatPolicyPage />} />
-              <Route path="/book" element={<BookingPage />} />
-              <Route path="/community" element={<CommunityPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/account"
-                element={<ProtectedRoute><AccountPage /></ProtectedRoute>}
-              />
-              <Route
-                path="/account/profile"
-                element={<ProtectedRoute><AccountProfilePage /></ProtectedRoute>}
-              />
-              <Route
-                path="/account/dogs"
-                element={<ProtectedRoute><AccountDogsPage /></ProtectedRoute>}
-              />
-              <Route
-                path="/account/bookings"
-                element={<ProtectedRoute><AccountBookingsPage /></ProtectedRoute>}
-              />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Suspense>
-          <CookieConsent />
-          <div className="noise-overlay" />
-        </AuthProvider>
+        <PageTracker />
+        <ScrollRestoration />
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route path="/" element={<SmarterDogHomepage />} />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/houndsly" element={<HoundslyPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/approach" element={<OurApproachPage onBookClick={goToBooking} />} />
+            <Route path="/faq" element={<FAQPage onBookClick={goToBooking} />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/matted-coat-policy" element={<MattedCoatPolicyPage />} />
+            <Route path="/book" element={<ExternalRedirect to={BOOKING_URL} />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+        <CookieConsent />
+        <div className="noise-overlay" />
       </Router>
     </ErrorBoundary>
   );

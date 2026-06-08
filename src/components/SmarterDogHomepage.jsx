@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { colors } from '../constants/colors';
 
 import Navigation from './sections/Navigation';
@@ -14,30 +14,13 @@ import FooterSection from './sections/FooterSection';
 import HoundslySection from './sections/HoundslySection';
 import SectionDivider from './SectionDivider';
 
-import BookingModal from './BookingModal';
 import ScrollToTop from './ScrollToTop';
 import MobileQuickActions from './MobileQuickActions';
 import LandingPopup from './LandingPopup';
 
-import { trackEvent } from '../utils/analytics';
+import { goToBooking } from '../utils/booking';
 
 const SmarterDogHomepage = () => {
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [bookingPrefill, setBookingPrefill] = useState(null);
-  const [bookingPrefillSummary, setBookingPrefillSummary] = useState('');
-
-  const handleBookClick = (source = 'General', options = {}) => {
-    trackEvent('Engagement', 'Click Request Appointment', source);
-    setBookingPrefill(options.prefill || null);
-    setBookingPrefillSummary(options.prefillSummary || '');
-    setIsBookingModalOpen(true);
-  };
-  const handleCloseModal = () => {
-    setIsBookingModalOpen(false);
-    setBookingPrefill(null);
-    setBookingPrefillSummary('');
-  };
-
   return (
     <div
       className="min-h-screen pb-24 md:pb-0"
@@ -46,30 +29,24 @@ const SmarterDogHomepage = () => {
         fontFamily: "'Montserrat', sans-serif"
       }}
     >
-      <Navigation isLoaded onBookClick={handleBookClick} />
+      <Navigation isLoaded />
       <main id="main-content">
-        <HeroSection isLoaded onBookClick={handleBookClick} />
+        <HeroSection isLoaded onBookClick={goToBooking} />
         <TrustSection />
         <ServicesSection />
-        <AftercareGuidesSection onBookClick={handleBookClick} />
+        <AftercareGuidesSection onBookClick={goToBooking} />
         <GallerySection />
         <SectionDivider type="grass" color={colors.mutedGreen} backgroundColor={colors.yellow} height="100px" />
         <HoundslySection />
         <TestimonialsSection />
         <LocationCredibilitySection />
-        <CTASection onBookClick={handleBookClick} />
+        <CTASection onBookClick={goToBooking} />
       </main>
       <FooterSection />
-      <MobileQuickActions onBookClick={handleBookClick} />
+      <MobileQuickActions onBookClick={goToBooking} />
 
-      <BookingModal
-        isOpen={isBookingModalOpen}
-        onClose={handleCloseModal}
-        initialFormData={bookingPrefill}
-        prefillSummary={bookingPrefillSummary}
-      />
       <ScrollToTop />
-      <LandingPopup onBookClick={handleBookClick} />
+      <LandingPopup onBookClick={goToBooking} />
     </div>
   );
 };

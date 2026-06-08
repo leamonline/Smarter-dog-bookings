@@ -3,16 +3,15 @@ import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import CTASection from '../sections/CTASection';
 import FooterSection from '../sections/FooterSection';
-import BookingModal from '../BookingModal';
 import DogSilhouette from '../DogSilhouette';
 import SectionDivider from '../SectionDivider';
 import ProcessTimeline from '../ProcessTimeline';
 import { colors } from '../../constants/colors';
 import { services, timeline, additionalServices } from '../../constants/servicesData';
+import { goToBooking } from '../../utils/booking';
 
 const ServicesPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const getServiceHeadingColor = (color) => (
         color === colors.orange || color === colors.yellow ? colors.plum : color
@@ -31,7 +30,7 @@ const ServicesPage = () => {
 
     return (
         <div className="min-h-screen bg-white">
-            <Navigation isLoaded={isLoaded} onBookClick={() => setIsModalOpen(true)} />
+            <Navigation isLoaded={isLoaded} onBookClick={() => goToBooking('Services Page')} />
 
             <main id="main-content">
                 {/* Hero - now care-focused */}
@@ -75,7 +74,7 @@ const ServicesPage = () => {
                                         Best for: {service.bestFor}
                                     </p>
                                     <button
-                                        onClick={() => setIsModalOpen(true)}
+                                        onClick={() => goToBooking('Services Page')}
                                         className="w-full py-4 rounded-full font-bold text-lg transition-opacity hover:opacity-90"
                                         style={{
                                             backgroundColor: service.color,
@@ -143,11 +142,10 @@ const ServicesPage = () => {
 
                 <SectionDivider type="slant" color="white" backgroundColor={colors.blueSlate} />
 
-                <CTASection onBookClick={() => setIsModalOpen(true)} />
+                <CTASection onBookClick={() => goToBooking('Services Page')} />
             </main>
 
             <FooterSection />
-            <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
     );
 };

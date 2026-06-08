@@ -3,14 +3,13 @@ import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
 import CTASection from '../sections/CTASection';
-import BookingModal from '../BookingModal';
 import DogSilhouette from '../DogSilhouette';
 import SectionDivider from '../SectionDivider';
 import { colors } from '../../constants/colors';
+import { goToBooking } from '../../utils/booking';
 
 const HoundslyPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -44,7 +43,7 @@ const HoundslyPage = () => {
 
     return (
         <div className="min-h-screen bg-white relative">
-            <Navigation isLoaded={isLoaded} onBookClick={() => setIsModalOpen(true)} />
+            <Navigation isLoaded={isLoaded} onBookClick={() => goToBooking('Houndsly Page')} />
 
             <main id="main-content">
                 {/* Coming Soon Overlay */}
@@ -187,10 +186,9 @@ const HoundslyPage = () => {
 
                 <SectionDivider type="curve" color="white" backgroundColor={colors.green} />
 
-                <CTASection onBookClick={() => setIsModalOpen(true)} />
+                <CTASection onBookClick={() => goToBooking('Houndsly Page')} />
             </main>
             <FooterSection />
-            <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
     );
 };

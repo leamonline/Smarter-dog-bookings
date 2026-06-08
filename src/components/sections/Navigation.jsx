@@ -3,16 +3,13 @@ import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
-import { useAuth } from '../../hooks/useAuth';
+import { BOOKING_URL } from '../../constants/links';
 
-const Navigation = ({ isLoaded, onBookClick }) => {
+const Navigation = ({ isLoaded }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [scrolled, setScrolled] = React.useState(false);
     const prefersReducedMotion = usePrefersReducedMotion();
     const navLinkColor = scrolled ? colors.teal : colors.plum;
-    const hasBookHandler = typeof onBookClick === 'function';
-    const { session, human, signOut } = useAuth();
-    const firstName = human?.name?.split(' ')[0] ?? '';
 
     const closeMenu = React.useCallback(() => setIsMenuOpen(false), []);
     const menuRef = useFocusTrap(isMenuOpen, closeMenu);
@@ -108,48 +105,17 @@ const Navigation = ({ isLoaded, onBookClick }) => {
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
                     </Link>
 
-                    {session ? (
-                        <Link
-                            to="/account"
-                            className="ml-3 px-3 py-2 rounded-full text-sm font-medium hover-wiggle"
-                            style={{ color: navLinkColor }}
-                        >
-                            {firstName ? `Hi, ${firstName}` : 'My account'}
-                        </Link>
-                    ) : (
-                        <Link
-                            to="/login"
-                            className="ml-3 px-3 py-2 rounded-full text-sm font-medium hover-wiggle"
-                            style={{ color: navLinkColor }}
-                        >
-                            Sign in
-                        </Link>
-                    )}
-
                     <div className="ml-3">
-                        {hasBookHandler ? (
-                            <button
-                                onClick={() => onBookClick('Navigation')}
-                                className="px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
-                                style={{
-                                    backgroundColor: colors.green,
-                                    color: colors.plum
-                                }}
-                            >
-                                Book your visit
-                            </button>
-                        ) : (
-                            <Link
-                                to="/book"
-                                className="inline-block px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
-                                style={{
-                                    backgroundColor: colors.green,
-                                    color: colors.plum
-                                }}
-                            >
-                                Book your visit
-                            </Link>
-                        )}
+                        <a
+                            href={BOOKING_URL}
+                            className="inline-block px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
+                            style={{
+                                backgroundColor: colors.green,
+                                color: colors.plum
+                            }}
+                        >
+                            Book your visit
+                        </a>
                     </div>
                 </div>
 
@@ -217,64 +183,15 @@ const Navigation = ({ isLoaded, onBookClick }) => {
                     >
                         FAQ
                     </Link>
-                    {session ? (
-                        <>
-                            <Link
-                                to="/account"
-                                className="text-lg font-medium py-2 border-b border-gray-50"
-                                style={{ color: colors.teal }}
-                                onClick={closeMenu}
-                                role="menuitem"
-                            >
-                                My account
-                            </Link>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    closeMenu();
-                                    signOut();
-                                }}
-                                className="text-lg font-medium py-2 border-b border-gray-50 text-left"
-                                style={{ color: colors.teal }}
-                                role="menuitem"
-                            >
-                                Sign out
-                            </button>
-                        </>
-                    ) : (
-                        <Link
-                            to="/login"
-                            className="text-lg font-medium py-2 border-b border-gray-50"
-                            style={{ color: colors.teal }}
-                            onClick={closeMenu}
-                            role="menuitem"
-                        >
-                            Sign in
-                        </Link>
-                    )}
-                    {hasBookHandler ? (
-                        <button
-                            onClick={() => {
-                                closeMenu();
-                                onBookClick('Mobile Menu');
-                            }}
-                            className="w-full py-3 rounded-full font-bold mt-2 active-squish"
-                            style={{ backgroundColor: colors.green, color: colors.plum }}
-                            role="menuitem"
-                        >
-                            Book your visit
-                        </button>
-                    ) : (
-                        <Link
-                            to="/book"
-                            onClick={closeMenu}
-                            className="w-full py-3 rounded-full font-bold mt-2 text-center"
-                            style={{ backgroundColor: colors.green, color: colors.plum }}
-                            role="menuitem"
-                        >
-                            Book your visit
-                        </Link>
-                    )}
+                    <a
+                        href={BOOKING_URL}
+                        onClick={closeMenu}
+                        className="block w-full py-3 rounded-full font-bold mt-2 text-center active-squish"
+                        style={{ backgroundColor: colors.green, color: colors.plum }}
+                        role="menuitem"
+                    >
+                        Book your visit
+                    </a>
                 </div>
             )}
         </nav>

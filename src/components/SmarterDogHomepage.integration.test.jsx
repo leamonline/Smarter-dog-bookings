@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SmarterDogHomepage from './SmarterDogHomepage';
+import { BOOKING_URL } from '../constants/links';
+import { goToBooking } from '../utils/booking';
+
+vi.mock('../utils/booking', () => ({ goToBooking: vi.fn() }));
 
 const renderHomepage = () =>
   render(
@@ -11,6 +15,10 @@ const renderHomepage = () =>
   );
 
 describe('SmarterDogHomepage integration', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders primary homepage sections', () => {
     const { container } = renderHomepage();
 
@@ -42,16 +50,17 @@ describe('SmarterDogHomepage integration', () => {
     expect(screen.getByRole('link', { name: 'FAQ' })).toBeInTheDocument();
   });
 
-  it('opens and closes booking modal', () => {
+  it('sends booking CTAs to the external customer portal', () => {
     renderHomepage();
 
+    // The nav CTA is a real external link to the portal.
+    const bookLink = screen.getAllByRole('link', { name: /Book your visit/i })[0];
+    expect(bookLink).toHaveAttribute('href', BOOKING_URL);
+
+    // In-page CTA buttons trigger a redirect to the portal on click.
     const bookButton = screen.getAllByRole('button', { name: /Book your visit/i })[0];
     fireEvent.click(bookButton);
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/Let's get you booked in!/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Close modal/i }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(goToBooking).toHaveBeenCalled();
   });
 
   it('shows contact details in footer', () => {

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Navigation from '../sections/Navigation';
 import FooterSection from '../sections/FooterSection';
-import BookingModal from '../BookingModal';
 import DogSilhouette from '../DogSilhouette';
 import SectionDivider from '../SectionDivider';
 import FadeIn from '../FadeIn';
 import { colors } from '../../constants/colors';
 import { communityCategories } from '../../constants/communityData';
+import { goToBooking } from '../../utils/booking';
 import { DogWalkIcon, PetShopIcon, VetIcon, PetSitterIcon } from '../BrandIcons';
 
 const ICON_MAP = {
@@ -147,7 +146,6 @@ const CategorySection = ({ category, index, totalCategories }) => {
 
 const CommunityPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
@@ -158,7 +156,7 @@ const CommunityPage = () => {
 
     return (
         <div className="min-h-screen bg-white">
-            <Navigation isLoaded={isLoaded} onBookClick={() => setIsModalOpen(true)} />
+            <Navigation isLoaded={isLoaded} onBookClick={() => goToBooking('Community Page')} />
 
             <main id="main-content">
                 {/* Hero */}
@@ -237,20 +235,19 @@ const CommunityPage = () => {
                             <p className="body-font text-lg mb-8" style={{ color: colors.teal }}>
                                 We're always looking for trusted recommendations to share with our customers. If you know a wonderful local pet service, let us know and we'll add them to the list.
                             </p>
-                            <Link
-                                to="/book"
+                            <a
+                                href="mailto:leam@smarterdog.co.uk?subject=Community%20connection%20suggestion%21"
                                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
                                 style={{ backgroundColor: colors.green, color: colors.plum }}
                             >
                                 Get in touch
-                            </Link>
+                            </a>
                         </div>
                     </FadeIn>
                 </section>
             </main>
 
             <FooterSection />
-            <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
     );
 };
