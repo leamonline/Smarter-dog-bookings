@@ -17,6 +17,7 @@ import {
   DogsPanel,
   TrustedHumansPanel,
   RemindersPanel,
+  MergeHumanDialog,
 } from "./human-card/index.js";
 
 const EMPTY_HUMAN = {
@@ -97,12 +98,13 @@ export function HumanCardModal({
   onOpenBooking,
   onNewBookingForHuman,
   onSendMessage,
-  onMergeDuplicate,
+  onMergeHumans,
   onArchiveHuman,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -302,46 +304,39 @@ export function HumanCardModal({
   );
 
   const overflowItems = useMemo(() => {
+    const call = (handler, name) => () => {
+      if (handler) {
+        handler(human.id || humanId);
+      } else {
+        console.warn(`[HumanCardModal] TODO: ${name}`, {
+          humanId: human.id || humanId,
+        });
+      }
+    };
     const items = [
       {
         label: "New booking for this human",
-        handler: onNewBookingForHuman,
-        name: "onNewBookingForHuman",
+        onClick: call(onNewBookingForHuman, "onNewBookingForHuman"),
       },
       {
         label: "Send message",
-        handler: onSendMessage,
-        name: "onSendMessage",
-      },
-      {
-        label: "Merge duplicate",
-        handler: onMergeDuplicate,
-        name: "onMergeDuplicate",
-      },
-      {
-        label: "Archive",
-        handler: onArchiveHuman,
-        name: "onArchiveHuman",
+        onClick: call(onSendMessage, "onSendMessage"),
       },
     ];
-    return items.map(({ label, handler, name }) => ({
-      label,
-      onClick: () => {
-        if (handler) {
-          handler(human.id || humanId);
-        } else {
-          console.warn(`[HumanCardModal] TODO: ${name}`, {
-            humanId: human.id || humanId,
-          });
-        }
-      },
-    }));
+    if (onMergeHumans) {
+      items.push({ label: "Merge duplicate", onClick: () => setShowMerge(true) });
+    }
+    items.push({
+      label: "Archive",
+      onClick: call(onArchiveHuman, "onArchiveHuman"),
+    });
+    return items;
   }, [
     human.id,
     humanId,
     onNewBookingForHuman,
     onSendMessage,
-    onMergeDuplicate,
+    onMergeHumans,
     onArchiveHuman,
   ]);
 
@@ -528,6 +523,28 @@ export function HumanCardModal({
             }
           }}
           onCancel={() => setPendingDelete(false)}
+        />
+      )}
+
+      {showMerge && onMergeHumans && (
+        <MergeHumanDialog
+          human={human}
+          humans={humans}
+          dogs={dogs}
+          dogsByHumanId={dogsByHumanId}
+          bookingsByDate={bookingsByDate}
+          ensureDogsForHumans={ensureDogsForHumans}
+          searchHumansByTerm={searchHumansByTerm}
+          onMerge={onMergeHumans}
+          onMerged={(winnerId) => {
+            setShowMerge(false);
+            // If the kept record is the other one (user swapped), jump to it;
+            // otherwise the current modal is the winner and just refreshes.
+            if (winnerId && winnerId !== (human.id || humanId)) {
+              onOpenHuman?.(winnerId);
+            }
+          }}
+          onClose={() => setShowMerge(false)}
         />
       )}
     </>

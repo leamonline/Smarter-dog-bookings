@@ -350,6 +350,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     updateHuman: sbUpdateHuman,
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
+    mergeHumans: sbMergeHumans,
     fetchHumanById: sbFetchHumanById,
     findHumanByFullName: sbFindHumanByFullName,
     searchHumansByTerm: sbSearchHumansByTerm,
@@ -748,6 +749,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     navigate(`/inbox?human=${hid}`);
                   }}
                   onOpenBooking={handleOpenBooking}
+                  onMergeHumans={sbMergeHumans}
                 />
               </Suspense>
             </ErrorBoundary>

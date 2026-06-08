@@ -897,6 +897,54 @@ export function useHumans() {
   );
 
   /**
+   * Merge the "loser" human into the "winner" via the merge_humans RPC,
+   * which reassigns dogs / booking pickups / trusted contacts / waitlist /
+   * conversations to the winner, backfills the winner's blank fields, and
+   * deletes the loser — atomically server-side. We optimistically drop the
+   * loser from the local maps; the winner's reassigned dogs and backfilled
+   * fields arrive via the realtime subscriptions.
+   */
+  const mergeHumans = useCallback(
+    async (
+      winnerId: string,
+      loserId: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!winnerId || !loserId) return { ok: false, error: "Missing human id" };
+      if (winnerId === loserId)
+        return { ok: false, error: "Cannot merge a record into itself" };
+      if (!supabase)
+        return { ok: false, error: "Merge needs a connection — you're offline." };
+
+      const { error: err } = await supabase.rpc("merge_humans", {
+        p_winner: winnerId,
+        p_loser: loserId,
+      });
+      if (err) {
+        return { ok: false, error: err.message || "Failed to merge records" };
+      }
+
+      // Drop the loser from the local maps so it vanishes from the directory
+      // immediately; realtime refreshes the winner + reassigned dogs.
+      setHumansById((prev) => {
+        const next = { ...prev };
+        delete next[loserId];
+        return next;
+      });
+      setHumans((prev) => {
+        const next = { ...prev };
+        const entry = Object.entries(next).find(
+          ([, h]: [string, any]) => h.id === loserId,
+        );
+        if (entry) delete next[entry[0]];
+        return next;
+      });
+      setTotalCount((c) => Math.max(0, c - 1));
+      return { ok: true };
+    },
+    [],
+  );
+
+  /**
    * On-demand human fetch. The initial useHumans load is paginated
    * (PAGE_SIZE = 50, ordered alphabetically). When a booking or modal
    * needs a human whose row is past the page boundary, the local
@@ -1139,6 +1187,7 @@ export function useHumans() {
     updateHuman,
     addHuman,
     deleteHuman,
+    mergeHumans,
     fetchHumanById,
     findHumanByFullName,
     searchHumansByTerm,
