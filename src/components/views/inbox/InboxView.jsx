@@ -300,6 +300,24 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setSearchParams(next, { replace: true });
   }, [targetConversationId, loadingList, conversations, selectedId, selectConversation, searchParams, setSearchParams]);
 
+  // Deep-link by human: ?human=<id> opens that human's existing thread.
+  // Callers like the human profile's "Send message" only know the human
+  // id, not the conversation id, so resolve human_id → conversation here
+  // (mirrors the ?conversation= effect). If the human has no thread yet we
+  // just land on the inbox. Wait for the list so the lookup is reliable.
+  const targetHumanId = searchParams.get("human");
+  useEffect(() => {
+    if (!targetHumanId) return;
+    if (loadingList) return;
+    const conv = conversations.find((c) => c.human_id === targetHumanId);
+    if (conv && selectedId !== conv.id) {
+      selectConversation(conv.id);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("human");
+    setSearchParams(next, { replace: true });
+  }, [targetHumanId, loadingList, conversations, selectedId, selectConversation, searchParams, setSearchParams]);
+
   // Mobile: show detail when a conversation is selected
   const showDetailOnMobile = !!selectedId;
 

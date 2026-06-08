@@ -94,7 +94,6 @@ export function HumanCardModal({
   searchHumansByTerm,
   // Optional callbacks the parent can wire later. When omitted we stub
   // each one with a console.warn so they can be grepped.
-  onOpenBookingsForHuman,
   onOpenBooking,
   onNewBookingForHuman,
   onSendMessage,
@@ -143,6 +142,7 @@ export function HumanCardModal({
   const addressInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const notesInputRef = useRef(null);
+  const historyRef = useRef(null);
 
   // Reseed when a different human is selected. Live edits and edit-mode
   // transitions never overwrite the user's typing — so we deliberately
@@ -282,22 +282,14 @@ export function HumanCardModal({
     return () => document.removeEventListener("keydown", handler);
   }, [mode, dirty, onUpdateHuman, pendingDelete, pendingExit, startEdit, cancelEdit]);
 
+  // Scroll the booking-history section into view. Used by the at-a-glance
+  // "Bookings" tile, which has no separate list view to open.
+  const handleShowHistory = useCallback(() => {
+    historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   // Stubbed callbacks: keep the surface area visible in the modal and
   // emit a console.warn so unwired handlers are grep-able.
-  const handleOpenBookingsForHuman = useCallback(
-    (id, opts) => {
-      if (onOpenBookingsForHuman) {
-        onOpenBookingsForHuman(id, opts);
-        return;
-      }
-      console.warn("[HumanCardModal] TODO: onOpenBookingsForHuman", {
-        humanId: id,
-        ...(opts || {}),
-      });
-    },
-    [onOpenBookingsForHuman],
-  );
-
   const handleOpenBooking = useCallback(
     (bookingId) => {
       if (onOpenBooking) {
@@ -432,7 +424,7 @@ export function HumanCardModal({
                 dogs={dogs}
                 dogsByHumanId={dogsByHumanId}
                 bookingsByDate={bookingsByDate}
-                onOpenBookingsForHuman={handleOpenBookingsForHuman}
+                onShowHistory={handleShowHistory}
                 onOpenBooking={handleOpenBooking}
               />
               <DogsPanel
@@ -459,7 +451,7 @@ export function HumanCardModal({
           </div>
 
           {/* Booking history spans both columns underneath the grid. */}
-          <div className="mt-3 md:mt-4">
+          <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
             <HumanBookingHistory
               human={human}
               dogs={dogs}

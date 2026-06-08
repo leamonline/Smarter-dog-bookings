@@ -5,8 +5,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
+import { BOOKING_STATUS } from "../../constants/index.js";
 
 const { HumanCardModal } = await import("./HumanCardModal.jsx");
+
+// A completed booking owned by human-1, dated well in the past so it always
+// counts as a "last visit" regardless of when the suite runs.
+const pastBooking = {
+  id: "booking-1",
+  _ownerId: "human-1",
+  _dogId: "dog-1",
+  dogName: "Rex",
+  owner: "Sarah Jones",
+  service: "full-groom",
+  status: BOOKING_STATUS.COMPLETED,
+  size: "small",
+};
+const bookingsWithHistory = { "2020-01-01": [pastBooking] };
 
 const human = {
   id: "human-1",
@@ -95,5 +110,39 @@ describe("HumanCardModal", () => {
       screen.getByRole("button", { name: "Copy phone number 07700 900111" }),
     );
     expect(writeText).toHaveBeenCalledWith("07700 900111");
+  });
+
+  it("clicking a booking-history row calls onOpenBooking with the booking id", () => {
+    const onOpenBooking = vi.fn();
+    renderModal({ bookingsByDate: bookingsWithHistory, onOpenBooking });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open booking on 2020-01-01 for Rex" }),
+    );
+    expect(onOpenBooking).toHaveBeenCalledWith("booking-1");
+  });
+
+  it("the Last visit tile opens the most recent booking via onOpenBooking", () => {
+    const onOpenBooking = vi.fn();
+    renderModal({ bookingsByDate: bookingsWithHistory, onOpenBooking });
+    fireEvent.click(screen.getByRole("button", { name: "Open most recent visit" }));
+    expect(onOpenBooking).toHaveBeenCalledWith("booking-1");
+  });
+
+  it("the Bookings tile scrolls the history section into view", () => {
+    const scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    renderModal({ bookingsByDate: bookingsWithHistory });
+    fireEvent.click(
+      screen.getByRole("button", { name: "See all bookings (1 lifetime)" }),
+    );
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("the Send message overflow item calls onSendMessage with the human id", () => {
+    const onSendMessage = vi.fn();
+    renderModal({ onSendMessage });
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Send message" }));
+    expect(onSendMessage).toHaveBeenCalledWith("human-1");
   });
 });

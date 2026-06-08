@@ -8,9 +8,9 @@ import { getDogsForHuman } from "../../../utils/directorySearch.js";
 // appointment · total spend. Flat 4-col tile row (no outer slate
 // wrapper) where each tile is a button when wired to a handler.
 //
-// Bookings + Last visit invoke `onOpenBookingsForHuman` with an optional
-// focus hint. Next appt invokes `onOpenBooking` with the upcoming
-// booking's id. Total stays inert.
+// Bookings scrolls to the in-modal history via `onShowHistory`. Last visit
+// and Next appt invoke `onOpenBooking` with the relevant booking's id
+// (most-recent / upcoming). Total stays inert.
 
 const COMPLETED_STATUSES = new Set([
   BOOKING_STATUS.READY_FOR_PICKUP,
@@ -87,7 +87,7 @@ export function AtAGlanceStrip({
   dogs,
   dogsByHumanId,
   bookingsByDate,
-  onOpenBookingsForHuman,
+  onShowHistory,
   onOpenBooking,
 }) {
   const stats = useMemo(() => {
@@ -121,15 +121,18 @@ export function AtAGlanceStrip({
     );
 
     let lastVisit = null;
+    let lastVisitBooking = null;
     for (const b of completed) {
       if (b.date <= todayStr && (!lastVisit || b.date > lastVisit)) {
         lastVisit = b.date;
+        lastVisitBooking = b;
       }
     }
     if (!lastVisit) {
       for (const b of matchedBookings) {
         if (b.date <= todayStr && (!lastVisit || b.date > lastVisit)) {
           lastVisit = b.date;
+          lastVisitBooking = b;
         }
       }
     }
@@ -147,17 +150,13 @@ export function AtAGlanceStrip({
     return {
       lifetime,
       lastVisit,
+      lastVisitBooking,
       nextAppt: nextApptDate,
       nextApptBooking,
       isNextToday: nextApptDate === todayStr,
       totalSpend,
     };
   }, [human, humanFullName, dogs, dogsByHumanId, bookingsByDate]);
-
-  const openBookings = (focus) => {
-    if (!onOpenBookingsForHuman) return;
-    onOpenBookingsForHuman(human.id, focus ? { focus } : undefined);
-  };
 
   return (
     <div aria-label="At a glance" className="grid grid-cols-4 gap-2">
@@ -166,15 +165,20 @@ export function AtAGlanceStrip({
         value={stats.lifetime}
         sub="lifetime"
         tone={stats.lifetime > 0 ? "navy" : "muted"}
-        onClick={() => openBookings()}
+        onClick={stats.lifetime > 0 ? () => onShowHistory?.() : undefined}
+        disabled={stats.lifetime === 0}
         ariaLabel={`See all bookings (${stats.lifetime} lifetime)`}
       />
       <Tile
         caption="Last visit"
         value={formatShortDate(stats.lastVisit)}
         tone={stats.lastVisit ? "navy" : "muted"}
-        onClick={stats.lastVisit ? () => openBookings("last") : undefined}
-        disabled={!stats.lastVisit}
+        onClick={
+          stats.lastVisitBooking?.id
+            ? () => onOpenBooking?.(stats.lastVisitBooking.id)
+            : undefined
+        }
+        disabled={!stats.lastVisitBooking?.id}
         ariaLabel={stats.lastVisit ? `Open most recent visit` : undefined}
       />
       <Tile
