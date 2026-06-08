@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { getSizeForBreed } from "../../constants/index.js";
+import { AlertTriangle, MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
+import { FloatingDecor } from "../decor/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text.js";
 import { filterHumansForDirectory } from "../../utils/directorySearch.js";
@@ -35,9 +37,9 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
             aria-label={`Jump to ${letter === "#" ? "non-letter names" : `the letter ${letter}`}`}
             className={`shrink-0 w-6 h-6 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
               active
-                ? "bg-brand-teal text-white"
+                ? "bg-brand-yellow text-brand-purple"
                 : enabled
-                  ? "text-slate-500 hover:bg-brand-teal/10 hover:text-brand-teal cursor-pointer"
+                  ? "text-slate-600 hover:bg-brand-purple/10 hover:text-brand-purple cursor-pointer"
                   : "text-slate-300 cursor-default"
             }`}
           >
@@ -49,16 +51,16 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-// History-flag reason, shown as visible (screen-reader-readable) text rather
-// than a bare ⚠️ emoji with only a title tooltip. Truncated on the card; the
-// profile shows it in full.
+// History-flag reason, shown as visible (screen-reader-readable) text next to
+// a coral line icon (currentColor inherits the chip's coral text). Truncated on
+// the card; the profile shows it in full.
 function FlagChip({ flag, className = "" }) {
   return (
     <span
       title={flag}
       className={`inline-flex items-center gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md ${className}`}
     >
-      <span aria-hidden="true">⚠️</span>
+      <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
       <span className="truncate">{flag}</span>
     </span>
   );
@@ -73,7 +75,7 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
     >
       Unarchive
     </button>
@@ -107,6 +109,56 @@ function DogChips({ dogs: dogList, max, dim }) {
   );
 }
 
+// Dog-size colour language, shared by the size dots and each card's top strip,
+// so a card's accent and its dots say the same thing. The strip takes the
+// human's *largest* dog size; neutral when there's no size to show.
+const SIZE_RANK = { small: 1, medium: 2, large: 3 };
+const STRIP_COLOUR = {
+  small: "var(--color-size-small)",
+  medium: "var(--color-brand-teal)",
+  large: "var(--color-brand-coral)",
+};
+
+function dominantSize(dogList) {
+  let best = null;
+  let bestRank = 0;
+  for (const dog of dogList) {
+    const size = dog.size || getSizeForBreed(dog.breed);
+    const rank = SIZE_RANK[size] || 0;
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = size;
+    }
+  }
+  return best;
+}
+
+// Key for the size dots — reuses SizeDot so the legend can never drift from the
+// real colours. Decorative for screen readers (each dog already carries its own
+// size label via SizeDot on the cards).
+function SizeLegend({ className = "" }) {
+  const items = [
+    ["small", "Small"],
+    ["medium", "Medium"],
+    ["large", "Large"],
+    [null, "Unknown"],
+  ];
+  return (
+    <div
+      aria-hidden="true"
+      className={`flex items-center gap-x-3 gap-y-1 flex-wrap text-micro text-ink-muted ${className}`}
+    >
+      <span className="font-bold uppercase tracking-wide">Size</span>
+      {items.map(([size, label]) => (
+        <span key={label} className="inline-flex items-center gap-1">
+          <SizeDot size={size} dim={12} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // One directory entry, rendered as a grid card or a dense list row. Both
 // reuse the same tel:/wa.me link pattern (stopPropagation so the links don't
 // open the profile) and stay keyboard-openable (role=button + Enter/Space).
@@ -134,20 +186,20 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         aria-label={`Open ${titleCase(fullName)}'s profile`}
         onClick={open}
         onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
       >
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-slate-800 truncate">{titleCase(fullName)}</span>
             {human.historyFlag && <FlagChip flag={human.historyFlag} className="shrink-0 max-w-[45%]" />}
           </div>
           <div
-            className="flex items-center gap-2 text-micro text-slate-500 mt-0.5 min-w-0"
+            className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0"
             onClick={(e) => e.stopPropagation()}
           >
             {human.phone ? (
               <>
-                <a href={telLink(human.phone)} className="font-semibold no-underline hover:text-brand-teal shrink-0">
+                <a href={telLink(human.phone)} className="font-medium no-underline hover:text-brand-purple shrink-0">
                   {human.phone}
                 </a>
                 <a
@@ -155,9 +207,10 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Open in WhatsApp"
-                  className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100 shrink-0"
+                  aria-label="Open in WhatsApp"
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
                 >
-                  WA
+                  <MessageCircle size={12} aria-hidden="true" />
                 </a>
               </>
             ) : (
@@ -166,9 +219,10 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
             {human.email && <span className="truncate text-slate-400">· {human.email}</span>}
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 shrink-0 max-w-[38%] overflow-hidden">
-          <DogChips dogs={humanDogs} max={3} dim={9} />
+        <div className="hidden sm:flex items-center gap-2 shrink-0 overflow-hidden">
+          <DogChips dogs={humanDogs} max={3} dim={14} />
         </div>
+        <div className="hidden sm:block flex-1" aria-hidden="true" />
         {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
       </div>
     );
@@ -181,9 +235,12 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
       aria-label={`Open ${titleCase(fullName)}'s profile`}
       onClick={open}
       onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
     >
-      <div className="h-[3px] bg-gradient-to-r from-brand-teal to-brand-teal-light shrink-0" />
+      <div
+        className="h-[3px] shrink-0"
+        style={{ background: STRIP_COLOUR[dominantSize(humanDogs)] || "var(--color-slate-200)" }}
+      />
       {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
 
       <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0 gap-0.5">
@@ -192,8 +249,8 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         </div>
 
         {human.phone ? (
-          <div className="flex items-center gap-2 leading-snug" onClick={(e) => e.stopPropagation()}>
-            <a href={telLink(human.phone)} className="text-body text-slate-500 font-semibold no-underline hover:text-brand-teal truncate">
+          <div className="flex items-center gap-2.5 leading-snug" onClick={(e) => e.stopPropagation()}>
+            <a href={telLink(human.phone)} className="text-body text-slate-500 font-medium no-underline hover:text-brand-purple truncate">
               {human.phone}
             </a>
             <a
@@ -201,9 +258,10 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
               target="_blank"
               rel="noopener noreferrer"
               title="Open in WhatsApp"
-              className="text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100 shrink-0"
+              aria-label="Open in WhatsApp"
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
             >
-              WA
+              <MessageCircle size={12} aria-hidden="true" />
             </a>
           </div>
         ) : (
@@ -212,7 +270,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
 
         {human.email && (
           <div className="text-micro text-slate-400 truncate leading-snug" onClick={(e) => e.stopPropagation()}>
-            <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-teal">
+            <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">
               {human.email}
             </a>
           </div>
@@ -229,13 +287,13 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
               e.stopPropagation();
               open();
             }}
-            className="mt-auto self-start text-xs font-semibold italic text-brand-coral-text/80 bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
+            className="mt-1 self-start text-xs font-semibold italic text-brand-coral-text/80 bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
           >
             No dogs registered — add one
           </button>
         ) : (
-          <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
-            <DogChips dogs={humanDogs} max={4} dim={10} />
+          <div className="mt-1 flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[26px]">
+            <DogChips dogs={humanDogs} max={4} dim={16} />
           </div>
         )}
       </div>
@@ -406,13 +464,16 @@ export function HumansView({
   const showRailAndSort = online && !showArchived;
 
   return (
-    <div className="animate-[fadeIn_0.2s_ease-in]">
+    <div className="relative animate-[fadeIn_0.2s_ease-in]">
+      {/* Colourful dog-silhouette backdrop — same brand decor the dashboard
+          uses (sits -z-10, shows through the gaps around cards). */}
+      <FloatingDecor />
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-5 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
+      <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-4 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
         <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xl md:text-2xl font-black text-white font-display">Humans Directory</div>
+            <div className="text-2xl md:text-display font-black text-white font-display">Humans Directory</div>
             <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
               {isInitialLoading && displayList.length === 0 ? (
                 <SkeletonBlock className="h-4 w-32 bg-white/20" />
@@ -434,56 +495,83 @@ export function HumansView({
                 className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white/25 text-sm font-inherit outline-none text-white placeholder:text-white/85 transition-colors focus:bg-white/35 focus:border-white/60"
               />
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-cyan border-none rounded-control px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-            >
+            <Button variant="primary" onClick={() => setShowAddModal(true)}>
               + Add Human
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Filter chips — server-side (combine with search and each other). */}
-      {showRailAndSort && onToggleFilter && (
-        <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filters">
-          {FILTER_CHIPS.map(({ key, label }) => {
-            const active = !!filters?.[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onToggleFilter(key)}
-                aria-pressed={active}
-                className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
-                  active
-                    ? "bg-brand-teal text-white border-brand-teal"
-                    : "bg-white text-slate-500 border-slate-200 hover:border-brand-teal hover:text-brand-teal"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* Toolbar: filters + sort + view unified into one control row, with a
+          size key beneath so the dot/strip colours read as dog size. */}
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {showRailAndSort && onToggleFilter && (
+            <>
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
+                {FILTER_CHIPS.map(({ key, label }) => {
+                  const active = !!filters?.[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onToggleFilter(key)}
+                      aria-pressed={active}
+                      className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                        active
+                          ? "bg-brand-yellow text-brand-purple border-brand-yellow"
+                          : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+            </>
+          )}
 
-      {/* Toolbar: sort toggle (server-driven) + grid/list view toggle. */}
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        {showRailAndSort ? (
-          <div className="inline-flex items-center gap-2">
-            <span className="text-micro font-bold uppercase tracking-wide text-slate-400">Sort</span>
+          {showRailAndSort && (
+            <div className="inline-flex items-center gap-2">
+              <span className="text-label text-ink-muted">Sort</span>
+              <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
+                {[["first", "First name"], ["last", "Surname"]].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => onSortModeChange?.(mode)}
+                    aria-pressed={sortMode === mode}
+                    className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
+                      sortMode === mode
+                        ? "bg-brand-yellow text-brand-purple"
+                        : "text-slate-500 hover:text-brand-purple"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* View switcher pushed right; leading divider when controls precede it. */}
+          {showRailAndSort && (
+            <span className="hidden sm:block h-5 w-px bg-slate-200 ml-auto" aria-hidden="true" />
+          )}
+          <div className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}>
+            <span className="text-label text-ink-muted">View</span>
             <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
-              {[["first", "First name"], ["last", "Surname"]].map(([mode, label]) => (
+              {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => onSortModeChange?.(mode)}
-                  aria-pressed={sortMode === mode}
+                  onClick={() => setViewMode(mode)}
+                  aria-pressed={viewMode === mode}
                   className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
-                    sortMode === mode
-                      ? "bg-brand-teal text-white"
-                      : "text-slate-500 hover:text-brand-teal"
+                    viewMode === mode
+                      ? "bg-brand-yellow text-brand-purple"
+                      : "text-slate-500 hover:text-brand-purple"
                   }`}
                 >
                   {label}
@@ -491,30 +579,9 @@ export function HumansView({
               ))}
             </div>
           </div>
-        ) : (
-          <span />
-        )}
-
-        <div className="inline-flex items-center gap-2">
-          <span className="text-micro font-bold uppercase tracking-wide text-slate-400">View</span>
-          <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
-            {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setViewMode(mode)}
-                aria-pressed={viewMode === mode}
-                className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
-                  viewMode === mode
-                    ? "bg-brand-teal text-white"
-                    : "text-slate-500 hover:text-brand-teal"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
+
+        {displayList.length > 0 && <SizeLegend className="mt-2.5" />}
       </div>
 
       {/* Mobile A–Z strip */}
@@ -551,7 +618,7 @@ export function HumansView({
               className={
                 viewMode === "list"
                   ? "flex flex-col gap-1.5"
-                  : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start"
               }
             >
               {displayList.map((human) => (
@@ -599,7 +666,7 @@ export function HumansView({
             availableLetters={availableLetters}
             activeLetter={activeLetter}
             onLetterChange={onLetterChange}
-            className="hidden md:flex md:flex-col gap-0.5 sticky top-24 self-start shrink-0"
+            className="hidden md:flex md:flex-col gap-0.5 sticky top-24 self-start shrink-0 bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 shadow-sm px-0.5 py-1.5"
           />
         )}
       </div>
@@ -618,7 +685,7 @@ export function HumansView({
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="text-body font-semibold text-slate-500 hover:text-brand-teal bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
+              className="text-body font-semibold text-slate-500 hover:text-brand-purple bg-transparent border-none cursor-pointer font-inherit underline-offset-2 hover:underline"
             >
               {showArchived ? "← Back to active" : "Show archived"}
             </button>
