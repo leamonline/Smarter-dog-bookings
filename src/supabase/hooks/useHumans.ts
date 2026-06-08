@@ -1,23 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
-import {
-  dbHumansToMap,
-  buildHumansById,
-  findHumanByIdOrName,
-} from "../transforms.js";
+import { findHumanByIdOrName } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 import { stripFormatChars } from "../../utils/phone.js";
 import { logger } from "../../lib/logger.js";
 
 const PAGE_SIZE = 50;
-
-function mergeRowsById(rows: any[][]) {
-  const map = new Map<string, any>();
-  rows.flat().forEach((row) => {
-    if (row?.id) map.set(row.id, row);
-  });
-  return Array.from(map.values());
-}
 
 function fullNameFromRow(row: { name?: string | null; surname?: string | null }): string {
   const name = sanitiseFieldValue(row.name);
@@ -79,59 +67,6 @@ async function fetchTrustedContactsForHuman(
   return { trustedContacts, trustedIds: trustedContacts.map((c) => c.fullName) };
 }
 
-async function buildTrustedMaps(trustedRows: any[], humansById: Record<string, any>) {
-  const trustedMap: Record<string, string[]> = {};
-  const trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
-
-  // Only this batch's humans end up in the resulting maps, so ignore
-  // rows owned by anyone outside it (the main mount loads the whole
-  // trusted table). The per-human callers already scope their query.
-  const relevantRows = (trustedRows || []).filter(
-    (row) => row.human_id && humansById[row.human_id],
-  );
-
-  // Resolve a display name for every trusted_id up front. Names already
-  // in this batch come from humansById; anyone past the paginated window
-  // is fetched on demand. Without this, a trusted contact whose human row
-  // wasn't in the current batch (the common case for a targeted search
-  // result) was silently dropped, so the Trusted Humans panel rendered
-  // empty even though the link exists.
-  const nameById: Record<string, string> = {};
-  for (const row of relevantRows) {
-    const id = row.trusted_id;
-    if (!id || nameById[id]) continue;
-    const loaded = humansById[id];
-    if (loaded?.fullName) nameById[id] = loaded.fullName;
-  }
-  const missingIds = Array.from(
-    new Set(
-      relevantRows
-        .map((row) => row.trusted_id)
-        .filter((id) => id && !nameById[id]),
-    ),
-  );
-  if (missingIds.length > 0) {
-    Object.assign(nameById, await fetchHumanNamesByIds(missingIds));
-  }
-
-  for (const row of relevantRows) {
-    const fullName = nameById[row.trusted_id];
-    if (!fullName) continue;
-
-    if (!trustedMap[row.human_id]) trustedMap[row.human_id] = [];
-    trustedMap[row.human_id].push(fullName);
-
-    if (!trustedContactsMap[row.human_id]) trustedContactsMap[row.human_id] = [];
-    trustedContactsMap[row.human_id].push({
-      id: row.trusted_id,
-      fullName,
-      relationship: row.relationship || "",
-    });
-  }
-
-  return { trustedMap, trustedContactsMap };
-}
-
 function buildHumanMapEntry(row: any) {
   // Mirror buildHumanFullName() in transforms.ts. Strips placeholder
   // tokens ("Null", "Unknown", "None", etc.) via sanitiseFieldValue
@@ -172,6 +107,41 @@ export function useHumans() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
+  // Server-driven directory state. directoryHumans is the ordered,
+  // filtered list the directory grid renders (distinct from the humans /
+  // humansById lookup caches, which other views inject owners into).
+  // effectiveSearch is the debounced search term that actually drives the
+  // fetch; searchQuery mirrors the input immediately.
+  const [directoryHumans, setDirectoryHumans] = useState<any[]>([]);
+  const [availableLetters, setAvailableLetters] = useState<string[]>([]);
+  const [effectiveSearch, setEffectiveSearch] = useState("");
+  const [dirSort, setDirSortState] = useState<"first" | "last">(() =>
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("humansDirSort") === "last"
+      ? "last"
+      : "first",
+  );
+  const [dirFilters, setDirFilters] = useState({
+    flagged: false,
+    noDogs: false,
+    noPhone: false,
+    whatsapp: false,
+  });
+  const [dirLetter, setDirLetterState] = useState<string | null>(null);
+
+  const directoryRef = useRef<any[]>([]);
+  const queryRef = useRef<{
+    search: string;
+    filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean };
+    sort: "first" | "last";
+    letter: string | null;
+  }>({
+    search: "",
+    filters: { flagged: false, noDogs: false, noPhone: false, whatsapp: false },
+    sort: "first",
+    letter: null,
+  });
+
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks which humans we've loaded a full profile for (including their
   // trusted contacts). fetchHumanById serves those from cache so the
@@ -179,6 +149,100 @@ export function useHumans() {
   // doesn't re-query in a loop.
   const trustedHydratedIdsRef = useRef<Set<string>>(new Set());
 
+  // Keep refs of the loaded list (for load-more's offset) and the active
+  // query (so realtime refetches and load-more reuse the current
+  // search / filters / sort / letter).
+  useEffect(() => {
+    directoryRef.current = directoryHumans;
+  }, [directoryHumans]);
+
+  // One server-side directory page via the search_humans_directory RPC,
+  // which returns { rows, total, letters } already filtered, sorted and
+  // paginated — the client never holds or re-sorts the full ~800-row set.
+  // Reset replaces the ordered list; append (load-more) extends it. Rows
+  // always merge into the humans / humansById caches (never evict) so owner
+  // lookups elsewhere keep resolving. Trusted contacts aren't hydrated here;
+  // the profile modal does that on open via fetchHumanById.
+  const fetchDirectory = useCallback(
+    async (
+      params: {
+        search: string;
+        filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean };
+        sort: "first" | "last";
+        letter: string | null;
+      },
+      { append = false }: { append?: boolean } = {},
+    ) => {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+      queryRef.current = params;
+      const offset = append ? directoryRef.current.length : 0;
+      setError(null);
+      if (!append) setLoading(true);
+
+      const { data, error: err } = await supabase.rpc("search_humans_directory", {
+        p_search: params.search || null,
+        p_flagged: !!params.filters.flagged,
+        p_no_dogs: !!params.filters.noDogs,
+        p_no_phone: !!params.filters.noPhone,
+        p_whatsapp: !!params.filters.whatsapp,
+        p_letter: params.letter || null,
+        p_sort: params.sort || "first",
+        p_limit: PAGE_SIZE,
+        p_offset: offset,
+      });
+
+      setIsSearching(false);
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+
+      const result = (data || {}) as { rows?: any[]; total?: number; letters?: string[] };
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      const entries = rows.map((row) => buildHumanMapEntry(row));
+
+      const byId: Record<string, any> = {};
+      const byName: Record<string, any> = {};
+      for (const e of entries) {
+        byId[e.id] = e;
+        byName[e.fullName || e.id] = e;
+      }
+      setHumansById((prev) => ({ ...prev, ...byId }));
+      setHumans((prev) => {
+        // Keep the map name-keyed; drop any stale UUID-keyed copies of these
+        // ids so HumansView never renders the same human twice.
+        const next: Record<string, any> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (!byId[k]) next[k] = v;
+        }
+        return { ...next, ...byName };
+      });
+      setDirectoryHumans((prev) => (append ? [...prev, ...entries] : entries));
+      setTotalCount(result.total ?? 0);
+      setAvailableLetters(result.letters || []);
+      setHasMore(offset + rows.length < (result.total ?? 0));
+      setLoading(false);
+    },
+    [],
+  );
+
+  // Refetch page 0 whenever the active query changes. effectiveSearch is the
+  // debounced search term (see searchHumans); filters / sort / letter apply
+  // immediately. Also performs the initial load on mount.
+  useEffect(() => {
+    fetchDirectory(
+      { search: effectiveSearch, filters: dirFilters, sort: dirSort, letter: dirLetter },
+      { append: false },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSearch, dirFilters, dirSort, dirLetter]);
+
+  // Real-time subscription for humans. Insert/update refetch the current
+  // page set; delete drops the row from the caches and the visible list.
   useEffect(() => {
     if (!supabase) {
       setHumans({});
@@ -187,97 +251,14 @@ export function useHumans() {
       return;
     }
 
-    const controller = new AbortController();
-
-    async function fetchHumans(limit = PAGE_SIZE) {
-      setLoading(true);
-      setError(null);
-
-      const { count, error: countErr } = await supabase!
-        .from("humans")
-        .select("*", { count: "exact", head: true })
-        .is("archived_at", null)
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-
-      if (countErr) {
-        setError(countErr.message);
-        setLoading(false);
-        return;
-      }
-
-      setTotalCount(count ?? 0);
-
-      const { data: humanRows, error: humanErr } = await supabase!
-        .from("humans")
-        .select("*")
-        .is("archived_at", null)
-        .order("name")
-        .order("surname")
-        .limit(limit)
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-
-      if (humanErr) {
-        setError(humanErr.message);
-        setHumans({});
-        setHumansById({});
-        setLoading(false);
-        return;
-      }
-
-      const { data: trustedRows, error: trustedErr } = await supabase!
-        .from("human_trusted_contacts")
-        .select("human_id, trusted_id, relationship")
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
-
-      if (trustedErr) {
-        setError(trustedErr.message);
-        setHumans({});
-        setHumansById({});
-        setLoading(false);
-        return;
-      }
-
-      const byId = buildHumansById(humanRows || []);
-      const { trustedMap, trustedContactsMap } = await buildTrustedMaps(trustedRows, byId);
-
-      // Merge instead of replacing — see the matching comment in useDogs.
-      // Previous calls to ensureHumansByIds may have populated humans past
-      // the paginated window so dogs and bookings can resolve owner names.
-      // The real-time INSERT/UPDATE handlers below also call fetchHumans(),
-      // and a destructive replace there would lose every ensured owner.
-      const mapAdditions = dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap);
-      setHumansById((prev) => ({ ...prev, ...byId }));
-      setHumans((prev) => ({ ...prev, ...mapAdditions }));
-      // Merge rather than replace: humans added by ensureHumansByIds
-      // (rows past the first paginated page, hydrated for a deep-linked
-      // dog or booking owner) would otherwise be wiped out when a
-      // realtime INSERT/UPDATE triggers a refetch, and then never
-      // re-added because fetchedHumanIdsRef has already marked them as
-      // resolved. Same fix pattern as useDogs.ts.
-      const nextMap = dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap);
-      setHumansById((prev) => ({ ...prev, ...byId }));
-      setHumans((prev) => ({ ...prev, ...nextMap }));
-      setHasMore((humanRows || []).length >= limit);
-      setLoading(false);
-    }
-
-    fetchHumans();
-
-    // Real-time subscription for humans
-    const channel = supabase!
+    const channel = supabase
       .channel(`humans-realtime-${Date.now()}-${Math.random()}`)
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "humans" },
         (payload: any) => {
           const oldRow = payload.old;
-          if (!oldRow.id) return;
+          if (!oldRow?.id) return;
           setHumansById((prev) => {
             const next = { ...prev };
             delete next[oldRow.id];
@@ -291,227 +272,73 @@ export function useHumans() {
             if (entry) delete next[entry[0]];
             return next;
           });
+          setDirectoryHumans((prev) => prev.filter((h) => h.id !== oldRow.id));
+          setTotalCount((c) => Math.max(0, c - 1));
         },
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "humans" },
         () => {
-          fetchHumans();
+          fetchDirectory(queryRef.current, { append: false });
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "humans" },
         () => {
-          fetchHumans();
+          fetchDirectory(queryRef.current, { append: false });
         },
       )
       .subscribe();
 
     return () => {
-      controller.abort();
       supabase!.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Append the next page of the current directory query.
   const loadMore = useCallback(async () => {
-    if (!supabase) return;
+    await fetchDirectory(queryRef.current, { append: true });
+  }, [fetchDirectory]);
 
-    const currentCount = Object.keys(humansById).length;
-
-    const { data: humanRows, error: err } = await supabase
-      .from("humans")
-      .select("*")
-      .is("archived_at", null)
-      .order("name")
-      .order("surname")
-      .range(currentCount, currentCount + PAGE_SIZE - 1);
-
-    if (err) {
-      setError(err.message);
-      return;
-    }
-
-    const rows = humanRows || [];
-    const newHumansById = buildHumansById(rows);
-
-    // Fetch trusted contacts for the new batch
-    const newIds = rows.map((r: any) => r.id);
-    let trustedMap: Record<string, string[]> = {};
-
-    let trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
-
-    if (newIds.length > 0) {
-      const { data: trustedRows } = await supabase
-        .from("human_trusted_contacts")
-        .select("human_id, trusted_id, relationship")
-        .in("human_id", newIds);
-
-      const mergedById = { ...humansById, ...newHumansById };
-      const maps = await buildTrustedMaps(trustedRows || [], mergedById);
-      trustedMap = maps.trustedMap;
-      trustedContactsMap = maps.trustedContactsMap;
-    }
-
-    const newHumans = dbHumansToMap(rows, trustedMap, trustedContactsMap);
-
-    setHumansById((prev) => ({ ...prev, ...newHumansById }));
-    setHumans((prev) => ({ ...prev, ...newHumans }));
-    setHasMore(rows.length >= PAGE_SIZE);
-  }, [humansById]);
-
+  // Update the search box immediately, but debounce the term that actually
+  // drives the fetch so typing doesn't fire a request per keystroke. The
+  // fetch effect above re-runs when effectiveSearch changes.
   const searchHumans = useCallback((query: string) => {
     setSearchQuery(query);
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (!query.trim()) {
-      // Clear search — re-fetch first page
-      if (!supabase) return;
-
-      setIsSearching(false);
-
-      async function refetch() {
-        const { count } = await supabase!
-          .from("humans")
-          .select("*", { count: "exact", head: true })
-          .is("archived_at", null);
-
-        setTotalCount(count ?? 0);
-
-        const { data: humanRows, error: humanErr } = await supabase!
-          .from("humans")
-          .select("*")
-          .is("archived_at", null)
-          .order("name")
-          .order("surname")
-          .limit(PAGE_SIZE);
-
-        if (humanErr) {
-          setError(humanErr.message);
-          return;
-        }
-
-        const { data: trustedRows } = await supabase!
-          .from("human_trusted_contacts")
-          .select("human_id, trusted_id, relationship");
-
-        const byId = buildHumansById(humanRows || []);
-        const { trustedMap, trustedContactsMap } = await buildTrustedMaps(trustedRows || [], byId);
-
-        // Merge into humansById — it doubles as the booking/dog lookup cache,
-        // and a paginated refetch must not evict owners loaded via
-        // ensureHumansByIds, or booking cards/dog modals fall back to
-        // "Unknown owner" until the next hard reload.
-        setHumansById((prev) => ({ ...prev, ...byId }));
-        setHumans(dbHumansToMap(humanRows || [], trustedMap, trustedContactsMap));
-        setHasMore((humanRows || []).length >= PAGE_SIZE);
-      }
-
-      refetch();
-      return;
-    }
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      if (!supabase) return;
-
-      setIsSearching(true);
-
-      const term = query.trim();
-      const likeTerm = `%${term}%`;
-      const [
-        nameResult,
-        surnameResult,
-        phoneResult,
-        emailResult,
-        dogNameResult,
-        dogBreedResult,
-      ] = await Promise.all([
-        supabase.from("humans").select("*").is("archived_at", null).ilike("name", likeTerm).order("surname").order("name").limit(50),
-        supabase.from("humans").select("*").is("archived_at", null).ilike("surname", likeTerm).order("surname").order("name").limit(50),
-        supabase.from("humans").select("*").is("archived_at", null).ilike("phone", likeTerm).order("surname").order("name").limit(50),
-        supabase.from("humans").select("*").is("archived_at", null).ilike("email", likeTerm).order("surname").order("name").limit(50),
-        supabase.from("dogs").select("human_id").ilike("name", likeTerm).limit(100),
-        supabase.from("dogs").select("human_id").ilike("breed", likeTerm).limit(100),
-      ]);
-
-      const firstError =
-        nameResult.error ||
-        surnameResult.error ||
-        phoneResult.error ||
-        emailResult.error ||
-        dogNameResult.error ||
-        dogBreedResult.error;
-
-      if (firstError) {
-        setIsSearching(false);
-        setError(firstError.message);
-        return;
-      }
-
-      const dogHumanIds = Array.from(
-        new Set(
-          [...(dogNameResult.data || []), ...(dogBreedResult.data || [])]
-            .map((row: any) => row.human_id)
-            .filter(Boolean),
-        ),
-      );
-      let dogOwnerRows: any[] = [];
-
-      if (dogHumanIds.length > 0) {
-        const { data, error: dogOwnerErr } = await supabase
-          .from("humans")
-          .select("*")
-          .is("archived_at", null)
-          .in("id", dogHumanIds);
-
-        if (dogOwnerErr) {
-          setIsSearching(false);
-          setError(dogOwnerErr.message);
-          return;
-        }
-
-        dogOwnerRows = data || [];
-      }
-
-      setIsSearching(false);
-
-      const rows = mergeRowsById([
-        nameResult.data || [],
-        surnameResult.data || [],
-        phoneResult.data || [],
-        emailResult.data || [],
-        dogOwnerRows,
-      ]).sort((a, b) => {
-        const nameCompare = (a.name || "").localeCompare(b.name || "");
-        return nameCompare || (a.surname || "").localeCompare(b.surname || "");
-      });
-      const byId = buildHumansById(rows);
-
-      const ids = rows.map((r: any) => r.id);
-      let trustedMap: Record<string, string[]> = {};
-      let trustedContactsMap: Record<string, { id: string; fullName: string; relationship: string }[]> = {};
-
-      if (ids.length > 0) {
-        const { data: trustedRows } = await supabase
-          .from("human_trusted_contacts")
-          .select("human_id, trusted_id, relationship")
-          .in("human_id", ids);
-
-        const maps = await buildTrustedMaps(trustedRows || [], byId);
-        trustedMap = maps.trustedMap;
-        trustedContactsMap = maps.trustedContactsMap;
-      }
-
-      // Merge into the lookup cache — see refetch() comment for the reason.
-      setHumansById((prev) => ({ ...prev, ...byId }));
-      setHumans(dbHumansToMap(rows, trustedMap, trustedContactsMap));
-      setTotalCount(rows.length);
-      setHasMore(false);
+    setIsSearching(true);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      setEffectiveSearch(query.trim());
     }, 300);
+  }, []);
+
+  // Sort toggle (first-name vs surname). Persisted so it sticks across
+  // reloads; changing it re-runs the fetch effect.
+  const setDirSort = useCallback((mode: "first" | "last") => {
+    setDirSortState(mode);
+    try {
+      localStorage.setItem("humansDirSort", mode);
+    } catch {
+      /* localStorage unavailable (private mode) — non-fatal */
+    }
+  }, []);
+
+  // Filter chips combine with each other and with search; each toggle
+  // re-runs the fetch effect with the new flags.
+  const toggleDirFilter = useCallback(
+    (key: "flagged" | "noDogs" | "noPhone" | "whatsapp") => {
+      setDirFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+    },
+    [],
+  );
+
+  // A–Z jump. Clicking the active letter again clears it (back to the full
+  // alphabetical list).
+  const setDirLetter = useCallback((letter: string | null) => {
+    setDirLetterState((prev) => (prev === letter ? null : letter));
   }, []);
 
   const updateHuman = useCallback(
@@ -1231,5 +1058,14 @@ export function useHumans() {
     searchHumans,
     searchQuery,
     isSearching,
+    // Server-driven directory list + controls
+    directoryHumans,
+    availableLetters,
+    dirSort,
+    setDirSort,
+    dirFilters,
+    toggleDirFilter,
+    dirLetter,
+    setDirLetter,
   };
 }
