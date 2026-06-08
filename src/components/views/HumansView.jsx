@@ -49,6 +49,185 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
+// History-flag reason, shown as visible (screen-reader-readable) text rather
+// than a bare ⚠️ emoji with only a title tooltip. Truncated on the card; the
+// profile shows it in full.
+function FlagChip({ flag, className = "" }) {
+  return (
+    <span
+      title={flag}
+      className={`inline-flex items-center gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md ${className}`}
+    >
+      <span aria-hidden="true">⚠️</span>
+      <span className="truncate">{flag}</span>
+    </span>
+  );
+}
+
+function UnarchiveButton({ onUnarchive }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onUnarchive();
+      }}
+      title="Unarchive this person"
+      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
+    >
+      Unarchive
+    </button>
+  );
+}
+
+function DogChips({ dogs: dogList, max, dim }) {
+  const visible = dogList.slice(0, max);
+  const overflow = dogList.length - visible.length;
+  if (visible.length === 0) {
+    return <span className="text-xs text-ink-muted italic">No dogs</span>;
+  }
+  return (
+    <>
+      {visible.map((dog) => {
+        const dogSize = dog.size || getSizeForBreed(dog.breed);
+        return (
+          <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
+            <SizeDot size={dogSize} dim={dim} />
+            <span className="text-xs font-semibold text-slate-600">
+              {titleCase(dog.name)}
+              {dog.breed && <span className="font-medium text-ink-muted"> ({titleCase(dog.breed)})</span>}
+            </span>
+          </span>
+        );
+      })}
+      {overflow > 0 && (
+        <span className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
+      )}
+    </>
+  );
+}
+
+// One directory entry, rendered as a grid card or a dense list row. Both
+// reuse the same tel:/wa.me link pattern (stopPropagation so the links don't
+// open the profile) and stay keyboard-openable (role=button + Enter/Space).
+function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenHuman, onUnarchive }) {
+  const cleanSurname = normaliseSurname(human.surname);
+  const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
+  const humanDogs =
+    dogsByHumanId?.[human.id] ||
+    Object.values(dogs).filter(
+      (dog) => dog._humanId === human.id || dog.humanId === fullName,
+    );
+  const open = () => onOpenHuman(human.id || fullName);
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      open();
+    }
+  };
+
+  if (mode === "list") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${titleCase(fullName)}'s profile`}
+        onClick={open}
+        onKeyDown={onKeyDown}
+        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold text-slate-800 truncate">{titleCase(fullName)}</span>
+            {human.historyFlag && <FlagChip flag={human.historyFlag} className="shrink-0 max-w-[45%]" />}
+          </div>
+          <div
+            className="flex items-center gap-2 text-micro text-slate-500 mt-0.5 min-w-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {human.phone ? (
+              <>
+                <a href={telLink(human.phone)} className="font-semibold no-underline hover:text-brand-teal shrink-0">
+                  {human.phone}
+                </a>
+                <a
+                  href={waLink(human.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open in WhatsApp"
+                  className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100 shrink-0"
+                >
+                  WA
+                </a>
+              </>
+            ) : (
+              <span className="italic text-ink-muted shrink-0">No phone</span>
+            )}
+            {human.email && <span className="truncate text-slate-400">· {human.email}</span>}
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 shrink-0 max-w-[38%] overflow-hidden">
+          <DogChips dogs={humanDogs} max={3} dim={9} />
+        </div>
+        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${titleCase(fullName)}'s profile`}
+      onClick={open}
+      onKeyDown={onKeyDown}
+      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+    >
+      <div className="h-[3px] bg-gradient-to-r from-brand-teal to-brand-teal-light shrink-0" />
+      {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
+
+      <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0 gap-0.5">
+        <div className="text-title font-extrabold text-slate-800 truncate">
+          {titleCase(fullName)}
+        </div>
+
+        {human.phone ? (
+          <div className="flex items-center gap-2 leading-snug" onClick={(e) => e.stopPropagation()}>
+            <a href={telLink(human.phone)} className="text-body text-slate-500 font-semibold no-underline hover:text-brand-teal truncate">
+              {human.phone}
+            </a>
+            <a
+              href={waLink(human.phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open in WhatsApp"
+              className="text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100 shrink-0"
+            >
+              WA
+            </a>
+          </div>
+        ) : (
+          <div className="text-body text-ink-muted italic leading-snug">No phone</div>
+        )}
+
+        {human.email && (
+          <div className="text-micro text-slate-400 truncate leading-snug" onClick={(e) => e.stopPropagation()}>
+            <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-teal">
+              {human.email}
+            </a>
+          </div>
+        )}
+
+        {human.historyFlag && <FlagChip flag={human.historyFlag} className="mt-1 self-start" />}
+
+        <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
+          <DogChips dogs={humanDogs} max={4} dim={10} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HumansView({
   humans,
   dogs,
@@ -80,6 +259,19 @@ export function HumansView({
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
+  const [viewMode, setViewModeState] = useState(() =>
+    typeof localStorage !== "undefined" && localStorage.getItem("humansViewMode") === "list"
+      ? "list"
+      : "grid",
+  );
+  const setViewMode = useCallback((mode) => {
+    setViewModeState(mode);
+    try {
+      localStorage.setItem("humansViewMode", mode);
+    } catch {
+      /* localStorage unavailable — non-fatal */
+    }
+  }, []);
 
   // When offline the directory RPC can't run, so fall back to filtering the
   // cached humans map on the client (the historical behaviour).
@@ -223,9 +415,10 @@ export function HumansView({
         </div>
       </div>
 
-      {/* Toolbar: sort toggle (+ view toggle / filter chips land here too) */}
-      {showRailAndSort && (
-        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+      {/* Toolbar: sort toggle (server-driven) + grid/list view toggle.
+          Filter chips land here too (data-hygiene pass). */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        {showRailAndSort ? (
           <div className="inline-flex items-center gap-2">
             <span className="text-micro font-bold uppercase tracking-wide text-slate-400">Sort</span>
             <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
@@ -246,8 +439,31 @@ export function HumansView({
               ))}
             </div>
           </div>
+        ) : (
+          <span />
+        )}
+
+        <div className="inline-flex items-center gap-2">
+          <span className="text-micro font-bold uppercase tracking-wide text-slate-400">View</span>
+          <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
+            {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                aria-pressed={viewMode === mode}
+                className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
+                  viewMode === mode
+                    ? "bg-brand-teal text-white"
+                    : "text-slate-500 hover:text-brand-teal"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Mobile A–Z strip */}
       {showRailAndSort && (
@@ -279,118 +495,25 @@ export function HumansView({
               Loading archived…
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayList.map((human) => {
-                const cleanSurname = normaliseSurname(human.surname);
-                const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
-                const humanDogs =
-                  dogsByHumanId?.[human.id] ||
-                  Object.values(dogs).filter(
-                    (dog) => dog._humanId === human.id || dog.humanId === fullName,
-                  );
-                const visibleDogs = humanDogs.slice(0, 4);
-                const overflow = humanDogs.length - visibleDogs.length;
-
-                return (
-                  <div
-                    key={human.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Open ${titleCase(fullName)}'s profile`}
-                    onClick={() => onOpenHuman(human.id || fullName)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onOpenHuman(human.id || fullName);
-                      }
-                    }}
-                    className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-teal hover:shadow-card-hover h-[140px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-                  >
-                    {/* Trash icon removed in task 4 of the May 2026 review pass.
-                        Delete now lives inside the human profile. */}
-                    <div className="h-[3px] bg-gradient-to-r from-brand-teal to-brand-teal-light shrink-0" />
-
-                    {showArchived && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUnarchive(human.id);
-                        }}
-                        title="Unarchive this person"
-                        className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-teal-text bg-brand-teal/10 border border-brand-teal/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-teal/20 transition-colors"
-                      >
-                        Unarchive
-                      </button>
-                    )}
-
-                    <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0">
-                      {/* Name + flag */}
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="text-title font-extrabold text-slate-800 truncate">
-                          {titleCase(fullName)}
-                        </div>
-                        {human.historyFlag && (
-                          <span title={human.historyFlag} className="text-sm shrink-0">{"⚠️"}</span>
-                        )}
-                      </div>
-
-                      {/* Phone — tel: lets desktop dial via FaceTime / Skype /
-                          Android pair-up, and on mobile it triggers the dialer.
-                          WhatsApp deep-link kept as a second icon button. */}
-                      {human.phone ? (
-                        <div
-                          className="flex items-center gap-2 leading-snug"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <a
-                            href={telLink(human.phone)}
-                            className="text-body text-slate-500 font-semibold no-underline hover:text-brand-teal"
-                          >
-                            {human.phone}
-                          </a>
-                          <a
-                            href={waLink(human.phone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Open in WhatsApp"
-                            className="text-micro font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 rounded-md no-underline hover:bg-emerald-100"
-                          >
-                            WA
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="text-body text-ink-muted italic leading-snug">No phone</div>
-                      )}
-
-                      {/* Dogs — pushed to bottom */}
-                      <div className="mt-auto flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[22px]">
-                        {visibleDogs.length > 0 ? (
-                          <>
-                            {visibleDogs.map((dog) => {
-                              const dogSize = dog.size || getSizeForBreed(dog.breed);
-                              return (
-                                <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
-                                  <SizeDot size={dogSize} dim={10} />
-                                  <span className="text-xs font-semibold text-slate-600">
-                                    {titleCase(dog.name)}
-                                    {dog.breed && <span className="font-medium text-ink-muted"> ({titleCase(dog.breed)})</span>}
-                                  </span>
-                                </span>
-                              );
-                            })}
-                            {overflow > 0 && (
-                              <span className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-xs text-ink-muted italic">No dogs</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div
+              className={
+                viewMode === "list"
+                  ? "flex flex-col gap-1.5"
+                  : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              }
+            >
+              {displayList.map((human) => (
+                <DirectoryItem
+                  key={human.id}
+                  human={human}
+                  mode={viewMode}
+                  dogs={dogs}
+                  dogsByHumanId={dogsByHumanId}
+                  showArchived={showArchived}
+                  onOpenHuman={onOpenHuman}
+                  onUnarchive={handleUnarchive}
+                />
+              ))}
 
               {displayList.length === 0 && !isSearching && !loadError && (
                 <div className="col-span-full">

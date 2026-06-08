@@ -42,7 +42,14 @@ function renderView(overrides = {}) {
 }
 
 describe("HumansView directory", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    try {
+      localStorage.removeItem("humansViewMode");
+    } catch {
+      /* ignore */
+    }
+  });
 
   it("renders the directory list in the server-provided order", () => {
     renderView();
@@ -88,5 +95,28 @@ describe("HumansView directory", () => {
   it("footer shows loaded-of-total", () => {
     renderView({ totalCount: 5 });
     expect(screen.getByText("Showing 2 of 5 humans")).toBeInTheDocument();
+  });
+
+  it("shows the email on a card when present", () => {
+    renderView({ directoryHumans: [{ ...sarah, email: "sarah@example.com" }] });
+    expect(
+      screen.getByRole("link", { name: "sarah@example.com" }),
+    ).toHaveAttribute("href", "mailto:sarah@example.com");
+  });
+
+  it("renders the history-flag reason as visible text, not just an emoji", () => {
+    renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
+    // The reason is real text (screen-reader readable), not only a title tooltip.
+    expect(screen.getByText("Muzzle required")).toBeInTheDocument();
+  });
+
+  it("the grid/list view toggle switches mode and persists it", () => {
+    renderView();
+    expect(screen.getByRole("button", { name: "Grid" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
+    expect(localStorage.getItem("humansViewMode")).toBe("list");
+    // Cards still render in list mode.
+    expect(screen.getByRole("button", { name: "Open Dave Smith's profile" })).toBeInTheDocument();
   });
 });
