@@ -33,14 +33,26 @@ test.describe('Homepage E2E', () => {
     await expect(reviewsHeading).toBeVisible();
   });
 
-  test('opens booking modal from CTA button', async ({ page, isMobile }) => {
-    // Hero CTAs are hidden on mobile — sticky MobileQuickActions provides Book now there.
-    const ctaName = isMobile ? /^Book now$/i : /^Book your visit$/i;
-    const cta = page.getByRole('button', { name: ctaName }).first();
-    await cta.click();
+  test('booking CTA navigates to the external booking portal', async ({ page, isMobile }) => {
+    // Booking moved off-site (commit 438788a): the Book control now navigates
+    // to the external customer portal instead of opening an in-page modal.
+    // Stub the portal URL so CI never depends on the live site, then assert the
+    // browser actually navigated there.
+    await page.route('**/customer/login', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><html><body><h1>Booking portal stub</h1></body></html>',
+      }),
+    );
 
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByText(/Let's get you booked in!/i)).toBeVisible();
+    // Hero/CTA "Book your visit" buttons are desktop-only (hidden md:flex);
+    // the sticky MobileQuickActions "Book now" button is the mobile path.
+    const ctaName = isMobile ? /^Book now$/i : /^Book your visit$/i;
+    await page.getByRole('button', { name: ctaName }).first().click();
+
+    await page.waitForURL('**/customer/login');
+    await expect(page.getByRole('heading', { name: 'Booking portal stub' })).toBeVisible();
   });
 
   test('shows footer contact details', async ({ page }) => {
