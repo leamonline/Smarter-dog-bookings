@@ -216,14 +216,8 @@ async function handleSend(
   try {
     twilioResult = await sendSms(phoneE164, body.text.trim());
   } catch (err) {
-    return json(
-      req,
-      {
-        error: "Twilio not configured",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      500,
-    );
+    console.error("sms-send: Twilio not configured:", err instanceof Error ? err.message : String(err));
+    return json(req, { error: "Twilio not configured" }, 500);
   }
 
   if (!twilioResult.ok) {
