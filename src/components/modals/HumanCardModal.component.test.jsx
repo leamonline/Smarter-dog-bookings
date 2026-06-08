@@ -145,4 +145,16 @@ describe("HumanCardModal", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Send message" }));
     expect(onSendMessage).toHaveBeenCalledWith("human-1");
   });
+
+  it("Archive asks for confirmation before calling onArchiveHuman", () => {
+    const onArchiveHuman = vi.fn(() => Promise.resolve({ id: "human-1" }));
+    renderModal({ onArchiveHuman });
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    // Confirm dialog is shown; the handler hasn't fired yet.
+    expect(screen.getByText("Archive this person?")).toBeInTheDocument();
+    expect(onArchiveHuman).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    expect(onArchiveHuman).toHaveBeenCalledWith("human-1");
+  });
 });

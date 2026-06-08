@@ -105,6 +105,7 @@ export function HumanCardModal({
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
+  const [pendingArchive, setPendingArchive] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -326,10 +327,9 @@ export function HumanCardModal({
     if (onMergeHumans) {
       items.push({ label: "Merge duplicate", onClick: () => setShowMerge(true) });
     }
-    items.push({
-      label: "Archive",
-      onClick: call(onArchiveHuman, "onArchiveHuman"),
-    });
+    if (onArchiveHuman) {
+      items.push({ label: "Archive", onClick: () => setPendingArchive(true) });
+    }
     return items;
   }, [
     human.id,
@@ -523,6 +523,27 @@ export function HumanCardModal({
             }
           }}
           onCancel={() => setPendingDelete(false)}
+        />
+      )}
+
+      {pendingArchive && (
+        <ConfirmDialog
+          title="Archive this person?"
+          message="They'll be hidden from the directory and left out of new-booking and trusted-contact search. Their dogs and booking history are kept — you can unarchive them later from the directory's “Show archived” view."
+          confirmLabel="Archive"
+          cancelLabel="Cancel"
+          variant="primary"
+          onConfirm={async () => {
+            const result = await onArchiveHuman?.(human.id || humanId);
+            setPendingArchive(false);
+            if (result) {
+              toast.show("Archived", "success");
+              onClose?.();
+            } else {
+              toast.show("Couldn't archive — please try again", "error");
+            }
+          }}
+          onCancel={() => setPendingArchive(false)}
         />
       )}
 

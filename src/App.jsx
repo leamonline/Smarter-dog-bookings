@@ -351,6 +351,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
     mergeHumans: sbMergeHumans,
+    fetchArchivedHumans: sbFetchArchivedHumans,
     fetchHumanById: sbFetchHumanById,
     findHumanByFullName: sbFindHumanByFullName,
     searchHumansByTerm: sbSearchHumansByTerm,
@@ -587,6 +588,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onUpdateHuman={updateHuman}
+                      fetchArchivedHumans={sbFetchArchivedHumans}
                       findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
@@ -610,6 +613,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
                       onUpdateDog={updateDog}
+                      onUpdateHuman={updateHuman}
+                      fetchArchivedHumans={sbFetchArchivedHumans}
                       findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
@@ -750,6 +755,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   }}
                   onOpenBooking={handleOpenBooking}
                   onMergeHumans={sbMergeHumans}
+                  onArchiveHuman={(hid) =>
+                    updateHuman(hid, { archivedAt: new Date().toISOString() })
+                  }
                 />
               </Suspense>
             </ErrorBoundary>
