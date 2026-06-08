@@ -362,6 +362,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     searchHumans: humansSearchHumans,
     searchQuery: humansSearchQuery,
     isSearching: humansIsSearching,
+    directoryHumans: sbDirectoryHumans,
+    availableLetters: sbAvailableLetters,
+    dirSort: sbDirSort,
+    setDirSort: sbSetDirSort,
+    dirFilters: sbDirFilters,
+    toggleDirFilter: sbToggleDirFilter,
+    dirLetter: sbDirLetter,
+    setDirLetter: sbSetDirLetter,
   } = useHumans();
   const {
     dogs: sbDogs,
@@ -597,6 +605,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      directoryHumans={isOnline ? sbDirectoryHumans : null}
+                      availableLetters={sbAvailableLetters}
+                      sortMode={sbDirSort}
+                      onSortModeChange={sbSetDirSort}
+                      filters={sbDirFilters}
+                      onToggleFilter={sbToggleDirFilter}
+                      activeLetter={sbDirLetter}
+                      onLetterChange={sbSetDirLetter}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
                       loadError={he}
@@ -622,6 +638,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onSearch={humansSearchHumans}
                       searchQuery={humansSearchQuery}
                       isSearching={humansIsSearching}
+                      directoryHumans={isOnline ? sbDirectoryHumans : null}
+                      availableLetters={sbAvailableLetters}
+                      sortMode={sbDirSort}
+                      onSortModeChange={sbSetDirSort}
+                      filters={sbDirFilters}
+                      onToggleFilter={sbToggleDirFilter}
+                      activeLetter={sbDirLetter}
+                      onLetterChange={sbSetDirLetter}
                       loadError={he}
                       isInitialLoading={isLoading}
                       isOnline={isOnline}
