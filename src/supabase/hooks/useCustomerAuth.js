@@ -292,6 +292,16 @@ export function useCustomerAuth() {
     [linkHumanRecord, phone],
   );
 
+  // Re-fetch the linked human record (e.g. after the onboarding gate saves
+  // a new name/address) so the rest of the app sees the fresh values without
+  // a full reload. Re-runs the same SECURITY DEFINER link RPC, which returns
+  // the current humans row for the already-linked account.
+  const refreshHumanRecord = useCallback(async () => {
+    const human = await linkHumanRecord();
+    setHumanRecord(human);
+    return human;
+  }, [linkHumanRecord]);
+
   // Sign out
   const signOut = useCallback(async () => {
     if (!supabase) return;
@@ -320,5 +330,6 @@ export function useCustomerAuth() {
     verifyOtp,
     signOut,
     resetOtp,
+    refreshHumanRecord,
   };
 }

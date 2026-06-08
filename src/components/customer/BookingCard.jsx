@@ -23,18 +23,6 @@ import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js"
  * and used different visual languages.
  */
 
-function slotPlus30(slot) {
-  const [h, m] = slot.split(":").map(Number);
-  const total = h * 60 + m + 30;
-  const hh = Math.floor(total / 60) % 24;
-  const mm = total % 60;
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-}
-
-function dropOffWindowLabel(slot) {
-  return `${formatSlot(slot)}–${formatSlot(slotPlus30(slot))}`;
-}
-
 function dayLabel(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   const today = new Date();
@@ -140,7 +128,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
           Next groom: {day} {dateStr}, {timeStr}
         </h2>
         <p className="portal-booking-card-body">
-          Drop-off is from {dropOffWindowLabel(next.slot)}. We&apos;ll text you when {dogName}&apos;s ready.
+          Drop off time is {timeStr}, please ring the doorbell on arrival. We&apos;ll text you when {dogName}&apos;s ready.
           {next.service && (
             <>
               {" "}

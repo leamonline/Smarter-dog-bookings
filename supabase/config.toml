@@ -86,6 +86,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.customer-phone-on-file]
 verify_jwt = false
+[functions.postcode-lookup]
+verify_jwt = false
 [functions.apply-customer-confirm]
 verify_jwt = false
 [functions.sms-send]

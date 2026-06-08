@@ -1,8 +1,10 @@
 import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
+import { useCustomerProfileGate } from "./supabase/hooks/useCustomerProfileGate.js";
 import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
+import { ProfileGate } from "./components/customer/onboarding/ProfileGate.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
@@ -41,7 +43,13 @@ function CustomerAppContent() {
     verifyOtp,
     signOut,
     resetOtp,
+    refreshHumanRecord,
   } = useCustomerAuth();
+
+  // Profile-completion gate. Called unconditionally (rules of hooks); it
+  // returns complete=true / loading=false while humanRecord is null, so it's
+  // a no-op until there's a linked record to gate.
+  const gate = useCustomerProfileGate(humanRecord);
 
   const authRoute = getCustomerAuthRouteState({
     loading,
@@ -127,7 +135,36 @@ function CustomerAppContent() {
     );
   }
 
-  // Authenticated + matched
+  // Authenticated + matched, but profile incomplete — block the dashboard and
+  // booking until name, surname, address and policy agreement are on file.
+  if (gate.loading) {
+    return (
+      <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
+        <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
+          <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-48 bg-slate-200 rounded-xl animate-pulse" />
+          <div className="h-12 bg-slate-200 rounded-lg animate-pulse" />
+        </div>
+      </CenteredScreen>
+    );
+  }
+
+  if (!gate.complete) {
+    return (
+      <ProfileGate
+        humanRecord={humanRecord}
+        onSignOut={signOut}
+        onComplete={async () => {
+          // Refresh the app-wide humanRecord (so the dashboard shows the
+          // freshly-entered name/address) before clearing the gate.
+          await refreshHumanRecord();
+          await gate.refresh();
+        }}
+      />
+    );
+  }
+
+  // Authenticated + matched + complete profile
   return (
     <ErrorBoundary>
       <NetworkOfflineBanner />
