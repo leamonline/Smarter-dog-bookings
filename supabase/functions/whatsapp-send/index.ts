@@ -299,7 +299,8 @@ async function handleDraftMode(
     .single();
 
   if (draftErr || !draft) {
-    return json(req, { error: "draft not found", detail: draftErr?.message }, 404);
+    if (draftErr) console.error("whatsapp-send: draft lookup error:", draftErr.message);
+    return json(req, { error: "draft not found" }, 404);
   }
 
   if (draft.state !== "pending") {
@@ -348,9 +349,10 @@ async function handleDraftMode(
     .single();
 
   if (claimErr || !claimed) {
+    if (claimErr) console.error("whatsapp-send: draft claim error:", claimErr.message);
     return json(
       req,
-      { error: "draft already claimed by another request", detail: claimErr?.message },
+      { error: "draft already claimed by another request" },
       409,
     );
   }
@@ -430,7 +432,8 @@ async function handleManualMode(
     .single();
 
   if (convErr || !conv) {
-    return json(req, { error: "conversation not found", detail: convErr?.message }, 404);
+    if (convErr) console.error("whatsapp-send: conversation lookup error:", convErr.message);
+    return json(req, { error: "conversation not found" }, 404);
   }
 
   if (!isWindowOpen(conv.last_inbound_at)) {
