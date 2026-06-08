@@ -1,0 +1,145 @@
+name: Migrations Applied Check
+
+# Why this exists:
+# Vercel deploys the front-end on merge to main, and deploy-edge-functions.yml
+# deploys edge functions — but NOTHING applies database migrations. So a PR can
+# add a migration plus front-end code that needs it, merge, and ship the
+# front-end live against a schema that doesn't have the change yet. That is
+# exactly what broke the Settings save in June 2026 (PR #221 added
+# salon_config.settings and went live before the column existed; see
+# 20260604120000_add_salon_config_settings.sql).
+#
+# This check fails when a PR ADDS a migration that prod has not applied yet,
+# forcing the safe order: apply the migration to the live project BEFORE the
+# code that depends on it can merge (and therefore deploy).
+#
+# To actually BLOCK merges, mark the "migrations-applied" job as a required
+# status check in branch protection for main. The job always runs (no paths
+# filter) and self-skips when a change touches no migrations, so it never
+# leaves a required check stuck "waiting".
+#
+# Matching note: a migration counts as applied if EITHER its 14-digit version
+# OR its name (the part after the timestamp) appears in prod's
+# supabase_migrations.schema_migrations. The name fallback is deliberate —
+# applying via the Supabase MCP (apply_migration) records its own timestamp, so
+# versions drift from the files; the name still matches. It also only checks
+# migrations this change *adds* (diff vs the base), so historical drift on old
+# files never trips it.
+#
+# Secret required:
+#   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  migrations-applied:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          # Need history to diff this change against its base.
+          fetch-depth: 0
+
+      - name: Work out which migrations this change ADDS
+        id: added
+        shell: bash
+        env:
+          # Pass GitHub context through env (never interpolate ${{ }} straight
+          # into run: — injection risk), matching deploy-edge-functions.yml.
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags origin "$BASE_REF"
+            range="origin/${BASE_REF}...HEAD"
+          else
+            if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              range="$(git rev-parse HEAD^ 2>/dev/null || echo HEAD)...HEAD"
+            else
+              range="${BEFORE_SHA}...HEAD"
+            fi
+          fi
+
+          added=$(git diff --name-only --diff-filter=A "$range" -- supabase/migrations/ | grep '\.sql$' || true)
+          echo "Migration files added in $range:"
+          echo "${added:-  (none)}"
+
+          {
+            echo "files<<EOF"
+            echo "$added"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: No new migrations
+        if: steps.added.outputs.files == ''
+        run: echo "This change adds no migrations — nothing to verify. ✅"
+
+      - name: Verify added migrations are applied on prod
+        if: steps.added.outputs.files != ''
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ADDED_FILES: ${{ steps.added.outputs.files }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN isn't available in this run, so applied migrations can't be verified."
+            echo "A Dependabot PR shouldn't be adding migrations; for anything else, ensure the secret is set."
+            exit 1
+          fi
+
+          # Read prod's applied migration history via the Supabase Management API
+          # (same endpoint the MCP uses — no DB password needed).
+          resp=$(curl -sS -X POST \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"query":"select version, name from supabase_migrations.schema_migrations"}')
+
+          # Tolerate either a bare array or a {result:[...]} wrapper; fail loudly otherwise.
+          rows=$(echo "$resp" | jq -c 'if type=="array" then . elif (type=="object" and has("result")) then .result else empty end' 2>/dev/null || true)
+          if [ -z "$rows" ]; then
+            echo "::error::Couldn't read prod migration history. API response was:"
+            echo "$resp"
+            exit 1
+          fi
+
+          applied_versions=$(echo "$rows" | jq -r '.[].version // empty')
+          applied_names=$(echo "$rows" | jq -r '.[].name // empty')
+
+          pending=()
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            base=$(basename "$f" .sql)   # 20260604120000_add_salon_config_settings
+            ver=${base%%_*}              # 20260604120000
+            name=${base#*_}              # add_salon_config_settings
+            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names"; then
+              echo "✓ applied: $base"
+            else
+              echo "✗ PENDING: $base"
+              pending+=("$base")
+            fi
+          done <<< "$ADDED_FILES"
+
+          if [ ${#pending[@]} -gt 0 ]; then
+            echo
+            echo "::error::This PR adds migration(s) not yet applied to prod: ${pending[*]}"
+            echo "Apply them to the live project BEFORE merging — they are NOT auto-applied on deploy."
+            echo "Apply individually and keep them idempotent (e.g. Supabase MCP apply_migration, or"
+            echo "'supabase migration up --linked'), then re-run this check."
+            exit 1
+          fi
+
+          echo
+          echo "All added migrations are already applied on prod. ✅"
