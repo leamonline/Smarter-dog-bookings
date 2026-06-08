@@ -1,0 +1,11 @@
+-- Drop the dead `briefings` table.
+--
+-- Its only reader/writer was the ai-briefing edge function, pruned in PR #222
+-- (source recovered to archive/edge-functions/ai-briefing/). The table is empty
+-- (0 rows), has no foreign keys, triggers, or realtime-publication membership.
+-- Nothing in the app references it. This removes the table along with its lone
+-- service-role RLS policy and the owned briefings_id_seq sequence.
+--
+-- Idempotent via IF EXISTS. On a fresh `supabase db reset` the earlier
+-- migrations still create and lock down the table; this one removes it last.
+drop table if exists public.briefings;
