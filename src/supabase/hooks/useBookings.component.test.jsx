@@ -76,10 +76,17 @@ function makeChannel() {
   return channel;
 }
 
-function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResult } = {}) {
+function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResult, deferInsert } = {}) {
   const channel = makeChannel();
   const fromCalls = [];
   let fetchCount = 0;
+  // Deferred-insert mode: .insert().select().single() stays pending until
+  // the test calls stub.resolveInsert(...), so a realtime echo can be fired
+  // BEFORE the insert resolves (the ordering that triggered the dup bug).
+  let resolveInsert;
+  const insertPromise = deferInsert
+    ? new Promise((res) => { resolveInsert = res; })
+    : null;
   const stub = {
     _channel: channel,
     from: vi.fn((table) => {
@@ -110,13 +117,14 @@ function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResu
         fetchCount += 1;
         return Promise.resolve(selectResult ?? { data: [], error: null });
       });
-      builder.single = vi.fn(() =>
-        Promise.resolve(
-          fromCalls.at(-1)?.op === "insert"
-            ? insertResult ?? { data: null, error: null }
-            : updateResult ?? { data: null, error: null },
-        ),
-      );
+      builder.single = vi.fn(() => {
+        if (fromCalls.at(-1)?.op === "insert") {
+          return deferInsert
+            ? insertPromise
+            : Promise.resolve(insertResult ?? { data: null, error: null });
+        }
+        return Promise.resolve(updateResult ?? { data: null, error: null });
+      });
       // Track the most recent terminal op so .single() returns the
       // right result.
       const wrap = (op, fn) => (...args) => {
@@ -132,6 +140,8 @@ function makeSupabaseStub({ selectResult, insertResult, updateResult, deleteResu
   };
   // Number of week-range select fetches issued (one per fetchBookings).
   stub.getFetchCount = () => fetchCount;
+  stub.resolveInsert = (result) =>
+    resolveInsert?.(result ?? insertResult ?? { data: null, error: null });
   return stub;
 }
 
@@ -433,5 +443,77 @@ describe("useBookings", () => {
       stub._channel.fire("DELETE", { old: { id: "rt-1", booking_date: "2026-05-21" } });
     });
     expect(result.current.bookingsByDate["2026-05-21"] ?? []).toHaveLength(0);
+  });
+
+  it("does not duplicate when the realtime INSERT echo lands before the insert resolves", async () => {
+    // The optimistic row, the insert payload, and the realtime echo must
+    // share one id. Pin crypto.randomUUID so the test can fire the echo
+    // with that same id. (Before the fix the optimistic row used a _temp_
+    // id, so the echo's server id didn't match and got appended — the
+    // doubling seen when two dogs are booked together.)
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("client-uuid-1");
+
+    const stub = makeSupabaseStub({
+      selectResult: { data: [], error: null },
+      deferInsert: true,
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Kick off the add but leave the insert pending (deferred).
+    let addPromise;
+    await act(async () => {
+      addPromise = result.current.addBooking("2026-05-18", {
+        _dogId: "dog-1",
+        slot: "11:00",
+        size: "small",
+        service: "full-groom",
+      });
+      // Flush the optimistic setRows.
+      await Promise.resolve();
+    });
+
+    // Optimistic row is present.
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+
+    // Realtime echo arrives BEFORE the insert resolves, carrying the SAME
+    // id as the optimistic row. It must replace, not append.
+    act(() => {
+      stub._channel.fire("INSERT", {
+        new: {
+          id: "client-uuid-1",
+          booking_date: "2026-05-18",
+          slot: "11:00",
+          dog_id: "dog-1",
+        },
+      });
+    });
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+
+    // Now let the insert resolve; the row settles to the server payload.
+    await act(async () => {
+      stub.resolveInsert({
+        data: {
+          id: "client-uuid-1",
+          booking_date: "2026-05-18",
+          slot: "11:00",
+          size: "small",
+          service: "full-groom",
+          status: "Booked",
+          addons: [],
+          dog_id: "dog-1",
+          payment: "Due at Pick-up",
+        },
+        error: null,
+      });
+      await addPromise;
+    });
+
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+    expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("client-uuid-1");
   });
 });
