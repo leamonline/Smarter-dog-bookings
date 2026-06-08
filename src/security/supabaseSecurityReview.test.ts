@@ -614,8 +614,12 @@ describe("Supabase security review regressions", () => {
     // booking_date, so a direct insert could land on a closed/past/blocked
     // slot. A BEFORE INSERT trigger now runs the shared calendar gate for
     // every non-staff insert (customer RPC, WhatsApp autonomous, Flow endpoint).
+    // The trigger + shared-gate lockdown live in the migration that creates
+    // the trigger (unique). create_customer_booking_group is re-issued by a
+    // later migration that adds the profile gate, so it is NOT unique — its
+    // grant lockdown is checked against the LATEST definition below.
     const migration = getMigrationBySql((sql) =>
-      sql.includes("create or replace function public.create_customer_booking_group"),
+      sql.includes("create trigger trg_enforce_booking_calendar"),
     );
 
     // Enforcement trigger fires BEFORE INSERT on bookings.
@@ -629,15 +633,20 @@ describe("Supabase security review regressions", () => {
       /revoke\s+all\s+on\s+function\s+public\.validate_booking_calendar\(date,\s*text\)\s+from\s+[^;]*\banon\b/i,
     );
 
-    // The customer RPC is locked to authenticated: anon revoked, authenticated
-    // granted, anon never re-granted (Supabase's default-privilege trap).
-    expect(migration).toMatch(
+    // The customer RPC's EFFECTIVE (latest) definition stays locked to
+    // authenticated: anon revoked, authenticated granted, anon never
+    // re-granted (Supabase's default-privilege trap). Using the last match
+    // means a later re-issue that re-opens anon would fail this.
+    const rpc = lastMigrationSqlMatching((sql) =>
+      sql.includes("create or replace function public.create_customer_booking_group"),
+    );
+    expect(rpc).toMatch(
       /revoke\s+all\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+from\s+anon/i,
     );
-    expect(migration).toMatch(
+    expect(rpc).toMatch(
       /grant\s+execute\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+to\s+authenticated/i,
     );
-    expect(migration).not.toMatch(
+    expect(rpc).not.toMatch(
       /grant\s+execute\s+on\s+function\s+public\.create_customer_booking_group\(jsonb,\s*date\)\s+to\s+[^;]*\banon\b/i,
     );
   });

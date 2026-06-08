@@ -16,6 +16,10 @@ import {
   SALON_PHONE_DISPLAY,
   SALON_TEL_HREF,
 } from "../../constants/salonContact.ts";
+import {
+  SALON_PRIVACY_URL,
+  SALON_TERMS_URL,
+} from "../../constants/salonPolicies.ts";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 // Trading hours, surfaced in the footer + booking flow. Hard-coded for now —
@@ -426,9 +430,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
                 <a href="https://smarterdog.co.uk/#faq" target="_blank" rel="noopener noreferrer">FAQ</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
-                <a href="https://smarterdog.co.uk/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
+                <a href={SALON_PRIVACY_URL} target="_blank" rel="noopener noreferrer">Privacy</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
-                <a href="https://smarterdog.co.uk/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+                <a href={SALON_TERMS_URL} target="_blank" rel="noopener noreferrer">Terms</a>
               </div>
             </div>
           </div>
