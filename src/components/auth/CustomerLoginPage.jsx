@@ -395,6 +395,23 @@ export function CustomerLoginPage({
 
           {stage === "password" && (
             <form onSubmit={handlePasswordSubmit} className="space-y-6">
+              {/* Hidden username anchor carrying the E.164 phone. The customer
+                  already typed their number in stage 1, so this stays visually
+                  hidden (sr-only — clip-based, still in the DOM), but it gives
+                  the password manager a username matching the saved credential
+                  so it can autofill the password here. Kept off the stage-1
+                  tel field on purpose: filling E.164 into that 10-digit-only
+                  input would trip its pattern. */}
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={phone ?? ""}
+                readOnly
+                tabIndex={-1}
+                aria-hidden="true"
+                className="sr-only"
+              />
               <div>
                 <label htmlFor="password" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
                   Password
