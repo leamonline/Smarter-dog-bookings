@@ -52,6 +52,12 @@ export interface Dog {
   name: string;
   breed: string;
   age: string;
+  dob?: string;
+  sex?: string | null;
+  microchip?: string | null;
+  neutered?: boolean | null;
+  vet?: string | null;
+  colour?: string | null;
   size: DogSize | null;
   humanId: string;
   _humanId: string | null;

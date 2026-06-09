@@ -28,6 +28,17 @@ export function DogDetailsSection({
   // Groom notes
   editNotes,
   setEditNotes,
+  // Optional profile fields (staff-only)
+  editSex,
+  setEditSex,
+  editColour,
+  setEditColour,
+  editNeutered,
+  setEditNeutered,
+  editMicrochip,
+  setEditMicrochip,
+  editVet,
+  setEditVet,
   // Alerts
   displayAlerts,
   editAlerts,
@@ -251,6 +262,78 @@ export function DogDetailsSection({
             </select>
           </div>
 
+          {/* Sex & Neutered edit */}
+          <div className="py-2.5 border-b border-slate-100 grid grid-cols-2 gap-2.5">
+            <div>
+              <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>Sex</div>
+              <select
+                value={editSex}
+                onChange={(e) => setEditSex(e.target.value)}
+                aria-label="Dog sex"
+                className={`${INPUT_CLS} cursor-pointer`}
+              >
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <div>
+              <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>Neutered</div>
+              <select
+                value={editNeutered}
+                onChange={(e) => setEditNeutered(e.target.value)}
+                aria-label="Neutered"
+                className={`${INPUT_CLS} cursor-pointer`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Neutered</option>
+                <option value="no">Not neutered</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Colour edit */}
+          <div className="py-2.5 border-b border-slate-100">
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+              Colour / Markings
+            </div>
+            <input
+              type="text"
+              value={editColour}
+              onChange={(e) => setEditColour(e.target.value)}
+              placeholder="Black &amp; tan"
+              className={INPUT_CLS}
+            />
+          </div>
+
+          {/* Microchip edit */}
+          <div className="py-2.5 border-b border-slate-100">
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+              Microchip
+            </div>
+            <input
+              type="text"
+              value={editMicrochip}
+              onChange={(e) => setEditMicrochip(e.target.value)}
+              placeholder="985..."
+              className={INPUT_CLS}
+            />
+          </div>
+
+          {/* Vet edit */}
+          <div className="py-2.5 border-b border-slate-100">
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+              Vet
+            </div>
+            <input
+              type="text"
+              value={editVet}
+              onChange={(e) => setEditVet(e.target.value)}
+              placeholder="Vet practice"
+              className={INPUT_CLS}
+            />
+          </div>
+
           {/* Groom Notes edit */}
           <div className="py-2.5 border-b border-slate-100">
             <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
@@ -288,6 +371,26 @@ export function DogDetailsSection({
               onClose();
               onOpenHuman?.(ownerOpenValue);
             } : undefined}
+          />
+          <CardRow
+            label="Sex"
+            value={resolvedDog.sex ? titleCase(resolvedDog.sex) : "\u2014"}
+          />
+          <CardRow
+            label="Colour / Markings"
+            value={resolvedDog.colour || "\u2014"}
+          />
+          <CardRow
+            label="Neutered"
+            value={resolvedDog.neutered === true ? "Neutered" : resolvedDog.neutered === false ? "Not neutered" : "\u2014"}
+          />
+          <CardRow
+            label="Microchip"
+            value={resolvedDog.microchip || "\u2014"}
+          />
+          <CardRow
+            label="Vet"
+            value={resolvedDog.vet || "\u2014"}
           />
           <CardRow
             label="Groom Notes"

@@ -149,6 +149,14 @@ export function DogCardModal({
   const [ownerSearchQuery, setOwnerSearchQuery] = useState("");
   const [showOwnerSearch, setShowOwnerSearch] = useState(false);
   const [editNotes, setEditNotes] = useState(resolvedDog.groomNotes || "");
+  const [editSex, setEditSex] = useState(resolvedDog.sex || "");
+  const [editColour, setEditColour] = useState(resolvedDog.colour || "");
+  // "" | "yes" | "no" ↔ boolean true / false / null in the DB.
+  const [editNeutered, setEditNeutered] = useState(
+    resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "",
+  );
+  const [editMicrochip, setEditMicrochip] = useState(resolvedDog.microchip || "");
+  const [editVet, setEditVet] = useState(resolvedDog.vet || "");
   const [editPrice, setEditPrice] = useState(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
   const [editAlerts, setEditAlerts] = useState([...(resolvedDog.alerts || [])]);
   const [editSize, setEditSize] = useState(resolvedDog.size || "");
@@ -175,6 +183,11 @@ export function DogCardModal({
       setEditDobMonth(dob ? dob.split("-")[1] || "" : "");
       setEditDobYear(dob ? dob.split("-")[0] || "" : "");
       setEditNotes(resolvedDog.groomNotes || "");
+      setEditSex(resolvedDog.sex || "");
+      setEditColour(resolvedDog.colour || "");
+      setEditNeutered(resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "");
+      setEditMicrochip(resolvedDog.microchip || "");
+      setEditVet(resolvedDog.vet || "");
       setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
       setEditAlerts([...(resolvedDog.alerts || [])]);
       setEditSize(resolvedDog.size || "");
@@ -435,6 +448,18 @@ export function DogCardModal({
     const priceNum = editPrice.trim() ? Number(editPrice) : undefined;
     if (priceNum !== resolvedDog.customPrice) updates.customPrice = priceNum;
     if (editSize && editSize !== (resolvedDog.size || "")) updates.size = editSize;
+    // Optional profile fields — normalise to the DB shape (text → null when
+    // blank, neutered → boolean | null) and only send what actually changed.
+    const nextSex = editSex || null;
+    if (nextSex !== (resolvedDog.sex || null)) updates.sex = nextSex;
+    const nextColour = editColour.trim() || null;
+    if (nextColour !== (resolvedDog.colour || null)) updates.colour = nextColour;
+    const nextNeutered = editNeutered === "yes" ? true : editNeutered === "no" ? false : null;
+    if (nextNeutered !== (resolvedDog.neutered ?? null)) updates.neutered = nextNeutered;
+    const nextMicrochip = editMicrochip.trim() || null;
+    if (nextMicrochip !== (resolvedDog.microchip || null)) updates.microchip = nextMicrochip;
+    const nextVet = editVet.trim() || null;
+    if (nextVet !== (resolvedDog.vet || null)) updates.vet = nextVet;
 
     await onUpdateDog(resolvedDog.id || resolvedDog.name, updates);
     setIsEditing(false);
@@ -450,6 +475,11 @@ export function DogCardModal({
     setOwnerSearchQuery("");
     setShowOwnerSearch(false);
     setEditNotes(resolvedDog.groomNotes || "");
+    setEditSex(resolvedDog.sex || "");
+    setEditColour(resolvedDog.colour || "");
+    setEditNeutered(resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "");
+    setEditMicrochip(resolvedDog.microchip || "");
+    setEditVet(resolvedDog.vet || "");
     setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
     setEditAlerts([...(resolvedDog.alerts || [])]);
     setEditSize(resolvedDog.size || "");
@@ -577,6 +607,16 @@ export function DogCardModal({
           setEditOwnerId={setEditOwnerId}
           editNotes={editNotes}
           setEditNotes={setEditNotes}
+          editSex={editSex}
+          setEditSex={setEditSex}
+          editColour={editColour}
+          setEditColour={setEditColour}
+          editNeutered={editNeutered}
+          setEditNeutered={setEditNeutered}
+          editMicrochip={editMicrochip}
+          setEditMicrochip={setEditMicrochip}
+          editVet={editVet}
+          setEditVet={setEditVet}
           displayAlerts={displayAlerts}
           editAlerts={editAlerts}
           setEditAlerts={setEditAlerts}
