@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
+import { Eye, EyeOff } from "lucide-react";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
@@ -15,6 +16,7 @@ const OTP_RESEND_SECONDS = 60;
 // common slip on this page, and harsh copy makes a small mistake feel like
 // a wall.
 const PHONE_FORMAT_ERROR = "That number doesn't look quite right. Try a UK mobile starting with 07.";
+const CAPTCHA_PENDING_ERROR = "Just finishing the security check — please try again in a moment.";
 
 // Focus ring driven by token, not a bespoke colour. Used on every interactive
 // control on the page so keyboard navigation reads as one consistent thing.
@@ -29,20 +31,58 @@ const pageBackground =
   "radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%), " +
   "var(--sd-paper)";
 
-export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSent, phone, error }) {
+/**
+ * Phone-first customer sign-in.
+ *
+ * Stage 1 (phone): enter mobile → onCheckPhone (NO SMS) returns whether the
+ *   number is on file and whether its account has a password.
+ *     • has password   → stage "password"
+ *     • on file, no pw  → first login: onSendOtp() → stage "code"
+ *     • not on file     → error (stays on phone stage)
+ * Stage "password": phone + password → onSignInWithPassword. "Forgotten your
+ *   password? Text me a code" sends an OTP for a reset.
+ * Stage "code": 6-digit code → onVerifyOtp. After verify, CustomerApp shows
+ *   the required set-password gate (set, or new password after a reset).
+ *
+ * `otpSent`/`phone` are owned by the auth hook; the password-vs-phone split is
+ * local. Turnstile is rendered on both stages that make a Supabase auth call
+ * (phone-send and password); its token is single-use, so we reset the widget
+ * after a failed attempt.
+ */
+export function CustomerLoginPage({
+  onCheckPhone,
+  onSendOtp,
+  onSignInWithPassword,
+  onVerifyOtp,
+  onResetOtp,
+  otpSent,
+  phone,
+  error,
+}) {
   // Phone is split into a locked +44 prefix and the local-number digits the
   // customer types. Storing only the digits keeps the field tidy and makes it
   // impossible to delete the country code.
   const [localDigits, setLocalDigits] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
+  // Internal stage flag for "we know this number has a password, ask for it".
+  const [awaitingPassword, setAwaitingPassword] = useState(false);
+  // Whether the OTP we sent is a forgot-password reset (forces a NEW password)
+  // rather than a first-time set.
+  const [otpIsReset, setOtpIsReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
 
   const phoneInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
   const codeInputRef = useRef(null);
   const captchaTokenRef = useRef(null);
   const turnstileRef = useRef(null);
+
+  // otpSent (code entry) takes precedence; then the password ask; else phone.
+  const stage = otpSent ? "code" : awaitingPassword ? "password" : "phone";
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -59,18 +99,28 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
   }, [otpCooldown]);
 
   useEffect(() => {
-    const target = otpSent ? codeInputRef.current : phoneInputRef.current;
+    const target =
+      stage === "code"
+        ? codeInputRef.current
+        : stage === "password"
+          ? passwordInputRef.current
+          : phoneInputRef.current;
     target?.focus();
-  }, [otpSent]);
+  }, [stage]);
 
-  const handleRequestOtp = async (e) => {
+  const resetCaptcha = () => {
+    turnstileRef.current?.reset();
+    captchaTokenRef.current = null;
+  };
+
+  // Stage 1: check the phone, then branch to password or OTP.
+  const handlePhoneSubmit = async (e) => {
     e.preventDefault();
     if (otpCooldown > 0) {
-      setLocalError(`Please wait ${otpCooldown}s before requesting another code.`);
+      setLocalError(`Please wait ${otpCooldown}s before trying again.`);
       return;
     }
     // Glue the locked +44 prefix onto whatever the customer typed.
-    // normaliseUkMobile handles spaces / leading-zero strip / validation.
     const candidate = `+44${localDigits}`;
     const normalised = normaliseUkMobile(candidate);
     if (!normalised) {
@@ -80,19 +130,87 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     setLocalError("");
     setSubmitting(true);
     try {
-      const result = await onRequestOtp(normalised, captchaTokenRef.current);
-      if (!result?.error) {
-        setOtpCooldown(OTP_RESEND_SECONDS);
+      const result = await onCheckPhone(normalised);
+      if (result?.error || !result?.on_file) {
+        // hook set a user-facing error (rate limit / not on file / offline)
+        return;
+      }
+      if (result.has_password) {
+        // Returning customer — ask for their password (keep the captcha token
+        // for the password call; the pre-flight didn't consume it).
+        setAwaitingPassword(true);
+        return;
+      }
+      // First login: text a code straight away.
+      if (!captchaTokenRef.current) {
+        setLocalError(CAPTCHA_PENDING_ERROR);
+        return;
+      }
+      setOtpIsReset(false);
+      const send = await onSendOtp(captchaTokenRef.current);
+      if (send?.error) {
+        resetCaptcha();
       } else {
-        // Reset widget so a fresh token is available for the next attempt
-        turnstileRef.current?.reset();
-        captchaTokenRef.current = null;
+        setOtpCooldown(OTP_RESEND_SECONDS);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Stage "password": returning customer signs in with their password.
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!password) {
+      setLocalError("Please enter your password.");
+      return;
+    }
+    if (!captchaTokenRef.current) {
+      setLocalError(CAPTCHA_PENDING_ERROR);
+      return;
+    }
+    setLocalError("");
+    setSubmitting(true);
+    try {
+      const result = await onSignInWithPassword(password, captchaTokenRef.current);
+      // On success the route guard redirects off this page; nothing to do.
+      if (result?.error) {
+        // Token is single-use — get a fresh one for the retry.
+        resetCaptcha();
+        setPassword("");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // From the password stage: forgotten password → send a reset code.
+  const handleForgotPassword = async () => {
+    if (otpCooldown > 0) {
+      setLocalError(`Please wait ${otpCooldown}s before requesting another code.`);
+      return;
+    }
+    if (!captchaTokenRef.current) {
+      setLocalError(CAPTCHA_PENDING_ERROR);
+      return;
+    }
+    setLocalError("");
+    setSubmitting(true);
+    try {
+      setOtpIsReset(true);
+      const send = await onSendOtp(captchaTokenRef.current);
+      if (send?.error) {
+        resetCaptcha();
+        setOtpIsReset(false);
+      } else {
+        setOtpCooldown(OTP_RESEND_SECONDS);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Stage "code": verify the 6-digit code.
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (code.length < 6) {
@@ -102,18 +220,66 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
     setLocalError("");
     setSubmitting(true);
     try {
-      await onVerifyOtp(code);
+      await onVerifyOtp(code, { isReset: otpIsReset });
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Back to a clean phone-entry stage.
+  const handleUseDifferentNumber = () => {
+    onResetOtp();
+    setAwaitingPassword(false);
+    setOtpIsReset(false);
+    setPassword("");
+    setCode("");
+    setLocalDigits("");
+    setLocalError("");
+    resetCaptcha();
+  };
+
   const errorText = localError || error;
 
   // Yellow CTA is reserved for non-booking primary actions across the portal;
-  // green stays the booking-only colour. "Text me a code" / "Sign in" are not
-  // bookings, so they use yellow.
+  // green stays the booking-only colour.
   const submitButtonClass = `w-full py-3 min-h-[48px] rounded-full font-bold text-base bg-[var(--sd-yellow)] text-[var(--sd-navy)] hover:bg-[var(--sd-yellow-dark)] disabled:opacity-70 transition-colors ${focusRing}`;
+  const linkButtonClass = `w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`;
+
+  const heading =
+    stage === "code" ? "Enter your code" : stage === "password" ? "Welcome back" : "Sign in";
+
+  const instruction =
+    stage === "code"
+      ? `We just texted a code to ${phone}. Codes expire after a few minutes.`
+      : stage === "password"
+        ? `Enter the password for ${phone}.`
+        : "Enter your mobile number to sign in.";
+
+  // Shared Turnstile panel for the stages that make a Supabase auth call.
+  const turnstilePanel = (
+    <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
+      <p className="portal-text-kicker text-center mb-3">Quick security check</p>
+      <div className="flex justify-center">
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={TURNSTILE_SITE_KEY}
+          onSuccess={(token) => {
+            captchaTokenRef.current = token;
+          }}
+          onExpire={() => {
+            captchaTokenRef.current = null;
+          }}
+          onError={() => {
+            captchaTokenRef.current = null;
+          }}
+          options={{ theme: "light", size: "normal" }}
+        />
+      </div>
+      <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
+        Just confirms you&apos;re human — no clicks needed.
+      </p>
+    </div>
+  );
 
   return (
     <div
@@ -126,8 +292,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
 
         <div className="relative">
           {/* Logo first — strongest possible "you're in the right place" signal
-              for a customer landing here from a text link. The kicker beneath
-              labels which Smarter Dog surface this is. */}
+              for a customer landing here from a text link. */}
           <div className="flex justify-center mb-4">
             <img
               src="/logo.png"
@@ -140,30 +305,26 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             Customer portal
           </p>
 
-          {/* aria-live wrapper announces the stage change (heading + instruction)
-              to screen readers when otpSent flips. */}
+          {/* aria-live wrapper announces the stage change to screen readers. */}
           <div aria-live="polite">
             <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-3xl mb-4 text-center text-[var(--sd-navy)]">
               <span className="relative inline-block">
-                {!otpSent ? "Sign in" : "Enter your code"}
+                {heading}
                 <ScribbleUnderline />
               </span>
             </h1>
-            {!otpSent && (
+            {stage === "phone" && (
               <p className="text-sm text-center text-[var(--sd-navy-soft)] mb-4 leading-relaxed">
                 Book grooms, see past visits, and keep your details up to date.
               </p>
             )}
             <p id="login-instruction" className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
-              {!otpSent
-                ? "Enter your mobile number and we'll text you a 6-digit sign-in code."
-                : `We just texted a code to ${phone}. Codes expire after a few minutes.`}
+              {instruction}
             </p>
           </div>
 
           {/* Error region is always present in the DOM so role=alert + aria-live
-              announce reliably across SR/browser combos. Visually empty when
-              there's no error. */}
+              announce reliably. Visually empty when there's no error. */}
           <div
             role="alert"
             aria-live="assertive"
@@ -172,16 +333,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
             {errorText}
           </div>
 
-          {!otpSent ? (
-            <form onSubmit={handleRequestOtp} className="space-y-6" noValidate>
+          {stage === "phone" && (
+            <form onSubmit={handlePhoneSubmit} className="space-y-6" noValidate>
               <div>
                 <label htmlFor="phone" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
                   Mobile number
                 </label>
-                {/* Locked +44 prefix on the left, digits-only input on the right.
-                    The bordered wrapper shows the focus ring so the field reads
-                    as one control. */}
-                <div className={`flex items-stretch rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] focus-within:border-[var(--sd-navy)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--sd-navy)] overflow-hidden bg-white`}>
+                {/* Locked +44 prefix on the left, digits-only input on the right. */}
+                <div className="flex items-stretch rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] focus-within:border-[var(--sd-navy)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--sd-navy)] overflow-hidden bg-white">
                   <span
                     aria-hidden="true"
                     className="inline-flex items-center justify-center px-4 min-h-[52px] text-base font-bold border-r border-[rgba(45,0,75,0.14)] select-none text-[var(--sd-navy)]"
@@ -198,8 +357,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     required
                     value={localDigits}
                     onChange={(e) => {
-                      // Accept only digits, strip a leading 0 (UK mobile typed
-                      // in 07… form), cap at 10 digits.
+                      // Accept only digits, strip a leading 0, cap at 10 digits.
                       const digits = e.target.value
                         .replace(/\D/g, "")
                         .replace(/^0+/, "")
@@ -210,35 +368,14 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     placeholder="7700 900123"
                     pattern="7[0-9]{9}"
                     title={PHONE_FORMAT_ERROR}
-                    aria-invalid={!otpSent && Boolean(errorText)}
+                    aria-invalid={Boolean(errorText)}
                     aria-describedby="login-instruction"
                     className="flex-1 px-4 py-3 min-h-[52px] focus:outline-none text-base bg-transparent text-[var(--sd-navy)]"
                   />
                 </div>
               </div>
 
-              {/* Embed Turnstile in a tinted, labelled panel so it reads as
-                  part of the form rather than a foreign widget pasted in.
-                  The hint copy reassures non-technical users that nothing
-                  is required from them — the check passes silently. */}
-              <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-4">
-                <p className="portal-text-kicker text-center mb-3">
-                  Quick security check
-                </p>
-                <div className="flex justify-center">
-                  <Turnstile
-                    ref={turnstileRef}
-                    siteKey={TURNSTILE_SITE_KEY}
-                    onSuccess={(token) => { captchaTokenRef.current = token; }}
-                    onExpire={() => { captchaTokenRef.current = null; }}
-                    onError={() => { captchaTokenRef.current = null; }}
-                    options={{ theme: "light", size: "normal" }}
-                  />
-                </div>
-                <p className="text-[12px] text-[var(--sd-ink-light)] text-center mt-3 leading-relaxed">
-                  Just confirms you&apos;re human — no clicks needed.
-                </p>
-              </div>
+              {turnstilePanel}
 
               <button
                 type="submit"
@@ -248,13 +385,77 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                 style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
               >
                 {submitting
-                  ? "Sending…"
+                  ? "Checking…"
                   : otpCooldown > 0
                     ? `Try again in ${otpCooldown}s`
-                    : "Text me a code"}
+                    : "Continue"}
               </button>
             </form>
-          ) : (
+          )}
+
+          {stage === "password" && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="password" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    ref={passwordInputRef}
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setLocalError("");
+                    }}
+                    placeholder="Your password"
+                    aria-invalid={Boolean(errorText)}
+                    aria-describedby="login-instruction"
+                    className={`portal-input text-base min-h-[52px] pr-11 ${focusRing}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] bg-transparent border-none cursor-pointer p-1"
+                  >
+                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                  </button>
+                </div>
+              </div>
+
+              {turnstilePanel}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                aria-busy={submitting}
+                className={submitButtonClass}
+                style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
+              >
+                {submitting ? "Signing in…" : "Sign in"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={submitting || otpCooldown > 0}
+                className={linkButtonClass}
+              >
+                {otpCooldown > 0
+                  ? `Try again in ${otpCooldown}s`
+                  : "Forgotten your password? Text me a code"}
+              </button>
+              <button type="button" onClick={handleUseDifferentNumber} className={linkButtonClass}>
+                Use a different number
+              </button>
+            </form>
+          )}
+
+          {stage === "code" && (
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div>
                 <label htmlFor="code" className="block text-sm font-bold mb-2 text-[var(--sd-navy)]">
@@ -275,7 +476,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
                     setLocalError("");
                   }}
                   placeholder="123456"
-                  aria-invalid={otpSent && Boolean(errorText)}
+                  aria-invalid={Boolean(errorText)}
                   aria-describedby="login-instruction"
                   className={`portal-input text-base tracking-widest text-center min-h-[52px] ${focusRing}`}
                 />
@@ -289,11 +490,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
               >
                 {submitting ? "Checking…" : "Sign in"}
               </button>
-              <button
-                type="button"
-                onClick={onResetOtp}
-                className={`w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`}
-              >
+              <button type="button" onClick={handleUseDifferentNumber} className={linkButtonClass}>
                 Use a different number
               </button>
             </form>
@@ -301,9 +498,7 @@ export function CustomerLoginPage({ onRequestOtp, onVerifyOtp, onResetOtp, otpSe
         </div>
       </div>
 
-      {/* Back link sits beneath the card as an exit ramp. Closer (mt-5) and
-          using a human label rather than the bare domain so anyone glancing
-          at it knows where they're going. */}
+      {/* Back link sits beneath the card as an exit ramp. */}
       <a
         href="https://smarterdog.co.uk"
         className={`group mt-5 text-sm font-semibold no-underline rounded inline-flex items-center gap-1 text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] ${focusRing}`}

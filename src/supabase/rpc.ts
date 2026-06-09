@@ -93,6 +93,26 @@ export function addCustomerTrustedHuman(
 
 // Customer ↔ human linking on first login -----------------------------
 
+// Shape of each row returned by link_customer_to_human(). `has_password`
+// is derived live from auth.users.encrypted_password for the calling
+// user (NULLIF(...,'') guarded), and drives the required set-password
+// gate in CustomerApp.
+export interface LinkedHumanRow {
+  id: string;
+  name: string | null;
+  surname: string | null;
+  phone: string | null;
+  sms: boolean | null;
+  whatsapp: boolean | null;
+  email: string | null;
+  fb: string | null;
+  insta: string | null;
+  tiktok: string | null;
+  address: string | null;
+  customer_user_id: string | null;
+  has_password: boolean;
+}
+
 export function linkCustomerToHuman(client: SupabaseClient) {
   return client.rpc("link_customer_to_human");
 }
