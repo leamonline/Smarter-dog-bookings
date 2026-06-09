@@ -64,7 +64,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
           Ready to book {friendlyName} in?
         </h2>
         <p className="portal-booking-card-body">
-          Pick a date that suits you — drop off in the morning, collected by tea.
+          Pick a date that suits you.
         </p>
         <div className="portal-booking-card-actions">
           <button className="portal-btn portal-btn--cta" onClick={onBook}>
