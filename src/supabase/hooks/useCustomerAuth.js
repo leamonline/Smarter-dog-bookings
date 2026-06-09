@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
-import { linkCustomerToHuman } from "../rpc";
+import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
 
 const OTP_SEND_ERROR =
@@ -9,8 +9,6 @@ const OTP_VERIFY_ERROR =
   "That code did not work. Please check it and try again.";
 const PHONE_FORMAT_ERROR =
   "Please enter a valid UK mobile number, for example 07700 900123.";
-const PHONE_NOT_ON_FILE_ERROR =
-  "We don't have that number on file. Please contact the salon to register before logging in.";
 const PHONE_RATE_LIMITED_ERROR =
   "Too many attempts. Please wait a minute and try again.";
 // Deliberately generic so it never reveals whether a number has a password
@@ -255,7 +253,9 @@ export function useCustomerAuth() {
     }
 
     if (!lookupData?.on_file) {
-      setError(PHONE_NOT_ON_FILE_ERROR);
+      // Not an error any more — an unknown number is the entry point to
+      // self-signup ("Join the Pack"). The login page offers to register
+      // it rather than showing a dead-end. No setError here.
       return { on_file: false, has_password: false };
     }
 
@@ -386,6 +386,19 @@ export function useCustomerAuth() {
     return human;
   }, [linkHumanRecord]);
 
+  // First step of self-signup: create the pending "shell" humans row for a
+  // freshly-verified phone that has no record yet, then refresh so the rest
+  // of the app sees the linked (pending) record. Idempotent server-side.
+  const createPendingHuman = useCallback(async () => {
+    if (!supabase) return null;
+    const { error: rpcErr } = await createPendingCustomer(supabase);
+    if (rpcErr) {
+      console.error("create_pending_customer RPC error:", rpcErr);
+      return null;
+    }
+    return refreshHumanRecord();
+  }, [refreshHumanRecord]);
+
   const clearMustSetPassword = useCallback(() => {
     setMustSetPassword(false);
   }, []);
@@ -429,6 +442,7 @@ export function useCustomerAuth() {
     signOut,
     resetOtp,
     refreshHumanRecord,
+    createPendingHuman,
     clearMustSetPassword,
   };
 }

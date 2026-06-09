@@ -1,22 +1,20 @@
 import { Navigate, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "./supabase/hooks/useCustomerAuth.js";
 import { useCustomerProfileGate } from "./supabase/hooks/useCustomerProfileGate.js";
+import { useCustomerSignupGate } from "./supabase/hooks/useCustomerSignupGate.js";
 import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { ProfileGate } from "./components/customer/onboarding/ProfileGate.jsx";
 import { SetPasswordGate } from "./components/customer/onboarding/SetPasswordGate.jsx";
+import { JoinThePackWelcome } from "./components/customer/onboarding/JoinThePackWelcome.jsx";
+import { JoinThePackOnboarding } from "./components/customer/onboarding/JoinThePackOnboarding.jsx";
+import { PendingApprovalGate } from "./components/customer/onboarding/PendingApprovalGate.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
-import { CenteredScreen, PortalCard } from "./components/ui/PageShell.jsx";
+import { CenteredScreen } from "./components/ui/PageShell.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
-import { PawPrint } from "lucide-react";
-import {
-  SALON_PHONE_DISPLAY,
-  SALON_TEL_HREF,
-  SALON_WHATSAPP_URL,
-} from "./constants/salonContact.ts";
 import "./customer-portal.css";
 
 export default function CustomerApp() {
@@ -49,6 +47,7 @@ function CustomerAppContent() {
     signOut,
     resetOtp,
     refreshHumanRecord,
+    createPendingHuman,
     clearMustSetPassword,
   } = useCustomerAuth();
 
@@ -56,6 +55,11 @@ function CustomerAppContent() {
   // returns complete=true / loading=false while humanRecord is null, so it's
   // a no-op until there's a linked record to gate.
   const gate = useCustomerProfileGate(humanRecord);
+
+  // Self-signup lifecycle gate (Join the Pack). Returns "approved" for every
+  // staff-created / existing customer, so it's a no-op for them; only a
+  // pending self-signup shell reads as "onboarding" / "pending".
+  const signup = useCustomerSignupGate(humanRecord);
 
   const authRoute = getCustomerAuthRouteState({
     loading,
@@ -106,40 +110,12 @@ function CustomerAppContent() {
     );
   }
 
-  // Authenticated but no matching human — give them a way to reach the salon.
+  // Authenticated but no matching human — a brand-new customer. Offer to set
+  // them up ("Join the Pack"): the CTA creates a pending shell record, after
+  // which the normal gates (set password, then the signup questions) take over.
   if (!humanRecord) {
     return (
-      <CenteredScreen fontClassName="font-sans">
-        <PortalCard className="rounded-xl shadow-sm text-center">
-          <PawPrint size={32} className="text-brand-purple mx-auto mb-3" aria-hidden="true" />
-          <div className="text-lg font-bold text-brand-purple font-display mb-2">
-            We don&apos;t have your number on file yet
-          </div>
-          <div className="text-sm text-slate-500 mb-5 font-medium leading-relaxed">
-            Drop us a message and we&apos;ll add you in. Once we&apos;ve done that, come back here and try again.
-          </div>
-          <a
-            href={SALON_WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="portal-btn portal-btn--cta w-full inline-flex items-center justify-center gap-2 mb-2 no-underline"
-          >
-            <span>Message Smarter Dog on WhatsApp</span>
-          </a>
-          <a
-            href={SALON_TEL_HREF}
-            className="portal-btn portal-btn--secondary w-full inline-block no-underline mb-3"
-          >
-            Or call {SALON_PHONE_DISPLAY}
-          </a>
-          <button
-            onClick={signOut}
-            className="text-[13px] text-slate-500 bg-transparent border-none cursor-pointer font-semibold py-1"
-          >
-            Sign out
-          </button>
-        </PortalCard>
-      </CenteredScreen>
+      <JoinThePackWelcome onStart={createPendingHuman} onSignOut={signOut} />
     );
   }
 
@@ -161,6 +137,47 @@ function CustomerAppContent() {
         onComplete={async () => {
           clearMustSetPassword();
           await refreshHumanRecord();
+        }}
+      />
+    );
+  }
+
+  // Self-signup lifecycle (Join the Pack). A pending customer (approved_at
+  // NULL) goes through the onboarding questions and then a "we're reviewing
+  // you" hold — never the regular profile gate or dashboard. Approved /
+  // existing customers read as "approved" and fall straight through.
+  if (signup.loading) {
+    return (
+      <CenteredScreen fontClassName="font-['Montserrat',sans-serif]">
+        <div className="w-full max-w-[400px] px-5 flex flex-col gap-4">
+          <div className="h-8 w-40 mx-auto bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-48 bg-slate-200 rounded-xl animate-pulse" />
+          <div className="h-12 bg-slate-200 rounded-lg animate-pulse" />
+        </div>
+      </CenteredScreen>
+    );
+  }
+
+  if (signup.status === "onboarding") {
+    return (
+      <JoinThePackOnboarding
+        humanRecord={humanRecord}
+        onSignOut={signOut}
+        onComplete={async () => {
+          await refreshHumanRecord();
+          await signup.refresh();
+        }}
+      />
+    );
+  }
+
+  if (signup.status === "pending") {
+    return (
+      <PendingApprovalGate
+        onSignOut={signOut}
+        onRefresh={async () => {
+          await refreshHumanRecord();
+          await signup.refresh();
         }}
       />
     );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
+import { approveCustomerSignup, rejectCustomerSignup } from "../rpc";
 import { findHumanByIdOrName } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 import { stripFormatChars } from "../../utils/phone.js";
@@ -92,6 +93,13 @@ function buildHumanMapEntry(row: any) {
     reminderHours: row.reminder_hours ?? 24,
     reminderChannels: row.reminder_channels || ["whatsapp"],
     archivedAt: row.archived_at || null,
+    // "Join the Pack" self-signup state. approvedAt NULL + signupSubmittedAt
+    // set = a pending signup awaiting staff approval (HumanHeader surfaces the
+    // badge + approve/reject buttons). Both are absent on the directory RPC's
+    // projection, so they only populate on the full select("*") fetch the
+    // profile modal uses (fetchHumanById) — exactly where the UI needs them.
+    approvedAt: row.approved_at ?? null,
+    signupSubmittedAt: row.signup_submitted_at ?? null,
     trustedIds: [],
     trustedContacts: [],
   };
@@ -782,6 +790,102 @@ export function useHumans() {
   );
 
   /**
+   * Approve a pending "Join the Pack" self-signup via the staff-gated
+   * approve_customer_signup RPC (sets approved_at/approved_by + resolves the
+   * signup_review to-do). On success we optimistically clear the pending
+   * signal locally (approvedAt set) so the header badge / buttons disappear
+   * straight away; the realtime UPDATE reconciles the canonical row. Returns
+   * the same { ok } / { ok, error } shape as deleteHuman / mergeHumans.
+   */
+  const approveSignup = useCallback(
+    async (humanId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!humanId) return { ok: false, error: "Missing human id" };
+      if (!supabase)
+        return { ok: false, error: "Approving needs a connection — you're offline." };
+
+      const { error: err } = await approveCustomerSignup(supabase, { humanId });
+      if (err) {
+        return { ok: false, error: err.message || "Failed to approve signup" };
+      }
+
+      // Send the "Welcome to the Pack" message. Best-effort: the approval has
+      // already committed, so a messaging hiccup must not surface as a failure
+      // (the welcome is also idempotent server-side and can be re-sent).
+      try {
+        const { error: fnErr } = await supabase.functions.invoke(
+          "notify-customer-welcome",
+          { body: { human_id: humanId } },
+        );
+        if (fnErr) console.warn("notify-customer-welcome failed:", fnErr);
+      } catch (e) {
+        console.warn("notify-customer-welcome threw:", e);
+      }
+
+      const approvedAt = new Date().toISOString();
+      setHumansById((prev) => {
+        const existing = prev[humanId];
+        if (!existing) return prev;
+        return { ...prev, [humanId]: { ...existing, approvedAt, approved_at: approvedAt } };
+      });
+      setHumans((prev) => {
+        const next = { ...prev };
+        const entry = Object.entries(next).find(
+          ([, h]: [string, any]) => h.id === humanId,
+        );
+        if (entry) next[entry[0]] = { ...(entry[1] as any), approvedAt };
+        return next;
+      });
+      return { ok: true };
+    },
+    [],
+  );
+
+  /**
+   * Reject a pending self-signup via the staff-gated reject_customer_signup
+   * RPC (archives the human with a reason + resolves the to-do). On success we
+   * optimistically drop the row from the local maps — same as a delete — so it
+   * leaves the directory immediately; realtime reconciles the rest.
+   */
+  const rejectSignup = useCallback(
+    async (
+      humanId: string,
+      reason?: string | null,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!humanId) return { ok: false, error: "Missing human id" };
+      if (!supabase)
+        return { ok: false, error: "Rejecting needs a connection — you're offline." };
+
+      const { error: err } = await rejectCustomerSignup(supabase, {
+        humanId,
+        reason: reason ?? null,
+      });
+      if (err) {
+        return { ok: false, error: err.message || "Failed to reject signup" };
+      }
+
+      // Rejection archives the human; mirror the directory's archive behaviour
+      // by dropping it from the active maps so it vanishes from the grid.
+      setHumansById((prev) => {
+        const next = { ...prev };
+        delete next[humanId];
+        return next;
+      });
+      setHumans((prev) => {
+        const next = { ...prev };
+        const entry = Object.entries(next).find(
+          ([, h]: [string, any]) => h.id === humanId,
+        );
+        if (entry) delete next[entry[0]];
+        return next;
+      });
+      setDirectoryHumans((prev) => prev.filter((h) => h.id !== humanId));
+      setTotalCount((c) => Math.max(0, c - 1));
+      return { ok: true };
+    },
+    [],
+  );
+
+  /**
    * Fetch the archived humans for the directory's "Show archived" view.
    * Returned as a plain list (not merged into the active maps) so archived
    * records never leak into the directory grid or search; the archived set
@@ -1047,6 +1151,8 @@ export function useHumans() {
     addHuman,
     deleteHuman,
     mergeHumans,
+    approveSignup,
+    rejectSignup,
     fetchArchivedHumans,
     fetchHumanById,
     findHumanByFullName,

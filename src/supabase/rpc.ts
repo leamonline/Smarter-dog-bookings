@@ -117,6 +117,73 @@ export function linkCustomerToHuman(client: SupabaseClient) {
   return client.rpc("link_customer_to_human");
 }
 
+// "Join the Pack" self-signup --------------------------------------------
+
+// Owner details collected during onboarding (mandatory + optional).
+export interface SignupOwner {
+  name: string;
+  surname: string;
+  address: string;
+  postcode?: string | null;
+  email?: string | null;
+  sms?: boolean;
+  whatsapp?: boolean;
+  policies_version?: string | null;
+}
+
+// One dog per entry. name + breed + sex + dob are mandatory at signup;
+// size is derived from the breed client-side (null when unknown → staff
+// set it); the rest are optional.
+export interface SignupDog {
+  name: string;
+  breed: string;
+  sex?: string | null;
+  dob?: string | null; // "YYYY-MM"
+  size?: string | null;
+  microchip?: string | null;
+  neutered?: boolean | null;
+  vet?: string | null;
+  colour?: string | null;
+  groom_notes?: string | null;
+  alerts?: string[];
+}
+
+// Create the pending "shell" humans row for a freshly-verified phone that
+// has no record yet. Idempotent — returns the existing linked human if any.
+export function createPendingCustomer(client: SupabaseClient) {
+  return client.rpc("create_pending_customer");
+}
+
+// Finalise a signup: owner details + policy agreement + dogs, atomically,
+// and drop a review to-do for staff.
+export function submitCustomerSignup(
+  client: SupabaseClient,
+  params: { owner: SignupOwner; dogs: SignupDog[] },
+) {
+  return client.rpc("submit_customer_signup", {
+    p_owner: params.owner,
+    p_dogs: params.dogs,
+  });
+}
+
+// Staff: approve / reject a pending self-signup.
+export function approveCustomerSignup(
+  client: SupabaseClient,
+  params: { humanId: string },
+) {
+  return client.rpc("approve_customer_signup", { p_human_id: params.humanId });
+}
+
+export function rejectCustomerSignup(
+  client: SupabaseClient,
+  params: { humanId: string; reason?: string | null },
+) {
+  return client.rpc("reject_customer_signup", {
+    p_human_id: params.humanId,
+    p_reason: params.reason ?? null,
+  });
+}
+
 // Customer slot availability ------------------------------------------
 
 // Read (slot, size) for every non-cancelled booking on a date. The
