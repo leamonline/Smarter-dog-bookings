@@ -302,6 +302,9 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
 }
 
 const FILTER_CHIPS = [
+  // New self-signups awaiting staff approval (approved_at NULL +
+  // signup_submitted_at set). Surfaced first so it's easy to find.
+  { key: "newCustomers", label: "New customers" },
   { key: "flagged", label: "Flagged" },
   { key: "noDogs", label: "No dogs" },
   { key: "noPhone", label: "No phone" },
