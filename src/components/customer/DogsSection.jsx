@@ -34,6 +34,17 @@ const SIZES = [
   { value: "large", label: "Large" },
 ];
 
+// Date of birth is stored as "YYYY-MM" (month & year only), matching the
+// staff Add Dog modal and the Join the Pack signup. Older rows may hold a
+// full "YYYY-MM-DD" — slicing the year/month off handles both.
+const MONTHS = [
+  ["01", "Jan"], ["02", "Feb"], ["03", "Mar"], ["04", "Apr"],
+  ["05", "May"], ["06", "Jun"], ["07", "Jul"], ["08", "Aug"],
+  ["09", "Sep"], ["10", "Oct"], ["11", "Nov"], ["12", "Dec"],
+];
+const DOB_YEARS = Array.from({ length: 26 }, (_, i) => String(new Date().getFullYear() - i));
+const composeDob = (month, year) => (month && year ? `${year}-${month}` : "");
+
 const AVATAR_PALETTE = ["sky", "buttercup", "mint", "coral"];
 function avatarTintFor(id) {
   if (!id) return AVATAR_PALETTE[0];
@@ -129,13 +140,24 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
           >
             {SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          <input
-            aria-label="Date of birth"
-            placeholder="DOB (YYYY-MM-DD)"
-            value={form.dob}
-            onChange={e => setForm(f => ({ ...f, dob: e.target.value }))}
+          <select
+            aria-label="Birth month"
+            value={form.dob.slice(5, 7)}
+            onChange={e => setForm(f => ({ ...f, dob: composeDob(e.target.value, f.dob.slice(0, 4)) }))}
             className="portal-input"
-          />
+          >
+            <option value="">Birth month</option>
+            {MONTHS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+          <select
+            aria-label="Birth year"
+            value={form.dob.slice(0, 4)}
+            onChange={e => setForm(f => ({ ...f, dob: composeDob(f.dob.slice(5, 7), e.target.value) }))}
+            className="portal-input"
+          >
+            <option value="">Year</option>
+            {DOB_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
         {error && <div role="alert" className="portal-inline-error">{error}</div>}
         <div className="portal-inline-form-actions">
