@@ -1,21 +1,24 @@
 // ============================================================
 // customer-phone-on-file
 //
-// Pre-auth check: does the salon have this phone number on file?
-// Called by the customer login page BEFORE supabase.auth.signInWithOtp
-// so we don't pay Twilio to text numbers that aren't ours.
+// Pre-auth lookup for the phone-first customer login page:
+//   • is this number on file? (so we don't pay Twilio to text
+//     numbers that aren't ours)
+//   • does its account already have a password? (so the page can
+//     show a password field for returning customers, or text a
+//     code for first-timers / forgotten passwords)
 //
 // This Edge Function exists rather than a bare RPC so we can do
-// per-IP rate limiting. The underlying customer_phone_on_file()
-// RPC is granted only to the service_role, so the only path to
-// the lookup is through this rate-limited function.
+// per-IP rate limiting. The underlying customer_phone_login_state()
+// RPC is granted only to the service_role, so the only path to the
+// lookup is through this rate-limited function.
 //
 // Request:
 //   POST /functions/v1/customer-phone-on-file
 //   body: { phone: "+447700900123" }
 //
 // Response (200):
-//   { on_file: true | false }
+//   { on_file: boolean, has_password: boolean }
 //
 // Errors:
 //   400 — invalid phone
@@ -120,15 +123,25 @@ async function checkAndRecordGlobalAttempt(): Promise<boolean> {
   return data === true;
 }
 
-async function lookupPhoneOnFile(phone: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc("customer_phone_on_file", {
+interface PhoneLoginState {
+  on_file: boolean;
+  has_password: boolean;
+}
+
+async function lookupPhoneLoginState(phone: string): Promise<PhoneLoginState> {
+  const { data, error } = await supabase.rpc("customer_phone_login_state", {
     p_phone: phone,
   });
   if (error) {
-    console.error("customer_phone_on_file RPC error:", error);
+    console.error("customer_phone_login_state RPC error:", error);
     throw error;
   }
-  return data === true;
+  // The RPC returns a TABLE, so supabase-js surfaces it as an array of rows.
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    on_file: row?.on_file === true,
+    has_password: row?.has_password === true,
+  };
 }
 
 serve(async (req) => {
@@ -207,8 +220,8 @@ serve(async (req) => {
   }
 
   try {
-    const onFile = await lookupPhoneOnFile(phone);
-    return new Response(JSON.stringify({ on_file: onFile }), {
+    const { on_file, has_password } = await lookupPhoneLoginState(phone);
+    return new Response(JSON.stringify({ on_file, has_password }), {
       status: 200,
       headers: { ...corsFor(req), "content-type": "application/json" },
     });

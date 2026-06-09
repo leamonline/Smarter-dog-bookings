@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
 import { linkCustomerToHuman } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
@@ -13,27 +13,37 @@ const PHONE_NOT_ON_FILE_ERROR =
   "We don't have that number on file. Please contact the salon to register before logging in.";
 const PHONE_RATE_LIMITED_ERROR =
   "Too many attempts. Please wait a minute and try again.";
+// Deliberately generic so it never reveals whether a number has a password
+// set (or even exists). Always offers the code fallback as the way through.
+const PASSWORD_LOGIN_ERROR =
+  "That number and password don't match. Try again, or get a code by text.";
 
 /**
- * Customer authentication via phone OTP.
+ * Customer authentication: phone + password, with SMS OTP as the
+ * first-login / forgot-password path.
+ *
  * Uses a SEPARATE Supabase client (customerClient.js) with its own
  * storage key so staff and customer sessions don't conflict.
  *
- * Flow: enter phone → requestOtp() → enter code → verifyOtp()
+ * The login page is phone-first:
+ *   1. checkPhone(phone)            → { on_file, has_password } (NO SMS)
+ *   2a. has_password               → signInWithPassword(password)
+ *   2b. on_file && !has_password   → sendOtp() → verifyOtp(code)  (first login)
+ *   2c. "forgot password"          → sendOtp() → verifyOtp(code, { isReset })
  *
- * After a successful OTP verification, we call the database-side RPC
- * `link_customer_to_human()` (no args) instead of querying the humans
- * table directly.  The RPC:
+ * After any successful sign-in (password or OTP), the SIGNED_IN event
+ * runs link_customer_to_human() via applySession(), which:
  *   • runs as SECURITY DEFINER (bypasses RLS for the lookup)
  *   • derives the lookup phone from auth.users.phone for the calling
  *     auth.uid() — never trusts caller-supplied input (issue #92)
  *   • finds the human row by phone number (normalises +44 ↔ 07)
  *   • sets humans.customer_user_id = auth.uid() on first login
- *   • returns empty if the number is unclaimed by any salon record,
- *     OR if the record is already claimed by a different auth user
+ *   • returns customer-safe fields PLUS has_password, derived live from
+ *     auth.users.encrypted_password
  *
- * This means customer identity is bound to auth.uid() (a stable UUID)
- * rather than a mutable, non-unique phone string.
+ * `hasPassword` (read off the linked record) and the transient
+ * `mustSetPassword` flag (set after a forgot-password OTP verify) drive
+ * the required set-password gate in CustomerApp.
  */
 export function useCustomerAuth() {
   const [user, setUser] = useState(null);
@@ -42,6 +52,17 @@ export function useCustomerAuth() {
   const [error, setError] = useState(null);
   const [otpSent, setOtpSent] = useState(false);
   const [phone, setPhone] = useState("");
+  // Authoritative copy of the normalised phone. checkPhone sets this
+  // synchronously so a follow-up sendOtp/signInWithPassword in the SAME
+  // tick (the first-login path sends an OTP immediately after the check)
+  // reads the right number — the `phone` state setter is async and would
+  // still be empty here. `phone` state stays for display only.
+  const phoneRef = useRef("");
+  // Transient: true after a "forgot password" OTP verify, so the
+  // set-password gate forces a NEW password even though the account
+  // already has one (has_password stays true). In-memory only — if the
+  // tab is closed mid-reset, the old password simply still works.
+  const [mustSetPassword, setMustSetPassword] = useState(false);
 
   /**
    * Look up — and permanently link — the human record for the
@@ -163,15 +184,20 @@ export function useCustomerAuth() {
     };
   }, [linkHumanRecord]);
 
-  // Request OTP — sends SMS to the phone number.
-  // Pre-flight: ask the salon's database (via a rate-limited Edge
-  // Function) whether the phone is on file before calling
-  // signInWithOtp. Twilio charges per SMS, so we don't want to spend
-  // money texting numbers that aren't ours, and a legit customer who
-  // mis-types their number gets a clearer error.
-  // captchaToken comes from the Cloudflare Turnstile widget and is
-  // attached to the OTP request so Supabase's bot-protection passes.
-  const requestOtp = useCallback(async (phoneNumber, captchaToken) => {
+  /**
+   * Pre-flight phone check — NO SMS. Asks the salon's database (via the
+   * rate-limited customer-phone-on-file Edge Function) whether the phone
+   * is on file and whether its account already has a password. The login
+   * page uses the answer to decide: password field (returning), text-a-code
+   * (first login), or "not on file" error.
+   *
+   * Going through the Edge Function rather than the RPC directly is what
+   * enforces the rate cap (the RPC is service_role only). captchaToken is
+   * the Cloudflare Turnstile token, kept for the follow-up auth call.
+   *
+   * Returns { on_file, has_password } on success, or { error } on failure.
+   */
+  const checkPhone = useCallback(async (phoneNumber) => {
     if (!supabase) {
       setError("Not connected.");
       return { error: { message: "Offline" } };
@@ -182,22 +208,18 @@ export function useCustomerAuth() {
       return { error: { message: "Invalid phone number" } };
     }
     setError(null);
+    phoneRef.current = normalisedPhone;
     setPhone(normalisedPhone);
 
-    // Pre-auth lookup via the customer-phone-on-file Edge Function.
-    // The function applies per-IP rate limiting (5 attempts / 60s)
-    // and then delegates to the SECURITY DEFINER RPC. Going through
-    // the function rather than calling the RPC directly is what lets
-    // us enforce the rate cap — the raw RPC is not granted to anon.
     const { data: lookupData, error: lookupErr } = await supabase.functions
       .invoke("customer-phone-on-file", {
         body: { phone: normalisedPhone },
       });
 
     if (lookupErr) {
-      // Supabase wraps non-2xx responses in FunctionsHttpError. Pull
-      // the JSON body off so we can show a tailored message for the
-      // rate-limit case instead of a generic "failed to send".
+      // Supabase wraps non-2xx responses in FunctionsHttpError. Pull the
+      // JSON body off so we can show a tailored message for the rate-limit
+      // case instead of a generic failure.
       let errPayload = null;
       try {
         errPayload = await lookupErr.context?.json?.();
@@ -209,9 +231,7 @@ export function useCustomerAuth() {
         return { error: { message: "Rate limited" } };
       }
       // Common deployment slip: the Edge Function is not deployed yet
-      // (Supabase returns 404 / FunctionsRelayError). Surface that
-      // clearly so the operator can fix it rather than chasing a
-      // generic "could not send".
+      // (Supabase returns 404 / FunctionsRelayError).
       const status = lookupErr.context?.status;
       const name = lookupErr.name || "";
       const looksLikeMissingFn =
@@ -236,12 +256,39 @@ export function useCustomerAuth() {
 
     if (!lookupData?.on_file) {
       setError(PHONE_NOT_ON_FILE_ERROR);
-      return { error: { message: "Phone not on file" } };
+      return { on_file: false, has_password: false };
     }
+
+    // has_password may be undefined if an older Edge Function build is still
+    // live (returns { on_file } only). Treat undefined as false → the
+    // customer gets the code path, which still works and puts them on the
+    // password track for next time. Safe default.
+    return {
+      on_file: true,
+      has_password: lookupData.has_password === true,
+    };
+  }, []);
+
+  /**
+   * Send an SMS OTP to the already-checked phone (set by checkPhone).
+   * Twilio sends only happen here, after checkPhone has confirmed the
+   * number is on file. captchaToken comes from the Turnstile widget.
+   */
+  const sendOtp = useCallback(async (captchaToken) => {
+    if (!supabase) {
+      setError("Not connected.");
+      return { error: { message: "Offline" } };
+    }
+    const targetPhone = phoneRef.current;
+    if (!targetPhone) {
+      setError(PHONE_FORMAT_ERROR);
+      return { error: { message: "No phone" } };
+    }
+    setError(null);
 
     const otpOptions = captchaToken ? { options: { captchaToken } } : {};
     const { error: err } = await supabase.auth.signInWithOtp({
-      phone: normalisedPhone,
+      phone: targetPhone,
       ...otpOptions,
     });
 
@@ -255,9 +302,44 @@ export function useCustomerAuth() {
     return { success: true };
   }, []);
 
-  // Verify the OTP code
+  /**
+   * Sign in a returning customer with phone + password. The phone was
+   * set by checkPhone. captchaToken is required when project-wide captcha
+   * protection is on (it is, for OTP) — Supabase rejects the call without
+   * it. On success the SIGNED_IN event links the human record via
+   * applySession; on failure we show a deliberately generic error.
+   */
+  const signInWithPassword = useCallback(async (password, captchaToken) => {
+    if (!supabase) {
+      setError("Not connected.");
+      return { error: { message: "Offline" } };
+    }
+    const targetPhone = phoneRef.current;
+    if (!targetPhone) {
+      setError(PHONE_FORMAT_ERROR);
+      return { error: { message: "No phone" } };
+    }
+    setError(null);
+
+    const { data, error: err } = await supabase.auth.signInWithPassword({
+      phone: targetPhone,
+      password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    });
+
+    if (err) {
+      console.error("Customer password sign-in failed:", err);
+      setError(PASSWORD_LOGIN_ERROR);
+      return { error: err };
+    }
+
+    return { data };
+  }, []);
+
+  // Verify the OTP code. Pass { isReset: true } from the forgot-password
+  // path so the set-password gate forces a NEW password afterwards.
   const verifyOtp = useCallback(
-    async (code) => {
+    async (code, { isReset = false } = {}) => {
       if (!supabase) {
         setError("Not connected.");
         return { error: { message: "Offline" } };
@@ -265,7 +347,7 @@ export function useCustomerAuth() {
       setError(null);
 
       const { data, error: err } = await supabase.auth.verifyOtp({
-        phone,
+        phone: phoneRef.current,
         token: code,
         type: "sms",
       });
@@ -275,6 +357,8 @@ export function useCustomerAuth() {
         setError(OTP_VERIFY_ERROR);
         return { error: err };
       }
+
+      if (isReset) setMustSetPassword(true);
 
       if (data?.user?.phone) {
         setLoading(true);
@@ -289,18 +373,22 @@ export function useCustomerAuth() {
 
       return { data };
     },
-    [linkHumanRecord, phone],
+    [linkHumanRecord],
   );
 
-  // Re-fetch the linked human record (e.g. after the onboarding gate saves
-  // a new name/address) so the rest of the app sees the fresh values without
-  // a full reload. Re-runs the same SECURITY DEFINER link RPC, which returns
-  // the current humans row for the already-linked account.
+  // Re-fetch the linked human record (e.g. after the onboarding gate or the
+  // set-password gate saves) so the rest of the app sees the fresh values —
+  // including has_password — without a full reload. Re-runs the same
+  // SECURITY DEFINER link RPC.
   const refreshHumanRecord = useCallback(async () => {
     const human = await linkHumanRecord();
     setHumanRecord(human);
     return human;
   }, [linkHumanRecord]);
+
+  const clearMustSetPassword = useCallback(() => {
+    setMustSetPassword(false);
+  }, []);
 
   // Sign out
   const signOut = useCallback(async () => {
@@ -310,13 +398,17 @@ export function useCustomerAuth() {
     setHumanRecord(null);
     setOtpSent(false);
     setPhone("");
+    phoneRef.current = "";
+    setMustSetPassword(false);
   }, []);
 
   // Reset to phone-entry step
   const resetOtp = useCallback(() => {
     setOtpSent(false);
     setPhone("");
+    phoneRef.current = "";
     setError(null);
+    setMustSetPassword(false);
   }, []);
 
   return {
@@ -326,10 +418,17 @@ export function useCustomerAuth() {
     error,
     otpSent,
     phone,
-    requestOtp,
+    // Derived live from the linked record (rides atomically with humanRecord,
+    // so there's no separate state to race). undefined while unlinked.
+    hasPassword: humanRecord?.has_password,
+    mustSetPassword,
+    checkPhone,
+    sendOtp,
+    signInWithPassword,
     verifyOtp,
     signOut,
     resetOtp,
     refreshHumanRecord,
+    clearMustSetPassword,
   };
 }

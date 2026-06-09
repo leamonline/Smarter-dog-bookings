@@ -5,6 +5,7 @@ import { getCustomerAuthRouteState } from "./components/auth/routeGuards.js";
 import { CustomerLoginPage } from "./components/auth/CustomerLoginPage.jsx";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard.jsx";
 import { ProfileGate } from "./components/customer/onboarding/ProfileGate.jsx";
+import { SetPasswordGate } from "./components/customer/onboarding/SetPasswordGate.jsx";
 import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
@@ -39,11 +40,16 @@ function CustomerAppContent() {
     error,
     otpSent,
     phone,
-    requestOtp,
+    hasPassword,
+    mustSetPassword,
+    checkPhone,
+    sendOtp,
+    signInWithPassword,
     verifyOtp,
     signOut,
     resetOtp,
     refreshHumanRecord,
+    clearMustSetPassword,
   } = useCustomerAuth();
 
   // Profile-completion gate. Called unconditionally (rules of hooks); it
@@ -88,7 +94,9 @@ function CustomerAppContent() {
   if (authRoute.status === "login") {
     return (
       <CustomerLoginPage
-        onRequestOtp={requestOtp}
+        onCheckPhone={checkPhone}
+        onSendOtp={sendOtp}
+        onSignInWithPassword={signInWithPassword}
         onVerifyOtp={verifyOtp}
         onResetOtp={resetOtp}
         otpSent={otpSent}
@@ -132,6 +140,28 @@ function CustomerAppContent() {
           </button>
         </PortalCard>
       </CenteredScreen>
+    );
+  }
+
+  // Authenticated + matched, but no password yet (first login) or a
+  // forgot-password reset in progress — require a password before the
+  // dashboard. This is what lets returning customers sign in with phone +
+  // password instead of a paid SMS code every time.
+  //
+  // Fail open: only force the gate when has_password is explicitly false.
+  // If it's undefined (older Edge Function build, or a link-RPC read error)
+  // we skip the gate — a transient glitch must never trap a customer in a
+  // lockout loop; the worst case is they keep using codes for now.
+  if (hasPassword === false || mustSetPassword) {
+    return (
+      <SetPasswordGate
+        mode={mustSetPassword ? "reset" : "set"}
+        onSignOut={signOut}
+        onComplete={async () => {
+          clearMustSetPassword();
+          await refreshHumanRecord();
+        }}
+      />
     );
   }
 
