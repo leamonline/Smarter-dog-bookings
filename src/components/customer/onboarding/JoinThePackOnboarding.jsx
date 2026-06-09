@@ -5,6 +5,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
+import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index.js";
 import { BREED_LIST } from "../../../constants/breeds.js";
 import {
@@ -61,8 +62,8 @@ function dogReady(d) {
  * Multi-step self-signup onboarding ("Join the Pack"), shown to a pending
  * customer (approved_at NULL, not yet submitted) after they've set a password.
  *
- * Step 1 — about you: name, address (shared AddressPicker), optional contact
- *   preferences, and policy agreement.
+ * Step 1 — about you: first name, surname, the read-only verified phone,
+ *   address (shared AddressPicker), email, and policy agreement. All required.
  * Step 2 — your dog(s): one required, "Add another dog" for more. Mandatory
  *   per dog: name, breed, sex, month & year of birth. Optional extras behind a
  *   disclosure. Size is derived from the breed (getSizeForBreed) — not asked.
@@ -75,14 +76,16 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
   const [step, setStep] = useState(1);
 
-  // Owner
+  // Owner. The phone is already verified (it's how they got here) and is
+  // shown read-only — it's the username they sign in with.
+  const verifiedPhone = humanRecord?.phone || "";
   const [name, setName] = useState(humanRecord?.name?.trim() || "");
   const [surname, setSurname] = useState(humanRecord?.surname?.trim() || "");
   const [email, setEmail] = useState("");
-  const [sms, setSms] = useState(true);
-  const [whatsapp, setWhatsapp] = useState(true);
   const [addr, setAddr] = useState({ ready: false, address: null, postcode: null, keepingExisting: false });
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   // Dogs
   const [dogs, setDogs] = useState([blankDog()]);
@@ -91,7 +94,11 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   const [error, setError] = useState(null);
 
   const step1Valid =
-    name.trim() !== "" && surname.trim() !== "" && addr.ready && policiesAccepted;
+    name.trim() !== "" &&
+    surname.trim() !== "" &&
+    emailValid &&
+    addr.ready &&
+    policiesAccepted;
   const dogsValid = dogs.length > 0 && dogs.every(dogReady);
 
   function updateDog(index, patch) {
@@ -123,9 +130,10 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       surname: surname.trim(),
       address: addr.address || humanRecord?.address?.trim() || "",
       postcode: addr.postcode,
-      email: email.trim() || null,
-      sms,
-      whatsapp,
+      email: email.trim(),
+      // Reminders default on — they just signed up and gave us their number.
+      sms: true,
+      whatsapp: true,
       policies_version: POLICIES_VERSION,
     };
 
@@ -206,31 +214,36 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
             </fieldset>
 
             <fieldset className="mb-5">
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Mobile number</legend>
+              <input
+                aria-label="Mobile number (verified)"
+                type="tel"
+                value={formatPhoneForDisplay(verifiedPhone) || verifiedPhone}
+                readOnly
+                tabIndex={-1}
+                className="portal-input w-full bg-slate-50 text-slate-500"
+              />
+              <p className="text-[12px] text-slate-400 mt-1">
+                Verified by text — this is the number you&apos;ll sign in with.
+              </p>
+            </fieldset>
+
+            <fieldset className="mb-5">
               <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your address</legend>
               <AddressPicker existingAddress={humanRecord?.address?.trim() || ""} onChange={setAddr} />
             </fieldset>
 
             <fieldset className="mb-5">
-              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">
-                Staying in touch <span className="font-normal text-slate-400">(optional)</span>
-              </legend>
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Email address</legend>
               <input
                 aria-label="Email address"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address"
-                className="portal-input w-full mb-2"
+                placeholder="you@example.com"
+                className="portal-input w-full"
               />
-              <label className="flex items-center gap-2.5 mb-1.5 cursor-pointer select-none text-[13px] text-[var(--sd-navy)]">
-                <input type="checkbox" checked={sms} onChange={(e) => setSms(e.target.checked)} className="w-4 h-4 accent-brand-purple" />
-                Text me reminders (SMS)
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-[13px] text-[var(--sd-navy)]">
-                <input type="checkbox" checked={whatsapp} onChange={(e) => setWhatsapp(e.target.checked)} className="w-4 h-4 accent-brand-purple" />
-                Message me on WhatsApp
-              </label>
             </fieldset>
 
             <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
