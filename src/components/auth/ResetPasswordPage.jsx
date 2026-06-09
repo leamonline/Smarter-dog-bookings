@@ -11,6 +11,7 @@ import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
 export function ResetPasswordPage() {
   const [ready, setReady] = useState(false);       // recovery session established
   const [expired, setExpired] = useState(false);   // link is invalid/expired
+  const [email, setEmail] = useState("");          // staff email from the recovery session
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -23,10 +24,11 @@ export function ResetPasswordPage() {
   useEffect(() => {
     if (!supabase) { setExpired(true); return; }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         readyRef.current = true;
         setReady(true);
+        if (session?.user?.email) setEmail(session.user.email);
       }
     });
 
@@ -34,6 +36,7 @@ export function ResetPasswordPage() {
       if (data?.session) {
         readyRef.current = true;
         setReady(true);
+        if (data.session.user?.email) setEmail(data.session.user.email);
       }
     });
 
@@ -143,10 +146,28 @@ export function ResetPasswordPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {/* Hidden username anchor carrying the staff email from the recovery
+              session, so the password manager attaches the new password to the
+              right account when it offers to save. sr-only keeps it in the DOM
+              (managers ignore display:none) without showing it. */}
+          {email && (
+            <input
+              type="email"
+              name="username"
+              autoComplete="username"
+              value={email}
+              readOnly
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+          )}
+
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">New password</label>
             <input
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
               placeholder="Min. 12 characters"
@@ -159,6 +180,7 @@ export function ResetPasswordPage() {
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Confirm password</label>
             <input
               type="password"
+              autoComplete="new-password"
               value={confirm}
               onChange={e => { setConfirm(e.target.value); setError(""); }}
               placeholder="Same again"
