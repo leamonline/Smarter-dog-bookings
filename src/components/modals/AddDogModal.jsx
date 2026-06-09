@@ -29,6 +29,10 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [ownerQuery, setOwnerQuery] = useState("");
   const [selectedOwner, setSelectedOwner] = useState(null); // { id, label, phone }
   const [gender, setGender] = useState("");
+  const [colour, setColour] = useState("");
+  const [neutered, setNeutered] = useState(""); // "" | "yes" | "no" → boolean true/false/undefined
+  const [microchip, setMicrochip] = useState("");
+  const [vet, setVet] = useState("");
   const [groomNotes, setGroomNotes] = useState("");
   const [alerts, setAlerts] = useState([]);
   const [hasAllergy, setHasAllergy] = useState(false);
@@ -136,6 +140,10 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
       dob,
       size,
       gender: gender || undefined,
+      colour: colour.trim() || undefined,
+      neutered: neutered === "yes" ? true : neutered === "no" ? false : undefined,
+      microchip: microchip.trim() || undefined,
+      vet: vet.trim() || undefined,
       humanId: ownerId,
       groomNotes: groomNotes.trim(),
       alerts: finalAlerts.length > 0 ? finalAlerts : undefined,
@@ -310,6 +318,50 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                   <option key={y} value={String(y)}>{y}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Colour & Neutered */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label htmlFor="add-dog-colour" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Colour / Markings</label>
+              <input
+                id="add-dog-colour"
+                value={colour}
+                onChange={(e) => setColour(e.target.value)}
+                placeholder="Black &amp; tan"
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+            </div>
+            <div>
+              <label htmlFor="add-dog-neutered" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Neutered</label>
+              <select id="add-dog-neutered" value={neutered} onChange={(e) => setNeutered(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
+                <option value="">Select</option>
+                <option value="yes">Neutered</option>
+                <option value="no">Not neutered</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Microchip & Vet */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label htmlFor="add-dog-microchip" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Microchip</label>
+              <input
+                id="add-dog-microchip"
+                value={microchip}
+                onChange={(e) => setMicrochip(e.target.value)}
+                placeholder="985..."
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
+            </div>
+            <div>
+              <label htmlFor="add-dog-vet" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Vet</label>
+              <input
+                id="add-dog-vet"
+                value={vet}
+                onChange={(e) => setVet(e.target.value)}
+                placeholder="Vet practice"
+                className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal" />
             </div>
           </div>
 

@@ -37,6 +37,11 @@ interface DbDogRow {
   breed: string;
   age: string | null;
   dob: string | null;
+  sex?: string | null;
+  microchip?: string | null;
+  neutered?: boolean | null;
+  vet?: string | null;
+  colour?: string | null;
   size: string | null;
   human_id: string | null;
   alerts: string[] | null;
@@ -261,6 +266,12 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       // isIncompleteDogProfile filter flags the row for attention.
       breed: sanitiseFieldValue(row.breed),
       age: row.age || "",
+      dob: row.dob || "",
+      sex: row.sex || null,
+      microchip: row.microchip || null,
+      neutered: row.neutered ?? null,
+      vet: row.vet || null,
+      colour: row.colour || null,
       size: (row.size as Dog["size"]) || null,
       humanId: owner ? owner.fullName : (row.human_id || ""),
       _humanId: row.human_id || null,

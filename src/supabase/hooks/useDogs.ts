@@ -387,6 +387,11 @@ export function useDogs(humansById: Record<string, any>) {
       if (updates.breed !== undefined) dbUpdates.breed = updates.breed;
       if (updates.age !== undefined) dbUpdates.age = updates.age;
       if (updates.dob !== undefined) dbUpdates.dob = updates.dob;
+      if (updates.sex !== undefined) dbUpdates.sex = updates.sex;
+      if (updates.microchip !== undefined) dbUpdates.microchip = updates.microchip;
+      if (updates.neutered !== undefined) dbUpdates.neutered = updates.neutered;
+      if (updates.vet !== undefined) dbUpdates.vet = updates.vet;
+      if (updates.colour !== undefined) dbUpdates.colour = updates.colour;
       if (updates.groomNotes !== undefined)
         dbUpdates.groom_notes = updates.groomNotes;
       if (updates.alerts !== undefined) dbUpdates.alerts = updates.alerts;
@@ -447,6 +452,12 @@ export function useDogs(humansById: Record<string, any>) {
         name: savedRow.name,
         breed: savedRow.breed,
         age: savedRow.age || "",
+        dob: savedRow.dob || "",
+        sex: savedRow.sex || null,
+        microchip: savedRow.microchip || null,
+        neutered: savedRow.neutered ?? null,
+        vet: savedRow.vet || null,
+        colour: savedRow.colour || null,
         size: savedRow.size || null,
         humanId: owner ? owner.fullName : savedRow.human_id,
         _humanId: savedRow.human_id || owner?.id || null,
@@ -481,6 +492,12 @@ export function useDogs(humansById: Record<string, any>) {
         name: dogData.name,
         breed: dogData.breed,
         age: dogData.age || "",
+        dob: dogData.dob || "",
+        sex: dogData.gender || null,
+        microchip: dogData.microchip || null,
+        neutered: dogData.neutered ?? null,
+        vet: dogData.vet || null,
+        colour: dogData.colour || null,
         size: dogData.size || null,
         humanId: owner.fullName || dogData.humanId,
         alerts: [],
@@ -502,6 +519,12 @@ export function useDogs(humansById: Record<string, any>) {
             name: offlineDog.name,
             breed: offlineDog.breed,
             age: offlineDog.age,
+            dob: offlineDog.dob || null,
+            sex: offlineDog.sex,
+            microchip: offlineDog.microchip,
+            neutered: offlineDog.neutered,
+            vet: offlineDog.vet,
+            colour: offlineDog.colour,
             size: offlineDog.size,
             human_id: owner.id,
             alerts: [],
@@ -524,6 +547,14 @@ export function useDogs(humansById: Record<string, any>) {
           size: dogData.size || null,
           human_id: owner.id,
           groom_notes: dogData.groomNotes || "",
+          // The Add Dog modal passes gender → sex; dob is "YYYY-MM" or "".
+          // The remaining optional fields are only sent when present.
+          sex: dogData.gender || null,
+          dob: dogData.dob || null,
+          microchip: dogData.microchip || null,
+          neutered: dogData.neutered ?? null,
+          vet: dogData.vet || null,
+          colour: dogData.colour || null,
         })
         .select("*")
         .single();
@@ -541,6 +572,12 @@ export function useDogs(humansById: Record<string, any>) {
         name: data.name,
         breed: data.breed,
         age: data.age || "",
+        dob: data.dob || "",
+        sex: data.sex || null,
+        microchip: data.microchip || null,
+        neutered: data.neutered ?? null,
+        vet: data.vet || null,
+        colour: data.colour || null,
         size: data.size || null,
         humanId: owner.fullName || dogData.humanId,
         _humanId: data.human_id || owner.id,
@@ -621,6 +658,11 @@ export function useDogs(humansById: Record<string, any>) {
         groomNotes: row.groom_notes || "",
         customPrice: row.custom_price,
         dob: row.dob || "",
+        sex: row.sex || null,
+        microchip: row.microchip || null,
+        neutered: row.neutered ?? null,
+        vet: row.vet || null,
+        colour: row.colour || null,
       };
     }
 
@@ -649,6 +691,11 @@ export function useDogs(humansById: Record<string, any>) {
       groomNotes: data.groom_notes || "",
       customPrice: data.custom_price,
       dob: data.dob || "",
+      sex: data.sex || null,
+      microchip: data.microchip || null,
+      neutered: data.neutered ?? null,
+      vet: data.vet || null,
+      colour: data.colour || null,
     };
     setDogs((prev) => ({ ...prev, [data.id]: dogObj }));
 
@@ -696,6 +743,12 @@ export function useDogs(humansById: Record<string, any>) {
         name: row.name,
         breed: sanitiseFieldValue(row.breed),
         age: row.age || "",
+        dob: row.dob || "",
+        sex: row.sex || null,
+        microchip: row.microchip || null,
+        neutered: row.neutered ?? null,
+        vet: row.vet || null,
+        colour: row.colour || null,
         size: row.size || null,
         humanId: humansById?.[hid]?.fullName || hid,
         _humanId: hid,
@@ -765,6 +818,12 @@ export function useDogs(humansById: Record<string, any>) {
           name: row.name,
           breed: sanitiseFieldValue(row.breed),
           age: row.age || "",
+          dob: row.dob || "",
+          sex: row.sex || null,
+          microchip: row.microchip || null,
+          neutered: row.neutered ?? null,
+          vet: row.vet || null,
+          colour: row.colour || null,
           size: row.size || null,
           humanId: owner ? owner.fullName : (row.human_id || ""),
           _humanId: row.human_id || null,
