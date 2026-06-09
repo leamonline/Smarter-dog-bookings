@@ -500,7 +500,7 @@ export function useDogs(humansById: Record<string, any>) {
         colour: dogData.colour || null,
         size: dogData.size || null,
         humanId: owner.fullName || dogData.humanId,
-        alerts: [],
+        alerts: dogData.alerts || [],
         groomNotes: dogData.groomNotes || "",
         customPrice: undefined,
       };
@@ -527,7 +527,7 @@ export function useDogs(humansById: Record<string, any>) {
             colour: offlineDog.colour,
             size: offlineDog.size,
             human_id: owner.id,
-            alerts: [],
+            alerts: offlineDog.alerts,
             groom_notes: offlineDog.groomNotes,
             custom_price: undefined,
           },
@@ -547,6 +547,9 @@ export function useDogs(humansById: Record<string, any>) {
           size: dogData.size || null,
           human_id: owner.id,
           groom_notes: dogData.groomNotes || "",
+          // Persist alerts chosen at creation (behaviour flags + any
+          // "Allergic to …" note). The modal sends an array or undefined.
+          alerts: dogData.alerts || [],
           // The Add Dog modal passes gender → sex; dob is "YYYY-MM" or "".
           // The remaining optional fields are only sent when present.
           sex: dogData.gender || null,
