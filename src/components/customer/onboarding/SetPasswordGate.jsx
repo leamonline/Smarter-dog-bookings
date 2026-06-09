@@ -25,7 +25,7 @@ const MIN_PASSWORD_LENGTH = 8;
  * mode: "set"   → first time ("Set a password")
  *       "reset" → after forgot-password ("Set a new password")
  */
-export function SetPasswordGate({ mode = "set", onComplete, onSignOut }) {
+export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut }) {
   const toast = useToast();
 
   const [password, setPassword] = useState("");
@@ -92,6 +92,34 @@ export function SetPasswordGate({ mode = "set", onComplete, onSignOut }) {
               : "Set a password so next time you can sign in with just your mobile number and password — no waiting for a text."}
           </p>
         </div>
+
+        {/* Read-only identifier the customer signs in with. Visible so they
+            know which account this is, and — crucially — a real in-DOM
+            input with autocomplete="username" so the browser's password
+            manager attaches the phone number to the credential it offers to
+            save. tabIndex={-1} + readOnly keep it informational, not an edit
+            target. Rendered before the password fields so managers pair
+            username → new-password in document order. */}
+        {username && (
+          <div className="mb-4">
+            <label
+              htmlFor="customer-username"
+              className="text-[13px] font-semibold text-[var(--sd-navy)] block mb-1.5"
+            >
+              You&apos;re setting a password for
+            </label>
+            <input
+              id="customer-username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              value={username}
+              readOnly
+              tabIndex={-1}
+              className="portal-input w-full bg-slate-50 text-slate-600"
+            />
+          </div>
+        )}
 
         <fieldset className="mb-4">
           <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">

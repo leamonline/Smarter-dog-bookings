@@ -156,6 +156,7 @@ function CustomerAppContent() {
     return (
       <SetPasswordGate
         mode={mustSetPassword ? "reset" : "set"}
+        username={user?.phone ?? phone}
         onSignOut={signOut}
         onComplete={async () => {
           clearMustSetPassword();
