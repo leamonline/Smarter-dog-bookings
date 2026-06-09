@@ -16,7 +16,7 @@ const { useDogs } = await import("./useDogs.js");
 // The Dogs Directory is now server-driven: the initial load, search, filters,
 // sort, A–Z and counts all go through the search_dogs_directory RPC. The stub
 // records rpc() calls and returns a configurable { rows, total, letters }.
-function makeSupabaseStub({ rpcImpl } = {}) {
+function makeSupabaseStub({ rpcImpl, onInsert } = {}) {
   const channel = {};
   channel.on = vi.fn(() => channel);
   channel.subscribe = vi.fn(() => channel);
@@ -29,8 +29,9 @@ function makeSupabaseStub({ rpcImpl } = {}) {
     ),
   );
 
-  // from() is only hit by the lookup-cache helpers / archived fetch, none of
-  // which these tests trigger — keep it chainable so an accidental call is inert.
+  // from() is hit by the lookup-cache helpers / archived fetch and by
+  // addDog's insert. Keep the read chain inert; capture inserts via onInsert
+  // and echo the payload back (with an id) like a real insert().select().single().
   const from = vi.fn(() => {
     const builder = {};
     builder.select = vi.fn(() => builder);
@@ -40,6 +41,11 @@ function makeSupabaseStub({ rpcImpl } = {}) {
     builder.in = vi.fn(() => Promise.resolve({ data: [], error: null }));
     builder.limit = vi.fn(() => Promise.resolve({ data: [], error: null }));
     builder.single = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    builder.insert = vi.fn((payload) => {
+      onInsert?.(payload);
+      const row = { id: "new-dog", alerts: [], ...payload };
+      return { select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: row, error: null })) })) };
+    });
     return builder;
   });
 
@@ -167,6 +173,33 @@ describe("useDogs", () => {
       expect.objectContaining({ p_offset: 2 }),
     );
     expect(result.current.directoryDogs.map((d) => d.id)).toEqual(["dog-1", "dog-2", "dog-3"]);
+  });
+
+  it("addDog persists behaviour alerts chosen at creation", async () => {
+    let inserted = null;
+    const stub = makeSupabaseStub({ onInsert: (p) => { inserted = p; } });
+    setSupabase(stub);
+    const humans = {
+      "human-1": { id: "human-1", name: "Sarah", surname: "Jones", fullName: "Sarah Jones" },
+    };
+    const { result } = renderHook(() => useDogs(humans));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.addDog({
+        name: "Rex",
+        breed: "Cockapoo",
+        humanId: "human-1",
+        alerts: ["Bites / Nips", "Allergic to chicken"],
+      });
+    });
+
+    // The insert must carry the alerts (the bug was that it didn't), and the
+    // returned dog should surface them.
+    expect(inserted).toBeTruthy();
+    expect(inserted.alerts).toEqual(["Bites / Nips", "Allergic to chicken"]);
+    expect(saved.alerts).toEqual(["Bites / Nips", "Allergic to chicken"]);
   });
 
   it("a directory refetch merges into dogsById without evicting earlier rows", async () => {
