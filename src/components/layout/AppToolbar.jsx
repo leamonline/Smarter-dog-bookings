@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Keyboard, UserCircle2 } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
+import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
 import { DogSilhouette } from "../decor/index.jsx";
 
 // ── Primary nav (always visible) ──────────────────────────────────
@@ -99,6 +100,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
   const location = useLocation();
   const { unread: waUnread } = useWhatsAppUnread();
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
+  const { count: pendingSignups } = usePendingSignupsCount();
+  const humansBadge =
+    pendingSignups > 0 ? (pendingSignups > 99 ? "99+" : String(pendingSignups)) : null;
 
   useEffect(() => {
     if (!openMenu) return;
@@ -128,7 +132,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
-                : item.label;
+                : item.to === "/humans" && pendingSignups > 0
+                  ? `${item.label} — ${pendingSignups > 99 ? "99 plus" : pendingSignups} new ${pendingSignups === 1 ? "customer" : "customers"} awaiting approval`
+                  : item.label;
             return (
               <NavLink
                 key={item.to}
@@ -156,6 +162,14 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                     aria-hidden="true"
                   >
                     {waBadge}
+                  </span>
+                )}
+                {item.to === "/humans" && humansBadge && (
+                  <span
+                    className="ml-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-brand-yellow text-brand-purple text-[10px] font-black flex items-center justify-center leading-none shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
+                    aria-hidden="true"
+                  >
+                    {humansBadge}
                   </span>
                 )}
               </NavLink>
@@ -367,7 +381,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
                 ? `${item.label} — ${waUnread > 99 ? "99 plus" : waUnread} unread`
-                : item.label;
+                : item.to === "/humans" && pendingSignups > 0
+                  ? `${item.label} — ${pendingSignups > 99 ? "99 plus" : pendingSignups} new ${pendingSignups === 1 ? "customer" : "customers"} awaiting approval`
+                  : item.label;
             return (
               <NavLink
                 key={item.to}
@@ -396,6 +412,14 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
                         aria-hidden="true"
                       >
                         {waBadge}
+                      </span>
+                    )}
+                    {item.to === "/humans" && humansBadge && (
+                      <span
+                        className="absolute top-1 right-[calc(50%-20px)] min-w-[16px] h-[16px] px-1 rounded-full bg-brand-yellow text-brand-purple text-[9px] font-bold flex items-center justify-center leading-none"
+                        aria-hidden="true"
+                      >
+                        {humansBadge}
                       </span>
                     )}
                   </>

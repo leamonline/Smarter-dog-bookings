@@ -134,18 +134,19 @@ export function useHumans() {
     noDogs: false,
     noPhone: false,
     whatsapp: false,
+    newCustomers: false,
   });
   const [dirLetter, setDirLetterState] = useState<string | null>(null);
 
   const directoryRef = useRef<any[]>([]);
   const queryRef = useRef<{
     search: string;
-    filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean };
+    filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean; newCustomers: boolean };
     sort: "first" | "last";
     letter: string | null;
   }>({
     search: "",
-    filters: { flagged: false, noDogs: false, noPhone: false, whatsapp: false },
+    filters: { flagged: false, noDogs: false, noPhone: false, whatsapp: false, newCustomers: false },
     sort: "first",
     letter: null,
   });
@@ -175,7 +176,7 @@ export function useHumans() {
     async (
       params: {
         search: string;
-        filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean };
+        filters: { flagged: boolean; noDogs: boolean; noPhone: boolean; whatsapp: boolean; newCustomers: boolean };
         sort: "first" | "last";
         letter: string | null;
       },
@@ -196,6 +197,7 @@ export function useHumans() {
         p_no_dogs: !!params.filters.noDogs,
         p_no_phone: !!params.filters.noPhone,
         p_whatsapp: !!params.filters.whatsapp,
+        p_pending: !!params.filters.newCustomers,
         p_letter: params.letter || null,
         p_sort: params.sort || "first",
         p_limit: PAGE_SIZE,
@@ -337,7 +339,7 @@ export function useHumans() {
   // Filter chips combine with each other and with search; each toggle
   // re-runs the fetch effect with the new flags.
   const toggleDirFilter = useCallback(
-    (key: "flagged" | "noDogs" | "noPhone" | "whatsapp") => {
+    (key: "flagged" | "noDogs" | "noPhone" | "whatsapp" | "newCustomers") => {
       setDirFilters((prev) => ({ ...prev, [key]: !prev[key] }));
     },
     [],
