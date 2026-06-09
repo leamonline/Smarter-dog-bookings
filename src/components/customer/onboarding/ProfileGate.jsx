@@ -2,7 +2,8 @@ import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
-import { PawPrint, MapPin, Loader2, Search } from "lucide-react";
+import { PawPrint } from "lucide-react";
+import { AddressPicker } from "./AddressPicker.jsx";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -17,106 +18,35 @@ import {
  * customer can't book without these on file. The same requirement is enforced
  * server-side in create_customer_booking_group().
  *
- * Address capture: the customer types their postcode and picks their property
- * from a dropdown of real Royal Mail PAF addresses (e.g. "6 Back Lane, Mottram,
- * Hyde, SK14 6JE"). The lookup goes through the `postcode-lookup` Edge Function
- * (which holds the APITier key server-side + rate-limits). A manual-entry
- * fallback covers a missing premises or a lookup outage so a booking is never
- * blocked by the address step.
+ * Address capture is handled by the shared AddressPicker (postcode lookup with
+ * a manual fallback). This gate is for already-approved customers; brand-new
+ * self-signups go through JoinThePackOnboarding instead.
  */
 export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
   const toast = useToast();
 
   const [name, setName] = useState(humanRecord?.name?.trim() || "");
   const [surname, setSurname] = useState(humanRecord?.surname?.trim() || "");
-
   const existingAddress = humanRecord?.address?.trim() || "";
-  // If the salon already has an address for them (staff-entered, etc.), keep
-  // it and only ask for the policy tick — don't make them re-type it.
-  const [editingAddress, setEditingAddress] = useState(!existingAddress);
 
-  const [postcode, setPostcode] = useState("");
-  const [normalisedPostcode, setNormalisedPostcode] = useState("");
-  // idle | searching | results | none | invalid | error
-  const [lookupStatus, setLookupStatus] = useState("idle");
-  const [results, setResults] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState("");
-
-  // Manual fallback (no lookup) — free-text address.
-  const [manualMode, setManualMode] = useState(false);
-  const [manualAddress, setManualAddress] = useState("");
-  const [manualPostcode, setManualPostcode] = useState("");
+  // { ready, address, postcode, keepingExisting } reported by AddressPicker.
+  const [addr, setAddr] = useState({
+    ready: Boolean(existingAddress),
+    address: existingAddress || null,
+    postcode: null,
+    keepingExisting: Boolean(existingAddress),
+  });
 
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  async function findAddresses() {
-    const pc = postcode.trim();
-    if (!pc) return;
-    setError(null);
-    setResults([]);
-    setSelectedIndex("");
-    setLookupStatus("searching");
-    try {
-      const { data, error: fnErr } = await supabase.functions.invoke(
-        "postcode-lookup",
-        { body: { postcode: pc } },
-      );
-      if (fnErr) {
-        let payload = null;
-        try {
-          payload = await fnErr.context?.json?.();
-        } catch {
-          // ignore — fall through to generic error
-        }
-        if (payload?.error === "invalid_postcode") {
-          setLookupStatus("invalid");
-          return;
-        }
-        if (payload?.error === "rate_limited") {
-          setLookupStatus("error");
-          setError("Too many lookups just now — please wait a moment and try again.");
-          return;
-        }
-        setLookupStatus("error");
-        return;
-      }
-      const addrs = Array.isArray(data?.addresses) ? data.addresses : [];
-      setNormalisedPostcode(data?.postcode || pc.toUpperCase());
-      if (addrs.length === 0) {
-        setLookupStatus("none");
-        return;
-      }
-      setResults(addrs);
-      setLookupStatus("results");
-      if (addrs.length === 1) setSelectedIndex("0");
-    } catch {
-      setLookupStatus("error");
-    }
-  }
-
-  const keepingExisting = Boolean(existingAddress) && !editingAddress;
-  const pickedReady =
-    lookupStatus === "results" &&
-    selectedIndex !== "" &&
-    Boolean(results[Number(selectedIndex)]);
-  const manualReady = manualMode && manualAddress.trim() !== "";
-  const addressReady = keepingExisting || manualReady || pickedReady;
-
   const canSubmit =
     name.trim() !== "" &&
     surname.trim() !== "" &&
-    addressReady &&
+    addr.ready &&
     policiesAccepted &&
     !saving;
-
-  function enterManual() {
-    setManualMode(true);
-    setLookupStatus("idle");
-    setResults([]);
-    setSelectedIndex("");
-  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -133,15 +63,9 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
       policies_version: POLICIES_VERSION,
     };
 
-    if (!keepingExisting) {
-      if (manualMode) {
-        payload.address = manualAddress.trim();
-        if (manualPostcode.trim()) payload.postcode = manualPostcode.trim().toUpperCase();
-      } else {
-        const sel = results[Number(selectedIndex)];
-        payload.address = sel.line;
-        payload.postcode = sel.postcode || normalisedPostcode;
-      }
+    if (!addr.keepingExisting) {
+      payload.address = addr.address;
+      if (addr.postcode) payload.postcode = addr.postcode;
     }
 
     const { error: err } = await supabase
@@ -205,129 +129,7 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
           <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">
             Your address
           </legend>
-
-          {keepingExisting ? (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <MapPin size={16} className="text-slate-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div className="flex-1 text-sm text-[var(--sd-navy)]">
-                {existingAddress}
-                <button
-                  type="button"
-                  className="block mt-1 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
-                  onClick={() => setEditingAddress(true)}
-                >
-                  Update address
-                </button>
-              </div>
-            </div>
-          ) : manualMode ? (
-            <>
-              <textarea
-                aria-label="Full address"
-                value={manualAddress}
-                onChange={(e) => setManualAddress(e.target.value)}
-                placeholder={"Your full address\ne.g. 6 Back Lane, Mottram, Hyde"}
-                rows={3}
-                className="portal-input w-full resize-y"
-              />
-              <input
-                aria-label="Postcode"
-                autoComplete="postal-code"
-                value={manualPostcode}
-                onChange={(e) => setManualPostcode(e.target.value)}
-                placeholder="Postcode"
-                className="portal-input uppercase mt-2"
-              />
-              <button
-                type="button"
-                className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
-                onClick={() => {
-                  setManualMode(false);
-                  setLookupStatus("idle");
-                }}
-              >
-                Search by postcode instead
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <input
-                  aria-label="Postcode"
-                  autoComplete="postal-code"
-                  value={postcode}
-                  onChange={(e) => {
-                    setPostcode(e.target.value);
-                    if (lookupStatus !== "idle") setLookupStatus("idle");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      findAddresses();
-                    }
-                  }}
-                  placeholder="Enter your postcode"
-                  className="portal-input uppercase"
-                />
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--secondary portal-btn--small whitespace-nowrap"
-                  onClick={findAddresses}
-                  disabled={lookupStatus === "searching" || !postcode.trim()}
-                >
-                  {lookupStatus === "searching" ? (
-                    <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-                  ) : (
-                    <>
-                      <Search size={14} aria-hidden="true" /> Find address
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {lookupStatus === "results" && (
-                <select
-                  aria-label="Select your address"
-                  value={selectedIndex}
-                  onChange={(e) => setSelectedIndex(e.target.value)}
-                  className="portal-input mt-2.5 w-full"
-                >
-                  <option value="">
-                    {results.length} address{results.length === 1 ? "" : "es"} found — select yours…
-                  </option>
-                  {results.map((a, i) => (
-                    <option key={a.udprn || i} value={String(i)}>
-                      {a.line}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {lookupStatus === "invalid" && (
-                <p className="text-[13px] text-brand-coral mt-1.5">
-                  That doesn&apos;t look like a full UK postcode. Please check and try again.
-                </p>
-              )}
-              {lookupStatus === "none" && (
-                <p className="text-[13px] text-brand-coral mt-1.5">
-                  No addresses found for that postcode.
-                </p>
-              )}
-              {lookupStatus === "error" && (
-                <p className="text-[13px] text-brand-coral mt-1.5">
-                  Couldn&apos;t search just now — please try again, or enter your address manually.
-                </p>
-              )}
-
-              <button
-                type="button"
-                className="block mt-2 text-[13px] text-brand-purple font-semibold bg-transparent border-none p-0 cursor-pointer"
-                onClick={enterManual}
-              >
-                Can&apos;t find your address? Enter it manually
-              </button>
-            </>
-          )}
+          <AddressPicker existingAddress={existingAddress} onChange={setAddr} />
         </fieldset>
 
         {/* Policies */}

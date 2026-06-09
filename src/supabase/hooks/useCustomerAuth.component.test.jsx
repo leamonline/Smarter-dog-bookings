@@ -159,7 +159,7 @@ describe("useCustomerAuth", () => {
     expect(outcome).toMatchObject({ on_file: true, has_password: false });
   });
 
-  it("checkPhone surfaces the not-on-file error when the lookup says false", async () => {
+  it("checkPhone reports not-on-file without an error (the self-signup entry point)", async () => {
     const stub = makeStub({ session: null, onFile: false });
     setSupabase(stub);
     const { result } = renderHook(() => useCustomerAuth());
@@ -169,8 +169,10 @@ describe("useCustomerAuth", () => {
     await act(async () => {
       outcome = await result.current.checkPhone("07700 900111");
     });
+    // An unknown number is no longer a dead-end — it routes into Join the Pack,
+    // so checkPhone returns on_file:false without setting a user-facing error.
     expect(outcome.on_file).toBe(false);
-    expect(result.current.error).toMatch(/don't have that number on file/i);
+    expect(result.current.error).toBeNull();
     expect(stub.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 

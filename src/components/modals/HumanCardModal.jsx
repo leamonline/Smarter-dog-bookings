@@ -101,12 +101,19 @@ export function HumanCardModal({
   onSendMessage,
   onMergeHumans,
   onArchiveHuman,
+  // "Join the Pack" self-signup approval. Pending = approved_at NULL +
+  // signup_submitted_at set; the header surfaces the badge + buttons.
+  onApproveSignup,
+  onRejectSignup,
 }) {
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
   const [pendingArchive, setPendingArchive] = useState(false);
+  const [pendingReject, setPendingReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [signupBusy, setSignupBusy] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -241,6 +248,46 @@ export function HumanCardModal({
     }
   };
 
+  // Pending self-signup: clears once approved (approvedAt set) or rejected
+  // (the row is archived + dropped from the maps, closing the modal).
+  const isPendingSignup =
+    !!onApproveSignup && !human.approvedAt && !!human.signupSubmittedAt;
+
+  const handleApproveSignup = useCallback(async () => {
+    if (!onApproveSignup || signupBusy) return;
+    setSignupBusy(true);
+    try {
+      const result = await onApproveSignup(human.id || humanId);
+      if (result?.ok) {
+        toast.show("Customer approved — they can book now", "success");
+      } else {
+        toast.show(result?.error || "Couldn't approve — please try again", "error");
+      }
+    } finally {
+      setSignupBusy(false);
+    }
+  }, [onApproveSignup, signupBusy, human.id, humanId, toast]);
+
+  const handleRejectSignup = useCallback(
+    async (reason) => {
+      if (!onRejectSignup || signupBusy) return;
+      setSignupBusy(true);
+      try {
+        const result = await onRejectSignup(human.id || humanId, reason);
+        setPendingReject(false);
+        if (result?.ok) {
+          toast.show("Signup rejected", "success");
+          onClose?.();
+        } else {
+          toast.show(result?.error || "Couldn't reject — please try again", "error");
+        }
+      } finally {
+        setSignupBusy(false);
+      }
+    },
+    [onRejectSignup, signupBusy, human.id, humanId, toast, onClose],
+  );
+
   const handleCopyPhone = () => {
     if (!human.phone) return;
     if (navigator.clipboard?.writeText) {
@@ -367,6 +414,13 @@ export function HumanCardModal({
           onCopyPhone={handleCopyPhone}
           overflowItems={overflowItems}
           nameInputRef={nameInputRef}
+          isPendingSignup={isPendingSignup}
+          signupBusy={signupBusy}
+          onApproveSignup={handleApproveSignup}
+          onRejectSignup={() => {
+            setRejectReason("");
+            setPendingReject(true);
+          }}
         />
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
@@ -553,6 +607,52 @@ export function HumanCardModal({
           }}
           onCancel={() => setPendingArchive(false)}
         />
+      )}
+
+      {pendingReject && (
+        <AccessibleModal
+          onClose={() => (signupBusy ? undefined : setPendingReject(false))}
+          titleId="reject-signup-title"
+          className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full animate-[toastIn_0.15s_ease-out]"
+          zIndex={1100}
+        >
+          <h2
+            id="reject-signup-title"
+            className="text-base font-bold text-slate-800 m-0 mb-1"
+          >
+            Reject this signup?
+          </h2>
+          <p className="text-sm text-slate-600 m-0 mb-3 leading-relaxed">
+            They'll be archived and won't be able to book. Add an optional note
+            for your records (kept on their history flag).
+          </p>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason (optional)"
+            aria-label="Rejection reason (optional)"
+            rows={2}
+            className="w-full text-sm bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 mb-4 outline-none font-inherit text-slate-700 resize-none focus:border-brand-teal"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setPendingReject(false)}
+              disabled={signupBusy}
+              className="btn btn-ghost"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRejectSignup(rejectReason.trim() || null)}
+              disabled={signupBusy}
+              className="btn btn-danger"
+            >
+              {signupBusy ? "Rejecting…" : "Reject signup"}
+            </button>
+          </div>
+        </AccessibleModal>
       )}
 
       {showMerge && onMergeHumans && (

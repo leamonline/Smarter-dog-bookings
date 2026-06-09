@@ -351,6 +351,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     addHuman: sbAddHuman,
     deleteHuman: sbDeleteHuman,
     mergeHumans: sbMergeHumans,
+    approveSignup: sbApproveSignup,
+    rejectSignup: sbRejectSignup,
     fetchArchivedHumans: sbFetchArchivedHumans,
     fetchHumanById: sbFetchHumanById,
     findHumanByFullName: sbFindHumanByFullName,
@@ -823,6 +825,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onArchiveHuman={(hid) =>
                     updateHuman(hid, { archivedAt: new Date().toISOString() })
                   }
+                  onApproveSignup={sbApproveSignup}
+                  onRejectSignup={sbRejectSignup}
                 />
               </Suspense>
             </ErrorBoundary>

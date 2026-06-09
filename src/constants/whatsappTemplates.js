@@ -28,6 +28,11 @@
  *   - ready_for_collection_v1   (en_GB, 2 params, PENDING Meta approval —
  *                                {{1}} dog name, {{2}} minutes. Sends fail
  *                                with a 132xxx gateway error until Approved.)
+ *   - welcome_to_the_pack_v1    (en_GB, 1 param, PENDING Meta approval —
+ *                                {{1}} customer first name. Sent when staff
+ *                                approve a Join the Pack self-signup. Sends
+ *                                fail with a 132xxx gateway error until it is
+ *                                Approved in Meta Business Manager.)
  *   - hello_world               (en_US, Meta's starter — not customer-facing)
  * Add a new picker entry here only after the corresponding template
  * is Approved in Meta — otherwise sends will fail at the gateway.
@@ -97,6 +102,22 @@ export const WHATSAPP_TEMPLATES = [
     ],
     preview: (values) =>
       `Hi! ${values.dog_name || PLACEHOLDER.dog_name} is all done and ready for collection in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon — Smarter Dog Grooming Salon.`,
+  },
+  {
+    // PENDING Meta approval (as of 2026-06-09). Sent automatically when staff
+    // approve a "Join the Pack" self-signup. Until this template is Approved in
+    // Meta Business Manager → WhatsApp Manager → Message Templates, sends fail
+    // with a 132xxx gateway error and the welcome edge function falls back to
+    // SMS / email. Same caveat as ready_for_collection_v1 above.
+    name: "welcome_to_the_pack_v1",
+    label: "Welcome to the Pack",
+    description: "Welcome a newly-approved self-signup customer",
+    language: "en_GB",
+    params: [
+      { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
+    ],
+    preview: (values) =>
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, welcome to the Pack! 🐾 You're all set up with Smarter Dog Grooming Salon and can now book appointments. See you soon!`,
   },
 ];
 

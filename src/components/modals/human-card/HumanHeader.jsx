@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy, MoreHorizontal, Pencil, Phone, X } from "lucide-react";
+import { Check, Copy, Clock, MoreHorizontal, Pencil, Phone, X } from "lucide-react";
 import { titleCase } from "../../../utils/text.js";
 import { telLink, waLink } from "../dog-card/helpers.js";
 
@@ -25,6 +25,10 @@ export function HumanHeader({
   onCopyPhone,
   overflowItems,
   nameInputRef,
+  isPendingSignup,
+  signupBusy,
+  onApproveSignup,
+  onRejectSignup,
 }) {
   const [hovering, setHovering] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,8 +56,16 @@ export function HumanHeader({
   return (
     <header className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
       <div className="flex-1 min-w-0">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          Human profile
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Human profile
+          </span>
+          {isPendingSignup && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+              <Clock size={10} strokeWidth={2.6} aria-hidden="true" />
+              Pending approval
+            </span>
+          )}
         </div>
         {isEditing ? (
           <>
@@ -146,6 +158,27 @@ export function HumanHeader({
                 <span className="text-[13px] text-slate-400 italic">No phone</span>
               )}
             </div>
+            {isPendingSignup && (
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={onApproveSignup}
+                  disabled={signupBusy}
+                  className="inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-full border-none text-[13px] font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Check size={14} strokeWidth={2.6} aria-hidden="true" />
+                  {signupBusy ? "Approving…" : "Approve"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onRejectSignup}
+                  disabled={signupBusy}
+                  className="inline-flex items-center py-1.5 px-3.5 rounded-full border-[1.5px] border-brand-coral/40 bg-white text-brand-coral-text text-[13px] font-bold font-inherit cursor-pointer transition-colors hover:bg-brand-coral-light disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Reject…
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

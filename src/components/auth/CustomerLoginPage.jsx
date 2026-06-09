@@ -68,6 +68,8 @@ export function CustomerLoginPage({
   const [code, setCode] = useState("");
   // Internal stage flag for "we know this number has a password, ask for it".
   const [awaitingPassword, setAwaitingPassword] = useState(false);
+  // "We don't recognise this number" → offer self-signup (Join the Pack).
+  const [signupPrompt, setSignupPrompt] = useState(false);
   // Whether the OTP we sent is a forgot-password reset (forces a NEW password)
   // rather than a first-time set.
   const [otpIsReset, setOtpIsReset] = useState(false);
@@ -81,8 +83,15 @@ export function CustomerLoginPage({
   const captchaTokenRef = useRef(null);
   const turnstileRef = useRef(null);
 
-  // otpSent (code entry) takes precedence; then the password ask; else phone.
-  const stage = otpSent ? "code" : awaitingPassword ? "password" : "phone";
+  // otpSent (code entry) takes precedence; then the signup offer; then the
+  // password ask; else phone.
+  const stage = otpSent
+    ? "code"
+    : signupPrompt
+      ? "signup"
+      : awaitingPassword
+        ? "password"
+        : "phone";
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -131,8 +140,13 @@ export function CustomerLoginPage({
     setSubmitting(true);
     try {
       const result = await onCheckPhone(normalised);
-      if (result?.error || !result?.on_file) {
-        // hook set a user-facing error (rate limit / not on file / offline)
+      if (result?.error) {
+        // hook set a user-facing error (rate limit / offline)
+        return;
+      }
+      if (!result?.on_file) {
+        // Unknown number — offer to register rather than dead-ending.
+        setSignupPrompt(true);
         return;
       }
       if (result.has_password) {
@@ -178,6 +192,33 @@ export function CustomerLoginPage({
         // Token is single-use — get a fresh one for the retry.
         resetCaptcha();
         setPassword("");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // From the signup offer: send the first OTP to a brand-new number. The OTP
+  // verify creates the auth account; CustomerApp then walks them through the
+  // Join the Pack setup (password, then questions).
+  const handleStartSignup = async () => {
+    if (otpCooldown > 0) {
+      setLocalError(`Please wait ${otpCooldown}s before trying again.`);
+      return;
+    }
+    if (!captchaTokenRef.current) {
+      setLocalError(CAPTCHA_PENDING_ERROR);
+      return;
+    }
+    setLocalError("");
+    setSubmitting(true);
+    try {
+      setOtpIsReset(false);
+      const send = await onSendOtp(captchaTokenRef.current);
+      if (send?.error) {
+        resetCaptcha();
+      } else {
+        setOtpCooldown(OTP_RESEND_SECONDS);
       }
     } finally {
       setSubmitting(false);
@@ -230,6 +271,7 @@ export function CustomerLoginPage({
   const handleUseDifferentNumber = () => {
     onResetOtp();
     setAwaitingPassword(false);
+    setSignupPrompt(false);
     setOtpIsReset(false);
     setPassword("");
     setCode("");
@@ -246,14 +288,22 @@ export function CustomerLoginPage({
   const linkButtonClass = `w-full text-sm font-semibold no-underline rounded text-[var(--sd-navy-soft)] hover:text-[var(--sd-navy)] py-2 ${focusRing}`;
 
   const heading =
-    stage === "code" ? "Enter your code" : stage === "password" ? "Welcome back" : "Sign in";
+    stage === "code"
+      ? "Enter your code"
+      : stage === "password"
+        ? "Welcome back"
+        : stage === "signup"
+          ? "New here?"
+          : "Sign in";
 
   const instruction =
     stage === "code"
       ? `We just texted a code to ${phone}. Codes expire after a few minutes.`
       : stage === "password"
         ? `Enter the password for ${phone}.`
-        : "Enter your mobile number to sign in.";
+        : stage === "signup"
+          ? `We don't recognise ${phone} yet. Join the Pack and we'll get you set up.`
+          : "Enter your mobile number to sign in.";
 
   // Shared Turnstile panel for the stages that make a Supabase auth call.
   const turnstilePanel = (
@@ -389,6 +439,36 @@ export function CustomerLoginPage({
                   : otpCooldown > 0
                     ? `Try again in ${otpCooldown}s`
                     : "Continue"}
+              </button>
+            </form>
+          )}
+
+          {stage === "signup" && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleStartSignup();
+              }}
+              className="space-y-6"
+            >
+              {turnstilePanel}
+
+              <button
+                type="submit"
+                disabled={submitting || otpCooldown > 0}
+                aria-busy={submitting}
+                className={submitButtonClass}
+                style={{ boxShadow: "var(--shadow-sd-cta-yellow)" }}
+              >
+                {submitting
+                  ? "Sending…"
+                  : otpCooldown > 0
+                    ? `Try again in ${otpCooldown}s`
+                    : "Join the Pack — text me a code"}
+              </button>
+
+              <button type="button" onClick={handleUseDifferentNumber} className={linkButtonClass}>
+                Use a different number
               </button>
             </form>
           )}
