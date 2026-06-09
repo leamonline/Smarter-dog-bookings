@@ -134,8 +134,8 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                         </p>
                         <p className="body-font text-base" style={{ color: colors.teal }}>
                             If you have questions about your dog's coat or how to care for it between grooms, please message us on{' '}
-                            <a href="sms:07507731487" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
-                                07507 731487
+                            <a href="https://wa.me/447873329440" target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
+                                WhatsApp
                             </a>
                         </p>
                     </div>

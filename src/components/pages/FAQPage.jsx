@@ -124,27 +124,16 @@ const FAQPage = ({ onBookClick }) => {
                                     color: colors.plum
                                 }}
                             >
-                                Book your visit
+                                Book online
                             </button>
                             <a
-                                href="https://wa.me/447507731487"
+                                href="https://wa.me/447873329440"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
                                 style={{ backgroundColor: '#25D366', color: colors.plum }}
                             >
-                                💬 WhatsApp us
-                            </a>
-                            <a
-                                href="sms:07507731487"
-                                className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 border-2 flex items-center gap-2"
-                                style={{
-                                    borderColor: colors.teal,
-                                    color: colors.teal,
-                                    backgroundColor: 'transparent'
-                                }}
-                            >
-                                ✉️ Text 07507 731487
+                                WhatsApp us
                             </a>
                         </div>
                     </div>

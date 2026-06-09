@@ -236,7 +236,7 @@ const CommunityPage = () => {
                                 We're always looking for trusted recommendations to share with our customers. If you know a wonderful local pet service, let us know and we'll add them to the list.
                             </p>
                             <a
-                                href="mailto:leam@smarterdog.co.uk?subject=Community%20connection%20suggestion%21"
+                                href="mailto:bookings@smarterdog.co.uk?subject=Community%20connection%20suggestion%21"
                                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
                                 style={{ backgroundColor: colors.green, color: colors.plum }}
                             >

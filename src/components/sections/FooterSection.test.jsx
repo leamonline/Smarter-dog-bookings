@@ -31,9 +31,8 @@ describe('FooterSection', () => {
   it('renders contact methods', () => {
     renderFooter();
 
-    expect(screen.getByRole('link', { name: 'leam@smarterdog.co.uk' })).toHaveAttribute('href', 'mailto:leam@smarterdog.co.uk');
-    expect(screen.getByRole('link', { name: /Message 07507 731487/i })).toHaveAttribute('href', 'sms:07507731487');
-    expect(screen.getByRole('link', { name: /WhatsApp Available/i })).toHaveAttribute('href', 'https://wa.me/447507731487');
+    expect(screen.getByRole('link', { name: 'bookings@smarterdog.co.uk' })).toHaveAttribute('href', 'mailto:bookings@smarterdog.co.uk');
+    expect(screen.getByRole('link', { name: /WhatsApp Available/i })).toHaveAttribute('href', 'https://wa.me/447873329440');
   });
 
   it('renders legal links', () => {

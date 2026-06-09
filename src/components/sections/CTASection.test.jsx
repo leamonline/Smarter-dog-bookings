@@ -16,7 +16,7 @@ describe('CTASection', () => {
     const onBookClick = vi.fn();
     render(<CTASection onBookClick={onBookClick} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Book your visit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Book online' }));
     expect(onBookClick).toHaveBeenCalledTimes(1);
     expect(onBookClick).toHaveBeenCalledWith('CTA Section');
   });
@@ -24,13 +24,7 @@ describe('CTASection', () => {
   it('renders WhatsApp link as primary contact fallback', () => {
     render(<CTASection onBookClick={() => {}} />);
 
-    expect(screen.getByRole('link', { name: /WhatsApp us/i })).toHaveAttribute('href', 'https://wa.me/447507731487');
-  });
-
-  it('renders text link with correct sms href', () => {
-    render(<CTASection onBookClick={() => {}} />);
-
-    expect(screen.getByRole('link', { name: /Text 07507 731487/i })).toHaveAttribute('href', 'sms:07507731487');
+    expect(screen.getByRole('link', { name: /WhatsApp us/i })).toHaveAttribute('href', 'https://wa.me/447873329440');
   });
 
   it('uses brand pink background', () => {

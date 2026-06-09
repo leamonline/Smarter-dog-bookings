@@ -127,13 +127,10 @@ const FooterSection = () => {
                             style={{ color: 'rgba(255,255,255,0.9)' }}
                         >
                             <p>
-                                <a href="mailto:leam@smarterdog.co.uk" className="hover:underline">leam@smarterdog.co.uk</a>
-                            </p>
-                            <p>
-                                <a href="sms:07507731487" className="text-xl font-bold hover:underline" style={{ color: 'white' }}>Message 07507 731487</a>
+                                <a href="mailto:bookings@smarterdog.co.uk" className="hover:underline">bookings@smarterdog.co.uk</a>
                             </p>
                             <a
-                                href="https://wa.me/447507731487"
+                                href="https://wa.me/447873329440"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full text-base transition-opacity hover:opacity-90"

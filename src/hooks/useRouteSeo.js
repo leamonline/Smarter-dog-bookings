@@ -85,7 +85,7 @@ const FAQ_SCHEMA = {
       name: 'How do I book an appointment?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'You can request an appointment through our website or call 07507 731487 and we respond as quickly as possible during opening hours.',
+        text: 'You can request an appointment through our website or message us on WhatsApp, and we respond as quickly as possible during opening hours.',
       },
     },
   ],
@@ -98,7 +98,7 @@ const LOCAL_BUSINESS_SCHEMA = {
   name: 'Smarter Dog Grooming Salon',
   image: OG_IMAGE,
   url: SITE_URL,
-  telephone: '+447507731487',
+  telephone: '+447873329440',
   priceRange: '££',
   address: {
     '@type': 'PostalAddress',

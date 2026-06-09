@@ -98,7 +98,7 @@ const OurApproachPage = ({ onBookClick }) => {
                                 color: colors.plum
                             }}
                         >
-                            Book your visit
+                            Book online
                         </button>
                     </div>
                 </div>

@@ -36,9 +36,9 @@ describe('Navigation', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('points "Book your visit" at the external booking portal', () => {
+  it('points "Book online" at the external booking portal', () => {
     renderNavigation();
 
-    expect(screen.getByRole('link', { name: /Book your visit/i })).toHaveAttribute('href', BOOKING_URL);
+    expect(screen.getByRole('link', { name: /Book online/i })).toHaveAttribute('href', BOOKING_URL);
   });
 });

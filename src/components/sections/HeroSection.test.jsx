@@ -14,7 +14,7 @@ describe('HeroSection', () => {
   it('renders booking button with brand colors', () => {
     render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
 
-    const button = screen.getByRole('button', { name: /Book your visit/i });
+    const button = screen.getByRole('button', { name: /Book online/i });
     expect(button).toHaveStyle({ backgroundColor: colors.yellow, color: colors.plum });
   });
 
@@ -22,7 +22,7 @@ describe('HeroSection', () => {
     const onBookClick = vi.fn();
     render(<HeroSection isLoaded={true} onBookClick={onBookClick} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Book your visit/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Book online/i }));
     expect(onBookClick).toHaveBeenCalledWith('Hero Section');
   });
 });

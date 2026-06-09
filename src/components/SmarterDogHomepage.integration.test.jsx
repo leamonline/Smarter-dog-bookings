@@ -54,11 +54,11 @@ describe('SmarterDogHomepage integration', () => {
     renderHomepage();
 
     // The nav CTA is a real external link to the portal.
-    const bookLink = screen.getAllByRole('link', { name: /Book your visit/i })[0];
+    const bookLink = screen.getAllByRole('link', { name: /Book online/i })[0];
     expect(bookLink).toHaveAttribute('href', BOOKING_URL);
 
     // In-page CTA buttons trigger a redirect to the portal on click.
-    const bookButton = screen.getAllByRole('button', { name: /Book your visit/i })[0];
+    const bookButton = screen.getAllByRole('button', { name: /Book online/i })[0];
     fireEvent.click(bookButton);
     expect(goToBooking).toHaveBeenCalled();
   });
@@ -66,8 +66,8 @@ describe('SmarterDogHomepage integration', () => {
   it('shows contact details in footer', () => {
     renderHomepage();
 
-    expect(screen.getByText('leam@smarterdog.co.uk')).toBeInTheDocument();
-    expect(screen.getAllByText(/07507 731487/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('bookings@smarterdog.co.uk')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /WhatsApp/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Ashton-under-Lyne').length).toBeGreaterThan(0);
     expect(screen.getByText('OL6 8HD')).toBeInTheDocument();
   });

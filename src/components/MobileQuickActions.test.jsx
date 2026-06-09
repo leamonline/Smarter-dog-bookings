@@ -15,9 +15,9 @@ describe('MobileQuickActions', () => {
     expect(onBookClick).toHaveBeenCalledWith('Mobile Quick Actions');
   });
 
-  it('renders message link with sms href', () => {
+  it('renders WhatsApp link with wa.me href', () => {
     render(<MobileQuickActions onBookClick={() => {}} />);
 
-    expect(screen.getByRole('link', { name: /Message salon/i })).toHaveAttribute('href', 'sms:07507731487');
+    expect(screen.getByRole('link', { name: /WhatsApp us/i })).toHaveAttribute('href', 'https://wa.me/447873329440');
   });
 });

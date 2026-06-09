@@ -46,9 +46,9 @@ test.describe('Homepage E2E', () => {
       }),
     );
 
-    // Hero/CTA "Book your visit" buttons are desktop-only (hidden md:flex);
+    // Hero/CTA "Book online" buttons are desktop-only (hidden md:flex);
     // the sticky MobileQuickActions "Book now" button is the mobile path.
-    const ctaName = isMobile ? /^Book now$/i : /^Book your visit$/i;
+    const ctaName = isMobile ? /^Book now$/i : /^Book online$/i;
     await page.getByRole('button', { name: ctaName }).first().click();
 
     await page.waitForURL('**/customer/login');
@@ -62,7 +62,7 @@ test.describe('Homepage E2E', () => {
 
     await expect(footerHeading).toBeVisible();
     await expect(footer.getByText('183 Kings Road', { exact: true })).toBeVisible();
-    await expect(footer.getByRole('link', { name: 'leam@smarterdog.co.uk' })).toBeVisible();
+    await expect(footer.getByRole('link', { name: 'bookings@smarterdog.co.uk' })).toBeVisible();
   });
 
   test('has no automatically detectable accessibility violations on home view', async ({ page }) => {

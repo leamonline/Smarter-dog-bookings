@@ -114,7 +114,7 @@ const Navigation = ({ isLoaded }) => {
                                 color: colors.plum
                             }}
                         >
-                            Book your visit
+                            Book online
                         </a>
                     </div>
                 </div>
@@ -190,7 +190,7 @@ const Navigation = ({ isLoaded }) => {
                         style={{ backgroundColor: colors.green, color: colors.plum }}
                         role="menuitem"
                     >
-                        Book your visit
+                        Book online
                     </a>
                 </div>
             )}

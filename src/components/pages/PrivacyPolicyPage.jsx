@@ -238,11 +238,11 @@ const PrivacyPolicyPage = ({ onBookClick }) => {
                             <ul className="space-y-3">
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
-                                    <span><strong>Email:</strong> <a href="mailto:leam@smarterdog.co.uk" className="underline hover:opacity-70" style={{ color: colors.teal }}>leam@smarterdog.co.uk</a></span>
+                                    <span><strong>Email:</strong> <a href="mailto:bookings@smarterdog.co.uk" className="underline hover:opacity-70" style={{ color: colors.teal }}>bookings@smarterdog.co.uk</a></span>
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>
-                                    <span><strong>Message:</strong> <a href="sms:07507731487" className="underline hover:opacity-70" style={{ color: colors.teal }}>07507 731487</a></span>
+                                    <span><strong>WhatsApp:</strong> <a href="https://wa.me/447873329440" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70" style={{ color: colors.teal }}>07873 329440</a></span>
                                 </li>
                                 <li className="body-font text-lg leading-relaxed flex gap-3" style={{ color: colors.teal }}>
                                     <span style={{ color: colors.teal }}>•</span>

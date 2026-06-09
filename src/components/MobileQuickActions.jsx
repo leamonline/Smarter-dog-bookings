@@ -3,8 +3,8 @@ import { colors } from '../constants/colors';
 import { trackEvent } from '../utils/analytics';
 
 const MobileQuickActions = ({ onBookClick }) => {
-    const handleMessageClick = () => {
-        trackEvent('Engagement', 'Click Message', 'Mobile Quick Actions');
+    const handleWhatsAppClick = () => {
+        trackEvent('Engagement', 'Click WhatsApp', 'Mobile Quick Actions');
     };
 
     return (
@@ -29,12 +29,14 @@ const MobileQuickActions = ({ onBookClick }) => {
                         Book now
                     </button>
                     <a
-                        href="sms:07507731487"
-                        onClick={handleMessageClick}
+                        href="https://wa.me/447873329440"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={handleWhatsAppClick}
                         className="w-full rounded-xl px-4 py-3 font-bold text-sm text-center border-2"
                         style={{ borderColor: colors.teal, color: colors.teal }}
                     >
-                        Message salon
+                        WhatsApp us
                     </a>
                 </div>
             </div>

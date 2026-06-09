@@ -53,11 +53,13 @@ class ErrorBoundary extends React.Component {
                         >
                             Or message us on{' '}
                             <a
-                                href="sms:07507731487"
+                                href="https://wa.me/447873329440"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="underline hover:opacity-80"
                                 style={{ color: colors.cyan }}
                             >
-                                07507 731487
+                                WhatsApp
                             </a>
                         </p>
                     </div>

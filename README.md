@@ -172,8 +172,8 @@ All rights reserved - Smarter Dog Grooming Salon
 
 ## 📞 Contact
 
-- **Email**: <leam@smarterdog.co.uk>
-- **Phone**: 07507 731487
+- **Email**: <bookings@smarterdog.co.uk>
+- **WhatsApp**: 07873 329440
 - **Location**: Ashton-under-Lyne, OL6 8HD
 
 ---

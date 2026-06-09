@@ -81,7 +81,7 @@ const ServicesPage = () => {
                                             color: getServiceButtonTextColor(service.color),
                                         }}
                                     >
-                                        Book your visit
+                                        Book online
                                     </button>
                                 </div>
                             ))}
