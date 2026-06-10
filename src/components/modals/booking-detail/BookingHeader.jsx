@@ -1,4 +1,4 @@
-import { SERVICES, getStatusDisplay } from "../../../constants/index.js";
+import { SERVICES, BOOKING_STATUS, getStatusDisplay } from "../../../constants/index.js";
 import {
   getNumericPrice,
   getServicePriceLabel,
@@ -33,7 +33,7 @@ export function BookingHeader({
 
   // The booking's status colour — the same map the dashboard card uses, so the
   // header colour-matches the card it was opened from.
-  const statusObj = getStatusDisplay(booking.status || "Booked");
+  const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
 
   // Use the shared selector so the modal header can never disagree with
   // the grid card on dog/breed/owner. resolveBookingDisplay prefers the

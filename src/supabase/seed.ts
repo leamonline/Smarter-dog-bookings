@@ -103,7 +103,7 @@ const SAMPLE_DOGS: Record<string, SampleDog> = {
 
 const SAMPLE_BOOKINGS_BY_DAY: Record<string, SampleBooking[]> = {
   mon: [
-    { slot: "08:30", dogName: "Bella", size: "small", service: "full-groom", status: "Checked in", addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
+    { slot: "08:30", dogName: "Bella", size: "small", service: "full-groom", status: BOOKING_STATUS.CHECKED_IN, addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
     { slot: "08:30", dogName: "Max", size: "medium", service: "bath-and-brush", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
     { slot: "09:00", dogName: "Luna", size: "small", service: "full-groom" },
     { slot: "09:00", dogName: "Charlie", size: "medium", service: "bath-and-deshed" },

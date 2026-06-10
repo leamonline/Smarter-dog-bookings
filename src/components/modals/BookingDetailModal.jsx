@@ -10,6 +10,7 @@ import {
   SIZE_THEME,
   SIZE_FALLBACK,
   SALON_SLOTS,
+  BOOKING_STATUS,
   getStatusDisplay,
 } from "../../constants/index.js";
 import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity.js";
@@ -114,7 +115,7 @@ export function BookingDetailModal({
   // The booking's status colour — same map as the dashboard card pill — drives
   // the header accent bar, the active stepper step and the primary button so
   // the pop-up colour-matches the card it was opened from.
-  const statusObj = getStatusDisplay(booking.status || "Booked");
+  const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);

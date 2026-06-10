@@ -2,6 +2,7 @@
 
 import { formatDelta } from "../../../utils/intl.js";
 import { SectionLabel } from "../../ui/index.js";
+import { BOOKING_STATUS } from "../../../constants/salon.js";
 
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's
@@ -52,6 +53,6 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
 
 // Display-level constants shared across report sub-components
 export const SIZE_COLORS = { small: "var(--color-size-small)", medium: "var(--color-brand-teal)", large: "var(--color-brand-coral)" };
-export const STATUS_COLORS = { "Booked": "#475569", "Checked in": "#16A34A", "Ready for pick-up": "#7C3AED" };
-export const STATUS_LABELS = { "Booked": "Booked / No-show", "Checked in": "Checked in", "Ready for pick-up": "Finished" };
+export const STATUS_COLORS = { [BOOKING_STATUS.BOOKED]: "#475569", [BOOKING_STATUS.CHECKED_IN]: "#16A34A", [BOOKING_STATUS.READY_FOR_PICKUP]: "#7C3AED" };
+export const STATUS_LABELS = { [BOOKING_STATUS.BOOKED]: "Booked / No-show", [BOOKING_STATUS.CHECKED_IN]: "Checked in", [BOOKING_STATUS.READY_FOR_PICKUP]: "Finished" };
 export const PERIODS = [{ v: 7, l: "7 days" }, { v: 30, l: "30 days" }, { v: 90, l: "90 days" }];
