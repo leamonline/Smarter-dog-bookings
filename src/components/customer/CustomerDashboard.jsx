@@ -10,6 +10,7 @@ import { BookingCard } from "./BookingCard.jsx";
 import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { logger } from "../../lib/logger.js";
 import { PawPrint, Phone, Clock } from "lucide-react";
 import { ALL_DAYS, BOOKING_STATUS } from "../../constants/salon.js";
 import {
@@ -111,7 +112,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           );
         }
       } catch (err) {
-        console.error("CustomerDashboard fetch failed:", err);
+        logger.error("CustomerDashboard fetch failed", err, {
+          tags: { component: "CustomerDashboard", op: "fetchData" },
+        });
         if (!cancelled) setLoadError(err?.message || "We couldn't load your details. Please refresh.");
       } finally {
         if (!cancelled) setLoading(false);

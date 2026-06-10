@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * Decides where a linked customer sits in the "Join the Pack" self-signup
@@ -50,7 +51,9 @@ export function useCustomerSignupGate(humanRecord) {
         setStatus("onboarding");
       }
     } catch (err) {
-      console.error("useCustomerSignupGate: read failed:", err);
+      logger.error("useCustomerSignupGate: read failed", err, {
+        tags: { hook: "useCustomerSignupGate", op: "read" },
+      });
       setStatus("approved"); // fail open — server RPC still gates booking
     } finally {
       setLoading(false);

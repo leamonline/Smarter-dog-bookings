@@ -77,6 +77,48 @@ export default [
     rules: { "no-undef": "off" },
   },
   {
+    // Debt #22 — bare console is banned in app code. Route through
+    // src/lib/logger (dev: console; prod: Sentry) so async failures stop
+    // disappearing into the void. supabase/functions/** is ignored above:
+    // it's Deno, where console IS the logging mechanism (Supabase log
+    // explorer captures it).
+    files: ["src/**/*.{js,jsx,ts,tsx}"],
+    rules: { "no-console": "error" },
+  },
+  {
+    // Carve-outs for the console ban:
+    //   - logger.ts is the sink itself
+    //   - seed.ts is a CLI script; console is its UI
+    //   - transforms.ts has one dev-gated warn
+    // Everything else listed here still carries pre-logger call sites and
+    // is scheduled for migration in waves 2–3. This list only shrinks —
+    // never add to it; use the logger instead.
+    files: [
+      "src/lib/logger.ts",
+      "src/supabase/seed.ts",
+      "src/supabase/transforms.ts",
+      "src/components/modals/AddHumanModal.jsx",
+      "src/components/modals/DogCardModal.jsx",
+      "src/components/modals/HumanCardModal.jsx",
+      "src/components/modals/WaitlistModal.jsx",
+      "src/components/modals/dog-card/GroomingHistory.jsx",
+      "src/components/modals/human-card/MergeHumanDialog.jsx",
+      "src/components/modals/human-card/TrustedHumansPanel.jsx",
+      "src/components/ui/Button.jsx",
+      "src/components/ui/ErrorBoundary.jsx",
+      "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
+      "src/components/views/inbox/hooks/useCustomerContext.js",
+      "src/components/views/settings/CalendarSettings.jsx",
+      "src/engine/bookingRules.ts",
+      "src/hooks/useGroomPhotos.js",
+      "src/hooks/useReportsData.ts",
+      "src/supabase/client.js",
+      "src/supabase/hooks/useHumans.ts",
+      "src/utils/formatOwnerLabel.js",
+    ],
+    rules: { "no-console": "off" },
+  },
+  {
     files: ["**/*.test.{js,jsx,ts,tsx}", "**/*.spec.{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * Decides whether a logged-in customer has a complete-enough profile to use
@@ -53,7 +54,9 @@ export function useCustomerProfileGate(humanRecord) {
       );
       setComplete(isComplete);
     } catch (err) {
-      console.error("useCustomerProfileGate: profile read failed:", err);
+      logger.error("useCustomerProfileGate: profile read failed", err, {
+        tags: { hook: "useCustomerProfileGate", op: "read" },
+      });
       setComplete(true); // fail open — server RPC still gates booking
     } finally {
       setLoading(false);

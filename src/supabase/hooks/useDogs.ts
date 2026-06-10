@@ -139,6 +139,10 @@ export function useDogs(humansById: Record<string, any>) {
       { append = false }: { append?: boolean } = {},
     ) => {
       if (!supabase) {
+        // Offline: searchDogs() has already flagged isSearching — reset it
+        // here too, or a no-match query sits on "Searching..." forever
+        // (the offline twin of UX audit #1).
+        setIsSearching(false);
         setLoading(false);
         return;
       }

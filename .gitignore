@@ -20,6 +20,7 @@ test-results/
 # AI assistant working directories — local session artifacts, not shipping code
 .agents/
 .claude/
+.claude-scratch/
 .codex/
 .firecrawl/
 .playwright-mcp/
