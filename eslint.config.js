@@ -71,7 +71,9 @@ export default [
       "react/display-name": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
-      "no-empty": ["error", { allowEmptyCatch: true }],
+      // Empty catches must say why they swallow (no-empty accepts a block
+      // whose only content is a comment) — every existing one already does.
+      "no-empty": "error",
       "no-constant-binary-expression": "error",
       "no-useless-escape": "error",
       "no-prototype-builtins": "error",
