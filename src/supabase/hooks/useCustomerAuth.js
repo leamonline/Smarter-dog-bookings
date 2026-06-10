@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
+import { logger } from "../../lib/logger.js";
 
 const OTP_SEND_ERROR =
   "Could not send your login code. Please check your number and try again.";
@@ -75,13 +76,17 @@ export function useCustomerAuth() {
     const { data, error: rpcErr } = await linkCustomerToHuman(supabase);
 
     if (rpcErr) {
-      console.error("link_customer_to_human RPC error:", rpcErr);
+      logger.error("link_customer_to_human RPC error", rpcErr, {
+        tags: { hook: "useCustomerAuth", op: "linkHumanRecord" },
+      });
       return null;
     }
 
     // The RPC returns customer-safe human fields — Supabase surfaces this as an array.
     if (!data || data.length === 0) {
-      console.warn("No human record found or already claimed for current user");
+      logger.warn("No human record found or already claimed for current user", {
+        tags: { hook: "useCustomerAuth", op: "linkHumanRecord" },
+      });
       return null;
     }
 
@@ -133,7 +138,9 @@ export function useCustomerAuth() {
           const human = await linkHumanRecord();
           if (!cancelled && run === sessionRun) setHumanRecord(human);
         } catch (err) {
-          console.error("useCustomerAuth: error linking human record:", err);
+          logger.error("useCustomerAuth: error linking human record", err, {
+            tags: { hook: "useCustomerAuth", op: "applySession" },
+          });
         } finally {
           if (!cancelled && run === sessionRun) {
             finish();
@@ -146,7 +153,9 @@ export function useCustomerAuth() {
     // Safety net: never block the UI indefinitely
     const timeout = setTimeout(() => {
       if (!initialDone && !cancelled) {
-        console.warn("useCustomerAuth: auth startup timed out after 5s");
+        logger.warn("useCustomerAuth: auth startup timed out after 5s", {
+          tags: { hook: "useCustomerAuth", op: "startup" },
+        });
         finish();
       }
     }, 5000);
@@ -163,14 +172,18 @@ export function useCustomerAuth() {
       .getSession()
       .then(({ data, error: sessionErr }) => {
         if (sessionErr) {
-          console.error("useCustomerAuth: failed to get initial session:", sessionErr);
+          logger.error("useCustomerAuth: failed to get initial session", sessionErr, {
+            tags: { hook: "useCustomerAuth", op: "getSession" },
+          });
           finish();
           return;
         }
         applySession(data?.session ?? null);
       })
       .catch((err) => {
-        console.error("useCustomerAuth: unexpected getSession error:", err);
+        logger.error("useCustomerAuth: unexpected getSession error", err, {
+          tags: { hook: "useCustomerAuth", op: "getSession" },
+        });
         finish();
       });
 
@@ -237,17 +250,23 @@ export function useCustomerAuth() {
         name === "FunctionsRelayError" ||
         name === "FunctionsFetchError";
       if (looksLikeMissingFn) {
-        console.error(
+        logger.error(
           "customer-phone-on-file Edge Function not reachable. Did you run `supabase functions deploy customer-phone-on-file`?",
           lookupErr,
-          errPayload,
+          {
+            tags: { hook: "useCustomerAuth", op: "checkPhone" },
+            extra: { errPayload },
+          },
         );
         setError(
           "Login service isn't available right now. Please contact the salon.",
         );
         return { error: lookupErr };
       }
-      console.error("customer-phone-on-file function error:", lookupErr, errPayload);
+      logger.error("customer-phone-on-file function error", lookupErr, {
+        tags: { hook: "useCustomerAuth", op: "checkPhone" },
+        extra: { errPayload },
+      });
       setError(OTP_SEND_ERROR);
       return { error: lookupErr };
     }
@@ -293,7 +312,9 @@ export function useCustomerAuth() {
     });
 
     if (err) {
-      console.error("Customer OTP send failed:", err);
+      logger.error("Customer OTP send failed", err, {
+        tags: { hook: "useCustomerAuth", op: "sendOtp" },
+      });
       setError(OTP_SEND_ERROR);
       return { error: err };
     }
@@ -328,7 +349,9 @@ export function useCustomerAuth() {
     });
 
     if (err) {
-      console.error("Customer password sign-in failed:", err);
+      logger.error("Customer password sign-in failed", err, {
+        tags: { hook: "useCustomerAuth", op: "signInWithPassword" },
+      });
       setError(PASSWORD_LOGIN_ERROR);
       return { error: err };
     }
@@ -353,7 +376,9 @@ export function useCustomerAuth() {
       });
 
       if (err) {
-        console.error("Customer OTP verification failed:", err);
+        logger.error("Customer OTP verification failed", err, {
+          tags: { hook: "useCustomerAuth", op: "verifyOtp" },
+        });
         setError(OTP_VERIFY_ERROR);
         return { error: err };
       }
@@ -393,7 +418,9 @@ export function useCustomerAuth() {
     if (!supabase) return null;
     const { error: rpcErr } = await createPendingCustomer(supabase);
     if (rpcErr) {
-      console.error("create_pending_customer RPC error:", rpcErr);
+      logger.error("create_pending_customer RPC error", rpcErr, {
+        tags: { hook: "useCustomerAuth", op: "createPendingHuman" },
+      });
       return null;
     }
     return refreshHumanRecord();
