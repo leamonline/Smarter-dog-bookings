@@ -1,5 +1,5 @@
-import { LARGE_DOG_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index.js";
-import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index.js";
+import { LARGE_DOG_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index";
+import type { Booking, DogSize, SlotCapacity, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index";
 
 // ============================================================
 // SEAT CALCULATION

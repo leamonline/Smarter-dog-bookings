@@ -1,10 +1,10 @@
 import { useMemo, useRef, useEffect } from "react";
-import { SERVICES, PRICING, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index.js";
-import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon.js";
+import { SERVICES, PRICING, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon";
 import { IconSearch } from "../../icons/index.jsx";
 import { SkeletonBlock } from "../../ui/Skeleton.jsx";
 import { titleCase, buildSearchEntries } from "./helpers.js";
-import { getDogsForHuman } from "../../../utils/directorySearch.js";
+import { getDogsForHuman } from "../../../utils/directorySearch";
 
 export function DogSearchSection({
   dogs,

@@ -1,5 +1,5 @@
-import { SIZE_THEME, getSizeForBreed } from "../../../constants/index.js";
-import { titleCase } from "../../../utils/text.js";
+import { SIZE_THEME, getSizeForBreed } from "../../../constants/index";
+import { titleCase } from "../../../utils/text";
 
 const PILL_FALLBACK = { light: "#E5E7EB", primary: "#6B7280" };
 

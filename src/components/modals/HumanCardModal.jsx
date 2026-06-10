@@ -4,7 +4,7 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   getHumanByIdOrName,
-} from "../../engine/bookingRules.js";
+} from "../../engine/bookingRules";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
 import {

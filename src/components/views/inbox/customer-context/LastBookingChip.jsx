@@ -8,7 +8,7 @@
 
 import { formatBookingDate } from "../hooks/customerContextSummary.js";
 import { serviceLabel } from "../helpers.js";
-import { titleCase } from "../../../../utils/text.js";
+import { titleCase } from "../../../../utils/text";
 
 export function LastBookingChip({ lastBooking }) {
   if (!lastBooking || !lastBooking.date) return null;

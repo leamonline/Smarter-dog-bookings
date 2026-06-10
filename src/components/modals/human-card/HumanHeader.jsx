@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Clock, MoreHorizontal, Pencil, Phone, X } from "lucide-react";
-import { titleCase } from "../../../utils/text.js";
+import { titleCase } from "../../../utils/text";
 import { telLink, waLink } from "../dog-card/helpers.js";
 
 // Quiet dashboard-style header. Replaces the teal-gradient bar that

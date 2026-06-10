@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
-import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index.js";
-import type { BookingsByDate, Dog, Human } from "../types/index.js";
+import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index";
+import type { BookingsByDate, Dog, Human } from "../types/index";
 
 type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
 type ReportHumanMap = Record<string, string>;

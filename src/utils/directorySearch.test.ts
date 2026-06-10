@@ -3,7 +3,7 @@ import { SAMPLE_DOGS, SAMPLE_HUMANS } from "../data/sample.js";
 import {
   filterDogsForDirectory,
   filterHumansForDirectory,
-} from "./directorySearch.js";
+} from "./directorySearch";
 
 describe("directory search helpers", () => {
   it("finds a dog by name", () => {

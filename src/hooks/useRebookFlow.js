@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { SALON_SLOTS, BOOKING_STATUS } from "../constants/index.js";
-import { canBookSlot } from "../engine/capacity.js";
-import { toDateStr } from "../supabase/transforms.js";
-import { getDefaultOpenForDate } from "../engine/utils.js";
+import { SALON_SLOTS, BOOKING_STATUS } from "../constants/index";
+import { canBookSlot } from "../engine/capacity";
+import { toDateStr } from "../supabase/transforms";
+import { getDefaultOpenForDate } from "../engine/utils";
 
 export function useRebookFlow({ currentDateObj, daySettings, dayOpenState, bookingsByDate, setRebookData, setShowRebookDatePicker }) {
   const handleOpenRebook = useCallback(

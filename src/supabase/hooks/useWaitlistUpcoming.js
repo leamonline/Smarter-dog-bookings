@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 function toDateStr(d) {
   const yyyy = d.getFullYear();

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getOpenDays } from "../../../supabase/rpc";
-import { getDefaultOpenForDate } from "../../../engine/utils.js";
-import { logger } from "../../../lib/logger.js";
+import { getDefaultOpenForDate } from "../../../engine/utils";
+import { logger } from "../../../lib/logger";
 import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {

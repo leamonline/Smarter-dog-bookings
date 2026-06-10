@@ -1,6 +1,6 @@
-import { PRICING, SERVICES } from "../constants/index.js";
-import { getAddonsTotal } from "../constants/salon.js";
-import type { Service, Human, Dog, Booking } from "../types/index.js";
+import { PRICING, SERVICES } from "../constants/index";
+import { getAddonsTotal } from "../constants/salon";
+import type { Service, Human, Dog, Booking } from "../types/index";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

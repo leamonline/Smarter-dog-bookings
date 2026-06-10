@@ -28,8 +28,8 @@
 // pattern as useAIModeControls / useBookingActionDecisions.
 import { useCallback } from "react";
 import { supabase } from "../../client.js";
-import { logger } from "../../../lib/logger.js";
-import { applyWhatsappBookingAction } from "../../rpc.js";
+import { logger } from "../../../lib/logger";
+import { applyWhatsappBookingAction } from "../../rpc";
 import { SEND_FUNCTION_PATH } from "./helpers.js";
 
 export function useDraftActions({

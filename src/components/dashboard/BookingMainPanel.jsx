@@ -1,4 +1,4 @@
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import { DayHeader } from "./DayHeader.jsx";
 import { EmptyDayPanel } from "./EmptyDayPanel.jsx";
 import { BookingGridControls } from "./BookingGridControls.jsx";

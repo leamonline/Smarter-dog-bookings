@@ -1,5 +1,5 @@
-import { SERVICES, PRICING } from "../../../constants/index.js";
-import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index.js";
+import { SERVICES, PRICING } from "../../../constants/index";
+import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { PawPrint } from "lucide-react";
 
 interface RawDog {

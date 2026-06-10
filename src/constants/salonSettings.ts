@@ -1,5 +1,5 @@
-import { LARGE_DOG_SLOTS, PRICING, SERVICES } from "./salon.js";
-import type { SalonConfig, SalonSettings } from "../types/index.js";
+import { LARGE_DOG_SLOTS, PRICING, SERVICES } from "./salon";
+import type { SalonConfig, SalonSettings } from "../types/index";
 
 export const DEFAULT_BUSINESS_NAME = "Smarter Dog Grooming";
 

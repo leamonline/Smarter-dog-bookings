@@ -1,5 +1,5 @@
-import { SALON_SLOTS } from "../../../constants/index.js";
-import { computeSlotCapacities, canBookSlot } from "../../../engine/capacity.js";
+import { SALON_SLOTS } from "../../../constants/index";
+import { computeSlotCapacities, canBookSlot } from "../../../engine/capacity";
 
 export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedDogs, onSelectSlot, selectedSlot, sizeTheme }) {
   const dayBookings = bookingsByDate?.[dateStr] || [];

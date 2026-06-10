@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { AlertTriangle, MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { titleCase } from "../../utils/text.js";
+import { titleCase } from "../../utils/text";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
-import { filterDogsForDirectory } from "../../utils/directorySearch.js";
+import { filterDogsForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";

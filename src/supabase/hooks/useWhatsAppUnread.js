@@ -31,7 +31,7 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 let state = { unread: 0, loading: true };
 let channel = null;

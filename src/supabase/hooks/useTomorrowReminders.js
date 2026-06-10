@@ -23,8 +23,8 @@
 import { useSyncExternalStore, useCallback, useMemo } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { getNextWorkingDay } from "../../utils/nextWorkingDay.js";
-import { logger } from "../../lib/logger.js";
+import { getNextWorkingDay } from "../../utils/nextWorkingDay";
+import { logger } from "../../lib/logger";
 import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
 
 let state = {

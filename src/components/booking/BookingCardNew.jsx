@@ -2,16 +2,16 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
 import { createPortal } from "react-dom";
-import { SERVICES, STATUS_DISPLAY, BOOKING_STATUS, BOOKING_STATUSES } from "../../constants/index.js";
-import { useSalon } from "../../contexts/SalonContext.js";
+import { SERVICES, STATUS_DISPLAY, BOOKING_STATUS, BOOKING_STATUSES } from "../../constants/index";
+import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
   computeBookingPricing,
   resolveBookingDisplay,
-} from "../../engine/bookingRules.js";
-import { titleCase } from "../../utils/text.js";
+} from "../../engine/bookingRules";
+import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const BookingDetailModal = lazy(() =>

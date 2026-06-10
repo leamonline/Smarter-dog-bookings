@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildReportSourceFromSalon,
   computeReportStats,
-} from "./useReportsData.js";
+} from "./useReportsData";
 import {
   SAMPLE_BOOKINGS_BY_DAY,
   SAMPLE_DOGS,

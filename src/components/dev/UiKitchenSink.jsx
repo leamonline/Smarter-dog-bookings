@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { Plus, ArrowRight, Trash2, Check, Search } from "lucide-react";
-import { SIZE_THEME } from "../../constants/index.js";
+import { SIZE_THEME } from "../../constants/index";
 import {
   Button,
   Card,

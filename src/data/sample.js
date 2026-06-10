@@ -1,4 +1,4 @@
-import { BOOKING_STATUS } from "../constants/salon.js";
+import { BOOKING_STATUS } from "../constants/salon";
 
 export const SAMPLE_HUMANS = {
   "Sarah Jones": { id: "h1", name: "Sarah", surname: "Jones", phone: "07700 900111", sms: true, whatsapp: true, email: "sarah@example.com", fb: "", insta: "@sarahj", tiktok: "", address: "123 Main St", notes: "Prefers texts", trustedIds: ["Dave Smith"], historyFlag: "1 No-show (Oct 2023)" },

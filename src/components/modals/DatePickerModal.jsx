@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { toDateStr } from "../../supabase/transforms.js";
-import { isDateOpen } from "../../engine/utils.js";
+import { toDateStr } from "../../supabase/transforms";
+import { isDateOpen } from "../../engine/utils";
 
 export function DatePickerModal({
   currentDate,

@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { Dog as DogIcon } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 import { SizeDot } from "../../ui/SizeDot.jsx";
-import { getSizeForBreed, BOOKING_STATUS } from "../../../constants/index.js";
-import { titleCase } from "../../../utils/text.js";
-import { getDogsForHuman } from "../../../utils/directorySearch.js";
-import { toDateStr } from "../../../supabase/transforms.js";
+import { getSizeForBreed, BOOKING_STATUS } from "../../../constants/index";
+import { titleCase } from "../../../utils/text";
+import { getDogsForHuman } from "../../../utils/directorySearch";
+import { toDateStr } from "../../../supabase/transforms";
 
 function formatGroomDate(iso) {
   const d = new Date(`${iso}T12:00:00`);

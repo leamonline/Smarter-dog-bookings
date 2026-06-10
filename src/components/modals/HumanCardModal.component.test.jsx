@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
-import { BOOKING_STATUS } from "../../constants/index.js";
+import { BOOKING_STATUS } from "../../constants/index";
 
 const { HumanCardModal } = await import("./HumanCardModal.jsx");
 

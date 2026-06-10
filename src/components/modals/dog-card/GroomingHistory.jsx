@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
+import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { SectionCard } from "../booking-detail/shared.jsx";
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {

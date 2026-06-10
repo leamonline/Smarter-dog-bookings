@@ -44,7 +44,7 @@ import { useSyncExternalStore, useCallback } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

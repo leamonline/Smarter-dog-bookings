@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { dbBookingsToArray, toDateStr } from "../transforms.js";
-import { BOOKING_STATUS } from "../../constants/salon.js";
-import { logger } from "../../lib/logger.js";
+import { dbBookingsToArray, toDateStr } from "../transforms";
+import { BOOKING_STATUS } from "../../constants/salon";
+import { logger } from "../../lib/logger";
 
 function groupBookingsByDate(rows, dogsById, humansById) {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);

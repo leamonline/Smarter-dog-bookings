@@ -2,7 +2,7 @@
 
 import { formatDelta } from "../../../utils/intl.js";
 import { SectionLabel } from "../../ui/index.js";
-import { BOOKING_STATUS } from "../../../constants/salon.js";
+import { BOOKING_STATUS } from "../../../constants/salon";
 
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's

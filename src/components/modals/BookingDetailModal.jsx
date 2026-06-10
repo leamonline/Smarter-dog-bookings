@@ -12,9 +12,9 @@ import {
   SALON_SLOTS,
   BOOKING_STATUS,
   getStatusDisplay,
-} from "../../constants/index.js";
-import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
+} from "../../constants/index";
+import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity";
+import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils";
 import {
   getAllowedServicesForSize,
   getDogByIdOrName,
@@ -23,8 +23,8 @@ import {
   getServicePriceLabel,
   normalizeServiceForSize,
   computeBookingPricing,
-} from "../../engine/bookingRules.js";
-import { toDateStr } from "../../supabase/transforms.js";
+} from "../../engine/bookingRules";
+import { toDateStr } from "../../supabase/transforms";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 
 import {
@@ -49,8 +49,8 @@ import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 import { PhotoUploadModal } from "./PhotoUploadModal.jsx";
-import { titleCase } from "../../utils/text.js";
-import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon.js";
+import { titleCase } from "../../utils/text";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon";
 
 
 

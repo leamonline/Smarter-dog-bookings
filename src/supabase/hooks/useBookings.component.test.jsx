@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { BOOKING_STATUS } from "../../constants/salon.js";
+import { BOOKING_STATUS } from "../../constants/salon";
 
 // vi.mock factories must not reference outer variables, so we define
 // stub state on globalThis and let the mock pull values from there.

@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
-import { canBookSlot, isCapacityRejection } from "../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../engine/capacity";
 import {
   getHumanByIdOrName,
   normalizeServiceForSize,
-} from "../engine/bookingRules.js";
-import { formatFullDate } from "../engine/utils.js";
-import { toDateStr } from "../supabase/transforms.js";
-import type { SlotOverrides, Human } from "../types/index.js";
+} from "../engine/bookingRules";
+import { formatFullDate } from "../engine/utils";
+import { toDateStr } from "../supabase/transforms";
+import type { SlotOverrides, Human } from "../types/index";
 
 interface EditData {
   service: string;

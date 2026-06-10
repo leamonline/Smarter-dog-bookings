@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
-import { toDateStr } from "../transforms.js";
-import { logger } from "../../lib/logger.js";
+import { toDateStr } from "../transforms";
+import { logger } from "../../lib/logger";
 
 export function useWaitlist(targetDateObj) {
   const [waitlist, setWaitlist] = useState([]);

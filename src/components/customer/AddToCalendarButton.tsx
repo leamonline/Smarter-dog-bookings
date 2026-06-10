@@ -4,8 +4,8 @@
 
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { getOrCreateCalendarFeedToken } from "../../supabase/rpc.js";
-import { logger } from "../../lib/logger.js";
+import { getOrCreateCalendarFeedToken } from "../../supabase/rpc";
+import { logger } from "../../lib/logger";
 
 interface AddToCalendarButtonProps {
   bookingId: string;

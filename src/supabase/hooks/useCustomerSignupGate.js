@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 /**
  * Decides where a linked customer sits in the "Join the Pack" self-signup

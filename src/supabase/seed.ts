@@ -13,8 +13,8 @@
  * faker output through, a null lastName won't reach the database.
  */
 import { createClient } from "@supabase/supabase-js";
-import { BOOKING_STATUS } from "../constants/salon.js";
-import { createDefaultSalonConfig } from "../constants/salonSettings.js";
+import { BOOKING_STATUS } from "../constants/salon";
+import { createDefaultSalonConfig } from "../constants/salonSettings";
 
 function safeSurname(value: unknown): string {
   if (value === null || value === undefined) return "";

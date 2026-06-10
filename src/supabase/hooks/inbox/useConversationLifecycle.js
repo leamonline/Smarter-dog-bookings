@@ -16,7 +16,7 @@
 // shrinks without the InboxView consumer noticing.
 import { useCallback } from "react";
 import { supabase } from "../../client.js";
-import { logger } from "../../../lib/logger.js";
+import { logger } from "../../../lib/logger";
 
 export function useConversationLifecycle({
   selectedId,

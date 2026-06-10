@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 /**
  * Decides whether a logged-in customer has a complete-enough profile to use

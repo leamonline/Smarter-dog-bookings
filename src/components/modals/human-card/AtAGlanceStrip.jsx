@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { computeRevenue } from "../../../engine/pricing";
-import { BOOKING_STATUS } from "../../../constants/index.js";
-import { toDateStr } from "../../../supabase/transforms.js";
-import { getDogsForHuman } from "../../../utils/directorySearch.js";
+import { BOOKING_STATUS } from "../../../constants/index";
+import { toDateStr } from "../../../supabase/transforms";
+import { getDogsForHuman } from "../../../utils/directorySearch";
 
 // At-a-glance stat strip — lifetime bookings · last visit · next
 // appointment · total spend. Flat 4-col tile row (no outer slate

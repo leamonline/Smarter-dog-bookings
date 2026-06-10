@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import { computeRevenue } from "./pricing.js";
-import { computeBookingPricing, getDogByIdOrName } from "./bookingRules.js";
+import { computeRevenue } from "./pricing";
+import { computeBookingPricing, getDogByIdOrName } from "./bookingRules";
 
 // computeRevenue is the day/week/lifetime money figure. It must agree with the
 // booking card, which uses computeBookingPricing(...).subtotal — i.e. the full

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SALON_SLOTS } from "../../constants/index.js";
+import { SALON_SLOTS } from "../../constants/index";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 
 // 2026-06-01 is a Monday, so the next-7-days picker spans Jun 2 (Tue) … Jun 8.

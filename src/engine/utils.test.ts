@@ -5,7 +5,7 @@ import {
   getDefaultPickupTime,
   generateTimeOptions,
   isDateOpen,
-} from "./utils.js";
+} from "./utils";
 
 describe("formatFullDate", () => {
   it("formats a Tuesday in April", () => {

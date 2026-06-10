@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SERVICES, DOG_SIZES } from "../../../constants/index.js";
+import { SERVICES, DOG_SIZES } from "../../../constants/index";
 import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
 
 export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {

@@ -5,18 +5,18 @@ import {
   SALON_SLOTS,
   SIZE_THEME,
   SIZE_FALLBACK,
-} from "../../constants/index.js";
+} from "../../constants/index";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { useSalon } from "../../contexts/SalonContext.js";
+import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import {
   getNumericPrice,
   getServicePriceLabel,
   getAllowedServicesForSize,
-} from "../../engine/bookingRules.js";
+} from "../../engine/bookingRules";
 import { SectionCard } from "./booking-detail/shared.jsx";
 
 const MAX_CHAIN = 10;

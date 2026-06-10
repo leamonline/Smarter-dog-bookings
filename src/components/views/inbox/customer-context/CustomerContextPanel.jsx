@@ -16,7 +16,7 @@
 // ============================================================
 
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
-import { titleCase } from "../../../../utils/text.js";
+import { titleCase } from "../../../../utils/text";
 import { formatPhoneForDisplay } from "../../../../utils/phone.js";
 import { waMeLink, telLink } from "../hooks/customerContextSummary.js";
 import { DogSummaryCard } from "./DogSummaryCard.jsx";

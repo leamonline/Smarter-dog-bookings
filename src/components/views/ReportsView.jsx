@@ -11,7 +11,7 @@ import { KeyInsights } from "./reports/KeyInsights.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
 import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
-import { useSalon } from "../../contexts/SalonContext.js";
+import { useSalon } from "../../contexts/SalonContext";
 
 const ALLOWED_PERIODS = [7, 30, 90];
 const DEFAULT_PERIOD = 30;

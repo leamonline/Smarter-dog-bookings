@@ -1,5 +1,5 @@
-import { ALL_DAYS } from "../constants/index.js";
-import type { DayConfig } from "../types/index.js";
+import { ALL_DAYS } from "../constants/index";
+import type { DayConfig } from "../types/index";
 
 export const formatFullDate = (d: Date): string => {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

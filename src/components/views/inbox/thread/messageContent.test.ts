@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseMessageContent, presentTemplate } from "./messageContent.js";
+import { parseMessageContent, presentTemplate } from "./messageContent";
 
 describe("parseMessageContent", () => {
   it("parses a WhatsApp template send into id + ordered values", () => {

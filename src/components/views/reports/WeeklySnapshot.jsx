@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { SALON_SLOTS } from "../../../constants/index.js";
-import { useSalon } from "../../../contexts/SalonContext.js";
-import { computeRevenue } from "../../../engine/pricing.js";
-import { toDateStr } from "../../../supabase/transforms.js";
+import { SALON_SLOTS } from "../../../constants/index";
+import { useSalon } from "../../../contexts/SalonContext";
+import { computeRevenue } from "../../../engine/pricing";
+import { toDateStr } from "../../../supabase/transforms";
 import { Trend } from "./ReportWidgets.jsx";
 
 function getWeekDates(refDate) {

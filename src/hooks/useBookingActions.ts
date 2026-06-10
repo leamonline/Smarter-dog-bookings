@@ -4,7 +4,7 @@
  * online or offline versions based on connectivity.
  */
 import { useCallback } from "react";
-import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } from "../types/index.js";
+import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } from "../types/index";
 
 interface SupabaseFns {
   sbAddBooking: (dateStr: string, booking: Booking) => Promise<void>;

@@ -6,10 +6,10 @@ import {
   searchHumansDirectory,
   mergeHumans as mergeHumansRpc,
 } from "../rpc";
-import { findHumanByIdOrName } from "../transforms.js";
-import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
+import { findHumanByIdOrName } from "../transforms";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
 import { stripFormatChars } from "../../utils/phone.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 const PAGE_SIZE = 50;
 

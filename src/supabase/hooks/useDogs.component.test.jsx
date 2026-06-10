@@ -11,7 +11,7 @@ vi.mock("../client.js", () => ({
   },
 }));
 
-const { useDogs } = await import("./useDogs.js");
+const { useDogs } = await import("./useDogs");
 
 // The Dogs Directory is now server-driven: the initial load, search, filters,
 // sort, A–Z and counts all go through the search_dogs_directory RPC. The stub

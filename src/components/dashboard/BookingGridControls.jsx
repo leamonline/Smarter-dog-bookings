@@ -1,5 +1,5 @@
 import { PawPrint, LayoutGrid, List, Settings as SettingsIcon } from "lucide-react";
-import { capacityRatio, utilisationColor } from "../../engine/utilisation.js";
+import { capacityRatio, utilisationColor } from "../../engine/utilisation";
 
 export function BookingGridControls({
   bookingCount = 0,

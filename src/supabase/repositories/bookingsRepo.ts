@@ -7,9 +7,9 @@
 // authenticated customers read/insert/update only their own rows
 // (linked via humans.customer_user_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BOOKING_STATUS } from "../../constants/salon.js";
-import type { Booking } from "../../types/index.js";
-import { createCustomerBookingGroup, getSlotOccupancy } from "../rpc.js";
+import { BOOKING_STATUS } from "../../constants/salon";
+import type { Booking } from "../../types/index";
+import { createCustomerBookingGroup, getSlotOccupancy } from "../rpc";
 
 export interface CreateBookingInput {
   bookingDate: string;

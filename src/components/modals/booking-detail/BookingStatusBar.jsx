@@ -1,4 +1,4 @@
-import { BOOKING_STATUS, BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index.js";
+import { BOOKING_STATUS, BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {

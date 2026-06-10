@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
-import { dbConfigToApp, appConfigToDb } from "../transforms.js";
-import { createDefaultSalonConfig } from "../../constants/salonSettings.js";
-import { logger } from "../../lib/logger.js";
+import { dbConfigToApp, appConfigToDb } from "../transforms";
+import { createDefaultSalonConfig } from "../../constants/salonSettings";
+import { logger } from "../../lib/logger";
 
 // `canSeed` is true when the caller is an owner — only owners pass the
 // owner_insert_salon_config RLS check, so we only attempt the seed in that case.

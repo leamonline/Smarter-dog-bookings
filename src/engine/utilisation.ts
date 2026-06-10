@@ -1,13 +1,13 @@
-import { SALON_SLOTS } from "../constants/index.js";
-import { canBookSlot } from "./capacity.js";
-import { isDateOpen } from "./utils.js";
-import { toDateStr } from "../supabase/transforms.js";
+import { SALON_SLOTS } from "../constants/index";
+import { canBookSlot } from "./capacity";
+import { isDateOpen } from "./utils";
+import { toDateStr } from "../supabase/transforms";
 import type {
   Booking,
   BookingsByDate,
   DaySettings,
   DogSize,
-} from "../types/index.js";
+} from "../types/index";
 
 export const DAY_CAPACITY = 14;
 

@@ -5,9 +5,9 @@ import {
   dbDogsToMap,
   buildDogsById,
   findHumanByIdOrName,
-} from "../transforms.js";
-import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
-import { logger } from "../../lib/logger.js";
+} from "../transforms";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
+import { logger } from "../../lib/logger";
 
 const PAGE_SIZE = 50;
 

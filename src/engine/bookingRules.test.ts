@@ -12,7 +12,7 @@ import {
   computeBookingPricing,
   resolveBookingDisplay,
   looksLikeUuid,
-} from "./bookingRules.js";
+} from "./bookingRules";
 
 // ── isServiceSupportedForSize ───────────────────────────────────
 

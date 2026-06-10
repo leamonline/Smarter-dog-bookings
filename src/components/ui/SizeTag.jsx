@@ -1,4 +1,4 @@
-import { SIZE_THEME } from "../../constants/index.js";
+import { SIZE_THEME } from "../../constants/index";
 
 const DOT_SIZES = {
   small:  { normal: 14, legend: 12, header: 24 },

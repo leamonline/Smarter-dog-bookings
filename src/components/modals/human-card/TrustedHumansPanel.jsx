@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Users, Plus, X } from "lucide-react";
 import { PanelShell } from "./PanelShell.jsx";
 import { IconSearch } from "../../icons/index.jsx";
-import { titleCase } from "../../../utils/text.js";
-import { getHumanByIdOrName } from "../../../engine/bookingRules.js";
+import { titleCase } from "../../../utils/text";
+import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { normalisePhoneDigits } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 

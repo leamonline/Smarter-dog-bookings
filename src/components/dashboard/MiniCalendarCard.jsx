@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import { getDefaultOpenForDate } from "../../engine/utils";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";

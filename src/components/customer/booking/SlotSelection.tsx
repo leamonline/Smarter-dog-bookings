@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { SALON_SLOTS } from "../../../constants/index.js";
-import { findGroupedSlots } from "../../../engine/capacity.js";
-import { listOnDateForCapacity } from "../../../supabase/repositories/bookingsRepo.js";
-import type { WizardDog, SlotAllocation } from "../../../types/index.js";
+import { SALON_SLOTS } from "../../../constants/index";
+import { findGroupedSlots } from "../../../engine/capacity";
+import { listOnDateForCapacity } from "../../../supabase/repositories/bookingsRepo";
+import type { WizardDog, SlotAllocation } from "../../../types/index";
 import { Clock, ArrowRight, PawPrint } from "lucide-react";
 
 interface SlotSelectionProps {

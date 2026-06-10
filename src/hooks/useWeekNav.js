@@ -4,8 +4,8 @@
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ALL_DAYS } from "../constants/index.js";
-import { toDateStr } from "../supabase/transforms.js";
+import { ALL_DAYS } from "../constants/index";
+import { toDateStr } from "../supabase/transforms";
 
 /**
  * Returns 0..6 where 0 = Monday, 6 = Sunday — i.e. the index into the

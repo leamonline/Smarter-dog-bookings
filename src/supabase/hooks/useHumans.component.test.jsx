@@ -11,7 +11,7 @@ vi.mock("../client.js", () => ({
   },
 }));
 
-const { useHumans } = await import("./useHumans.js");
+const { useHumans } = await import("./useHumans");
 
 // The directory now loads through the search_humans_directory RPC, which
 // returns { rows, total, letters }. The stub records every rpc call so tests

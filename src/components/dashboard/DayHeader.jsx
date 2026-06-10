@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 
 function formatLong(dateObj) {
   return dateObj.toLocaleDateString("en-GB", {

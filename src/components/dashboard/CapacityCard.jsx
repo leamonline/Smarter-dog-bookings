@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import {
   computeDayCapacity,
   computeWeekCapacity,

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { WizardDog, DogSize } from "../../../types/index.js";
-import { DOG_SIZES } from "../../../constants/index.js";
-import { AddDogInline } from "./AddDogInline.js";
+import type { WizardDog, DogSize } from "../../../types/index";
+import { DOG_SIZES } from "../../../constants/index";
+import { AddDogInline } from "./AddDogInline";
 import { Check, PawPrint, ArrowRight } from "lucide-react";
-import { titleCase } from "../../../utils/text.js";
+import { titleCase } from "../../../utils/text";
 
 interface RawDog {
   id: string;

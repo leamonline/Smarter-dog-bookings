@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { DOG_BREEDS } from "../../constants/breeds.js";
+import { DOG_BREEDS } from "../../constants/breeds";
 
 /**
  * Accessible searchable breed combobox.

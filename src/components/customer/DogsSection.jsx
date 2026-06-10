@@ -1,12 +1,12 @@
 import { useState, useCallback } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { updateCustomerDog } from "../../supabase/rpc";
-import { getSizeForBreed } from "../../constants/breeds.js";
+import { getSizeForBreed } from "../../constants/breeds";
 import { cardAnim } from "./dashboardConstants.js";
 import { AddDogInline } from "./booking/AddDogInline.tsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { PawPrint, Pencil, Plus, X } from "lucide-react";
-import { titleCase } from "../../utils/text.js";
+import { titleCase } from "../../utils/text";
 
 const ERR_LABEL = {
   not_authenticated: "Please sign in again.",
