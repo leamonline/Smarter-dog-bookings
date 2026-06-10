@@ -62,7 +62,11 @@ export default [
           ignoreRestSiblings: true,
         },
       ],
-      "@typescript-eslint/no-explicit-any": "off",
+      // Warn (not error): the register's Debt #2 hot sites are typed; the
+      // remaining ~116 sites shrink as files are touched. Warnings keep
+      // them visible without blocking CI — promote to error when the
+      // count reaches zero.
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-empty-object-type": "error",
       "@typescript-eslint/no-unused-expressions": "error",
       "@typescript-eslint/no-require-imports": "error",
