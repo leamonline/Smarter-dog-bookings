@@ -6,7 +6,7 @@ import {
 } from "../engine/bookingRules";
 import { formatFullDate } from "../engine/utils";
 import { toDateStr } from "../supabase/transforms";
-import type { SlotOverrides, Human } from "../types/index";
+import type { SlotOverrides, Human, Booking } from "../types/index";
 
 interface EditData {
   service: string;
@@ -32,6 +32,18 @@ interface AllowedService {
   [key: string]: unknown;
 }
 
+/**
+ * The booking shape handed to onUpdate: the app Booking with the edited
+ * fields applied. `service` widens to string because normalizeServiceForSize
+ * returns a plain string, and `staff_capacity_override` is the snake_case
+ * flag read by useBookings.updateBooking (and stamped by the capacity
+ * trigger) — it is not part of the app-shaped Booking.
+ */
+type BookingUpdate = Omit<Booking, "service"> & {
+  service: string;
+  staff_capacity_override?: boolean;
+};
+
 interface UseBookingSaveParams {
   editData: EditData;
   setSaving: (v: boolean) => void;
@@ -39,17 +51,22 @@ interface UseBookingSaveParams {
   setIsEditing: (v: boolean) => void;
   hasAllergy: boolean;
   allergyInput: string;
-  booking: any;
+  booking: Booking;
   humans: Record<string, Human>;
   currentDateObj: Date;
   currentDateStr: string;
   editDayOpen: boolean;
   editSettings: EditSettings;
   editActiveSlots: string[];
-  otherBookings: any[];
+  otherBookings: Booking[];
   allowedServices: AllowedService[];
-  onUpdate: (booking: any, fromDateStr: string, toDateStr: string) => Promise<any>;
-  onUpdateDog: (dogIdOrName: any, updates: object) => Promise<any>;
+  // Both callbacks resolve to the saved record on success and null on
+  // failure — runSave only inspects truthiness, so `unknown` is enough.
+  onUpdate: (booking: BookingUpdate, fromDateStr: string, toDateStr: string) => Promise<unknown>;
+  onUpdateDog: (
+    dogIdOrName: string,
+    updates: { alerts: string[]; groomNotes: string; customPrice: number },
+  ) => Promise<unknown>;
 }
 
 export function useBookingSave({
