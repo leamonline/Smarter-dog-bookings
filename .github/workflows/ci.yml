@@ -33,7 +33,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno test --allow-env supabase/functions/whatsapp-agent/__tests__/
+      # --node-modules-dir=none: the repo's package.json otherwise makes
+      # Deno expect an installed node_modules for npm type resolution,
+      # and this job deliberately never runs npm ci.
+      - run: deno test --node-modules-dir=none --allow-env supabase/functions/whatsapp-agent/__tests__/
 
   e2e:
     runs-on: ubuntu-latest
