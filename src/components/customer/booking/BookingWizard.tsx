@@ -69,7 +69,17 @@ interface RawDog {
   id: string;
   name: string;
   breed: string;
-  size: string | null;
+  size: DogSize | null;
+}
+
+/**
+ * Errors surfaced by the booking repos. Supabase trigger failures carry a
+ * Postgres `code` (P0001 for raise_exception); handleConfirm also stamps
+ * that code onto a plain Error so its catch-block matcher can read it.
+ */
+interface RepoErrorShape {
+  message?: string;
+  code?: string;
 }
 
 const STEP_TITLES = [
@@ -184,9 +194,9 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           };
         })
       );
-    } catch (e: any) {
+    } catch (e) {
       if (controller.signal.aborted) return;
-      setDogsError(e.message || "Could not load your dogs");
+      setDogsError((e as RepoErrorShape).message || "Could not load your dogs");
     } finally {
       if (!controller.signal.aborted) setDogsLoading(false);
     }
@@ -287,13 +297,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
       setBookedIds(insertedIds);
       setBooked(true);
-    } catch (e: any) {
+    } catch (e) {
       // The server-side capacity trigger raises useful messages like
       // "Slot is full", "Capped at 1 (2-2-1 rule)", "Back-to-back large dogs only allowed at 12:30 + 13:00".
       // Surface those directly so the customer knows why we couldn't book.
-      const msg: string = e?.message || "";
+      const err = e as RepoErrorShape | null;
+      const msg: string = err?.message || "";
       const isTriggerError =
-        e?.code === "P0001" ||                              // raise_exception
+        err?.code === "P0001" ||                            // raise_exception
         /Slot is full|2-2-1|Large dog|Capped at 1|early close|Back-to-back/i.test(msg);
       setError(isTriggerError ? msg : "Sorry, we couldn't create that booking. Please try again, or message us if it keeps happening.");
     } finally {
@@ -313,8 +324,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       });
       if (waitErr) throw waitErr;
       setWaitlistJoined(true);
-    } catch (e: any) {
-      setError(e.message || "Could not join waitlist");
+    } catch (e) {
+      setError((e as RepoErrorShape).message || "Could not join waitlist");
     } finally {
       setSubmitting(false);
     }
@@ -494,7 +505,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         {/* Step content */}
         {step === 1 && (
           <DogSelection
-            dogs={dogs as any}
+            dogs={dogs}
             selectedDogs={selectedDogs}
             onSelect={toggleDog}
             onNext={() => setStep(2)}
@@ -544,7 +555,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onConfirm={handleConfirm}
             onBack={() => setStep(4)}
             submitting={submitting}
-            dogs={dogs as any}
+            // BookingConfirmation declares a non-null `size` on its dogs prop.
+            // Dogs with an unknown size can never be selected (DogSelection
+            // disables them) and the confirmation step only reads the entries
+            // for selected dogs, so this narrowing holds for every entry it
+            // actually touches — unselected dogs may still carry a null size.
+            dogs={dogs as Array<RawDog & { size: DogSize }>}
           />
         )}
       </div>
