@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
-import { SERVICES, BOOKING_STATUS } from "../../../constants/index.js";
-import { titleCase } from "../../../utils/text.js";
-import { getDogsForHuman } from "../../../utils/directorySearch.js";
+import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
+import { titleCase } from "../../../utils/text";
+import { getDogsForHuman } from "../../../utils/directorySearch";
 
 function formatBookingDate(iso) {
   if (!iso) return "";

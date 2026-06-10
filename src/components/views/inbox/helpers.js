@@ -5,7 +5,7 @@
 // No React, no Supabase — keeps the tree leaf-light.
 // ============================================================
 
-import { titleCase } from "../../../utils/text.js";
+import { titleCase } from "../../../utils/text";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 
 // "09:30" if today, "Yesterday" if yesterday, "12 May" otherwise.

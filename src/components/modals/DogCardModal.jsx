@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, BOOKING_STATUS } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, BOOKING_STATUS } from "../../constants/index";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
   looksLikeUuid,
-} from "../../engine/bookingRules.js";
+} from "../../engine/bookingRules";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import {
   GroomingHistory,

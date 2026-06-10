@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { getSizeForBreed } from "../../constants/index.js";
+import { getSizeForBreed } from "../../constants/index";
 import { AlertTriangle, MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
-import { titleCase, normaliseSurname } from "../../utils/text.js";
-import { filterHumansForDirectory } from "../../utils/directorySearch.js";
+import { titleCase, normaliseSurname } from "../../utils/text";
+import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";

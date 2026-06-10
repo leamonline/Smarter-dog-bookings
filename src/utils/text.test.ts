@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { titleCase, normaliseSurname } from "./text.js";
+import { titleCase, normaliseSurname } from "./text";
 
 describe("titleCase", () => {
   it("capitalizes first letter of each word", () => {

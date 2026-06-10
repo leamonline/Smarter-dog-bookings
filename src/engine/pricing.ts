@@ -1,5 +1,5 @@
-import { computeBookingPricing, getDogByIdOrName } from "./bookingRules.js";
-import type { Booking, Dog } from "../types/index.js";
+import { computeBookingPricing, getDogByIdOrName } from "./bookingRules";
+import type { Booking, Dog } from "../types/index";
 
 /**
  * Day / week / lifetime money figure. Delegates to the single pricing source

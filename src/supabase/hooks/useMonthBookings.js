@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
-import { toDateStr } from "../transforms.js";
-import { logger } from "../../lib/logger.js";
+import { toDateStr } from "../transforms";
+import { logger } from "../../lib/logger";
 
 function groupByDate(rows) {
   const grouped = {};

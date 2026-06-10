@@ -3,11 +3,11 @@
  * Components use name-keyed maps and camelCase; DB uses UUID FKs and snake_case.
  */
 
-import type { Human, Dog, Booking, SalonConfig, SalonSettings, TrustedContact } from "../types/index.js";
-import { sanitiseFieldValue } from "../utils/sanitiseFieldValue.js";
-import { BOOKING_STATUS } from "../constants/salon.js";
-import { createDefaultSalonConfig, mergeSalonSettings } from "../constants/salonSettings.js";
-import type { PersistedSalonSettings } from "../constants/salonSettings.js";
+import type { Human, Dog, Booking, SalonConfig, SalonSettings, TrustedContact } from "../types/index";
+import { sanitiseFieldValue } from "../utils/sanitiseFieldValue";
+import { BOOKING_STATUS } from "../constants/salon";
+import { createDefaultSalonConfig, mergeSalonSettings } from "../constants/salonSettings";
+import type { PersistedSalonSettings } from "../constants/salonSettings";
 
 // ============================================================
 // Raw DB row interfaces (only used in this file)

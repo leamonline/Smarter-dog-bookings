@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "./DayTab.jsx";
-import { isDateOpen } from "../../engine/utils.js";
+import { isDateOpen } from "../../engine/utils";
 
 export function CalendarTabs({
   dates,

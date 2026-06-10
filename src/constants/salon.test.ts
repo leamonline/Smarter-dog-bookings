@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AVAILABLE_ADDONS, BOOKING_STATUSES, getAddonPrice, getAddonsTotal } from "./salon.js";
+import { AVAILABLE_ADDONS, BOOKING_STATUSES, getAddonPrice, getAddonsTotal } from "./salon";
 
 describe("Add-on pricing helpers", () => {
   it("Flea Bath is £10", () => {

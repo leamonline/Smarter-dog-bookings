@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { computeRevenue } from "../../engine/pricing";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import { SkeletonBlock } from "../ui/Skeleton.jsx";
 
 // Working revenue targets. Used purely as the bar's denominator so

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { getSizeForBreed } from "../../../constants/breeds.js";
+import { getSizeForBreed } from "../../../constants/breeds";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
-import type { DogSize } from "../../../types/index.js";
+import type { DogSize } from "../../../types/index";
 
 interface AddDogInlineProps {
   humanId: string;

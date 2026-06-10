@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { customerSupabase as supabase } from "../customerClient.js";
 import { linkCustomerToHuman, createPendingCustomer } from "../rpc";
 import { normaliseUkMobile } from "../../utils/phone.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 const OTP_SEND_ERROR =
   "Could not send your login code. Please check your number and try again.";

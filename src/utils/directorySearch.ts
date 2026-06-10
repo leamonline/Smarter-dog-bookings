@@ -1,4 +1,4 @@
-import type { Dog, Human } from "../types/index.js";
+import type { Dog, Human } from "../types/index";
 
 type DogsByHumanId = Record<string, Dog[]>;
 

@@ -27,7 +27,7 @@
 // they can be tested against a stubbed supabase + setConversations.
 import { useCallback } from "react";
 import { supabase } from "../../client.js";
-import { logger } from "../../../lib/logger.js";
+import { logger } from "../../../lib/logger";
 
 export function useAIModeControls({
   selectedId,

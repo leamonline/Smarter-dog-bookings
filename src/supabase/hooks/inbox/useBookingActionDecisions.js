@@ -19,8 +19,8 @@
 // useAIModeControls.
 import { useCallback } from "react";
 import { supabase } from "../../client.js";
-import { logger } from "../../../lib/logger.js";
-import { applyWhatsappBookingAction } from "../../rpc.js";
+import { logger } from "../../../lib/logger";
+import { applyWhatsappBookingAction } from "../../rpc";
 
 export function useBookingActionDecisions({
   actionInFlight,

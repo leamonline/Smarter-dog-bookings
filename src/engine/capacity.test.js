@@ -25,7 +25,7 @@ import {
   getBookableSeatCount,
   findGroupedSlots,
   isCapacityRejection,
-} from "./capacity.js";
+} from "./capacity";
 
 const SLOTS = [
   "08:30", "09:00", "09:30", "10:00", "10:30",

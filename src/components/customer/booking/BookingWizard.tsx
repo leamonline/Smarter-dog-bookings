@@ -9,17 +9,17 @@ import {
   listOnDateForCapacity,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman } from "../../../supabase/repositories/dogsRepo";
-import { SALON_SLOTS, BOOKING_STATUS } from "../../../constants/index.js";
-import { findGroupedSlots } from "../../../engine/capacity.js";
-import { PRICING } from "../../../constants/index.js";
-import { getSizeForBreed } from "../../../constants/breeds.js";
-import type { WizardDog, DogSize, ServiceId, SlotAllocation, Booking } from "../../../types/index.js";
-import { DogSelection } from "./DogSelection.js";
-import { ServiceSelection } from "./ServiceSelection.js";
-import { DateSelection } from "./DateSelection.js";
-import { SlotSelection } from "./SlotSelection.js";
-import { BookingConfirmation } from "./BookingConfirmation.js";
-import { AddToCalendarButton } from "../AddToCalendarButton.js";
+import { SALON_SLOTS, BOOKING_STATUS } from "../../../constants/index";
+import { findGroupedSlots } from "../../../engine/capacity";
+import { PRICING } from "../../../constants/index";
+import { getSizeForBreed } from "../../../constants/breeds";
+import type { WizardDog, DogSize, ServiceId, SlotAllocation, Booking } from "../../../types/index";
+import { DogSelection } from "./DogSelection";
+import { ServiceSelection } from "./ServiceSelection";
+import { DateSelection } from "./DateSelection";
+import { SlotSelection } from "./SlotSelection";
+import { BookingConfirmation } from "./BookingConfirmation";
+import { AddToCalendarButton } from "../AddToCalendarButton";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
 import { Clipboard, PawPrint, Check, ChevronLeft, ArrowRight } from "lucide-react";
 import "./booking-wizard.css";

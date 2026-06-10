@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { BREED_LIST } from "../../constants/breeds.js";
+import { BREED_LIST } from "../../constants/breeds";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { titleCase, normaliseSurname } from "../../utils/text.js";
+import { titleCase, normaliseSurname } from "../../utils/text";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
 
 const SORTED_BREEDS = [

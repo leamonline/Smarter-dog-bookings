@@ -3,7 +3,7 @@
 // (updateCustomerDog) because the database guards them with a
 // SECURITY DEFINER function.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DogSize } from "../../constants/salon.js";
+import type { DogSize } from "../../constants/salon";
 
 export interface CustomerDog {
   id: string;

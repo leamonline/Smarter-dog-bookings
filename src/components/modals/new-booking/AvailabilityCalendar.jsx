@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
-import { SALON_SLOTS } from "../../../constants/index.js";
-import { computeSlotCapacities } from "../../../engine/capacity.js";
-import { isDateOpen } from "../../../engine/utils.js";
-import { toDateStr } from "../../../supabase/transforms.js";
+import { SALON_SLOTS } from "../../../constants/index";
+import { computeSlotCapacities } from "../../../engine/capacity";
+import { isDateOpen } from "../../../engine/utils";
+import { toDateStr } from "../../../supabase/transforms";
 
 export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings, onSelectDate, selectedDateStr, sizeTheme }) {
   // Snapshot of "today" at mount; the modal lifecycle is short enough that

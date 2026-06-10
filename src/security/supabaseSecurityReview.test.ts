@@ -267,7 +267,9 @@ describe("Supabase security review regressions", () => {
       "supabase/functions/whatsapp-send/index.ts",
       "supabase/functions/whatsapp-admin/index.ts",
       "supabase/functions/whatsapp-register/index.ts",
-      "supabase/functions/whatsapp-agent/index.ts",
+      // The agent's implementation lives in handler.ts; index.ts is a
+      // serve() shim kept importable for the deno dispatch tests.
+      "supabase/functions/whatsapp-agent/handler.ts",
     ];
 
     for (const path of wsFns) {
@@ -424,7 +426,7 @@ describe("Supabase security review regressions", () => {
   });
 
   it("whatsapp-agent only calls apply-customer-confirm with shared secret", () => {
-    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/handler.ts");
 
     expect(fn).toMatch(/apply-customer-confirm/);
     expect(fn).toMatch(/x-internal-secret/);
@@ -447,7 +449,7 @@ describe("Supabase security review regressions", () => {
   });
 
   it("AI-onboarded humans are tagged source=whatsapp_ai for the correction path", () => {
-    const fn = readProjectFile("supabase/functions/whatsapp-agent/index.ts");
+    const fn = readProjectFile("supabase/functions/whatsapp-agent/handler.ts");
 
     expect(fn).toMatch(/source:\s*"whatsapp_ai"/);
     expect(fn).toMatch(/applyPostCreationCorrections\b/);

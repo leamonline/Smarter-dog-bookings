@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { canBookSlot } from "../engine/capacity.js";
-import { SALON_SLOTS } from "../constants/index.js";
-import type { SlotOverrides } from "../types/index.js";
+import { canBookSlot } from "../engine/capacity";
+import { SALON_SLOTS } from "../constants/index";
+import type { SlotOverrides } from "../types/index";
 
 interface EditSettings {
   isOpen?: boolean;

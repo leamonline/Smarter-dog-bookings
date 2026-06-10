@@ -1,7 +1,7 @@
-import { PRICING } from "../../../constants/index.js";
-import { getAllowedServicesForSize } from "../../../engine/bookingRules.js";
+import { PRICING } from "../../../constants/index";
+import { getAllowedServicesForSize } from "../../../engine/bookingRules";
 import { SERVICE_ICON_NAMES } from "../dashboardConstants.js";
-import type { WizardDog, ServiceId } from "../../../types/index.js";
+import type { WizardDog, ServiceId } from "../../../types/index";
 import { Check, ArrowRight, Sparkles, Scissors, Droplets, Wind, PawPrint } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 

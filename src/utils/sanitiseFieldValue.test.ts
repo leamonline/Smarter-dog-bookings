@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitiseFieldValue } from "./sanitiseFieldValue.js";
+import { sanitiseFieldValue } from "./sanitiseFieldValue";
 
 describe("sanitiseFieldValue", () => {
   it("returns trimmed real values unchanged", () => {

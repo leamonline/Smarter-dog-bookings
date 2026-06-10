@@ -26,7 +26,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 import {
   SEND_FUNCTION_PATH,
   parseSupabaseFunctionError,
@@ -36,7 +36,7 @@ import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
 import { useDraftActions } from "./inbox/useDraftActions.js";
-import { markWhatsappConversationRead } from "../rpc.js";
+import { markWhatsappConversationRead } from "../rpc";
 
 
 // ── Pure helpers (exported for testing) ─────────────────────

@@ -6,8 +6,8 @@ import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
-import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index.js";
-import { BREED_LIST } from "../../../constants/breeds.js";
+import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index";
+import { BREED_LIST } from "../../../constants/breeds";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,

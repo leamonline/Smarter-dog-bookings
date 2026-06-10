@@ -1,5 +1,5 @@
 import { Card, CardHead, CardBody, Toggle, useConfigSaver } from "./shared.jsx";
-import { DEFAULT_NOTIFICATION_SETTINGS } from "../../../constants/index.js";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "../../../constants/index";
 
 const ALL_CHANNELS = ["whatsapp", "email", "sms"];
 

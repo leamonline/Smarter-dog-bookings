@@ -3,7 +3,7 @@
  * Extracted from App.jsx to reduce its size and improve testability.
  */
 import { useState, useCallback } from "react";
-import type { Booking } from "../types/index.js";
+import type { Booking } from "../types/index";
 
 interface NewBookingData {
   dateStr: string;

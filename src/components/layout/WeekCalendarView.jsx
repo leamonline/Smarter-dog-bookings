@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { CalendarDays } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { toDateStr } from "../../supabase/transforms.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
+import { toDateStr } from "../../supabase/transforms";
 import { getDefaultOpenForDate } from "../../engine/utils.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";

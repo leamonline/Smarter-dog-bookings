@@ -10,7 +10,7 @@ import { SetPasswordGate } from "./components/customer/onboarding/SetPasswordGat
 import { JoinThePackWelcome } from "./components/customer/onboarding/JoinThePackWelcome.jsx";
 import { JoinThePackOnboarding } from "./components/customer/onboarding/JoinThePackOnboarding.jsx";
 import { PendingApprovalGate } from "./components/customer/onboarding/PendingApprovalGate.jsx";
-import { BookingWizard } from "./components/customer/booking/BookingWizard.js";
+import { BookingWizard } from "./components/customer/booking/BookingWizard";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { CenteredScreen } from "./components/ui/PageShell.jsx";

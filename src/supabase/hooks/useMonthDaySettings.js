@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
-import { ALL_DAYS } from "../../constants/index.js";
-import { toDateStr } from "../transforms.js";
-import { logger } from "../../lib/logger.js";
+import { ALL_DAYS } from "../../constants/index";
+import { toDateStr } from "../transforms";
+import { logger } from "../../lib/logger";
 
 function getDefaultOpen(dateObj) {
   const dayOfWeek = dateObj.getDay(); // 0=Sun

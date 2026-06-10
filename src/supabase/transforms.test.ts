@@ -22,7 +22,7 @@ import {
   appConfigToDb,
   findHumanByIdOrName,
   findDogByIdOrName,
-} from "./transforms.js";
+} from "./transforms";
 
 // ============================================================
 // Fixtures — realistic DB rows (snake_case)

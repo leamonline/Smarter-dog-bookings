@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconGallery } from "../icons/index.jsx";
 import { PhotoLightbox } from "./PhotoLightbox.jsx";
-import { titleCase, formatDateStr } from "../../utils/text.js";
+import { titleCase, formatDateStr } from "../../utils/text";
 
 /**
  * Chronological photo gallery for a dog.

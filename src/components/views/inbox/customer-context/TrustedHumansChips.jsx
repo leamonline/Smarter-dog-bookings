@@ -6,7 +6,7 @@
 // section header can disappear with it.
 // ============================================================
 
-import { titleCase } from "../../../../utils/text.js";
+import { titleCase } from "../../../../utils/text";
 
 export function TrustedHumansChips({ contacts, onOpenHuman }) {
   if (!Array.isArray(contacts) || contacts.length === 0) return null;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../client.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 /**
  * useStaffName — resolves a `staff_profiles.user_id` to a display name.

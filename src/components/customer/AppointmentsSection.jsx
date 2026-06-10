@@ -2,9 +2,9 @@ import {
   SERVICE_LABELS,
   formatDate,
 } from "./dashboardConstants.js";
-import { PRICING } from "../../constants/index.js";
+import { PRICING } from "../../constants/index";
 import { ClipboardList, ChevronDown } from "lucide-react";
-import { titleCase } from "../../utils/text.js";
+import { titleCase } from "../../utils/text";
 
 /**
  * Past-only appointments list. The "Upcoming" + "Time for another groom?"

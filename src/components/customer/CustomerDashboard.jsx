@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { toDateStr } from "../../supabase/transforms.js";
+import { toDateStr } from "../../supabase/transforms";
 import { MyDetailsCard } from "./MyDetailsCard.jsx";
 import { DogsSection } from "./DogsSection.jsx";
 import { TrustedHumansSection } from "./TrustedHumansSection.jsx";
 import { AppointmentsSection } from "./AppointmentsSection.jsx";
 import { BookingCard } from "./BookingCard.jsx";
-import { CalendarSubscribeModal } from "./CalendarSubscribeModal.js";
+import { CalendarSubscribeModal } from "./CalendarSubscribeModal";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 import { PawPrint, Phone, Clock } from "lucide-react";
-import { ALL_DAYS, BOOKING_STATUS } from "../../constants/salon.js";
+import { ALL_DAYS, BOOKING_STATUS } from "../../constants/salon";
 import {
   SALON_PHONE_DISPLAY,
   SALON_TEL_HREF,

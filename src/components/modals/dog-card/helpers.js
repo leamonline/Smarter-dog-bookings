@@ -1,4 +1,4 @@
-export { titleCase } from "../../../utils/text.js";
+export { titleCase } from "../../../utils/text";
 // Phone-link helpers used to live here. They moved to `src/utils/phone.js`
 // so the same `normalisePhoneDigits` is shared with the inbox-summary
 // path. Re-exported so existing dog-card consumers keep their import.

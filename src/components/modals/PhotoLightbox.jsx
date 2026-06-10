@@ -3,7 +3,7 @@ import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { IconGallery } from "../icons/index.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
-import { formatDateStr } from "../../utils/text.js";
+import { formatDateStr } from "../../utils/text";
 
 /**
  * Full-screen lightbox for viewing a single groom photo.

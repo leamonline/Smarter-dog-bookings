@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { SIZE_THEME, SIZE_FALLBACK, SERVICES } from "../../constants/index.js";
+import { SIZE_THEME, SIZE_FALLBACK, SERVICES } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useGroupBookings } from "../../supabase/hooks/useGroupBookings.js";

@@ -2,7 +2,7 @@
 // Core type definitions for Smarter Dog Grooming booking app
 // ============================================================
 
-import type { DogSize } from "../constants/salon.js";
+import type { DogSize, BookingStatus } from "../constants/salon";
 export type { DogSize };
 
 export type ServiceId = "full-groom" | "bath-and-brush" | "bath-and-deshed" | "puppy-groom";
@@ -12,13 +12,9 @@ export interface Service {
   name: string;
 }
 
-export type BookingStatusId =
-  | "Booked"
-  | "Checked in"
-  | "In bath"
-  | "Ready for pick-up"
-  | "Completed"
-  | "Cancelled";
+// Derived from the BOOKING_STATUS runtime const (constants/salon.ts) so this
+// type can never drift from the canonical status list again.
+export type BookingStatusId = BookingStatus;
 
 export interface TrustedContact {
   id: string;

@@ -1,15 +1,15 @@
 // src/components/booking/SlotGrid.jsx
 import { useMemo, useCallback } from "react";
-import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity.js";
+import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
 import { SkeletonCard } from "../shared/SkeletonCard.jsx";
 import { SlotRowMenu } from "./SlotRowMenu.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop.js";
-import { currentSlotIndex } from "../../engine/utilisation.js";
-import { toDateStr } from "../../supabase/transforms.js";
+import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop";
+import { currentSlotIndex } from "../../engine/utilisation";
+import { toDateStr } from "../../supabase/transforms";
 
 export function SlotGrid({
   bookings,

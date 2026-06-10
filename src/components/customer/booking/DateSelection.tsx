@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
-import { getDefaultOpenForDate } from "../../../engine/utils.js";
-import { logger } from "../../../lib/logger.js";
+import { getOpenDays } from "../../../supabase/rpc";
+import { getDefaultOpenForDate } from "../../../engine/utils";
+import { logger } from "../../../lib/logger";
 import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {
@@ -60,9 +61,9 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
         if (!supabase) return;
         // day_settings is staff-only via RLS, so go through the
         // get_open_days RPC which returns just (setting_date, is_open).
-        const { data, error } = await supabase.rpc("get_open_days", {
-          p_start: rangeStart,
-          p_end: rangeEnd,
+        const { data, error } = await getOpenDays(supabase, {
+          startDate: rangeStart,
+          endDate: rangeEnd,
         });
         if (cancelled) return;
         if (error) {

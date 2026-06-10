@@ -20,7 +20,7 @@
 // ============================================================
 
 import { formatWhen } from "../helpers.js";
-import { parseMessageContent, presentTemplate } from "./messageContent.js";
+import { parseMessageContent, presentTemplate } from "./messageContent";
 import { ReactionLine } from "./ReactionLine.jsx";
 
 const CHANNEL_LABEL = {

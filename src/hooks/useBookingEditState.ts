@@ -3,7 +3,7 @@ import {
   getNumericPrice,
   getServicePriceLabel,
   normalizeServiceForSize,
-} from "../engine/bookingRules.js";
+} from "../engine/bookingRules";
 
 interface EditData {
   service: string;

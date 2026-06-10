@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   getAllowedServicesForSize,
@@ -7,8 +7,8 @@ import {
   normalizeServiceForSize,
   getDogByIdOrName,
   getHumanByIdOrName,
-} from "../../engine/bookingRules.js";
-import { AVAILABLE_ADDONS, getAddonPrice, BOOKING_STATUS } from "../../constants/salon.js";
+} from "../../engine/bookingRules";
+import { AVAILABLE_ADDONS, getAddonPrice, BOOKING_STATUS } from "../../constants/salon";
 import { IconSearch } from "../icons/index.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 

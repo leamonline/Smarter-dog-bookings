@@ -8,7 +8,7 @@
 // ============================================================
 
 import { SizeTag } from "../../../ui/SizeTag.jsx";
-import { titleCase } from "../../../../utils/text.js";
+import { titleCase } from "../../../../utils/text";
 
 const ALERT_PILL_CLASS =
   "inline-flex items-center px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold uppercase tracking-wide";

@@ -1,4 +1,4 @@
-import { ALERT_OPTIONS } from "../../../constants/index.js";
+import { ALERT_OPTIONS } from "../../../constants/index";
 import { MODAL_INPUT_CLS } from "./shared.jsx";
 
 export function BookingAlerts({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getNextWorkingDay } from "./nextWorkingDay.js";
+import { getNextWorkingDay } from "./nextWorkingDay";
 
 // Helper: construct a Date at noon UK on a specific calendar day. Use
 // noon to dodge DST edges; getNextWorkingDay normalises through the

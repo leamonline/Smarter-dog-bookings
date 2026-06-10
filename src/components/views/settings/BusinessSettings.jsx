@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { DEFAULT_BUSINESS_NAME } from "../../../constants/index.js";
+import { DEFAULT_BUSINESS_NAME } from "../../../constants/index";
 
 export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
   const toast = useToast();

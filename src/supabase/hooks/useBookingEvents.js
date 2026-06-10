@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../lib/logger";
 
 export function useBookingEvents({ limit = 10 } = {}) {
   const [events, setEvents] = useState([]);

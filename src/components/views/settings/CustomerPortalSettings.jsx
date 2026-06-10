@@ -1,5 +1,5 @@
 import { Card, CardHead, CardBody, SettingRow, Toggle, useConfigSaver } from "./shared.jsx";
-import { DEFAULT_CUSTOMER_PORTAL_SETTINGS } from "../../../constants/index.js";
+import { DEFAULT_CUSTOMER_PORTAL_SETTINGS } from "../../../constants/index";
 
 export function CustomerPortalSettings({ config, onUpdateConfig, canEdit = true }) {
   const save = useConfigSaver(onUpdateConfig, { canEdit });

@@ -3,13 +3,13 @@
 // Displays the webcal:// URL with copy-to-clipboard and platform instructions.
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.js";
+import { AccessibleModal } from "../shared/AccessibleModal";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,
-} from "../../supabase/rpc.js";
-import { logger } from "../../lib/logger.js";
+} from "../../supabase/rpc";
+import { logger } from "../../lib/logger";
 
 interface CalendarSubscribeModalProps {
   onClose: () => void;

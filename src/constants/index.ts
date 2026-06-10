@@ -1,4 +1,4 @@
-export { SIZE_THEME, SIZE_FALLBACK } from "./brand.js";
+export { SIZE_THEME, SIZE_FALLBACK } from "./brand";
 export {
   SALON_SLOTS,
   MAX_DOGS_PER_SLOT,
@@ -13,7 +13,7 @@ export {
   getStatusDisplay,
   DOG_SIZES,
   DOG_SIZE,
-} from "./salon.js";
+} from "./salon";
 export {
   DEFAULT_BUSINESS_NAME,
   DEFAULT_BUSINESS_HOURS,
@@ -22,10 +22,10 @@ export {
   createDefaultSalonConfig,
   createDefaultSalonSettings,
   mergeSalonSettings,
-} from "./salonSettings.js";
+} from "./salonSettings";
 export {
   BREED_SIZE_MAP,
   BREED_LIST,
   DOG_BREEDS,
   getSizeForBreed,
-} from "./breeds.js";
+} from "./breeds";

@@ -5,7 +5,7 @@
  * Data consumers call `useSalon()` instead of accepting props.
  */
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import type { Booking, Dog, Human, DaySettings, BookingsByDate } from "../types/index.js";
+import type { Booking, Dog, Human, DaySettings, BookingsByDate } from "../types/index";
 
 export interface SalonContextValue {
   dogs: Record<string, Dog>;

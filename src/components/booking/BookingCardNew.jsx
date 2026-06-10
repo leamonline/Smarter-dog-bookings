@@ -2,16 +2,16 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
 import { createPortal } from "react-dom";
-import { SERVICES, STATUS_DISPLAY } from "../../constants/index.js";
-import { useSalon } from "../../contexts/SalonContext.js";
+import { SERVICES, STATUS_DISPLAY, BOOKING_STATUS, BOOKING_STATUSES } from "../../constants/index";
+import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   getDogByIdOrName,
   getHumanByIdOrName,
   computeBookingPricing,
   resolveBookingDisplay,
-} from "../../engine/bookingRules.js";
-import { titleCase } from "../../utils/text.js";
+} from "../../engine/bookingRules";
+import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const BookingDetailModal = lazy(() =>
@@ -33,15 +33,16 @@ const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "line
 // with the detail modal so card and pop-up can't drift. Imported above.
 
 // The five-step inline progression. Cancelled is terminal and only
-// reachable via the detail modal — never appears here.
-const STATUS_PROGRESSION = ["Booked", "Checked in", "In bath", "Ready for pick-up", "Completed"];
+// reachable via the detail modal — never appears here. BOOKING_STATUSES
+// already encodes the progression order, so derive rather than restate it.
+const STATUS_PROGRESSION = BOOKING_STATUSES.map((s) => s.id);
 
 const STATUS_ICONS = {
-  "Booked": Calendar,
-  "Checked in": LogIn,
-  "In bath": Droplets,
-  "Ready for pick-up": Sparkles,
-  "Completed": Check,
+  [BOOKING_STATUS.BOOKED]: Calendar,
+  [BOOKING_STATUS.CHECKED_IN]: LogIn,
+  [BOOKING_STATUS.IN_BATH]: Droplets,
+  [BOOKING_STATUS.READY_FOR_PICKUP]: Sparkles,
+  [BOOKING_STATUS.COMPLETED]: Check,
 };
 
 const SIZE_TOOLTIP = {
@@ -212,7 +213,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   const changeStatus = (nextStatus) => {
     if (!nextStatus || nextStatus === booking.status) return;
-    const previous = booking.status || "Booked";
+    const previous = booking.status || BOOKING_STATUS.BOOKED;
     const prevIdx = STATUS_PROGRESSION.indexOf(previous);
     const nextIdx = STATUS_PROGRESSION.indexOf(nextStatus);
     const skipped = nextIdx - prevIdx;
@@ -226,7 +227,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const sizeTheme = SIZE_DOT[booking.size] || SIZE_FALLBACK_THEME;
 
   const service = SERVICES.find((s) => s.id === booking.service);
-  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY["Booked"];
+  const statusObj = STATUS_DISPLAY[booking.status] || STATUS_DISPLAY[BOOKING_STATUS.BOOKED];
 
   const dogRecord = getDogByIdOrName(dogs, booking.dog_id || booking._dogId || booking.dogName);
   // Single source of truth (matches BookingHeader + transforms.ts): live join,

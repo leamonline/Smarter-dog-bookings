@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { Booking } from "../types/index.js";
+import type { Booking } from "../types/index";
 
 export interface DragState {
   booking: Booking | null;

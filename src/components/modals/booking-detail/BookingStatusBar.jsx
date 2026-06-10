@@ -1,9 +1,9 @@
-import { BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index.js";
+import { BOOKING_STATUS, BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   const toast = useToast();
-  const currentStatus = booking.status || "Booked";
+  const currentStatus = booking.status || BOOKING_STATUS.BOOKED;
 
   return (
     <div className="mb-4">
@@ -40,7 +40,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                 // RLS error); the global error banner already surfaces the
                 // message, so suppress the success toast in that case.
                 if (result === null) return;
-                const variant = status.id === "Checked in" || status.id === "Ready for pick-up" ? "success" : "info";
+                const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
                 toast.show(
                   `Status: ${status.label}`,
                   variant,

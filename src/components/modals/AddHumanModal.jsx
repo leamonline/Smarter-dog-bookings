@@ -3,8 +3,8 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
-import { titleCase } from "../../utils/text.js";
-import { getHumanByIdOrName } from "../../engine/bookingRules.js";
+import { titleCase } from "../../utils/text";
+import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { normalisePhoneDigits } from "./dog-card/helpers.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 

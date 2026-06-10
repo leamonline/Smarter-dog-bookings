@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardHead, CardBody, SaveButton, SECTION_LABEL_CLS, INPUT_CLS } from "./shared.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { DEFAULT_BUSINESS_HOURS } from "../../../constants/index.js";
+import { DEFAULT_BUSINESS_HOURS } from "../../../constants/index";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 

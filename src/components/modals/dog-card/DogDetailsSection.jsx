@@ -1,4 +1,4 @@
-import { ALERT_OPTIONS } from "../../../constants/index.js";
+import { ALERT_OPTIONS } from "../../../constants/index";
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase, waLink, telLink } from "./helpers.js";
 import { SectionCard, CardRow } from "../booking-detail/shared.jsx";

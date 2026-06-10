@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
+import { searchDogsDirectory } from "../rpc";
 import {
   dbDogsToMap,
   buildDogsById,
   findHumanByIdOrName,
-} from "../transforms.js";
-import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
-import { logger } from "../../lib/logger.js";
+} from "../transforms";
+import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
+import { logger } from "../../lib/logger";
 
 const PAGE_SIZE = 50;
 
@@ -40,7 +41,9 @@ function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
 }
 
 export function useDogs(humansById: Record<string, any>) {
-  const [dogs, setDogs] = useState<Record<string, any>>({});
+  // Single source of truth for dog records: raw DB rows keyed by id.
+  // The app-shaped `dogs` map is DERIVED from this below (Debt #14) —
+  // the two can no longer drift because only one of them is state.
   const [dogsById, setDogsById] = useState<Record<string, any>>({});
   const [dogsByHumanId, setDogsByHumanId] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
@@ -103,6 +106,17 @@ export function useDogs(humansById: Record<string, any>) {
   const humansByIdRef = useRef(humansById);
   useEffect(() => { humansByIdRef.current = humansById; }, [humansById]);
 
+  // The app-shaped lookup map, derived from the raw rows. A rename (or any
+  // other mutation) can't leave a stale app-shape entry behind because
+  // there is nothing to keep in sync — dbDogsToMap re-derives on every
+  // dogsById change. Owner display names resolve from whatever humans have
+  // loaded at that point, matching the old write-time behaviour
+  // (humansByIdRef is a ref, exempt from the deps rule by design).
+  const dogs = useMemo(
+    () => dbDogsToMap(Object.values(dogsById), humansByIdRef.current || {}),
+    [dogsById],
+  );
+
   const invalidateHuman = useCallback((humanId: string | null | undefined) => {
     if (!humanId) return;
     fetchedHumanIdsRef.current.delete(humanId);
@@ -151,15 +165,15 @@ export function useDogs(humansById: Record<string, any>) {
       setError(null);
       if (!append) setLoading(true);
 
-      const { data, error: err } = await supabase.rpc("search_dogs_directory", {
-        p_search: params.search || null,
-        p_size: params.filters.size || null,
-        p_alert: !!params.filters.alert,
-        p_incomplete: !!params.filters.incomplete,
-        p_letter: params.letter || null,
-        p_sort: params.sort || "name",
-        p_limit: PAGE_SIZE,
-        p_offset: offset,
+      const { data, error: err } = await searchDogsDirectory(supabase, {
+        search: params.search || null,
+        size: params.filters.size || null,
+        alert: !!params.filters.alert,
+        incomplete: !!params.filters.incomplete,
+        letter: params.letter || null,
+        sort: params.sort || "name",
+        limit: PAGE_SIZE,
+        offset,
       });
 
       setIsSearching(false);
@@ -175,10 +189,10 @@ export function useDogs(humansById: Record<string, any>) {
         buildDirectoryDogEntry(row, humansByIdRef.current || {}),
       );
 
-      // Merge bare dog fields into the lookup caches (never evict) so other
-      // views keep resolving dogs the directory has loaded.
+      // Merge bare dog rows into the lookup cache (never evict) so other
+      // views keep resolving dogs the directory has loaded. The app-shaped
+      // `dogs` map derives from this automatically.
       setDogsById((prev) => ({ ...prev, ...buildDogsById(rows) }));
-      setDogs((prev) => ({ ...prev, ...dbDogsToMap(rows, humansByIdRef.current || {}) }));
 
       setDirectoryDogs((prev) => (append ? [...prev, ...entries] : entries));
       setTotalCount(result.total ?? 0);
@@ -221,11 +235,6 @@ export function useDogs(humansById: Record<string, any>) {
             const next = { ...prev };
             const cached = next[oldRow.id];
             invalidateHuman(oldRow.human_id ?? cached?.human_id);
-            delete next[oldRow.id];
-            return next;
-          });
-          setDogs((prev) => {
-            const next = { ...prev };
             delete next[oldRow.id];
             return next;
           });
@@ -360,32 +369,14 @@ export function useDogs(humansById: Record<string, any>) {
 
       if (!existingDog) return;
 
-      const prevDogs = dogs;
-      const prevDogsById = dogsById;
-
       const updatedDog = {
         ...existingDog,
         ...updates,
       };
 
-      setDogs((prev) => ({
-        ...prev,
-        [existingDog.id]: {
-          ...(prev[existingDog.id] || existingDog),
-          ...updates,
-        },
-      }));
-
-      setDogsById((prev) => ({
-        ...prev,
-        [existingDog.id]: {
-          ...(prev[existingDog.id] || {}),
-          ...updates,
-        },
-      }));
-
-      if (!supabase) return updatedDog;
-
+      // Translate the app-shape patch to row shape FIRST: the optimistic
+      // write goes into dogsById (the single source of truth) and the
+      // derived `dogs` map picks it up on the same render.
       const dbUpdates: Record<string, any> = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.breed !== undefined) dbUpdates.breed = updates.breed;
@@ -418,12 +409,22 @@ export function useDogs(humansById: Record<string, any>) {
               extra: { humanId: updates.humanId },
             },
           );
-          setDogs(prevDogs);
-          setDogsById(prevDogsById);
+          // Nothing has been written yet, so there is nothing to roll back.
           return null;
         }
         dbUpdates.human_id = owner.id;
       }
+
+      const prevDogsById = dogsById;
+      setDogsById((prev) => ({
+        ...prev,
+        [existingDog.id]: {
+          ...(prev[existingDog.id] || {}),
+          ...dbUpdates,
+        },
+      }));
+
+      if (!supabase) return updatedDog;
 
       if (Object.keys(dbUpdates).length === 0) {
         return updatedDog;
@@ -440,7 +441,6 @@ export function useDogs(humansById: Record<string, any>) {
         logger.error("Failed to update dog", err, {
           tags: { hook: "useDogs", op: "updateDog" },
         });
-        setDogs(prevDogs);
         setDogsById(prevDogsById);
         return null;
       }
@@ -471,7 +471,6 @@ export function useDogs(humansById: Record<string, any>) {
       };
 
       setDogsById((prev) => ({ ...prev, [savedRow.id]: savedRow }));
-      setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
       invalidateHuman(prevDogsById[existingDog.id]?.human_id);
       invalidateHuman(savedRow.human_id);
 
@@ -515,7 +514,8 @@ export function useDogs(humansById: Record<string, any>) {
           ...optimisticDog,
           _humanId: owner.id,
         };
-        setDogs((prev) => ({ ...prev, [offlineDog.id]: offlineDog }));
+        // Write the raw pseudo-row only; the derived map reproduces the
+        // app shape from it.
         setDogsById((prev) => ({
           ...prev,
           [offlineDog.id]: {
@@ -593,7 +593,6 @@ export function useDogs(humansById: Record<string, any>) {
         customPrice: data.custom_price,
       };
 
-      setDogs((prev) => ({ ...prev, [savedDog.id]: savedDog }));
       setDogsById((prev) => ({ ...prev, [data.id]: data }));
       invalidateHuman(data.human_id);
 
@@ -609,16 +608,10 @@ export function useDogs(humansById: Record<string, any>) {
       const existing = dogsById[dogId];
       if (!existing) return { ok: false, error: "Dog not found" };
 
-      const prevDogs = dogs;
       const prevDogsById = dogsById;
 
       // Optimistic remove
       setDogsById((prev) => {
-        const next = { ...prev };
-        delete next[dogId];
-        return next;
-      });
-      setDogs((prev) => {
         const next = { ...prev };
         delete next[dogId];
         return next;
@@ -630,7 +623,6 @@ export function useDogs(humansById: Record<string, any>) {
 
       if (err) {
         // Rollback on failure
-        setDogs(prevDogs);
         setDogsById(prevDogsById);
         const friendly =
           err.code === "23503"
@@ -643,7 +635,7 @@ export function useDogs(humansById: Record<string, any>) {
       invalidateHuman(existing.human_id);
       return { ok: true };
     },
-    [dogs, dogsById, invalidateHuman],
+    [dogsById, invalidateHuman],
   );
 
   const fetchDogById = useCallback(async (dogId: string) => {
@@ -704,8 +696,6 @@ export function useDogs(humansById: Record<string, any>) {
       vet: data.vet || null,
       colour: data.colour || null,
     };
-    setDogs((prev) => ({ ...prev, [data.id]: dogObj }));
-
     return dogObj;
   }, [dogsById, humansById]);
 
@@ -816,34 +806,13 @@ export function useDogs(humansById: Record<string, any>) {
       if (rows.length === 0) return;
 
       const byIdAdditions: Record<string, any> = {};
-      const mapAdditions: Record<string, any> = {};
       for (const row of rows) {
         byIdAdditions[row.id] = row;
-        const owner = humansById?.[row.human_id || ""];
-        mapAdditions[row.id] = {
-          id: row.id,
-          name: row.name,
-          breed: sanitiseFieldValue(row.breed),
-          age: row.age || "",
-          dob: row.dob || "",
-          sex: row.sex || null,
-          microchip: row.microchip || null,
-          neutered: row.neutered ?? null,
-          vet: row.vet || null,
-          colour: row.colour || null,
-          size: row.size || null,
-          humanId: owner ? owner.fullName : (row.human_id || ""),
-          _humanId: row.human_id || null,
-          alerts: row.alerts || [],
-          groomNotes: row.groom_notes || "",
-          customPrice: row.custom_price,
-        };
       }
 
       setDogsById((prev) => ({ ...prev, ...byIdAdditions }));
-      setDogs((prev) => ({ ...prev, ...mapAdditions }));
     },
-    [dogsById, humansById],
+    [dogsById],
   );
 
   return {

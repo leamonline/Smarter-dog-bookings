@@ -250,3 +250,88 @@ export function markWhatsappConversationRead(
     p_conversation_id: params.conversationId,
   });
 }
+
+// Open-day lookup -------------------------------------------------------
+
+// day_settings is staff-only via RLS; this RPC exposes just
+// (setting_date, is_open) for a date range so the customer booking
+// wizard can grey out closures.
+export function getOpenDays(
+  client: SupabaseClient,
+  params: { startDate: string; endDate: string },
+) {
+  return client.rpc("get_open_days", {
+    p_start: params.startDate,
+    p_end: params.endDate,
+  });
+}
+
+// Staff directories ------------------------------------------------------
+
+// Server-side search + filter + sort + pagination for the Dogs directory.
+export function searchDogsDirectory(
+  client: SupabaseClient,
+  params: {
+    search: string | null;
+    size: string | null;
+    alert: boolean;
+    incomplete: boolean;
+    letter: string | null;
+    sort: string;
+    limit: number;
+    offset: number;
+  },
+) {
+  return client.rpc("search_dogs_directory", {
+    p_search: params.search,
+    p_size: params.size,
+    p_alert: params.alert,
+    p_incomplete: params.incomplete,
+    p_letter: params.letter,
+    p_sort: params.sort,
+    p_limit: params.limit,
+    p_offset: params.offset,
+  });
+}
+
+// Server-side search + filter + sort + pagination for the Humans directory.
+export function searchHumansDirectory(
+  client: SupabaseClient,
+  params: {
+    search: string | null;
+    flagged: boolean;
+    noDogs: boolean;
+    noPhone: boolean;
+    whatsapp: boolean;
+    pending: boolean;
+    letter: string | null;
+    sort: string;
+    limit: number;
+    offset: number;
+  },
+) {
+  return client.rpc("search_humans_directory", {
+    p_search: params.search,
+    p_flagged: params.flagged,
+    p_no_dogs: params.noDogs,
+    p_no_phone: params.noPhone,
+    p_whatsapp: params.whatsapp,
+    p_pending: params.pending,
+    p_letter: params.letter,
+    p_sort: params.sort,
+    p_limit: params.limit,
+    p_offset: params.offset,
+  });
+}
+
+// Merge a duplicate human (loser) into the canonical record (winner):
+// reassigns dogs, bookings and trusted links server-side, atomically.
+export function mergeHumans(
+  client: SupabaseClient,
+  params: { winnerId: string; loserId: string },
+) {
+  return client.rpc("merge_humans", {
+    p_winner: params.winnerId,
+    p_loser: params.loserId,
+  });
+}

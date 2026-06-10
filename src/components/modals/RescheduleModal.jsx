@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { isDateOpen } from "../../engine/utils.js";
-import { toDateStr } from "../../supabase/transforms.js";
+import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
+import { isDateOpen } from "../../engine/utils";
+import { toDateStr } from "../../supabase/transforms";
 
 function addDays(date, n) {
   const d = new Date(date);

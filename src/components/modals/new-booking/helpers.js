@@ -6,7 +6,7 @@ import { looksLikeUuid } from "../../../utils/formatOwnerLabel.js";
 // calendar and capacity calc shares one implementation (precedence:
 // dayOpenState > daySettings.isOpen > weekday default). Re-exported here so the
 // existing new-booking imports — and their test suite — keep working unchanged.
-export { isDateOpen } from "../../../engine/utils.js";
+export { isDateOpen } from "../../../engine/utils";
 
 /**
  * One entry per dog, with the owner and trusted humans grouped inside.
@@ -93,4 +93,4 @@ export function buildSearchEntries(dogs, humans) {
   return entries;
 }
 
-export { titleCase } from "../../../utils/text.js";
+export { titleCase } from "../../../utils/text";

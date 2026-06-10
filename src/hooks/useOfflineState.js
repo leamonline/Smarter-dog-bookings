@@ -7,14 +7,14 @@ import {
   ALL_DAYS,
   SALON_SLOTS,
   createDefaultSalonConfig,
-} from "../constants/index.js";
+} from "../constants/index";
 import {
   SAMPLE_BOOKINGS_BY_DAY,
   SAMPLE_HUMANS,
   SAMPLE_DOGS,
 } from "../data/sample.js";
-import { toDateStr } from "../supabase/transforms.js";
-import { getDefaultOpenForDate } from "../engine/utils.js";
+import { toDateStr } from "../supabase/transforms";
+import { getDefaultOpenForDate } from "../engine/utils";
 
 // Convert sample bookings to date-based format for a given week
 function buildOfflineBookingsByDate(weekStart) {

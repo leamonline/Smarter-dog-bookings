@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findNextAvailable, capacityRatio, currentSlotIndex } from "./utilisation.js";
+import { findNextAvailable, capacityRatio, currentSlotIndex } from "./utilisation";
 
 // Today is fixed in tests via the `now` injection so the assertion
 // is deterministic — otherwise a past-date case would flip into a

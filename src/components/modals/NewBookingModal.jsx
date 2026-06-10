@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index.js";
+import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { toDateStr } from "../../supabase/transforms.js";
+import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
+import { toDateStr } from "../../supabase/transforms";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";

@@ -3,7 +3,7 @@ import { IconTick, IconReopen } from "../../icons/index.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 import { ConfirmDeleteModal } from "../ConfirmDeleteModal.jsx";
-import { BOOKING_STATUS } from "../../../constants/salon.js";
+import { BOOKING_STATUS } from "../../../constants/salon";
 
 export function BookingActions({
   isEditing,

@@ -10,10 +10,11 @@ import {
   SIZE_THEME,
   SIZE_FALLBACK,
   SALON_SLOTS,
+  BOOKING_STATUS,
   getStatusDisplay,
-} from "../../constants/index.js";
-import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity.js";
-import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils.js";
+} from "../../constants/index";
+import { canBookSlot, getSeatStatesForSlot, isCapacityRejection } from "../../engine/capacity";
+import { formatFullDate, getDefaultOpenForDate } from "../../engine/utils";
 import {
   getAllowedServicesForSize,
   getDogByIdOrName,
@@ -22,8 +23,8 @@ import {
   getServicePriceLabel,
   normalizeServiceForSize,
   computeBookingPricing,
-} from "../../engine/bookingRules.js";
-import { toDateStr } from "../../supabase/transforms.js";
+} from "../../engine/bookingRules";
+import { toDateStr } from "../../supabase/transforms";
 import { DatePickerModal } from "./DatePickerModal.jsx";
 
 import {
@@ -48,8 +49,8 @@ import { useGroomPhotos } from "../../hooks/useGroomPhotos.js";
 import { RecurringBookingModal } from "./RecurringBookingModal.jsx";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 import { PhotoUploadModal } from "./PhotoUploadModal.jsx";
-import { titleCase } from "../../utils/text.js";
-import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon.js";
+import { titleCase } from "../../utils/text";
+import { AVAILABLE_ADDONS, getAddonPrice } from "../../constants/salon";
 
 
 
@@ -114,7 +115,7 @@ export function BookingDetailModal({
   // The booking's status colour — same map as the dashboard card pill — drives
   // the header accent bar, the active stepper step and the primary button so
   // the pop-up colour-matches the card it was opened from.
-  const statusObj = getStatusDisplay(booking.status || "Booked");
+  const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
