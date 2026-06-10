@@ -492,11 +492,8 @@ describe("useHumans updateHuman", () => {
     expect(stub.from).not.toHaveBeenCalled();
   });
 
-  it("trustedIds updates replace the join rows without writing the humans row", async () => {
-    const stub = makeSupabaseStub(twoHumansRpcImpl, {
-      fromImpl: (ctx) =>
-        ctx.table === "human_trusted_contacts" ? { error: null } : undefined,
-    });
+  it("trustedIds updates replace the link set atomically without writing the humans row", async () => {
+    const stub = makeSupabaseStub(twoHumansRpcImpl);
     const { result } = await renderLoadedHumans(stub);
 
     let saved;
@@ -504,12 +501,16 @@ describe("useHumans updateHuman", () => {
       saved = await result.current.updateHuman("h1", { trustedIds: ["h2"] });
     });
 
-    const insert = stub._fromCalls.find(
-      (c) => c.table === "human_trusted_contacts" && c.op === "insert",
-    );
-    expect(insert.payload).toEqual([
-      { human_id: "h1", trusted_id: "h2", relationship: null },
-    ]);
+    // One server-side transaction (replace_trusted_contacts RPC) and no
+    // client-side delete/insert pair — the old non-atomic shape could lose
+    // every link when the insert failed after the delete committed.
+    expect(stub.rpc).toHaveBeenCalledWith("replace_trusted_contacts", {
+      p_human_id: "h1",
+      p_contacts: [{ trusted_id: "h2", relationship: null }],
+    });
+    expect(
+      stub._fromCalls.some((c) => c.table === "human_trusted_contacts"),
+    ).toBe(false);
     expect(saved.trustedIds).toEqual(["Dave Smith"]);
     expect(saved.trustedContacts).toEqual([
       { id: "h2", fullName: "Dave Smith", relationship: "" },
@@ -521,10 +522,7 @@ describe("useHumans updateHuman", () => {
   });
 
   it("trustedContacts updates persist trimmed relationship labels", async () => {
-    const stub = makeSupabaseStub(twoHumansRpcImpl, {
-      fromImpl: (ctx) =>
-        ctx.table === "human_trusted_contacts" ? { error: null } : undefined,
-    });
+    const stub = makeSupabaseStub(twoHumansRpcImpl);
     const { result } = await renderLoadedHumans(stub);
 
     let saved;
@@ -534,25 +532,21 @@ describe("useHumans updateHuman", () => {
       });
     });
 
-    const insert = stub._fromCalls.find(
-      (c) => c.table === "human_trusted_contacts" && c.op === "insert",
-    );
-    expect(insert.payload).toEqual([
-      { human_id: "h1", trusted_id: "h2", relationship: "Neighbour" },
-    ]);
+    expect(stub.rpc).toHaveBeenCalledWith("replace_trusted_contacts", {
+      p_human_id: "h1",
+      p_contacts: [{ trusted_id: "h2", relationship: "Neighbour" }],
+    });
     expect(saved.trustedContacts).toEqual([
       { id: "h2", fullName: "Dave Smith", relationship: "Neighbour" },
     ]);
   });
 
-  it("rolls back when clearing the trusted-contact rows fails", async () => {
+  it("rolls back local state when the trusted replace RPC fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const stub = makeSupabaseStub(twoHumansRpcImpl, {
-      fromImpl: (ctx) => {
-        if (ctx.table === "human_trusted_contacts" && ctx.op === "delete")
-          return { error: { message: "clear denied" } };
-        return undefined;
-      },
+    const stub = makeSupabaseStub((fn) => {
+      if (fn === "replace_trusted_contacts")
+        return { data: null, error: { message: "replace denied" } };
+      return twoHumansRpcImpl(fn);
     });
     const { result } = await renderLoadedHumans(stub);
 
@@ -562,46 +556,14 @@ describe("useHumans updateHuman", () => {
     });
 
     expect(saved).toBeNull();
-    expect(result.current.error).toBe("clear denied");
+    expect(result.current.error).toBe("replace denied");
+    // Local state rolls back to the pre-update trusted list, and because
+    // the replace ran inside one server transaction the DB still holds the
+    // previous links too — UI and DB agree again on failure.
     expect(result.current.humans["Sarah Jones"].trustedIds).toEqual([]);
-    // The replacement insert is never attempted after a failed clear.
     expect(
-      stub._fromCalls.some(
-        (c) => c.table === "human_trusted_contacts" && c.op === "insert",
-      ),
+      stub._fromCalls.some((c) => c.table === "human_trusted_contacts"),
     ).toBe(false);
-  });
-
-  it("rolls back local state when the trusted insert fails after the clear", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stub = makeSupabaseStub(twoHumansRpcImpl, {
-      fromImpl: (ctx) => {
-        if (ctx.table === "human_trusted_contacts" && ctx.op === "delete")
-          return { error: null };
-        if (ctx.table === "human_trusted_contacts" && ctx.op === "insert")
-          return { error: { message: "insert denied" } };
-        return undefined;
-      },
-    });
-    const { result } = await renderLoadedHumans(stub);
-
-    let saved;
-    await act(async () => {
-      saved = await result.current.updateHuman("h1", { trustedIds: ["h2"] });
-    });
-
-    expect(saved).toBeNull();
-    expect(result.current.error).toBe("insert denied");
-    // Local state rolls back to the pre-update trusted list…
-    expect(result.current.humans["Sarah Jones"].trustedIds).toEqual([]);
-    // …but the clearing delete has already gone through. The replace is
-    // non-atomic: on this partial failure the DB has lost the existing links
-    // while the UI shows them restored. Documented behaviour, not endorsed.
-    expect(
-      stub._fromCalls.some(
-        (c) => c.table === "human_trusted_contacts" && c.op === "delete",
-      ),
-    ).toBe(true);
   });
 });
 

@@ -18,8 +18,13 @@ const { useTrustedContacts, fetchTrustedContactsForHuman } = await import(
 // Chainable thenable from() stub (trimmed from the useHumans anchor
 // harness): every query method records itself and returns the builder; the
 // terminal (await) resolves through fromImpl with the recorded trace.
-function makeStub(fromImpl) {
+function makeStub(fromImpl, rpcImpl) {
   const fromCalls = [];
+  const rpcCalls = [];
+  const rpc = vi.fn((name, args) => {
+    rpcCalls.push({ name, args });
+    return Promise.resolve(rpcImpl?.(name, args) ?? { data: null, error: null });
+  });
   const from = vi.fn((table) => {
     const calls = [];
     const builder = {};
@@ -49,7 +54,7 @@ function makeStub(fromImpl) {
     };
     return builder;
   });
-  return { from, _fromCalls: fromCalls };
+  return { from, rpc, _fromCalls: fromCalls, _rpcCalls: rpcCalls };
 }
 
 // Pre-loaded maps as the caller (updateHuman) would hold them.
@@ -120,10 +125,8 @@ describe("fetchTrustedContactsForHuman", () => {
 });
 
 describe("useTrustedContacts replaceTrustedLinks", () => {
-  it("clears then inserts the new pairs, preserving known relationship labels", async () => {
-    const stub = makeStub((ctx) =>
-      ctx.table === "human_trusted_contacts" ? { error: null } : undefined,
-    );
+  it("replaces the link set via one atomic RPC, preserving known relationship labels", async () => {
+    const stub = makeStub();
     setSupabase(stub);
     const { result } = renderHook(() => useTrustedContacts());
 
@@ -142,13 +145,18 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
       });
     });
 
-    const ops = stub._fromCalls.map((c) => c.op);
-    // The clearing DELETE always precedes the INSERT.
-    expect(ops).toEqual(["delete", "insert"]);
-    expect(stub._fromCalls[0].arg("eq")).toEqual(["human_id", "h1"]);
-    expect(stub._fromCalls[1].payload).toEqual([
-      { human_id: "h1", trusted_id: "h2", relationship: "Neighbour" },
+    // One server-side transaction: a single RPC call and NO client-side
+    // delete/insert pair (the old non-atomic shape this fix retires).
+    expect(stub._rpcCalls).toEqual([
+      {
+        name: "replace_trusted_contacts",
+        args: {
+          p_human_id: "h1",
+          p_contacts: [{ trusted_id: "h2", relationship: "Neighbour" }],
+        },
+      },
     ]);
+    expect(stub._fromCalls).toHaveLength(0);
     expect(outcome).toEqual({
       ok: true,
       trustedNames: ["Dave Smith"],
@@ -159,9 +167,7 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
   });
 
   it("trustedContacts payloads win, with trimmed relationship labels", async () => {
-    const stub = makeStub((ctx) =>
-      ctx.table === "human_trusted_contacts" ? { error: null } : undefined,
-    );
+    const stub = makeStub();
     setSupabase(stub);
     const { result } = renderHook(() => useTrustedContacts());
 
@@ -176,8 +182,8 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
       });
     });
 
-    expect(stub._fromCalls.at(-1).payload).toEqual([
-      { human_id: "h1", trusted_id: "h2", relationship: "Sister" },
+    expect(stub._rpcCalls.at(-1).args.p_contacts).toEqual([
+      { trusted_id: "h2", relationship: "Sister" },
     ]);
     expect(outcome.savedTrustedContacts).toEqual([
       { id: "h2", fullName: "Dave Smith", relationship: "Sister" },
@@ -185,9 +191,7 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
   });
 
   it("skips entries that resolve to no known human", async () => {
-    const stub = makeStub((ctx) =>
-      ctx.table === "human_trusted_contacts" ? { error: null } : undefined,
-    );
+    const stub = makeStub();
     setSupabase(stub);
     const { result } = renderHook(() => useTrustedContacts());
 
@@ -202,19 +206,20 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
       });
     });
 
-    // Only the resolvable pair was written; an empty resolution set would
-    // skip the INSERT entirely.
-    expect(stub._fromCalls.at(-1).payload).toEqual([
-      { human_id: "h1", trusted_id: "h2", relationship: null },
+    // Only the resolvable pair is sent; the RPC replaces with exactly
+    // this set (an empty set would clear all links, same as before).
+    expect(stub._rpcCalls.at(-1).args.p_contacts).toEqual([
+      { trusted_id: "h2", relationship: null },
     ]);
     expect(outcome.trustedNames).toEqual(["Dave Smith"]);
   });
 
-  it("fails fast when the clearing delete is denied — no insert attempted", async () => {
+  it("surfaces an RPC failure with the previous links left intact server-side", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const stub = makeStub((ctx) =>
-      ctx.op === "delete" ? { error: { message: "clear denied" } } : { error: null },
-    );
+    const stub = makeStub(undefined, () => ({
+      data: null,
+      error: { message: "replace denied" },
+    }));
     setSupabase(stub);
     const { result } = renderHook(() => useTrustedContacts());
 
@@ -229,34 +234,11 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
       });
     });
 
-    expect(outcome).toEqual({ ok: false, error: { message: "clear denied" } });
-    expect(stub._fromCalls.some((c) => c.op === "insert")).toBe(false);
-  });
-
-  it("reports the insert failure after the clear has already committed", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stub = makeStub((ctx) =>
-      ctx.op === "insert" ? { error: { message: "insert denied" } } : { error: null },
-    );
-    setSupabase(stub);
-    const { result } = renderHook(() => useTrustedContacts());
-
-    let outcome;
-    await act(async () => {
-      outcome = await result.current.replaceTrustedLinks({
-        humanId: "h1",
-        updates: { trustedIds: ["h2"] },
-        prevHumans,
-        prevHumansById,
-        currentTrustedContacts: [],
-      });
-    });
-
-    expect(outcome).toEqual({ ok: false, error: { message: "insert denied" } });
-    // The replace is non-atomic: the DELETE has already gone through, so
-    // this partial failure loses the existing links server-side. Documented
-    // behaviour (tracked separately), not endorsed.
-    expect(stub._fromCalls.some((c) => c.op === "delete")).toBe(true);
+    expect(outcome).toEqual({ ok: false, error: { message: "replace denied" } });
+    // Atomicity is the point of the fix: the failed replace ran inside one
+    // server transaction, so no client-side delete could have stranded the
+    // human with zero links.
+    expect(stub._fromCalls).toHaveLength(0);
   });
 });
 
