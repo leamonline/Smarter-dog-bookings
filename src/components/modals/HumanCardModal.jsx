@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   getHumanByIdOrName,
 } from "../../engine/bookingRules";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { normalisePhoneDigits } from "./dog-card/helpers.js";
 import {
   HumanBookingHistory,
   HumanHeader,
@@ -18,6 +16,10 @@ import {
   TrustedHumansPanel,
   RemindersPanel,
   MergeHumanDialog,
+  HumanEditFooter,
+  RejectSignupDialog,
+  useHumanDraft,
+  useHumanCardActions,
 } from "./human-card/index.js";
 
 const EMPTY_HUMAN = {
@@ -39,44 +41,6 @@ const EMPTY_HUMAN = {
   historyFlag: "",
 };
 
-const DRAFT_KEYS = [
-  "name",
-  "surname",
-  "phone",
-  "email",
-  "address",
-  "fb",
-  "insta",
-  "tiktok",
-  "notes",
-  "sms",
-  "whatsapp",
-  "historyFlag",
-];
-
-function makeDraftFromHuman(h) {
-  return {
-    name: h.name || "",
-    surname: h.surname || "",
-    phone: h.phone || "",
-    email: h.email || "",
-    address: h.address || "",
-    fb: h.fb || "",
-    insta: h.insta || "",
-    tiktok: h.tiktok || "",
-    notes: h.notes || "",
-    sms: !!h.sms,
-    whatsapp: !!h.whatsapp,
-    historyFlag: h.historyFlag || "",
-  };
-}
-
-function draftsEqual(a, b) {
-  if (a === b) return true;
-  for (const k of DRAFT_KEYS) if (a[k] !== b[k]) return false;
-  return true;
-}
-
 export function HumanCardModal({
   humanId,
   onClose,
@@ -93,8 +57,9 @@ export function HumanCardModal({
   fetchHumanById,
   findHumanByFullName,
   searchHumansByTerm,
-  // Optional callbacks the parent can wire later. When omitted we stub
-  // each one with a console.warn so they can be grepped.
+  // Optional callbacks the parent can wire later. When omitted,
+  // useHumanCardActions stubs each one with a logger.warn so they can
+  // be grepped.
   onOpenBooking,
   onBookAgain,
   onNewBookingForHuman,
@@ -109,11 +74,6 @@ export function HumanCardModal({
   const toast = useToast();
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
-  const [showMerge, setShowMerge] = useState(false);
-  const [pendingArchive, setPendingArchive] = useState(false);
-  const [pendingReject, setPendingReject] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const [signupBusy, setSignupBusy] = useState(false);
 
   // If the requested human isn't in the local map (e.g. their row sits
   // past the initial PAGE_SIZE pagination boundary), fetch them on demand
@@ -142,253 +102,74 @@ export function HumanCardModal({
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
-  // --- Edit state ---
-  const [mode, setMode] = useState("view");
-  const [draft, setDraft] = useState(() => makeDraftFromHuman(human));
-  const [saving, setSaving] = useState(false);
-  const [notesExpanded, setNotesExpanded] = useState(false);
-  const [editFocusKey, setEditFocusKey] = useState(null);
-
-  const nameInputRef = useRef(null);
-  const addressInputRef = useRef(null);
-  const emailInputRef = useRef(null);
-  const notesInputRef = useRef(null);
-  const historyRef = useRef(null);
-
-  // Reseed when a different human is selected. Live edits and edit-mode
-  // transitions never overwrite the user's typing — so we deliberately
-  // depend on `human.id` rather than the whole `human` reference.
-  useEffect(() => {
-    setDraft(makeDraftFromHuman(human));
-    setMode("view");
-    setNotesExpanded(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [human.id]);
-
-  // Focus the right input when the modal enters edit mode.
-  useEffect(() => {
-    if (mode !== "edit") return;
-    const ref =
-      editFocusKey === "address"
-        ? addressInputRef
-        : editFocusKey === "email"
-          ? emailInputRef
-          : editFocusKey === "notes"
-            ? notesInputRef
-            : nameInputRef;
-    const t = setTimeout(() => {
-      ref.current?.focus();
-      if (ref.current?.select) {
-        try {
-          ref.current.select();
-        } catch {
-          /* not all input types support select() */
-        }
-      }
-    }, 0);
-    return () => clearTimeout(t);
-  }, [mode, editFocusKey]);
-
-  const setDraftField = useCallback((key, value) => {
-    setDraft((d) => ({ ...d, [key]: value }));
-  }, []);
-
-  const dirty = useMemo(
-    () => !draftsEqual(draft, makeDraftFromHuman(human)),
-    [draft, human],
-  );
-
-  const startEdit = useCallback(
-    (focusKey = "name") => {
-      setEditFocusKey(focusKey);
-      setMode("edit");
-    },
-    [],
-  );
-
-  const cancelEdit = useCallback(() => {
-    setDraft(makeDraftFromHuman(human));
-    setMode("view");
-    setEditFocusKey(null);
-  }, [human]);
-
-  const handleSaveHuman = async () => {
-    if (!dirty || saving) return;
-    const trimmedPhone = draft.phone.trim();
-    if (trimmedPhone && normalisePhoneDigits(trimmedPhone).length < 10) {
-      toast.show(
-        "Please enter a valid phone number (at least 10 digits).",
-        "error",
-      );
-      return;
-    }
-    setSaving(true);
-    try {
-      const updates = {
-        name: draft.name.trim(),
-        surname: draft.surname.trim(),
-        fullName: `${draft.name.trim()} ${draft.surname.trim()}`.trim(),
-        phone: trimmedPhone,
-        email: draft.email.trim(),
-        address: draft.address.trim(),
-        fb: draft.fb.trim(),
-        insta: draft.insta.trim(),
-        tiktok: draft.tiktok.trim(),
-        notes: draft.notes.trim(),
-        sms: draft.sms,
-        whatsapp: draft.whatsapp,
-        historyFlag: draft.historyFlag.trim(),
-      };
-      await onUpdateHuman(human.id || humanId, updates);
-      setMode("view");
-      setEditFocusKey(null);
-      toast.show("Profile saved", "success");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Pending self-signup: clears once approved (approvedAt set) or rejected
-  // (the row is archived + dropped from the maps, closing the modal).
-  const isPendingSignup =
-    !!onApproveSignup && !human.approvedAt && !!human.signupSubmittedAt;
-
-  const handleApproveSignup = useCallback(async () => {
-    if (!onApproveSignup || signupBusy) return;
-    setSignupBusy(true);
-    try {
-      const result = await onApproveSignup(human.id || humanId);
-      if (result?.ok) {
-        toast.show("Customer approved — they can book now", "success");
-      } else {
-        toast.show(result?.error || "Couldn't approve — please try again", "error");
-      }
-    } finally {
-      setSignupBusy(false);
-    }
-  }, [onApproveSignup, signupBusy, human.id, humanId, toast]);
-
-  const handleRejectSignup = useCallback(
-    async (reason) => {
-      if (!onRejectSignup || signupBusy) return;
-      setSignupBusy(true);
-      try {
-        const result = await onRejectSignup(human.id || humanId, reason);
-        setPendingReject(false);
-        if (result?.ok) {
-          toast.show("Signup rejected", "success");
-          onClose?.();
-        } else {
-          toast.show(result?.error || "Couldn't reject — please try again", "error");
-        }
-      } finally {
-        setSignupBusy(false);
-      }
-    },
-    [onRejectSignup, signupBusy, human.id, humanId, toast, onClose],
-  );
-
-  const handleCopyPhone = () => {
-    if (!human.phone) return;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(human.phone);
-      toast.show(`Copied ${human.phone}`, "success");
-    } else {
-      toast.show("Clipboard not available", "error");
-    }
-  };
-
-  // Close request — if we're mid-edit with unsaved changes, ask first.
-  const requestClose = useCallback(() => {
-    if (mode === "edit" && dirty) {
-      setPendingExit(true);
-      return;
-    }
-    onClose?.();
-  }, [mode, dirty, onClose]);
-
-  // "E" toggles edit mode when no input is focused. Skipped while the
-  // overflow / confirm dialogs are open so it doesn't clash.
-  useEffect(() => {
-    if (!onUpdateHuman) return;
-    const handler = (e) => {
-      if (e.key !== "e" && e.key !== "E") return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target;
-      if (
-        t &&
-        (t.tagName === "INPUT" ||
-          t.tagName === "TEXTAREA" ||
-          t.tagName === "SELECT" ||
-          t.isContentEditable)
-      ) {
-        return;
-      }
-      if (pendingDelete || pendingExit) return;
-      e.preventDefault();
-      if (mode === "view") startEdit("name");
-      else if (!dirty) cancelEdit();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [mode, dirty, onUpdateHuman, pendingDelete, pendingExit, startEdit, cancelEdit]);
-
-  // Scroll the booking-history section into view. Used by the at-a-glance
-  // "Bookings" tile, which has no separate list view to open.
-  const handleShowHistory = useCallback(() => {
-    historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  // Stubbed callbacks: keep the surface area visible in the modal and
-  // emit a console.warn so unwired handlers are grep-able.
-  const handleOpenBooking = useCallback(
-    (bookingId) => {
-      if (onOpenBooking) {
-        onOpenBooking(bookingId);
-        return;
-      }
-      console.warn("[HumanCardModal] TODO: onOpenBooking", { bookingId });
-    },
-    [onOpenBooking],
-  );
-
-  const overflowItems = useMemo(() => {
-    const call = (handler, name) => () => {
-      if (handler) {
-        handler(human.id || humanId);
-      } else {
-        console.warn(`[HumanCardModal] TODO: ${name}`, {
-          humanId: human.id || humanId,
-        });
-      }
-    };
-    const items = [
-      {
-        label: "New booking for this human",
-        onClick: call(onNewBookingForHuman, "onNewBookingForHuman"),
-      },
-      {
-        label: "Send message",
-        onClick: call(onSendMessage, "onSendMessage"),
-      },
-    ];
-    if (onMergeHumans) {
-      items.push({ label: "Merge duplicate", onClick: () => setShowMerge(true) });
-    }
-    if (onArchiveHuman) {
-      items.push({ label: "Archive", onClick: () => setPendingArchive(true) });
-    }
-    return items;
-  }, [
-    human.id,
+  // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
+  // input focus, "E" shortcut. Paused while a confirm dialog is open.
+  const {
+    isEditing,
+    draft,
+    setDraftField,
+    dirty,
+    saving,
+    notesExpanded,
+    setNotesExpanded,
+    startEdit,
+    cancelEdit,
+    saveHuman,
+    nameInputRef,
+    addressInputRef,
+    emailInputRef,
+    notesInputRef,
+  } = useHumanDraft({
+    human,
     humanId,
+    onUpdateHuman,
+    shortcutPaused: pendingDelete || pendingExit,
+  });
+
+  // Card-level actions: copy phone, open booking, overflow menu, and
+  // signup approve/reject — plus the merge/archive/reject dialog flags.
+  const {
+    handleCopyPhone,
+    handleOpenBooking,
+    overflowItems,
+    showMerge,
+    setShowMerge,
+    pendingArchive,
+    setPendingArchive,
+    pendingReject,
+    setPendingReject,
+    signupBusy,
+    isPendingSignup,
+    handleApproveSignup,
+    handleRejectSignup,
+  } = useHumanCardActions({
+    human,
+    humanId,
+    onClose,
+    onOpenBooking,
     onNewBookingForHuman,
     onSendMessage,
     onMergeHumans,
     onArchiveHuman,
-  ]);
+    onApproveSignup,
+    onRejectSignup,
+  });
 
-  const isEditing = mode === "edit";
+  // Close request — if we're mid-edit with unsaved changes, ask first.
+  const requestClose = useCallback(() => {
+    if (isEditing && dirty) {
+      setPendingExit(true);
+      return;
+    }
+    onClose?.();
+  }, [isEditing, dirty, onClose]);
+
+  // Scroll the booking-history section into view. Used by the at-a-glance
+  // "Bookings" tile, which has no separate list view to open.
+  const historyRef = useRef(null);
+  const handleShowHistory = useCallback(() => {
+    historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   return (
     <>
@@ -417,10 +198,7 @@ export function HumanCardModal({
           isPendingSignup={isPendingSignup}
           signupBusy={signupBusy}
           onApproveSignup={handleApproveSignup}
-          onRejectSignup={() => {
-            setRejectReason("");
-            setPendingReject(true);
-          }}
+          onRejectSignup={() => setPendingReject(true)}
         />
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
@@ -520,35 +298,13 @@ export function HumanCardModal({
         </div>
 
         {isEditing && (
-          <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-3 flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={cancelEdit}
-              disabled={saving}
-              className="px-4 py-2 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveHuman}
-              disabled={!dirty || saving}
-              className="ml-auto py-2 px-5 rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
-            >
-              <Check size={14} strokeWidth={2.4} aria-hidden="true" />{" "}
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-            {onDeleteHuman && (
-              <button
-                type="button"
-                onClick={() => setPendingDelete(true)}
-                disabled={saving}
-                className="text-xs font-bold text-brand-coral underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Delete…
-              </button>
-            )}
-          </div>
+          <HumanEditFooter
+            dirty={dirty}
+            saving={saving}
+            onCancel={cancelEdit}
+            onSave={saveHuman}
+            onDelete={onDeleteHuman ? () => setPendingDelete(true) : undefined}
+          />
         )}
       </AccessibleModal>
 
@@ -610,49 +366,11 @@ export function HumanCardModal({
       )}
 
       {pendingReject && (
-        <AccessibleModal
-          onClose={() => (signupBusy ? undefined : setPendingReject(false))}
-          titleId="reject-signup-title"
-          className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full animate-[toastIn_0.15s_ease-out]"
-          zIndex={1100}
-        >
-          <h2
-            id="reject-signup-title"
-            className="text-base font-bold text-slate-800 m-0 mb-1"
-          >
-            Reject this signup?
-          </h2>
-          <p className="text-sm text-slate-600 m-0 mb-3 leading-relaxed">
-            They'll be archived and won't be able to book. Add an optional note
-            for your records (kept on their history flag).
-          </p>
-          <textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Reason (optional)"
-            aria-label="Rejection reason (optional)"
-            rows={2}
-            className="w-full text-sm bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 mb-4 outline-none font-inherit text-slate-700 resize-none focus:border-brand-teal"
-          />
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => setPendingReject(false)}
-              disabled={signupBusy}
-              className="btn btn-ghost"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRejectSignup(rejectReason.trim() || null)}
-              disabled={signupBusy}
-              className="btn btn-danger"
-            >
-              {signupBusy ? "Rejecting…" : "Reject signup"}
-            </button>
-          </div>
-        </AccessibleModal>
+        <RejectSignupDialog
+          busy={signupBusy}
+          onCancel={() => setPendingReject(false)}
+          onConfirm={handleRejectSignup}
+        />
       )}
 
       {showMerge && onMergeHumans && (
