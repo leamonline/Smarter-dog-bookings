@@ -23,6 +23,18 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  agent-tests:
+    # Dispatch-contract tests for the whatsapp-agent Edge Function run
+    # under Deno (the function's own runtime), not vitest — see
+    # supabase/functions/whatsapp-agent/__tests__/dispatch.test.ts.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno test --allow-env supabase/functions/whatsapp-agent/__tests__/
+
   e2e:
     runs-on: ubuntu-latest
     steps:
