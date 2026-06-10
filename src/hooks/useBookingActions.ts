@@ -6,26 +6,52 @@
 import { useCallback } from "react";
 import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } from "../types/index";
 
+// The update-family signatures below were corrected to the REAL contracts
+// (the originals declared 1-arg/void shapes that the implementations never
+// had — PR #255's "latent drift" findings 2 and 3):
+//   - updateBooking is 3-arg (booking, fromDateStr, toDateStr) and resolves
+//     to the saved booking or null (useBookings.js), and callers
+//     (useBookingSave) branch on that result.
+//   - updateDog / updateHuman take (idOrName, updates) and resolve to the
+//     saved record, null on failure, or undefined for an unknown record
+//     (useDogs.ts / useHumans.ts).
 interface SupabaseFns {
-  sbAddBooking: (dateStr: string, booking: Booking) => Promise<void>;
-  sbRemoveBooking: (dateStr: string, bookingId: string) => Promise<void>;
-  sbUpdateBooking: (booking: Booking) => Promise<void>;
+  sbAddBooking: (dateStr: string, booking: Booking) => Promise<unknown>;
+  sbRemoveBooking: (dateStr: string, bookingId: string) => Promise<unknown>;
+  sbUpdateBooking: (
+    booking: Booking & { staff_capacity_override?: boolean },
+    fromDateStr: string,
+    toDateStr: string,
+  ) => Promise<Booking | null>;
   sbToggleDayOpen: (dateStr: string) => Promise<void>;
   sbSetOverride: (dateStr: string, slot: string, seatIndex: number, action: string) => Promise<void>;
   sbAddExtraSlot: (dateStr: string) => Promise<void>;
   sbRemoveExtraSlot: (dateStr: string) => Promise<void>;
-  sbUpdateDog: (dog: Dog) => Promise<void>;
-  sbUpdateHuman: (human: Human) => Promise<void>;
+  sbUpdateDog: (
+    dogIdOrName: string,
+    updates: Partial<Dog> & Record<string, unknown>,
+  ) => Promise<Dog | null | undefined>;
+  sbUpdateHuman: (
+    humanIdOrName: string,
+    updates: Partial<Human> & Record<string, unknown>,
+  ) => Promise<Human | null | undefined>;
   sbUpdateConfig: (config: SalonConfig) => Promise<void>;
-  sbAddHuman: (human: Human) => Promise<void>;
-  sbAddDog: (dog: Dog) => Promise<void>;
+  sbAddHuman: (human: Human) => Promise<unknown>;
+  sbAddDog: (dog: Dog) => Promise<unknown>;
 }
 
 interface OfflineFns {
   handleAdd: (booking: Booking) => void;
   handleAddToDate: (booking: Booking, dateStr: string) => void;
   handleRemove: (bookingId: string) => void;
-  handleUpdate: (booking: Booking) => void;
+  // Same shape as sbUpdateBooking: the offline handler also applies
+  // cross-date moves and resolves to the updated booking, so the
+  // booking-detail save path behaves identically off WiFi.
+  handleUpdate: (
+    booking: Booking & { staff_capacity_override?: boolean },
+    fromDateStr: string,
+    toDateStr: string,
+  ) => Promise<Booking>;
   toggleDayOpen: () => void;
   handleOverride: (
     slot: string,
@@ -34,8 +60,17 @@ interface OfflineFns {
   ) => Promise<{ ok: true } | { ok: false; error: string }> | { ok: true };
   handleAddSlot: () => void;
   handleRemoveSlot: () => void;
-  updateDog: (dog: Dog) => void;
-  updateHuman: (human: Human) => void;
+  // (idOrName, updates) like the online hooks; updateDog resolves to the
+  // merged dog or null when the identifier matches nothing, so save flows
+  // can tell the two apart (useBookingSave checks `== null`).
+  updateDog: (
+    dogIdOrName: string,
+    updates: Partial<Dog> & Record<string, unknown>,
+  ) => Dog | null;
+  updateHuman: (
+    humanIdOrName: string,
+    updates: Partial<Human> & Record<string, unknown>,
+  ) => void;
   updateConfig: (
     config: SalonConfig | ((prev: SalonConfig) => SalonConfig),
   ) => Promise<{ ok: true } | { ok: false; error: string }>;

@@ -172,7 +172,10 @@ export function useBookingSave({
         },
       );
 
-      if (dogUpdateResult === null) {
+      // Loose equality on purpose: useDogs.updateDog resolves to undefined
+      // for an unknown dog and null for a failed save — both must stop the
+      // booking write, or the save proceeds with the dog edits silently lost.
+      if (dogUpdateResult == null) {
         setSaving(false);
         setSaveError("Could not update dog details");
         return;

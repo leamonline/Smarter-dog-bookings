@@ -72,24 +72,33 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
 
   // --- Dog/Human CRUD ---
 
-  const offlineUpdateDog = useCallback((dogIdentifier, updates) => {
-    setOfflineDogs((prev) => {
-      const entries = Object.entries(prev);
-      const found = entries.find(
+  const offlineUpdateDog = useCallback(
+    (dogIdentifier, updates) => {
+      // Resolve outside the setState updater so the result can be RETURNED:
+      // callers (useBookingSave via useBookingActions) treat a nullish
+      // result as "dog not found / save failed", mirroring the online
+      // useDogs.updateDog contract. Returning nothing here used to make the
+      // not-found case indistinguishable from success.
+      const found = Object.entries(offlineDogs).find(
         ([key, dog]) =>
           key === dogIdentifier ||
           dog.id === dogIdentifier ||
           dog.name === dogIdentifier,
       );
-      if (!found) return prev;
+      if (!found) return null;
       const [key, dog] = found;
+      const merged = { ...dog, ...updates };
       const nextKey = updates.name || dog.name || key;
-      const next = { ...prev };
-      delete next[key];
-      next[nextKey] = { ...dog, ...updates };
-      return next;
-    });
-  }, []);
+      setOfflineDogs((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        next[nextKey] = merged;
+        return next;
+      });
+      return merged;
+    },
+    [offlineDogs],
+  );
 
   const offlineUpdateHuman = useCallback((humanIdentifier, updates) => {
     setOfflineHumans((prev) => {
