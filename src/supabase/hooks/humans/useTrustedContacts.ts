@@ -2,13 +2,14 @@
 // replace-style linking logic for the humans directory. Extracted from
 // useHumans (Debt #5).
 //
-// KNOWN BUG (moved as-is, tracked separately — do not fix here):
-// replaceTrustedLinks is non-atomic. The clearing DELETE commits before the
-// replacement INSERT, so if the insert fails the human's existing links are
-// already gone from the DB while the caller's rollback restores them in the
-// UI. The proper fix is a server-side RPC + migration with its own task.
+// replaceTrustedLinks delegates to the replace_trusted_contacts RPC
+// (migration 20260610150000), which deletes and re-inserts the link set in
+// ONE transaction. The previous client-side DELETE-then-INSERT pair could
+// permanently lose every link when the insert failed after the delete had
+// committed.
 import { useCallback, useRef } from "react";
 import { supabase } from "../../client.js";
+import { replaceTrustedContacts } from "../../rpc";
 import { findHumanByIdOrName } from "../../transforms";
 import { logger } from "../../../lib/logger";
 import { fullNameFromRow } from "./helpers";
@@ -146,36 +147,22 @@ export function useTrustedContacts() {
 
       // Invariant: updateHuman only reaches this after its own !supabase
       // guard (offline returns the optimistic human before any write), so
-      // the client is always present here — hence the assertions.
-      const { error: deleteErr } = await supabase!
-        .from("human_trusted_contacts")
-        .delete()
-        .eq("human_id", humanId);
+      // the client is always present here — hence the assertion. The RPC
+      // replaces the whole link set in one transaction, so a failure
+      // leaves the human's previous links intact in the DB.
+      const { error: replaceErr } = await replaceTrustedContacts(supabase!, {
+        humanId,
+        contacts: nextPairs.map((pair) => ({
+          trustedId: pair.id,
+          relationship: pair.relationship || null,
+        })),
+      });
 
-      if (deleteErr) {
-        logger.error("Failed to clear trusted contacts", deleteErr, {
-          tags: { hook: "useHumans", op: "updateHuman.clearTrusted" },
+      if (replaceErr) {
+        logger.error("Failed to replace trusted contacts", replaceErr, {
+          tags: { hook: "useHumans", op: "updateHuman.replaceTrusted" },
         });
-        return { ok: false, error: deleteErr };
-      }
-
-      if (nextPairs.length > 0) {
-        const { error: insertErr } = await supabase!
-          .from("human_trusted_contacts")
-          .insert(
-            nextPairs.map((pair) => ({
-              human_id: humanId,
-              trusted_id: pair.id,
-              relationship: pair.relationship || null,
-            })),
-          );
-
-        if (insertErr) {
-          logger.error("Failed to save trusted contacts", insertErr, {
-            tags: { hook: "useHumans", op: "updateHuman.saveTrusted" },
-          });
-          return { ok: false, error: insertErr };
-        }
+        return { ok: false, error: replaceErr };
       }
 
       const trustedNames = nextPairs

@@ -72,6 +72,28 @@ export function updateCustomerDog(
   });
 }
 
+// Staff trusted-contact linking ----------------------------------------
+
+// Atomically replace every trusted-contact link for a human. The old
+// client-side DELETE + INSERT pair could permanently lose all links when
+// the insert failed after the delete committed; the RPC does both inside
+// one transaction (staff only — migration 20260610150000).
+export function replaceTrustedContacts(
+  client: SupabaseClient,
+  params: {
+    humanId: string;
+    contacts: { trustedId: string; relationship: string | null }[];
+  },
+) {
+  return client.rpc("replace_trusted_contacts", {
+    p_human_id: params.humanId,
+    p_contacts: params.contacts.map((c) => ({
+      trusted_id: c.trustedId,
+      relationship: c.relationship,
+    })),
+  });
+}
+
 // Customer trusted-human linking --------------------------------------
 
 export function addCustomerTrustedHuman(
