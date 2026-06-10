@@ -1,10 +1,30 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
 import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index";
-import type { BookingsByDate, Dog, Human } from "../types/index";
+import type { Booking, Dog, Human } from "../types/index";
+import type { Database } from "../supabase/database.types";
 
 type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
 type ReportHumanMap = Record<string, string>;
+
+// Raw rows as selected by the reports queries — subsets of the generated
+// Supabase schema rows, matching the column lists in the .select() calls.
+type ReportDogQueryRow = Pick<
+  Database["public"]["Tables"]["dogs"]["Row"],
+  "id" | "human_id" | "custom_price"
+>;
+type ReportHumanQueryRow = Pick<
+  Database["public"]["Tables"]["humans"]["Row"],
+  "id" | "name" | "surname"
+>;
+
+// Offline report sources can hold app-shaped bookings or legacy sample rows
+// (numeric ids, snake_case fields), so every field is read defensively.
+interface ReportSalonBooking extends Partial<Omit<Booking, "id">> {
+  id?: string | number;
+  dog_id?: string;
+  booking_date?: string;
+}
 
 interface ReportBookingRow {
   id: string;
@@ -24,7 +44,7 @@ interface ReportSourceData {
 }
 
 interface SalonReportSource {
-  bookingsByDate?: BookingsByDate;
+  bookingsByDate?: Record<string, ReportSalonBooking[]>;
   dogs?: Record<string, Dog>;
   humans?: Record<string, Human>;
 }
@@ -151,7 +171,7 @@ export function buildReportSourceFromSalon(
   });
 
   Object.entries(bookingsByDate).forEach(([dateStr, dayBookings]) => {
-    (dayBookings || []).forEach((booking: any, index) => {
+    (dayBookings || []).forEach((booking, index) => {
       const dog = findDog(dogs, booking._dogId || booking.dog_id || booking.dogName);
       const owner = findHuman(
         humans,
@@ -261,12 +281,12 @@ export function computeReportStats(
       dogMap[b.dog_id]?.customPrice,
     );
   });
-  const svcs = SERVICES.map((s: any) => ({
+  const svcs = SERVICES.map((s) => ({
     ...s,
     n: svcAcc[s.id]?.n || 0,
     rev: svcAcc[s.id]?.rev || 0,
-  })).sort((a: any, b: any) => b.rev - a.rev);
-  const maxSvcRev = Math.max(...svcs.map((s: any) => s.rev), 1);
+  })).sort((a, b) => b.rev - a.rev);
+  const maxSvcRev = Math.max(...svcs.map((s) => s.rev), 1);
 
   const szAcc: Record<string, { n: number; rev: number }> = {};
   cur.forEach((b) => {
@@ -302,7 +322,7 @@ export function computeReportStats(
   cur.forEach((b) => {
     if (b.slot) slotAcc[b.slot] = (slotAcc[b.slot] || 0) + 1;
   });
-  const slots = SALON_SLOTS.map((s: any) => ({
+  const slots = SALON_SLOTS.map((s) => ({
     slot: s,
     label: fmtSlot(s),
     n: slotAcc[s] || 0,
@@ -501,12 +521,12 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         }
 
         const dogMap: ReportDogMap = {};
-        (dg.data || []).forEach((d: any) => {
+        (dg.data || []).forEach((d: ReportDogQueryRow) => {
           dogMap[d.id] = { humanId: d.human_id, customPrice: d.custom_price };
         });
 
         const humanMap: ReportHumanMap = {};
-        (hm.data || []).forEach((h: any) => {
+        (hm.data || []).forEach((h: ReportHumanQueryRow) => {
           humanMap[h.id] = `${h.name || ""} ${h.surname || ""}`.trim();
         });
 
