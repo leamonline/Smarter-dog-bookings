@@ -37,7 +37,6 @@ export function NewBookingModal({
   // first attempt. Set by the day-view's time-click flow, which has
   // already shown its own override confirm dialog upstream.
   initialStaffCapacityOverride = false,
-  sourceConversationId,
   sourceMessageText,
   ownerName,
   onSearchDogs,

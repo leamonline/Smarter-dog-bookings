@@ -1,7 +1,7 @@
 import { Section, SIZE_COLORS } from "./ReportWidgets.jsx";
 import { pluralCount } from "../../../utils/intl.js";
 
-function buildSizeSummary(sizes, curRev) {
+function buildSizeSummary(sizes) {
   const active = sizes.filter((s) => s.n > 0);
   if (active.length === 0) return null;
   if (active.length === 1) {
@@ -58,7 +58,7 @@ export function KeyInsights({ stats, insights, days }) {
 
   if (insights.health) items.push({ key: "health", text: insights.health });
 
-  const sizeSummary = buildSizeSummary(stats.sizes, stats.curRev);
+  const sizeSummary = buildSizeSummary(stats.sizes);
 
   return (
     <Section title="Key Insights" accent="var(--color-brand-yellow)">

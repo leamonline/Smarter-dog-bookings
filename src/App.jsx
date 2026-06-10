@@ -253,7 +253,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showRebookDatePicker, setShowRebookDatePicker,
     collectionNotice, setCollectionNotice,
     selectedBooking, setSelectedBooking,
-    openNewBooking,
   } = useModalState();
 
   // ── Profile-page routing (task 4 of the May 2026 review) ───────

@@ -9,11 +9,11 @@ import {
   listOnDateForCapacity,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman } from "../../../supabase/repositories/dogsRepo";
-import { SALON_SLOTS, BOOKING_STATUS } from "../../../constants/index";
+import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
-import type { WizardDog, DogSize, ServiceId, SlotAllocation, Booking } from "../../../types/index";
+import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
 import { ServiceSelection } from "./ServiceSelection";
 import { DateSelection } from "./DateSelection";

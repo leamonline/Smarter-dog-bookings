@@ -16,9 +16,6 @@ import { describe, it, expect } from "vitest";
 
 import {
   getSeatsNeeded,
-  getSeatsUsed,
-  hasLargeDog,
-  getMaxSeatsForSlot,
   isEarlyCloseActive,
   computeSlotCapacities,
   canBookSlot,

@@ -39,26 +39,6 @@ vi.mock("../transforms.js", async () => {
 
 const { useBookings } = await import("./useBookings.js");
 
-function makeBuilder({ data = null, error = null } = {}) {
-  const builder = {};
-  const fns = [
-    "select",
-    "insert",
-    "update",
-    "delete",
-    "eq",
-    "gte",
-    "lte",
-    "order",
-    "limit",
-    "abortSignal",
-  ];
-  for (const name of fns) builder[name] = vi.fn(() => builder);
-  builder.single = vi.fn(() => Promise.resolve({ data, error }));
-  builder.then = (resolve) => Promise.resolve({ data, error }).then(resolve);
-  return builder;
-}
-
 function makeChannel() {
   const handlers = [];
   const channel = { _handlers: handlers };
@@ -118,7 +98,6 @@ function makeSupabaseStub({
     _channel: channel,
     from: vi.fn((table) => {
       const builder = {};
-      const chain = () => builder;
       builder.select = vi.fn(() => {
         // Two call shapes:
         //   .from('bookings').select('*').gte().lte().order().order().abortSignal()

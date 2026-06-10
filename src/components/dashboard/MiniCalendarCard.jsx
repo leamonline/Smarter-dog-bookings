@@ -97,7 +97,6 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedStr;
             const isFull = isOpen && count >= DAY_CAPACITY;
-            const hasAvailability = isOpen && !isFull;
 
             // Status: closed → red, full → blue, available → green
             // Selected/today still win for clarity. Loading → neutral.

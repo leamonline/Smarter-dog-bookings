@@ -14,7 +14,6 @@ export function BookingMainPanel({
   bookingsLoading,
   bookingsError,
   onRetry,
-  dogs,
   isOpen,
   activeSlots,
   overrides,

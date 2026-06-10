@@ -280,7 +280,6 @@ export function ChainBookingModal({
     onClose();
   };
 
-  const serviceObj = SERVICES.find((s) => s.id === service);
   const inputCls =
     "px-3 py-2 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-semibold font-inherit bg-white text-slate-800";
 
