@@ -91,3 +91,37 @@ describe("AddHumanModal duplicate guard", () => {
     expect(screen.getByRole("button", { name: "Add Human" })).toBeInTheDocument();
   });
 });
+
+// Regression guard for UX-AUDIT-REPORT Top 5 #3: the Add Human form used to
+// open pre-filled with stale data from a previously viewed record (browser
+// autofill grabbing the unguarded inputs). Fixed in 9943b69 by disabling
+// autofill; the modal is also conditionally mounted so React state resets on
+// every open. These tests pin both halves.
+describe("AddHumanModal create-mode state (UX #3)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("opens blank after a previous open captured values", () => {
+    // First open: staff type into the form, then close without saving —
+    // exactly the sequence that used to leave stale values behind.
+    const first = renderModal();
+    fillRequiredFields();
+    expect(screen.getByPlaceholderText("Sarah")).toHaveValue("Sarah");
+    first.unmount();
+
+    // Second open in create mode: every field must be empty.
+    renderModal();
+    expect(screen.getByPlaceholderText("Sarah")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Jones")).toHaveValue("");
+    expect(screen.getByPlaceholderText("07700 900111")).toHaveValue("");
+    expect(screen.getByPlaceholderText("sarah@example.com")).toHaveValue("");
+  });
+
+  it("keeps browser autofill disabled on the form and its identity fields", () => {
+    renderModal();
+    const firstName = screen.getByPlaceholderText("Sarah");
+    expect(firstName.closest("form")).toHaveAttribute("autocomplete", "off");
+    for (const placeholder of ["Sarah", "Jones", "07700 900111", "sarah@example.com"]) {
+      expect(screen.getByPlaceholderText(placeholder)).toHaveAttribute("autocomplete", "off");
+    }
+  });
+});
