@@ -92,3 +92,67 @@ describe("DogSearchSection — add another dog picker", () => {
     expect(screen.queryByText("No other dogs for this owner.")).not.toBeInTheDocument();
   });
 });
+
+// Regression guard for UX-AUDIT-REPORT Top 5 #1: typing in the New Booking
+// search used to hang on a permanent "Searching..." state because results
+// came only from the (slow) server search. The fix (9943b69) filters the
+// in-memory dog map locally and only shows "Searching..." while the server
+// search is in flight AND no local match exists. These tests pin each leg
+// of that behaviour so the hang can't quietly return.
+const jayne = {
+  id: "jayne-id",
+  fullName: "Jayne Lingard",
+  name: "Jayne",
+  surname: "Lingard",
+  phone: "07700111222",
+};
+
+function renderTypedSearch(overrides = {}) {
+  return renderSection({
+    dogEntries: [], // nothing picked yet → search mode renders
+    addingAnotherDog: false,
+    dogs: { [belle.id]: belle, [eti.id]: eti },
+    humans: { [jayne.fullName]: jayne },
+    ...overrides,
+  });
+}
+
+describe("DogSearchSection — typed search (UX #1)", () => {
+  it("notifies the parent so the debounced server search runs", () => {
+    const props = renderTypedSearch();
+    fireEvent.change(
+      screen.getByPlaceholderText(/start typing a dog's name/i),
+      { target: { value: "luna" } },
+    );
+    expect(props.setDogQuery).toHaveBeenCalledWith("luna");
+    expect(props.onSearchDogs).toHaveBeenCalledWith("luna");
+  });
+
+  it("filters the local dog map as the user types", () => {
+    renderTypedSearch({ dogQuery: "bel" });
+    expect(screen.getByText("Belle")).toBeInTheDocument();
+    expect(screen.queryByText("Eti")).not.toBeInTheDocument();
+    // Owner row is offered alongside the matching dog.
+    expect(screen.getByText("Jayne Lingard")).toBeInTheDocument();
+  });
+
+  it("does not show 'Searching...' when local matches exist, even mid server search", () => {
+    renderTypedSearch({ dogQuery: "bel", isSearchingDogs: true });
+    expect(screen.getByText("Belle")).toBeInTheDocument();
+    expect(screen.queryByText("Searching...")).not.toBeInTheDocument();
+  });
+
+  it("shows 'Searching...' only while the server search is in flight with no local match", () => {
+    renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: true });
+    expect(screen.getByText("Searching...")).toBeInTheDocument();
+  });
+
+  it("resolves to the no-results state with create CTAs instead of hanging", () => {
+    // The original bug: this state stayed at "Searching..." forever.
+    renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
+    expect(screen.queryByText("Searching...")).not.toBeInTheDocument();
+    expect(screen.getByText(/no dogs found matching "zzz"/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
+  });
+});
