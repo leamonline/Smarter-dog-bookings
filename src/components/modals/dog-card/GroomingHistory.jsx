@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
+import { logger } from "../../../lib/logger";
 import { SectionCard } from "../booking-detail/shared.jsx";
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
@@ -40,7 +41,9 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour
       .catch((err) => {
         if (!cancelled) {
           clearTimeout(timeout);
-          console.error("GroomingHistory fetch error:", err);
+          logger.error("GroomingHistory fetch failed", err, {
+            tags: { component: "GroomingHistory", op: "fetch-history" },
+          });
           setError(err.message || "Unknown error");
           setLoading(false);
         }
