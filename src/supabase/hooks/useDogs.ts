@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
+import { searchDogsDirectory } from "../rpc";
 import {
   dbDogsToMap,
   buildDogsById,
@@ -151,15 +152,15 @@ export function useDogs(humansById: Record<string, any>) {
       setError(null);
       if (!append) setLoading(true);
 
-      const { data, error: err } = await supabase.rpc("search_dogs_directory", {
-        p_search: params.search || null,
-        p_size: params.filters.size || null,
-        p_alert: !!params.filters.alert,
-        p_incomplete: !!params.filters.incomplete,
-        p_letter: params.letter || null,
-        p_sort: params.sort || "name",
-        p_limit: PAGE_SIZE,
-        p_offset: offset,
+      const { data, error: err } = await searchDogsDirectory(supabase, {
+        search: params.search || null,
+        size: params.filters.size || null,
+        alert: !!params.filters.alert,
+        incomplete: !!params.filters.incomplete,
+        letter: params.letter || null,
+        sort: params.sort || "name",
+        limit: PAGE_SIZE,
+        offset,
       });
 
       setIsSearching(false);

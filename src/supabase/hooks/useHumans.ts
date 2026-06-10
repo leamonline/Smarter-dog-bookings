@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
-import { approveCustomerSignup, rejectCustomerSignup } from "../rpc";
+import {
+  approveCustomerSignup,
+  rejectCustomerSignup,
+  searchHumansDirectory,
+  mergeHumans as mergeHumansRpc,
+} from "../rpc";
 import { findHumanByIdOrName } from "../transforms.js";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue.js";
 import { stripFormatChars } from "../../utils/phone.js";
@@ -191,17 +196,17 @@ export function useHumans() {
       setError(null);
       if (!append) setLoading(true);
 
-      const { data, error: err } = await supabase.rpc("search_humans_directory", {
-        p_search: params.search || null,
-        p_flagged: !!params.filters.flagged,
-        p_no_dogs: !!params.filters.noDogs,
-        p_no_phone: !!params.filters.noPhone,
-        p_whatsapp: !!params.filters.whatsapp,
-        p_pending: !!params.filters.newCustomers,
-        p_letter: params.letter || null,
-        p_sort: params.sort || "first",
-        p_limit: PAGE_SIZE,
-        p_offset: offset,
+      const { data, error: err } = await searchHumansDirectory(supabase, {
+        search: params.search || null,
+        flagged: !!params.filters.flagged,
+        noDogs: !!params.filters.noDogs,
+        noPhone: !!params.filters.noPhone,
+        whatsapp: !!params.filters.whatsapp,
+        pending: !!params.filters.newCustomers,
+        letter: params.letter || null,
+        sort: params.sort || "first",
+        limit: PAGE_SIZE,
+        offset,
       });
 
       setIsSearching(false);
@@ -762,9 +767,9 @@ export function useHumans() {
       if (!supabase)
         return { ok: false, error: "Merge needs a connection — you're offline." };
 
-      const { error: err } = await supabase.rpc("merge_humans", {
-        p_winner: winnerId,
-        p_loser: loserId,
+      const { error: err } = await mergeHumansRpc(supabase, {
+        winnerId,
+        loserId,
       });
       if (err) {
         return { ok: false, error: err.message || "Failed to merge records" };
