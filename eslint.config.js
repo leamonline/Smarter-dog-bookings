@@ -99,7 +99,6 @@ export default [
       "src/supabase/transforms.ts",
       "src/components/modals/AddHumanModal.jsx",
       "src/components/modals/DogCardModal.jsx",
-      "src/components/modals/HumanCardModal.jsx",
       "src/components/modals/WaitlistModal.jsx",
       "src/components/modals/dog-card/GroomingHistory.jsx",
       "src/components/modals/human-card/MergeHumanDialog.jsx",

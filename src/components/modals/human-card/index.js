@@ -10,3 +10,7 @@ export { DogsPanel } from "./DogsPanel.jsx";
 export { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
 export { RemindersPanel } from "./RemindersPanel.jsx";
 export { MergeHumanDialog } from "./MergeHumanDialog.jsx";
+export { HumanEditFooter } from "./HumanEditFooter.jsx";
+export { RejectSignupDialog } from "./RejectSignupDialog.jsx";
+export { useHumanDraft } from "./useHumanDraft.js";
+export { useHumanCardActions } from "./useHumanCardActions.js";
