@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { canBookSlot } from "../engine/capacity";
 import { SALON_SLOTS } from "../constants/index";
-import type { SlotOverrides } from "../types/index";
+import type { Booking, DogSize, SlotOverrides } from "../types/index";
 
 interface EditSettings {
   isOpen?: boolean;
@@ -11,8 +11,8 @@ interface EditSettings {
 
 interface UseSlotAvailabilityInput {
   editSettings: EditSettings;
-  otherBookings: unknown[];
-  bookingSize: string;
+  otherBookings: Booking[];
+  bookingSize: DogSize;
   bookingSlot: string;
   bookingDogId?: string | null;
 }
@@ -38,9 +38,9 @@ export function useSlotAvailability({
   const availableSlots = useMemo(() => {
     return editActiveSlots.filter((slot) => {
       const check = canBookSlot(
-        otherBookings as any[],
+        otherBookings,
         slot,
-        bookingSize as any,
+        bookingSize,
         editActiveSlots,
         {
           overrides: editSettings.overrides?.[slot] || {},
@@ -55,9 +55,9 @@ export function useSlotAvailability({
   const currentSlotStillValid = useMemo(() => {
     if (!bookingSlot) return false;
     const check = canBookSlot(
-      otherBookings as any[],
+      otherBookings,
       bookingSlot,
-      bookingSize as any,
+      bookingSize,
       editActiveSlots,
       {
         overrides: editSettings.overrides?.[bookingSlot] || {},

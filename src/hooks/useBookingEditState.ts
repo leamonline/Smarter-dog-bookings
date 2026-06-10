@@ -4,6 +4,11 @@ import {
   getServicePriceLabel,
   normalizeServiceForSize,
 } from "../engine/bookingRules";
+import type { Booking, Dog } from "../types/index";
+
+// The caller passes `{}` when the booking's dog can't be resolved, so every
+// dog field must stay optional — hence Partial<Dog> rather than Dog.
+type EditableDogData = Partial<Dog> | null | undefined;
 
 interface EditData {
   service: string;
@@ -48,7 +53,11 @@ interface UseBookingEditStateReturn {
   resetEditState: () => void;
 }
 
-function buildEditState(booking: any, dogData: any, currentDateObj: Date): EditData {
+function buildEditState(
+  booking: Booking,
+  dogData: EditableDogData,
+  currentDateObj: Date,
+): EditData {
   const size = booking.size || dogData?.size || "small";
   const service = normalizeServiceForSize(
     booking.service || "full-groom",
@@ -74,8 +83,8 @@ function buildEditState(booking: any, dogData: any, currentDateObj: Date): EditD
 }
 
 export function useBookingEditState(
-  booking: any,
-  dogData: any,
+  booking: Booking,
+  dogData: EditableDogData,
   currentDateObj: Date,
 ): UseBookingEditStateReturn {
   const [isEditing, setIsEditing] = useState(false);
