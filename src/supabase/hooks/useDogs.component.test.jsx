@@ -1079,6 +1079,36 @@ describe("useDogs", () => {
     expect(result.current.dogs["dog-a"]).toBeUndefined();
   });
 
+  // ---- single source of truth (Debt #14) ----
+
+  it("a rename leaves no stale entry under the old name in any lookup", async () => {
+    const { getDogByIdOrName } = await import("../../engine/bookingRules");
+    const stub = makeSupabaseStub({
+      rpcImpl: () => ({ data: { rows: [ROW()], total: 1, letters: ["B"] }, error: null }),
+      updateResult: {
+        data: { ...ROW(), name: "Luna" },
+        error: null,
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useDogs(HUMANS));
+    await waitFor(() => expect(result.current.dogs["dog-1"]).toBeTruthy());
+    expect(getDogByIdOrName(result.current.dogs, "Bella")?.id).toBe("dog-1");
+
+    await act(async () => {
+      await result.current.updateDog("dog-1", { name: "Luna" });
+    });
+
+    // The register's drift scenario: with two parallel maps, a rename could
+    // leave a stale app-shape entry resolving under the old name. The map is
+    // now derived from dogsById, so old-name lookups die with the rename and
+    // the raw + app shapes agree by construction.
+    expect(getDogByIdOrName(result.current.dogs, "Bella")).toBeNull();
+    expect(getDogByIdOrName(result.current.dogs, "Luna")?.id).toBe("dog-1");
+    expect(result.current.dogs["dog-1"].name).toBe("Luna");
+    expect(result.current.dogsById["dog-1"].name).toBe("Luna");
+  });
+
   it("fetchArchivedDogs returns [] offline and on query errors", async () => {
     setSupabase(null);
     const offline = renderHook(() => useDogs({}));
