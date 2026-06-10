@@ -46,7 +46,6 @@ export function BookingDetailModal({
   dogs,
   humans,
   onUpdateDog,
-  onRebook,
   daySettings = {},
 }) {
   const dogData = useMemo(
@@ -69,8 +68,6 @@ export function BookingDetailModal({
       setShowDatePicker,
       showExitConfirm,
       setShowExitConfirm,
-      showContact,
-      setShowContact,
     },
     resetEditState,
   } = useBookingEditState(booking, dogData, currentDateObj);

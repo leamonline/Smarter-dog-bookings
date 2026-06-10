@@ -7,7 +7,6 @@ import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   getDogByIdOrName,
-  getHumanByIdOrName,
   computeBookingPricing,
   resolveBookingDisplay,
 } from "../../engine/bookingRules";

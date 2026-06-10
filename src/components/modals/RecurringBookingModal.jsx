@@ -19,9 +19,7 @@ export function RecurringBookingModal({
   chainId,
   currentBookingId,
   dogName,
-  sizeTheme,
   onClose,
-  onRemove,
   onCloseParent,
 }) {
   const toast = useToast();
@@ -54,8 +52,6 @@ export function RecurringBookingModal({
     onClose();
     if (onCloseParent) onCloseParent();
   };
-
-  const theme = sizeTheme || SIZE_FALLBACK;
 
   return (
     <AccessibleModal

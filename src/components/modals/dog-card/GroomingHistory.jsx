@@ -3,7 +3,7 @@ import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
 import { SectionCard } from "../booking-detail/shared.jsx";
 
-export function GroomingHistory({ dogId, fetchBookingHistoryForDog, accentColour }) {
+export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

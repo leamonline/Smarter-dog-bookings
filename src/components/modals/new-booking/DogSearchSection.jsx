@@ -87,7 +87,7 @@ export function DogSearchSection({
       {/* ─── STEP 1: Dog Search / Dog Cards ─── */}
       {hasDogs ? (
         <div className="flex flex-col gap-2">
-          {dogEntries.map((entry, idx) => {
+          {dogEntries.map((entry) => {
             const dogTheme = SIZE_THEME[entry.dog.size || "small"] || SIZE_FALLBACK;
             return (
             <div

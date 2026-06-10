@@ -232,7 +232,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   );
 
   const removeBooking = useCallback(
-    async (dateStr, bookingId) => {
+    async (_dateStr, bookingId) => {
       if (!supabase) return { success: true };
 
       setError(null);
@@ -269,7 +269,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
   );
 
   const updateBooking = useCallback(
-    async (updatedBooking, fromDateStr, toDateStrValue) => {
+    async (updatedBooking, _fromDateStr, toDateStrValue) => {
       if (!supabase) return updatedBooking;
 
       setError(null);

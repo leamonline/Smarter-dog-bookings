@@ -22,8 +22,6 @@ export function PhotoLightbox({
   const [deleting, setDeleting] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
-  const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
-
   const formattedDate = formatDateStr(photo.takenAt);
 
   const handleSaveNotes = async () => {

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
+import { SALON_SLOTS, SIZE_FALLBACK } from "../../constants/index";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { isDateOpen } from "../../engine/utils";
 import { toDateStr } from "../../supabase/transforms";

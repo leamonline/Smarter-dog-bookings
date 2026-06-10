@@ -22,7 +22,7 @@ function getWeekDates(refDate) {
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function buildInsight(thisWeekData, thisWeekTotal, thisWeekCount, openSlots, fillPct) {
+function buildInsight(thisWeekData, _thisWeekTotal, thisWeekCount, openSlots, fillPct) {
   if (thisWeekCount === 0) {
     return "No bookings yet this week — calendar is wide open.";
   }

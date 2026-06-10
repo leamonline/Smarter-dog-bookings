@@ -5,7 +5,6 @@ export function BookingAlerts({
   isEditing,
   editData,
   setEditData,
-  dogData,
   hasAllergy,
   setHasAllergy,
   allergyInput,
