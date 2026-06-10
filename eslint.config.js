@@ -113,7 +113,6 @@ export default [
       "src/hooks/useGroomPhotos.js",
       "src/hooks/useReportsData.ts",
       "src/supabase/client.js",
-      "src/supabase/hooks/useHumans.ts",
       "src/utils/formatOwnerLabel.js",
     ],
     rules: { "no-console": "off" },
