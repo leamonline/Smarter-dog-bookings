@@ -146,7 +146,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [ownerId]);
+  }, [ownerId, booking?.id, booking?._bookingDate]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
