@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
-import { SectionCard } from "../booking-detail/shared.jsx";
+import { Scissors } from "lucide-react";
+import { PanelShell } from "../shell/index.js";
+
+const COLLAPSED_ROWS = 5;
 
 export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
   const [history, setHistory] = useState([]);
+  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const mountedRef = useRef(true);
@@ -99,7 +103,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
   };
 
   return (
-    <SectionCard title="Grooming History">
+    <PanelShell eyebrow="Grooming history" icon={Scissors} accent="amber" className="mb-3">
       {loading && (
         <div className="text-xs text-slate-400 py-1">
           Loading...
@@ -150,13 +154,13 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
               No previous visits recorded.
             </div>
           ) : (
-            history.map((b, i) => {
+            (expanded ? history : history.slice(0, COLLAPSED_ROWS)).map((b, i, rows) => {
               const svc = SERVICES.find((s) => s.id === b.service);
               return (
                 <div
                   key={`${b.date}-${b.id || b.slot}-${i}`}
                   className={`flex justify-between items-center py-2 text-xs ${
-                    i === history.length - 1 ? "" : "border-b border-slate-100"
+                    i === rows.length - 1 ? "" : "border-b border-slate-100"
                   }`}
                 >
                   <div>
@@ -179,8 +183,17 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
               );
             })
           )}
+          {history.length > COLLAPSED_ROWS && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="w-full text-left text-[12px] font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 hover:text-brand-teal transition-colors"
+            >
+              {expanded ? "Show fewer" : `Show all ${history.length} \u2192`}
+            </button>
+          )}
         </>
       )}
-    </SectionCard>
+    </PanelShell>
   );
 }

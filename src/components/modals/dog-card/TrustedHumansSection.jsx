@@ -1,12 +1,18 @@
+import { Users } from "lucide-react";
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase } from "./helpers.js";
-import { SectionCard, CardRow } from "../booking-detail/shared.jsx";
+import { CardRow } from "../booking-detail/shared.jsx";
+import { PanelShell } from "../shell/index.js";
+
+// Interactive accent for the add-trusted flows. The old size-coloured
+// accent is now carried by the shell's accent bar; controls in the
+// quiet panels use the brand teal like the rest of the dashboard.
+const ACCENT = "var(--color-brand-teal)";
 
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 export function TrustedHumansSection({
   isEditing,
-  sizeAccent,
   trustedContacts,
   humans,
   owner,
@@ -40,7 +46,7 @@ export function TrustedHumansSection({
   const contacts = trustedContacts || [];
 
   return (
-    <SectionCard title="Trusted Humans">
+    <PanelShell eyebrow="Trusted humans" icon={Users} accent="sky" className="mb-3">
       {contacts.length > 0 ? (
         contacts.map((contact, i) => {
           const trustedHuman = getHumanByIdOrName(humans, contact.id) || getHumanByIdOrName(humans, contact.fullName);
@@ -118,9 +124,9 @@ export function TrustedHumansSection({
             onClick={() => setShowTrustedSearch(!showTrustedSearch)}
             className="w-full mt-2 py-2 rounded-lg border-[1.5px] border-dashed text-[13px] font-bold cursor-pointer font-inherit transition-all"
             style={{
-              borderColor: sizeAccent,
-              background: showTrustedSearch ? sizeAccent : "#FFFFFF",
-              color: showTrustedSearch ? "#FFFFFF" : sizeAccent,
+              borderColor: ACCENT,
+              background: showTrustedSearch ? ACCENT : "#FFFFFF",
+              color: showTrustedSearch ? "#FFFFFF" : ACCENT,
             }}
           >
             {showTrustedSearch ? "Cancel" : "+ Add a trusted human"}
@@ -139,7 +145,7 @@ export function TrustedHumansSection({
                   onChange={(e) => setTrustedSearchQuery(e.target.value)}
                   autoFocus
                   className={`${INPUT_CLS} pl-8`}
-                  style={{ borderColor: sizeAccent }}
+                  style={{ borderColor: ACCENT }}
                 />
               </div>
               {trustedSearchResults.length > 0 && (
@@ -171,14 +177,14 @@ export function TrustedHumansSection({
                 <button
                   onClick={() => setShowNewTrustedForm(true)}
                   className="w-full mt-2 py-2 rounded-lg border-[1.5px] text-xs font-bold cursor-pointer font-inherit transition-all bg-white"
-                  style={{ borderColor: sizeAccent, color: sizeAccent }}
+                  style={{ borderColor: ACCENT, color: ACCENT }}
                 >
                   + Add new human
                 </button>
               )}
               {showNewTrustedForm && (
                 <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="text-[11px] font-extrabold uppercase tracking-wide mb-2" style={{ color: sizeAccent }}>New Trusted Human</div>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wide mb-2" style={{ color: ACCENT }}>New Trusted Human</div>
                   <div className="flex gap-2 mb-2">
                     <input
                       type="text"
@@ -215,7 +221,7 @@ export function TrustedHumansSection({
                       onClick={handleAddNewTrusted}
                       disabled={!newTrustedName.trim() || !newTrustedSurname.trim() || !newTrustedPhone.trim()}
                       className="flex-1 py-2 rounded-lg border-none text-white text-xs font-bold cursor-pointer font-inherit disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
-                      style={{ background: sizeAccent }}
+                      style={{ background: ACCENT }}
                     >
                       Add
                     </button>
@@ -238,6 +244,6 @@ export function TrustedHumansSection({
           )}
         </>
       )}
-    </SectionCard>
+    </PanelShell>
   );
 }

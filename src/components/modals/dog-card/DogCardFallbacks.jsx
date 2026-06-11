@@ -1,13 +1,14 @@
-import { AccessibleModal } from "../../shared/AccessibleModal.tsx";
+import { ModalShell } from "../shell/index.js";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 
 /** Shown while useResolvedDog is fetching a dog beyond the loaded page. */
 export function DogCardLoading({ onClose }) {
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="dog-card-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-modal"
+      accent="var(--color-border-default, #E7E5E4)"
+      widthClass="w-[min(520px,95vw)]"
     >
       <div
         id="dog-card-title"
@@ -16,17 +17,18 @@ export function DogCardLoading({ onClose }) {
         <LoadingSpinner />
         <div className="text-sm text-slate-500">Loading dog profile…</div>
       </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }
 
 /** Shown when the deep-linked dog no longer exists (deleted, bad link). */
 export function DogCardNotFound({ onClose }) {
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="dog-card-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] shadow-modal"
+      accent="var(--color-border-default, #E7E5E4)"
+      widthClass="w-[min(520px,95vw)]"
     >
       <div className="px-6 py-12 text-center">
         <div
@@ -41,11 +43,11 @@ export function DogCardNotFound({ onClose }) {
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-bold cursor-pointer font-inherit"
+          className="px-4 py-2 rounded-full bg-brand-purple text-white text-sm font-bold cursor-pointer font-inherit border-none"
         >
           Close
         </button>
       </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }
