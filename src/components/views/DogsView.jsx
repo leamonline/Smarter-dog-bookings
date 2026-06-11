@@ -158,7 +158,7 @@ function OwnerContact({ phone, className = "" }) {
   if (!phone) return null;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
-      <a href={telLink(phone)} className="font-medium no-underline hover:text-brand-purple truncate">
+      <a href={telLink(phone)} className="font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
         {phone}
       </a>
       <a
@@ -167,7 +167,7 @@ function OwnerContact({ phone, className = "" }) {
         rel="noopener noreferrer"
         title="Open in WhatsApp"
         aria-label="Open in WhatsApp"
-        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+        className="inline-flex items-center justify-center w-6 h-6 max-sm:w-9 max-sm:h-9 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
       >
         <MessageCircle size={12} aria-hidden="true" />
       </a>
@@ -572,7 +572,7 @@ export function DogsView({
                     type="button"
                     onClick={() => onSortModeChange?.(mode)}
                     aria-pressed={sortMode === mode}
-                    className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
+                    className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
                       sortMode === mode
                         ? "bg-brand-yellow text-brand-purple"
                         : "text-slate-500 hover:text-brand-purple"
@@ -598,7 +598,7 @@ export function DogsView({
                   type="button"
                   onClick={() => setViewMode(mode)}
                   aria-pressed={viewMode === mode}
-                  className={`px-2.5 py-1 rounded-[6px] text-micro font-bold transition-colors ${
+                  className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
                     viewMode === mode
                       ? "bg-brand-yellow text-brand-purple"
                       : "text-slate-500 hover:text-brand-purple"
