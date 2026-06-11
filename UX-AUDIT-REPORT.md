@@ -5,6 +5,8 @@
 **URL:** https://smarterdog.vercel.app
 **Context:** Tablet-first salon front desk app. Staff are standing, busy, often have wet hands. Primary device is iPad/tablet.
 
+> **Status note (June 2026):** Audited 12 April 2026 against the predecessor deployment. All five Top-5 issues were addressed the same week (commit `9943b69`; SettingsView tab rewrite `5d7c53f`) and regression-guarded in June 2026 by PR **#246** (DogSearchSection + AddHumanModal component tests, `e2e/new-booking-search.spec.ts`, `e2e/settings-tabs.spec.ts`, plus a fix for the offline twin of issue #1). Per-issue statuses below are verified against the current code; the rest of the document describes the April state.
+
 ---
 
 ## Summary
@@ -16,30 +18,45 @@ The app has strong bones — the booking grid, dog/human directories, and card-b
 ## Top 5 Issues (by severity)
 
 ### 1. Dog search in New Booking Modal is broken (Critical — Blocker)
+
+> **Status:** FIXED in `9943b69` (client-side filtering instead of waiting on the server search); the offline twin (a no-match query stuck on "Searching…") fixed in PR #246 (`useDogs.ts`). Guarded by `DogSearchSection.component.test.jsx` and `e2e/new-booking-search.spec.ts`.
+
 When typing a dog's name in the New Booking Modal search field, the UI permanently displays "Searching..." and never returns results. The dropdown works fine when left empty (shows all dogs), but typed search is completely non-functional. This is the primary booking creation flow — staff can't create bookings through the intended UI path. They must either scroll the full dog list or rely on workarounds.
 
 **Impact:** Blocks the core workflow. A salon with 50+ dogs can't efficiently find a dog to book.
 **Fix complexity:** Medium — likely a debounce/filter bug in the search handler or a cold-start issue with the dog list query.
 
 ### 2. Settings page renders blank below first two sections (Critical — Bug)
+
+> **Status:** FIXED — SettingsView is now a true tabbed interface, one section per tab (`5d7c53f` rewrite, completed in `9943b69`); `e2e/settings-tabs.spec.ts` (PR #246) walks every tab and asserts the content actually paints.
+
 The Salon Settings page is a single long-scroll layout with 8 sections (Your Business, Hours & Closures, Your Account, Services & Pricing, Booking Rules, Capacity Engine, Customer Portal, Notifications). Only the first two sections ("Your Business" and "Opening Hours & Closures") are visually rendered. Everything below appears as blank whitespace despite the content existing in the DOM. The tab navigation highlights the correct tab but doesn't scroll to visible content. Staff cannot visually access or edit Services & Pricing, Booking Rules, Capacity Engine, Customer Portal, or Notifications settings.
 
 **Impact:** Entire settings sections are inaccessible via normal interaction.
 **Fix complexity:** Likely a CSS overflow, height calculation, or lazy-rendering bug. The DOM elements exist at correct positions but aren't painting.
 
 ### 3. Add Human Modal pre-fills with stale data (High — Bug)
+
+> **Status:** FIXED in `9943b69` (`autoComplete="off"` guard against browser autofill); blank create-mode state pinned by `AddHumanModal.component.test.jsx` (PR #246).
+
 When opening the Add Human Modal, the form fields are pre-populated with data from a previously viewed or edited human record. The form should open blank for a new entry. This could lead to accidental duplicate entries or overwriting existing records.
 
 **Impact:** Data integrity risk — staff might save incorrect records without noticing pre-filled fields.
 **Fix complexity:** Low — clear form state in the modal's `onOpen` or `useEffect` hook.
 
 ### 4. Dog Card grooming history inconsistency (Medium — Bug)
+
+> **Status:** FIXED in `9943b69` — the history fetch now has an 8-second timeout that resolves to an error state instead of an indefinite "Loading…" (`modals/dog-card/GroomingHistory.jsx:26–31, 92–94`).
+
 The grooming history section in the Dog Card Modal behaves inconsistently across dogs. For Fox, it shows "Loading..." indefinitely at desktop width. For Charlie, it loads correctly at mobile width showing actual booking history. This suggests either a data-fetching race condition, a dog-specific data issue, or a viewport-dependent rendering bug.
 
 **Impact:** Staff can't reliably check a dog's grooming history before booking, which is important for choosing the right service and anticipating behaviour.
 **Fix complexity:** Medium — needs investigation into the history-fetching logic per dog record.
 
 ### 5. No visible loading or empty state feedback on booking grid (Medium — UX)
+
+> **Status:** FIXED in `9943b69`, since superseded by a richer empty state — `src/components/dashboard/EmptyDayPanel.jsx` ("No dogs booked for {date}" with add-booking / waitlist / close-day actions).
+
 The main booking grid shows empty dashed-outline slots with + and block icons, but there's no contextual message like "No bookings today" or "Tap + to add a booking". For a new user or a genuinely empty day, the grid of identical empty cells gives no guidance. The "0 dogs booked" text in the header is the only signal, and it's easy to miss.
 
 **Impact:** Onboarding friction. Staff unfamiliar with the app won't immediately understand what they're looking at.

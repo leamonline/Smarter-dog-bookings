@@ -4,6 +4,8 @@
 **Auditor:** Claude (Opus 4.6)
 **Scope:** Full file-by-file read-only audit of the `leamonline/Smarter-dogs-smart-humans` repository
 
+> **⚠️ Status note (June 2026):** This document is a **2026-04-14 snapshot of the predecessor repository** (`leamonline/Smarter-dogs-smart-humans`) and is **substantially superseded**. Ground truth is the current code plus the June 2026 overhaul PR history (**#246–#261**) and the gitignored session notes in `.claude-scratch/fable5-run.md`. The Section 3 critical issues are annotated below with statuses verified against the current code. **Sections 4–10 still describe the April state and have not been re-verified** — treat their file paths, line counts and findings as historical.
+
 ---
 
 ## 1. Stack Overview
@@ -248,6 +250,8 @@ These are bugs or misconfigurations that are broken or will break in production.
 
 ### 3.1 CRITICAL — Booking reminder Edge Function is non-functional
 
+> **Status (June 2026):** FIXED — `WEBHOOK_SECRET` is now declared (`notify-booking-reminder/index.ts:13`) and the secret is served from Vault (migration `20260505210120_webhook_secret_via_vault.sql`).
+
 **File:** `supabase/functions/notify-booking-reminder/index.ts`, lines 1–13 and 134–139
 
 The `WEBHOOK_SECRET` constant is **never declared** in the environment variable block (lines 4–12). Every other notification function (`notify-booking-confirmed`, `notify-booking-cancelled`, `notify-waitlist-joined`) declares it on line 13 as:
@@ -261,6 +265,8 @@ This line is missing from `notify-booking-reminder`. At line 134 the function ch
 **Impact:** Complete failure of the daily reminder cron job. Customers receive no appointment reminders.
 
 ### 3.2 CRITICAL — CSP blocks Google Fonts in production
+
+> **Status (June 2026):** FIXED (differently to the suggestion) — Quicksand/Montserrat are now self-hosted woff2 files in `public/fonts/` with `@font-face` in `src/index.css`; `index.html` no longer loads Google Fonts and `netlify.toml` is gone. `vercel.json` still allowlists the Google origins in its CSP — a harmless leftover.
 
 **Files:** `vercel.json` line 14, `netlify.toml` line 19, `index.html` lines 13–15
 
@@ -281,6 +287,8 @@ The CSP also lacks `connect-src` entries for `@vercel/analytics` endpoints, whic
 
 ### 3.3 HIGH — `BookingDetailModal` uses undeclared `SALON_SLOTS`
 
+> **Status (June 2026):** FIXED — the date-change logic now lives in `src/components/modals/booking-detail/BookingDetailOverlays.jsx` with `SALON_SLOTS` properly imported (line 2).
+
 **File:** `src/components/modals/BookingDetailModal.jsx`, line 203
 
 ```js
@@ -293,6 +301,8 @@ const newActiveSlots = [...SALON_SLOTS, ...(newSettings.extraSlots || [])];
 
 ### 3.4 HIGH — Hardcoded Supabase project URL in SQL migrations
 
+> **Status (June 2026):** FIXED — migration `20260507132400_dehardcode_notify_urls.sql` rewrites all triggers/cron to read the URL from Vault via `get_supabase_url()`, and `20260510235900_drop_supabase_url_fallback.sql` removes the hardcoded fallback so a missing secret fails loudly.
+
 **Files:** `supabase/migrations/013_cron_and_waitlist_notify.sql` line 36, `supabase/migrations/014_waitlist_pg_net_trigger.sql` line 12, `supabase/migrations/020_fix_waitlist_trigger_auth.sql` line 13
 
 The Supabase project URL `https://nlzhllhkigmsvrzduefz.supabase.co` is hardcoded in three migrations. These migrations create `pg_cron` jobs and `pg_net` triggers that call Edge Functions at this specific URL. If the project is migrated, forked, or the project ref changes, the cron job and waitlist notification trigger will silently point to the wrong (or dead) endpoint.
@@ -300,6 +310,8 @@ The Supabase project URL `https://nlzhllhkigmsvrzduefz.supabase.co` is hardcoded
 **Impact:** Not currently broken, but a deployment hazard. Should be parameterised via `current_setting('app.settings...')` or a migration variable.
 
 ### 3.5 HIGH — `SlotGrid` block/unblock logic is identical
+
+> **Status (June 2026):** RESOLVED — `setOverride` is an explicit toggle (a second identical call inverts the first), so the Undo callbacks behave correctly; `SlotGrid.jsx:68–89` now also dismisses the optimistic toast and shows an error if the server write fails.
 
 **File:** `src/components/booking/SlotGrid.jsx`, lines 30–42
 
@@ -322,6 +334,8 @@ The underlying override system uses a toggle mechanism (set if absent, remove if
 **Impact:** The "Undo" button on block/unblock toasts does the opposite of what the user expects.
 
 ### 3.6 MEDIUM — `ResetPasswordPage` placeholder contradicts validation
+
+> **Status (June 2026):** FIXED — the placeholder now reads "Min. 12 characters" (`ResetPasswordPage.jsx:173`), matching the 12-character validation at line 57.
 
 **File:** `src/components/auth/ResetPasswordPage.jsx`, line 132 vs line 51
 

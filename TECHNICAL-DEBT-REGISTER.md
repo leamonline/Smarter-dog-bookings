@@ -4,6 +4,8 @@ Inheriting this codebase on Monday. 25 entries, no fixes yet. Evidence cited
 as `file:line`. Cost rubric: **S** = hours, **M** = a few days, **L** = a
 sustained workstream (week+).
 
+> **Status note (June 2026):** Register written ~May 2026. Statuses below were added June 2026 after the overhaul (PRs **#246–#261**), each verified against the current code. Original findings are untouched; a quote-block status per debt sits directly under each table.
+
 ## Mixed paradigms & weak typing
 
 | What hurts | Why it hurts | Cost |
@@ -12,6 +14,14 @@ sustained workstream (week+).
 | **2. TS escape hatches concentrated in critical paths.** 59 `: any` / `as any` usages across 11 files (`BookingWizard.tsx:168,222,500,550`, `useReportsData.ts:154,264,268,305,504,509`, `useBookingEditState.ts:51,77`, `useSlotAvailability.ts:41-60`, `useModalState.ts:26-27`). | The reports pipeline, customer booking flow, and slot availability — all business-critical — are TypeScript in name only. `dogs={dogs as any}` is passed into typed children, defeating the wrapper. | M |
 | **3. ESLint safety rules disabled.** `eslint.config.js:51-66` turns off `@typescript-eslint/no-unused-vars`, `no-explicit-any`, `react-hooks/exhaustive-deps`, `no-unused-vars`, and allows empty catch blocks. | Stale `useEffect` dependency arrays land without warning (and there are dozens — see App.jsx:234 missing `setSelectedDogId`/`setSelectedHumanId`). Dead variables accumulate. No automated pressure to add types. | S |
 | **4. `.js` import extension used for `.ts`/`.tsx` modules.** `App.jsx:12-25` imports `./supabase/client.js`, `./engine/utils.js`, `./hooks/useBookingActions.js` — all of which are `.ts`. `CustomerApp.jsx:6` imports `./BookingWizard.js` when the file is `.tsx`. | Hides what is and isn't typed. New devs cannot tell from a grep which modules ship types. The bundler resolves these because `moduleResolution: "bundler"`, but the deception is corrosive. | S |
+
+> **Debt 1 — Status (June 2026):** PARTIALLY CLOSED — the typed slice grew (61 non-test `.ts/.tsx` vs 251 `.js/.jsx`); `src/engine` is now 100% TS (non-test) and `database.types.ts` exists, but `src/hooks` still has 6 `.js` hooks (`useAutosave`, `useDirectoryWarmup`, `useGroomPhotos`, `useOfflineState`, `useRebookFlow`, `useWeekNav`), `src/supabase/hooks` still has 21 non-test `.js` files, and `tsconfig.json` is still `checkJs: false`.
+>
+> **Debt 2 — Status (June 2026):** CLOSED in #253–#255 + #258 — generated `src/supabase/database.types.ts` (#253); the cited hot paths (`BookingWizard.tsx`, `useReportsData.ts`, `useBookingEditState.ts`, `useSlotAvailability.ts`, `useModalState.ts`) now contain zero `: any`/`as any` (#254/#255); `@typescript-eslint/no-explicit-any` on at `warn` with a ~116-warning baseline to burn down (#258).
+>
+> **Debt 3 — Status (June 2026):** CLOSED — `react-hooks/exhaustive-deps` was promoted to `error` pre-run (21 May, `35dc78d`); #256 re-enabled unused-vars (TS variant, `error`), #257 dropped `allowEmptyCatch` (`no-empty: error`), #258 added `no-explicit-any` at `warn`.
+>
+> **Debt 4 — Status (June 2026):** CLOSED in #247 — codemod dropped the lying `.js` extensions (`7f9fe50`) and `scripts/check-import-extensions.mjs` now runs inside `npm run lint`; remaining `.js` specifiers point at genuine `.js` files.
 
 ## God files
 
@@ -25,6 +35,20 @@ sustained workstream (week+).
 | **10. `src/components/views/inbox/InboxView.jsx` — 708 LoC.** Destructures 20+ values from `useWhatsAppInbox`, plus its own 6 hooks. Switches between 6 list modes (`all/unread/drafts/bookings/needs_review/done`), thread detail, draft panel, booking action panel, compose box, manual reply, mobile/desktop layout, deep-linking from URL. | Conversation routing logic is tangled with rendering logic. Adding a 7th list mode is a multi-file ripple even though it's conceptually one filter. | L |
 | **11. `src/App.jsx` — 757 LoC, 5 data hooks + 4 effect hooks at the top level.** Coordinates auth, routing, modal state across 10 modals, offline fallback, rebook flow, profile URL-to-modal mapping, plus 3 effects that compensate for `useHumans`/`useDogs` pagination (lines 364-399). | App.jsx is the place every story starts. New routes mean adding props to `WeekCalendarView` (31 props now, line 596-633) or `HumansView`/`DogsView` which each get 12+ identical props in two route variants. | M |
 
+> **Debt 5 — Status (June 2026):** CLOSED in #248 — `useHumans.ts` is now a 103-line orchestrator over `src/supabase/hooks/humans/` (`useHumansData`, `useHumansSearch`, `useTrustedContacts`, `useHumanMutations`, `useHumanLookups`, `useHumanLifecycle`), each with its own component test.
+>
+> **Debt 6 — Status (June 2026):** CLOSED pre-run — `useWhatsAppInbox.js` is down to 530 LoC; draft, booking-action, lifecycle, AI-mode and outbound logic extracted to `src/supabase/hooks/inbox/` (five tested sub-hooks; extraction began 21 May, `1142e49`).
+>
+> **Debt 7 — Status (June 2026):** CLOSED in #249 — `HumanCardModal.jsx` is 399 LoC; the leaves live in `modals/human-card/` (panels, header, dialogs, `useHumanDraft`, `useHumanCardActions`).
+>
+> **Debt 8 — Status (June 2026):** CLOSED in #250 — `DogCardModal.jsx` is 400 LoC; `modals/dog-card/` hosts the photo gallery, chain-booking, details and edit-form leaves.
+>
+> **Debt 9 — Status (June 2026):** CLOSED in #251 — `BookingDetailModal.jsx` is 392 LoC; the nested overlays are hoisted into `booking-detail/BookingDetailOverlays.jsx` and sibling cards.
+>
+> **Debt 10 — Status (June 2026):** OPEN — verified still present: `views/inbox/InboxView.jsx` is 706 LoC (was 708); the list-mode cascade remains.
+>
+> **Debt 11 — Status (June 2026):** OPEN — verified still present, and worse: `App.jsx` has grown to 1,025 LoC and remains the routing/modal/prop hub.
+
 ## Leaky abstractions
 
 | What hurts | Why it hurts | Cost |
@@ -36,6 +60,18 @@ sustained workstream (week+).
 | **16. Realtime channel names are global string literals.** `useTodos.js:34` (`"salon-todos"`), `useWaitlist.js:48` (`"waitlist_changes"`), `useWhatsAppSummary.js:190/214`, `useWhatsAppInbox.js:221`, etc. Some include `Date.now()`, most don't. | Mounting two instances of the same hook in dev (HMR, double-render) can collide on shared channels. The pattern is inconsistent — `useHumans.ts:173` and `useMonthBookings.js:63` use random suffixes, others don't. | S |
 | **17. `sessionStorage` accessed directly in `src/lib/chunkReload.js`** (lines 25, 31, 51). Only call site, but no wrapper means future storage adds will copy this pattern. | Privacy-mode failures handled inline (`// sessionStorage can throw in privacy modes`); next developer reinventing the same workaround is likely. | S |
 
+> **Debt 12 — Status (June 2026):** PARTIALLY CLOSED — `src/supabase/repositories/` (`bookingsRepo.ts`, `dogsRepo.ts`, `humansRepo.ts`, created pre-run) now backs `BookingWizard`, customer `BookingCard` and `SlotSelection`, but 24 non-test component files still import the Supabase client directly and there is no `no-restricted-imports` guard.
+>
+> **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
+>
+> **Debt 14 — Status (June 2026):** CLOSED in #247 (`76adfd4`) — `dogsById` is the single source of truth; the name-keyed map is derived via `useMemo` (`useDogs.ts:124-126`) and the dual-write sites are gone.
+>
+> **Debt 15 — Status (June 2026):** PARTIALLY CLOSED — `PRICING` is still a display string (`"£42+"`), but parsing/revenue is centralised in the engine (`computeBookingPricing` in `bookingRules.ts`; `computeRevenue` in `engine/pricing.ts` is the single revenue source). Two stragglers still re-parse the string: `useReportsData.ts:67` and `BookingWizard.tsx:477` (estimate display).
+>
+> **Debt 16 — Status (June 2026):** OPEN — no `makeChannelName` helper; naming is still a mix of static literals (`"salon-todos"`, `"waitlist_changes"`) and `Date.now()`/random suffixes. The collision class was mitigated ad hoc: random suffixes on the high-churn hooks and a ref-counted module-level channel in `useWhatsAppUnread.js`.
+>
+> **Debt 17 — Status (June 2026):** PARTIALLY CLOSED — `src/lib/storage.ts` (`safeGet`/`safeSet`/`safeRemove`) exists and `chunkReload.js` uses it, but the predicted reinvention happened anyway: direct `localStorage` with inline try/catch in `useDogs.ts`, `humans/useHumansData.ts` and `HumansView.jsx`; still no lint guard.
+
 ## Magic numbers / strings
 
 | What hurts | Why it hurts | Cost |
@@ -45,6 +81,14 @@ sustained workstream (week+).
 | **20. Salon phone number hardcoded four times in three formats.** `tel:07507731487` (`CustomerApp.jsx:109`, `CustomerDashboard.jsx:410`), `tel:+447507731487` (`CustomerUnavailablePage.jsx:22`), `wa.me/447507731487` (`CustomerApp.jsx:101`, `CustomerUnavailablePage.jsx:28`), display `"07507 731487"`. | The salon moving numbers means a hunt + replace across 3 files and 3 formatting conventions. Not in `src/constants/`. | S |
 | **21. RPC names embedded as string literals throughout app code.** 8 distinct functions called from components and hooks: `apply_whatsapp_booking_action`, `link_customer_to_human`, `get_or_create_calendar_feed_token` (with feed_type "customer" / "staff"), `revoke_calendar_feed_token`, `mark_whatsapp_conversation_read`, `add_customer_trusted_human`, `update_customer_dog`. No central registry. | Renaming a Postgres function (which migrations do periodically — see the 85 migrations in `supabase/migrations/`) requires a grep. Some calls also embed parameter shape inline. | S |
 
+> **Debt 18 — Status (June 2026):** CLOSED — `BOOKING_STATUS` constants centralised (started pre-run, `a2e4676`; #247's `2fa2c79` routed the remaining literals). Three accepted display-copy leftovers: labels in `BookingHistoryCard.jsx` and `STATUS_LABELS` in `ReportWidgets.jsx`.
+>
+> **Debt 19 — Status (June 2026):** CLOSED pre-run (`2a66806`) — `DOG_SIZES` tuple in `constants/salon.ts` with the `DogSize` type derived from it, plus `DOG_SIZE` named accessors.
+>
+> **Debt 20 — Status (June 2026):** CLOSED pre-run (`29e3ef7`, 20 May) — `src/constants/salonContact.ts` is the single source; no hardcoded `07507`/`447507` remains outside it.
+>
+> **Debt 21 — Status (June 2026):** CLOSED in #247 (`1161db5`, completing pre-run `d96245f`) — typed wrappers in `src/supabase/rpc.ts`; zero inline `.rpc("…")` literals left in non-test app code.
+
 ## Inconsistent error handling
 
 | What hurts | Why it hurts | Cost |
@@ -53,11 +97,19 @@ sustained workstream (week+).
 | **23. Errors set in state but not surfaced via toast.** `useBookings.js:210` calls `setError(message)` then `onErrorRef.current?.(message)` but `App.jsx:464` only renders the dataError banner if not dismissed. `DogCardModal.jsx:329-348`, `HumanCardModal.jsx:377` only `console.error`. Meanwhile `WaitlistModal.jsx:56`, `AddHumanModal.jsx:99`, `BookingDetailModal` use `toast.show("...", "error")`. Two parallel UX patterns mid-app. | The user sometimes gets a toast, sometimes a top-of-page banner, sometimes nothing. Hard to predict; QA-pass discoverable only by trying every error path. | M |
 | **24. Catch-variable style inconsistent.** 36 instances of `catch (err)` vs 4 of `catch (e)` (`AccountSettings.jsx:40`, `ComposeNewModal.jsx:208,263,427`). One `.then()` without `.catch()` in `ComposeNewModal.jsx:228` (unhandled promise rejection on `fetchDogsForHuman`). | Trivial individually, but signals the absence of a lint rule. The unhandled `.then()` is the actual risk — silently fails. | S |
 
+> **Debt 22 — Status (June 2026):** LARGELY CLOSED in #246/#247 — `src/lib/logger.ts` (dev: console; prod: Sentry) plus a `no-console: error` ban in `eslint.config.js`. 17 files remain carved out of the ban (3 intentional: `logger.ts`, `seed.ts`, `transforms.ts`; 14 pending files still holding ~28 pre-logger console call sites — the list "only shrinks").
+>
+> **Debt 23 — Status (June 2026):** PARTIALLY CLOSED — the cited silent sites now surface errors (`DogCardModal`/`HumanCardModal` toast on failure; `useBookings` pairs `logger.error` with the App-level banner; #259 aligned the save-pipeline error contracts). The toast-vs-banner rule is now consistent at those sites but remains convention — no documented rule or `useErrorHandler()` one-liner was added.
+>
+> **Debt 24 — Status (June 2026):** OPEN — verified still present, and grown: 10 non-test `catch (e)` sites (was 4), no catch-naming lint rule, and the unhandled `.then()` on `fetchDogsForHuman` is still there (now `ComposeNewModal.jsx:193`).
+
 ## Missing tests around critical paths
 
 | What hurts | Why it hurts | Cost |
 |---|---|---|
 | **25. Zero tests for the four heaviest data hooks + the WhatsApp agent.** `useBookings.js` (496 LoC), `useDogs.ts` (765), `useHumans.ts` (1050), `useCustomerAuth.js` (323), `useAuth.js` — none have a `.test.*` file. `supabase/functions/whatsapp-agent/index.ts` (2045 LoC, the AI receptionist) — entire `supabase/functions/` directory has no tests. The OTP login flow (`CustomerLoginPage.jsx` 316 LoC) and drag-and-drop reschedule (`useSlotDragAndDrop.ts`) are also untested. Strong tests do exist for pure engine logic (`engine/capacity.test.js` 838 LoC, `engine/bookingRules.test.ts` 428 LoC). | The capacity engine — the part that's never wrong — is the most-tested. The orchestration layer that breaks when DB columns drift, AI prompts change, or auth flows shift, is the least-tested. Any backend refactor lands blind. | L |
+
+> **Debt 25 — Status (June 2026):** CLOSED in #247 — `useBookings`/`useDogs`/`useHumans`/`useCustomerAuth`/`useAuth` all have component tests (covering OTP, rollback, realtime and failure paths), and the WhatsApp agent has 11 deno dispatch-contract tests (`whatsapp-agent/__tests__/dispatch.test.ts`) run by a dedicated `agent-tests` CI job. Residual: `useSlotDragAndDrop.ts` is still untested.
 
 ## Proposed solutions
 
