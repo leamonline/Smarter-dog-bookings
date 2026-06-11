@@ -119,7 +119,7 @@ export function SlotRowMenu({
         aria-expanded={hasActions ? menuOpen : undefined}
         title={hasActions ? "Slot actions" : slotLabel}
         disabled={!hasActions}
-        className={`h-full w-full flex flex-col items-center justify-start gap-1 bg-white border rounded-2xl px-1 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.03)] font-[inherit] transition-colors ${
+        className={`h-full w-full flex flex-col items-center justify-center gap-1 bg-white border rounded-2xl px-1 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.03)] font-[inherit] transition-colors ${
           hasActions
             ? "cursor-pointer border-slate-200 hover:border-brand-yellow/70 hover:bg-brand-yellow/10"
             : "cursor-default border-slate-200"
