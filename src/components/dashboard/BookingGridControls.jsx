@@ -1,4 +1,4 @@
-import { PawPrint, Settings as SettingsIcon, CalendarDays } from "lucide-react";
+import { PawPrint, Settings as SettingsIcon, CalendarDays, RefreshCw } from "lucide-react";
 import { capacityRatio, utilisationColor } from "../../engine/utilisation";
 
 export function BookingGridControls({
@@ -6,6 +6,8 @@ export function BookingGridControls({
   isOpen = true,
   onOpenDaySettings,
   onOpenOverview,
+  onJumpToToday,
+  onRefresh,
   dateLabel,
 }) {
   // Wordless capacity signal: a slim colour-coded bar + count/cap number.
@@ -33,18 +35,24 @@ export function BookingGridControls({
         <PawPrint size={13} strokeWidth={2.4} aria-hidden="true" className="hidden sm:block" />
         {/* On phones the DayHeader bar is hidden, so the date lives here. */}
         {dateLabel && <span className="sm:hidden">{dateLabel} ·</span>}
-        {hasCap ? (
-          <span className="sm:hidden tabular-nums">
-            <span className={cap.over ? "text-rose-600" : ""}>{cap.count}</span>/{cap.cap}
-          </span>
+        {!isOpen ? (
+          <span className="text-rose-600">Closed</span>
         ) : (
-          <span className="sm:hidden">
-            {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
-          </span>
+          <>
+            {hasCap ? (
+              <span className="sm:hidden tabular-nums">
+                <span className={cap.over ? "text-rose-600" : ""}>{cap.count}</span>/{cap.cap}
+              </span>
+            ) : (
+              <span className="sm:hidden">
+                {bookingCount} {bookingCount === 1 ? "dog" : "dogs"}
+              </span>
+            )}
+            <span className="hidden sm:inline">
+              {bookingCount} {bookingCount === 1 ? "dog booked" : "dogs booked"}
+            </span>
+          </>
         )}
-        <span className="hidden sm:inline">
-          {bookingCount} {bookingCount === 1 ? "dog booked" : "dogs booked"}
-        </span>
       </span>
 
       {hasCap && (
@@ -66,7 +74,34 @@ export function BookingGridControls({
         </span>
       )}
 
-      <div className="flex-1" />
+      <div className="hidden sm:block sm:flex-1" />
+
+      {/* Button cluster: one flex item on phones (ml-auto, wraps as a
+          unit instead of buttons dropping off one by one); dissolves
+          into the single row from sm up. */}
+      <div className="ml-auto flex items-center gap-1.5 sm:contents">
+      {/* Phones only — DayHeader carries "Today" from sm up, and pull-to-
+          refresh is less discoverable than a visible button. */}
+      {onJumpToToday && (
+        <button
+          type="button"
+          onClick={onJumpToToday}
+          aria-label="Jump to today"
+          className="sm:hidden inline-flex items-center py-1.5 px-2.5 rounded-full text-[12px] font-semibold text-brand-purple bg-brand-yellow/15 border border-brand-yellow/40 cursor-pointer font-[inherit] transition-colors hover:bg-brand-yellow/30"
+        >
+          Today
+        </button>
+      )}
+      {onRefresh && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          aria-label="Refresh bookings"
+          className="sm:hidden inline-flex items-center py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+        >
+          <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
+        </button>
+      )}
 
       <button
         type="button"
@@ -91,6 +126,7 @@ export function BookingGridControls({
           <CalendarDays size={13} strokeWidth={2.2} aria-hidden="true" />
         </button>
       )}
+      </div>
     </div>
   );
 }

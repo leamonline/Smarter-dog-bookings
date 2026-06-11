@@ -58,6 +58,23 @@ export function BookingMainPanel({
         onOpenCalendar={onOpenOverview || onOpenCalendar}
       />
 
+      {/* Controls row renders on closed days too — staff still need the
+          date pill, Day settings (to reopen), calendar, Today and refresh
+          without leaving the day. */}
+      <BookingGridControls
+        bookingCount={(bookings || []).length}
+        isOpen={isOpen}
+        onOpenDaySettings={onOpenDaySettings}
+        onOpenOverview={onOpenOverview || onOpenCalendar}
+        onJumpToToday={!isToday ? jumpToToday : undefined}
+        onRefresh={onRetry}
+        dateLabel={currentDateObj.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        })}
+      />
+
       {isOpen ? (
         <>
           {showError && (
@@ -77,18 +94,6 @@ export function BookingMainPanel({
               onCloseDay={onCloseDay}
             />
           )}
-
-          <BookingGridControls
-            bookingCount={(bookings || []).length}
-            isOpen={isOpen}
-            onOpenDaySettings={onOpenDaySettings}
-            onOpenOverview={onOpenOverview || onOpenCalendar}
-            dateLabel={currentDateObj.toLocaleDateString("en-GB", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-            })}
-          />
 
           {/* Booking grid card. On xl, it claims the remaining
               vertical space in the middle column and scrolls
