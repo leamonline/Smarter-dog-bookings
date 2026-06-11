@@ -4,7 +4,7 @@
 // modals that only mount when staff open them.
 import { useState, useMemo } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell } from "./shell/index.js";
 import { getHumanByIdOrName, looksLikeUuid } from "../../engine/bookingRules";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import {
@@ -161,9 +161,6 @@ export function DogCardModal({
   });
 
   const sizeTheme = SIZE_THEME[resolvedDog.size] || SIZE_FALLBACK;
-  const sizeAccent = sizeTheme.primary;
-  const headerTextColour = sizeTheme.headerText;
-  const headerSubTextColour = sizeTheme.headerTextSub;
 
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
@@ -172,11 +169,14 @@ export function DogCardModal({
 
   return (
     <>
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="dog-card-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
-    >
+      accent={sizeTheme.primary}
+      widthClass="w-[min(520px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      bodyClassName="px-4 pt-1 pb-2"
+      header={
         <DogCardHeader
           titleId="dog-card-title"
           isEditing={isEditing}
@@ -191,8 +191,15 @@ export function DogCardModal({
           editDobYear={editDobYear}
           setEditDobYear={setEditDobYear}
           sizeTheme={sizeTheme}
-          headerTextColour={headerTextColour}
-          headerSubTextColour={headerSubTextColour}
+          ownerLabel={ownerLabel}
+          onOpenOwner={
+            ownerOpenValue
+              ? () => {
+                  onClose();
+                  onOpenHuman?.(ownerOpenValue);
+                }
+              : undefined
+          }
           onClose={onClose}
           onEnterEdit={() => setIsEditing(true)}
           onOpenGallery={() => setShowGallery(true)}
@@ -203,15 +210,54 @@ export function DogCardModal({
             !hasLinkedOwner
           }
         />
-
-        <div
-          className="px-4 pt-4 pb-2"
-          style={{ background: sizeTheme.light }}
-        >
+      }
+      footer={
+        isEditing ? (
+          <>
+            <DogCardActions
+              isEditing={isEditing}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
+            {/* Archive (primary, reversible) + permanent delete (secondary).
+                Archive hides the dog from the directory while keeping its
+                booking history and groom photos; delete is the irreversible
+                removal (moved here in task 4 of the May 2026 review pass —
+                bulk delete from the /dogs grid was too easy to mis-fire). */}
+            {(onUpdateDog || onDeleteDog) && (
+              <div className="px-6 pb-4 -mt-1 bg-white flex items-center gap-4">
+                {onUpdateDog && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await onUpdateDog(resolvedDog.id, { archivedAt: new Date().toISOString() });
+                      toast.show(`Archived ${resolvedDog.name}`, "success");
+                      onClose?.();
+                    }}
+                    className="text-[12px] font-bold text-brand-purple underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
+                  >
+                    Archive this dog
+                  </button>
+                )}
+                {onDeleteDog && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(true)}
+                    className="text-[11px] font-semibold text-slate-400 underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral"
+                  >
+                    Delete permanently…
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        ) : null
+      }
+    >
+      <div>
         <DogDetailsSection
           isEditing={isEditing}
           resolvedDog={resolvedDog}
-          sizeAccent={sizeAccent}
           ownerLabel={ownerLabel}
           ownerOpenValue={ownerOpenValue}
           owner={owner}
@@ -254,7 +300,6 @@ export function DogCardModal({
 
         <TrustedHumansSection
           isEditing={isEditing}
-          sizeAccent={sizeAccent}
           trustedContacts={trustedContacts}
           humans={humans}
           owner={owner}
@@ -287,64 +332,19 @@ export function DogCardModal({
         <GroomingHistory
           dogId={resolvedDog.id}
           fetchBookingHistoryForDog={fetchBookingHistoryForDog}
-          accentColour={sizeAccent}
         />
 
         {lastBooking && !isEditing && (
           <button
             onClick={() => setShowChainBooking(true)}
-            className="w-full py-2.5 rounded-xl border-2 text-[13px] font-bold cursor-pointer font-inherit transition-all bg-white mb-2"
-            style={{
-              borderColor: sizeAccent,
-              color: sizeAccent,
-            }}
+            className="w-full py-2.5 rounded-full border-[1.5px] border-slate-200 bg-white text-brand-purple text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 mb-2"
           >
             Recurring Bookings
           </button>
         )}
 
-        </div>
-
-        <DogCardActions
-          isEditing={isEditing}
-          onSave={handleSave}
-          onCancel={handleCancel}
-          sizeTheme={sizeTheme}
-          headerTextColour={headerTextColour}
-        />
-
-        {/* Archive (primary, reversible) + permanent delete (secondary). Archive
-            hides the dog from the directory while keeping its booking history and
-            groom photos; delete is the irreversible removal (delete moved here in
-            task 4 of the May 2026 review pass — bulk delete from the /dogs grid
-            was too easy to mis-fire). */}
-        {isEditing && (onUpdateDog || onDeleteDog) && (
-          <div className="px-6 pb-5 -mt-2 bg-slate-50 flex items-center gap-4">
-            {onUpdateDog && (
-              <button
-                type="button"
-                onClick={async () => {
-                  await onUpdateDog(resolvedDog.id, { archivedAt: new Date().toISOString() });
-                  toast.show(`Archived ${resolvedDog.name}`, "success");
-                  onClose?.();
-                }}
-                className="text-[12px] font-bold text-brand-purple underline cursor-pointer bg-transparent border-none p-0 font-[inherit]"
-              >
-                Archive this dog
-              </button>
-            )}
-            {onDeleteDog && (
-              <button
-                type="button"
-                onClick={() => setPendingDelete(true)}
-                className="text-[11px] font-semibold text-slate-400 underline cursor-pointer bg-transparent border-none p-0 font-[inherit] hover:text-brand-coral"
-              >
-                Delete permanently…
-              </button>
-            )}
-          </div>
-        )}
-    </AccessibleModal>
+      </div>
+    </ModalShell>
 
     {pendingDelete && (
       <ConfirmDialog

@@ -1,15 +1,30 @@
+import { Dog as DogIcon } from "lucide-react";
 import { ALERT_OPTIONS } from "../../../constants/index";
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase, waLink, telLink } from "./helpers.js";
-import { SectionCard, CardRow } from "../booking-detail/shared.jsx";
+import { CardRow } from "../booking-detail/shared.jsx";
+import { PanelShell } from "../shell/index.js";
 
-const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide";
+const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-slate-400";
+
+// Quiet tint per alert family — behavioural alerts read rose, caution
+// reads amber, informational reads sky. Replaces the solid coral fills
+// so the alerts warn without shouting over the rest of the card.
+const ALERT_TINTS = {
+  "var(--color-brand-coral)": "bg-rose-50 text-[#B83A4F] border border-rose-200",
+  "#D97706": "bg-amber-50 text-amber-800 border border-amber-200",
+  "#0099BD": "bg-sky-50 text-sky-800 border border-sky-200",
+};
+
+function alertTint(label) {
+  const opt = ALERT_OPTIONS.find((o) => o.label === label);
+  return ALERT_TINTS[opt?.color] || ALERT_TINTS["var(--color-brand-coral)"];
+}
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 export function DogDetailsSection({
   isEditing,
   resolvedDog,
-  sizeAccent,
   // Owner display (view mode)
   ownerLabel,
   ownerOpenValue,
@@ -58,12 +73,11 @@ export function DogDetailsSection({
 }) {
   /* ── Alerts (shown above cards, like BookingAlerts) ── */
   const alertsView = !isEditing && displayAlerts.length > 0 && (
-    <div className="flex flex-wrap gap-1.5 justify-center mb-3">
+    <div className="flex flex-wrap gap-1.5 mb-3">
       {displayAlerts.map((alert) => (
         <span
           key={alert}
-          className="px-3 py-1.5 rounded-full text-xs font-bold text-white"
-          style={{ background: "var(--color-brand-coral-dark)" }}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold ${alertTint(alert)}`}
         >
           {alert}
         </span>
@@ -75,7 +89,7 @@ export function DogDetailsSection({
     <div className="mb-3">
       <div
         className={`${SECTION_LABEL_CLS} mb-2.5 text-center`}
-        style={{ color: sizeAccent }}
+       
       >
         Alerts
       </div>
@@ -179,10 +193,10 @@ export function DogDetailsSection({
 
       {/* ── Card: Dog Details ── */}
       {isEditing ? (
-        <SectionCard title="Dog Details">
+        <PanelShell eyebrow="Dog details" icon={DogIcon} accent="slate" className="mb-3">
           {/* Owner edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>Owner</div>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Owner</div>
             <div
               onClick={() => setShowOwnerSearch(!showOwnerSearch)}
               className={`${INPUT_CLS} cursor-pointer flex justify-between items-center ${showOwnerSearch ? "bg-blue-50" : "bg-white"}`}
@@ -241,7 +255,7 @@ export function DogDetailsSection({
 
           {/* Size edit (staff-only — controls grooming workflow + pricing) */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5 flex items-center gap-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5 flex items-center gap-1.5`}>
               <span>Size</span>
               {sizeAutoSet && !sizeOverridden && (
                 <span className="font-medium normal-case tracking-normal text-brand-green text-[11px]">
@@ -265,7 +279,7 @@ export function DogDetailsSection({
           {/* Sex & Neutered edit */}
           <div className="py-2.5 border-b border-slate-100 grid grid-cols-2 gap-2.5">
             <div>
-              <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>Sex</div>
+              <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Sex</div>
               <select
                 value={editSex}
                 onChange={(e) => setEditSex(e.target.value)}
@@ -278,7 +292,7 @@ export function DogDetailsSection({
               </select>
             </div>
             <div>
-              <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>Neutered</div>
+              <div className={`${SECTION_LABEL_CLS} mb-1.5`}>Neutered</div>
               <select
                 value={editNeutered}
                 onChange={(e) => setEditNeutered(e.target.value)}
@@ -294,7 +308,7 @@ export function DogDetailsSection({
 
           {/* Colour edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Colour / Markings
             </div>
             <input
@@ -308,7 +322,7 @@ export function DogDetailsSection({
 
           {/* Microchip edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Microchip
             </div>
             <input
@@ -322,7 +336,7 @@ export function DogDetailsSection({
 
           {/* Vet edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Vet
             </div>
             <input
@@ -336,7 +350,7 @@ export function DogDetailsSection({
 
           {/* Groom Notes edit */}
           <div className="py-2.5 border-b border-slate-100">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Groom Notes
             </div>
             <textarea
@@ -348,7 +362,7 @@ export function DogDetailsSection({
 
           {/* Price edit */}
           <div className="py-2.5">
-            <div className={`${SECTION_LABEL_CLS} mb-1.5`} style={{ color: sizeAccent }}>
+            <div className={`${SECTION_LABEL_CLS} mb-1.5`}>
               Custom Price ({"\u00a3"})
             </div>
             <input
@@ -361,9 +375,9 @@ export function DogDetailsSection({
               className={`${INPUT_CLS} w-[120px]`}
             />
           </div>
-        </SectionCard>
+        </PanelShell>
       ) : (
-        <SectionCard title="Dog Details">
+        <PanelShell eyebrow="Dog details" icon={DogIcon} accent="slate" className="mb-3">
           <CardRow
             label="Owner"
             value={ownerValue}
@@ -401,7 +415,7 @@ export function DogDetailsSection({
             value={resolvedDog.customPrice != null ? `\u00a3${resolvedDog.customPrice}` : "\u2014"}
             last
           />
-        </SectionCard>
+        </PanelShell>
       )}
     </>
   );
