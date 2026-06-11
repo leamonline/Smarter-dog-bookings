@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { primeBootPrefetch } from "../bootPrefetch.js";
 import { logger } from "../../lib/logger";
 
 const ROLES = { owner: "owner", staff: "staff" };
@@ -82,6 +83,13 @@ export function useAuth() {
       }
       setTimeout(async () => {
         try {
+          // Start the tier-1 dashboard reads (bookings week, salon_config,
+          // day_settings week) in the SAME task as the profile fetch so
+          // they run concurrently instead of after the auth gate clears.
+          // Initial load only — later auth events (TOKEN_REFRESHED /
+          // SIGNED_IN) must not re-prime; the module-level once-flag inside
+          // primeBootPrefetch is belt and braces on top of this gate.
+          if (!initialDone) primeBootPrefetch();
           const profile = await fetchProfile(userId);
           if (!cancelled) setStaffProfile(profile);
         } catch (err) {

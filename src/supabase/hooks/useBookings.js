@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
+import { takeBootPrefetch } from "../bootPrefetch.js";
+import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
 import { BOOKING_STATUS } from "../../constants/salon";
@@ -62,14 +64,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       setLoading(true);
       setError(null);
 
-      const { data, error: err } = await supabase
-        .from("bookings")
-        .select("*")
-        .gte("booking_date", startStr)
-        .lte("booking_date", endStr)
-        .order("booking_date")
-        .order("slot")
-        .abortSignal(controller.signal);
+      // Consume the boot prefetch when one is in flight for this exact
+      // week (primed by useAuth alongside the staff-profile fetch);
+      // otherwise run the same query ourselves, as before.
+      const { data, error: err } = await (takeBootPrefetch("bookingsWeek", {
+        startStr,
+      }) ?? fetchBookingsWeek(supabase, startStr, endStr, controller.signal));
 
       if (controller.signal.aborted) return;
 

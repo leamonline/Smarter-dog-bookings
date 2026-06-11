@@ -15,6 +15,7 @@
     "coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "e2e:bootprobe": "playwright test -c playwright.bootprobe.config.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node-tests.json",
     "lint": "eslint . && node scripts/check-import-extensions.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",

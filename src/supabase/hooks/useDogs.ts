@@ -40,7 +40,16 @@ function buildDirectoryDogEntry(row: any, humansById: Record<string, any>) {
   };
 }
 
-export function useDogs(humansById: Record<string, any>) {
+export function useDogs(
+  humansById: Record<string, any>,
+  // Boot-path deferral (mirrors useHumansData): while startDirectoryFetch is
+  // false, the page-0 directory fetch and the realtime-triggered refetches
+  // are held back so the 50-row directory read stays off the dashboard's
+  // boot path. Flipping it true runs the fetch with the current params.
+  // `loading` stays true while deferred. Targeted hydration (ensureDogsByIds
+  // / ensureDogsForHumans / fetchDogById) is independent and never deferred.
+  { startDirectoryFetch = true }: { startDirectoryFetch?: boolean } = {},
+) {
   // Single source of truth for dog records: raw DB rows keyed by id.
   // The app-shaped `dogs` map is DERIVED from this below (Debt #14) —
   // the two can no longer drift because only one of them is state.
@@ -203,16 +212,26 @@ export function useDogs(humansById: Record<string, any>) {
     [],
   );
 
-  // Refetch page 0 whenever the active query changes; also the initial load on
-  // mount. effectiveSearch is the debounced search term (see searchDogs);
-  // filters / sort / letter apply immediately.
+  // The realtime handlers below are registered once on mount but must see
+  // the live deferral flag, so they read it through a ref.
+  const startDirectoryFetchRef = useRef(startDirectoryFetch);
   useEffect(() => {
+    startDirectoryFetchRef.current = startDirectoryFetch;
+  }, [startDirectoryFetch]);
+
+  // Refetch page 0 whenever the active query changes; also the initial load on
+  // mount — unless deferred (startDirectoryFetch false); flipping the flag
+  // true re-runs the effect with the current params. effectiveSearch is the
+  // debounced search term (see searchDogs); filters / sort / letter apply
+  // immediately.
+  useEffect(() => {
+    if (!startDirectoryFetch) return;
     fetchDirectory(
       { search: effectiveSearch, filters: dirFilters, sort: dirSort, letter: dirLetter },
       { append: false },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveSearch, dirFilters, dirSort, dirLetter]);
+  }, [effectiveSearch, dirFilters, dirSort, dirLetter, startDirectoryFetch]);
 
   // Real-time subscription for dogs. Insert/update refetch the current
   // directory page (which reseeds the caches); delete drops the row from the
@@ -247,6 +266,9 @@ export function useDogs(humansById: Record<string, any>) {
         { event: "INSERT", schema: "public", table: "dogs" },
         (payload: any) => {
           invalidateHuman(payload.new?.human_id);
+          // While the directory fetch is deferred, skip the refetch — the
+          // first fetch (with current params) runs when the flag flips.
+          if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },
       )
@@ -256,6 +278,7 @@ export function useDogs(humansById: Record<string, any>) {
         (payload: any) => {
           invalidateHuman(payload.old?.human_id);
           invalidateHuman(payload.new?.human_id);
+          if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },
       )

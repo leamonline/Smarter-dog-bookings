@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { takeBootPrefetch } from "../bootPrefetch.js";
+import { fetchSalonConfigRow } from "../queries/bootQueries.js";
 import { dbConfigToApp, appConfigToDb } from "../transforms";
 import { createDefaultSalonConfig } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
@@ -17,12 +19,12 @@ export function useSalonConfig({ canSeed = false } = {}) {
 
     async function fetch() {
       try {
-        const { data, error: err } = await supabase
-          .from("salon_config")
-          .select("*")
-          .limit(1)
-          .abortSignal(controller.signal)
-          .maybeSingle();
+        // Consume the boot prefetch when one is in flight (primed by
+        // useAuth alongside the staff-profile fetch); otherwise run the
+        // same SELECT ourselves, as before. The owner-seed branch below
+        // is untouched either way.
+        const { data, error: err } = await (takeBootPrefetch("salonConfig") ??
+          fetchSalonConfigRow(supabase, controller.signal));
 
         if (controller.signal.aborted) return;
         if (err) {

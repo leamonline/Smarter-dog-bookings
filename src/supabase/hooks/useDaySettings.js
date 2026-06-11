@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { takeBootPrefetch } from "../bootPrefetch.js";
+import { fetchDaySettingsWeek } from "../queries/bootQueries.js";
 import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
@@ -63,12 +65,13 @@ export function useDaySettings(weekStart) {
     async function fetchSettings() {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("day_settings")
-        .select("*")
-        .gte("setting_date", startStr)
-        .lte("setting_date", endStr)
-        .abortSignal(controller.signal);
+      // Consume the boot prefetch when one is in flight for this exact
+      // week (primed by useAuth alongside the staff-profile fetch);
+      // otherwise run the same query ourselves, as before.
+      const { data, error } = await (takeBootPrefetch("daySettingsWeek", {
+        startStr,
+      }) ??
+        fetchDaySettingsWeek(supabase, startStr, endStr, controller.signal));
 
       if (controller.signal.aborted) return;
 
