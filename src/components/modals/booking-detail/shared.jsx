@@ -132,39 +132,3 @@ export function Row({ label, value, last = false, onClick }) {
   );
 }
 
-/**
- * Circular ghost icon button used in the header. Slate fill that reads on the
- * light (soft-tinted) header surface; lifts on hover.
- */
-export function IconBtn({ children, onClick, ariaLabel, className = "" }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={ariaLabel}
-      className={`w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1 focus-visible:ring-offset-white ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * Faint paw print watermark for the header background. Pure decorative.
- */
-export function PawWatermark({ className = "" }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 64 64"
-      className={`pointer-events-none select-none ${className}`}
-      fill="currentColor"
-    >
-      <ellipse cx="20" cy="22" rx="5" ry="7" />
-      <ellipse cx="44" cy="22" rx="5" ry="7" />
-      <ellipse cx="10" cy="36" rx="5" ry="6.5" />
-      <ellipse cx="54" cy="36" rx="5" ry="6.5" />
-      <path d="M32 32c-9 0-16 7-16 14 0 5 4 8 9 8 3 0 5-1 7-1s4 1 7 1c5 0 9-3 9-8 0-7-7-14-16-14z" />
-    </svg>
-  );
-}

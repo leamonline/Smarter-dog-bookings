@@ -6,10 +6,11 @@ import {
   DetailRow,
   LogisticsLabel,
   FinanceLabel,
-  SectionCard,
   MODAL_INPUT_CLS,
   Row,
 } from "./shared.jsx";
+import { CreditCard } from "lucide-react";
+import { PanelShell } from "../shell/index.js";
 
 /**
  * Card 3 of the booking detail surface: payments and pick-up. Edit mode
@@ -63,7 +64,7 @@ export function PaymentsPickupCard({
 
   if (isEditing) {
     return (
-      <SectionCard title="Payments">
+      <PanelShell eyebrow="Payment & pickup" icon={CreditCard} accent="amber" className="mb-3">
         <DetailRow
           label={<FinanceLabel text="Payment Status" />}
           value={editData.payment}
@@ -99,12 +100,12 @@ export function PaymentsPickupCard({
           }
           isEditing={isEditing}
         />
-      </SectionCard>
+      </PanelShell>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4">
+    <PanelShell eyebrow="Payment & pickup" icon={CreditCard} accent="amber" className="mb-3">
       <Row
         label="Pick-up Human"
         value={titleCase(booking.pickupBy || booking.owner)}
@@ -121,6 +122,6 @@ export function PaymentsPickupCard({
           <span>Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}</span>
         </a>
       )}
-    </div>
+    </PanelShell>
   );
 }

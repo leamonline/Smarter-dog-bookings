@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useCallback, useState } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell } from "./shell/index.js";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
 import { useBookingSave } from "../../hooks/useBookingSave.ts";
@@ -217,21 +217,15 @@ export function BookingDetailModal({
   );
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={handleCloseAttempt}
       titleId="booking-detail-title"
-      className="relative bg-white rounded-2xl w-[min(480px,92vw)] max-h-[90vh] overflow-auto shadow-[0_40px_80px_-24px_rgba(15,23,42,0.45),_0_12px_28px_-12px_rgba(15,23,42,0.3)] ring-1 ring-slate-900/5 animate-card-pop-in"
-      backdropClass="bg-slate-900/55 animate-overlay-fade"
+      accent={statusObj.border}
+      widthClass="w-[min(480px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
       dismissOnEscape={false}
-    >
-        {/* Status-coloured top accent bar — mirrors the dashboard card's bar so
-            the pop-up reads as a floating extension of the card. */}
-        <div
-          aria-hidden="true"
-          className="h-[3px]"
-          style={{ background: statusObj.border }}
-        />
-
+      bodyClassName="px-5 pt-1 pb-2"
+      header={
         <BookingHeader
           booking={booking}
           dogData={dogData}
@@ -247,12 +241,35 @@ export function BookingDetailModal({
           onEnterEdit={() => { resetEditState(); setIsEditing(true); }}
           onOpenCamera={() => setShowPhotoUpload(true)}
           onOpenDog={onOpenDog}
+          primaryHuman={primaryHuman}
+          onOpenHuman={onOpenHuman}
           titleId="booking-detail-title"
           alerts={dogData?.alerts || []}
           allergyText={hasAllergy && allergyInput ? allergyInput : ""}
         />
-
-        <div className="px-5 pt-4 pb-2 bg-slate-50/80">
+      }
+      footer={
+        <BookingActions
+          isEditing={isEditing}
+          editData={editData}
+          saving={saving}
+          booking={booking}
+          onSave={handleSave}
+          onCancelEdit={() => {
+            resetEditState();
+            setIsEditing(false);
+          }}
+          onAdd={onAdd}
+          onRemove={onRemove}
+          onUpdate={onUpdate}
+          currentDateStr={currentDateStr}
+          onClose={onClose}
+          onReschedule={() => setShowReschedule(true)}
+          autosaveStatus={autosaveStatus}
+        />
+      }
+    >
+        <div>
           <BookingStatusBar
             booking={booking}
             currentDateStr={currentDateStr}
@@ -262,11 +279,7 @@ export function BookingDetailModal({
           {booking._groupId && (
             <button
               onClick={() => setShowSeries(true)}
-              className="w-full mb-3 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer font-inherit flex items-center gap-2 border-[1.5px] transition-colors bg-white hover:bg-slate-50"
-              style={{
-                borderColor: sizeTheme.primary + "40",
-                color: sizeTheme.primary,
-              }}
+              className="w-full mb-3 px-3 py-2 rounded-full text-[12px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-2 border-[1.5px] border-slate-200 text-brand-purple transition-colors bg-white hover:bg-slate-50"
             >
               <span className="text-sm">{"🔁"}</span>
               Part of recurring series — View all
@@ -338,26 +351,6 @@ export function BookingDetailModal({
           <BookingMetaFooters booking={booking} />
         </div>
 
-        <BookingActions
-          isEditing={isEditing}
-          editData={editData}
-          saving={saving}
-          booking={booking}
-          sizeTheme={sizeTheme}
-          onSave={handleSave}
-          onCancelEdit={() => {
-            resetEditState();
-            setIsEditing(false);
-          }}
-          onAdd={onAdd}
-          onRemove={onRemove}
-          onUpdate={onUpdate}
-          currentDateStr={currentDateStr}
-          onClose={onClose}
-          onReschedule={() => setShowReschedule(true)}
-          autosaveStatus={autosaveStatus}
-        />
-
       <BookingDetailOverlays
         booking={booking}
         dogData={dogData}
@@ -387,6 +380,6 @@ export function BookingDetailModal({
         onRemove={onRemove}
         onClose={onClose}
       />
-    </AccessibleModal>
+    </ModalShell>
   );
 }

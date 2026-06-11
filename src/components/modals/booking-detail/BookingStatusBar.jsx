@@ -10,7 +10,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
       <div
         role="radiogroup"
         aria-label="Booking status"
-        className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-100 ring-1 ring-slate-200/70"
+        className="grid grid-cols-5 gap-1"
       >
         {BOOKING_STATUSES.map((status) => {
           const isActive = currentStatus === status.id;
@@ -51,14 +51,12 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                   ),
                 );
               }}
-              className={`py-2 px-0.5 md:px-1 rounded-lg text-[10px] md:text-[11px] font-bold text-center leading-tight whitespace-nowrap border border-transparent transition-colors duration-150 ${
-                isActive
-                  ? "shadow-sm"
-                  : "bg-transparent text-slate-400 hover:text-slate-600 hover:bg-white/60"
+              className={`py-2 px-0.5 md:px-1 rounded-full text-[10px] md:text-[11px] font-bold text-center leading-tight whitespace-nowrap border-none cursor-pointer font-inherit transition-colors duration-150 ${
+                isActive ? "" : "bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200"
               }`}
               style={
                 isActive
-                  ? { background: accent.bg, color: accent.color, borderColor: accent.border }
+                  ? { background: accent.border, color: accent.onAccent }
                   : undefined
               }
             >

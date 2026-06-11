@@ -10,7 +10,6 @@ export function BookingActions({
   editData,
   saving,
   booking,
-  sizeTheme,
   onSave,
   onCancelEdit,
   onAdd,
@@ -27,7 +26,7 @@ export function BookingActions({
 
   if (isEditing) {
     return (
-      <div className="px-6 py-4 pb-5 flex flex-col gap-2 bg-slate-50 border-t border-slate-200">
+      <div className="px-5 py-3 flex flex-col gap-2 bg-white border-t border-slate-100">
         {autosaveStatus && autosaveStatus !== "idle" && (
           <div className="text-[11px] font-semibold text-slate-400 text-right">
             {autosaveStatus === "saving" ? "Saving..." : "Saved"}
@@ -35,24 +34,18 @@ export function BookingActions({
         )}
         <div className="flex gap-2.5">
         <button
-          onClick={onSave}
-          disabled={!editData.slot || saving}
-          className="flex-1 py-3 rounded-control border-none text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors disabled:cursor-not-allowed"
-          style={{
-            background:
-              !editData.slot || saving ? "#E5E7EB" : sizeTheme.gradient[0],
-            color:
-              !editData.slot || saving ? "#6B7280" : sizeTheme.headerText,
-          }}
-        >
-          <IconTick size={16} colour={!editData.slot || saving ? "#6B7280" : sizeTheme.headerText} />{" "}
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-        <button
           onClick={onCancelEdit}
-          className="flex-1 py-3 rounded-control border-[1.5px] border-slate-200 text-[13px] font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 bg-white text-slate-500 transition-colors hover:bg-slate-50"
+          className="px-4 py-2 rounded-control border-[1.5px] border-slate-200 text-sm font-bold cursor-pointer font-inherit bg-white text-slate-600 transition-colors hover:bg-slate-50"
         >
           Cancel
+        </button>
+        <button
+          onClick={onSave}
+          disabled={!editData.slot || saving}
+          className="ml-auto flex-1 max-w-[220px] py-2 px-5 rounded-full border-none text-sm font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+        >
+          <IconTick size={15} colour="currentColor" />{" "}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
         </div>
       </div>
@@ -62,13 +55,13 @@ export function BookingActions({
   const canSoftCancel = typeof onUpdate === "function" && booking?.status !== BOOKING_STATUS.CANCELLED;
 
   return (
-    <div className="px-5 pt-2 pb-4 bg-slate-50/80">
+    <div className="px-5 pt-3 pb-3 bg-white border-t border-slate-100">
       <div className="flex gap-2">
         {onReschedule && (
           <button
             onClick={onReschedule}
             aria-label="Reschedule booking"
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-bold text-slate-700 bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+            className="flex-1 py-2.5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-brand-purple bg-white hover:bg-slate-50 active:bg-slate-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
           >
             <IconReopen size={14} colour="#475569" />
             <span>Reschedule</span>
@@ -78,7 +71,7 @@ export function BookingActions({
           onClick={() => setShowCancelConfirm(true)}
           disabled={!canSoftCancel}
           aria-label="Cancel booking"
-          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+          className="flex-1 py-2.5 rounded-full border-[1.5px] border-rose-200 text-[13px] font-bold text-rose-600 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="8" cy="8" r="6" />
