@@ -4,22 +4,9 @@ import { IconSearch } from "../../icons/index.jsx";
 import { titleCase, waLink, telLink } from "./helpers.js";
 import { CardRow } from "../booking-detail/shared.jsx";
 import { PanelShell } from "../shell/index.js";
+import { alertTint } from "../shell/alertTints.js";
 
 const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-slate-400";
-
-// Quiet tint per alert family — behavioural alerts read rose, caution
-// reads amber, informational reads sky. Replaces the solid coral fills
-// so the alerts warn without shouting over the rest of the card.
-const ALERT_TINTS = {
-  "var(--color-brand-coral)": "bg-rose-50 text-[#B83A4F] border border-rose-200",
-  "#D97706": "bg-amber-50 text-amber-800 border border-amber-200",
-  "#0099BD": "bg-sky-50 text-sky-800 border border-sky-200",
-};
-
-function alertTint(label) {
-  const opt = ALERT_OPTIONS.find((o) => o.label === label);
-  return ALERT_TINTS[opt?.color] || ALERT_TINTS["var(--color-brand-coral)"];
-}
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 export function DogDetailsSection({

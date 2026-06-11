@@ -8,9 +8,10 @@ import {
   DetailRow,
   LogisticsLabel,
   FinanceLabel,
-  SectionCard,
   MODAL_INPUT_CLS,
 } from "./shared.jsx";
+import { Scissors } from "lucide-react";
+import { PanelShell } from "../shell/index.js";
 
 /**
  * Card 2 of the booking detail surface: services, add-ons and the price
@@ -41,7 +42,7 @@ export function ServicesAddonsCard({
 
   if (isEditing) {
     return (
-      <SectionCard title="Services & Add-ons">
+      <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
         <DetailRow
           label={<LogisticsLabel text="Service" />}
           value={serviceObj?.name || currentService}
@@ -72,12 +73,12 @@ export function ServicesAddonsCard({
           }
           isEditing={isEditing}
         />
-      </SectionCard>
+      </PanelShell>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4 py-1">
+    <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
       <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
         <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
           {serviceObj?.name || currentService}
@@ -114,6 +115,6 @@ export function ServicesAddonsCard({
           {"£"}{Math.max(0, amountDue)}
         </span>
       </div>
-    </div>
+    </PanelShell>
   );
 }

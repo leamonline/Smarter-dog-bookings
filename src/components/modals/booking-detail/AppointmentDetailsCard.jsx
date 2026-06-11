@@ -6,7 +6,9 @@ import {
 } from "../../../engine/capacity";
 import { formatFullDate } from "../../../engine/utils";
 import { titleCase } from "../../../utils/text";
-import { DetailRow, LogisticsLabel, SectionCard, Row } from "./shared.jsx";
+import { CalendarDays } from "lucide-react";
+import { DetailRow, LogisticsLabel, Row } from "./shared.jsx";
+import { PanelShell } from "../shell/index.js";
 
 /**
  * Card 1 of the booking detail surface: appointment summary. Edit mode
@@ -34,7 +36,7 @@ export function AppointmentDetailsCard({
 
   if (isEditing) {
     return (
-      <SectionCard title="Appointment Details">
+      <PanelShell eyebrow="Appointment details" icon={CalendarDays} accent="sky" className="mb-3">
         <DetailRow
           label={<LogisticsLabel text="Date" />}
           value={formatFullDate(editData.date)}
@@ -129,12 +131,12 @@ export function AppointmentDetailsCard({
           }
           isEditing={isEditing}
         />
-      </SectionCard>
+      </PanelShell>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border-[1.5px] border-slate-200 mb-3 px-4">
+    <PanelShell eyebrow="Appointment details" icon={CalendarDays} accent="sky" className="mb-3">
       <Row
         label="Time & Date"
         value={`${booking.slot} · ${formatFullDate(currentDateObj)}`}
@@ -167,6 +169,6 @@ export function AppointmentDetailsCard({
           last
         />
       )}
-    </div>
+    </PanelShell>
   );
 }

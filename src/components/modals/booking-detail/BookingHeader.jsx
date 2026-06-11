@@ -1,12 +1,18 @@
+import { Camera, Pencil, X } from "lucide-react";
 import { SERVICES, BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
 import {
   getNumericPrice,
   getServicePriceLabel,
   resolveBookingDisplay,
 } from "../../../engine/bookingRules";
-import { IconEdit, IconCamera } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text";
-import { IconBtn } from "./shared.jsx";
+import { HeaderIconButton } from "../shell/index.js";
+import { alertTint } from "../shell/alertTints.js";
+
+// Quiet shell header for the booking modal — same anatomy as the human
+// and dog cards (eyebrow + badge row, display title, subtitle, icon
+// cluster). The status colour no longer tints the whole header; it
+// lives in the ModalShell accent bar and the status pill here.
 
 export function BookingHeader({
   booking,
@@ -23,6 +29,8 @@ export function BookingHeader({
   onEnterEdit,
   onOpenDog,
   onOpenCamera,
+  primaryHuman,
+  onOpenHuman,
   titleId,
   alerts = [],
   allergyText = "",
@@ -31,8 +39,8 @@ export function BookingHeader({
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
 
-  // The booking's status colour — the same map the dashboard card uses, so the
-  // header colour-matches the card it was opened from.
+  // The booking's status colour — the same map the dashboard card uses,
+  // so the pill and accent bar colour-match the card it was opened from.
   const statusObj = getStatusDisplay(booking.status || BOOKING_STATUS.BOOKED);
 
   // Use the shared selector so the modal header can never disagree with
@@ -41,15 +49,19 @@ export function BookingHeader({
   // row is missing.
   const display = resolveBookingDisplay(booking, dogs, humans);
 
-  const subtitle = [
-    titleCase(display.breed),
-    ageYo,
-  ].filter(Boolean).join(" · ");
+  const subtitleParts = [titleCase(display.breed), ageYo].filter(Boolean);
+  const ownerName = primaryHuman
+    ? primaryHuman.fullName ||
+      `${primaryHuman.name || ""} ${primaryHuman.surname || ""}`.trim()
+    : "";
 
-  // Price echoed top-right, mirroring the dashboard card exactly: the full
-  // appointment value as the main number for every payment state, with the
-  // payment status as a smaller secondary — a "£X due" figure when a deposit
-  // has been taken, or a "Paid" chip when settled.
+  const openDog = () =>
+    onOpenDog?.(dogData?.id || booking._dogId || booking.dogName);
+
+  // Price echoed beside the title, mirroring the dashboard card: the full
+  // appointment value for every payment state, with the payment status as
+  // a smaller secondary — "£X due" when a deposit has been taken, or a
+  // "Paid" chip when settled.
   const renderPrice = () => {
     if (!pricing || pricing.subtotal <= 0) return null;
     return (
@@ -77,113 +89,133 @@ export function BookingHeader({
   };
 
   return (
-    <div
-      className="relative px-5 pt-4 pb-5 overflow-hidden"
-      style={{ background: statusObj.bg }}
-    >
-      {/* Icon button strip — sits above the title so the price can take the
-          card's top-right slot. */}
-      <div className="flex justify-end items-center gap-2 mb-2">
-        {!isEditing && onOpenCamera && (
-          <IconBtn onClick={onOpenCamera} ariaLabel="Add groom photo">
-            <IconCamera size={16} colour="#475569" />
-          </IconBtn>
-        )}
-        {!isEditing && onEnterEdit && (
-          <IconBtn onClick={onEnterEdit} ariaLabel="Edit booking">
-            <IconEdit size={16} colour="#475569" />
-          </IconBtn>
-        )}
-        <IconBtn onClick={onClose} ariaLabel="Close booking details">
-          <span className="text-base font-bold leading-none text-slate-600">{"×"}</span>
-        </IconBtn>
-      </div>
-
-      {/* Name + price — mirrors the card's first row (plum name, price right). */}
-      <div className="flex items-start justify-between gap-3">
-        <span
-          id={titleId}
-          className="text-[22px] md:text-[24px] font-extrabold leading-tight cursor-pointer hover:underline text-brand-purple font-display min-w-0"
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpenDog?.(dogData?.id || booking._dogId || booking.dogName)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDog?.(dogData?.id || booking._dogId || booking.dogName); } }}
-        >
-          {titleCase(display.dogMissing ? "Unnamed booking" : display.dogName)}
-        </span>
-        {!isEditing && <span className="shrink-0 pt-1.5">{renderPrice()}</span>}
-      </div>
-
-      {subtitle && (
-        <div className="text-[13px] font-medium mt-0.5 text-slate-500">
-          {subtitle}
+    <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Appointment
+          </span>
+          <span
+            className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+            style={{ background: statusObj.bg, color: statusObj.color }}
+          >
+            {statusObj.label}
+          </span>
         </div>
-      )}
 
-      <div className="mt-3 flex justify-between items-end gap-2">
-        <div>
-          {isEditing ? (
-            <select
-              value={editData.service}
-              onChange={(e) => {
-                setEditData((prev) => ({
-                  ...prev,
-                  service: e.target.value,
-                  customPrice:
-                    dogData?.customPrice !== undefined
-                      ? dogData.customPrice
-                      : getNumericPrice(
-                          getServicePriceLabel(e.target.value, booking.size),
-                        ),
-                }));
-                setSaveError("");
-              }}
-              className="bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800"
-            >
-              {allowedServices.map((service) => (
-                <option
-                  key={service.id}
-                  value={service.id}
-                  style={{ color: "#1F2937" }}
-                >
-                  {service.name}
-                </option>
-              ))}
-            </select>
-          ) : (
+        <div className="flex items-start justify-between gap-3 mt-1">
+          <h2
+            id={titleId}
+            className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight min-w-0"
+          >
             <span
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-bold bg-white"
-              style={{ color: statusObj.color, border: `1px solid ${statusObj.border}` }}
+              className="cursor-pointer hover:underline underline-offset-2"
+              role="button"
+              tabIndex={0}
+              onClick={openDog}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openDog();
+                }
+              }}
             >
-              {serviceObj?.name}
+              {titleCase(display.dogMissing ? "Unnamed booking" : display.dogName)}
             </span>
-          )}
+            {!isEditing && serviceObj?.name && (
+              <span>
+                {" · "}
+                <span className="whitespace-nowrap">{serviceObj.name}</span>
+              </span>
+            )}
+          </h2>
+          {!isEditing && <span className="shrink-0 pt-1">{renderPrice()}</span>}
         </div>
+
+        {(subtitleParts.length > 0 || ownerName) && (
+          <div className="text-[13px] text-slate-500 font-semibold mt-1.5 min-w-0">
+            {subtitleParts.join(" · ")}
+            {ownerName && (
+              <>
+                {subtitleParts.length > 0 && " · "}
+                {onOpenHuman ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenHuman(primaryHuman.id || ownerName)}
+                    className="text-brand-teal-text font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-[13px] hover:underline underline-offset-2"
+                  >
+                    {titleCase(ownerName)}
+                  </button>
+                ) : (
+                  titleCase(ownerName)
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {isEditing && (
+          <select
+            value={editData.service}
+            onChange={(e) => {
+              setEditData((prev) => ({
+                ...prev,
+                service: e.target.value,
+                customPrice:
+                  dogData?.customPrice !== undefined
+                    ? dogData.customPrice
+                    : getNumericPrice(
+                        getServicePriceLabel(e.target.value, booking.size),
+                      ),
+              }));
+              setSaveError("");
+            }}
+            className="mt-2 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800 focus:border-brand-teal"
+          >
+            {allowedServices.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         {!isEditing && (alerts.length > 0 || allergyText) && (
-          <div className="flex flex-wrap gap-1 justify-end max-w-[55%]">
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
             {alerts
               .filter((a) => !a.startsWith("Allergic to "))
               .map((alertLabel) => (
                 <span
                   key={alertLabel}
-                  className="text-white py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap shadow-[0_2px_8px_rgba(201,61,99,0.3)]"
-                  style={{ background: "var(--color-brand-coral-dark)" }}
+                  className={`py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap ${alertTint(alertLabel)}`}
                 >
                   {alertLabel}
                 </span>
               ))}
             {allergyText && (
-              <span
-                className="text-white py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap shadow-[0_2px_8px_rgba(201,61,99,0.3)]"
-                style={{ background: "var(--color-brand-coral-dark)" }}
-              >
+              <span className="py-1 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap bg-rose-50 text-[#B83A4F] border border-rose-200">
                 Allergic to {allergyText}
               </span>
             )}
           </div>
         )}
       </div>
-    </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {!isEditing && onOpenCamera && (
+          <HeaderIconButton label="Add groom photo" onClick={onOpenCamera}>
+            <Camera size={15} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        )}
+        {!isEditing && onEnterEdit && (
+          <HeaderIconButton label="Edit booking" onClick={onEnterEdit}>
+            <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        )}
+        <HeaderIconButton label="Close booking details" onClick={onClose}>
+          <X size={16} strokeWidth={2.2} aria-hidden="true" />
+        </HeaderIconButton>
+      </div>
+    </header>
   );
 }
