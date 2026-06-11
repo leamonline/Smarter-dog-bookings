@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Radio, MessageSquare, MessageCircle } from "lucide-react";
-import { PanelShell } from "./PanelShell.jsx";
+import { PanelShell } from "../shell/PanelShell.jsx";
 
 // Single wrapping pill row for the five channels. SMS + WhatsApp are
 // always click-to-toggle (live in view mode via onUpdateHuman; staged in

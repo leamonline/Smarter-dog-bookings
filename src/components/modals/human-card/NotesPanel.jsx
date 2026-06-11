@@ -1,5 +1,5 @@
 import { StickyNote, Plus } from "lucide-react";
-import { PanelShell } from "./PanelShell.jsx";
+import { PanelShell } from "../shell/PanelShell.jsx";
 
 // Notes (free-form) + history flag (loud warning). When notes exist the
 // panel grows to fill leftover vertical space in the left column so both
