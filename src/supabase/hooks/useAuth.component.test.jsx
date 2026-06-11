@@ -37,7 +37,9 @@ const SESSION = {
 // Auth + profile stub. `order` is a shared trace: primeBootPrefetch and the
 // staff_profiles read both push into it so tests can assert their relative
 // ordering. fireAuth replays a captured onAuthStateChange event.
-function makeSupabaseStub({ session = null, order = [] } = {}) {
+// `singleImpl` optionally overrides the profile response (e.g. a deferred
+// promise so a test can hold the fetch in flight).
+function makeSupabaseStub({ session = null, order = [], singleImpl } = {}) {
   let authCallback = null;
   return {
     auth: {
@@ -54,7 +56,9 @@ function makeSupabaseStub({ session = null, order = [] } = {}) {
       const builder = {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
-        single: vi.fn(() => Promise.resolve({ data: PROFILE, error: null })),
+        single: vi.fn(
+          singleImpl ?? (() => Promise.resolve({ data: PROFILE, error: null })),
+        ),
       };
       return builder;
     }),
@@ -127,5 +131,80 @@ describe("useAuth boot prefetch priming", () => {
     );
     // …but must not re-prime the boot prefetch.
     expect(primeBootPrefetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useAuth profile fetch dedupe", () => {
+  it("fetches the profile once when getSession and INITIAL_SESSION both fire at boot", async () => {
+    // Hold the profile read in flight so the INITIAL_SESSION event lands
+    // while the getSession() path's fetch is still pending — the real boot
+    // timing, where both paths schedule before the network responds.
+    let resolveProfile;
+    const profilePromise = new Promise((resolve) => {
+      resolveProfile = resolve;
+    });
+    const stub = makeSupabaseStub({
+      session: SESSION,
+      singleImpl: () => profilePromise,
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useAuth());
+
+    // getSession() path issues the read…
+    await waitFor(() => expect(stub.from).toHaveBeenCalledTimes(1));
+
+    // …then supabase-js's INITIAL_SESSION event arrives for the same user.
+    await act(async () => {
+      stub.fireAuth("INITIAL_SESSION", SESSION);
+      // Let scheduleProfileFetch's setTimeout(0) task run.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The second caller reused the in-flight promise: still ONE read, the
+    // auth gate still up (loading clears only after the profile resolves).
+    expect(stub.from).toHaveBeenCalledTimes(1);
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      resolveProfile({ data: PROFILE, error: null });
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.staffProfile).toEqual(PROFILE);
+    expect(stub.from).toHaveBeenCalledTimes(1);
+    // Priming happens on the dedupe MISS only — exactly once at boot.
+    expect(primeBootPrefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches fresh when a different user signs in after sign-out", async () => {
+    const stub = makeSupabaseStub({ session: SESSION });
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user?.id).toBe("user-1");
+    expect(stub.from).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      stub.fireAuth("SIGNED_OUT", null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.current.user).toBeNull();
+    expect(result.current.staffProfile).toBeNull();
+
+    const otherSession = {
+      access_token: "token-2",
+      user: { id: "user-2", email: "groomer@smarterdog.test" },
+    };
+    await act(async () => {
+      stub.fireAuth("SIGNED_IN", otherSession);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // New userId → new key → a fresh staff_profiles read.
+    await waitFor(() => expect(stub.from).toHaveBeenCalledTimes(2));
+    expect(result.current.user?.id).toBe("user-2");
+    expect(result.current.staffProfile).toEqual(PROFILE);
   });
 });
