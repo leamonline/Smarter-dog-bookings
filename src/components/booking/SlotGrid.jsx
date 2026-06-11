@@ -125,7 +125,6 @@ export function SlotGrid({
     const seatStates = precalculatedSeatStates || getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
 
     const allAvailable = seatStates.every((s) => s.type === "available");
-    const allBlockedByStaff = seatStates.every((s) => s.type === "blocked" && s.staffBlocked);
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
     // Subtle alternating row tint to give the eye an anchor as it
@@ -134,12 +133,88 @@ export function SlotGrid({
     const rowBg = index % 2 === 0 ? "bg-sky-50/60" : "bg-white";
     const isNow = index === nowIdx;
 
+    // One boxed time button PER ROW: every booking gets its own time box
+    // (like the old list view's arrival pill), and any leftover seats
+    // (free / blocked / reserved) share one trailing box. Every box opens
+    // the same slot-actions menu.
+    const timeBox = (
+      <div className="self-stretch">
+        <SlotRowMenu
+          slot={slot}
+          seatStates={seatStates}
+          onBlockSeat={onOverride ? (idx) => block(slot, idx) : undefined}
+          disabled={loading}
+          hasBooking={hasBooking}
+          onOpenBooking={
+            onOpenNewBooking
+              ? () => onOpenNewBooking(currentDateStr, slot)
+              : undefined
+          }
+          onOverbook={
+            onOpenNewBooking
+              ? () => onOpenNewBooking(currentDateStr, slot, { capacityOverride: true })
+              : undefined
+          }
+        />
+      </div>
+    );
+
+    const rowGrid = "grid grid-cols-[64px_1fr] md:grid-cols-[80px_1fr] gap-2 md:gap-3 items-stretch";
+
+    const seatCell = (seat) => {
+      if (seat.type === "reserved") {
+        return (
+          <div
+            key={seat.seatIndex}
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
+          >
+            (large dog)
+          </div>
+        );
+      }
+      if (seat.type === "blocked" && seat.staffBlocked) {
+        return (
+          <BlockedSeatCell
+            key={seat.seatIndex}
+            onClick={() => unblock(slot, seat.seatIndex)}
+          />
+        );
+      }
+      if (seat.type === "blocked") {
+        return (
+          <div
+            key={seat.seatIndex}
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
+              <line x1="6" y1="6" x2="18" y2="18" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <span className="text-[10px] font-semibold text-slate-600">Closed</span>
+          </div>
+        );
+      }
+      return (
+        <GhostSeat
+          key={seat.seatIndex}
+          onClick={() => onOpenNewBooking(currentDateStr, slot)}
+          onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+          onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+          onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+          isDropTarget={dnd.drag.overSlot === slot}
+        />
+      );
+    };
+
+    const bookingSeats = loading ? [] : seatStates.filter((s) => s.type === "booking");
+    const otherSeats = loading ? [] : seatStates.filter((s) => s.type !== "booking");
+
     return (
       <div
         key={slot}
         ref={isNow ? nowRowRef : undefined}
         className={[
-          `relative grid grid-cols-[64px_1fr] md:grid-cols-[80px_1fr] gap-2 md:gap-3 p-2 md:p-[10px_14px] items-stretch`,
+          `relative flex flex-col gap-1.5 md:gap-2 p-2 md:p-[10px_14px]`,
           hasBooking ? "min-h-0" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
           !hasBooking && !isNow ? "opacity-70 hover:opacity-100 transition-opacity" : "",
@@ -157,57 +232,21 @@ export function SlotGrid({
             </span>
           </>
         )}
-        {/* Boxed time button — the whole box opens the slot actions menu
-            (book / override / block), echoing the old list-view pill. */}
-        <div className="self-stretch">
-          <SlotRowMenu
-            slot={slot}
-            seatStates={seatStates}
-            onBlockSeat={onOverride ? (idx) => block(slot, idx) : undefined}
-            disabled={loading}
-            hasBooking={hasBooking}
-            onOpenBooking={
-              onOpenNewBooking
-                ? () => onOpenNewBooking(currentDateStr, slot)
-                : undefined
-            }
-            onOverbook={
-              onOpenNewBooking
-                ? () => onOpenNewBooking(currentDateStr, slot, { capacityOverride: true })
-                : undefined
-            }
-          />
-        </div>
 
-        {/* Seat container: single-column list at every size — one
-            full-width card per booking, stacked. An empty slot shows a
-            single "+ Book" ghost row rather than one per seat; the slot
-            menu still offers per-seat blocking and overbooking. */}
-        <div className="flex flex-col gap-1.5 md:gap-2">
         {loading ? (
-          <SkeletonCard />
-        ) : allAvailable ? (
-          <GhostSeat
-            onClick={() => onOpenNewBooking(currentDateStr, slot)}
-            onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-            onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-            onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-            isDropTarget={dnd.drag.overSlot === slot}
-          />
-        ) : allBlockedByStaff ? (
-          <>
-            <BlockedSeatCell onClick={() => unblock(slot, 0)} />
-            <BlockedSeatCell onClick={() => unblock(slot, 1)} />
-          </>
+          <div className={rowGrid}>
+            {timeBox}
+            <SkeletonCard />
+          </div>
         ) : (
           <>
-            {seatStates.map((seat) => {
-              if (seat.type === "booking") {
-                const b = seat.booking;
-                const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
-                return (
+            {bookingSeats.map((seat) => {
+              const b = seat.booking;
+              const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
+              return (
+                <div key={b.id || seat.seatIndex} className={rowGrid}>
+                  {timeBox}
                   <BookingCardNew
-                    key={b.id || seat.seatIndex}
                     booking={b}
                     searchDimmed={dimmed}
                     draggable={!!onMoveBooking}
@@ -215,54 +254,30 @@ export function SlotGrid({
                     onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
                     isBeingDragged={dnd.drag.booking?.id === b.id}
                   />
-                );
-              }
-              if (seat.type === "reserved") {
-                return (
-                  <div
-                    key={seat.seatIndex}
-                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[60px] md:min-h-[80px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
-                  >
-                    (large dog)
-                  </div>
-                );
-              }
-              if (seat.type === "blocked" && seat.staffBlocked) {
-                return (
-                  <BlockedSeatCell
-                    key={seat.seatIndex}
-                    onClick={() => unblock(slot, seat.seatIndex)}
-                  />
-                );
-              }
-              if (seat.type === "blocked") {
-                return (
-                  <div
-                    key={seat.seatIndex}
-                    className="border-[1.5px] border-slate-200 rounded-xl min-h-[36px] md:min-h-[44px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
-                      <line x1="6" y1="6" x2="18" y2="18" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                    <span className="text-[10px] font-semibold text-slate-600">Closed</span>
-                  </div>
-                );
-              }
-              return (
-                <GhostSeat
-                  key={seat.seatIndex}
-                  onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                  onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-                  onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-                  onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-                  isDropTarget={dnd.drag.overSlot === slot}
-                />
+                </div>
               );
             })}
+            {otherSeats.length > 0 && (
+              <div className={rowGrid}>
+                {timeBox}
+                <div className="flex flex-col gap-1.5 md:gap-2">
+                  {allAvailable ? (
+                    // Fully free slot: one "+ Book" row, not one per seat.
+                    <GhostSeat
+                      onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                      onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+                      onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+                      onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+                      isDropTarget={dnd.drag.overSlot === slot}
+                    />
+                  ) : (
+                    otherSeats.map(seatCell)
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
-        </div>
       </div>
     );
   }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
