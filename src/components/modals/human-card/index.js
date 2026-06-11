@@ -1,6 +1,6 @@
 export { HumanBookingHistory } from "./HumanBookingHistory.jsx";
 export { DogPill } from "./DogPill.jsx";
-export { PanelShell } from "./PanelShell.jsx";
+export { PanelShell } from "../shell/PanelShell.jsx";
 export { HumanHeader } from "./HumanHeader.jsx";
 export { ContactPanel } from "./ContactPanel.jsx";
 export { ChannelsPanel } from "./ChannelsPanel.jsx";

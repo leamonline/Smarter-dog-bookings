@@ -1,5 +1,5 @@
 import { Clock, Mail, MessageSquare, MessageCircle } from "lucide-react";
-import { PanelShell } from "./PanelShell.jsx";
+import { PanelShell } from "../shell/PanelShell.jsx";
 
 // Reminder preferences condensed onto a single row: three channel
 // icon toggles on the left, timing select on the right. Replaces the

@@ -12,8 +12,9 @@
 // ============================================================
 
 import { useState } from "react";
-import { Plus, ArrowRight, Trash2, Check, Search } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Check, Search, Pencil, X, MapPin, Bell } from "lucide-react";
 import { SIZE_THEME } from "../../constants/index";
+import { ModalShell, HeaderIconButton, OverflowMenu, PanelShell } from "../modals/shell/index.js";
 import {
   Button,
   Card,
@@ -132,8 +133,69 @@ function TrendMini() {
   );
 }
 
+// Specimen header matching the entity-modal header anatomy (eyebrow,
+// display name, subtitle row, icon cluster) for shell review.
+function ShellSpecimenHeader({ onClose }) {
+  return (
+    <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div
+          aria-hidden="true"
+          className="w-[46px] h-[46px] rounded-full bg-[#E6F5F2] flex items-center justify-center font-display font-bold text-brand-purple shrink-0"
+        >
+          ST
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Specimen profile
+          </span>
+          <h2
+            id="shell-specimen-title"
+            className="text-xl font-bold font-display text-brand-purple leading-tight mt-0.5 truncate"
+          >
+            Sample Human
+          </h2>
+          <div className="text-[13px] text-slate-500 font-semibold mt-1">07712 345 678</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <HeaderIconButton label="Edit profile">
+          <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
+        </HeaderIconButton>
+        <OverflowMenu items={[{ label: "Archive…", onClick: noop }, { label: "Merge…", onClick: noop }]} />
+        <HeaderIconButton label="Close" onClick={onClose}>
+          <X size={16} strokeWidth={2.2} aria-hidden="true" />
+        </HeaderIconButton>
+      </div>
+    </header>
+  );
+}
+
+function ShellSpecimenPanels() {
+  return (
+    <div className="flex flex-col gap-3">
+      <PanelShell eyebrow="Contact" icon={MapPin} accent="teal">
+        <p className="text-body text-slate-700">12 Sample Street, Stockport SK4 2AB</p>
+        <p className="text-body text-slate-700 mt-1">sample@example.com</p>
+      </PanelShell>
+      <PanelShell eyebrow="Reminders" icon={Bell} accent="amber">
+        <p className="text-body text-slate-700">WhatsApp · 24h before</p>
+      </PanelShell>
+      <PanelShell eyebrow="Scroll filler" accent="slate">
+        {Array.from({ length: 12 }, (_, i) => (
+          <p key={i} className="text-body text-slate-500 py-1.5 border-b border-slate-100 last:border-b-0">
+            Filler row {i + 1} — checks the body scrolls under the pinned header/footer.
+          </p>
+        ))}
+      </PanelShell>
+    </div>
+  );
+}
+
 export function UiKitchenSink() {
   const [loading, setLoading] = useState(false);
+  const [shellOpen, setShellOpen] = useState(false);
+  const [shellFooterOpen, setShellFooterOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -422,6 +484,51 @@ export function UiKitchenSink() {
             </Card>
           </div>
         </Block>
+
+        {/* ── Modal shell ─────────────────────────────────────── */}
+        <Block
+          title="Modal shell"
+          hint="Entity-modal chrome: accent bar + quiet header + paper body + PanelShell panels. Below sm (640px) it becomes a full-screen slide-up sheet — resize to test."
+        >
+          <Row>
+            <Button variant="ghost" onClick={() => setShellOpen(true)}>Open shell</Button>
+            <Button variant="ghost" onClick={() => setShellFooterOpen(true)}>
+              Open shell with sticky footer
+            </Button>
+          </Row>
+        </Block>
+
+        {shellOpen && (
+          <ModalShell
+            onClose={() => setShellOpen(false)}
+            titleId="shell-specimen-title"
+            accent="#2D8B7A"
+            widthClass="w-[min(560px,95vw)]"
+            header={<ShellSpecimenHeader onClose={() => setShellOpen(false)} />}
+            bodyClassName="px-5 pb-4"
+          >
+            <ShellSpecimenPanels />
+          </ModalShell>
+        )}
+
+        {shellFooterOpen && (
+          <ModalShell
+            onClose={() => setShellFooterOpen(false)}
+            titleId="shell-specimen-title"
+            accent="var(--color-brand-coral)"
+            widthClass="w-[min(560px,95vw)]"
+            header={<ShellSpecimenHeader onClose={() => setShellFooterOpen(false)} />}
+            bodyClassName="px-5 pb-4"
+            footer={
+              <div className="flex items-center justify-end gap-2 px-5 py-3 bg-white border-t border-slate-200">
+                <Button variant="ghost" onClick={() => setShellFooterOpen(false)}>Cancel</Button>
+                <Button variant="primary" onClick={() => setShellFooterOpen(false)}>Save changes</Button>
+              </div>
+            }
+          >
+            <ShellSpecimenPanels />
+          </ModalShell>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Dog as DogIcon } from "lucide-react";
-import { PanelShell } from "./PanelShell.jsx";
+import { PanelShell } from "../shell/PanelShell.jsx";
 import { SizeDot } from "../../ui/SizeDot.jsx";
 import { getSizeForBreed, BOOKING_STATUS } from "../../../constants/index";
 import { titleCase } from "../../../utils/text";

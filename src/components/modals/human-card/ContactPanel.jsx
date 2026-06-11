@@ -1,5 +1,5 @@
 import { Copy, MapPin } from "lucide-react";
-import { PanelShell } from "./PanelShell.jsx";
+import { PanelShell } from "../shell/PanelShell.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 // Compact contact rows: small uppercase prefix label inline with the

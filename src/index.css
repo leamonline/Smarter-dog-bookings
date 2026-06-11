@@ -329,12 +329,18 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes sheetIn {
+  from { opacity: 0.6; transform: translateY(100%); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+
 /* ── Motion safety ────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-overlay-fade,
   .animate-card-pop-in,
   .animate-human-modal-in,
+  .animate-shell-in,
   .hover-lift,
   .btn-pill,
   .btn,
@@ -346,7 +352,8 @@ body {
   .animate-fade-in-up,
   .animate-overlay-fade,
   .animate-card-pop-in,
-  .animate-human-modal-in {
+  .animate-human-modal-in,
+  .animate-shell-in {
     opacity: 1 !important;
   }
 }
@@ -394,6 +401,19 @@ body {
 
 .animate-human-modal-in {
   animation: humanModalIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Entity-modal shell entrance: gentle rise on ≥sm, full slide-up sheet
+   below sm. One class so the breakpoint logic lives here rather than in
+   JSX variants (the animate-* classes aren't Tailwind utilities). The
+   width query matches Tailwind v4's `sm` (40rem). */
+.animate-shell-in {
+  animation: humanModalIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (width < 40rem) {
+  .animate-shell-in {
+    animation: sheetIn 260ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
 }
 
 .hover-lift {
