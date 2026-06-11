@@ -24,12 +24,18 @@ export type DirFilters = {
 export function useHumansData({
   effectiveSearch,
   finishSearching,
+  startDirectoryFetch = true,
 }: {
   // The debounced search term from useHumansSearch — changing it re-runs
   // the fetch effect below.
   effectiveSearch: string;
   // Clears useHumansSearch's isSearching flag once a directory page lands.
   finishSearching: () => void;
+  // Boot-path deferral: while false, the page-0 directory fetch (and the
+  // realtime-triggered refetches) are held back so the 50-row directory
+  // read stays off the dashboard's boot path. Flipping it true runs the
+  // fetch with the current params. `loading` stays true while deferred.
+  startDirectoryFetch?: boolean;
 }) {
   const [humans, setHumans] = useState<HumansMap>({});
   const [humansById, setHumansById] = useState<HumansMap>({});
@@ -153,16 +159,26 @@ export function useHumansData({
     [finishSearching],
   );
 
+  // The realtime handlers below are registered once on mount but must see
+  // the live deferral flag, so they read it through a ref.
+  const startDirectoryFetchRef = useRef(startDirectoryFetch);
+  useEffect(() => {
+    startDirectoryFetchRef.current = startDirectoryFetch;
+  }, [startDirectoryFetch]);
+
   // Refetch page 0 whenever the active query changes. effectiveSearch is the
   // debounced search term (see useHumansSearch); filters / sort / letter apply
-  // immediately. Also performs the initial load on mount.
+  // immediately. Also performs the initial load on mount — unless deferred
+  // (startDirectoryFetch false); flipping the flag true re-runs the effect
+  // with the current params.
   useEffect(() => {
+    if (!startDirectoryFetch) return;
     fetchDirectory(
       { search: effectiveSearch, filters: dirFilters, sort: dirSort, letter: dirLetter },
       { append: false },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveSearch, dirFilters, dirSort, dirLetter]);
+  }, [effectiveSearch, dirFilters, dirSort, dirLetter, startDirectoryFetch]);
 
   // Real-time subscription for humans. Insert/update refetch the current
   // page set; delete drops the row from the caches and the visible list.
@@ -203,6 +219,9 @@ export function useHumansData({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "humans" },
         () => {
+          // While the directory fetch is deferred, skip the refetch — the
+          // first fetch (with current params) runs when the flag flips.
+          if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },
       )
@@ -210,6 +229,7 @@ export function useHumansData({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "humans" },
         () => {
+          if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },
       )

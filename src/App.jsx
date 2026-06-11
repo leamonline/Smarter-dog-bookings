@@ -18,6 +18,7 @@ import { useBookings } from "./supabase/hooks/useBookings.js";
 import { useSalonConfig } from "./supabase/hooks/useSalonConfig.js";
 import { useDaySettings } from "./supabase/hooks/useDaySettings.js";
 import { useWeekNav } from "./hooks/useWeekNav.js";
+import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup.js";
 import { useOfflineState } from "./hooks/useOfflineState.js";
 import { useModalState } from "./hooks/useModalState";
 import { useBookingActions } from "./hooks/useBookingActions";
@@ -138,6 +139,30 @@ const appLoadingShell = (
   </AppFrame>
 );
 
+// Route-chunk warming: while the auth gate's spinner is up (user known,
+// staff profile still fetching), start downloading the lazy chunk the
+// current URL will need so it's cached by the time the gate clears. The
+// import specifiers MUST match the lazy() declarations above exactly so
+// Vite resolves them to the same chunks. Most-specific prefixes first;
+// "/" is the catch-all (the week calendar).
+const ROUTE_CHUNK_IMPORTS = [
+  ["/inbox", () => import("./components/views/inbox/InboxView.jsx")],
+  ["/dogs", () => import("./components/views/DogsView.jsx")],
+  ["/humans", () => import("./components/views/HumansView.jsx")],
+  ["/settings", () => import("./components/views/SettingsView.jsx")],
+  ["/", () => import("./components/layout/WeekCalendarView.jsx")],
+];
+let routeChunkWarmed = false;
+function warmRouteChunkOnce(pathname) {
+  if (routeChunkWarmed) return;
+  routeChunkWarmed = true;
+  const match = ROUTE_CHUNK_IMPORTS.find(
+    ([prefix]) => prefix === "/" || pathname.startsWith(prefix),
+  );
+  // Failures swallowed — it's a warmup; the real lazy() load surfaces errors.
+  match?.[1]().catch(() => {});
+}
+
 // Top-level App: only handles auth state + the auth gate.
 // Data hooks live in <AuthedApp /> so they don't fire pre-auth (which used to
 // produce 406 noise on /login because RLS denied salon_config to anon callers).
@@ -154,6 +179,13 @@ export default function App() {
   } = useAuth();
   const isOnline = !!supabase;
   const from = location.state?.from;
+
+  // Warm the current route's lazy chunk as soon as a user exists — i.e.
+  // during the auth-gate spinner, in parallel with the staff-profile fetch.
+  useEffect(() => {
+    if (!user) return;
+    warmRouteChunkOnce(window.location.pathname);
+  }, [user]);
 
   // Dev-only: render the UI kitchen sink before the auth gate so the primitive
   // catalogue is reviewable without signing in. Tree-shaken from production
@@ -350,6 +382,15 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     ),
   });
 
+  // Boot-path deferral for the two 50-row directory page-0 fetches: hold
+  // them back until a directory route / the new-booking modal needs them,
+  // or the browser goes idle (~2.5s). Targeted hydration (ensureDogsByIds /
+  // ensureHumansByIds below) is independent of page-0 and still runs at
+  // boot, so booking-card names keep resolving.
+  const directoriesWarm = useDirectoryWarmup({
+    newBookingOpen: !!showNewBooking,
+  });
+
   const {
     humans: sbHumans,
     humansById,
@@ -380,7 +421,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     toggleDirFilter: sbToggleDirFilter,
     dirLetter: sbDirLetter,
     setDirLetter: sbSetDirLetter,
-  } = useHumans();
+  } = useHumans({ startDirectoryFetch: directoriesWarm });
   const {
     dogs: sbDogs,
     dogsById,
@@ -410,7 +451,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     dirLetter: sbDogDirLetter,
     setDirLetter: sbSetDogDirLetter,
     fetchArchivedDogs: sbFetchArchivedDogs,
-  } = useDogs(humansById);
+  } = useDogs(humansById, { startDirectoryFetch: directoriesWarm });
   const {
     bookingsByDate: sbBookings,
     loading: bl,

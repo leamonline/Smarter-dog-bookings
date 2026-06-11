@@ -26,7 +26,11 @@ import { useHumanMutations } from "./humans/useHumanMutations";
 import { useHumanLifecycle } from "./humans/useHumanLifecycle";
 import { useHumanLookups } from "./humans/useHumanLookups";
 
-export function useHumans() {
+export function useHumans(
+  // startDirectoryFetch defers the page-0 directory fetch off the boot path
+  // (see useHumansData); everything else is unaffected by the flag.
+  { startDirectoryFetch = true }: { startDirectoryFetch?: boolean } = {},
+) {
   const search = useHumansSearch();
   const trusted = useTrustedContacts();
 
@@ -35,6 +39,7 @@ export function useHumans() {
   const data = useHumansData({
     effectiveSearch: search.effectiveSearch,
     finishSearching: search.finishSearching,
+    startDirectoryFetch,
   });
 
   const mutations = useHumanMutations({
