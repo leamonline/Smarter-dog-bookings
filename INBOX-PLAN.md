@@ -5,6 +5,8 @@
 **Status:** Awaiting human review before Phase 2 starts
 **Branch suggestion:** `feat/inbox-cockpit` (don't create yet — confirm Q1 first)
 
+> **Status note (June 2026):** Phase 2 has largely shipped — `/inbox` route live with `/whatsapp` redirecting to it, the view split under `src/components/views/inbox/` (thread/, conversation-list/, customer-context/, hooks/), and Bug F1 fixed by migration `20260513000000_whatsapp_booking_actions_realtime.sql`. One deviation: `LiveAnnouncer` was never mounted — it was deleted as dead code instead (`d3eaa48`). Phase 3 has also substantially shipped (CustomerContextPanel + DogSummaryCard + LastBookingChip + TrustedHumansChips, `useCustomerContext`, `useSlotCapacityPreview`, `thread/BookingCapacityPreview.jsx`). Phase 4 is partial (Mark complete/Reopen via `useConversationLifecycle` shipped; search, summary, suggested actions, quick replies, snooze and the global kill switch are not built). Phase 5 (analytics) has not started. Phases 4–5 remain open pending product sign-off.
+
 ---
 
 ## TL;DR
