@@ -3,7 +3,6 @@ import { DayHeader } from "./DayHeader.jsx";
 import { EmptyDayPanel } from "./EmptyDayPanel.jsx";
 import { BookingGridControls } from "./BookingGridControls.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
-import { BookingList } from "../booking/BookingList.jsx";
 import { ClosedDayView } from "../layout/ClosedDayView.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 
@@ -17,8 +16,6 @@ export function BookingMainPanel({
   isOpen,
   activeSlots,
   overrides,
-  viewMode,
-  setViewMode,
   onNavigateDay,
   onOpenCalendar,
   onOpenOverview,
@@ -84,9 +81,13 @@ export function BookingMainPanel({
           <BookingGridControls
             bookingCount={(bookings || []).length}
             isOpen={isOpen}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
             onOpenDaySettings={onOpenDaySettings}
+            onOpenOverview={onOpenOverview || onOpenCalendar}
+            dateLabel={currentDateObj.toLocaleDateString("en-GB", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+            })}
           />
 
           {/* Booking grid card. On xl, it claims the remaining
@@ -95,21 +96,17 @@ export function BookingMainPanel({
               Revenue card on the left. */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
             <div className="xl:flex-1 xl:min-h-0 xl:overflow-y-auto">
-              {viewMode === "grid" ? (
-                <SlotGrid
-                  bookings={bookings}
-                  loading={bookingsLoading && bookings.length === 0}
-                  activeSlots={activeSlots}
-                  onOpenNewBooking={onOpenNewBooking}
-                  onMoveBooking={onMoveBooking}
-                  currentDateStr={currentDateStr}
-                  overrides={overrides}
-                  onOverride={onOverride}
-                  searchQuery={searchQuery}
-                />
-              ) : (
-                <BookingList bookings={bookings} searchQuery={searchQuery} />
-              )}
+              <SlotGrid
+                bookings={bookings}
+                loading={bookingsLoading && bookings.length === 0}
+                activeSlots={activeSlots}
+                onOpenNewBooking={onOpenNewBooking}
+                onMoveBooking={onMoveBooking}
+                currentDateStr={currentDateStr}
+                overrides={overrides}
+                onOverride={onOverride}
+                searchQuery={searchQuery}
+              />
             </div>
           </div>
         </>

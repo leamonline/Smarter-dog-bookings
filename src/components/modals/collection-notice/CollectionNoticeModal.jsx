@@ -21,6 +21,9 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/whatsappTemplates.js";
+import { joinNames } from "../../../lib/reminders/templates.js";
+import { titleCase } from "../../../utils/text";
+import { BOOKING_STATUS } from "../../../constants/index";
 
 const READY_TEMPLATE = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v1");
 
@@ -51,7 +54,15 @@ export function CollectionNoticeModal({ booking, onClose }) {
   const [sentIds, setSentIds] = useState(() => new Set());
 
   const ownerId = booking?._ownerId ?? null;
-  const dogName = booking?.dogName || "Your dog";
+  // The owner's other dogs booked the same day that are ALSO ready get
+  // named in the one notice ("Bella and Max are ready"). Dogs still being
+  // groomed are left out — their own notice fires when they're marked
+  // ready. Starts as just this booking's dog; the effect below widens it.
+  const [readyDogNames, setReadyDogNames] = useState(() =>
+    [booking?.dogName].filter(Boolean),
+  );
+  const dogName = joinNames(readyDogNames.map((n) => titleCase(n))) || "Your dog";
+  const isPlural = readyDogNames.length > 1;
 
   useEffect(() => {
     const handler = (e) => {
@@ -74,13 +85,41 @@ export function CollectionNoticeModal({ booking, onClose }) {
         return;
       }
       const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
-      const [ownerRes, linkRes] = await Promise.all([
+      const [ownerRes, linkRes, dayRes] = await Promise.all([
         supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
         supabase
           .from("human_trusted_contacts")
           .select("trusted_id, relationship")
           .eq("human_id", ownerId),
+        booking?._bookingDate
+          ? supabase
+              .from("bookings")
+              .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
+              .eq("booking_date", booking._bookingDate)
+              .eq("dogs.human_id", ownerId)
+              .neq("status", "Cancelled")
+          : Promise.resolve({ data: null }),
       ]);
+
+      // Name every dog of this owner that's ready for pick-up today
+      // (this booking's dog included regardless of how fresh its status
+      // row is — the modal opens on the transition itself).
+      const dayRows = dayRes?.data ?? [];
+      const ready = dayRows.filter(
+        (r) =>
+          r.id === booking?.id ||
+          r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+          r.status === BOOKING_STATUS.COMPLETED,
+      );
+      if (ready.length > 0) {
+        const names = [];
+        for (const r of ready) {
+          const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
+          const name = dog?.name || r.dog_name_snapshot;
+          if (name && !names.includes(name)) names.push(name);
+        }
+        if (!cancelled && names.length > 0) setReadyDogNames(names);
+      }
 
       const links = linkRes.data ?? [];
       const trustedIds = links.map((r) => r.trusted_id).filter(Boolean);
@@ -171,7 +210,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-brand-paper">
           <h2 className="text-[15px] font-bold font-display text-brand-purple m-0">
-            {dogName} is ready
+            {dogName} {isPlural ? "are" : "is"} ready
           </h2>
           <button
             type="button"
@@ -186,6 +225,11 @@ export function CollectionNoticeModal({ booking, onClose }) {
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           <p className="text-[13px] text-slate-600 m-0">
             Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
+            {isPlural && (
+              <span className="block mt-1 text-[12px] text-slate-500">
+                One message covers all of this owner's dogs that are ready.
+              </span>
+            )}
           </p>
 
           <label className="flex items-center gap-2 text-[13px] text-slate-700">

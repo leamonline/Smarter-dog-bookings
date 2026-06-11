@@ -35,10 +35,13 @@ export interface NextAvailable {
   dateLabel: string;
 }
 
-export function utilisationColor(pct: number): string {
-  if (pct >= 70) return "bg-rose-500";
-  if (pct >= 40) return "bg-amber-500";
-  return "bg-emerald-500";
+// A busy day is a GOOD day for the salon — full reads green, not red.
+// Rose is reserved for genuinely over-capacity (count past the cap).
+export function utilisationColor(pct: number, over = false): string {
+  if (over) return "bg-rose-500";
+  if (pct >= 70) return "bg-emerald-500";
+  if (pct >= 40) return "bg-amber-400";
+  return "bg-sky-400";
 }
 
 export function utilisationLabel(pct: number, isOpen: boolean): string {

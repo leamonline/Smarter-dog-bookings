@@ -30,7 +30,10 @@ export function DayHeader({
   const isToday = todayStr === currentStr;
 
   return (
-    <header className="flex items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting py-2 px-3 md:py-2.5 md:px-4">
+    // Hidden on phones — the week-pill row (CalendarTabs) carries the
+    // chevrons and calendar button there, and the date label moves into
+    // the BookingGridControls pill. Reclaims a full row of chrome.
+    <header className="hidden sm:flex items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting py-2 px-3 md:py-2.5 md:px-4">
       <button
         type="button"
         onClick={() => onNavigateDay(-1)}

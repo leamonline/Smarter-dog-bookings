@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, MoreVertical } from "lucide-react";
+import { Ban, Clock, CalendarPlus, AlertTriangle } from "lucide-react";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 function formatSlot(slot) {
@@ -11,31 +11,26 @@ function formatSlot(slot) {
 }
 
 /**
- * SlotRowMenu — the slot row's left-column UI.
+ * SlotRowMenu — the boxed time button to the left of each slot row.
  *
- * Two affordances stacked in the column:
+ * The whole box (clock + time, styled like the old list-view arrival
+ * pill) is one button. Clicking it opens a portalled actions menu for
+ * that slot:
  *
- *  - **Time button** (primary). Clicking it routes to a new booking:
- *    - If the slot has at least one available seat, calls `onOpenBooking()`
- *      which opens NewBookingModal pre-filled with this slot.
- *    - If the slot is fully booked, opens an "This time is fully booked.
- *      Override and book anyway?" confirm dialog. On confirm, calls
- *      `onOverbook()` which opens NewBookingModal with the override
- *      pre-armed.
+ *  - "Book this time" when a seat is free → `onOpenBooking()` opens
+ *    NewBookingModal pre-filled with this slot.
+ *  - "Override & book" when the slot is fully booked → confirm dialog,
+ *    then `onOverbook()` opens NewBookingModal with the override armed.
+ *  - "Block …" items for free seats → `onBlockSeat(index)`.
  *
- *  - **⋯ icon** (secondary, only when seats are available). Opens the
- *    admin popover for "Block seat 1/2/timeslot". Portalled so it
- *    escapes the parent row's opacity:0.7.
- *
- * `onOpenBooking` / `onOverbook` are independent — a parent that
- * doesn't want the time to be clickable can simply omit them.
+ * The menu is portalled to document.body so it escapes the parent
+ * row's opacity:0.7 (on empty rows).
  */
 export function SlotRowMenu({
   slot,
   seatStates,
   onBlockSeat,
   disabled,
-  triggerClassName = "",
   hasBooking,
   onOpenBooking,
   onOverbook,
@@ -43,7 +38,7 @@ export function SlotRowMenu({
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const [pendingOverbook, setPendingOverbook] = useState(false);
-  const moreRef = useRef(null);
+  const boxRef = useRef(null);
   const popRef = useRef(null);
 
   useEffect(() => {
@@ -51,7 +46,7 @@ export function SlotRowMenu({
     const handle = (e) => {
       if (
         !popRef.current?.contains(e.target) &&
-        !moreRef.current?.contains(e.target)
+        !boxRef.current?.contains(e.target)
       ) {
         setMenuOpen(false);
       }
@@ -75,30 +70,21 @@ export function SlotRowMenu({
   const hasFreeSeat = availableSeats.length > 0;
   const isFullyBooked = (seatStates || []).every((s) => s.type === "booking");
 
-  const moreDisabled = disabled || !onBlockSeat || availableSeats.length === 0;
-  const timeDisabled = disabled || (!onOpenBooking && !onOverbook);
+  const canBook = !disabled && hasFreeSeat && !!onOpenBooking;
+  const canOverbook = !disabled && isFullyBooked && !!onOverbook;
+  const canBlock = !disabled && !!onBlockSeat && availableSeats.length > 0;
+  const hasActions = canBook || canOverbook || canBlock;
 
-  const handleTimeClick = () => {
-    if (timeDisabled) return;
-    if (hasFreeSeat && onOpenBooking) {
-      onOpenBooking();
-      return;
-    }
-    if (isFullyBooked && onOverbook) {
-      setPendingOverbook(true);
-    }
+  const openMenu = () => {
+    if (!hasActions) return;
+    const r = boxRef.current?.getBoundingClientRect();
+    if (r) setAnchorRect(r);
+    setMenuOpen((o) => !o);
   };
 
   const handleConfirmOverbook = () => {
     setPendingOverbook(false);
     onOverbook?.();
-  };
-
-  const openMoreMenu = () => {
-    if (moreDisabled) return;
-    const r = moreRef.current?.getBoundingClientRect();
-    if (r) setAnchorRect(r);
-    setMenuOpen((o) => !o);
   };
 
   // Compute popover position in viewport coords. Clamped so it
@@ -116,51 +102,43 @@ export function SlotRowMenu({
     if (popLeft < margin) popLeft = margin;
   }
 
-  const timeAriaLabel = timeDisabled
+  const boxAriaLabel = !hasActions
     ? slotLabel
     : isFullyBooked
-      ? `${slotLabel} — fully booked, click to override and book`
-      : `${slotLabel} — book a dog in`;
-
-  const timeTitle = timeDisabled
-    ? slotLabel
-    : isFullyBooked
-      ? "Fully booked. Click to override."
-      : "Click to book";
+      ? `${slotLabel} — fully booked, open slot actions`
+      : `${slotLabel} — open slot actions`;
 
   return (
-    <div className="relative h-full flex flex-col items-stretch justify-center gap-0.5">
+    <>
       <button
+        ref={boxRef}
         type="button"
-        onClick={handleTimeClick}
-        aria-label={timeAriaLabel}
-        title={timeTitle}
-        disabled={timeDisabled}
-        className={`w-full text-[12px] md:text-[13px] font-extrabold text-center cursor-pointer border-none bg-transparent transition-colors font-[inherit] rounded-md tabular-nums py-1 ${
-          timeDisabled
-            ? "cursor-default"
-            : isFullyBooked
-              ? "hover:bg-amber-100 hover:text-amber-900"
-              : "hover:bg-brand-yellow/15 hover:text-brand-purple"
-        } ${hasBooking ? "text-brand-purple" : "text-slate-400"} ${triggerClassName}`}
+        onClick={openMenu}
+        aria-label={boxAriaLabel}
+        aria-haspopup={hasActions ? "menu" : undefined}
+        aria-expanded={hasActions ? menuOpen : undefined}
+        title={hasActions ? "Slot actions" : slotLabel}
+        disabled={!hasActions}
+        className={`h-full w-full flex flex-col items-center justify-start gap-1 bg-white border rounded-2xl px-1 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.03)] font-[inherit] transition-colors ${
+          hasActions
+            ? "cursor-pointer border-slate-200 hover:border-brand-yellow/70 hover:bg-brand-yellow/10"
+            : "cursor-default border-slate-200"
+        } ${menuOpen ? "border-brand-yellow bg-brand-yellow/10" : ""}`}
       >
-        {slotLabel}
-      </button>
-
-      {!moreDisabled && (
-        <button
-          ref={moreRef}
-          type="button"
-          onClick={openMoreMenu}
-          aria-label={`${slotLabel} — open slot actions`}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          title="Slot actions"
-          className="self-center w-5 h-4 flex items-center justify-center text-slate-400 hover:text-brand-purple cursor-pointer border-none bg-transparent rounded p-0"
+        <Clock
+          size={14}
+          strokeWidth={2.2}
+          className="text-brand-purple/60"
+          aria-hidden="true"
+        />
+        <span
+          className={`text-[13px] md:text-sm font-bold tabular-nums leading-none ${
+            hasBooking ? "text-brand-purple" : "text-slate-400"
+          }`}
         >
-          <MoreVertical size={12} strokeWidth={2.4} aria-hidden="true" />
-        </button>
-      )}
+          {slotLabel}
+        </span>
+      </button>
 
       {pendingOverbook && (
         <ConfirmDialog
@@ -174,12 +152,10 @@ export function SlotRowMenu({
         />
       )}
 
-      {menuOpen && !moreDisabled && anchorRect && createPortal(
+      {menuOpen && hasActions && anchorRect && createPortal(
         <div
           ref={popRef}
           role="menu"
-          // Portalled to document.body so the parent row's
-          // opacity:0.7 (on empty rows) doesn't bleed through.
           style={{
             position: "fixed",
             top: popTop,
@@ -193,51 +169,77 @@ export function SlotRowMenu({
           <div className="px-1 pb-1 text-[10px] font-bold text-brand-yellow uppercase tracking-wider">
             {slotLabel}
           </div>
-          {availableSeats.length === 2 ? (
-            <>
-              <MenuItem
-                label="Block this timeslot"
-                onClick={() => {
-                  onBlockSeat(0);
-                  onBlockSeat(1);
-                  setMenuOpen(false);
-                }}
-              />
-              <MenuItem
-                label="Block seat 1 only"
-                onClick={() => {
-                  onBlockSeat(0);
-                  setMenuOpen(false);
-                }}
-              />
-              <MenuItem
-                label="Block seat 2 only"
-                onClick={() => {
-                  onBlockSeat(1);
-                  setMenuOpen(false);
-                }}
-              />
-            </>
-          ) : (
-            availableSeats.map(({ index }) => (
-              <MenuItem
-                key={index}
-                label={`Block seat ${index + 1}`}
-                onClick={() => {
-                  onBlockSeat(index);
-                  setMenuOpen(false);
-                }}
-              />
-            ))
+          {canBook && (
+            <MenuItem
+              icon={CalendarPlus}
+              label="Book this time"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenBooking();
+              }}
+            />
+          )}
+          {canOverbook && (
+            <MenuItem
+              icon={AlertTriangle}
+              label="Override & book"
+              onClick={() => {
+                setMenuOpen(false);
+                setPendingOverbook(true);
+              }}
+            />
+          )}
+          {canBlock && (
+            availableSeats.length === 2 ? (
+              <>
+                <MenuItem
+                  icon={Ban}
+                  label="Block this timeslot"
+                  onClick={() => {
+                    onBlockSeat(0);
+                    onBlockSeat(1);
+                    setMenuOpen(false);
+                  }}
+                />
+                <MenuItem
+                  icon={Ban}
+                  label="Block seat 1 only"
+                  onClick={() => {
+                    onBlockSeat(0);
+                    setMenuOpen(false);
+                  }}
+                />
+                <MenuItem
+                  icon={Ban}
+                  label="Block seat 2 only"
+                  onClick={() => {
+                    onBlockSeat(1);
+                    setMenuOpen(false);
+                  }}
+                />
+              </>
+            ) : (
+              availableSeats.map(({ index }) => (
+                <MenuItem
+                  key={index}
+                  icon={Ban}
+                  label={`Block seat ${index + 1}`}
+                  onClick={() => {
+                    onBlockSeat(index);
+                    setMenuOpen(false);
+                  }}
+                />
+              ))
+            )
           )}
         </div>,
         document.body,
       )}
-    </div>
+    </>
   );
 }
 
-function MenuItem({ label, onClick }) {
+function MenuItem({ label, onClick, icon: Icon }) {
   return (
     <button
       type="button"
@@ -245,7 +247,7 @@ function MenuItem({ label, onClick }) {
       onClick={onClick}
       className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-colors border-none font-[inherit] hover:bg-brand-yellow-dark"
     >
-      <Ban size={12} strokeWidth={2.4} aria-hidden="true" />
+      <Icon size={12} strokeWidth={2.4} aria-hidden="true" />
       {label}
     </button>
   );

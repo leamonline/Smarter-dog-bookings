@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
@@ -64,7 +65,6 @@ export function WeekCalendarView({
   onOpenHuman,
   onRefresh,
 }) {
-  const [viewMode, setViewMode] = useState("grid");
   const [searchQuery] = useState("");
   const [confirmRemoveSlot, setConfirmRemoveSlot] = useState(null);
   const [confirmDayToggle, setConfirmDayToggle] = useState(null);
@@ -97,6 +97,12 @@ export function WeekCalendarView({
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
+
+  const navigateDay = (delta) => {
+    const target = new Date(currentDateObj);
+    target.setDate(target.getDate() + delta);
+    handleDatePick(target);
+  };
 
   const activeSlots = useMemo(() => {
     return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
@@ -163,16 +169,36 @@ export function WeekCalendarView({
       <FloatingDecor />
 
       {/* Compact week pills on tablet/mobile — desktop uses the
-          left-sidebar WeekOverviewCard. */}
-      <div className="xl:hidden mb-3">
-        <CalendarTabs
-          dates={dates}
-          selectedDay={selectedDay}
-          onSelectDay={(i) => setSelectedDay(i)}
-          bookingsByDate={bookingsByDate}
-          dayOpenState={dayOpenState}
-          calendarMode="day"
-        />
+          left-sidebar WeekOverviewCard. On phones (< sm) the DayHeader
+          bar is hidden, so prev/next chevrons and the calendar button
+          flank the pills here instead — one row of date chrome, not two. */}
+      <div className="xl:hidden mb-3 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => navigateDay(-1)}
+          aria-label="Previous day"
+          className="sm:hidden w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+        >
+          <ChevronLeft size={18} strokeWidth={2.5} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <CalendarTabs
+            dates={dates}
+            selectedDay={selectedDay}
+            onSelectDay={(i) => setSelectedDay(i)}
+            bookingsByDate={bookingsByDate}
+            dayOpenState={dayOpenState}
+            calendarMode="day"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => navigateDay(1)}
+          aria-label="Next day"
+          className="sm:hidden w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+        >
+          <ChevronRight size={18} strokeWidth={2.5} />
+        </button>
       </div>
 
       <PullToRefresh onRefresh={onRefresh}>
@@ -203,8 +229,6 @@ export function WeekCalendarView({
               isOpen={isOpen}
               activeSlots={activeSlots}
               overrides={currentSettings.overrides || {}}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
               onNavigateDay={(delta) => {
                 const target = new Date(currentDateObj);
                 target.setDate(target.getDate() + delta);

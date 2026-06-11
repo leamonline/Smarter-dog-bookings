@@ -1,5 +1,5 @@
 // src/components/booking/SlotGrid.jsx
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
@@ -98,6 +98,18 @@ export function SlotGrid({
     return currentSlotIndex(activeSlots, new Date());
   }, [currentDateStr, activeSlots]);
 
+  // Opening today's schedule mid-shift lands you on the slot in progress
+  // rather than 8:30. Once per mount — navigating between days and back
+  // shouldn't keep yanking the scroll position around.
+  const nowRowRef = useRef(null);
+  const didAutoScroll = useRef(false);
+  useEffect(() => {
+    if (didAutoScroll.current || nowIdx < 0 || loading) return;
+    didAutoScroll.current = true;
+    // Optional-call form: jsdom (tests) has no scrollIntoView.
+    nowRowRef.current?.scrollIntoView?.({ block: "center" });
+  }, [nowIdx, loading]);
+
   const rows = useMemo(() => {
     const result = activeSlots.map((slot, i) => {
       const slotOverrides = overrides?.[slot] || {};
@@ -125,9 +137,10 @@ export function SlotGrid({
     return (
       <div
         key={slot}
+        ref={isNow ? nowRowRef : undefined}
         className={[
-          `relative grid grid-cols-[44px_1fr] sm:grid-cols-[48px_1fr] md:grid-cols-[52px_1fr] gap-1.5 md:gap-2.5 p-2 md:p-[10px_14px] items-stretch`,
-          hasBooking ? "min-h-0 sm:min-h-[110px] md:min-h-[140px]" : "min-h-[48px] md:min-h-[56px]",
+          `relative grid grid-cols-[64px_1fr] md:grid-cols-[80px_1fr] gap-2 md:gap-3 p-2 md:p-[10px_14px] items-stretch`,
+          hasBooking ? "min-h-0" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
           !hasBooking && !isNow ? "opacity-70 hover:opacity-100 transition-opacity" : "",
           rowBg,
@@ -144,7 +157,9 @@ export function SlotGrid({
             </span>
           </>
         )}
-        <div className="border-r-2 border-slate-200 pr-1 md:pr-1.5 self-stretch flex items-center justify-center">
+        {/* Boxed time button — the whole box opens the slot actions menu
+            (book / override / block), echoing the old list-view pill. */}
+        <div className="self-stretch">
           <SlotRowMenu
             slot={slot}
             seatStates={seatStates}
@@ -164,32 +179,21 @@ export function SlotGrid({
           />
         </div>
 
-        {/* Seat container: 2 columns at sm+ for normal slots; wraps onto a
-            new row when the slot is overbooked (3+ bookings via staff
-            override). auto-fit + minmax keeps each card legible. */}
-        <div className="flex flex-col gap-1.5 sm:grid sm:gap-1.5 md:gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+        {/* Seat container: single-column list at every size — one
+            full-width card per booking, stacked. An empty slot shows a
+            single "+ Book" ghost row rather than one per seat; the slot
+            menu still offers per-seat blocking and overbooking. */}
+        <div className="flex flex-col gap-1.5 md:gap-2">
         {loading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
+          <SkeletonCard />
         ) : allAvailable ? (
-          <>
-            <GhostSeat
-              onClick={() => onOpenNewBooking(currentDateStr, slot)}
-              onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-              onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-              onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-              isDropTarget={dnd.drag.overSlot === slot}
-            />
-            <GhostSeat
-              onClick={() => onOpenNewBooking(currentDateStr, slot)}
-              onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-              onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-              onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-              isDropTarget={dnd.drag.overSlot === slot}
-            />
-          </>
+          <GhostSeat
+            onClick={() => onOpenNewBooking(currentDateStr, slot)}
+            onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+            onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+            onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+            isDropTarget={dnd.drag.overSlot === slot}
+          />
         ) : allBlockedByStaff ? (
           <>
             <BlockedSeatCell onClick={() => unblock(slot, 0)} />

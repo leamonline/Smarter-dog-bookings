@@ -118,15 +118,15 @@ export interface StatusDisplay {
  * status shows in the UI. Used by the dashboard card pill (BookingCardNew)
  * AND the detail modal's header accent bar, active stepper step and primary
  * button, so the card and its pop-up can never drift apart. Mustard for
- * "still to come", teal/cyan for "in the salon now", deep purple for "all
- * done", coral for cancelled.
+ * "still to come", teal/cyan for "in the salon now", emerald for "ready to
+ * collect", slate for "all done" (fades out of the day), coral for cancelled.
  */
 export const STATUS_DISPLAY: Record<string, StatusDisplay> = {
   "Booked":            { bg: "#FFF6CC", color: "var(--color-brand-purple)",    border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-purple)", label: "Booked" },
   "Checked in":        { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)", border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Checked in" },
   "In bath":           { bg: "#CFFAFE", color: "#0E7490",                      border: "#22D3EE",                   onAccent: "var(--color-brand-purple)", label: "In bath" },
-  "Ready for pick-up": { bg: "#EDE3F5", color: "var(--color-brand-purple)",    border: "#5B3D80",                   onAccent: "#FFFFFF",                   label: "Ready" },
-  "Completed":         { bg: "#E2D9F0", color: "var(--color-brand-purple)",    border: "#5B3D80",                   onAccent: "#FFFFFF",                   label: "Completed" },
+  "Ready for pick-up": { bg: "#D1FAE5", color: "#047857",                      border: "#10B981",                   onAccent: "#FFFFFF",                   label: "Ready" },
+  "Completed":         { bg: "#F1F5F9", color: "#475569",                      border: "#94A3B8",                   onAccent: "#FFFFFF",                   label: "Completed" },
   "Cancelled":         { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)", onAccent: "#FFFFFF",                   label: "Cancelled" },
 };
 
