@@ -188,7 +188,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     onUpdateDog,
     onOpenHuman,
     onOpenDog,
-    onRebook,
   } = useSalon();
 
   const [showDetail, setShowDetail] = useState(false);
@@ -493,7 +492,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             dogs={dogs}
             humans={humans}
             onUpdateDog={onUpdateDog}
-            onRebook={onRebook}
             daySettings={daySettings}
           />
         </Suspense>

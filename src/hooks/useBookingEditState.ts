@@ -35,8 +35,6 @@ interface ModalFlags {
   setShowDatePicker: (v: boolean) => void;
   showExitConfirm: boolean;
   setShowExitConfirm: (v: boolean) => void;
-  showContact: boolean;
-  setShowContact: (v: boolean) => void;
 }
 
 interface UseBookingEditStateReturn {
@@ -90,7 +88,6 @@ export function useBookingEditState(
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [showContact, setShowContact] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -133,8 +130,6 @@ export function useBookingEditState(
       setShowDatePicker,
       showExitConfirm,
       setShowExitConfirm,
-      showContact,
-      setShowContact,
     },
     resetEditState,
   };

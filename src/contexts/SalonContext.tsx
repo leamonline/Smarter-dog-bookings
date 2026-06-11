@@ -21,7 +21,6 @@ export interface SalonContextValue {
   onUpdateDog: (dog: Dog) => void | Promise<void>;
   onOpenHuman: (name: string) => void;
   onOpenDog: (name: string) => void;
-  onRebook: (booking: Booking) => void;
 }
 
 const SalonContext = createContext<SalonContextValue | null>(null);
@@ -45,7 +44,6 @@ export function SalonProvider({
   onUpdateDog,
   onOpenHuman,
   onOpenDog,
-  onRebook,
 }: SalonProviderProps) {
   const value = useMemo<SalonContextValue>(
     () => ({
@@ -62,7 +60,6 @@ export function SalonProvider({
       onUpdateDog,
       onOpenHuman,
       onOpenDog,
-      onRebook,
     }),
     [
       dogs,
@@ -78,7 +75,6 @@ export function SalonProvider({
       onUpdateDog,
       onOpenHuman,
       onOpenDog,
-      onRebook,
     ],
   );
 

@@ -54,7 +54,6 @@ function renderCard(booking) {
         onUpdateDog={vi.fn()}
         onOpenHuman={vi.fn()}
         onOpenDog={vi.fn()}
-        onRebook={vi.fn()}
       >
         <BookingCardNew
           booking={booking}

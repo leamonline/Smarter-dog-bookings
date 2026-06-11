@@ -23,7 +23,6 @@ import { useOfflineState } from "./hooks/useOfflineState.js";
 import { useModalState } from "./hooks/useModalState";
 import { useBookingActions } from "./hooks/useBookingActions";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useRebookFlow } from "./hooks/useRebookFlow.js";
 import { SalonProvider } from "./contexts/SalonContext";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
@@ -563,11 +562,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     return state;
   }, [dates, daySettings]);
 
-  const { handleOpenRebook } = useRebookFlow({
-    currentDateObj, daySettings, dayOpenState, bookingsByDate,
-    setRebookData, setShowRebookDatePicker,
-  });
-
   // Open a single booking's detail modal by id. Used by the human profile
   // (at-a-glance + booking history) which only has booking ids to hand.
   // The week calendar opens its own per-card BookingDetailModal; this is
@@ -632,7 +626,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onUpdateDog={updateDog}
           onOpenHuman={handleOpenHuman}
           onOpenDog={handleOpenDog}
-          onRebook={handleOpenRebook}
         >
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
@@ -963,7 +956,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
-                  onRebook={handleOpenRebook}
                   daySettings={daySettings}
                 />
               </Suspense>

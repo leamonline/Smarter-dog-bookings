@@ -106,7 +106,6 @@ function renderModal(overrides = {}) {
     dogs: { Bella: dog },
     humans: { "Sarah Jones": human },
     onUpdateDog: vi.fn(),
-    onRebook: vi.fn(),
     daySettings: {},
     ...overrides,
   };
