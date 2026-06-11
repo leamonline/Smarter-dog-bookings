@@ -555,12 +555,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onConfirm={handleConfirm}
             onBack={() => setStep(4)}
             submitting={submitting}
-            // BookingConfirmation declares a non-null `size` on its dogs prop.
-            // Dogs with an unknown size can never be selected (DogSelection
-            // disables them) and the confirmation step only reads the entries
-            // for selected dogs, so this narrowing holds for every entry it
-            // actually touches — unselected dogs may still carry a null size.
-            dogs={dogs as Array<RawDog & { size: DogSize }>}
+            dogs={dogs}
           />
         )}
       </div>

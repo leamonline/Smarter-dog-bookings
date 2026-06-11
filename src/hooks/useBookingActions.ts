@@ -23,10 +23,27 @@ interface SupabaseFns {
     fromDateStr: string,
     toDateStr: string,
   ) => Promise<Booking | null>;
-  sbToggleDayOpen: (dateStr: string) => Promise<void>;
-  sbSetOverride: (dateStr: string, slot: string, seatIndex: number, action: string) => Promise<void>;
-  sbAddExtraSlot: (dateStr: string) => Promise<void>;
-  sbRemoveExtraSlot: (dateStr: string) => Promise<void>;
+  // The day-settings family all resolve to upsertSetting's outcome
+  // (useDaySettings.js): { ok: true, value } carrying the merged setting,
+  // or { ok: false, error } after the optimistic change is rolled back.
+  // The original Promise<void> shapes hid a result a real caller depends
+  // on — SlotGrid awaits handleOverride and branches on
+  // `result?.ok === false` to dismiss its optimistic toast.
+  sbToggleDayOpen: (
+    dateStr: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  sbSetOverride: (
+    dateStr: string,
+    slot: string,
+    seatIndex: number,
+    action: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  sbAddExtraSlot: (
+    dateStr: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  sbRemoveExtraSlot: (
+    dateStr: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   sbUpdateDog: (
     dogIdOrName: string,
     updates: Partial<Dog> & Record<string, unknown>,
@@ -35,15 +52,34 @@ interface SupabaseFns {
     humanIdOrName: string,
     updates: Partial<Human> & Record<string, unknown>,
   ) => Promise<Human | null | undefined>;
-  sbUpdateConfig: (config: SalonConfig) => Promise<void>;
-  sbAddHuman: (human: Human) => Promise<unknown>;
-  sbAddDog: (dog: Dog) => Promise<unknown>;
+  // updateConfig accepts a value OR an updater function and resolves to an
+  // outcome object (useSalonConfig.js) — the settings panels all call it
+  // with `(prev) => ...` and branch on `result?.ok === false`, neither of
+  // which the original (config) => Promise<void> shape allowed.
+  sbUpdateConfig: (
+    config: SalonConfig | ((prev: SalonConfig) => SalonConfig),
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  // The add pair take partial form payloads from the Add modals (which can
+  // carry non-model fields like AddDogModal's `gender`), not fully-built
+  // records — the implementations (useHumanMutations.ts / useDogs.ts) fill
+  // in the rest.
+  sbAddHuman: (
+    humanData: Partial<Human> & Record<string, unknown>,
+  ) => Promise<unknown>;
+  sbAddDog: (
+    dogData: Partial<Dog> & Record<string, unknown>,
+  ) => Promise<unknown>;
 }
 
 interface OfflineFns {
-  handleAdd: (booking: Booking) => void;
+  // Two args like the online wrapper (WeekCalendarView's rebook flow passes
+  // a target date and awaits the returned booking); the original 1-arg/void
+  // shape was a liar in the same way as the pre-#259 handleUpdate.
+  handleAdd: (booking: Booking, targetDateStr?: string) => Promise<Booking>;
   handleAddToDate: (booking: Booking, dateStr: string) => void;
-  handleRemove: (bookingId: string) => void;
+  // Resolves true after the optimistic removal (useOfflineState.js); the
+  // original declared void.
+  handleRemove: (bookingId: string) => Promise<boolean>;
   // Same shape as sbUpdateBooking: the offline handler also applies
   // cross-date moves and resolves to the updated booking, so the
   // booking-detail save path behaves identically off WiFi.
@@ -53,11 +89,11 @@ interface OfflineFns {
     toDateStr: string,
   ) => Promise<Booking>;
   toggleDayOpen: () => void;
-  handleOverride: (
-    slot: string,
-    seatIndex: number,
-    action: string,
-  ) => Promise<{ ok: true } | { ok: false; error: string }> | { ok: true };
+  // Synchronous and infallible: applies the override locally and returns
+  // { ok: true } — never a Promise and never ok: false (the Promise half
+  // of the old declared union belonged to the ONLINE setOverride, which is
+  // now typed truthfully above).
+  handleOverride: (slot: string, seatIndex: number, action: string) => { ok: true };
   handleAddSlot: () => void;
   handleRemoveSlot: () => void;
   // (idOrName, updates) like the online hooks; updateDog resolves to the
@@ -71,11 +107,18 @@ interface OfflineFns {
     humanIdOrName: string,
     updates: Partial<Human> & Record<string, unknown>,
   ) => void;
+  // Also synchronous + infallible — it mirrors useSalonConfig's outcome
+  // SHAPE so callers can `await` either mode, but it never returns a
+  // Promise and never fails, so the declared Promise<ok-union> was a liar.
   updateConfig: (
     config: SalonConfig | ((prev: SalonConfig) => SalonConfig),
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
-  addHuman: (human: Human) => void;
-  addDog: (dog: Dog) => void;
+  ) => { ok: true };
+  // Like the online pair these take Add-modal form payloads, and both
+  // return the stored record — the Add modals branch on the result and
+  // read `.id` from it, which the original (full model) => void shapes
+  // got wrong on both ends.
+  addHuman: (humanData: Partial<Human> & Record<string, unknown>) => Human;
+  addDog: (dogData: Partial<Dog> & Record<string, unknown>) => Dog;
   dogs: Record<string, Dog>;
   humans: Record<string, Human>;
   bookingsByDate: BookingsByDate;
