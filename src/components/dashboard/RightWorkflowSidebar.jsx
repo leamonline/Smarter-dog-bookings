@@ -142,7 +142,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
       case "reminders":
         return {
           key,
-          label: remindersData.targetDate ? "All reminders sent" : "No bookings tomorrow",
+          label: remindersData.totalCount > 0 ? "All reminders sent" : "No bookings tomorrow",
           hue: "amber",
           onClick: () => {
             /* no destination — TomorrowRemindersCard owns the loud UI */

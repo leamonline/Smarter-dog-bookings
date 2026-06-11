@@ -23,12 +23,25 @@
 import { useSyncExternalStore, useCallback, useMemo } from "react";
 import { supabase } from "../client.js";
 import { registerResume } from "../refreshOnResume.js";
-import { getNextWorkingDay } from "../../utils/nextWorkingDay";
 import { logger } from "../../lib/logger";
 import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
 
+// Reminders always target the literal next day — staff send them the
+// afternoon/evening before, whatever day of the week that lands on. A
+// closed tomorrow simply shows "0 bookings". (Replaces the old
+// getNextWorkingDay helper, whose Mon/Tue/Wed-only schedule was stale.)
+function getTomorrowDateStr(from) {
+  // Anchor to UK time so a late-night session past midnight UTC still
+  // shows the date the salon would call "tomorrow".
+  const today = from ?? new Date();
+  const ukDateStr = today.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const d = new Date(ukDateStr + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 let state = {
-  targetDate: getNextWorkingDay(),
+  targetDate: getTomorrowDateStr(),
   rows: [],
   loading: true,
   error: null,
@@ -47,8 +60,8 @@ async function refresh() {
     return;
   }
   // Recompute each refresh so a session left open across midnight rolls
-  // to the new "next working day" rather than sticking on the old one.
-  const targetDate = getNextWorkingDay();
+  // to the new "tomorrow" rather than sticking on the old one.
+  const targetDate = getTomorrowDateStr();
   setState({ error: null });
   try {
     // Embed dogs(human_id, name) so we can group by customer — bookings

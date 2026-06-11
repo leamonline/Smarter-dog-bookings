@@ -289,7 +289,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
             tabIndex={searchDimmed ? -1 : 0}
             aria-label={`Open booking for ${displayDogName}`}
-            className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis min-w-0 text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded"
+            // shrink-0 so the name never loses the space fight on narrow
+            // grid cards — the breed (below) truncates first instead.
+            className="text-[13px] md:text-sm font-bold font-display text-brand-purple whitespace-nowrap overflow-hidden text-ellipsis shrink-0 max-w-[70%] text-left bg-transparent border-none p-0 m-0 cursor-pointer font-[inherit] focus:outline-none rounded"
           >
             {displayDogName}
           </button>
@@ -350,6 +352,21 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               </svg>
             </span>
           )}
+          {/* Breed follows the name; service sits far right, directly
+              above the price on line 2. Two text lines, not three. */}
+          <span className="min-w-0 truncate text-[10px] md:text-[11px] font-medium text-slate-500">
+            {displayBreed}
+          </span>
+          <span className="ml-auto shrink-0 text-[10px] md:text-[11px] font-semibold text-brand-purple/80">
+            {service?.name || booking.service || "—"}
+          </span>
+        </div>
+
+        {/* Row 2: owner (left) + price (far right) */}
+        <div className="flex items-baseline gap-2 pl-4 md:pl-5">
+          <div className="text-[10px] md:text-[11px] font-medium text-slate-500 min-w-0 truncate">
+            {displayOwner}
+          </div>
           {pricing.subtotal > 0 && (
             // Main number is always the full appointment value (service +
             // add-ons + custom price). Payment state is secondary: a "due"
@@ -377,24 +394,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           )}
         </div>
 
-        {/* Row 2: service — what we're doing today */}
-        <div className="pl-4 md:pl-5 text-[11px] md:text-[12px] font-semibold text-brand-purple/80 truncate">
-          {service?.name || booking.service || "—"}
-        </div>
-
-        {/* Row 3: owner + breed (subtle, tertiary). Alert pills moved
-            into the popover so they don't crowd the card. */}
-        {(displayOwner || displayBreed) && (
-          <div className="flex items-center gap-2 pl-4 md:pl-5">
-            <div className="text-[10px] md:text-[11px] font-medium text-slate-500 min-w-0 truncate">
-              {displayOwner}
-              {displayOwner && displayBreed && <span className="text-slate-300"> · </span>}
-              {displayBreed}
-            </div>
-          </div>
-        )}
-
-        {/* Row 4: status pill */}
+        {/* Row 3: status pill */}
         <div className="flex items-stretch gap-1 md:gap-[5px] pl-4 md:pl-5 mt-0.5 md:mt-1">
           {/* Status pill / inline picker (service moved to row 2) */}
           {statusOpen ? (

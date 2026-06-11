@@ -7,8 +7,6 @@ function renderControls(props = {}) {
     <BookingGridControls
       bookingCount={8}
       isOpen
-      viewMode="grid"
-      setViewMode={vi.fn()}
       onOpenDaySettings={vi.fn()}
       {...props}
     />,

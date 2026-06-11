@@ -187,7 +187,6 @@ export function RightRailCard({
   accent,
   heading,
   icon: Icon,
-  pillLabel,
   primaryNumber,
   primaryLine,
   subtitle,
@@ -220,13 +219,8 @@ export function RightRailCard({
           >
             {heading}
           </h2>
-          {!isCalm && pillLabel && (
-            <span
-              className={`text-label rounded-full px-2 py-0.5 ${theme.pill}`}
-            >
-              {pillLabel}
-            </span>
-          )}
+          {/* Status pills ("Pending", "Needs reply") removed — the card's
+              tone (colour, numeral, CTA) already carries the urgency. */}
         </div>
         <span
           className={`relative w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${theme.iconWrap}`}
