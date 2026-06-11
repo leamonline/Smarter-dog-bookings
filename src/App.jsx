@@ -289,8 +289,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showNewBooking, setShowNewBooking,
     showAddDogModal, setShowAddDogModal,
     showAddHumanModal, setShowAddHumanModal,
-    rebookData, setRebookData,
-    showRebookDatePicker, setShowRebookDatePicker,
     collectionNotice, setCollectionNotice,
     selectedBooking, setSelectedBooking,
   } = useModalState();
@@ -789,7 +787,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       ensureDogsForHumans={ensureDogsForHumans}
                       humans={humans}
                       currentSettings={currentSettings}
-                      handleAdd={handleAdd}
                       handleRemove={handleRemove}
                       handleUpdate={handleUpdate}
                       handleOverride={handleOverride}
@@ -799,10 +796,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       showDatePicker={showDatePicker}
                       setShowDatePicker={setShowDatePicker}
                       handleDatePick={handleDatePick}
-                      rebookData={rebookData}
-                      setRebookData={setRebookData}
-                      showRebookDatePicker={showRebookDatePicker}
-                      setShowRebookDatePicker={setShowRebookDatePicker}
                       setShowNewBooking={setShowNewBooking}
                       onOpenHuman={handleOpenHuman}
                       onRefresh={refetchBookings}

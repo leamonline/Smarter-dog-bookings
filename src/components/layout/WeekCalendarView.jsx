@@ -1,12 +1,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { CalendarDays } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
-import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
-import { toDateStr } from "../../supabase/transforms";
-import { getDefaultOpenForDate } from "../../engine/utils.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
-import { AddBookingForm } from "../booking/AddBookingForm.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
@@ -15,7 +10,6 @@ import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 
 import { DashboardShell } from "../dashboard/DashboardShell.jsx";
 import { LeftSidebar } from "../dashboard/LeftSidebar.jsx";
@@ -58,7 +52,6 @@ export function WeekCalendarView({
   ensureDogsForHumans,
   humans,
   currentSettings,
-  handleAdd,
   handleUpdate,
   handleOverride,
   handleAddSlot,
@@ -67,10 +60,6 @@ export function WeekCalendarView({
   showDatePicker,
   setShowDatePicker,
   handleDatePick,
-  rebookData,
-  setRebookData,
-  showRebookDatePicker,
-  setShowRebookDatePicker,
   setShowNewBooking,
   onOpenHuman,
   onRefresh,
@@ -168,68 +157,6 @@ export function WeekCalendarView({
     toggleDayOpen();
     setConfirmDayToggle(null);
   };
-
-  // --- Rebook derived state ---
-  const rebookDateStr = rebookData?.dateStr || "";
-  const rebookSettings = useMemo(
-    () =>
-      rebookData
-        ? daySettings[rebookDateStr] || {
-            isOpen:
-              dayOpenState[rebookDateStr] ?? getDefaultOpenForDate(rebookData.date),
-            overrides: {},
-            extraSlots: [],
-          }
-        : null,
-    [rebookData, daySettings, rebookDateStr, dayOpenState],
-  );
-
-  const rebookSlots = useMemo(
-    () =>
-      rebookData
-        ? [...SALON_SLOTS, ...(rebookSettings?.extraSlots || [])]
-        : [],
-    [rebookData, rebookSettings],
-  );
-  const rebookBookings = useMemo(
-    () => (rebookData ? bookingsByDate[rebookDateStr] || [] : []),
-    [rebookData, bookingsByDate, rebookDateStr],
-  );
-  const rebookDayOpen = rebookData
-    ? (rebookSettings?.isOpen ?? dayOpenState[rebookDateStr] ?? false)
-    : false;
-
-  const rebookAvailableSlots = useMemo(() => {
-    if (!rebookData) return [];
-    return rebookSlots.filter(
-      (slot) =>
-        canBookSlot(rebookBookings, slot, rebookData.size, rebookSlots, {
-          overrides: rebookSettings?.overrides?.[slot] || {},
-          dogId: rebookData._dogId,
-          staffOverride: true,
-        }).allowed,
-    );
-  }, [rebookData, rebookSlots, rebookBookings, rebookSettings]);
-
-  // Same shape as rebookAvailableSlots, but for slots that are over
-  // capacity yet staff-overridable. The slot button renders these in
-  // amber so the user knows they're overriding when they pick one.
-  // AddBookingForm's own override popup catches it on submit.
-  const rebookOverrideSlots = useMemo(() => {
-    if (!rebookData) return new Set();
-    const set = new Set();
-    for (const slot of rebookSlots) {
-      const result = canBookSlot(rebookBookings, slot, rebookData.size, rebookSlots, {
-        overrides: rebookSettings?.overrides?.[slot] || {},
-        dogId: rebookData._dogId,
-        staffOverride: true,
-      });
-      if (!result.allowed && isCapacityRejection(result.reason)) {
-        set.add(slot);
-      }
-    }
-    return set;
-  }, [rebookData, rebookSlots, rebookBookings, rebookSettings]);
 
   return (
     <div className="relative">
@@ -403,177 +330,6 @@ export function WeekCalendarView({
       {showTodos && (
         <Suspense fallback={<LoadingSpinner />}>
           <TodoModal onClose={() => setShowTodos(false)} />
-        </Suspense>
-      )}
-
-      {rebookData && (
-        <AccessibleModal
-          onClose={() => {
-            setRebookData(null);
-            setShowRebookDatePicker(false);
-          }}
-          titleId="rebook-dialog-title"
-          className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[92vh] overflow-y-auto py-5 px-6 shadow-modal"
-        >
-            <h2 id="rebook-dialog-title" className="text-base font-extrabold text-brand-purple mb-1">
-              Rebook {rebookData.dogName}
-            </h2>
-            <div className="text-[13px] text-slate-500 mb-3">
-              Pre-filled from previous appointment. Choose a date and slot, then confirm.
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowRebookDatePicker(true)}
-              className="w-full mb-2.5 py-2.5 px-3 rounded-control border-[1.5px] border-slate-200 bg-white text-brand-purple text-[13px] font-semibold cursor-pointer font-[inherit] flex justify-between items-center"
-            >
-              <span>
-                {rebookData.date
-                  ? rebookData.date.toLocaleDateString("en-GB", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "Choose date"}
-              </span>
-              <CalendarDays size={16} strokeWidth={2} aria-hidden="true" className="text-brand-purple/60" />
-            </button>
-
-            {!rebookDayOpen && (
-              <div className="mb-2.5 py-2.5 px-3 rounded-lg bg-brand-coral-light text-brand-coral text-xs font-bold">
-                This day is currently closed. Choose another date.
-              </div>
-            )}
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5 mb-3">
-              {rebookSlots.map((slot) => {
-                const allowed = canBookSlot(
-                  rebookBookings,
-                  slot,
-                  rebookData.size,
-                  rebookSlots,
-                  {
-                    overrides: rebookSettings?.overrides?.[slot] || {},
-                    dogId: rebookData._dogId,
-                    staffOverride: true,
-                  },
-                ).allowed;
-                const isOverride = !allowed && rebookOverrideSlots.has(slot);
-                const isClickable = allowed || isOverride;
-                const isActive = rebookData.slot === slot;
-
-                return (
-                  <button
-                    key={slot}
-                    type="button"
-                    disabled={!isClickable}
-                    onClick={() =>
-                      setRebookData((prev) => ({ ...prev, slot }))
-                    }
-                    title={
-                      isOverride
-                        ? "Over capacity. Pick to override on submit."
-                        : undefined
-                    }
-                    aria-label={
-                      isOverride ? `${slot} — over capacity, click to override` : slot
-                    }
-                    className={`py-2 rounded-lg border-[1.5px] text-[13px] font-semibold font-[inherit] transition-all ${
-                      isActive
-                        ? "border-brand-yellow bg-brand-yellow text-brand-purple"
-                        : isOverride
-                          ? "border-amber-400 bg-amber-50 text-amber-900"
-                          : "border-slate-200 bg-white"
-                    } ${
-                      isClickable
-                        ? "cursor-pointer opacity-100"
-                        : "cursor-not-allowed opacity-50"
-                    } ${
-                      !isActive && allowed ? "text-brand-purple" : ""
-                    } ${
-                      !isActive && !isClickable ? "text-slate-500" : ""
-                    }`}
-                  >
-                    {slot}
-                    {isOverride && !isActive && (
-                      <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {rebookAvailableSlots.length === 0 && rebookOverrideSlots.size === 0 && (
-              <div className="mb-3 text-xs text-brand-coral font-bold">
-                No bookable slots are available for this dog on the selected date.
-              </div>
-            )}
-
-            <AddBookingForm
-              slot={rebookData.slot}
-              bookings={rebookBookings}
-              activeSlots={rebookSlots}
-              dogs={dogs}
-              humans={humans}
-              prefill={rebookData}
-              slotOverrides={
-                rebookSettings?.overrides?.[rebookData.slot] || {}
-              }
-              onAdd={async (booking) => {
-                const saved = await handleAdd(booking, rebookData.dateStr);
-                if (saved) {
-                  setRebookData(null);
-                  setShowRebookDatePicker(false);
-                }
-                return saved;
-              }}
-              onCancel={() => {
-                setRebookData(null);
-                setShowRebookDatePicker(false);
-              }}
-            />
-        </AccessibleModal>
-      )}
-
-      {showRebookDatePicker && rebookData && (
-        <Suspense fallback={<LoadingSpinner />}>
-          <DatePickerModal
-            currentDate={rebookData.date}
-            dayOpenState={dayOpenState}
-            onSelectDate={(newDate) => {
-              const newDateStr = toDateStr(newDate);
-              const settings = daySettings[newDateStr] || {
-                isOpen:
-                  dayOpenState[newDateStr] ?? getDefaultOpenForDate(newDate),
-                overrides: {},
-                extraSlots: [],
-              };
-              const slots = [
-                ...SALON_SLOTS,
-                ...(settings.extraSlots || []),
-              ];
-              const bookings = bookingsByDate[newDateStr] || [];
-              const nextSlot =
-                slots.find(
-                  (slot) =>
-                    canBookSlot(bookings, slot, rebookData.size, slots, {
-                      overrides: settings.overrides?.[slot] || {},
-                      dogId: rebookData._dogId,
-                      staffOverride: true,
-                    }).allowed,
-                ) || "";
-
-              setRebookData((prev) => ({
-                ...prev,
-                date: newDate,
-                dateStr: newDateStr,
-                slot: nextSlot,
-              }));
-              setShowRebookDatePicker(false);
-            }}
-            onClose={() => setShowRebookDatePicker(false)}
-          />
         </Suspense>
       )}
 

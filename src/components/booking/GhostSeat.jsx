@@ -33,7 +33,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
     ? "border-brand-yellow bg-brand-yellow/20 ring-2 ring-brand-yellow/40"
     : "";
 
-  // Simple ghost seat without blocking (e.g., rebook modal)
+  // Simple ghost seat without blocking (callers that don't pass onBlock)
   if (!onBlock) {
     return (
       <button

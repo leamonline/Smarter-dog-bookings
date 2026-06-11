@@ -202,8 +202,8 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       // echo. With a temp id the echo (carrying the server id) couldn't be
       // matched to the optimistic row and got appended as a duplicate —
       // which made two-dog group bookings briefly show doubled until a
-      // manual refetch. Always a FRESH uuid (never booking.id) so a rebook
-      // flow carrying a persisted id can't cause a PK collision.
+      // manual refetch. Always a FRESH uuid (never booking.id) so a flow
+      // prefilled from a persisted booking can't cause a PK collision.
       const newId = crypto.randomUUID();
       const rowPayload = { id: newId, ...insertPayload };
       setRows((prev) => [...(prev || []), rowPayload]);
@@ -292,7 +292,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         deposit_amount: updatedBooking.depositAmount ?? null,
         status: updatedBooking.status || BOOKING_STATUS.BOOKED,
         confirmed: updatedBooking.confirmed ?? false,
-        // Reschedule / Rebook / Edit flows that override capacity flip
+        // Reschedule / Edit flows that override capacity flip
         // this flag on the in-memory booking before calling onUpdate.
         // Mirrors the insert path: trigger validates and stamps _by/_at.
         ...(updatedBooking.staff_capacity_override
