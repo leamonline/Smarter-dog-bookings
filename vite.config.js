@@ -46,45 +46,31 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
-    rolldownOptions: {
+    // NB: this MUST be rollupOptions — the previous `rolldownOptions` key is
+    // silently ignored by standard Vite/Rollup, which shipped a single 443 KB
+    // entry chunk that every deploy invalidated in the PWA precache. A logic
+    // test asserts this shape so the dead-key bug can't recur.
+    rollupOptions: {
       output: {
+        // Whole-package vendor groups only. Path-anchored regexes, because
+        // substring matching on "node_modules/react" also swallows
+        // react-router / react-aria. Deliberately NOT grouped:
+        //   - src views/modals — Rollup's natural per-lazy() chunks are the
+        //     right boundaries; merging them regresses first-use loads.
+        //   - lucide-react — already tree-shakes to per-icon chunks.
+        //   - @vercel/analytics — dynamically imported, keeps itself out.
         manualChunks(id) {
-          if (
-            id.includes("node_modules/react") ||
-            id.includes("node_modules/react-dom")
-          ) {
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
             return "react-vendor";
           }
-
-          if (id.includes("node_modules/@supabase/")) {
+          if (/node_modules\/@supabase\//.test(id)) {
             return "supabase";
           }
-
-          if (id.includes("node_modules/@vercel/analytics")) {
-            return "analytics";
-          }
-
-          if (id.includes("node_modules/@sentry/")) {
+          if (/node_modules\/@sentry(-internal)?\//.test(id)) {
             return "sentry";
           }
-
-          if (
-            id.includes("node_modules/react-router") ||
-            id.includes("node_modules/react-router-dom")
-          ) {
+          if (/node_modules\/react-router(-dom)?\//.test(id)) {
             return "router";
-          }
-
-          if (id.includes("node_modules/lucide-react")) {
-            return "lucide";
-          }
-
-          if (id.includes("/src/components/views/")) {
-            return "views";
-          }
-
-          if (id.includes("/src/components/modals/")) {
-            return "modals";
           }
         },
       },

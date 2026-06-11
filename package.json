@@ -44,8 +44,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@fontsource/montserrat": "^5.2.8",
-    "@fontsource/quicksand": "^5.2.10",
     "@playwright/test": "^1.60.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

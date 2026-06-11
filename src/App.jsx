@@ -7,7 +7,6 @@ import {
   Suspense,
 } from "react";
 import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Analytics } from "@vercel/analytics/react";
 
 import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
@@ -40,6 +39,16 @@ const RightRailPreview = import.meta.env.DEV
   ? lazy(() =>
       import("./components/dev/RightRailPreview.jsx").then((module) => ({
         default: module.RightRailPreview,
+      })),
+    )
+  : () => null;
+// Vercel page-view analytics. Dynamically imported so the library stays out
+// of the App chunk's boot path — it renders nothing and can arrive whenever.
+// PROD-gated the same way it was rendered before; dev gets a no-op.
+const Analytics = import.meta.env.PROD
+  ? lazy(() =>
+      import("@vercel/analytics/react").then((module) => ({
+        default: module.Analytics,
       })),
     )
   : () => null;
@@ -964,7 +973,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             </ErrorBoundary>
           )}
         </SalonProvider>
-        {import.meta.env.PROD ? <Analytics /> : null}
+        {import.meta.env.PROD ? (
+          <Suspense fallback={null}>
+            <Analytics />
+          </Suspense>
+        ) : null}
       </AppFrame>
     </ToastProvider>
   );

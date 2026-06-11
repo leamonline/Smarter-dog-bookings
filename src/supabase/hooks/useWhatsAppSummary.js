@@ -314,16 +314,45 @@ function stopChannels() {
   }
 }
 
+// The AI summary is a whole dashboard-summary edge-function round trip.
+// On first subscribe it competes with the boot-critical data queries, so
+// defer it to browser idle time (or a short timeout — iPad Safari has no
+// requestIdleCallback). Counts stay immediate; realtime-triggered and
+// manual refreshes are unaffected.
+let idleSummaryHandle = null;
+function scheduleIdleAiSummary() {
+  const run = () => {
+    idleSummaryHandle = null;
+    refreshAiSummary();
+  };
+  if (typeof requestIdleCallback === "function") {
+    idleSummaryHandle = { type: "idle", id: requestIdleCallback(run, { timeout: 3000 }) };
+  } else {
+    idleSummaryHandle = { type: "timeout", id: setTimeout(run, 1500) };
+  }
+}
+function cancelIdleAiSummary() {
+  if (!idleSummaryHandle) return;
+  if (idleSummaryHandle.type === "idle") cancelIdleCallback(idleSummaryHandle.id);
+  else clearTimeout(idleSummaryHandle.id);
+  idleSummaryHandle = null;
+}
+
 function subscribe(listener) {
   listeners.add(listener);
   if (listeners.size === 1) {
     startChannels();
     refresh();
-    refreshAiSummary();
+    scheduleIdleAiSummary();
   }
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) stopChannels();
+    if (listeners.size === 0) {
+      // Last consumer gone (e.g. sign-out) — don't let a stray edge
+      // invoke fire afterwards.
+      cancelIdleAiSummary();
+      stopChannels();
+    }
   };
 }
 
