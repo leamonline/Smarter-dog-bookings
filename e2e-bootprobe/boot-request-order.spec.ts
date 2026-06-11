@@ -10,6 +10,9 @@ import { test, expect } from "@playwright/test";
 // while the auth gate's spinner is up.
 //
 // Asserts:
+//   0. Exactly ONE staff_profiles request goes out before first paint —
+//      the getSession() path and the INITIAL_SESSION event share a single
+//      deduped fetch.
 //   1. The three tier-1 reads (bookings week, salon_config, day_settings
 //      week) are ISSUED before the staff_profiles response resolves — i.e.
 //      they run concurrently with the profile fetch, not after it.
@@ -189,6 +192,17 @@ test("tier-1 queries fire during the profile fetch; directory page-0 stays off t
       (staffProfilesFirstResolvedAt ?? 0) - navStartedAt
     }ms; first paint at +${firstPaintAt - navStartedAt}ms):\n${timeline()}`,
   );
+
+  // ── 0. Exactly ONE staff_profiles read before first paint ──
+  // The getSession() init path and the INITIAL_SESSION auth event both
+  // schedule a profile fetch for the same user at boot; useAuth dedupes
+  // them onto a single in-flight request.
+  expect(
+    requests.filter(
+      (r) => r.url.includes("/rest/v1/staff_profiles") && r.at <= firstPaintAt,
+    ),
+    "exactly one staff_profiles request before first paint",
+  ).toHaveLength(1);
 
   // ── 1. Tier-1 queries issued BEFORE the profile read resolved ──
   expect(staffProfilesFirstResolvedAt, "staff_profiles was fetched").not.toBeNull();

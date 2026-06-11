@@ -71,6 +71,37 @@ export function useAuth() {
       }
     };
 
+    // In-flight staff_profiles fetches keyed by userId. At boot the
+    // getSession() init path and the INITIAL_SESSION auth event BOTH
+    // schedule a fetch for the same user — the second caller reuses the
+    // first's in-flight promise so the table is read exactly once.
+    // Entries are removed as soon as they settle, so later auth events
+    // (e.g. TOKEN_REFRESHED) still refetch as before; the map is cleared
+    // on sign-out so the next sign-in — same user or different — always
+    // fetches fresh. Effect-local on purpose: a StrictMode dev remount
+    // gets a fresh map, and the torn-down effect's async callbacks are
+    // all behind the `cancelled` flag before any of them can fetch.
+    const inflightProfileFetches = new Map();
+
+    const fetchProfileDeduped = (userId) => {
+      const inflight = inflightProfileFetches.get(userId);
+      if (inflight) return inflight;
+      // Start the tier-1 dashboard reads (bookings week, salon_config,
+      // day_settings week) in the SAME task as the profile fetch so
+      // they run concurrently instead of after the auth gate clears.
+      // Initial load only — later auth events (TOKEN_REFRESHED /
+      // SIGNED_IN) must not re-prime; the module-level once-flag inside
+      // primeBootPrefetch is belt and braces on top of this gate. Priming
+      // on the dedupe MISS keeps it to one call per request that actually
+      // goes out.
+      if (!initialDone) primeBootPrefetch();
+      const promise = fetchProfile(userId).finally(() => {
+        inflightProfileFetches.delete(userId);
+      });
+      inflightProfileFetches.set(userId, promise);
+      return promise;
+    };
+
     // Fetch the staff profile in a new task, after the auth lock has been
     // released. Called from both the getSession() init path and the
     // onAuthStateChange callback. Marks the initial load done once the
@@ -78,19 +109,15 @@ export function useAuth() {
     const scheduleProfileFetch = (userId) => {
       if (cancelled) return;
       if (!userId) {
+        // Signed out (or no session at boot): drop any in-flight keys so
+        // a subsequent sign-in never reuses a stale promise.
+        inflightProfileFetches.clear();
         finishInitialLoad();
         return;
       }
       setTimeout(async () => {
         try {
-          // Start the tier-1 dashboard reads (bookings week, salon_config,
-          // day_settings week) in the SAME task as the profile fetch so
-          // they run concurrently instead of after the auth gate clears.
-          // Initial load only — later auth events (TOKEN_REFRESHED /
-          // SIGNED_IN) must not re-prime; the module-level once-flag inside
-          // primeBootPrefetch is belt and braces on top of this gate.
-          if (!initialDone) primeBootPrefetch();
-          const profile = await fetchProfile(userId);
+          const profile = await fetchProfileDeduped(userId);
           if (!cancelled) setStaffProfile(profile);
         } catch (err) {
           logger.error("useAuth: error fetching staff profile", err, {
