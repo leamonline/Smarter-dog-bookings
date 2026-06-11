@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { Plus } from "lucide-react";
+import { ModalShell } from "./shell/index.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import {
   getHumanByIdOrName,
@@ -171,38 +172,83 @@ export function HumanCardModal({
     historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  // Pinned phone-only action bar: the primary CTA stays in thumb reach
+  // while the profile scrolls. Desktop gets the same CTA in the booking
+  // history panel header instead.
+  const mobileActionBar =
+    !isEditing && onNewBookingForHuman ? (
+      <div className="sm:hidden border-t border-slate-100 bg-white px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => onNewBookingForHuman(human.id)}
+          className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark"
+        >
+          <Plus size={15} strokeWidth={2.6} aria-hidden="true" />
+          New booking
+        </button>
+      </div>
+    ) : null;
+
   return (
     <>
-      <AccessibleModal
+      <ModalShell
         onClose={requestClose}
         titleId="human-card-title"
-        backdropClass="bg-[rgba(45,0,75,0.45)] animate-overlay-fade"
-        className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(820px,95vw)] max-h-[min(90vh,760px)] flex flex-col overflow-hidden shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] animate-human-modal-in"
+        accent="var(--color-brand-teal)"
+        bodyClassName="px-5 pb-4"
+        header={
+          <HumanHeader
+            human={human}
+            humanFullName={humanFullName}
+            isEditing={isEditing}
+            editName={draft.name}
+            setEditName={(v) => setDraftField("name", v)}
+            editSurname={draft.surname}
+            setEditSurname={(v) => setDraftField("surname", v)}
+            editPhone={draft.phone}
+            setEditPhone={(v) => setDraftField("phone", v)}
+            onStartEdit={() => startEdit("name")}
+            onClose={requestClose}
+            canEdit={!!onUpdateHuman}
+            onCopyPhone={handleCopyPhone}
+            overflowItems={overflowItems}
+            nameInputRef={nameInputRef}
+            isPendingSignup={isPendingSignup}
+            signupBusy={signupBusy}
+            onApproveSignup={handleApproveSignup}
+            onRejectSignup={() => setPendingReject(true)}
+          />
+        }
+        footer={
+          isEditing ? (
+            <HumanEditFooter
+              dirty={dirty}
+              saving={saving}
+              onCancel={cancelEdit}
+              onSave={saveHuman}
+              onDelete={onDeleteHuman ? () => setPendingDelete(true) : undefined}
+            />
+          ) : (
+            mobileActionBar
+          )
+        }
       >
-        <HumanHeader
-          human={human}
-          humanFullName={humanFullName}
-          isEditing={isEditing}
-          editName={draft.name}
-          setEditName={(v) => setDraftField("name", v)}
-          editSurname={draft.surname}
-          setEditSurname={(v) => setDraftField("surname", v)}
-          editPhone={draft.phone}
-          setEditPhone={(v) => setDraftField("phone", v)}
-          onStartEdit={() => startEdit("name")}
-          onClose={requestClose}
-          canEdit={!!onUpdateHuman}
-          onCopyPhone={handleCopyPhone}
-          overflowItems={overflowItems}
-          nameInputRef={nameInputRef}
-          isPendingSignup={isPendingSignup}
-          signupBusy={signupBusy}
-          onApproveSignup={handleApproveSignup}
-          onRejectSignup={() => setPendingReject(true)}
-        />
+        {/* At-a-glance leads the card full-width: the numbers staff
+            check first, directly under the name. */}
+        <div className="mb-3 md:mb-4">
+          <AtAGlanceStrip
+            human={human}
+            humanFullName={humanFullName}
+            dogs={dogs}
+            dogsByHumanId={dogsByHumanId}
+            bookingsByDate={bookingsByDate}
+            onShowHistory={handleShowHistory}
+            onOpenBooking={handleOpenBooking}
+            onNewBookingForHuman={onNewBookingForHuman}
+          />
+        </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
             {/* Left column — Contact, Channels, Notes */}
             <div className="md:col-span-5 flex flex-col gap-3 min-h-0">
               <ContactPanel
@@ -245,21 +291,11 @@ export function HumanCardModal({
               />
             </div>
 
-            {/* Right column — At a glance, Dogs, Trusted, Reminders.
-                On mobile (single column) it floats above the left column so
-                Dogs + the at-a-glance stats — the day-to-day stuff — lead,
-                ahead of Channels/Notes. Reset to DOM order at md. */}
+            {/* Right column — Dogs, Trusted, Reminders. On mobile
+                (single column) it floats above the left column so Dogs —
+                the day-to-day stuff — lead, ahead of Channels/Notes.
+                Reset to DOM order at md. */}
             <div className="order-first md:order-none md:col-span-7 flex flex-col gap-3 min-h-0">
-              <AtAGlanceStrip
-                human={human}
-                humanFullName={humanFullName}
-                dogs={dogs}
-                dogsByHumanId={dogsByHumanId}
-                bookingsByDate={bookingsByDate}
-                onShowHistory={handleShowHistory}
-                onOpenBooking={handleOpenBooking}
-                onNewBookingForHuman={onNewBookingForHuman}
-              />
               <DogsPanel
                 human={human}
                 humanFullName={humanFullName}
@@ -284,29 +320,19 @@ export function HumanCardModal({
             </div>
           </div>
 
-          {/* Booking history spans both columns underneath the grid. */}
-          <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
-            <HumanBookingHistory
-              human={human}
-              dogs={dogs}
-              dogsByHumanId={dogsByHumanId}
-              bookingsByDate={bookingsByDate}
-              onOpenBooking={handleOpenBooking}
-              onBookAgain={onBookAgain}
-            />
-          </div>
-        </div>
-
-        {isEditing && (
-          <HumanEditFooter
-            dirty={dirty}
-            saving={saving}
-            onCancel={cancelEdit}
-            onSave={saveHuman}
-            onDelete={onDeleteHuman ? () => setPendingDelete(true) : undefined}
+        {/* Booking history spans both columns underneath the grid. */}
+        <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
+          <HumanBookingHistory
+            human={human}
+            dogs={dogs}
+            dogsByHumanId={dogsByHumanId}
+            bookingsByDate={bookingsByDate}
+            onOpenBooking={handleOpenBooking}
+            onBookAgain={onBookAgain}
+            onNewBookingForHuman={onNewBookingForHuman}
           />
-        )}
-      </AccessibleModal>
+        </div>
+      </ModalShell>
 
       {pendingExit && (
         <ConfirmDialog

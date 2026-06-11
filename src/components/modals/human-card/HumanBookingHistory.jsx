@@ -1,8 +1,10 @@
-import { useMemo } from "react";
-import { ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronRight, Plus } from "lucide-react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { titleCase } from "../../../utils/text";
 import { getDogsForHuman } from "../../../utils/directorySearch";
+
+const COLLAPSED_ROWS = 5;
 
 function formatBookingDate(iso) {
   if (!iso) return "";
@@ -13,10 +15,12 @@ function formatBookingDate(iso) {
   return `${d}-${m}-${y}`;
 }
 
-// Recent-bookings section of the HumanCardModal. Self-contained card
-// with sticky internal header + capped scroll region so the modal
-// shell never has to scroll. Rows become buttons when an
-// `onOpenBooking` handler is provided.
+// Recent-bookings section of the HumanCardModal. Collapsed it shows the
+// last five with a "Show all N" affordance (the old cap had no way to
+// see the rest); expanded it lists everything and the modal body does
+// the scrolling. Rows become buttons when an `onOpenBooking` handler is
+// provided. The desktop "New booking" pill lives here — phones get the
+// same CTA pinned to the bottom of the sheet instead.
 export function HumanBookingHistory({
   human,
   dogs,
@@ -24,7 +28,10 @@ export function HumanBookingHistory({
   bookingsByDate,
   onOpenBooking,
   onBookAgain,
+  onNewBookingForHuman,
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
 
@@ -50,14 +57,15 @@ export function HumanBookingHistory({
     return entries.sort((a, b) => b.date.localeCompare(a.date));
   }, [human, dogs, dogsByHumanId, bookingsByDate]);
 
-  const rows = history.slice(0, 5);
+  const rows = expanded ? history : history.slice(0, COLLAPSED_ROWS);
+  const hasMore = history.length > COLLAPSED_ROWS;
 
   return (
     <section
       aria-label="Recent bookings"
       className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden"
     >
-      <div className="max-h-40 overflow-y-auto">
+      <div className={expanded ? "" : "max-h-40 overflow-y-auto"}>
         <div className="sticky top-0 z-[1] bg-white px-3 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2">
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-teal-text/70">
             Recent bookings
@@ -67,10 +75,15 @@ export function HumanBookingHistory({
               </span>
             )}
           </h3>
-          {history.length > rows.length && (
-            <span className="text-[10px] font-semibold text-slate-400">
-              Showing {rows.length} of {history.length}
-            </span>
+          {onNewBookingForHuman && (
+            <button
+              type="button"
+              onClick={() => onNewBookingForHuman(human.id)}
+              className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold bg-action text-on-action px-2.5 py-1 rounded-full border-none cursor-pointer font-inherit hover:bg-brand-yellow-dark transition-colors"
+            >
+              <Plus size={12} strokeWidth={2.6} aria-hidden="true" />
+              New booking
+            </button>
           )}
         </div>
         <div className="px-3 py-1">
@@ -149,6 +162,15 @@ export function HumanBookingHistory({
                 </div>
               );
             })
+          )}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="w-full text-left text-[12px] font-bold text-brand-teal-text bg-transparent border-none cursor-pointer font-inherit py-2 px-1 -mx-1 hover:text-brand-teal transition-colors"
+            >
+              {expanded ? "Show fewer" : `Show all ${history.length} →`}
+            </button>
           )}
         </div>
       </div>

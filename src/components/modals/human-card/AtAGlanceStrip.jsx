@@ -24,7 +24,7 @@ function formatShortDate(iso) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel }) {
+function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel, highlight }) {
   const valueClass =
     tone === "amber"
       ? "text-amber-700"
@@ -35,8 +35,11 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
           : "text-brand-purple";
 
   const isInteractive = !!onClick && !disabled;
-  const base =
-    "bg-white rounded-xl border border-gray-100 px-3 py-2.5 min-w-0 text-left font-inherit";
+  // `highlight` gives the upcoming-appointment tile a soft mustard tint
+  // so the one date that drives today's conversation reads first.
+  const base = `${
+    highlight ? "bg-[#FFFDF4] border-[#FBE9A9]" : "bg-white border-gray-100"
+  } rounded-xl border px-3 py-2.5 max-sm:py-3 min-w-0 text-left font-inherit`;
   const interactive = isInteractive
     ? "cursor-pointer transition-colors hover:bg-slate-50 hover:border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
     : disabled
@@ -162,7 +165,7 @@ export function AtAGlanceStrip({
   }, [human, humanFullName, dogs, dogsByHumanId, bookingsByDate]);
 
   return (
-    <div aria-label="At a glance" className="grid grid-cols-4 gap-2">
+    <div aria-label="At a glance" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       <Tile
         caption="Bookings"
         value={stats.lifetime}
@@ -190,6 +193,7 @@ export function AtAGlanceStrip({
           value={formatShortDate(stats.nextAppt)}
           sub={stats.isNextToday ? "today" : undefined}
           tone={stats.isNextToday ? "amber" : "navy"}
+          highlight
           onClick={
             stats.nextApptBooking?.id
               ? () => onOpenBooking?.(stats.nextApptBooking.id)

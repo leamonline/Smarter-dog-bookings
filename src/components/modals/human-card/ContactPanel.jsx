@@ -4,10 +4,10 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 
 // Compact contact rows: small uppercase prefix label inline with the
 // value rather than stacked as its own block. Each populated row carries
-// a hover-revealed copy button (mirrors the header's copy-phone). When both
-// fields are empty in view mode the panel collapses to a single "Add
-// contact details" link that drops the modal into edit mode focused on the
-// address input.
+// an always-visible copy button (hover-reveal hid it on touch screens).
+// When both fields are empty in view mode the panel collapses to a
+// single "Add contact details" link that drops the modal into edit mode
+// focused on the address input.
 
 function InlineRow({ caption, value, onCopy }) {
   return (
@@ -26,7 +26,7 @@ function InlineRow({ caption, value, onCopy }) {
           onClick={() => onCopy(value, caption)}
           aria-label={`Copy ${caption.toLowerCase()}`}
           title="Copy to clipboard"
-          className="ml-auto shrink-0 w-6 h-6 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="ml-auto shrink-0 w-6 h-6 max-sm:w-9 max-sm:h-9 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all"
         >
           <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
         </button>
