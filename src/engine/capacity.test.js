@@ -448,13 +448,12 @@ describe("Duplicate Dog Prevention", () => {
 // 10C. CALLER INTEGRATION PATTERNS
 //
 // Exercises the patterns used by callers of canBookSlot across
-// the codebase: find-first-available (useRebookFlow,
-// WeekCalendarView), filter-available-slots (RescheduleModal,
-// TimeSlotPicker, ChainBookingModal), and reject-on-save
-// (useBookingSave, BookingDetailModal).
+// the codebase: find-first-available, filter-available-slots
+// (RescheduleModal, TimeSlotPicker, ChainBookingModal), and
+// reject-on-save (useBookingSave, BookingDetailModal).
 // ============================================================
 describe("Caller integration patterns", () => {
-  it("find-first-available skips the dog's existing slot (useRebookFlow / WeekCalendarView pattern)", () => {
+  it("find-first-available skips the dog's existing slot", () => {
     // 08:30 is full, 09:00 has the dog, 09:30 onwards capped by 2-2-1 after 08:30+09:00 doubles.
     // 10:00 is the first slot with real capacity after walking.
     const bookings = [

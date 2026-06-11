@@ -72,9 +72,9 @@ interface SupabaseFns {
 }
 
 interface OfflineFns {
-  // Two args like the online wrapper (WeekCalendarView's rebook flow passes
-  // a target date and awaits the returned booking); the original 1-arg/void
-  // shape was a liar in the same way as the pre-#259 handleUpdate.
+  // Two args like the online wrapper (callers may pass a target date and
+  // await the returned booking); the original 1-arg/void shape was a liar
+  // in the same way as the pre-#259 handleUpdate.
   handleAdd: (booking: Booking, targetDateStr?: string) => Promise<Booking>;
   handleAddToDate: (booking: Booking, dateStr: string) => void;
   // Resolves true after the optimistic removal (useOfflineState.js); the
