@@ -8,7 +8,7 @@
 // the "closed" subdued styling for the Done filter.
 // ============================================================
 
-import { displayName, formatWhen } from "../helpers.js";
+import { displayName, formatWhen, inboxWindowBadge } from "../helpers.js";
 import { StatusPill } from "../StatusPill.jsx";
 
 const SUGGESTED_REASON_LABEL = {
@@ -23,6 +23,10 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
   const suggestedReason = !isClosed && conv.closure_suggested_at
     ? SUGGESTED_REASON_LABEL[conv.closure_suggested_reason] ?? null
     : null;
+  const windowBadge = inboxWindowBadge(conv);
+  const failedTitle = conv.latest_failed_message?.error_message
+    ? `Latest failed send: ${conv.latest_failed_message.error_message}`
+    : "Latest send failed. Open the thread to check the delivery state.";
 
   // Decode the red dot into a specific reason. fetchConversationsList
   // pulls draft.handoff_required + draft.risk_level so we can name the
@@ -127,6 +131,31 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
             </svg>
             {suggestedReason}
           </span>
+        </div>
+      )}
+
+      {(windowBadge || conv.has_failed_message) && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {windowBadge && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                windowBadge.kind === "closing_soon"
+                  ? "bg-amber-50 text-amber-900 border-amber-200"
+                  : "bg-slate-100 text-slate-700 border-slate-200"
+              }`}
+              title={windowBadge.title}
+            >
+              {windowBadge.label}
+            </span>
+          )}
+          {conv.has_failed_message && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200"
+              title={failedTitle}
+            >
+              Failed send
+            </span>
+          )}
         </div>
       )}
     </button>

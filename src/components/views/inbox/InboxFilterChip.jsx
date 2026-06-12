@@ -36,18 +36,17 @@ const FILTER_CHIP_PALETTES = {
   },
 };
 
-export function InboxFilterChip({ label, count, active, color, onClick, hint }) {
+export function InboxFilterChip({ label, count, active, color, onClick, hint, clearable = true }) {
   const palette = FILTER_CHIP_PALETTES[color] ?? FILTER_CHIP_PALETTES.default;
   const isEmpty = count === 0;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={isEmpty}
       aria-pressed={active}
       aria-label={
         active
-          ? `${label}: ${count}. Filter is on, click to clear.`
+          ? `${label}: ${count}. ${clearable ? "Filter is on, click to clear." : "Filter is on."}`
           : isEmpty
             ? `${label}: 0. No conversations match.`
             : `${label}: ${count}. Click to filter.`
@@ -55,7 +54,7 @@ export function InboxFilterChip({ label, count, active, color, onClick, hint }) 
       title={hint}
       className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-bold border motion-safe:transition-colors font-[inherit] ${
         active ? palette.active : palette.idle
-      } ${isEmpty ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+      } ${isEmpty && !active ? "opacity-60" : ""} cursor-pointer`}
     >
       <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${palette.dot}`} />
       {label}

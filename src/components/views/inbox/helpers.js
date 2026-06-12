@@ -71,20 +71,57 @@ export function formatShortDate(dateStr) {
 // writes anything. Backend still enforces — this is a UX hint, not
 // security. Returns true if the window is currently open.
 export const WINDOW_MS = 24 * 60 * 60 * 1000;
+export const CLOSING_SOON_MS = 4 * 60 * 60 * 1000;
 
 export function isWindowOpen(lastInboundAt, nowMs = Date.now()) {
   if (!lastInboundAt) return false;
   return nowMs - new Date(lastInboundAt).getTime() < WINDOW_MS;
 }
 
+export function windowRemainingMs(lastInboundAt, nowMs = Date.now()) {
+  if (!lastInboundAt) return 0;
+  return Math.max(0, WINDOW_MS - (nowMs - new Date(lastInboundAt).getTime()));
+}
+
 // Human-friendly "window closes in Xh Ym" — shown as a soft hint next
 // to the compose box so staff know when they'll lose free-form.
 export function windowCountdown(lastInboundAt, nowMs = Date.now()) {
   if (!lastInboundAt) return null;
-  const remaining = WINDOW_MS - (nowMs - new Date(lastInboundAt).getTime());
+  const remaining = windowRemainingMs(lastInboundAt, nowMs);
   if (remaining <= 0) return null;
   const hours = Math.floor(remaining / (60 * 60 * 1000));
   const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
   if (hours >= 1) return `Window closes in ${hours}h ${mins}m`;
   return `Window closes in ${mins}m`;
+}
+
+export function isAwaitingReply(conv) {
+  if (!conv?.last_inbound_at || conv.closed_at) return false;
+  if (!conv.last_outbound_at) return true;
+  return new Date(conv.last_inbound_at).getTime() > new Date(conv.last_outbound_at).getTime();
+}
+
+export function isWindowClosingSoon(conv, nowMs = Date.now()) {
+  if ((conv?.channel ?? "whatsapp") !== "whatsapp") return false;
+  if (!isAwaitingReply(conv)) return false;
+  if (!isWindowOpen(conv.last_inbound_at, nowMs)) return false;
+  return windowRemainingMs(conv.last_inbound_at, nowMs) <= CLOSING_SOON_MS;
+}
+
+export function inboxWindowBadge(conv, nowMs = Date.now()) {
+  if ((conv?.channel ?? "whatsapp") !== "whatsapp") return null;
+  if (!isAwaitingReply(conv)) return null;
+  if (!isWindowOpen(conv.last_inbound_at, nowMs)) {
+    return {
+      kind: "template_needed",
+      label: "Template needed",
+      title: "The 24-hour WhatsApp reply window is closed. Send an approved template to reopen the conversation.",
+    };
+  }
+  if (!isWindowClosingSoon(conv, nowMs)) return null;
+  return {
+    kind: "closing_soon",
+    label: windowCountdown(conv.last_inbound_at, nowMs)?.replace(/^Window closes/, "Closes") ?? "Closes soon",
+    title: "The WhatsApp free-form reply window is nearly closed.",
+  };
 }

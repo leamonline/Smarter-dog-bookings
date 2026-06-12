@@ -68,6 +68,26 @@ export function getSelectedConversationForSend(conversations, selectedId) {
   return conversation;
 }
 
+export function mergeFailedMessageFlags(conversations, failedMessages) {
+  const latestByConversation = new Map();
+  for (const message of failedMessages ?? []) {
+    if (!message?.conversation_id) continue;
+    const current = latestByConversation.get(message.conversation_id);
+    if (!current || String(message.sent_at || "") > String(current.sent_at || "")) {
+      latestByConversation.set(message.conversation_id, message);
+    }
+  }
+
+  return (conversations ?? []).map((conversation) => {
+    const latest = latestByConversation.get(conversation.id) ?? null;
+    return {
+      ...conversation,
+      has_failed_message: !!latest,
+      latest_failed_message: latest,
+    };
+  });
+}
+
 // ── Fetchers ─────────────────────────────────────────────────
 async function fetchConversationsList() {
   // We denormalise unread_count, last_customer_text, last_inbound_at
@@ -109,7 +129,7 @@ async function fetchConversationsList() {
   // Also surface a "needs_human_review" flag when any pending draft on
   // the conversation is high-risk or has handoff_required set, so the
   // list view can pin those to the top with a red marker.
-  return (data ?? []).map((c) => {
+  const list = (data ?? []).map((c) => {
     const pendingDrafts = Array.isArray(c.whatsapp_drafts)
       ? c.whatsapp_drafts.filter((d) => d.state === "pending")
       : [];
@@ -123,6 +143,27 @@ async function fetchConversationsList() {
       ),
     };
   });
+
+  if (list.length === 0) return list;
+
+  const { data: failedMessages, error: failedError } = await supabase
+    .from("whatsapp_messages")
+    .select("id, conversation_id, error_message, sent_at")
+    .in("conversation_id", list.map((c) => c.id))
+    .eq("direction", "outbound")
+    .eq("status", "failed")
+    .order("sent_at", { ascending: false })
+    .limit(500);
+
+  if (failedError) {
+    logger.warn("useWhatsAppInbox failed-message lookup failed", {
+      tags: { hook: "useWhatsAppInbox", op: "fetchFailedMessages" },
+      extra: { message: failedError.message },
+    });
+    return mergeFailedMessageFlags(list, []);
+  }
+
+  return mergeFailedMessageFlags(list, failedMessages ?? []);
 }
 
 async function fetchConversationDetail(conversationId, signal) {

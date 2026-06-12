@@ -28,7 +28,12 @@ import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
-import { displayName } from "./helpers.js";
+import {
+  displayName,
+  isAwaitingReply,
+  isWindowClosingSoon,
+  windowRemainingMs,
+} from "./helpers.js";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
 import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
@@ -203,7 +208,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
-  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review" | "done".
+  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review" | "suggested_close" | "done".
   // "all" is the default and shows every ACTIVE conversation (closed
   // conversations only appear under the "done" chip). The other active
   // modes pre-filter to a specific subset so staff can triage in
@@ -211,6 +216,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // to "all"). "done" is its own filter — clicking it again returns
   // to "all" (active queue).
   const [listFilter, setListFilter] = useState("all");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   // Split active vs closed once so each counter doesn't re-walk the list.
   const activeConversations = useMemo(
@@ -227,7 +238,19 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // the Unread or Needs review chips — closing it is what dropped it
   // off the queue.
   const unreadCount = useMemo(
-    () => activeConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+    () => activeConversations.filter((c) => (c.unread_count || 0) > 0).length,
+    [activeConversations],
+  );
+  const awaitingReplyCount = useMemo(
+    () => activeConversations.filter((c) => isAwaitingReply(c)).length,
+    [activeConversations],
+  );
+  const closingSoonCount = useMemo(
+    () => activeConversations.filter((c) => isWindowClosingSoon(c, nowMs)).length,
+    [activeConversations, nowMs],
+  );
+  const failedSendCount = useMemo(
+    () => activeConversations.filter((c) => c.has_failed_message).length,
     [activeConversations],
   );
   const draftsCount = useMemo(
@@ -239,52 +262,60 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     [activeConversations],
   );
   const needsReviewCount = useMemo(
-    () =>
-      activeConversations.filter(
-        (c) => c.needs_human_review || !!c.closure_suggested_at,
-      ).length,
+    () => activeConversations.filter((c) => c.needs_human_review).length,
+    [activeConversations],
+  );
+  const suggestedCloseCount = useMemo(
+    () => activeConversations.filter((c) => !!c.closure_suggested_at).length,
     [activeConversations],
   );
   const doneCount = closedConversations.length;
 
   const filteredConversations = useMemo(() => {
     switch (listFilter) {
+      case "awaiting_reply":
+        return activeConversations.filter((c) => isAwaitingReply(c));
+      case "closing_soon":
+        return activeConversations
+          .filter((c) => isWindowClosingSoon(c, nowMs))
+          .sort((a, b) =>
+            windowRemainingMs(a.last_inbound_at, nowMs) -
+            windowRemainingMs(b.last_inbound_at, nowMs),
+          );
+      case "failed_sends":
+        return activeConversations.filter((c) => c.has_failed_message);
       case "unread":
         return activeConversations.filter((c) => (c.unread_count || 0) > 0);
       case "drafts":
         return activeConversations.filter((c) => c.has_pending_draft);
       case "bookings":
         return activeConversations.filter((c) => c.has_pending_booking_action);
-      case "needs_review": {
-        // Sort suggested-close convs to the top of Needs review so they
-        // surface first; otherwise keep last_inbound_at order.
-        const matches = activeConversations.filter(
-          (c) => c.needs_human_review || !!c.closure_suggested_at,
-        );
-        return [...matches].sort((a, b) => {
-          const aSugg = a.closure_suggested_at ? 1 : 0;
-          const bSugg = b.closure_suggested_at ? 1 : 0;
-          if (aSugg !== bSugg) return bSugg - aSugg;
-          return 0;
-        });
-      }
+      case "needs_review":
+        return activeConversations.filter((c) => c.needs_human_review);
+      case "suggested_close":
+        return activeConversations.filter((c) => !!c.closure_suggested_at);
       case "done":
         return closedConversations;
       case "all":
       default:
         return activeConversations;
     }
-  }, [activeConversations, closedConversations, listFilter]);
+  }, [activeConversations, closedConversations, listFilter, nowMs]);
 
   const toggleFilter = useCallback((next) => {
     setListFilter((prev) => (prev === next ? "all" : next));
   }, []);
 
   const FILTER_LABELS = {
+    all: "active conversations",
+    awaiting_reply: "awaiting reply",
+    closing_soon: "closing soon",
+    failed_sends: "failed sends",
     unread: "unread",
     drafts: "pending drafts",
     bookings: "pending booking proposals",
     needs_review: "needs review",
+    suggested_close: "suggested closes",
     done: "closed conversations",
   };
 
@@ -377,6 +408,39 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           aria-label="Filter conversations"
         >
           <InboxFilterChip
+            label="All"
+            count={activeConversations.length}
+            active={listFilter === "all"}
+            onClick={() => setListFilter("all")}
+            color="slate"
+            clearable={false}
+            hint="Show every active conversation."
+          />
+          <InboxFilterChip
+            label="Awaiting reply"
+            count={awaitingReplyCount}
+            active={listFilter === "awaiting_reply"}
+            onClick={() => toggleFilter("awaiting_reply")}
+            color="purple"
+            hint="Show active conversations where the latest customer message is newer than the latest staff reply."
+          />
+          <InboxFilterChip
+            label="Closing soon"
+            count={closingSoonCount}
+            active={listFilter === "closing_soon"}
+            onClick={() => toggleFilter("closing_soon")}
+            color="amber"
+            hint="Show WhatsApp conversations awaiting reply with under 4 hours left in the free-form reply window."
+          />
+          <InboxFilterChip
+            label="Failed sends"
+            count={failedSendCount}
+            active={listFilter === "failed_sends"}
+            onClick={() => toggleFilter("failed_sends")}
+            color="rose"
+            hint="Show conversations where the latest outbound send attempt failed."
+          />
+          <InboxFilterChip
             label="Unread"
             count={unreadCount}
             active={listFilter === "unread"}
@@ -406,7 +470,15 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             active={listFilter === "needs_review"}
             onClick={() => toggleFilter("needs_review")}
             color="rose"
-            hint="Show only conversations whose latest draft is high-risk, marked for human review, or auto-suggested for closure by the daily pass."
+            hint="Show only conversations whose latest draft is high-risk or marked for human review."
+          />
+          <InboxFilterChip
+            label="Suggested close"
+            count={suggestedCloseCount}
+            active={listFilter === "suggested_close"}
+            onClick={() => toggleFilter("suggested_close")}
+            color="slate"
+            hint="Show conversations the daily pass thinks are ready to mark complete."
           />
           <InboxFilterChip
             label="Done"

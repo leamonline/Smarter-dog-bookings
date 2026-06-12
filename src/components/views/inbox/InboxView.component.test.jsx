@@ -77,6 +77,7 @@ describe("InboxView", () => {
     setInboxState(baseState());
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -112,14 +113,223 @@ describe("InboxView", () => {
     ).toBeInTheDocument();
   });
 
-  it("clicking a filter chip is safe when there are no conversations", () => {
+  it("shows all active conversations as an explicit chip", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          { id: "conv-1", phone_e164: "+447700900111", unread_count: 0 },
+          { id: "conv-2", phone_e164: "+447700900222", unread_count: 0 },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "All: 2. Filter is on." }),
+    ).toBeInTheDocument();
+  });
+
+  it("zero-count inactive filter chips stay enabled so staff can always change filters", () => {
     renderInbox();
-    fireEvent.click(screen.getByRole("button", { name: /^Drafts\b/ }));
+    const drafts = screen.getByRole("button", {
+      name: "Drafts: 0. No conversations match.",
+    });
+    expect(drafts).toBeEnabled();
+    fireEvent.click(drafts);
     // Empty-state copy stays put because no conversations match
     // either filter; the chip click should not crash.
     expect(
       screen.getByText("No WhatsApp conversations yet"),
     ).toBeInTheDocument();
+  });
+
+  it("counts unread conversations rather than total unread messages", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          { id: "conv-1", phone_e164: "+447700900111", unread_count: 4 },
+          { id: "conv-2", phone_e164: "+447700900222", unread_count: 0 },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Unread: 1. Click to filter." }),
+    ).toBeInTheDocument();
+  });
+
+  it("filters conversations awaiting a staff reply", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-awaiting",
+            phone_e164: "+447700900111",
+            humans: { name: "Sarah", surname: "Jones" },
+            last_customer_text: "Can I book Bella in?",
+            last_inbound_at: "2026-06-12T09:00:00Z",
+            last_outbound_at: "2026-06-12T08:00:00Z",
+            unread_count: 0,
+          },
+          {
+            id: "conv-replied",
+            phone_e164: "+447700900222",
+            humans: { name: "Mina", surname: "Patel" },
+            last_customer_text: "Thanks",
+            last_inbound_at: "2026-06-12T07:00:00Z",
+            last_outbound_at: "2026-06-12T08:00:00Z",
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Awaiting reply: 1. Click to filter." }),
+    );
+
+    expect(screen.getByText("Sarah Jones")).toBeInTheDocument();
+    expect(screen.queryByText("Mina Patel")).not.toBeInTheDocument();
+  });
+
+  it("filters the closing-soon queue by soonest WhatsApp window first", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-soon",
+            phone_e164: "+447700900111",
+            humans: { name: "Soon", surname: "Owner" },
+            last_customer_text: "Still waiting",
+            last_inbound_at: "2026-06-11T13:00:00Z",
+            last_outbound_at: "2026-06-11T12:00:00Z",
+            unread_count: 0,
+          },
+          {
+            id: "conv-later",
+            phone_e164: "+447700900222",
+            humans: { name: "Later", surname: "Owner" },
+            last_customer_text: "Can you help?",
+            last_inbound_at: "2026-06-12T09:00:00Z",
+            last_outbound_at: null,
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Closing soon: 1. Click to filter." }),
+    );
+
+    expect(screen.getByText("Soon Owner")).toBeInTheDocument();
+    expect(screen.queryByText("Later Owner")).not.toBeInTheDocument();
+  });
+
+  it("filters conversations with failed sends", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-failed",
+            phone_e164: "+447700900111",
+            humans: { name: "Failed", surname: "Send" },
+            last_customer_text: "Hello?",
+            has_failed_message: true,
+            latest_failed_message: { error_message: "Meta rejected it" },
+            unread_count: 0,
+          },
+          {
+            id: "conv-ok",
+            phone_e164: "+447700900222",
+            humans: { name: "Okay", surname: "Send" },
+            last_customer_text: "All good",
+            has_failed_message: false,
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Failed sends: 1. Click to filter." }),
+    );
+
+    expect(screen.getByText("Failed Send")).toBeInTheDocument();
+    expect(screen.queryByText("Okay Send")).not.toBeInTheDocument();
+  });
+
+  it("keeps close suggestions out of the urgent Needs review count", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-review",
+            phone_e164: "+447700900111",
+            humans: { name: "Urgent", surname: "Review" },
+            last_customer_text: "Can you check this?",
+            needs_human_review: true,
+            unread_count: 0,
+          },
+          {
+            id: "conv-close",
+            phone_e164: "+447700900222",
+            humans: { name: "Tidy", surname: "Close" },
+            last_customer_text: "Thanks!",
+            closure_suggested_at: "2026-06-12T09:00:00Z",
+            closure_suggested_reason: "booking_confirmed_quiet",
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Needs review: 1. Click to filter." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Suggested close: 1. Click to filter." }),
+    ).toBeInTheDocument();
+  });
+
+  it("filters urgent reviews separately from suggested closes", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-review",
+            phone_e164: "+447700900111",
+            humans: { name: "Urgent", surname: "Review" },
+            last_customer_text: "Can you check this?",
+            needs_human_review: true,
+            unread_count: 0,
+          },
+          {
+            id: "conv-close",
+            phone_e164: "+447700900222",
+            humans: { name: "Tidy", surname: "Close" },
+            last_customer_text: "Thanks!",
+            closure_suggested_at: "2026-06-12T09:00:00Z",
+            closure_suggested_reason: "booking_confirmed_quiet",
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Needs review: 1. Click to filter." }),
+    );
+    expect(screen.getByText("Urgent Review")).toBeInTheDocument();
+    expect(screen.queryByText("Tidy Close")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Suggested close: 1. Click to filter." }),
+    );
+    expect(screen.queryByText("Urgent Review")).not.toBeInTheDocument();
+    expect(screen.getByText("Tidy Close")).toBeInTheDocument();
   });
 
   it("scrolls the thread to the latest item after messages render", async () => {

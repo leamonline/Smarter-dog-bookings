@@ -17,8 +17,9 @@
 // this modal just wraps it.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
+import { AccessibleModal } from "../../../shared/AccessibleModal.tsx";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
 
@@ -141,6 +142,7 @@ function CustomerRow({ human, onSelect }) {
 }
 
 export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
+  const titleId = useId();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -237,14 +239,13 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Compose new WhatsApp message"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+    <AccessibleModal
+      onClose={() => onClose?.()}
+      titleId={titleId}
+      zIndex={50}
+      backdropClass="bg-black/40 p-3 sm:p-6 overflow-y-auto"
+      className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden"
     >
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-brand-paper">
           <div className="flex items-center gap-2">
             {selectedHuman && (
@@ -257,7 +258,7 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
                 ←
               </button>
             )}
-            <h2 className="text-[15px] font-bold font-display text-brand-purple m-0">
+            <h2 id={titleId} className="text-[15px] font-bold font-display text-brand-purple m-0">
               {selectedHuman
                 ? `New message to ${selectedHuman.name ?? ""} ${selectedHuman.surname ?? ""}`.trim()
                 : "New WhatsApp message"}
@@ -405,7 +406,6 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </AccessibleModal>
   );
 }

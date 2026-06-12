@@ -15,6 +15,7 @@ const {
   filterAttachedActions,
   getSelectedConversationForSend,
   latestMessagesChronological,
+  mergeFailedMessageFlags,
 } = inbox;
 
 describe("filterAttachedActions", () => {
@@ -98,5 +99,48 @@ describe("getSelectedConversationForSend", () => {
   it("returns the selected conversation when present", () => {
     const conv = { id: "conv-a", phone_e164: "+447700900111" };
     expect(getSelectedConversationForSend([conv], "conv-a")).toBe(conv);
+  });
+});
+
+describe("mergeFailedMessageFlags", () => {
+  it("marks conversations that have failed outbound messages and keeps the latest failure", () => {
+    const conversations = [
+      { id: "conv-a", phone_e164: "+447700900111" },
+      { id: "conv-b", phone_e164: "+447700900222" },
+    ];
+    const failedMessages = [
+      {
+        id: "msg-old",
+        conversation_id: "conv-a",
+        error_message: "Old failure",
+        sent_at: "2026-06-12T08:00:00Z",
+      },
+      {
+        id: "msg-new",
+        conversation_id: "conv-a",
+        error_message: "Latest failure",
+        sent_at: "2026-06-12T09:00:00Z",
+      },
+    ];
+
+    expect(mergeFailedMessageFlags(conversations, failedMessages)).toEqual([
+      {
+        id: "conv-a",
+        phone_e164: "+447700900111",
+        has_failed_message: true,
+        latest_failed_message: {
+          id: "msg-new",
+          conversation_id: "conv-a",
+          error_message: "Latest failure",
+          sent_at: "2026-06-12T09:00:00Z",
+        },
+      },
+      {
+        id: "conv-b",
+        phone_e164: "+447700900222",
+        has_failed_message: false,
+        latest_failed_message: null,
+      },
+    ]);
   });
 });
