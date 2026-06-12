@@ -72,16 +72,16 @@ export function formatShortDate(dateStr) {
 // security. Returns true if the window is currently open.
 export const WINDOW_MS = 24 * 60 * 60 * 1000;
 
-export function isWindowOpen(lastInboundAt) {
+export function isWindowOpen(lastInboundAt, nowMs = Date.now()) {
   if (!lastInboundAt) return false;
-  return Date.now() - new Date(lastInboundAt).getTime() < WINDOW_MS;
+  return nowMs - new Date(lastInboundAt).getTime() < WINDOW_MS;
 }
 
 // Human-friendly "window closes in Xh Ym" — shown as a soft hint next
 // to the compose box so staff know when they'll lose free-form.
-export function windowCountdown(lastInboundAt) {
+export function windowCountdown(lastInboundAt, nowMs = Date.now()) {
   if (!lastInboundAt) return null;
-  const remaining = WINDOW_MS - (Date.now() - new Date(lastInboundAt).getTime());
+  const remaining = WINDOW_MS - (nowMs - new Date(lastInboundAt).getTime());
   if (remaining <= 0) return null;
   const hours = Math.floor(remaining / (60 * 60 * 1000));
   const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));

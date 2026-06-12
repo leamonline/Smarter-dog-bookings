@@ -104,4 +104,21 @@ describe("MessageBubble — special message rendering", () => {
     );
     expect(screen.getByText("Can I move Cooper to Tuesday?")).toBeInTheDocument();
   });
+
+  it("makes failed outbound sends prominent and names the failure reason", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "outbound",
+          content: "Hi Sarah, Bella is booked in.",
+          status: "failed",
+          error_message: "Meta rejected this template",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Message failed");
+    expect(screen.getByRole("alert")).toHaveTextContent("Meta rejected this template");
+  });
 });

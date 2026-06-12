@@ -16,6 +16,8 @@ import { TemplatePicker } from "./TemplatePicker.jsx";
 export function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight }) {
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const lastInboundAt = conversation?.last_inbound_at;
 
   // Reset input when the user switches to a different conversation,
   // so a half-typed message doesn't get sent to the wrong person.
@@ -24,8 +26,15 @@ export function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, i
     setError(null);
   }, [conversation?.id]);
 
-  const windowOpen = isWindowOpen(conversation?.last_inbound_at);
-  const countdown = windowOpen ? windowCountdown(conversation?.last_inbound_at) : null;
+  useEffect(() => {
+    setNowMs(Date.now());
+    if (!lastInboundAt) return undefined;
+    const interval = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, [lastInboundAt]);
+
+  const windowOpen = isWindowOpen(lastInboundAt, nowMs);
+  const countdown = windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;
 
   async function handleSend() {
     const trimmed = text.trim();

@@ -37,8 +37,8 @@ export function useOutboundSender({ refreshList }) {
         const detail = await parseSupabaseFunctionError(error, "SMS send failed");
         return { ok: false, reason: detail };
       }
-      await refreshList();
-      return { ok: true };
+      const conversations = await refreshList();
+      return { ok: true, conversations };
     },
     [refreshList],
   );
@@ -63,8 +63,8 @@ export function useOutboundSender({ refreshList }) {
         const detail = await parseSupabaseFunctionError(error, "Template send failed");
         return { ok: false, reason: detail };
       }
-      await refreshList();
-      return { ok: true };
+      const conversations = await refreshList();
+      return { ok: true, conversations };
     },
     [refreshList],
   );

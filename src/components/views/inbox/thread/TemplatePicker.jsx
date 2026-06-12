@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { WHATSAPP_TEMPLATES } from "../../../../constants/whatsappTemplates.js";
+import { WHATSAPP_PICKER_TEMPLATES } from "../../../../constants/whatsappTemplates.js";
 
 // Hint shown under a template param when no value is on file. Keyed by
 // the param's `autoFill` source so adding a new auto-fill source means
@@ -23,13 +23,17 @@ const TEMPLATE_PARAM_MISSING_HELPER = {
 // compose-new flow, where there isn't a conversation row yet). Both
 // paths render the same form; only the auto-fill source differs.
 export function TemplatePicker({ conversation, dogNames, onSend, customerFirstName, contextKey }) {
-  const [selectedTemplateName, setSelectedTemplateName] = useState(WHATSAPP_TEMPLATES[0].name);
+  const [selectedTemplateName, setSelectedTemplateName] = useState(
+    WHATSAPP_PICKER_TEMPLATES[0]?.name ?? "",
+  );
   const [paramValues, setParamValues] = useState({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [sent, setSent] = useState(false);
 
-  const template = WHATSAPP_TEMPLATES.find((t) => t.name === selectedTemplateName);
+  const template =
+    WHATSAPP_PICKER_TEMPLATES.find((t) => t.name === selectedTemplateName) ??
+    WHATSAPP_PICKER_TEMPLATES[0];
 
   // Auto-fill known params from conversation context whenever the
   // selected template or context changes. contextKey lets the
@@ -42,6 +46,8 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
     const autoFilled = {};
     const firstDog = (dogNames ?? [])[0] ?? "";
 
+    if (!template) return;
+
     for (const param of template.params) {
       if (param.autoFill === "customer_first_name") autoFilled[param.key] = resolvedFirstName;
       else if (param.autoFill === "dog_name_select") autoFilled[param.key] = firstDog;
@@ -50,6 +56,14 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
     setSent(false);
     setError(null);
   }, [selectedTemplateName, resolvedContextKey, resolvedFirstName, dogNames, template]);
+
+  if (!template) {
+    return (
+      <div className="p-3 text-sm text-rose-700 bg-rose-50 rounded-lg border border-rose-200">
+        No approved WhatsApp templates are available.
+      </div>
+    );
+  }
 
   const allFilled = template.params.every((p) => (paramValues[p.key] ?? "").trim() !== "");
   const preview = template.preview(paramValues);
@@ -107,7 +121,7 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
           value={selectedTemplateName}
           onChange={(e) => setSelectedTemplateName(e.target.value)}
         >
-          {WHATSAPP_TEMPLATES.map((t) => (
+          {WHATSAPP_PICKER_TEMPLATES.map((t) => (
             <option key={t.name} value={t.name}>{t.label}</option>
           ))}
         </select>

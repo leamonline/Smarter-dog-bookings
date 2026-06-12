@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { WHATSAPP_TEMPLATES, buildTemplateParams } from "./whatsappTemplates.js";
+import * as whatsappTemplates from "./whatsappTemplates.js";
+
+const {
+  WHATSAPP_TEMPLATES,
+  WHATSAPP_PICKER_TEMPLATES,
+  buildTemplateParams,
+} = whatsappTemplates;
 
 describe("buildTemplateParams", () => {
   it("returns appointment_reminder_v1 params in {{1}}..{{3}} order", () => {
@@ -92,5 +98,16 @@ describe("buildTemplateParams", () => {
   it("booking_changed_v1 uses the generic 'en' language code, not en_GB", () => {
     const template = WHATSAPP_TEMPLATES.find((t) => t.name === "booking_changed_v1");
     expect(template.language).toBe("en");
+  });
+});
+
+describe("WHATSAPP_PICKER_TEMPLATES", () => {
+  it("only exposes Meta-approved templates to the staff picker", () => {
+    expect(WHATSAPP_PICKER_TEMPLATES.map((t) => t.name)).toEqual([
+      "appointment_reminder_v1",
+      "booking_confirmed_v1",
+      "booking_changed_v1",
+    ]);
+    expect(WHATSAPP_PICKER_TEMPLATES.every((t) => t.status === "approved")).toBe(true);
   });
 });

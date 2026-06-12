@@ -44,10 +44,12 @@ export function MessageBubble({ message }) {
   const isInbound = message.direction === "inbound";
   const channel = message.channel ?? "whatsapp";
   const isSMS = channel === "sms";
+  const isFailed = !isInbound && message.status === "failed";
 
   const outboundColor = isSMS
     ? "bg-sky-100 text-slate-800 rounded-br-sm"
     : "bg-green-100 text-slate-800 rounded-br-sm";
+  const failedColor = "bg-rose-50 border border-rose-200 text-rose-950 rounded-br-sm";
 
   const channelChipColor = isSMS
     ? "bg-sky-200 text-sky-900"
@@ -64,7 +66,9 @@ export function MessageBubble({ message }) {
         className={`max-w-[75%] rounded-2xl px-3 py-2 text-[14px] whitespace-pre-wrap ${
           isInbound
             ? "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
-            : outboundColor
+            : isFailed
+              ? failedColor
+              : outboundColor
         }`}
       >
         {template ? (
@@ -99,10 +103,21 @@ export function MessageBubble({ message }) {
           <span className="text-[10px] text-slate-500">
             {formatWhen(message.sent_at)}
             {!isInbound && message.status && message.status !== "sent" && (
-              <span className="ml-1">· {message.status}</span>
+              <span className={`ml-1 ${isFailed ? "font-bold text-rose-700" : ""}`}>
+                · {message.status}
+              </span>
             )}
           </span>
         </div>
+        {isFailed && (
+          <div
+            role="alert"
+            className="mt-2 rounded-lg border border-rose-200 bg-white/80 px-2 py-1.5 text-[11px] leading-snug text-rose-800"
+          >
+            <span className="font-bold">Message failed</span>
+            {message.error_message ? `: ${message.error_message}` : ". Check provider logs before relying on this reply."}
+          </div>
+        )}
       </div>
     </div>
   );

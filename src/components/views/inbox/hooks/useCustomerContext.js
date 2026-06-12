@@ -19,7 +19,10 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
+import { registerResume } from "../../../../supabase/refreshOnResume.js";
 import { buildCustomerSummary } from "./customerContextSummary.js";
+
+const CUSTOMER_CONTEXT_TIMEOUT_MS = 10_000;
 
 const EMPTY_RESULT = Object.freeze({
   human: null,
@@ -41,11 +44,28 @@ export function useCustomerContext(humanId) {
   const [data, setData] = useState(EMPTY_RESULT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => registerResume(() => setRefreshKey((key) => key + 1)), []);
 
   useEffect(() => {
     let cancelled = false;
+    let timedOut = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, CUSTOMER_CONTEXT_TIMEOUT_MS);
+
+    const withSignal = (query) => query.abortSignal(controller.signal);
+
+    const stopLoading = () => {
+      window.clearTimeout(timeoutId);
+      if (!cancelled) setLoading(false);
+    };
 
     if (!humanId) {
+      window.clearTimeout(timeoutId);
       setData(EMPTY_RESULT);
       setLoading(false);
       setError(null);
@@ -56,6 +76,7 @@ export function useCustomerContext(humanId) {
       // Offline / unconfigured client. Caller already shows an
       // offline banner; we just surface the empty shape so the
       // panel can render its "not connected" state without crashing.
+      window.clearTimeout(timeoutId);
       setData(EMPTY_RESULT);
       setLoading(false);
       setError(null);
@@ -64,26 +85,27 @@ export function useCustomerContext(humanId) {
 
     setLoading(true);
     setError(null);
+    setData(EMPTY_RESULT);
 
     (async () => {
       try {
         const today = todayDateStr();
         const [humanRes, dogsRes, lastBookingRes, trustedRes] = await Promise.all([
-          supabase
+          withSignal(supabase
             .from("humans")
             .select(
               "id, name, surname, phone, email, address, notes, sms, whatsapp, history_flag",
             )
-            .eq("id", humanId)
+            .eq("id", humanId))
             .maybeSingle(),
-          supabase
+          withSignal(supabase
             .from("dogs")
             .select("id, name, breed, age, size, alerts, groom_notes")
             .eq("human_id", humanId)
-            .order("name"),
+            .order("name")),
           // Most recent past booking across all of this customer's dogs.
           // `dogs!inner` filters to bookings whose dog belongs to humanId.
-          supabase
+          withSignal(supabase
             .from("bookings")
             .select(
               "id, booking_date, slot, service, status, size, dog_id, dogs!inner(name, human_id)",
@@ -92,21 +114,22 @@ export function useCustomerContext(humanId) {
             .lt("booking_date", today)
             .order("booking_date", { ascending: false })
             .order("slot", { ascending: false })
-            .limit(1)
+            .limit(1))
             .maybeSingle(),
           // Trusted contacts: join through humans on trusted_id so we
           // can display the contact's name + relationship without a
           // separate lookup. The "humans" alias on trusted_id is the
           // Supabase syntax for a named FK relationship.
-          supabase
+          withSignal(supabase
             .from("human_trusted_contacts")
             .select(
               "trusted_id, relationship, trusted:humans!trusted_id(id, name, surname)",
             )
-            .eq("human_id", humanId),
+            .eq("human_id", humanId)),
         ]);
 
         if (cancelled) return;
+        window.clearTimeout(timeoutId);
 
         // maybeSingle returns null data + null error when no row;
         // we only treat real errors as errors.
@@ -175,17 +198,23 @@ export function useCustomerContext(humanId) {
       } catch (err) {
         if (cancelled) return;
         console.error("useCustomerContext:", err);
-        setError(err instanceof Error ? err.message : String(err));
+        setError(
+          timedOut || controller.signal.aborted
+            ? "Timed out loading customer details. Please retry."
+            : err instanceof Error ? err.message : String(err),
+        );
         setData(EMPTY_RESULT);
       } finally {
-        if (!cancelled) setLoading(false);
+        stopLoading();
       }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
-  }, [humanId]);
+  }, [humanId, refreshKey]);
 
   return { ...data, loading, error };
 }

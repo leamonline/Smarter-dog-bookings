@@ -51,6 +51,7 @@ export const WHATSAPP_TEMPLATES = [
     name: "appointment_reminder_v1",
     label: "Appointment Reminder",
     description: "Remind a customer about an upcoming appointment",
+    status: "approved",
     language: "en_GB",
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
@@ -64,6 +65,7 @@ export const WHATSAPP_TEMPLATES = [
     name: "booking_confirmed_v1",
     label: "Booking Confirmation",
     description: "Confirm a new or rescheduled booking",
+    status: "approved",
     language: "en_GB",
     // Note Meta's body reads "{{1}}, {{2}}'s {{4}} is confirmed for {{3}}"
     // — service is placeholder #4 even though it appears mid-sentence.
@@ -82,6 +84,7 @@ export const WHATSAPP_TEMPLATES = [
     name: "booking_changed_v1",
     label: "Booking Update",
     description: "Tell a customer their booking has changed",
+    status: "approved",
     language: "en",
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
@@ -95,6 +98,7 @@ export const WHATSAPP_TEMPLATES = [
     name: "ready_for_collection_v1",
     label: "Ready for Collection",
     description: "Tell the owner or a trusted contact the dog is ready to collect",
+    status: "pending",
     language: "en_GB",
     params: [
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
@@ -112,6 +116,7 @@ export const WHATSAPP_TEMPLATES = [
     name: "welcome_to_the_pack_v1",
     label: "Welcome to the Pack",
     description: "Welcome a newly-approved self-signup customer",
+    status: "pending",
     language: "en_GB",
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },
@@ -120,6 +125,10 @@ export const WHATSAPP_TEMPLATES = [
       `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, welcome to the Pack! 🐾 You're all set up with Smarter Dog Grooming Salon and can now book appointments. See you soon!`,
   },
 ];
+
+export const WHATSAPP_PICKER_TEMPLATES = WHATSAPP_TEMPLATES.filter(
+  (template) => template.status === "approved",
+);
 
 /** Pure helper: build the ordered params array for whatsapp-send from a template's param values. */
 export function buildTemplateParams(template, values) {

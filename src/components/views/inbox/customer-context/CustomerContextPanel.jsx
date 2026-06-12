@@ -32,9 +32,10 @@ export function CustomerContextPanel({
   titleId,
 }) {
   const { human, dogs, lastBooking, trustedContacts, summary, loading, error } = context;
+  const displayHuman = loading ? null : human;
 
-  const phoneE164 = conversation?.phone_e164 || human?.phone || "";
-  const rawPhone = human?.phone || phoneE164;
+  const phoneE164 = conversation?.phone_e164 || displayHuman?.phone || "";
+  const rawPhone = displayHuman?.phone || phoneE164;
   const displayPhone = formatPhoneForDisplay(rawPhone) || rawPhone;
   const tel = telLink(rawPhone);
   const waMe = waMeLink(rawPhone);
@@ -49,8 +50,10 @@ export function CustomerContextPanel({
           id={titleId}
           className="text-[14px] font-bold text-brand-purple font-display leading-tight m-0 truncate"
         >
-          {human
-            ? titleCase(human.fullName || `${human.name} ${human.surname}`)
+          {loading
+            ? "Loading customer details..."
+            : displayHuman
+              ? titleCase(displayHuman.fullName || `${displayHuman.name} ${displayHuman.surname}`)
             : "Unmatched contact"}
         </h3>
         {onClose && (
@@ -72,7 +75,7 @@ export function CustomerContextPanel({
           <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
             Couldn't load customer details: {error}
           </div>
-        ) : !human ? (
+        ) : !displayHuman ? (
           <UnmatchedEmptyState phone={displayPhone} />
         ) : (
           <div className="flex flex-col gap-3">
@@ -107,10 +110,10 @@ export function CustomerContextPanel({
                   WhatsApp
                 </a>
               )}
-              {onOpenHuman && human && (
+              {onOpenHuman && displayHuman && (
                 <button
                   type="button"
-                  onClick={() => onOpenHuman(human.id)}
+                  onClick={() => onOpenHuman(displayHuman.id)}
                   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                 >
                   Open full profile
@@ -120,27 +123,27 @@ export function CustomerContextPanel({
 
             <LastBookingChip lastBooking={lastBooking} />
 
-            {(human.address || human.email || human.notes || human.historyFlag) && (
+            {(displayHuman.address || displayHuman.email || displayHuman.notes || displayHuman.historyFlag) && (
               <Section title="Details">
-                {human.email && (
+                {displayHuman.email && (
                   <DetailLine
                     label="Email"
-                    value={human.email}
-                    href={`mailto:${human.email}`}
+                    value={displayHuman.email}
+                    href={`mailto:${displayHuman.email}`}
                   />
                 )}
-                {human.address && (
-                  <DetailLine label="Address" value={human.address} />
+                {displayHuman.address && (
+                  <DetailLine label="Address" value={displayHuman.address} />
                 )}
-                {human.notes && (
+                {displayHuman.notes && (
                   <DetailLine
                     label="Notes"
-                    value={human.notes}
+                    value={displayHuman.notes}
                     multiline
                   />
                 )}
-                {human.historyFlag && (
-                  <DetailLine label="Flag" value={human.historyFlag} accent="rose" />
+                {displayHuman.historyFlag && (
+                  <DetailLine label="Flag" value={displayHuman.historyFlag} accent="rose" />
                 )}
               </Section>
             )}

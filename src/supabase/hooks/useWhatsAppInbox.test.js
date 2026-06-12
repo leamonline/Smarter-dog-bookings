@@ -9,7 +9,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { filterAttachedActions } from "./useWhatsAppInbox.js";
+import * as inbox from "./useWhatsAppInbox.js";
+
+const {
+  filterAttachedActions,
+  getSelectedConversationForSend,
+  latestMessagesChronological,
+} = inbox;
 
 describe("filterAttachedActions", () => {
   const draft = { id: "draft-1", proposed_text: "hello", state: "pending" };
@@ -60,5 +66,37 @@ describe("filterAttachedActions", () => {
     const result = filterAttachedActions(draft, actions);
     expect(result).toHaveLength(2);
     expect(result.map((a) => a.id)).toEqual(["a-1", "a-2"]);
+  });
+});
+
+describe("latestMessagesChronological", () => {
+  it("keeps the newest limited page but returns it oldest-to-newest for rendering", () => {
+    const newestFirst = [
+      { id: "m-250", sent_at: "2026-06-12T12:50:00Z" },
+      { id: "m-249", sent_at: "2026-06-12T12:49:00Z" },
+      { id: "m-248", sent_at: "2026-06-12T12:48:00Z" },
+    ];
+
+    expect(latestMessagesChronological(newestFirst).map((m) => m.id)).toEqual([
+      "m-248",
+      "m-249",
+      "m-250",
+    ]);
+  });
+});
+
+describe("getSelectedConversationForSend", () => {
+  it("throws instead of silently succeeding when the selected conversation is missing", () => {
+    expect(() =>
+      getSelectedConversationForSend(
+        [{ id: "conv-a", phone_e164: "+447700900111" }],
+        "conv-b",
+      ),
+    ).toThrow("Selected conversation is no longer available");
+  });
+
+  it("returns the selected conversation when present", () => {
+    const conv = { id: "conv-a", phone_e164: "+447700900111" };
+    expect(getSelectedConversationForSend([conv], "conv-a")).toBe(conv);
   });
 });

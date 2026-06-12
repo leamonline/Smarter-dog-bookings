@@ -4,7 +4,7 @@
 // (register item #10) can be validated as a no-op rather than a
 // rewrite.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
@@ -120,5 +120,41 @@ describe("InboxView", () => {
     expect(
       screen.getByText("No WhatsApp conversations yet"),
     ).toBeInTheDocument();
+  });
+
+  it("scrolls the thread to the latest item after messages render", async () => {
+    const scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    renderInbox(
+      baseState({
+        selectedId: "conv-1",
+        selectedConversation: {
+          id: "conv-1",
+          phone_e164: "+447700900123",
+          last_inbound_at: "2026-06-12T09:00:00Z",
+        },
+        messages: [
+          {
+            id: "m-1",
+            direction: "inbound",
+            content: "Older message",
+            sent_at: "2026-06-12T09:00:00Z",
+            status: "received",
+            channel: "whatsapp",
+          },
+          {
+            id: "m-2",
+            direction: "inbound",
+            content: "Newest message",
+            sent_at: "2026-06-12T09:05:00Z",
+            status: "received",
+            channel: "whatsapp",
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
 });

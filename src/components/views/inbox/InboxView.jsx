@@ -23,7 +23,7 @@
 // the work.
 // ============================================================
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
@@ -149,14 +149,19 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     const res = await sendOutboundTemplate(payload);
     if (res?.ok) {
       setComposeOpen(false);
-      toast.show("Template sent — opening the thread.", "success");
       const phoneDigits = (payload.phoneE164 ?? "").replace(/\D/g, "");
-      const match = conversations.find(
+      const refreshedConversations = res.conversations ?? conversations;
+      const match = refreshedConversations.find(
         (c) =>
           (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits &&
           (c.channel ?? "whatsapp") === "whatsapp",
       );
-      if (match) selectConversation(match.id);
+      if (match) {
+        toast.show("Template sent — opening the thread.", "success");
+        selectConversation(match.id);
+      } else {
+        toast.show("Template sent. The thread will appear in the inbox shortly.", "success");
+      }
     } else if (res?.reason) {
       toast.show(`Could not send: ${res.reason}`, "error");
     }
@@ -167,14 +172,19 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     const res = await sendOutboundSMS(payload);
     if (res?.ok) {
       setComposeOpen(false);
-      toast.show("SMS sent — opening the thread.", "success");
       const phoneDigits = (payload.phoneE164 ?? "").replace(/\D/g, "");
-      const match = conversations.find(
+      const refreshedConversations = res.conversations ?? conversations;
+      const match = refreshedConversations.find(
         (c) =>
           (c.phone_e164 ?? "").replace(/\D/g, "") === phoneDigits &&
           c.channel === "sms",
       );
-      if (match) selectConversation(match.id);
+      if (match) {
+        toast.show("SMS sent — opening the thread.", "success");
+        selectConversation(match.id);
+      } else {
+        toast.show("SMS sent. The thread will appear in the inbox shortly.", "success");
+      }
     } else if (res?.reason) {
       toast.show(`Could not send SMS: ${res.reason}`, "error");
     }
@@ -320,6 +330,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   // Mobile: show detail when a conversation is selected
   const showDetailOnMobile = !!selectedId;
+  const threadEndRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedId || loadingDetail || detailError) return;
+    threadEndRef.current?.scrollIntoView?.({ block: "end" });
+  }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
 
   return (
     <div className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]">
@@ -592,6 +608,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       ),
                     )
                 )}
+                <div ref={threadEndRef} aria-hidden="true" />
               </div>
 
               {/* Action dock — pending draft, booking proposal, and the

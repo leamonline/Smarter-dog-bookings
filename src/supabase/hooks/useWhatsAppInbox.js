@@ -37,6 +37,9 @@ import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
 import { useDraftActions } from "./inbox/useDraftActions.js";
 import { markWhatsappConversationRead } from "../rpc";
+import { registerResume } from "../refreshOnResume.js";
+
+const DETAIL_TIMEOUT_MS = 10_000;
 
 
 // ── Pure helpers (exported for testing) ─────────────────────
@@ -51,6 +54,18 @@ export function filterAttachedActions(draft, bookingActions) {
   return bookingActions.filter(
     (a) => a.draft_id === draft.id && a.state === "pending",
   );
+}
+
+export function latestMessagesChronological(rows) {
+  return [...(rows ?? [])].reverse();
+}
+
+export function getSelectedConversationForSend(conversations, selectedId) {
+  const conversation = conversations.find((c) => c.id === selectedId);
+  if (!conversation) {
+    throw new Error("Selected conversation is no longer available");
+  }
+  return conversation;
 }
 
 // ── Fetchers ─────────────────────────────────────────────────
@@ -110,15 +125,16 @@ async function fetchConversationsList() {
   });
 }
 
-async function fetchConversationDetail(conversationId) {
+async function fetchConversationDetail(conversationId, signal) {
+  const withSignal = (query) => signal ? query.abortSignal(signal) : query;
   const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
-    supabase
+    withSignal(supabase
       .from("whatsapp_messages")
-      .select("id, direction, content, sent_at, status, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id")
+      .select("id, direction, content, sent_at, status, error_message, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id")
       .eq("conversation_id", conversationId)
-      .order("sent_at", { ascending: true })
-      .limit(200),
-    supabase
+      .order("sent_at", { ascending: false })
+      .limit(200)),
+    withSignal(supabase
       .from("whatsapp_drafts")
       .select(
         "id, proposed_text, intent, confidence, state, created_at, tokens_input, tokens_output, model, risk_level, handoff_required, auto_send_eligible",
@@ -126,9 +142,9 @@ async function fetchConversationDetail(conversationId) {
       .eq("conversation_id", conversationId)
       .eq("state", "pending")
       .order("created_at", { ascending: false })
-      .limit(1)
+      .limit(1))
       .maybeSingle(),
-    supabase
+    withSignal(supabase
       .from("whatsapp_booking_actions")
       .select("id, draft_id, action, payload, target_booking_id, state, rejection_reason, applied_booking_id, applied_at, error_message, created_at")
       .eq("conversation_id", conversationId)
@@ -138,7 +154,7 @@ async function fetchConversationDetail(conversationId) {
       // renders the queue waiting on staff approval.
       .in("state", ["pending", "applied", "auto_applied"])
       .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(50)),
   ]);
 
   if (messagesRes.error) throw messagesRes.error;
@@ -147,7 +163,7 @@ async function fetchConversationDetail(conversationId) {
   if (bookingActionsRes.error) throw bookingActionsRes.error;
 
   return {
-    messages: messagesRes.data ?? [],
+    messages: latestMessagesChronological(messagesRes.data),
     draft: draftRes.data ?? null,
     bookingActions: bookingActionsRes.data ?? [],
   };
@@ -189,15 +205,21 @@ export function useWhatsAppInbox() {
 
   // ── List: initial load + realtime ──────────────────────────
   const refreshList = useCallback(async () => {
+    if (!supabase) {
+      setLoadingList(false);
+      return null;
+    }
     try {
       const list = await fetchConversationsList();
       setConversations(list);
       setListError(null);
+      return list;
     } catch (err) {
       logger.error("useWhatsAppInbox refreshList failed", err, {
         tags: { hook: "useWhatsAppInbox", op: "refreshList" },
       });
       setListError(err);
+      return null;
     } finally {
       setLoadingList(false);
     }
@@ -300,16 +322,20 @@ export function useWhatsAppInbox() {
   // ── Detail: load on selection + realtime ───────────────────
   const refreshDetail = useCallback(async (conversationId) => {
     if (!conversationId) return;
+    const controller = new AbortController();
+    let timeoutId;
     try {
       // 10-second timeout so a stalled Supabase request can't leave
       // the thread spinner spinning forever (task 11 of the May 2026
       // review pass). The timeout fires a sentinel error that's
       // mapped to a friendly "Couldn't load — retry?" state below.
-      const TIMEOUT_MS = 10_000;
       const detail = await Promise.race([
-        fetchConversationDetail(conversationId),
+        fetchConversationDetail(conversationId, controller.signal),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("conversation-detail-timeout")), TIMEOUT_MS),
+          timeoutId = window.setTimeout(() => {
+            controller.abort();
+            reject(new Error("conversation-detail-timeout"));
+          }, DETAIL_TIMEOUT_MS),
         ),
       ]);
       // Guard against race: user may have moved on.
@@ -319,12 +345,15 @@ export function useWhatsAppInbox() {
       setBookingActions(detail.bookingActions);
       setDetailError(null);
     } catch (err) {
+      if (selectedIdRef.current !== conversationId) return;
       logger.error("useWhatsAppInbox refreshDetail failed", err, {
         tags: { hook: "useWhatsAppInbox", op: "refreshDetail" },
       });
       setDetailError(err);
     } finally {
-      setLoadingDetail(false);
+      window.clearTimeout(timeoutId);
+      controller.abort();
+      if (selectedIdRef.current === conversationId) setLoadingDetail(false);
     }
   }, []);
 
@@ -333,9 +362,14 @@ export function useWhatsAppInbox() {
     setMessages([]);
     setDraft(null);
     setBookingActions([]);
+    setDogNames([]);
+    setDogNamesById({});
     setDetailError(null);
 
-    if (!conversationId || !supabase) return;
+    if (!conversationId || !supabase) {
+      setLoadingDetail(false);
+      return;
+    }
 
     // Optimistic: zero out the unread badge for this conversation
     // immediately. The RPC below + realtime echo will confirm, but
@@ -364,6 +398,7 @@ export function useWhatsAppInbox() {
     );
 
     await refreshDetail(conversationId);
+    if (selectedIdRef.current !== conversationId) return;
 
     // Fetch dog names for template picker auto-fill + booking-action chip.
     const humanId = conversations.find((c) => c.id === conversationId)?.human_id;
@@ -373,6 +408,7 @@ export function useWhatsAppInbox() {
         .select("id, name")
         .eq("human_id", humanId)
         .order("name");
+      if (selectedIdRef.current !== conversationId) return;
       const rows = dogsData ?? [];
       setDogNames(rows.map((d) => d.name));
       const byId = {};
@@ -385,6 +421,12 @@ export function useWhatsAppInbox() {
       setDogNamesById({});
     }
   }, [refreshDetail, conversations]);
+
+  useEffect(() => registerResume(() => {
+    if (!supabase) return;
+    refreshList();
+    if (selectedIdRef.current) refreshDetail(selectedIdRef.current);
+  }), [refreshList, refreshDetail]);
 
   // Realtime for the currently-selected conversation
   useEffect(() => {
@@ -445,19 +487,18 @@ export function useWhatsAppInbox() {
 
   const sendTemplate = useCallback(
     async (template, paramValues) => {
-      const conversation = conversations.find((c) => c.id === selectedId);
-      if (!conversation) return;
+      const selectedConversation = getSelectedConversationForSend(conversations, selectedId);
 
       const params = buildTemplateParams(template, paramValues);
 
       const { error } = await supabase.functions.invoke(SEND_FUNCTION_PATH, {
         body: {
           mode: "template",
-          to: conversation.phone_e164,
+          to: selectedConversation.phone_e164,
           template_name: template.name,
           language: template.language,
           params,
-          conversation_id: conversation.id,
+          conversation_id: selectedConversation.id,
         },
       });
 
