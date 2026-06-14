@@ -82,10 +82,19 @@ export function mergeFailedMessageFlags(conversations, failedMessages) {
 
   return (conversations ?? []).map((conversation) => {
     const latest = latestByConversation.get(conversation.id) ?? null;
+    // Only flag the conversation while the failure is still the most
+    // recent outbound. recordOutbound bumps last_outbound_at to each
+    // send's timestamp, so a successful resend moves last_outbound_at
+    // PAST the failed message — at which point the badge should clear.
+    // A failure that is still the latest outbound has sent_at >=
+    // last_outbound_at (they were stamped together at record time).
+    const unresolved =
+      !!latest &&
+      String(latest.sent_at || "") >= String(conversation.last_outbound_at || "");
     return {
       ...conversation,
-      has_failed_message: !!latest,
-      latest_failed_message: latest,
+      has_failed_message: unresolved,
+      latest_failed_message: unresolved ? latest : null,
     };
   });
 }
@@ -270,6 +279,31 @@ export function useWhatsAppInbox() {
     }
   }, []);
 
+  // Coalesce realtime list refreshes. A single inbound can fan out into
+  // several postgres_changes events (conversation row + draft + booking
+  // action, each on its own subscription), and the list query is the
+  // expensive one (200 rows + a failed-message lookup). Without this,
+  // every event fired its own full refetch. Trailing-debounce so a burst
+  // collapses into one refresh; explicit actions still call refreshList
+  // directly for immediacy.
+  const listRefreshTimerRef = useRef(null);
+  const scheduleListRefresh = useCallback(() => {
+    if (listRefreshTimerRef.current) return;
+    listRefreshTimerRef.current = window.setTimeout(() => {
+      listRefreshTimerRef.current = null;
+      refreshList();
+    }, 400);
+  }, [refreshList]);
+  useEffect(
+    () => () => {
+      if (listRefreshTimerRef.current) {
+        window.clearTimeout(listRefreshTimerRef.current);
+        listRefreshTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
   // Outbound (compose-new) sends — extracted into their own hook
   // because they don't share state with the rest of the inbox; only
   // refreshList() is shared, and they call it explicitly so the
@@ -359,22 +393,22 @@ export function useWhatsAppInbox() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations" },
-        () => refreshList(),
+        () => scheduleListRefresh(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_drafts" },
-        () => refreshList(),
+        () => scheduleListRefresh(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_booking_actions" },
-        () => refreshList(),
+        () => scheduleListRefresh(),
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [refreshList]);
+  }, [refreshList, scheduleListRefresh]);
 
   // ── Detail: load on selection + realtime ───────────────────
   const refreshDetail = useCallback(async (conversationId) => {

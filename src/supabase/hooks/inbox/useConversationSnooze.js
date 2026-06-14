@@ -44,16 +44,20 @@ export function useConversationSnooze({
 
     setActionInFlight(true);
     try {
+      // Restore to human_takeover — the safe default since 20260520220000
+      // — rather than ai_handling. Snoozing overwrites the prior state, so
+      // waking must never silently flip a human-handled thread into an
+      // AI-handling one. (Mirrors the reopen_on_new_inbound trigger.)
       const { error } = await supabase
         .from("whatsapp_conversations")
-        .update({ state: "ai_handling", snoozed_until: null })
+        .update({ state: "human_takeover", snoozed_until: null })
         .eq("id", id);
       if (error) throw error;
 
       setConversations((prev) =>
         prev.map((conversation) =>
           conversation.id === id
-            ? { ...conversation, state: "ai_handling", snoozed_until: null }
+            ? { ...conversation, state: "human_takeover", snoozed_until: null }
             : conversation,
         ),
       );

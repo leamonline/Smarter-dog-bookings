@@ -143,4 +143,39 @@ describe("mergeFailedMessageFlags", () => {
       },
     ]);
   });
+
+  it("clears the flag once a later send succeeds (last_outbound_at past the failure)", () => {
+    const conversations = [
+      // Failure resolved: a successful send happened after it.
+      { id: "conv-resolved", last_outbound_at: "2026-06-12T10:00:00Z" },
+      // Failure still the most recent outbound (stamped together).
+      { id: "conv-open", last_outbound_at: "2026-06-12T09:00:00Z" },
+    ];
+    const failedMessages = [
+      {
+        id: "msg-resolved",
+        conversation_id: "conv-resolved",
+        error_message: "Transient failure",
+        sent_at: "2026-06-12T09:00:00Z",
+      },
+      {
+        id: "msg-open",
+        conversation_id: "conv-open",
+        error_message: "Still failing",
+        sent_at: "2026-06-12T09:00:00Z",
+      },
+    ];
+
+    const merged = mergeFailedMessageFlags(conversations, failedMessages);
+    expect(merged[0]).toMatchObject({
+      id: "conv-resolved",
+      has_failed_message: false,
+      latest_failed_message: null,
+    });
+    expect(merged[1]).toMatchObject({
+      id: "conv-open",
+      has_failed_message: true,
+      latest_failed_message: { id: "msg-open" },
+    });
+  });
 });

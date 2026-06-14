@@ -128,6 +128,11 @@ export function inboxWindowBadge(conv, nowMs = Date.now()) {
 
 export function isConversationSnoozed(conv, nowMs = Date.now()) {
   if (conv?.state !== "snoozed" || conv.closed_at) return false;
+  // A new customer message must always surface, even mid-snooze. The
+  // DB trigger (20260614120000) wakes the row server-side, but the
+  // front-end can outrun the schema, so treat any unread inbound as a
+  // wake signal too — otherwise a snoozed thread swallows new messages.
+  if ((conv.unread_count || 0) > 0) return false;
   if (!conv.snoozed_until) return true;
   return new Date(conv.snoozed_until).getTime() > nowMs;
 }

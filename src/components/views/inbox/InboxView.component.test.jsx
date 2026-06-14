@@ -440,38 +440,76 @@ describe("InboxView", () => {
   });
 
   it("scrolls the thread to the latest item after messages render", async () => {
-    const scrollIntoView = vi.fn();
-    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
-
-    renderInbox(
-      baseState({
-        selectedId: "conv-1",
-        selectedConversation: {
-          id: "conv-1",
-          phone_e164: "+447700900123",
-          last_inbound_at: "2026-06-12T09:00:00Z",
-        },
-        messages: [
-          {
-            id: "m-1",
-            direction: "inbound",
-            content: "Older message",
-            sent_at: "2026-06-12T09:00:00Z",
-            status: "received",
-            channel: "whatsapp",
-          },
-          {
-            id: "m-2",
-            direction: "inbound",
-            content: "Newest message",
-            sent_at: "2026-06-12T09:05:00Z",
-            status: "received",
-            channel: "whatsapp",
-          },
-        ],
-      }),
+    // Opening a conversation scrolls the thread container to the bottom
+    // (container.scrollTop = scrollHeight). Spy on the prototype so we can
+    // assert the assignment regardless of jsdom's zero layout sizes.
+    const origScrollHeight = Object.getOwnPropertyDescriptor(
+      window.HTMLElement.prototype,
+      "scrollHeight",
     );
+    const origScrollTop = Object.getOwnPropertyDescriptor(
+      window.HTMLElement.prototype,
+      "scrollTop",
+    );
+    const scrollTopSpy = vi.fn();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 500;
+      },
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "scrollTop", {
+      configurable: true,
+      get() {
+        return 0;
+      },
+      set(value) {
+        scrollTopSpy(value);
+      },
+    });
 
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    try {
+      renderInbox(
+        baseState({
+          selectedId: "conv-1",
+          selectedConversation: {
+            id: "conv-1",
+            phone_e164: "+447700900123",
+            last_inbound_at: "2026-06-12T09:00:00Z",
+          },
+          messages: [
+            {
+              id: "m-1",
+              direction: "inbound",
+              content: "Older message",
+              sent_at: "2026-06-12T09:00:00Z",
+              status: "received",
+              channel: "whatsapp",
+            },
+            {
+              id: "m-2",
+              direction: "inbound",
+              content: "Newest message",
+              sent_at: "2026-06-12T09:05:00Z",
+              status: "received",
+              channel: "whatsapp",
+            },
+          ],
+        }),
+      );
+
+      await waitFor(() => expect(scrollTopSpy).toHaveBeenCalledWith(500));
+    } finally {
+      if (origScrollHeight) {
+        Object.defineProperty(window.HTMLElement.prototype, "scrollHeight", origScrollHeight);
+      } else {
+        delete window.HTMLElement.prototype.scrollHeight;
+      }
+      if (origScrollTop) {
+        Object.defineProperty(window.HTMLElement.prototype, "scrollTop", origScrollTop);
+      } else {
+        delete window.HTMLElement.prototype.scrollTop;
+      }
+    }
   });
 });

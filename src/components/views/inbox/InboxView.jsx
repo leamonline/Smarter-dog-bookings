@@ -404,11 +404,32 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   // Mobile: show detail when a conversation is selected
   const showDetailOnMobile = !!selectedId;
-  const threadEndRef = useRef(null);
+
+  // Thread auto-scroll. Opening a conversation always lands on the newest
+  // message; new messages within the SAME conversation only scroll down
+  // when staff are already near the bottom, so reading back through
+  // history isn't yanked away when a reply or realtime message arrives.
+  const threadScrollRef = useRef(null);
+  const isNearBottomRef = useRef(true);
+  const lastScrolledConvRef = useRef(null);
+
+  const handleThreadScroll = useCallback(() => {
+    const el = threadScrollRef.current;
+    if (!el) return;
+    isNearBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
 
   useEffect(() => {
     if (!selectedId || loadingDetail || detailError) return;
-    threadEndRef.current?.scrollIntoView?.({ block: "end" });
+    const el = threadScrollRef.current;
+    if (!el) return;
+    const freshConversation = lastScrolledConvRef.current !== selectedId;
+    if (freshConversation || isNearBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+      isNearBottomRef.current = true;
+    }
+    lastScrolledConvRef.current = selectedId;
   }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
 
   return (
@@ -447,8 +468,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             New message
           </button>
         </div>
+        {/* Single non-wrapping, horizontally-scrollable strip. With 11
+            chips this keeps the header a fixed height on phone/iPad
+            (it never wraps to 2–3 rows), so the viewport-height layout
+            below stays correct. -mx/px keeps focus rings off the clip
+            edge. */}
         <div
-          className="flex items-center gap-2 flex-wrap"
+          className="flex items-center gap-2 flex-nowrap overflow-x-auto w-full md:w-auto min-w-0 -mx-1 px-1 [scrollbar-width:thin]"
           role="group"
           aria-label="Filter conversations"
         >
@@ -691,7 +717,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   messages at the timestamp the action was applied — the
                   inverse of the booking detail's "Created from WhatsApp"
                   link, so staff can follow the loop both ways. */}
-              <div className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper">
+              <div
+                ref={threadScrollRef}
+                onScroll={handleThreadScroll}
+                className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper"
+              >
                 {loadingDetail ? (
                   <ThreadSkeleton bubbles={5} />
                 ) : detailError ? (
@@ -739,7 +769,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       ),
                     )
                 )}
-                <div ref={threadEndRef} aria-hidden="true" />
               </div>
 
               {/* Action dock — pending draft, booking proposal, and the

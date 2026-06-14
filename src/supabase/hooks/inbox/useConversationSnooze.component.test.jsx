@@ -86,7 +86,7 @@ describe("useConversationSnooze", () => {
     });
 
     expect(stub._update).toHaveBeenCalledWith({
-      state: "ai_handling",
+      state: "human_takeover",
       snoozed_until: null,
     });
   });
