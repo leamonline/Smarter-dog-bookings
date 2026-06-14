@@ -125,3 +125,48 @@ export function inboxWindowBadge(conv, nowMs = Date.now()) {
     title: "The WhatsApp free-form reply window is nearly closed.",
   };
 }
+
+export function isConversationSnoozed(conv, nowMs = Date.now()) {
+  if (conv?.state !== "snoozed" || conv.closed_at) return false;
+  if (!conv.snoozed_until) return true;
+  return new Date(conv.snoozed_until).getTime() > nowMs;
+}
+
+export function snoozeUntilForPreset(preset, now = new Date()) {
+  const base = new Date(now);
+  if (preset === "one_hour") {
+    return new Date(base.getTime() + 60 * 60 * 1000);
+  }
+  if (preset === "later_today") {
+    const later = new Date(base);
+    later.setHours(15, 0, 0, 0);
+    if (later.getTime() <= base.getTime()) {
+      later.setDate(later.getDate() + 1);
+      later.setHours(8, 30, 0, 0);
+    }
+    return later;
+  }
+  if (preset === "tomorrow") {
+    const tomorrow = new Date(base);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 30, 0, 0);
+    return tomorrow;
+  }
+  return null;
+}
+
+export function formatSnoozedUntil(iso) {
+  if (!iso) return "Snoozed";
+  const date = new Date(iso);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (sameDay) return `Snoozed until ${time}`;
+  if (date.toDateString() === tomorrow.toDateString()) return `Snoozed until tomorrow ${time}`;
+  return `Snoozed until ${date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  })} ${time}`;
+}

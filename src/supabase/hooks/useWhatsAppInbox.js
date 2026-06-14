@@ -33,6 +33,8 @@ import {
 } from "./inbox/helpers.js";
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
+import { useConversationNotes } from "./inbox/useConversationNotes.js";
+import { useConversationSnooze } from "./inbox/useConversationSnooze.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
 import { useDraftActions } from "./inbox/useDraftActions.js";
@@ -114,6 +116,8 @@ async function fetchConversationsList() {
       closure_reason,
       closure_suggested_at,
       closure_suggested_reason,
+      notes,
+      snoozed_until,
       humans:human_id ( name, surname ),
       whatsapp_drafts ( id, state, risk_level, handoff_required ),
       whatsapp_booking_actions ( id, state )
@@ -288,6 +292,18 @@ export function useWhatsAppInbox() {
     actionInFlight,
     setActionInFlight,
     conversations,
+  });
+
+  const { updateConversationNotes } = useConversationNotes({
+    selectedId,
+    setConversations,
+  });
+
+  const { snoozeConversation, unsnoozeConversation } = useConversationSnooze({
+    selectedId,
+    actionInFlight,
+    setActionInFlight,
+    setConversations,
   });
 
   // AI-mode toggles (segmented control + per-conversation auto-send
@@ -599,6 +615,9 @@ export function useWhatsAppInbox() {
     setAIMode,
     resolveConversation,
     reopenConversation,
+    updateConversationNotes,
+    snoozeConversation,
+    unsnoozeConversation,
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,

@@ -49,6 +49,9 @@ function baseState(overrides = {}) {
     setAIMode: vi.fn(),
     resolveConversation: vi.fn(),
     reopenConversation: vi.fn(),
+    updateConversationNotes: vi.fn(),
+    snoozeConversation: vi.fn(),
+    unsnoozeConversation: vi.fn(),
     sendTemplate: vi.fn(),
     sendOutboundTemplate: vi.fn(),
     sendOutboundSMS: vi.fn(),
@@ -259,6 +262,110 @@ describe("InboxView", () => {
 
     expect(screen.getByText("Failed Send")).toBeInTheDocument();
     expect(screen.queryByText("Okay Send")).not.toBeInTheDocument();
+  });
+
+  it("keeps snoozed conversations out of the active queue until staff opens the Snoozed filter", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+
+    renderInbox(
+      baseState({
+        conversations: [
+          {
+            id: "conv-active",
+            phone_e164: "+447700900111",
+            state: "ai_handling",
+            humans: { name: "Ready", surname: "Owner" },
+            last_customer_text: "Can you help?",
+            unread_count: 0,
+          },
+          {
+            id: "conv-snoozed",
+            phone_e164: "+447700900222",
+            state: "snoozed",
+            snoozed_until: "2026-06-12T15:00:00Z",
+            humans: { name: "Later", surname: "Owner" },
+            last_customer_text: "Nudge me later",
+            unread_count: 0,
+          },
+          {
+            id: "conv-due",
+            phone_e164: "+447700900333",
+            state: "snoozed",
+            snoozed_until: "2026-06-12T09:00:00Z",
+            humans: { name: "Due", surname: "Owner" },
+            last_customer_text: "This follow-up is due",
+            unread_count: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "All: 2. Filter is on." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Snoozed: 1. Click to filter." }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ready Owner")).toBeInTheDocument();
+    expect(screen.getByText("Due Owner")).toBeInTheDocument();
+    expect(screen.queryByText("Later Owner")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Snoozed: 1. Click to filter." }),
+    );
+
+    expect(screen.queryByText("Ready Owner")).not.toBeInTheDocument();
+    expect(screen.queryByText("Due Owner")).not.toBeInTheDocument();
+    expect(screen.getByText("Later Owner")).toBeInTheDocument();
+  });
+
+  it("snoozes the selected conversation from the header preset menu", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+    const snoozeConversation = vi.fn().mockResolvedValue({ ok: true });
+
+    renderInbox(
+      baseState({
+        selectedId: "conv-1",
+        selectedConversation: {
+          id: "conv-1",
+          phone_e164: "+447700900123",
+          state: "ai_handling",
+          last_inbound_at: "2026-06-12T09:00:00Z",
+        },
+        snoozeConversation,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText("Snooze conversation"), {
+      target: { value: "one_hour" },
+    });
+
+    expect(snoozeConversation).toHaveBeenCalledWith("2026-06-12T11:00:00.000Z");
+  });
+
+  it("lets staff unsnooze a selected snoozed conversation", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+    const unsnoozeConversation = vi.fn().mockResolvedValue({ ok: true });
+
+    renderInbox(
+      baseState({
+        selectedId: "conv-1",
+        selectedConversation: {
+          id: "conv-1",
+          phone_e164: "+447700900123",
+          state: "snoozed",
+          snoozed_until: "2026-06-12T15:00:00Z",
+        },
+        unsnoozeConversation,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unsnooze" }));
+
+    expect(unsnoozeConversation).toHaveBeenCalled();
   });
 
   it("keeps close suggestions out of the urgent Needs review count", () => {

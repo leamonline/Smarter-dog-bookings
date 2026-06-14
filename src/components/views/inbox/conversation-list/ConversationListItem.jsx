@@ -8,7 +8,13 @@
 // the "closed" subdued styling for the Done filter.
 // ============================================================
 
-import { displayName, formatWhen, inboxWindowBadge } from "../helpers.js";
+import {
+  displayName,
+  formatWhen,
+  formatSnoozedUntil,
+  inboxWindowBadge,
+  isConversationSnoozed,
+} from "../helpers.js";
 import { StatusPill } from "../StatusPill.jsx";
 
 const SUGGESTED_REASON_LABEL = {
@@ -20,6 +26,7 @@ const SUGGESTED_REASON_LABEL = {
 export function ConversationListItem({ conv, isSelected, onSelect }) {
   const unread = conv.unread_count > 0;
   const isClosed = !!conv.closed_at;
+  const isSnoozed = isConversationSnoozed(conv);
   const suggestedReason = !isClosed && conv.closure_suggested_at
     ? SUGGESTED_REASON_LABEL[conv.closure_suggested_reason] ?? null
     : null;
@@ -53,6 +60,8 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
           ? "bg-brand-yellow/20 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
           : isClosed
             ? "bg-slate-50 hover:bg-slate-100 border-l-transparent opacity-75"
+            : isSnoozed
+              ? "bg-sky-50 hover:bg-sky-100 border-l-sky-200"
             : "bg-white hover:bg-slate-50 border-l-transparent"
       }`}
     >
@@ -114,6 +123,9 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
           {conv.state === "human_takeover" && !isClosed && (
             <StatusPill state="human_takeover" size="xs" />
           )}
+          {isSnoozed && (
+            <StatusPill state="snoozed" size="xs" />
+          )}
         </div>
       </div>
 
@@ -134,8 +146,16 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
         </div>
       )}
 
-      {(windowBadge || conv.has_failed_message) && (
+      {(isSnoozed || windowBadge || conv.has_failed_message) && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {isSnoozed && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200"
+              title="This conversation is paused until the follow-up time."
+            >
+              {formatSnoozedUntil(conv.snoozed_until)}
+            </span>
+          )}
           {windowBadge && (
             <span
               className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${

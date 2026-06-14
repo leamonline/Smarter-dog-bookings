@@ -30,8 +30,11 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import {
   displayName,
+  formatSnoozedUntil,
   isAwaitingReply,
+  isConversationSnoozed,
   isWindowClosingSoon,
+  snoozeUntilForPreset,
   windowRemainingMs,
 } from "./helpers.js";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
@@ -72,6 +75,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     rejectBookingAction,
     resolveConversation,
     reopenConversation,
+    updateConversationNotes,
+    snoozeConversation,
+    unsnoozeConversation,
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
@@ -146,6 +152,24 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [reopenConversation, toast]);
 
+  const handleSaveConversationNotes = useCallback((conversationId, notes) =>
+    updateConversationNotes(notes, conversationId),
+  [updateConversationNotes]);
+
+  const handleSnoozeConversation = useCallback(async (snoozedUntil) => {
+    const res = await snoozeConversation(snoozedUntil);
+    if (res?.ok) toast.show("Conversation snoozed.", "info");
+    else if (res?.reason) toast.show(`Could not snooze: ${res.reason}`, "error");
+    return res;
+  }, [snoozeConversation, toast]);
+
+  const handleUnsnoozeConversation = useCallback(async () => {
+    const res = await unsnoozeConversation();
+    if (res?.ok) toast.show("Conversation back in the active queue.", "info");
+    else if (res?.reason) toast.show(`Could not unsnooze: ${res.reason}`, "error");
+    return res;
+  }, [unsnoozeConversation, toast]);
+
   // Compose-new modal — outbound entry point. Opens from the header
   // button; after a successful send, close the modal and select the
   // freshly-upserted conversation so staff land straight in the thread.
@@ -208,7 +232,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
-  // List filter: one of "all" | "unread" | "drafts" | "bookings" | "needs_review" | "suggested_close" | "done".
+  // List filter: one of "all" | "awaiting_reply" | "closing_soon" |
+  // "failed_sends" | "snoozed" | "unread" | "drafts" | "bookings" |
+  // "needs_review" | "suggested_close" | "done".
   // "all" is the default and shows every ACTIVE conversation (closed
   // conversations only appear under the "done" chip). The other active
   // modes pre-filter to a specific subset so staff can triage in
@@ -223,10 +249,21 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Split active vs closed once so each counter doesn't re-walk the list.
-  const activeConversations = useMemo(
+  // Split open, currently snoozed, active, and closed once so each
+  // counter doesn't re-walk the list. Due snoozes return to the active
+  // pile automatically on the next minute tick; the DB state can be
+  // cleaned up later by a background pass.
+  const openConversations = useMemo(
     () => conversations.filter((c) => !c.closed_at),
     [conversations],
+  );
+  const snoozedConversations = useMemo(
+    () => openConversations.filter((c) => isConversationSnoozed(c, nowMs)),
+    [openConversations, nowMs],
+  );
+  const activeConversations = useMemo(
+    () => openConversations.filter((c) => !isConversationSnoozed(c, nowMs)),
+    [openConversations, nowMs],
   );
   const closedConversations = useMemo(
     () => conversations.filter((c) => !!c.closed_at),
@@ -253,6 +290,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     () => activeConversations.filter((c) => c.has_failed_message).length,
     [activeConversations],
   );
+  const snoozedCount = snoozedConversations.length;
   const draftsCount = useMemo(
     () => activeConversations.filter((c) => c.has_pending_draft).length,
     [activeConversations],
@@ -284,6 +322,10 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           );
       case "failed_sends":
         return activeConversations.filter((c) => c.has_failed_message);
+      case "snoozed":
+        return [...snoozedConversations].sort((a, b) =>
+          String(a.snoozed_until || "").localeCompare(String(b.snoozed_until || "")),
+        );
       case "unread":
         return activeConversations.filter((c) => (c.unread_count || 0) > 0);
       case "drafts":
@@ -300,7 +342,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       default:
         return activeConversations;
     }
-  }, [activeConversations, closedConversations, listFilter, nowMs]);
+  }, [activeConversations, closedConversations, listFilter, nowMs, snoozedConversations]);
 
   const toggleFilter = useCallback((next) => {
     setListFilter((prev) => (prev === next ? "all" : next));
@@ -311,6 +353,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     awaiting_reply: "awaiting reply",
     closing_soon: "closing soon",
     failed_sends: "failed sends",
+    snoozed: "snoozed conversations",
     unread: "unread",
     drafts: "pending drafts",
     bookings: "pending booking proposals",
@@ -384,9 +427,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             <div className="text-[11px] text-slate-600 mt-0.5">
               {listFilter === "all"
                 ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
-                : listFilter === "done"
-                  ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
-                  : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
+                  : listFilter === "done"
+                    ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
+                    : listFilter === "snoozed"
+                      ? `${snoozedConversations.length} snoozed conversation${snoozedConversations.length === 1 ? "" : "s"}`
+                    : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
             </div>
           </div>
           <button
@@ -439,6 +484,14 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             onClick={() => toggleFilter("failed_sends")}
             color="rose"
             hint="Show conversations where the latest outbound send attempt failed."
+          />
+          <InboxFilterChip
+            label="Snoozed"
+            count={snoozedCount}
+            active={listFilter === "snoozed"}
+            onClick={() => toggleFilter("snoozed")}
+            color="sky"
+            hint="Show conversations paused for later follow-up."
           />
           <InboxFilterChip
             label="Unread"
@@ -606,6 +659,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       onReopen={handleReopenConversation}
                       disabled={actionInFlight}
                     />
+                    <SnoozeControl
+                      conversation={selectedConversation}
+                      disabled={actionInFlight}
+                      onSnooze={handleSnoozeConversation}
+                      onUnsnooze={handleUnsnoozeConversation}
+                    />
                     {/* Customer info — slide-over below xl, redundant
                         at xl (the docked column is already visible). */}
                     <button
@@ -754,6 +813,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               conversation={selectedConversation}
               onOpenHuman={onOpenHuman}
               onOpenDog={onOpenDog}
+              onSaveConversationNotes={handleSaveConversationNotes}
             />
           </div>
         )}
@@ -769,6 +829,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           <CustomerContextPanel
             context={customerContext}
             conversation={selectedConversation}
+            onSaveConversationNotes={handleSaveConversationNotes}
             onOpenHuman={(id) => {
               setContextOpen(false);
               onOpenHuman?.(id);
@@ -791,5 +852,55 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         />
       )}
     </div>
+  );
+}
+
+function SnoozeControl({ conversation, disabled, onSnooze, onUnsnooze }) {
+  if (!conversation || conversation.closed_at) return null;
+
+  const isSnoozed = conversation.state === "snoozed";
+
+  if (isSnoozed) {
+    return (
+      <div className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-flex items-center h-8 px-3 rounded-full bg-sky-50 border border-sky-200 text-sky-800 text-[12px] font-semibold"
+          title="This conversation is paused until the follow-up time."
+        >
+          {isConversationSnoozed(conversation)
+            ? formatSnoozedUntil(conversation.snoozed_until)
+            : "Follow-up due"}
+        </span>
+        <button
+          type="button"
+          onClick={onUnsnooze}
+          disabled={disabled}
+          className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-sky-200 text-sky-800 text-[12px] font-semibold cursor-pointer hover:border-sky-300 disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
+        >
+          Unsnooze
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      aria-label="Snooze conversation"
+      defaultValue=""
+      disabled={disabled}
+      onChange={(event) => {
+        const until = snoozeUntilForPreset(event.target.value);
+        event.target.value = "";
+        if (!until) return;
+        onSnooze?.(until.toISOString());
+      }}
+      className="h-8 rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-brand-yellow font-[inherit]"
+      title="Pause this conversation until later."
+    >
+      <option value="">Snooze</option>
+      <option value="one_hour">1 hour</option>
+      <option value="later_today">Later today</option>
+      <option value="tomorrow">Tomorrow morning</option>
+    </select>
   );
 }

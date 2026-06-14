@@ -5,7 +5,7 @@
 // needs review so the inbox title row reads like a control surface
 // rather than static text. Only one chip can be active at a time —
 // clicking the active chip clears the filter.
-// color: "purple" | "amber" | "emerald" | "rose" — falls back to slate.
+// color: "purple" | "amber" | "emerald" | "rose" | "sky" — falls back to slate.
 // ============================================================
 
 const FILTER_CHIP_PALETTES = {
@@ -28,6 +28,11 @@ const FILTER_CHIP_PALETTES = {
     dot: "bg-rose-500",
     active: "bg-rose-100 border-rose-300 text-rose-900",
     idle: "bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700",
+  },
+  sky: {
+    dot: "bg-sky-500",
+    active: "bg-sky-100 border-sky-300 text-sky-900",
+    idle: "bg-white border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-800",
   },
   default: {
     dot: "bg-slate-400",
