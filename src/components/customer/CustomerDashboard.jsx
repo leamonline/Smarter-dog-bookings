@@ -204,23 +204,13 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     [bookings, olderBookings, today]
   );
 
-  // Status line — shown beneath the welcome tagline. Three flavours:
-  //   • next groom upcoming  → neutral ("Next groom: …")
+  // Status line — shown beneath the welcome tagline ONLY when there's no
+  // upcoming booking, so it doesn't repeat the BookingCard (the single
+  // source of truth for the next groom). Two flavours:
   //   • last groom ≥ 6 weeks → amber ("Alfie's last groom was X — due for another?")
   //   • last groom < 6 weeks → mute  ("Alfie's last groom was X weeks ago")
   const statusLine = useMemo(() => {
-    if (upcomingBookings.length > 0) {
-      const next = upcomingBookings[0];
-      const d = new Date(next.booking_date + "T00:00:00");
-      const dayLabel = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-      const [h, m] = next.slot.split(":").map(Number);
-      const suffix = h >= 12 ? "pm" : "am";
-      const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-      return {
-        tone: "neutral",
-        text: `Next groom: ${dayLabel}, ${hour}:${m.toString().padStart(2, "0")}${suffix}`,
-      };
-    }
+    if (upcomingBookings.length > 0) return null;
     if (pastBookings.length === 0) return null;
     const last = pastBookings[0];
     const lastDog = last.dogs?.name || dogs[0]?.name || "your pup";

@@ -92,7 +92,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
         rescheduleFrom: {
           id: next.id,
           groupId: next.group_id || null,
-          dateLabel: `${day} ${dateStr}`,
+          dateLabel: dateStr,
           timeLabel: timeStr,
           dogName,
         },
@@ -125,7 +125,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     <>
       <div className="portal-booking-card portal-booking-card--booked portal-section--full">
         <h2 className="portal-booking-card-title">
-          Next groom: {day} {dateStr}, {timeStr}
+          Next groom: {day}, {timeStr}
         </h2>
         <p className="portal-booking-card-body">
           Drop off time is {timeStr}, please ring the doorbell on arrival. We&apos;ll text you when {dogName}&apos;s ready.
