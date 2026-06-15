@@ -139,7 +139,7 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               type="text"
               readOnly
               value={feedUrl}
-              className="flex-1 bg-transparent border-none text-[11px] text-[var(--sd-navy-soft)] font-mono outline-none min-w-0"
+              className="flex-1 bg-transparent border-none text-[16px] text-[var(--sd-navy-soft)] font-mono outline-none min-w-0"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button

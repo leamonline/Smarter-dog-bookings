@@ -160,7 +160,6 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
             <div className="portal-inline-form-row">
               <input
                 required
-                autoFocus
                 aria-label="First name"
                 placeholder="First name"
                 value={form.name}

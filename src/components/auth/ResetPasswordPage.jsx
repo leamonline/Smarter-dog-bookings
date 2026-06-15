@@ -171,7 +171,7 @@ export function ResetPasswordPage() {
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
               placeholder="Min. 12 characters"
-              className="w-full py-3 px-4 rounded-control border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-teal"
+              className="w-full py-3 px-4 rounded-control border-[1.5px] border-slate-200 text-base font-[inherit] box-border outline-none text-slate-800 focus:border-brand-teal"
               autoFocus
             />
           </div>
@@ -184,7 +184,7 @@ export function ResetPasswordPage() {
               value={confirm}
               onChange={e => { setConfirm(e.target.value); setError(""); }}
               placeholder="Same again"
-              className="w-full py-3 px-4 rounded-control border-[1.5px] border-slate-200 text-sm font-[inherit] box-border outline-none text-slate-800 focus:border-brand-teal"
+              className="w-full py-3 px-4 rounded-control border-[1.5px] border-slate-200 text-base font-[inherit] box-border outline-none text-slate-800 focus:border-brand-teal"
             />
           </div>
 

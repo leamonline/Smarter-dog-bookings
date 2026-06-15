@@ -634,7 +634,11 @@
   border: 1.5px solid rgba(45, 0, 75, 0.14);
   background: var(--sd-white);
   font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
+  /* 16px is the threshold below which iOS Safari auto-zooms the viewport
+     when a field is focused. Keep all portal fields at 16px so focusing
+     them never zooms the page (the box is padding-based, so it just grows
+     a couple of px rather than reflowing). */
+  font-size: 16px;
   font-weight: 500;
   color: var(--sd-navy);
   outline: none;
@@ -657,8 +661,10 @@
 
 /* --- Input size variant --- */
 .portal-input--sm {
+  /* Keeps the tighter padding for a visually smaller control, but the
+     font stays at 16px so iOS doesn't zoom on focus (see .portal-input). */
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: 16px;
   border-radius: 10px;
 }
 
