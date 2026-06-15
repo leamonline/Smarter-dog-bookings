@@ -98,7 +98,8 @@ export const WHATSAPP_TEMPLATES = [
     name: "ready_for_collection_v1",
     label: "Ready for Collection",
     description: "Tell the owner or a trusted contact the dog is ready to collect",
-    status: "pending",
+    // Approved & live in Meta (verified 2026-06-15: 34 sends read by customers).
+    status: "approved",
     language: "en_GB",
     params: [
       { key: "dog_name", label: "Dog name", autoFill: "dog_name_select" },
@@ -108,15 +109,14 @@ export const WHATSAPP_TEMPLATES = [
       `Hi! ${values.dog_name || PLACEHOLDER.dog_name} is all done and ready for collection in ${values.minutes || PLACEHOLDER.minutes} mins. See you soon — Smarter Dog Grooming Salon.`,
   },
   {
-    // PENDING Meta approval (as of 2026-06-09). Sent automatically when staff
-    // approve a "Join the Pack" self-signup. Until this template is Approved in
-    // Meta Business Manager → WhatsApp Manager → Message Templates, sends fail
-    // with a 132xxx gateway error and the welcome edge function falls back to
-    // SMS / email. Same caveat as ready_for_collection_v1 above.
+    // Approved & live in Meta (verified 2026-06-15: welcome sends read by
+    // customers). Sent automatically when staff approve a "Join the Pack"
+    // self-signup; the welcome edge function still falls back to SMS / email
+    // when the customer has no WhatsApp / has opted out.
     name: "welcome_to_the_pack_v1",
     label: "Welcome to the Pack",
     description: "Welcome a newly-approved self-signup customer",
-    status: "pending",
+    status: "approved",
     language: "en_GB",
     params: [
       { key: "customer_first_name", label: "Customer first name", autoFill: "customer_first_name" },

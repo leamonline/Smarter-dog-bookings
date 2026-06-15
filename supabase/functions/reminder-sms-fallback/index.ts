@@ -40,6 +40,8 @@ interface ReminderRow {
   message_text: string | null;
   provider_message_id: string | null;
   status: string;
+  trigger_type: string;
+  created_at: string;
 }
 
 // POST to another edge function with the trusted server-to-server creds
@@ -95,8 +97,8 @@ serve(async (req) => {
 
     const { data: rows, error } = await supabase
       .from("notification_log")
-      .select("id, booking_id, human_id, message_text, provider_message_id, status")
-      .eq("trigger_type", "reminder")
+      .select("id, booking_id, human_id, message_text, provider_message_id, status, trigger_type, created_at")
+      .in("trigger_type", ["reminder", "confirmed"])
       .eq("channel", "whatsapp")
       .in("status", ["sent", "failed"])
       .lt("created_at", olderThan1h)
@@ -143,35 +145,48 @@ serve(async (req) => {
       }
     }
 
-    // 4. Which reminders still need an SMS chase?
+    // 4. Which sends still need an SMS chase? Soften the "not delivered"
+    //    signal so we don't double-message someone who already got the
+    //    WhatsApp when Meta's delivered/read webhook merely lagged:
+    //      • a send-time or Meta-reported FAILURE → chase after the 1h window;
+    //      • delivered / read                     → never chase;
+    //      • no positive receipt yet ('sent', or a missing/lost webhook) →
+    //        wait a longer 6h grace before texting.
+    const olderThan6h = Date.now() - 6 * 60 * 60 * 1000;
     const needsSms = candidates.filter((r) => {
       if (!r.message_text) return false; // nothing to resend
       if (!r.booking_id || !activeBooking.has(r.booking_id)) return false;
-      if (r.status === "failed") return true; // WhatsApp send failed outright
-      // status === 'sent': chase unless Meta confirmed delivered/read.
+      if (r.status === "failed") return true; // whatsapp-send returned failure
+      // status === 'sent': decide by the Meta delivery receipt.
       if (!r.provider_message_id) return false; // can't verify — assume it landed
       const d = deliveryByMetaId.get(r.provider_message_id);
-      return !(d && DELIVERED.has(d));
+      if (d && DELIVERED.has(d)) return false; // delivered / read → done
+      if (d === "failed") return true; // Meta reported the send failed → chase
+      // No positive receipt yet → only chase once well past the grace window.
+      return new Date(r.created_at).getTime() < olderThan6h;
     });
 
     if (needsSms.length === 0) {
       return json({ checked: candidates.length, sms_sent: 0 });
     }
 
-    // 5. Group by customer — one SMS per customer covers all their bookings
-    //    that day (they all came from one WhatsApp reminder, same wording).
-    const byHuman = new Map<string, ReminderRow[]>();
+    // 5. Group by (customer, original trigger) — one SMS per group. A customer
+    //    with both an undelivered reminder AND confirmation gets one of each,
+    //    logged under the matching <trigger>_sms_fallback type.
+    const byGroup = new Map<string, ReminderRow[]>();
     for (const r of needsSms) {
       if (!r.human_id) continue;
-      if (!byHuman.has(r.human_id)) byHuman.set(r.human_id, []);
-      byHuman.get(r.human_id)!.push(r);
+      const key = `${r.human_id}|${r.trigger_type}`;
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key)!.push(r);
     }
 
     // Contact details + SMS opt-out (PECR — never text an opted-out number).
+    const humanIds = [...new Set([...byGroup.values()].flat().map((r) => r.human_id!))];
     const { data: humans } = await supabase
       .from("humans")
       .select("id, phone, sms_opted_out")
-      .in("id", [...byHuman.keys()]);
+      .in("id", humanIds);
     const humanById = new Map(
       ((humans ?? []) as { id: string; phone: string | null; sms_opted_out: boolean | null }[])
         .map((h) => [h.id, h]),
@@ -180,23 +195,26 @@ serve(async (req) => {
     let smsSent = 0;
     let skipped = 0;
 
-    for (const [humanId, hRows] of byHuman) {
+    for (const gRows of byGroup.values()) {
+      const humanId = gRows[0].human_id!;
+      const originalTrigger = gRows[0].trigger_type; // 'reminder' | 'confirmed'
       const h = humanById.get(humanId);
       if (!h?.phone || h.sms_opted_out) {
         skipped++;
         continue;
       }
 
-      // Claim idempotency BEFORE sending: one reminder_sms_fallback row per
+      // Claim idempotency BEFORE sending: one <trigger>_sms_fallback row per
       // booking. The partial unique index (booking_id, trigger_type) WHERE
       // status IN ('pending','sent') makes a re-run's insert fail with
       // 23505 — so we never double-text.
-      const bookingRows = hRows.filter((r) => r.booking_id);
+      const fallbackTrigger = `${originalTrigger}_sms_fallback`;
+      const bookingRows = gRows.filter((r) => r.booking_id);
       const pendingEntries = bookingRows.map((r) => ({
         booking_id: r.booking_id,
         human_id: humanId,
         channel: "sms",
-        trigger_type: "reminder_sms_fallback",
+        trigger_type: fallbackTrigger,
         status: "pending",
         message_text: r.message_text,
       }));
@@ -208,19 +226,19 @@ serve(async (req) => {
 
       if (insErr) {
         if (insErr.code === "23505") {
-          skipped++; // already chased this customer
+          skipped++; // already chased this customer for this trigger
           continue;
         }
         console.error("reminder-sms-fallback: pending insert failed:", insErr.message);
         continue;
       }
 
-      const text = hRows[0].message_text!;
+      const text = gRows[0].message_text!;
       const result = await invokeInternal("sms-send", {
         mode: "template",
         to: h.phone,
         text,
-        template_name: "appointment_reminder",
+        template_name: originalTrigger === "confirmed" ? "booking_confirmed" : "appointment_reminder",
         human_id: humanId,
       });
       const ok = result.ok && result.body.ok === true;

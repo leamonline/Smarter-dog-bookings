@@ -414,8 +414,10 @@ serve(async (req) => {
           params: [firstName, dogNames, appointmentWhen],
           human_id: h.id,
         });
-        sent = result.ok && result.body.ok === true;
         providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+        // A null meta_message_id means whatsapp-send returned ok but Meta
+        // produced no message — treat as a failure, not a silent 'sent'.
+        sent = result.ok && result.body.ok === true && providerMessageId != null;
         if (!sent) {
           console.error(`reminder whatsapp-send failed for ${groupKey}:`, result.status, JSON.stringify(result.body));
         }

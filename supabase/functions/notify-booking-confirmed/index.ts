@@ -161,6 +161,9 @@ serve(async (req) => {
       channel,
       trigger_type: "confirmed",
       status: "pending",
+      // Stored so reminder-sms-fallback can resend this exact wording over SMS
+      // if the WhatsApp confirmation isn't delivered.
+      message_text: message,
     }));
 
     const { data: pendingRows, error: pendingError } = await supabase
@@ -190,8 +193,10 @@ serve(async (req) => {
         params: [firstName, dogNames, appointmentWhen, serviceName],
         human_id: human.id,
       });
-      sent = result.ok && result.body.ok === true;
       providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+      // A null meta_message_id means whatsapp-send returned ok but Meta
+      // produced no message — treat as a failure, not a silent 'sent'.
+      sent = result.ok && result.body.ok === true && providerMessageId != null;
       if (!sent) console.error("confirmed whatsapp-send failed:", result.status, JSON.stringify(result.body));
     } else if (channel === "sms") {
       const result = await invokeInternal("sms-send", {
