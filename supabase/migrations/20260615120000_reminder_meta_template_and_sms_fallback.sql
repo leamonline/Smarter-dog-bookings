@@ -54,6 +54,12 @@ ALTER TABLE notification_log
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
+-- AUTH: these jobs read the webhook secret via get_webhook_secret()
+-- (Supabase Vault, migration 040), NOT current_setting('app.webhook_secret').
+-- That GUC is empty on this project — using it sends an empty Bearer token
+-- and every cron call 401s silently. Always copy the get_webhook_secret()
+-- pattern for new scheduled jobs / triggers.
+
 -- Drop the old 18:00 UTC reminder job and our own jobs (so re-applying
 -- this migration is clean). unschedule-by-jobid returns no rows when the
 -- job is absent, so this never errors.
@@ -77,7 +83,10 @@ SELECT cron.schedule(
   $$
     SELECT net.http_post(
       url := 'https://nlzhllhkigmsvrzduefz.supabase.co/functions/v1/notify-booking-reminder',
-      headers := '{"Authorization": "Bearer ' || current_setting('app.webhook_secret', true) || '", "Content-Type": "application/json"}'::jsonb,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || coalesce(get_webhook_secret(), '')
+      ),
       body := '{"at_hour_uk": 15}'::jsonb
     );
   $$
@@ -89,7 +98,10 @@ SELECT cron.schedule(
   $$
     SELECT net.http_post(
       url := 'https://nlzhllhkigmsvrzduefz.supabase.co/functions/v1/notify-booking-reminder',
-      headers := '{"Authorization": "Bearer ' || current_setting('app.webhook_secret', true) || '", "Content-Type": "application/json"}'::jsonb,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || coalesce(get_webhook_secret(), '')
+      ),
       body := '{"at_hour_uk": 15}'::jsonb
     );
   $$
@@ -104,7 +116,10 @@ SELECT cron.schedule(
   $$
     SELECT net.http_post(
       url := 'https://nlzhllhkigmsvrzduefz.supabase.co/functions/v1/reminder-sms-fallback',
-      headers := '{"Authorization": "Bearer ' || current_setting('app.webhook_secret', true) || '", "Content-Type": "application/json"}'::jsonb,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || coalesce(get_webhook_secret(), '')
+      ),
       body := '{}'::jsonb
     );
   $$
