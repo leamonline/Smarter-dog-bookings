@@ -340,9 +340,23 @@ export function CustomerLoginPage({
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]">
-        {/* Decorative scatter of the brand dog silhouette behind the form. */}
-        <DogSilhouetteScatter />
+      <div
+        className="w-full max-w-md bg-white rounded-3xl px-10 py-12 border border-[rgba(45,0,75,0.07)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]"
+        style={{
+          boxShadow:
+            "0 2px 4px rgba(45,0,75,0.05), 0 16px 40px -14px rgba(45,0,75,0.15), 0 34px 72px -28px rgba(16,194,252,0.24)",
+        }}
+      >
+        {/* Brand-gradient ribbon along the very top edge for a polished,
+            branded finish (clipped to the card's rounded corners). */}
+        <div
+          aria-hidden="true"
+          className="absolute top-0 left-0 right-0 h-1.5"
+          style={{ background: "linear-gradient(90deg, var(--sd-cyan), var(--sd-yellow) 55%, var(--sd-coral))" }}
+        />
+        {/* Decorative scatter of the brand dog silhouette behind the form,
+            drifting gently. */}
+        <DogSilhouetteScatter animated />
 
         <div className="relative">
           {/* Logo first — strongest possible "you're in the right place" signal

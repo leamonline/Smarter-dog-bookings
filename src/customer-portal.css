@@ -730,6 +730,26 @@
   50% { transform: translateY(-8px); }
 }
 
+/* Decorative dog silhouettes drifting gently behind the sign-in card.
+   The wrapper animates translate + a faint rotate wobble; the inner span
+   keeps the static base rotation. Per-silhouette --dur/--delay/--dist/
+   --dx/--wob make each drift independently for an organic feel. */
+@keyframes dogDrift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% {
+    transform: translate(var(--dx, 4px), calc(-1 * var(--dist, 10px)))
+      rotate(var(--wob, 2deg));
+  }
+}
+.dog-silhouette--float {
+  animation: dogDrift var(--dur, 8s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dog-silhouette--float { animation: none; }
+}
+
 /* --- Loading --- */
 .portal-loading {
   min-height: 100vh;
