@@ -196,16 +196,36 @@ async function recordEmailInbox(
       console.warn(`reminder-send: no conversation/phone for human ${humanId}; email not threaded`);
       return;
     }
+    // Open a dedicated 'email' conversation for this customer. Race-safe:
+    // a concurrent reminder (or the inbound webhook) could insert the same
+    // (phone_e164, channel) row between the select above and here, and that
+    // pair is UNIQUE (whatsapp_conversations_phone_channel_key). ON CONFLICT
+    // DO NOTHING (ignoreDuplicates) dodges the 23505; DO NOTHING returns no
+    // row when one already exists, so we re-fetch by (phone_e164, 'email')
+    // to get the id whether we or the racing writer won. Mirrors the inbound
+    // bootstrap upsert in whatsapp-agent/handler.ts (onConflict composite).
     const { data: created, error: createErr } = await supabase
       .from("whatsapp_conversations")
-      .insert({ phone_e164: phoneE164, channel: "email", human_id: humanId, state: "ai_handling" })
+      .upsert(
+        { phone_e164: phoneE164, channel: "email", human_id: humanId, state: "ai_handling" },
+        { onConflict: "phone_e164,channel", ignoreDuplicates: true },
+      )
       .select("id")
-      .single();
+      .maybeSingle();
     if (createErr) {
       console.error("reminder-send: email conversation create failed:", createErr);
       return;
     }
     conversationId = created?.id ?? null;
+    if (!conversationId) {
+      const { data: existingEmail } = await supabase
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("phone_e164", phoneE164)
+        .eq("channel", "email")
+        .maybeSingle();
+      conversationId = existingEmail?.id ?? null;
+    }
   }
   if (!conversationId) return;
 
