@@ -1357,7 +1357,10 @@ async function saveBookingAction(
       return;
     }
 
-    const effectiveSize = action.size ?? dog.size ?? "small";
+    // The dog's recorded size is authoritative — never let the model-supplied
+    // action.size under-size a large dog (capacity + pricing bypass). The RPC
+    // also reads dogs.size at insert; this keeps the capacity pre-check honest.
+    const effectiveSize = dog.size ?? action.size ?? "small";
 
     const capacity = await checkSlotCapacity(
       supabase,

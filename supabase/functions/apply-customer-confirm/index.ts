@@ -118,6 +118,26 @@ function isCapacityError(message: string): boolean {
   return CAPACITY_ERROR_HINTS.some((hint) => lower.includes(hint.toLowerCase()));
 }
 
+// validate_booking_calendar (migration 20260615160000) raises these P0001
+// messages when a (re)schedule lands on a closed/blocked/past day or an
+// invalid slot; the bookings_one_active_per_dog_slot unique index raises a
+// 23505 duplicate-key on a same-dog double-book. Like capacity errors, these
+// all mean "that slot isn't bookable" — a graceful customer rejection rather
+// than an unhandled 500 that strands the action at state='confirmed'.
+const CALENDAR_CONFLICT_HINTS = [
+  "salon is closed",
+  "time slot is closed",
+  "invalid slot",
+  "date in the past",
+  "duplicate key",
+  "bookings_one_active_per_dog_slot",
+];
+
+function isCalendarOrConflictError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return CALENDAR_CONFLICT_HINTS.some((hint) => lower.includes(hint));
+}
+
 // Defence-in-depth: confirm the booking we're about to mutate belongs to the
 // same customer as the action's conversation. The action row's booking id
 // comes from the agent's per-customer context, but this is the independent
@@ -282,6 +302,24 @@ serve(async (req) => {
           );
           return new Response("slot_gone", { status: 200 });
         }
+        // Closed/blocked/past day or a same-dog double-book (the calendar +
+        // uniqueness guards). Reject gracefully rather than 500 + stranding
+        // the action at 'confirmed'.
+        if (isCalendarOrConflictError(msg)) {
+          await supabase
+            .from("whatsapp_booking_actions")
+            .update({
+              state: "rejected_by_customer",
+              rejection_reason: `unbookable_slot: ${msg}`.slice(0, 500),
+            })
+            .eq("id", action.id)
+            .eq("state", "confirmed");
+          await sendAckText(
+            action.conversation_id,
+            "Ah, that slot's not available — let me check what else is open. 🎓🐶❤️ X",
+          );
+          return new Response("slot_unavailable", { status: 200 });
+        }
         // Anything else: real failure — fall through to the catch's
         // staff-queue fallback so the lead isn't lost.
         throw new Error(msg);
@@ -420,6 +458,24 @@ serve(async (req) => {
             "Ah, that new slot just went — let me check what else is open. 🎓🐶❤️ X",
           );
           return new Response("slot_gone", { status: 200 });
+        }
+        // Closed/blocked/past day or a same-dog double-book (the new calendar
+        // + uniqueness guards). Reject gracefully rather than throwing a 500
+        // that strands the action at state='confirmed'.
+        if (isCalendarOrConflictError(msg)) {
+          await supabase
+            .from("whatsapp_booking_actions")
+            .update({
+              state: "rejected_by_customer",
+              rejection_reason: `unbookable_slot: ${msg}`.slice(0, 500),
+            })
+            .eq("id", action.id)
+            .eq("state", "confirmed");
+          await sendAckText(
+            action.conversation_id,
+            "Ah, that slot's not available — let me check what else is open. 🎓🐶❤️ X",
+          );
+          return new Response("slot_unavailable", { status: 200 });
         }
         throw new Error(msg);
       }
