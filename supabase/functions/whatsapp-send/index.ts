@@ -528,11 +528,19 @@ async function handleTemplateMode(
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
     const phoneE164 = toE164(body.to);
-    const { data: conv } = await supabase
+    // Pick the oldest (canonical) conversation for this phone. Using
+    // limit(1) rather than maybeSingle() means a duplicate-conversation
+    // row — which predates the phone-uniqueness guard — can't error this
+    // lookup. That error used to fall through to a blocked insert, leaving
+    // conversationId null so the sent template silently never appeared in
+    // /inbox (which is exactly what reminders need to do).
+    const { data: convs } = await supabase
       .from("whatsapp_conversations")
       .select("id, human_id")
       .eq("phone_e164", phoneE164)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const conv = convs?.[0];
     if (conv?.id) {
       conversationId = conv.id;
       // Backfill human_id if the caller knows it and the existing row

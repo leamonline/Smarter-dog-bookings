@@ -125,12 +125,17 @@ async function resolveOrCreateConversation(
   phoneE164: string,
   humanId: string | null,
 ): Promise<string | null> {
-  const { data: existing } = await supabase
+  // limit(1) on the oldest, not maybeSingle(): tolerate a duplicate
+  // conversation row for this phone instead of erroring (which would fall
+  // through to a blocked insert and drop the outbound from /inbox).
+  const { data: rows } = await supabase
     .from("whatsapp_conversations")
     .select("id, human_id")
     .eq("phone_e164", phoneE164)
     .eq("channel", "sms")
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const existing = rows?.[0];
   if (existing?.id) {
     if (humanId && !existing.human_id) {
       await supabase
