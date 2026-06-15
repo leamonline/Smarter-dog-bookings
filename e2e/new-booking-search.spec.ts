@@ -22,10 +22,16 @@ test.describe("New Booking dog search", () => {
   }) => {
     await page.getByPlaceholder(/start typing a dog's name/i).fill("lun");
 
+    // Scope to the New Booking dialog. The same dog (Luna) is also rendered
+    // on the week calendar *behind* the modal, so an unscoped getByText("Luna")
+    // matches two elements and trips Playwright strict mode. The search result
+    // we care about lives inside the dialog — assert there.
+    const dialog = page.getByRole("dialog");
+
     // The regression: this used to sit on "Searching..." forever.
-    await expect(page.getByText("Luna")).toBeVisible();
-    await expect(page.getByText("Emma Wilson")).toBeVisible();
-    await expect(page.getByText("Searching...")).not.toBeVisible();
+    await expect(dialog.getByText("Luna")).toBeVisible();
+    await expect(dialog.getByText("Emma Wilson")).toBeVisible();
+    await expect(dialog.getByText("Searching...")).not.toBeVisible();
   });
 
   test("a query with no matches resolves to the no-results state", async ({
