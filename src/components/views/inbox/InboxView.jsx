@@ -52,6 +52,7 @@ import { GenerateReplyButton } from "./thread/GenerateReplyButton.jsx";
 import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
 import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
 import { useCustomerContext } from "./hooks/useCustomerContext.js";
+import { useFillViewportHeight } from "./hooks/useFillViewportHeight.js";
 
 export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
@@ -405,6 +406,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // Mobile: show detail when a conversation is selected
   const showDetailOnMobile = !!selectedId;
 
+  // Fill from the shell's real top edge to the viewport bottom rather
+  // than guessing the top chrome with a magic number — robust to the
+  // toolbar wrapping or a banner appearing. The h-[calc(...)] class
+  // stays as the first-paint fallback until the hook measures.
+  const rootRef = useRef(null);
+  const fillHeight = useFillViewportHeight(rootRef);
+
   // Thread auto-scroll. Opening a conversation always lands on the newest
   // message; new messages within the SAME conversation only scroll down
   // when staff are already near the bottom, so reading back through
@@ -433,7 +441,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
 
   return (
-    <div className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]">
+    <div
+      ref={rootRef}
+      style={fillHeight ? { height: `${fillHeight}px` } : undefined}
+      className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
+    >
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -720,7 +732,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               <div
                 ref={threadScrollRef}
                 onScroll={handleThreadScroll}
-                className="flex-1 min-h-[180px] overflow-y-auto px-4 py-3 bg-brand-paper"
+                className="flex-1 min-h-0 overflow-y-auto px-4 py-3 bg-brand-paper"
               >
                 {loadingDetail ? (
                   <ThreadSkeleton bubbles={5} />

@@ -24,7 +24,8 @@ import { WHATSAPP_TEMPLATES } from "../../../../constants/whatsappTemplates.js";
 export type ParsedMessageContent =
   | { kind: "text"; text: string }
   | { kind: "template"; templateId: string; values: string[]; rawArgs: string }
-  | { kind: "reaction"; emoji: string | null };
+  | { kind: "reaction"; emoji: string | null }
+  | { kind: "media"; mediaType: string; icon: string; label: string };
 
 // Outbound template sends are flattened to "[template:<id>] <args>"
 // before they're stored. Capture the id and whatever trails it.
@@ -34,6 +35,33 @@ const TEMPLATE_RE = /^\[template:([^\]]+)\]\s*([\s\S]*)$/;
 // Match defensively on the "[reaction" prefix so minor wording drift in
 // the upstream writer still renders as a reaction rather than raw text.
 const REACTION_RE = /^\[reaction\b[\s\S]*\]$/i;
+
+// Non-text inbound (photos, voice notes, etc.) are stored by the webhook
+// ingestion (supabase/functions/_shared/inboundMessage.ts) as
+// "[<type> message — no text content]". Capture the type so the thread
+// and list show a friendly chip instead of that raw bracket text. The
+// dash is matched loosely (em-dash / hyphen) to survive wording drift.
+const MEDIA_RE = /^\[(\w+) message\b[\s\S]*\]$/i;
+
+// Friendly icon + label per WhatsApp media type. Unknown types fall back
+// to a generic "Attachment" so a new Meta type never leaks raw text.
+const MEDIA_PRESENTATION: Record<string, { icon: string; label: string }> = {
+  image: { icon: "📷", label: "Photo" },
+  video: { icon: "🎬", label: "Video" },
+  audio: { icon: "🎙️", label: "Voice message" },
+  voice: { icon: "🎙️", label: "Voice message" },
+  ptt: { icon: "🎙️", label: "Voice message" },
+  document: { icon: "📄", label: "Document" },
+  sticker: { icon: "🎨", label: "Sticker" },
+  location: { icon: "📍", label: "Location" },
+  contacts: { icon: "👤", label: "Contact card" },
+};
+
+// "reaction" also matches MEDIA_RE's shape, so reactions are checked
+// first in parseMessageContent. These are the types we treat as media.
+export function mediaPresentation(mediaType: string): { icon: string; label: string } {
+  return MEDIA_PRESENTATION[mediaType.toLowerCase()] ?? { icon: "📎", label: "Attachment" };
+}
 
 // WhatsApp joins template params with this exact separator
 // (params.join(" · ")), so splitting on it recovers the ordered values.
@@ -67,7 +95,29 @@ export function parseMessageContent(
     return { kind: "reaction", emoji: extractEmoji(trimmed) };
   }
 
+  // Reactions share the "[<word> message …]" shape, so they're matched
+  // above first. Everything else of that shape is a media placeholder.
+  const media = trimmed.match(MEDIA_RE);
+  if (media) {
+    const mediaType = media[1].toLowerCase();
+    const { icon, label } = mediaPresentation(mediaType);
+    return { kind: "media", mediaType, icon, label };
+  }
+
   return { kind: "text", text: content };
+}
+
+/**
+ * One-line preview text for the conversation list. Turns a media
+ * placeholder into "📷 Photo" etc. and leaves plain text / friendly
+ * reactions ("Reacted 👍") untouched. Used for last_customer_text so
+ * the list never shows raw "[image message …]" bracket text.
+ */
+export function previewMessageText(content: string | null | undefined): string {
+  if (content == null || content.trim() === "") return "";
+  const parsed = parseMessageContent(content);
+  if (parsed.kind === "media") return `${parsed.icon} ${parsed.label}`;
+  return content;
 }
 
 // Best-effort emoji pull for reactions. Today's placeholder carries no

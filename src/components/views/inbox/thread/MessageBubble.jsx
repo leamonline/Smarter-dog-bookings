@@ -89,6 +89,11 @@ export function MessageBubble({ message }) {
             </div>
             {template.body}
           </>
+        ) : parsed.kind === "media" ? (
+          <span className="inline-flex items-center gap-1.5 text-slate-600 italic">
+            <span aria-hidden="true" className="not-italic text-[15px]">{parsed.icon}</span>
+            {parsed.label}
+          </span>
         ) : (
           message.content ?? <span className="italic text-slate-500">(non-text message)</span>
         )}

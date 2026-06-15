@@ -105,6 +105,22 @@ describe("MessageBubble — special message rendering", () => {
     expect(screen.getByText("Can I move Cooper to Tuesday?")).toBeInTheDocument();
   });
 
+  it("renders an inbound photo as a friendly chip, not the raw placeholder", () => {
+    const { container } = render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "inbound",
+          content: "[image message — no text content]",
+        }}
+      />,
+    );
+    expect(screen.getByText("Photo")).toBeInTheDocument();
+    expect(container.textContent).toContain("📷");
+    expect(container.textContent).not.toContain("no text content");
+    expect(container.textContent).not.toContain("[image");
+  });
+
   it("makes failed outbound sends prominent and names the failure reason", () => {
     render(
       <MessageBubble

@@ -15,6 +15,7 @@ import {
   inboxWindowBadge,
   isConversationSnoozed,
 } from "../helpers.js";
+import { previewMessageText } from "../thread/messageContent";
 import { StatusPill } from "../StatusPill.jsx";
 
 const SUGGESTED_REASON_LABEL = {
@@ -79,7 +80,7 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
       </div>
       <div className="flex justify-between items-center gap-2">
         <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-600"}`}>
-          {conv.last_customer_text ?? "(no text)"}
+          {previewMessageText(conv.last_customer_text) || "(no text)"}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {conv.needs_human_review && (

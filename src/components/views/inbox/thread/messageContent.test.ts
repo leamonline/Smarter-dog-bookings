@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseMessageContent, presentTemplate } from "./messageContent";
+import {
+  parseMessageContent,
+  presentTemplate,
+  previewMessageText,
+} from "./messageContent";
 
 describe("parseMessageContent", () => {
   it("parses a WhatsApp template send into id + ordered values", () => {
@@ -55,6 +59,54 @@ describe("parseMessageContent", () => {
     expect(parseMessageContent(null)).toEqual({ kind: "text", text: "" });
     expect(parseMessageContent(undefined)).toEqual({ kind: "text", text: "" });
     expect(parseMessageContent("")).toEqual({ kind: "text", text: "" });
+  });
+
+  it("classifies a media placeholder into a labelled media kind", () => {
+    expect(parseMessageContent("[image message — no text content]")).toEqual({
+      kind: "media",
+      mediaType: "image",
+      icon: "📷",
+      label: "Photo",
+    });
+    expect(parseMessageContent("[audio message — no text content]")).toMatchObject({
+      kind: "media",
+      mediaType: "audio",
+      label: "Voice message",
+    });
+  });
+
+  it("falls back to a generic attachment for unknown media types", () => {
+    expect(parseMessageContent("[contacts message — no text content]")).toMatchObject({
+      kind: "media",
+      label: "Contact card",
+    });
+    expect(parseMessageContent("[widget message — no text content]")).toMatchObject({
+      kind: "media",
+      mediaType: "widget",
+      label: "Attachment",
+    });
+  });
+
+  it("still treats reactions as reactions, not media", () => {
+    expect(parseMessageContent("[reaction message — no text content]").kind).toBe("reaction");
+  });
+});
+
+describe("previewMessageText", () => {
+  it("turns a media placeholder into an icon + label preview", () => {
+    expect(previewMessageText("[image message — no text content]")).toBe("📷 Photo");
+  });
+
+  it("leaves plain text and friendly reactions untouched", () => {
+    expect(previewMessageText("Can I move Cooper to Tuesday?")).toBe(
+      "Can I move Cooper to Tuesday?",
+    );
+    expect(previewMessageText("Reacted 👍")).toBe("Reacted 👍");
+  });
+
+  it("returns an empty string for null / empty content", () => {
+    expect(previewMessageText(null)).toBe("");
+    expect(previewMessageText("")).toBe("");
   });
 });
 
