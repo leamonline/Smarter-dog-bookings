@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
@@ -9,10 +8,36 @@ import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
-// Twilio creds are read inside ../_shared/twilio.ts (TWILIO_ACCOUNT_SID,
-// TWILIO_API_KEY/SECRET or TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID
-// or TWILIO_SMS_FROM, TWILIO_WHATSAPP_FROM).
+// Shared secret for the internal calls to whatsapp-send / sms-send. The
+// WhatsApp confirmation now goes out as the approved Meta template
+// booking_confirmed_v1 (and SMS via sms-send) so it lands in the staff
+// inbox with a delivery status — instead of free-text via Twilio, which
+// never recorded to /inbox and wouldn't deliver outside the 24h window.
+const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 // SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
+
+// ── Internal-call helper (mirrors notify-booking-reminder) ──────────────────
+async function invokeInternal(
+  fn: string,
+  payload: unknown,
+): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": SEND_INTERNAL_SECRET,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  let body: Record<string, unknown> = {};
+  try {
+    body = await res.json();
+  } catch {
+    /* non-JSON */
+  }
+  return { ok: res.ok, status: res.status, body };
+}
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
@@ -115,6 +140,8 @@ serve(async (req) => {
     const dateFormatted = formatDate(booking.booking_date);
     const timeFormatted = formatTime(booking.slot);
     const serviceName = booking.service;
+    // Feeds the {{appointment_when}} slot of booking_confirmed_v1.
+    const appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
 
     const message =
       `Hi ${firstName}, ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} on ${dateFormatted} at ${timeFormatted}. ` +
@@ -149,24 +176,48 @@ serve(async (req) => {
       return new Response("Pending log insert failed", { status: 500 });
     }
 
-    // 7. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+    // 7. Send. WhatsApp via the approved Meta template booking_confirmed_v1
+    //    and SMS via sms-send — both record to the staff inbox with a
+    //    delivery status. Email stays direct via SendGrid.
     let sent = false;
+    let providerMessageId: string | null = null;
     if (channel === "whatsapp") {
-      sent = await sendWhatsAppBoolean(human.phone, message);
+      const result = await invokeInternal("whatsapp-send", {
+        mode: "template",
+        to: human.phone,
+        template_name: "booking_confirmed_v1",
+        language: "en_GB",
+        params: [firstName, dogNames, appointmentWhen, serviceName],
+        human_id: human.id,
+      });
+      sent = result.ok && result.body.ok === true;
+      providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+      if (!sent) console.error("confirmed whatsapp-send failed:", result.status, JSON.stringify(result.body));
     } else if (channel === "sms") {
-      sent = await sendSmsBoolean(human.phone, message);
+      const result = await invokeInternal("sms-send", {
+        mode: "template",
+        to: human.phone,
+        text: message,
+        template_name: "booking_confirmed",
+        human_id: human.id,
+      });
+      sent = result.ok && result.body.ok === true;
+      providerMessageId = (result.body.twilio_sid as string | null) ?? null;
+      if (!sent) console.error("confirmed sms-send failed:", result.status, JSON.stringify(result.body));
     } else {
       const subject = `Booking confirmed — ${dogNames} at Smarter Dog Grooming`;
-      sent = await sendEmail(human.email, subject, message);
+      sent = await sendEmail(human.email!, subject, message);
     }
 
-    // 8. Update the pending rows with the outcome.
+    // 8. Update the pending rows with the outcome. provider_message_id links
+    //    the WhatsApp send to its whatsapp_messages delivery status.
     const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
     await supabase
       .from("notification_log")
       .update({
         status: sent ? "sent" : "failed",
         sent_at: sent ? new Date().toISOString() : null,
+        provider_message_id: sent ? providerMessageId : null,
         error_message: sent ? null : "Delivery failed — check provider logs",
       })
       .in("id", pendingIds);
