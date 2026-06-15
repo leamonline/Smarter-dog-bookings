@@ -1,0 +1,109 @@
+name: Migration Drift Audit
+
+# Why this exists:
+# check-migrations-applied.yml is a per-change GATE — it only inspects the
+# migrations a PR/push ADDS (diff vs base), so it can never see a migration
+# that was committed BEFORE the gate existed, or one that slipped in while
+# the gate was failing/absent. That blind spot is exactly how
+# 20260525130000_messaging_channel_email.sql (committed 25 May) plus three
+# others (whatsapp_ai_action_audit, deactivate_calendar_tokens_on_unlink,
+# whatsapp_flow_sessions) sat unapplied on prod for weeks — two of them with
+# live deployed code depending on the missing schema.
+#
+# This workflow is the BACKSTOP: on a schedule (and on demand) it reconciles
+# EVERY committed migration in supabase/migrations/ against prod's applied
+# history, not just the current diff. It fails loudly if any committed
+# migration is missing on prod, so historical / pre-gate drift surfaces
+# instead of lurking.
+#
+# It does NOT block merges (and on GitHub Free there's no branch protection
+# to make it required anyway) — it's an alarm. A failed scheduled run emails
+# the repo admins, which is the point: you find out within a day, not weeks.
+#
+# Matching note (same rule as check-migrations-applied.yml): a migration
+# counts as applied if EITHER its 14-digit version OR its name (the part
+# after the timestamp) appears in prod's supabase_migrations.schema_migrations.
+# The name fallback is deliberate — applying via the Supabase MCP
+# (apply_migration) records its own timestamp, so versions drift from the
+# files; the name still matches.
+#
+# Secret required:
+#   SUPABASE_ACCESS_TOKEN — the same token deploy-edge-functions.yml uses.
+
+on:
+  schedule:
+    # Daily at 07:17 UTC. Off-minute on purpose (not :00) to avoid the
+    # cron rush; scheduled runs only fire on the default branch.
+    - cron: '17 7 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  migration-drift:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+
+      - name: Reconcile every committed migration against prod
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN isn't available, so prod migration history can't be read."
+            exit 1
+          fi
+
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No migration files found — nothing to reconcile. ✅"
+            exit 0
+          fi
+
+          # Read prod's applied migration history via the Supabase Management
+          # API (same endpoint the MCP uses — no DB password needed).
+          resp=$(curl -sS -X POST \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"query":"select version, name from supabase_migrations.schema_migrations"}')
+
+          # Tolerate either a bare array or a {result:[...]} wrapper; fail loudly otherwise.
+          rows=$(echo "$resp" | jq -c 'if type=="array" then . elif (type=="object" and has("result")) then .result else empty end' 2>/dev/null || true)
+          if [ -z "$rows" ]; then
+            echo "::error::Couldn't read prod migration history. API response was:"
+            echo "$resp"
+            exit 1
+          fi
+
+          applied_versions=$(echo "$rows" | jq -r '.[].version // empty')
+          applied_names=$(echo "$rows" | jq -r '.[].name // empty')
+
+          pending=()
+          for f in "${files[@]}"; do
+            base=$(basename "$f" .sql)   # 20260525130000_messaging_channel_email
+            ver=${base%%_*}              # 20260525130000
+            name=${base#*_}              # messaging_channel_email
+            if grep -qxF "$ver" <<<"$applied_versions" || grep -qxF "$name" <<<"$applied_names"; then
+              :   # applied
+            else
+              echo "✗ PENDING: $base"
+              pending+=("$base")
+            fi
+          done
+
+          echo
+          echo "Reconciled ${#files[@]} committed migration(s) against prod."
+          if [ ${#pending[@]} -gt 0 ]; then
+            echo "::error::${#pending[@]} committed migration(s) are NOT applied on prod: ${pending[*]}"
+            echo "Apply each to the live project (Supabase MCP apply_migration, or"
+            echo "'supabase migration up --linked'), keeping them idempotent, then re-run."
+            exit 1
+          fi
+
+          echo "All committed migrations are applied on prod. ✅"
