@@ -1,5 +1,6 @@
 // src/components/shared/AccessibleModal.tsx
 import { useRef, useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useDialog, FocusScope } from "react-aria";
 
 interface AccessibleModalProps {
@@ -14,6 +15,28 @@ interface AccessibleModalProps {
   zIndex?: number;
   /** Set false to disable Escape-to-close (e.g. ExitConfirmDialog) */
   dismissOnEscape?: boolean;
+}
+
+// Reference-counted body scroll lock. Counting (rather than save/restore
+// per modal) means stacked or rapidly-opened modals can't leave the body
+// stuck at overflow:hidden — the lock only lifts when the LAST modal
+// closes. This prevents the "page won't scroll" leak.
+let scrollLockCount = 0;
+let savedBodyOverflow = "";
+function lockBodyScroll() {
+  if (typeof document === "undefined") return;
+  if (scrollLockCount === 0) {
+    savedBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  scrollLockCount += 1;
+}
+function unlockBodyScroll() {
+  if (typeof document === "undefined") return;
+  scrollLockCount = Math.max(0, scrollLockCount - 1);
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = savedBodyOverflow;
+  }
 }
 
 export function AccessibleModal({
@@ -44,16 +67,20 @@ export function AccessibleModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose, dismissOnEscape]);
 
-  // Scroll lock
+  // Scroll lock (reference-counted — see above).
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    lockBodyScroll();
+    return () => unlockBodyScroll();
   }, []);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // Portal to <body> so the fixed-position overlay is always relative to
+  // the viewport. Rendered inline, a `position: fixed` overlay is trapped
+  // by any ancestor with a transform/filter (e.g. the portal cards' entry
+  // animation keeps a translateY(0)), which would confine the modal to
+  // that card instead of covering the screen.
+  return createPortal(
     <div
       className={`fixed inset-0 ${backdropClass} flex items-center justify-center`}
       style={{ zIndex }}
@@ -70,6 +97,7 @@ export function AccessibleModal({
           {children}
         </div>
       </FocusScope>
-    </div>
+    </div>,
+    document.body,
   );
 }
