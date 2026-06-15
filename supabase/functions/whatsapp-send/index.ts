@@ -528,49 +528,48 @@ async function handleTemplateMode(
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
     const phoneE164 = toE164(body.to);
-    // Pick the oldest (canonical) conversation for this phone. Using
-    // limit(1) rather than maybeSingle() means a duplicate-conversation
-    // row — which predates the phone-uniqueness guard — can't error this
-    // lookup. That error used to fall through to a blocked insert, leaving
-    // conversationId null so the sent template silently never appeared in
-    // /inbox (which is exactly what reminders need to do).
-    const { data: convs } = await supabase
+    // Resolve the WhatsApp conversation for this phone, creating it if it
+    // doesn't exist yet. Two things keep the sent template visible in /inbox:
+    //   • Filter by channel='whatsapp'. A phone can ALSO have a separate
+    //     channel='sms' conversation; without this filter the by-phone lookup
+    //     matched both rows, .maybeSingle() errored, and the send silently
+    //     never recorded (the reminder-inbox bug).
+    //   • Create via upsert ON CONFLICT DO NOTHING on the (phone_e164,
+    //     channel) unique index — so a concurrent create can't 23505 and drop
+    //     the recording. ignoreDuplicates means we never clobber an existing
+    //     conversation's state/human_id. (whatsapp-agent's inbound bootstrap
+    //     uses the same composite ON CONFLICT target.)
+    // ignoreDuplicates (ON CONFLICT DO NOTHING) + a separate reselect — NOT
+    // the agent's single-statement upsert().select().single(), whose DO
+    // UPDATE on conflict would reset an existing row's state/human_id.
+    const { error: upsertErr } = await supabase
+      .from("whatsapp_conversations")
+      .upsert(
+        {
+          phone_e164: phoneE164,
+          channel: "whatsapp",
+          human_id: body.human_id ?? null,
+          state: "ai_handling",
+        },
+        { onConflict: "phone_e164,channel", ignoreDuplicates: true },
+      );
+    if (upsertErr) console.error("whatsapp-send template: conversation upsert failed:", upsertErr);
+    // Read back the single canonical row (guaranteed unique per the index).
+    const { data: conv, error: convSelErr } = await supabase
       .from("whatsapp_conversations")
       .select("id, human_id")
       .eq("phone_e164", phoneE164)
-      .order("created_at", { ascending: true })
-      .limit(1);
-    const conv = convs?.[0];
+      .eq("channel", "whatsapp")
+      .maybeSingle();
+    if (convSelErr) console.error("whatsapp-send template: conversation reselect failed:", convSelErr);
     if (conv?.id) {
       conversationId = conv.id;
-      // Backfill human_id if the caller knows it and the existing row
-      // doesn't — happens when the agent created the conversation
-      // before staff linked the customer.
+      // Backfill human_id if the row predates the staff/customer link.
       if (body.human_id && !conv.human_id) {
         await supabase
           .from("whatsapp_conversations")
           .update({ human_id: body.human_id })
           .eq("id", conv.id);
-      }
-    } else {
-      const { data: created, error: createErr } = await supabase
-        .from("whatsapp_conversations")
-        .insert({
-          phone_e164: phoneE164,
-          human_id: body.human_id ?? null,
-          // Keep the conversation in human_takeover mode by default
-          // for outbound-initiated threads — staff just opened it and
-          // are driving. The agent kicks in if the customer replies
-          // (the webhook → agent path doesn't read this flag for the
-          // initial inbound, so AI drafts will resume naturally).
-          state: "ai_handling",
-        })
-        .select("id")
-        .single();
-      if (createErr) {
-        console.error("template mode: conversation create failed:", createErr);
-      } else {
-        conversationId = created?.id ?? null;
       }
     }
   }
@@ -720,14 +719,30 @@ async function handleFlowMode(
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
 
-  // Link/record the conversation (mirrors template mode).
+  // Link/record the conversation (mirrors template mode). Channel-scoped to
+  // 'whatsapp' and created-if-absent via ON CONFLICT DO NOTHING so a Flow
+  // send always lands in /inbox, even for a phone that also has an sms row.
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
-    const { data: conv } = await supabase
+    const { error: upsertErr } = await supabase
+      .from("whatsapp_conversations")
+      .upsert(
+        {
+          phone_e164: phoneE164,
+          channel: "whatsapp",
+          human_id: body.human_id ?? null,
+          state: "ai_handling",
+        },
+        { onConflict: "phone_e164,channel", ignoreDuplicates: true },
+      );
+    if (upsertErr) console.error("whatsapp-send flow: conversation upsert failed:", upsertErr);
+    const { data: conv, error: convSelErr } = await supabase
       .from("whatsapp_conversations")
       .select("id, human_id")
       .eq("phone_e164", phoneE164)
+      .eq("channel", "whatsapp")
       .maybeSingle();
+    if (convSelErr) console.error("whatsapp-send flow: conversation reselect failed:", convSelErr);
     if (conv?.id) {
       conversationId = conv.id;
       if (body.human_id && !conv.human_id) {

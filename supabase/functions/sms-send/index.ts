@@ -125,17 +125,31 @@ async function resolveOrCreateConversation(
   phoneE164: string,
   humanId: string | null,
 ): Promise<string | null> {
-  // limit(1) on the oldest, not maybeSingle(): tolerate a duplicate
-  // conversation row for this phone instead of erroring (which would fall
-  // through to a blocked insert and drop the outbound from /inbox).
-  const { data: rows } = await supabase
+  // Create-if-absent via upsert ON CONFLICT DO NOTHING on the (phone_e164,
+  // channel) unique index, then read back the single row. Race-safe — a
+  // concurrent create can't 23505 and drop the outbound from /inbox — and
+  // ignoreDuplicates means an existing conversation's state/human_id is
+  // never clobbered. Always channel-scoped to 'sms' so it never collides
+  // with the phone's WhatsApp conversation.
+  const { error: upsertErr } = await supabase
+    .from("whatsapp_conversations")
+    .upsert(
+      {
+        phone_e164: phoneE164,
+        channel: "sms",
+        human_id: humanId,
+        state: "ai_handling",
+      },
+      { onConflict: "phone_e164,channel", ignoreDuplicates: true },
+    );
+  if (upsertErr) console.error("sms-send: conversation upsert failed:", upsertErr);
+  const { data: existing, error: selErr } = await supabase
     .from("whatsapp_conversations")
     .select("id, human_id")
     .eq("phone_e164", phoneE164)
     .eq("channel", "sms")
-    .order("created_at", { ascending: true })
-    .limit(1);
-  const existing = rows?.[0];
+    .maybeSingle();
+  if (selErr) console.error("sms-send: conversation reselect failed:", selErr);
   if (existing?.id) {
     if (humanId && !existing.human_id) {
       await supabase
@@ -145,21 +159,7 @@ async function resolveOrCreateConversation(
     }
     return existing.id;
   }
-  const { data: created, error: createErr } = await supabase
-    .from("whatsapp_conversations")
-    .insert({
-      phone_e164: phoneE164,
-      channel: "sms",
-      human_id: humanId,
-      state: "ai_handling",
-    })
-    .select("id")
-    .single();
-  if (createErr) {
-    console.error("sms-send: conversation create failed:", createErr);
-    return null;
-  }
-  return created?.id ?? null;
+  return null;
 }
 
 async function recordOutbound(
