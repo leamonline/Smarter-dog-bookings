@@ -27,8 +27,12 @@ const focusRing =
 // radial gradients on paper, so signing in feels like it's already inside the
 // portal rather than a separate teal-themed app.
 const pageBackground =
-  "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.15), transparent 70%), " +
-  "radial-gradient(800px 240px at 100% 0%, rgba(254, 204, 19, 0.13), transparent 65%), " +
+  // Enveloping brand glow: cyan top-left, buttercup top-right, a soft warm
+  // coral wash rising from the bottom so the atmosphere wraps the whole
+  // viewport rather than sitting only at the top.
+  "radial-gradient(900px 280px at 12% -80px, rgba(16, 194, 252, 0.16), transparent 70%), " +
+  "radial-gradient(820px 240px at 100% 0%, rgba(254, 204, 19, 0.14), transparent 65%), " +
+  "radial-gradient(760px 360px at 50% 118%, rgba(232, 86, 127, 0.10), transparent 72%), " +
   "var(--sd-paper)";
 
 /**
@@ -294,7 +298,7 @@ export function CustomerLoginPage({
         ? "Welcome back"
         : stage === "signup"
           ? "New here?"
-          : "Sign in";
+          : "Let's get started";
 
   const instruction =
     stage === "code"
@@ -303,7 +307,7 @@ export function CustomerLoginPage({
         ? `Enter the password for ${phone}.`
         : stage === "signup"
           ? `We don't recognise ${phone} yet. Join the Pack and we'll get you set up.`
-          : "Enter your mobile number to sign in.";
+          : "Enter your mobile number and we'll take it from there.";
 
   // Shared Turnstile panel for the stages that make a Supabase auth call.
   const turnstilePanel = (
@@ -336,7 +340,7 @@ export function CustomerLoginPage({
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-10 py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]">
         {/* Decorative scatter of the brand dog silhouette behind the form. */}
         <DogSilhouetteScatter />
 

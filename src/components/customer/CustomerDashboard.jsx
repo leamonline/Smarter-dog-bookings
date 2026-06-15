@@ -11,8 +11,8 @@ import { CalendarSubscribeModal } from "./CalendarSubscribeModal";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { logger } from "../../lib/logger";
-import { PawPrint, Phone, Clock } from "lucide-react";
-import { ALL_DAYS, BOOKING_STATUS } from "../../constants/salon";
+import { PawPrint, Phone } from "lucide-react";
+import { BOOKING_STATUS } from "../../constants/salon";
 import {
   SALON_PHONE_DISPLAY,
   SALON_TEL_HREF,
@@ -23,9 +23,6 @@ import {
 } from "../../constants/salonPolicies.ts";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
-// Trading hours, surfaced in the footer + booking flow. Hard-coded for now —
-// promote to salon config when we have somewhere sensible to put it.
-const SALON_OPEN_LABEL = "8:30am–3pm";
 
 export function CustomerDashboard({ humanRecord, onSignOut }) {
   const navigate = useNavigate();
@@ -272,21 +269,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const firstName = (humanRecord?.name || humanName || "there").trim().split(" ")[0];
   const handleBook = () => navigate("/customer/book");
 
-  // Footer hours line, derived from salon defaults so it stays accurate
-  // when default-open days change in salon.ts.
-  const openDays = ALL_DAYS.filter(d => d.defaultOpen);
-  const hoursLabel = openDays.length === 0
-    ? "Hours by appointment"
-    : openDays.length === 7
-      ? `Open every day, ${SALON_OPEN_LABEL}`
-      : (() => {
-          const indices = openDays.map(d => ALL_DAYS.findIndex(x => x.key === d.key));
-          const contiguous = indices.every((idx, i) => i === 0 || idx === indices[i - 1] + 1);
-          if (contiguous && openDays.length > 1) {
-            return `${openDays[0].label}–${openDays[openDays.length - 1].label}, ${SALON_OPEN_LABEL}`;
-          }
-          return `${openDays.map(d => d.label).join(", ")}, ${SALON_OPEN_LABEL}`;
-        })();
 
   return (
     <div className="customer-portal">
@@ -424,10 +406,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               </a>
             </div>
             <div className="portal-footer-row portal-footer-row--right">
-              <span className="portal-footer-meta">
-                <Clock size={14} aria-hidden="true" />
-                {hoursLabel}
-              </span>
               <div className="portal-footer-links">
                 <a href="https://smarterdog.co.uk/#services" target="_blank" rel="noopener noreferrer">Services</a>
                 <span className="portal-footer-links-sep" aria-hidden="true">·</span>
