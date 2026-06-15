@@ -57,8 +57,11 @@ export function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, i
   }
 
   if (!windowOpen) {
+    // Bound the template picker so its banner + fields + preview can't push
+    // the thread off-screen on short viewports — it scrolls internally
+    // instead of overflowing the detail pane.
     return (
-      <div className="p-3 bg-white border-t border-slate-200">
+      <div className="p-3 bg-white border-t border-slate-200 max-h-[50dvh] overflow-y-auto">
         <TemplatePicker
           conversation={conversation}
           dogNames={dogNames ?? []}

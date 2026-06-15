@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { addCustomerTrustedHuman } from "../../supabase/rpc";
+import { AccessibleModal } from "../shared/AccessibleModal";
 import { cardAnim } from "./dashboardConstants.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { Users, Plus, X } from "lucide-react";
@@ -31,6 +32,7 @@ function avatarTintFor(id) {
 
 export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAdded }) {
   const toast = useToast();
+  const titleId = useId();
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", surname: "", phone: "", relationship: "" });
@@ -68,7 +70,7 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
   const isEmpty = trustedHumans.length === 0;
 
   return (
-    <div className={`portal-card portal-card--buttercup${adding ? " portal-card--static" : ""}`} style={cardAnim(0.15)}>
+    <div className="portal-card portal-card--buttercup" style={cardAnim(0.15)}>
       <div className="portal-card-header">
         <span className="portal-card-iconbadge portal-card-iconbadge--buttercup">
           <Users size={18} aria-hidden="true" />
@@ -77,7 +79,7 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
       </div>
 
       <div className="flex-1">
-        {isEmpty && !adding && (
+        {isEmpty && (
           <p className="portal-empty-body" style={{ marginTop: 0, textAlign: "left", maxWidth: "none" }}>
             Add someone who&apos;s allowed to drop {dogName} off or pick {dogName === "your pup" ? "them" : "them"} up — a partner, family member, or friend.
           </p>
@@ -111,11 +113,54 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
           );
         })}
 
-        {adding && (
-          <form className="portal-inline-form mt-3" onSubmit={handleSubmit} noValidate>
+      </div>
+
+      <div className="portal-card-bottom-action">
+        <button
+          type="button"
+          className="portal-btn portal-btn--secondary w-full"
+          onClick={() => setAdding(true)}
+        >
+          <Plus size={14} aria-hidden="true" />
+          Add a trusted human
+        </button>
+      </div>
+
+      {/* The form lives in a modal — kept off the dashboard surface so its
+          submit button can't be confused with the sticky "Book a groom"
+          CTA pinned to the bottom of the screen on mobile. */}
+      {adding && (
+        <AccessibleModal
+          onClose={reset}
+          titleId={titleId}
+          className="bg-white rounded-2xl shadow-xl max-w-md w-[90vw] p-6"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              id={titleId}
+              className="font-['Quicksand','Montserrat',sans-serif] text-lg font-bold text-[var(--sd-navy)] m-0"
+            >
+              Add a trusted human
+            </h2>
+            <button
+              type="button"
+              onClick={reset}
+              aria-label="Close"
+              className="bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
+            >
+              {"✕"}
+            </button>
+          </div>
+
+          <p className="portal-text-help mb-4">
+            Someone who&apos;s allowed to drop {dogName} off or pick {dogName === "your pup" ? "them" : "them"} up — a partner, family member, or friend.
+          </p>
+
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
             <div className="portal-inline-form-row">
               <input
                 required
+                autoFocus
                 aria-label="First name"
                 placeholder="First name"
                 value={form.name}
@@ -151,29 +196,16 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
               <div role="alert" className="portal-inline-error">{error}</div>
             )}
             <div className="portal-inline-form-actions">
-              <button type="submit" className="portal-btn portal-btn--primary portal-btn--small" disabled={saving}>
+              <button type="submit" className="portal-btn portal-btn--primary" disabled={saving}>
                 {saving ? "Adding…" : "Add trusted human"}
               </button>
-              <button type="button" className="portal-btn portal-btn--ghost portal-btn--small" onClick={reset}>
+              <button type="button" className="portal-btn portal-btn--ghost" onClick={reset}>
                 <X size={14} aria-hidden="true" />
                 Cancel
               </button>
             </div>
           </form>
-        )}
-      </div>
-
-      {!adding && (
-        <div className="portal-card-bottom-action">
-          <button
-            type="button"
-            className="portal-btn portal-btn--secondary w-full"
-            onClick={() => setAdding(true)}
-          >
-            <Plus size={14} aria-hidden="true" />
-            Add a trusted human
-          </button>
-        </div>
+        </AccessibleModal>
       )}
     </div>
   );

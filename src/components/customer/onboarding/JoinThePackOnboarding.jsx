@@ -35,6 +35,18 @@ const CURRENT_YEAR = new Date().getFullYear();
 // Dogs live ~20 years; offer a generous range back from this year.
 const YEARS = Array.from({ length: 26 }, (_, i) => String(CURRENT_YEAR - i));
 
+// The pending shell created by create_pending_customer carries placeholder
+// name/surname values ("New member" / "Pending <number>") so the onboarding
+// form must treat them as empty rather than pre-filling them.
+function realName(value) {
+  const v = (value || "").trim();
+  return v === "New member" ? "" : v;
+}
+function realSurname(value) {
+  const v = (value || "").trim();
+  return /^Pending\b/i.test(v) ? "" : v;
+}
+
 function blankDog() {
   return {
     name: "",
@@ -49,7 +61,9 @@ function blankDog() {
     neutered: "", // "" | "yes" | "no"
     vet: "",
     colour: "",
-    showOptional: false,
+    // Optional dog details are shown up-front rather than hidden behind a
+    // disclosure — new customers shouldn't have to hunt for them.
+    showOptional: true,
   };
 }
 
@@ -79,8 +93,12 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   // Owner. The phone is already verified (it's how they got here) and is
   // shown read-only — it's the username they sign in with.
   const verifiedPhone = humanRecord?.phone || "";
-  const [name, setName] = useState(humanRecord?.name?.trim() || "");
-  const [surname, setSurname] = useState(humanRecord?.surname?.trim() || "");
+  // create_pending_customer seeds a unique placeholder (name "New member",
+  // surname "Pending <number>") to satisfy the NOT NULL / unique(name,
+  // surname) constraints. Never prefill the form with that placeholder —
+  // the boxes should start empty so the customer types their real name.
+  const [name, setName] = useState(realName(humanRecord?.name));
+  const [surname, setSurname] = useState(realSurname(humanRecord?.surname));
   const [email, setEmail] = useState("");
   const [addr, setAddr] = useState({ ready: false, address: null, postcode: null, keepingExisting: false });
   const [policiesAccepted, setPoliciesAccepted] = useState(false);

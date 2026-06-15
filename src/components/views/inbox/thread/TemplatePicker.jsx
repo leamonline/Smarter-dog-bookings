@@ -97,18 +97,15 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
     .map((p) => p.label.replace(/\s*\(.+\)\s*$/, "").toLowerCase());
 
   return (
-    <div className="flex flex-col gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+    <div className="flex flex-col gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg">
       <div className="flex items-start gap-2">
         <span aria-hidden="true" className="mt-0.5 text-amber-700">⏱</span>
-        <div className="text-[12px] leading-snug text-amber-900">
-          <p className="font-bold">24-hour reply window closed</p>
-          <p className="text-amber-800">
-            Meta only allows free-form WhatsApp replies within 24 hours of the
-            customer&apos;s last message. Choose a Meta-approved template below
-            to reopen the conversation — once they reply, you&apos;ll be back to
-            free-form messaging.
-          </p>
-        </div>
+        <p className="text-[12px] leading-snug text-amber-900">
+          <span className="font-bold">24-hour reply window closed.</span>{" "}
+          <span className="text-amber-800">
+            Send an approved template to reopen the chat — once they reply you&apos;re back to free-form.
+          </span>
+        </p>
       </div>
 
       <div>

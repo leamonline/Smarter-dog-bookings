@@ -32,7 +32,7 @@ describe("ComposePanel", () => {
     });
 
     expect(
-      screen.getByText("24-hour reply window closed"),
+      screen.getByText(/24-hour reply window closed/i),
     ).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Write a reply…")).not.toBeInTheDocument();
   });
