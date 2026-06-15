@@ -3,6 +3,7 @@
 // Works on all platforms: Apple Calendar, Google Calendar, Outlook.
 
 import { useState, useCallback } from "react";
+import { Calendar } from "lucide-react";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { getOrCreateCalendarFeedToken } from "../../supabase/rpc";
 import { logger } from "../../lib/logger";
@@ -11,9 +12,11 @@ interface AddToCalendarButtonProps {
   bookingId: string;
   /** Optional compact style for inline/icon usage */
   compact?: boolean;
+  /** Render as a .portal-booking-action pill (booking-card action row) */
+  pill?: boolean;
 }
 
-export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonProps) {
+export function AddToCalendarButton({ bookingId, compact, pill }: AddToCalendarButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
@@ -50,6 +53,20 @@ export function AddToCalendarButton({ bookingId, compact }: AddToCalendarButtonP
       setLoading(false);
     }
   }, [bookingId, loading]);
+
+  if (pill) {
+    return (
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className="portal-booking-action"
+        aria-label="Add to calendar"
+      >
+        <Calendar size={14} aria-hidden="true" />
+        {loading ? "…" : "Calendar"}
+      </button>
+    );
+  }
 
   if (compact) {
     return (

@@ -40,7 +40,7 @@ export function AppointmentsSection({
   const isEmpty = pastBookings.length === 0;
 
   return (
-    <div className="portal-card">
+    <div className="portal-card portal-card--lavender">
       <button
         type="button"
         className="flex justify-between items-center w-full bg-transparent border-none cursor-pointer p-0"
@@ -50,11 +50,11 @@ export function AppointmentsSection({
         disabled={isEmpty}
       >
         <div className="flex items-center gap-2">
-          <span className="portal-card-iconbadge">
+          <span className="portal-card-iconbadge portal-card-iconbadge--lavender">
             <ClipboardList size={18} aria-hidden="true" />
           </span>
           <h2 className="portal-card-title" style={{ margin: 0 }}>
-            Past appointments{!isEmpty && ` (${pastBookings.length})`}
+            Past appointments
           </h2>
         </div>
         {isEmpty ? (

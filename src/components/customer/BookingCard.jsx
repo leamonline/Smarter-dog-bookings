@@ -4,7 +4,7 @@ import { customerSupabase as supabase } from "../../supabase/customerClient.js";
 import { cancelMany, listIdsInGroup } from "../../supabase/repositories/bookingsRepo";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
-import { ArrowRight, Calendar, PawPrint, X } from "lucide-react";
+import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 
 /**
@@ -124,9 +124,14 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   return (
     <>
       <div className="portal-booking-card portal-booking-card--booked portal-section--full">
-        <h2 className="portal-booking-card-title">
-          Next groom: {day}, {timeStr}
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="portal-card-iconbadge portal-card-iconbadge--mint">
+            <Scissors size={18} aria-hidden="true" />
+          </span>
+          <h2 className="portal-booking-card-title">
+            Next groom: {day}, {timeStr}
+          </h2>
+        </div>
         <p className="portal-booking-card-body">
           Drop off time is {timeStr}, please ring the doorbell on arrival. We&apos;ll text you when {dogName}&apos;s ready.
           {next.service && (
@@ -141,22 +146,23 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
         {!cancelling && (
           <div className="portal-booking-card-actions">
-            <AddToCalendarButton bookingId={next.id} compact />
+            <AddToCalendarButton bookingId={next.id} pill />
             <button
               type="button"
-              className="portal-booking-card-secondary"
+              className="portal-booking-action"
               onClick={() => setConfirmingReschedule(true)}
               disabled={saving}
             >
-              <Calendar size={14} aria-hidden="true" />
+              <RefreshCw size={14} aria-hidden="true" />
               Reschedule
             </button>
             <button
               type="button"
-              className="portal-booking-card-secondary portal-booking-card-secondary--danger"
+              className="portal-booking-action portal-booking-action--danger"
               onClick={startCancel}
               disabled={saving}
             >
+              <X size={14} aria-hidden="true" />
               Cancel
             </button>
           </div>
