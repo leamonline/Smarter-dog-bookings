@@ -163,6 +163,32 @@
   cursor: not-allowed;
 }
 
+/* On-brand tick box for selectable options (WizardTick). Shows a clearly
+   visible EMPTY rounded box by default — a "tick me" affordance — and
+   fills navy with a white check when selected. */
+.wizard-tick {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 2px solid rgba(45, 0, 75, 0.32);
+  background: var(--sd-white);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+/* Sharpen the empty box on hover so it reads as "select me". */
+.wizard-option:hover:not(:disabled) .wizard-tick {
+  border-color: var(--sd-navy);
+}
+.wizard-tick[data-checked="true"] {
+  background: var(--sd-navy);
+  border-color: var(--sd-navy);
+  transform: scale(1.04);
+}
+
 /* "Add another pup" tile — dashed variant */
 .wizard-option--add {
   background: transparent;

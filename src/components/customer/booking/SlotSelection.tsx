@@ -5,6 +5,7 @@ import { findGroupedSlots } from "../../../engine/capacity";
 import { listOnDateForCapacity } from "../../../supabase/repositories/bookingsRepo";
 import type { WizardDog, SlotAllocation } from "../../../types/index";
 import { Clock, ArrowRight, PawPrint } from "lucide-react";
+import { WizardTick } from "./WizardTick";
 
 interface SlotSelectionProps {
   selectedDogs: WizardDog[];
@@ -101,15 +102,18 @@ export function SlotSelection({
         onClick={() => onSelect(allocation)}
         className="wizard-option"
       >
-        <span className="inline-flex items-center gap-2">
-          <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
-          <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
-            {formatSlot(allocation.dropOffTime)}
+        <span className="inline-flex flex-col items-start gap-0.5 min-w-0">
+          <span className="inline-flex items-center gap-2">
+            <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+            <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
+              {formatSlot(allocation.dropOffTime)}
+            </span>
           </span>
+          {selectedDogs.length > 1 && (
+            <span className="text-[12px] text-[var(--sd-ink-light)]">Drop all pups together</span>
+          )}
         </span>
-        {selectedDogs.length > 1 && (
-          <span className="text-[12px] text-[var(--sd-ink-light)]">Drop all pups together</span>
-        )}
+        <WizardTick selected={selected} />
       </button>
     );
   };

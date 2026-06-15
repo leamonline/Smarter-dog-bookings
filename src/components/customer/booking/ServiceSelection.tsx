@@ -2,7 +2,8 @@ import { PRICING } from "../../../constants/index";
 import { getAllowedServicesForSize } from "../../../engine/bookingRules";
 import { SERVICE_ICON_NAMES } from "../dashboardConstants.js";
 import type { WizardDog, ServiceId } from "../../../types/index";
-import { Check, ArrowRight, Sparkles, Scissors, Droplets, Wind, PawPrint } from "lucide-react";
+import { ArrowRight, Sparkles, Scissors, Droplets, Wind, PawPrint } from "lucide-react";
+import { WizardTick } from "./WizardTick";
 import type { ComponentType, SVGProps } from "react";
 
 interface ServiceSelectionProps {
@@ -111,9 +112,7 @@ export function ServiceSelection({
                       )}
                       <span className="price text-[13px]">From {getPriceLabel(svc.id, dog.size)}</span>
                     </div>
-                    {selected && (
-                      <Check size={18} aria-hidden="true" className="text-[var(--sd-navy)] shrink-0 mt-0.5" />
-                    )}
+                    <WizardTick selected={selected} />
                   </button>
                 );
               })}

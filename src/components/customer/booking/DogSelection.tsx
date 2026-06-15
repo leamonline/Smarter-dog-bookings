@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { WizardDog, DogSize } from "../../../types/index";
 import { DOG_SIZES } from "../../../constants/index";
 import { AddDogInline } from "./AddDogInline";
-import { Check, PawPrint, ArrowRight } from "lucide-react";
+import { PawPrint, ArrowRight } from "lucide-react";
+import { WizardTick } from "./WizardTick";
 import { titleCase } from "../../../utils/text";
 
 interface RawDog {
@@ -94,9 +95,7 @@ export function DogSelection({
                     </span>
                   )}
                 </div>
-                {selected && (
-                  <Check size={18} aria-hidden="true" className="text-[var(--sd-navy)] shrink-0" />
-                )}
+                <WizardTick selected={selected} />
               </button>
             );
           })}
