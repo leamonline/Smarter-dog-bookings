@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sendEmail } from "../_shared/email.ts";
@@ -11,8 +10,49 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
-// Twilio creds are read inside ../_shared/twilio.ts.
+// Shared secret for the internal calls to whatsapp-send / sms-send (the
+// same project-wide secret those functions already check). WhatsApp +
+// SMS reminders go OUT through those functions now (not Twilio direct)
+// so they land in the staff inbox with a delivery status.
+const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 // SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
+
+// ── Internal-call helper ────────────────────────────────────────────────────
+// Mirrors reminder-send: POST to another edge function, authenticating with
+// the service-role JWT + the x-internal-secret header that whatsapp-send /
+// sms-send accept for trusted server-to-server callers.
+async function invokeInternal(
+  fn: string,
+  payload: unknown,
+): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": SEND_INTERNAL_SECRET,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  let body: Record<string, unknown> = {};
+  try {
+    body = await res.json();
+  } catch {
+    /* non-JSON */
+  }
+  return { ok: res.ok, status: res.status, body };
+}
+
+// Current hour (0–23) in Europe/London, used to land the cron's 3pm-UK
+// send despite pg_cron being UTC-only (see the at_hour_uk gate below).
+function londonHourNow(): number {
+  const formatted = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "numeric",
+    hour12: false,
+  }).format(new Date());
+  return parseInt(formatted, 10);
+}
 
 // CORS — only for the staff-JWT path (the cron call sends no Origin
 // header). Same allowlist pattern as whatsapp-send.
@@ -139,11 +179,26 @@ serve(async (req) => {
     // reminder for that booking's customer. The function expands it to
     // every dog the customer has booked that day and sends ONE combined
     // reminder. The cron path sends no body.
-    let body: { booking_id?: string } = {};
+    let body: { booking_id?: string; at_hour_uk?: number } = {};
     if (req.body) {
       try { body = await req.json(); } catch { body = {}; }
     }
     const singleBookingId = typeof body.booking_id === "string" ? body.booking_id : null;
+
+    // 3pm-UK gate (cron only). pg_cron is UTC-only, so the schedule fires
+    // this function at both 14:00 and 15:00 UTC with at_hour_uk=15; only
+    // the invocation that lands on 15:00 Europe/London actually sends, the
+    // other returns here. Staff/manual calls never pass at_hour_uk, so
+    // they're unaffected (and a single-booking send is never gated).
+    if (typeof body.at_hour_uk === "number" && !singleBookingId) {
+      const hour = londonHourNow();
+      if (hour !== body.at_hour_uk) {
+        return new Response(
+          `Skipped: London hour ${hour} != scheduled ${body.at_hour_uk}`,
+          { status: 200, headers: corsFor(req) },
+        );
+      }
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -265,12 +320,17 @@ serve(async (req) => {
       const services = [...new Set(groupRows.map((r) => r.service))];
 
       let message: string;
+      // appointmentWhen feeds the {{appointment_when}} slot of the Meta
+      // template appointment_reminder_v1 ("…booked in with us … for
+      // {{appointment_when}}"). It must read naturally after "for".
+      let appointmentWhen: string;
       if (slots.length === 1 && services.length === 1) {
         // Common case (incl. multi-dog at the same slot) — wording unchanged.
         const timeFormatted = formatTime(slots[0]);
         message =
           `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${services[0]} ` +
           `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+        appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
       } else if (slots.length === 1) {
         // Same time, different services — stay generic so we never name the
         // wrong service for a dog.
@@ -278,6 +338,7 @@ serve(async (req) => {
         message =
           `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in ` +
           `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+        appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
       } else {
         // Dogs at different times — list each dog with its own time.
         const perDog = joinNames(
@@ -286,6 +347,8 @@ serve(async (req) => {
         message =
           `Hi ${firstName}, just a reminder about your bookings ` +
           `tomorrow (${dateFormatted}): ${perDog}. See you then!`;
+        // The template has one when-slot, so fold the per-dog times in.
+        appointmentWhen = `${dateFormatted} (${perDog})`;
       }
 
       // 6. Pick channel BEFORE we send. WhatsApp → SMS → email. Skip any
@@ -315,6 +378,9 @@ serve(async (req) => {
         channel,
         trigger_type: "reminder",
         status: "pending",
+        // Stored up front so the SMS-fallback job can resend the exact
+        // wording even if this WhatsApp send later fails to deliver.
+        message_text: message,
       }));
 
       const { data: pendingRows, error: pendingError } = await supabase
@@ -333,24 +399,55 @@ serve(async (req) => {
         continue;
       }
 
-      // 8. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+      // 8. Send. WhatsApp goes via the Meta template (records to the inbox
+      //    with a meta_message_id so staff see delivery status, and an
+      //    undelivered send can be chased by SMS). SMS goes via sms-send
+      //    (also inbox-recorded). Email stays direct via SendGrid.
       let sent = false;
+      let providerMessageId: string | null = null;
       if (channel === "whatsapp") {
-        sent = await sendWhatsAppBoolean(h.phone, message);
+        const result = await invokeInternal("whatsapp-send", {
+          mode: "template",
+          to: h.phone,
+          template_name: "appointment_reminder_v1",
+          language: "en_GB",
+          params: [firstName, dogNames, appointmentWhen],
+          human_id: h.id,
+        });
+        sent = result.ok && result.body.ok === true;
+        providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+        if (!sent) {
+          console.error(`reminder whatsapp-send failed for ${groupKey}:`, result.status, JSON.stringify(result.body));
+        }
       } else if (channel === "sms") {
-        sent = await sendSmsBoolean(h.phone, message);
+        const result = await invokeInternal("sms-send", {
+          mode: "template",
+          to: h.phone,
+          text: message,
+          template_name: "appointment_reminder",
+          human_id: h.id,
+        });
+        sent = result.ok && result.body.ok === true;
+        providerMessageId = (result.body.twilio_sid as string | null) ?? null;
+        if (!sent) {
+          console.error(`reminder sms-send failed for ${groupKey}:`, result.status, JSON.stringify(result.body));
+        }
       } else {
         const subject = `Reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in tomorrow at Smarter Dog Grooming`;
-        sent = await sendEmail(h.email, subject, message);
+        // channel==='email' is only chosen when h.email is set (step 6).
+        sent = await sendEmail(h.email!, subject, message);
       }
 
-      // 9. Update the pending rows with the outcome.
+      // 9. Update the pending rows with the outcome. provider_message_id
+      //    links the WhatsApp send to its whatsapp_messages delivery status
+      //    for the SMS-fallback job.
       const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
       await supabase
         .from("notification_log")
         .update({
           status: sent ? "sent" : "failed",
           sent_at: sent ? new Date().toISOString() : null,
+          provider_message_id: sent ? providerMessageId : null,
           error_message: sent ? null : "Delivery failed — check provider logs",
         })
         .in("id", pendingIds);
