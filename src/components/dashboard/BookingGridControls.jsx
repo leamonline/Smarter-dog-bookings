@@ -95,8 +95,9 @@ export function BookingGridControls({
       {onRefresh && (
         <button
           type="button"
-          onClick={onRefresh}
-          aria-label="Refresh bookings"
+          onClick={() => window.location.reload()}
+          aria-label="Refresh the page"
+          title="Refresh the page"
           className="sm:hidden inline-flex items-center py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
         >
           <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />

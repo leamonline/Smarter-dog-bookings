@@ -1,29 +1,26 @@
 // src/components/layout/DayTab.jsx
 
+import { DAY_CAPACITY } from "../../engine/utilisation";
+
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// Style the date circle based on three temporal buckets:
-//   - past:    blue (the day has happened — "completed")
-//   - today:   green (we're here)
-//   - future:  colour-coded by how busy the day looks
-//
-// All three buckets use high-contrast text so the date number is
-// readable at a glance, especially on the muted "no bookings / closed"
-// surfaces where the previous slate-100/slate-500 combo was too washed
-// out to read.
-function dateCircleStyle({ isPast, isToday, dogCount, isOpen }) {
-  if (isToday) return "bg-emerald-500 text-white";
-  if (isPast) return "bg-sky-500 text-white";
-
-  // Future days
-  if (!isOpen) return "bg-rose-100 text-rose-700";
-  // Bookings still loading — keep the circle neutral so it doesn't
-  // assert "empty day" before the data arrives.
+// Status-first colour scheme for the date circle. The colour answers
+// one question — "can I book this day?" — rather than encoding busyness
+// on a gradient:
+//   - closed       → red
+//   - open + space → green   (lighter when wide open, solid as it fills)
+//   - open + full  → blue    (at/over DAY_CAPACITY)
+//   - past         → muted grey (history; not a planning surface)
+//   - loading      → neutral until the bookings arrive
+// "Today" keeps whichever status colour applies and is marked with a
+// yellow ring (see below) so it still stands out.
+function dayCircleStyle({ isPast, dogCount, isOpen }) {
+  if (isPast) return "bg-slate-200 text-slate-500";
   if (dogCount == null) return "bg-slate-100 text-slate-500";
-  if (dogCount === 0) return "bg-slate-200 text-slate-700";
-  if (dogCount <= 3) return "bg-emerald-500 text-white";
-  if (dogCount <= 6) return "bg-amber-500 text-white";
-  return "bg-rose-500 text-white";
+  if (!isOpen) return "bg-rose-500 text-white";
+  if (dogCount >= DAY_CAPACITY) return "bg-sky-500 text-white";
+  if (dogCount === 0) return "bg-emerald-100 text-emerald-800";
+  return "bg-emerald-500 text-white";
 }
 
 function startOfDay(d) {
@@ -56,9 +53,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
             ? "loading"
             : isPast
               ? `completed, ${dogCount} dogs`
-              : isToday
-                ? `today, ${dogCount} dogs`
-                : `${dogCount} dogs`
+              : `${isToday ? "today, " : ""}${dogCount >= DAY_CAPACITY ? "full" : "open"}, ${dogCount} dogs`
       }`}
       tabIndex={isActive ? 0 : -1}
       id={id}
@@ -70,46 +65,36 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
           : "bg-transparent hover:bg-slate-50 xl:hover:bg-white/10",
       ].join(" ")}
     >
-      {/* Day name */}
+      {/* Day name — neutral label; the circle carries the status colour. */}
       <span
         className={`text-[10px] font-bold uppercase tracking-wide leading-none ${
           isActive
             ? "text-brand-purple xl:text-brand-yellow"
-            : isToday
-              ? "text-emerald-700 xl:text-emerald-300"
-              : isPast
-                ? "text-sky-700 xl:text-sky-200"
-                : !isOpen
-                  ? "text-rose-500 xl:text-rose-200"
-                  : "text-slate-500 xl:text-white/70"
+            : "text-slate-500 xl:text-white/70"
         }`}
       >
         {dayName}
       </span>
 
-      {/* Date circle */}
+      {/* Date circle — colour = bookability status (closed/open/full). */}
       <span
         className={[
           "relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-black font-display leading-none transition-all",
           isActive
             ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
-            : dateCircleStyle({ isPast, isToday, dogCount, isOpen }),
-          isToday && !isActive ? "ring-2 ring-emerald-300 ring-offset-1 xl:ring-offset-brand-purple" : "",
+            : dayCircleStyle({ isPast, dogCount, isOpen }),
+          isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1 xl:ring-offset-brand-purple" : "",
         ].join(" ")}
       >
         {dateNum}
       </span>
 
-      {/* Dog count or closed */}
+      {/* Dog count or closed — neutral label. */}
       <span
         className={`text-[9px] font-bold leading-none ${
           isActive
             ? "text-brand-purple xl:text-brand-yellow"
-            : isToday
-              ? "text-emerald-700 xl:text-emerald-300"
-              : isPast
-                ? "text-sky-700 xl:text-sky-200"
-                : "text-slate-600 xl:text-white/70"
+            : "text-slate-600 xl:text-white/70"
         }`}
         aria-hidden={isLoading || undefined}
       >
