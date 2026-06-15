@@ -105,6 +105,24 @@ describe("MessageBubble — special message rendering", () => {
     expect(screen.getByText("Can I move Cooper to Tuesday?")).toBeInTheDocument();
   });
 
+  it("renders an inbound reminder 'Confirm' reply as a celebratory sticker", () => {
+    const { container } = render(
+      <MessageBubble message={{ ...base, direction: "inbound", content: "Confirm" }} />,
+    );
+    expect(screen.getByText(/I'll be there, see you soon!/i)).toBeInTheDocument();
+    expect(container.textContent).toContain("Confirmed");
+    // The bare "Confirm" text isn't shown as a plain bubble.
+    expect(screen.queryByText("Confirm")).not.toBeInTheDocument();
+  });
+
+  it("does not stickerise an OUTBOUND 'Confirm' (only inbound customer replies)", () => {
+    render(
+      <MessageBubble message={{ ...base, direction: "outbound", content: "Confirm" }} />,
+    );
+    expect(screen.queryByText(/see you soon/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Confirm")).toBeInTheDocument();
+  });
+
   it("renders an inbound photo as a friendly chip, not the raw placeholder", () => {
     const { container } = render(
       <MessageBubble

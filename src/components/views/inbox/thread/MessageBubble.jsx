@@ -20,7 +20,7 @@
 // ============================================================
 
 import { formatWhen } from "../helpers.js";
-import { parseMessageContent, presentTemplate } from "./messageContent";
+import { parseMessageContent, presentTemplate, isReminderConfirm } from "./messageContent";
 import { ReactionLine } from "./ReactionLine.jsx";
 
 const CHANNEL_LABEL = {
@@ -45,6 +45,27 @@ export function MessageBubble({ message }) {
   const channel = message.channel ?? "whatsapp";
   const isSMS = channel === "sms";
   const isFailed = !isInbound && message.status === "failed";
+
+  // Reminder confirmation — the customer tapped "Confirm" on the
+  // appointment-reminder. Show a celebratory sticker instead of a bare
+  // "Confirm" bubble so staff can see at a glance the visit is confirmed.
+  if (isInbound && isReminderConfirm(message.content)) {
+    return (
+      <div className="flex justify-start mb-2">
+        <div className="inline-flex items-center gap-2 max-w-[75%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 shadow-sm">
+          <span aria-hidden="true" className="text-[20px] leading-none">🐾</span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-bold text-emerald-900 leading-snug">
+              I&apos;ll be there, see you soon!
+            </div>
+            <div className="text-[10px] text-emerald-700/80 font-semibold mt-0.5">
+              Confirmed · {formatWhen(message.sent_at)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const outboundColor = isSMS
     ? "bg-sky-100 text-slate-800 rounded-br-sm"

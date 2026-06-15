@@ -108,6 +108,17 @@ export function parseMessageContent(
 }
 
 /**
+ * True when an inbound message is the customer tapping the "Confirm"
+ * button on the appointment-reminder template — i.e. confirming they'll
+ * attend. Rendered in the thread as a celebratory sticker rather than a
+ * plain "Confirm" bubble. (The reminder's quick-reply button surfaces as
+ * the literal text "Confirm".)
+ */
+export function isReminderConfirm(content: string | null | undefined): boolean {
+  return (content ?? "").trim().toLowerCase() === "confirm";
+}
+
+/**
  * One-line preview text for the conversation list. Turns a media
  * placeholder into "📷 Photo" etc. and leaves plain text / friendly
  * reactions ("Reacted 👍") untouched. Used for last_customer_text so
