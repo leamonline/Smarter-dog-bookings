@@ -846,6 +846,12 @@
   box-shadow: 0 6px 14px -8px rgba(254, 204, 19, 0.8);
 }
 .portal-footer-phone:hover { background: var(--sd-yellow-dark); }
+.portal-footer-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 
 .portal-footer-meta {
   display: inline-flex;

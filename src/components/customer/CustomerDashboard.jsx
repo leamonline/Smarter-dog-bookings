@@ -11,11 +11,13 @@ import { CalendarSubscribeModal } from "./CalendarSubscribeModal";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { logger } from "../../lib/logger";
-import { PawPrint, Phone } from "lucide-react";
+import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
 import {
   SALON_PHONE_DISPLAY,
-  SALON_TEL_HREF,
+  SALON_WHATSAPP_URL,
+  SALON_EMAIL,
+  SALON_EMAIL_HREF,
 } from "../../constants/salonContact.ts";
 import {
   SALON_PRIVACY_URL,
@@ -390,10 +392,26 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           <div className="portal-footer-inner">
             <div className="portal-footer-row">
               <p className="portal-footer-tagline">Smarter grooming, Smarter Dog.</p>
-              <a className="portal-footer-phone" href={SALON_TEL_HREF} aria-label={`Call Smarter Dog on ${SALON_PHONE_DISPLAY}`}>
-                <Phone size={16} aria-hidden="true" />
-                {SALON_PHONE_DISPLAY}
-              </a>
+              <span className="portal-footer-contact">
+                <a
+                  className="portal-footer-phone"
+                  href={SALON_WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Message Smarter Dog on WhatsApp at ${SALON_PHONE_DISPLAY}`}
+                >
+                  <MessageCircle size={16} aria-hidden="true" />
+                  {SALON_PHONE_DISPLAY}
+                </a>
+                <a
+                  className="portal-footer-phone"
+                  href={SALON_EMAIL_HREF}
+                  aria-label={`Email Smarter Dog at ${SALON_EMAIL}`}
+                >
+                  <Mail size={16} aria-hidden="true" />
+                  {SALON_EMAIL}
+                </a>
+              </span>
             </div>
             <div className="portal-footer-row portal-footer-row--right">
               <div className="portal-footer-links">
