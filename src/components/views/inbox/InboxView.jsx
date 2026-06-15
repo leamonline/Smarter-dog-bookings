@@ -53,6 +53,7 @@ import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.js
 import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
 import { useCustomerContext } from "./hooks/useCustomerContext.js";
 import { useFillViewportHeight } from "./hooks/useFillViewportHeight.js";
+import { BookAppointmentModal } from "./customer-context/BookAppointmentModal.jsx";
 
 export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const {
@@ -79,6 +80,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     updateConversationNotes,
     snoozeConversation,
     unsnoozeConversation,
+    createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
@@ -171,6 +173,18 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     return res;
   }, [unsnoozeConversation, toast]);
 
+  // Book-appointment modal — staff quick-booking from the customer
+  // panel. createStaffBooking applies it through the same guarded path as
+  // an AI proposal, so on success the thread shows a "Booking created"
+  // card; we just surface the outcome as a toast.
+  const [bookOpen, setBookOpen] = useState(false);
+  const handleBookAppointment = useCallback(async (payload) => {
+    const res = await createStaffBooking(payload);
+    if (res?.ok) toast.show("Booking added to the diary.", "success");
+    else if (res?.reason) toast.show(`Could not book: ${res.reason}`, "error");
+    return res;
+  }, [createStaffBooking, toast]);
+
   // Compose-new modal — outbound entry point. Opens from the header
   // button; after a successful send, close the modal and select the
   // freshly-upserted conversation so staff land straight in the thread.
@@ -226,10 +240,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // resetting the docked view. The docked column is purely CSS — it
   // shows whenever a conversation is selected.
   const [contextOpen, setContextOpen] = useState(false);
-  // Close the slide-over when switching conversations so a half-open
-  // panel doesn't follow staff around.
+  // Close the slide-over AND the book-appointment modal when switching
+  // conversations, so a half-open panel (or a booking form still holding
+  // the previous customer's dog) doesn't follow staff to the new thread.
   useEffect(() => {
     setContextOpen(false);
+    setBookOpen(false);
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
@@ -855,6 +871,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               onOpenHuman={onOpenHuman}
               onOpenDog={onOpenDog}
               onSaveConversationNotes={handleSaveConversationNotes}
+              onBookAppointment={() => setBookOpen(true)}
             />
           </div>
         )}
@@ -881,8 +898,21 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             }}
             onClose={() => setContextOpen(false)}
             titleId="inbox-customer-context-title"
+            onBookAppointment={() => {
+              setContextOpen(false);
+              setBookOpen(true);
+            }}
           />
         </SlideOverPanel>
+      )}
+
+      {bookOpen && selectedId && (
+        <BookAppointmentModal
+          conversation={selectedConversation}
+          dogs={customerContext.dogs}
+          onClose={() => setBookOpen(false)}
+          onBook={handleBookAppointment}
+        />
       )}
 
       {composeOpen && (

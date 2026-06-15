@@ -262,6 +262,31 @@ export function applyWhatsappBookingAction(
   });
 }
 
+// Staff "Book appointment" from an inbox conversation. Stages a manual
+// booking action (source=staff_manual) and applies it via the same
+// guarded path as an AI proposal; returns the new booking id.
+export interface StaffBookingPayload {
+  dog_id: string;
+  booking_date: string; // YYYY-MM-DD
+  slot: string;
+  service: string;
+  size?: string;
+  status?: string;
+  addons?: string[];
+  payment?: string;
+  confirmed?: boolean;
+}
+
+export function createStaffBookingFromConversation(
+  client: SupabaseClient,
+  params: { conversationId: string; payload: StaffBookingPayload },
+) {
+  return client.rpc("create_staff_booking_from_conversation", {
+    p_conversation_id: params.conversationId,
+    p_payload: params.payload,
+  });
+}
+
 // Mark a WhatsApp conversation as read by the current staff user.
 // Fire-and-forget — realtime reconciles drift with the actual DB state.
 export function markWhatsappConversationRead(

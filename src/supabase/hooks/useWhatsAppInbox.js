@@ -35,6 +35,7 @@ import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useConversationNotes } from "./inbox/useConversationNotes.js";
 import { useConversationSnooze } from "./inbox/useConversationSnooze.js";
+import { useStaffBooking } from "./inbox/useStaffBooking.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
 import { useDraftActions } from "./inbox/useDraftActions.js";
@@ -448,6 +449,17 @@ export function useWhatsAppInbox() {
     }
   }, []);
 
+  // Staff "Book appointment" from the thread — needs refreshDetail +
+  // refreshList (both defined above) so the new "Booking created" card
+  // and list flags update straight away.
+  const { createStaffBooking } = useStaffBooking({
+    selectedId,
+    actionInFlight,
+    setActionInFlight,
+    refreshDetail,
+    refreshList,
+  });
+
   const selectConversation = useCallback(async (conversationId) => {
     setSelectedId(conversationId);
     setMessages([]);
@@ -652,6 +664,7 @@ export function useWhatsAppInbox() {
     updateConversationNotes,
     snoozeConversation,
     unsnoozeConversation,
+    createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
     sendOutboundSMS,
