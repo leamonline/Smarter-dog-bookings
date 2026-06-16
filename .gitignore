@@ -26,3 +26,6 @@ test-results/
 .playwright-mcp/
 .superpowers/
 .zed/
+
+# Local design-alignment working directory — not shipping code
+design-alignment/
