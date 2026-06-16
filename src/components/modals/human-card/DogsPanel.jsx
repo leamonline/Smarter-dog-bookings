@@ -70,6 +70,10 @@ export function DogsPanel({
   bookingsByDate,
   onClose,
   onOpenDog,
+  // Optional action row rendered at the foot of the panel (e.g. the
+  // add-owned-dog / link-to-a-dog controls). Kept as a slot so the panel
+  // stays presentational.
+  actions = null,
 }) {
   // Most-recent past (non-cancelled) booking date per dog, straight from the
   // bookings already in memory — no extra query.
@@ -161,6 +165,7 @@ export function DogsPanel({
           )}
         </>
       )}
+      {actions}
     </PanelShell>
   );
 }

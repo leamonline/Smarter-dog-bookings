@@ -50,6 +50,17 @@ vi.mock("./ChainBookingModal.jsx", () => ({
   ),
 }));
 
+// The reciprocal trusted-link write now hydrates the OTHER person's current
+// links from the DB (via fetchTrustedContactsForHuman) before replacing them,
+// so they can't be wiped by a stale in-memory copy. Stub it to an empty set so
+// the reciprocal merge stays deterministic and offline in these tests.
+vi.mock("../../supabase/hooks/humans/useTrustedContacts", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchTrustedContactsForHuman: vi.fn(() =>
+    Promise.resolve({ trustedContacts: [], trustedIds: [] }),
+  ),
+}));
+
 const { DogCardModal } = await import("./DogCardModal.jsx");
 
 const baseDog = {
@@ -91,7 +102,10 @@ function renderModal(overrides = {}) {
     dogs: { Bella: baseDog },
     humans: { "Sarah Jones": sarah, "Mark Smith": mark },
     onUpdateDog: vi.fn(() => Promise.resolve()),
-    onUpdateHuman: vi.fn(() => Promise.resolve()),
+    // updateHuman resolves the saved human (truthy) on success / null on
+    // failure; the dog card now only writes the reciprocal link and shows
+    // success when the primary save actually landed.
+    onUpdateHuman: vi.fn(() => Promise.resolve({ ok: true })),
     onAddHuman: vi.fn(() => Promise.resolve(null)),
     onDeleteDog: vi.fn(),
     bookingsByDate: {},
@@ -387,7 +401,7 @@ describe("DogCardModal characterisation", () => {
     });
 
     it("links a search result reciprocally on both humans", async () => {
-      const onUpdateHuman = vi.fn(() => Promise.resolve());
+      const onUpdateHuman = vi.fn(() => Promise.resolve({ ok: true }));
       renderModal({ onUpdateHuman });
       enterEdit();
 
@@ -409,7 +423,7 @@ describe("DogCardModal characterisation", () => {
 
     it("reuses an existing human by full name instead of creating a duplicate", async () => {
       const onAddHuman = vi.fn();
-      const onUpdateHuman = vi.fn(() => Promise.resolve());
+      const onUpdateHuman = vi.fn(() => Promise.resolve({ ok: true }));
       const findHumanByFullName = vi.fn(() => Promise.resolve(mark));
       renderModal({ onAddHuman, onUpdateHuman, findHumanByFullName });
       enterEdit();
@@ -455,7 +469,7 @@ describe("DogCardModal characterisation", () => {
         ...mark,
         trustedContacts: [{ id: "human-1", relationship: "" }],
       };
-      const onUpdateHuman = vi.fn(() => Promise.resolve());
+      const onUpdateHuman = vi.fn(() => Promise.resolve({ ok: true }));
       renderModal({
         humans: { "Sarah Jones": linkedSarah, "Mark Smith": linkedMark },
         onUpdateHuman,

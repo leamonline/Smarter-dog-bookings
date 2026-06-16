@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { logger } from "../../../lib/logger";
+import { fetchTrustedContactsForHuman } from "../../../supabase/hooks/humans/useTrustedContacts";
 
 /**
  * Trusted-humans state for the dog card: search (local map + debounced
@@ -72,18 +73,44 @@ export function useTrustedHumans({
       .slice(0, 5);
   }, [trustedSearchQuery, humans, owner?.id, trustedContacts]);
 
+  // The reciprocal link rewrites the OTHER person's whole trusted set via
+  // replace_trusted_contacts, so we must merge onto their CURRENT links — not
+  // the in-memory copy, which is usually empty (their profile was never
+  // opened). Read the authoritative set from the DB first; fall back to
+  // whatever we have cached if the fetch is unavailable/offline.
+  const loadTrustedContacts = async (human) => {
+    const inMemory = human?.trustedContacts || [];
+    if (!human?.id) return inMemory;
+    try {
+      const { trustedContacts } = await fetchTrustedContactsForHuman(human.id);
+      return trustedContacts.length ? trustedContacts : inMemory;
+    } catch (err) {
+      logger.error("Failed to hydrate trusted contacts for reciprocal link", err, {
+        tags: { component: "DogCardModal", op: "hydrate-reciprocal" },
+      });
+      return inMemory;
+    }
+  };
+
   const handleAddTrusted = async (selectedHumanId) => {
     if (!owner || !onUpdateHuman) return;
     const currentContacts = owner.trustedContacts || [];
     const ownerKey = owner.fullName || owner.id;
 
-    await onUpdateHuman(ownerKey, {
+    // updateHuman returns the saved human on success and null on failure;
+    // only celebrate (and write the reciprocal link) when the primary save
+    // actually landed, so a failed save no longer reads as success.
+    const saved = await onUpdateHuman(ownerKey, {
       trustedContacts: [...currentContacts, { id: selectedHumanId, relationship: "" }],
     });
+    if (!saved) {
+      toast.show("Couldn't add trusted human — please try again.", "error");
+      return;
+    }
 
     const selectedHuman = getHumanByIdOrName(humans, selectedHumanId);
     if (selectedHuman) {
-      const theirContacts = selectedHuman.trustedContacts || [];
+      const theirContacts = await loadTrustedContacts(selectedHuman);
       const myId = owner.id || ownerKey;
       if (!theirContacts.some((c) => c.id === myId || c.fullName === owner.fullName)) {
         const theirKey = selectedHuman.fullName || selectedHuman.id;
@@ -113,15 +140,19 @@ export function useTrustedHumans({
     const linkAsTrusted = async (trustedHuman, successMessage) => {
       const currentContacts = owner.trustedContacts || [];
       const ownerKey = owner.fullName || owner.id;
-      await onUpdateHuman(ownerKey, {
+      const saved = await onUpdateHuman(ownerKey, {
         trustedContacts: [
           ...currentContacts,
           { id: trustedHuman.id, relationship },
         ],
       });
+      if (!saved) {
+        // Surfaced by the caller's catch as an error toast.
+        throw new Error("Couldn't link trusted human — please try again.");
+      }
 
-      const theirContacts = trustedHuman.trustedContacts || [];
       const ownerId = owner.id || ownerKey;
+      const theirContacts = await loadTrustedContacts(trustedHuman);
       if (!theirContacts.some((c) => c.id === ownerId || c.fullName === owner.fullName)) {
         const theirKey = trustedHuman.fullName || trustedHuman.id;
         await onUpdateHuman(theirKey, {
@@ -186,16 +217,22 @@ export function useTrustedHumans({
     const currentContacts = owner.trustedContacts || [];
     const ownerKey = owner.fullName || owner.id;
 
-    await onUpdateHuman(ownerKey, {
+    const saved = await onUpdateHuman(ownerKey, {
       trustedContacts: currentContacts.filter(
         (c) => c.id !== trustedIdToRemove && c.fullName !== trustedIdToRemove,
       ),
     });
+    if (!saved) {
+      toast.show("Couldn't remove trusted human — please try again.", "error");
+      return;
+    }
 
     const removedHuman = getHumanByIdOrName(humans, trustedIdToRemove);
     if (removedHuman) {
-      const theirContacts = removedHuman.trustedContacts || [];
       const myId = owner.id || ownerKey;
+      // Hydrate their current set so we remove the back-link without wiping
+      // the rest of their trusted contacts.
+      const theirContacts = await loadTrustedContacts(removedHuman);
       if (theirContacts.some((c) => c.id === myId || c.fullName === owner.fullName)) {
         const theirKey = removedHuman.fullName || removedHuman.id;
         await onUpdateHuman(theirKey, {

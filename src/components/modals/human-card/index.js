@@ -7,6 +7,7 @@ export { ChannelsPanel } from "./ChannelsPanel.jsx";
 export { NotesPanel } from "./NotesPanel.jsx";
 export { AtAGlanceStrip } from "./AtAGlanceStrip.jsx";
 export { DogsPanel } from "./DogsPanel.jsx";
+export { LinkDogActions } from "./LinkDogActions.jsx";
 export { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
 export { RemindersPanel } from "./RemindersPanel.jsx";
 export { MergeHumanDialog } from "./MergeHumanDialog.jsx";

@@ -14,8 +14,12 @@ const SORTED_BREEDS = [
   ...BREED_LIST.large.map(b => ({ name: b, size: "large" })),
 ].sort((a, b) => a.name.localeCompare(b.name));
 
-export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
+// presetOwner ({ id, label, phone }) locks the owner to a known human — used
+// when the modal is opened from a human's card ("add a dog they own"), so the
+// owner picker is replaced by a fixed, non-editable owner.
+export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = null }) {
   const toast = useToast();
+  const ownerLocked = Boolean(presetOwner);
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -27,7 +31,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
   const [sizeAutoSet, setSizeAutoSet] = useState(false);
   const [sizeOverridden, setSizeOverridden] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState("");
-  const [selectedOwner, setSelectedOwner] = useState(null); // { id, label, phone }
+  const [selectedOwner, setSelectedOwner] = useState(presetOwner); // { id, label, phone }
   const [gender, setGender] = useState("");
   const [colour, setColour] = useState("");
   const [neutered, setNeutered] = useState(""); // "" | "yes" | "no" → boolean true/false/undefined
@@ -376,10 +380,12 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans }) {
                     <div className="text-xs text-slate-500 mt-0.5">{selectedOwner.phone}</div>
                   )}
                 </div>
-                <button type="button" onClick={() => { setSelectedOwner(null); setOwnerQuery(""); }}
-                  className="bg-brand-coral-light border-none rounded-lg px-3 py-2 text-brand-coral text-xs font-bold cursor-pointer font-inherit">
-                  Change
-                </button>
+                {!ownerLocked && (
+                  <button type="button" onClick={() => { setSelectedOwner(null); setOwnerQuery(""); }}
+                    className="bg-brand-coral-light border-none rounded-lg px-3 py-2 text-brand-coral text-xs font-bold cursor-pointer font-inherit">
+                    Change
+                  </button>
+                )}
               </div>
             ) : !showNewOwner ? (
               <div>
