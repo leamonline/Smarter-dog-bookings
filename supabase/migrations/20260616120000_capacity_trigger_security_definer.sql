@@ -1,0 +1,24 @@
+-- Migration: make validate_booking_capacity() run as SECURITY DEFINER
+--
+-- Fixes "permission denied for function get_seats_used" on staff bookings.
+--
+-- The BEFORE INSERT OR UPDATE capacity trigger validate_booking_capacity()
+-- calls the internal availability helpers get_seats_used() and has_large_dog().
+-- Migration 20260615180000 revoked EXECUTE on those helpers from
+-- anon/authenticated (keeping them service_role / internal only). But the
+-- trigger function was SECURITY INVOKER, so when staff create a booking via a
+-- direct `from('bookings').insert(...)` it runs as the `authenticated` role and
+-- is denied EXECUTE on get_seats_used. Customer bookings go through the
+-- create_customer_booking_group SECURITY DEFINER RPC (runs as postgres) and were
+-- therefore unaffected.
+--
+-- Running the trigger as its owner (postgres) lets it call the restricted
+-- helpers internally, while keeping them inaccessible to anon/authenticated for
+-- direct calls. The function already pins search_path ('public','pg_temp') and
+-- contains no dynamic SQL, so SECURITY DEFINER is safe. Its auth-sensitive calls
+-- (is_staff(), auth.uid()) read the JWT session GUC, not the database role, so
+-- their behaviour is identical under DEFINER.
+--
+-- Idempotent: ALTER ... SECURITY DEFINER is naturally re-runnable.
+
+alter function public.validate_booking_capacity() security definer;
