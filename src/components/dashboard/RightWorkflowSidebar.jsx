@@ -15,9 +15,11 @@ import { TomorrowRemindersCard } from "./TomorrowRemindersCard.jsx";
 import { WaitlistCard } from "./WaitlistCard.jsx";
 import { TodoListCard } from "./TodoListCard.jsx";
 import { BookingHistoryCard } from "./BookingHistoryCard.jsx";
+import { DeliveryFailuresCard } from "./DeliveryFailuresCard.jsx";
 import { RightRailCalmRow } from "./RightRailCalmRow.jsx";
 import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
+import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useWaitlistUpcoming } from "../../supabase/hooks/useWaitlistUpcoming.js";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { resolveInboxTone } from "./tone/inbox";
@@ -31,6 +33,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
   const navigate = useNavigate();
   const inboxData = useWhatsAppSummary();
   const remindersData = useTomorrowReminders();
+  const failuresData = useDeliveryFailures();
   const { entries: waitlistEntries, loading: waitlistLoading } =
     useWaitlistUpcoming();
   const { todos, loading: todosLoading } = useTodos();
@@ -70,6 +73,18 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
   const cards = useMemo(
     () =>
       [
+        // Delivery failures only appear when there are any — always at the top
+        // (attention + highest urgency) so a broken number can't be missed.
+        ...(failuresData.count > 0
+          ? [
+              {
+                key: "delivery-failures",
+                tone: { tone: "attention", urgency: 100 },
+                canonicalIndex: -1,
+                node: <DeliveryFailuresCard data={failuresData} />,
+              },
+            ]
+          : []),
         {
           key: "inbox",
           tone: tones.inbox,
@@ -119,6 +134,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
       tones,
       inboxData,
       remindersData,
+      failuresData,
       waitlistEntries,
       waitlistLoading,
       todos,
