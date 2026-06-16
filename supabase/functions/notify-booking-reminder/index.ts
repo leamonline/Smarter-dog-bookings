@@ -4,6 +4,7 @@ import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
+import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -83,6 +84,7 @@ interface EnrichedBooking {
   dog_name: string;
   human_id: string;
   group_id: string | null;
+  notify_human_ids: string[] | null;
 }
 
 // Raw shape of a bookings row with an embedded dog select. PostgREST
@@ -94,16 +96,8 @@ interface RawBookingRow {
   service: string;
   dog_id: string;
   group_id: string | null;
+  notify_human_ids: string[] | null;
   dogs: { human_id: string; name: string } | { human_id: string; name: string }[] | null;
-}
-
-interface Human {
-  id: string;
-  name: string;
-  phone: string | null;
-  whatsapp: boolean;
-  sms: boolean;
-  email: string | null;
 }
 
 function toEnriched(rows: RawBookingRow[]): EnrichedBooking[] {
@@ -120,6 +114,7 @@ function toEnriched(rows: RawBookingRow[]): EnrichedBooking[] {
       dog_name: dog.name,
       human_id: dog.human_id,
       group_id: r.group_id ?? null,
+      notify_human_ids: r.notify_human_ids ?? null,
     });
   }
   return out;
@@ -135,6 +130,60 @@ function groupByCustomerDay(rows: EnrichedBooking[]): Map<string, EnrichedBookin
     groups.get(key)!.push(r);
   }
   return groups;
+}
+
+// Build the reminder wording for a set of a customer's bookings on one day.
+// Split out so each recipient (owner + chosen trusted humans) is reminded about
+// exactly the bookings that list them. Tight — single GSM-7 segment where
+// possible, no emoji/em-dash. appointmentWhen feeds the {{appointment_when}}
+// slot of the Meta template appointment_reminder_v1 (must read after "for").
+function buildReminder(
+  rows: EnrichedBooking[],
+  firstName: string,
+  bookingDate: string,
+): { message: string; appointmentWhen: string; dogNames: string; isPlural: boolean } {
+  const dogMap = new Map<string, { name: string; slot: string }>();
+  for (const r of rows) {
+    const existing = dogMap.get(r.dog_id);
+    if (!existing || r.slot < existing.slot) {
+      dogMap.set(r.dog_id, { name: r.dog_name, slot: r.slot });
+    }
+  }
+  const uniqueDogs = [...dogMap.values()].sort((a, b) => a.slot.localeCompare(b.slot));
+  const dogNames = joinNames(uniqueDogs.map((d) => sanitise(d.name)));
+  const isPlural = uniqueDogs.length > 1;
+  const dateFormatted = formatDate(bookingDate);
+  const slots = [...new Set(rows.map((r) => r.slot))].sort();
+  const services = [...new Set(rows.map((r) => r.service))];
+
+  let message: string;
+  let appointmentWhen: string;
+  if (slots.length === 1 && services.length === 1) {
+    // Common case (incl. multi-dog at the same slot).
+    const timeFormatted = formatTime(slots[0]);
+    message =
+      `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${services[0]} ` +
+      `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+    appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
+  } else if (slots.length === 1) {
+    // Same time, different services — stay generic so we never name the wrong
+    // service for a dog.
+    const timeFormatted = formatTime(slots[0]);
+    message =
+      `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in ` +
+      `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
+    appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
+  } else {
+    // Dogs at different times — list each dog with its own time.
+    const perDog = joinNames(
+      uniqueDogs.map((d) => `${sanitise(d.name)} at ${formatTime(d.slot)}`),
+    );
+    message =
+      `Hi ${firstName}, just a reminder about your bookings ` +
+      `tomorrow (${dateFormatted}): ${perDog}. See you then!`;
+    appointmentWhen = `${dateFormatted} (${perDog})`;
+  }
+  return { message, appointmentWhen, dogNames, isPlural };
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────
@@ -241,7 +290,7 @@ serve(async (req) => {
       // customer's bookings for the day, each row already carrying its dog name.
       const { data: rows, error: gatherErr } = await supabase
         .from("bookings")
-        .select("id, booking_date, slot, service, group_id, dog_id, dogs!inner(human_id, name)")
+        .select("id, booking_date, slot, service, group_id, notify_human_ids, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", anchor.booking_date)
         .eq("dogs.human_id", anchorHumanId)
         .neq("status", "Cancelled");
@@ -255,7 +304,7 @@ serve(async (req) => {
       const tomorrow = tomorrowDateString();
       const { data: rows, error: cronErr } = await supabase
         .from("bookings")
-        .select("id, booking_date, slot, service, group_id, dog_id, dogs!inner(human_id, name)")
+        .select("id, booking_date, slot, service, group_id, notify_human_ids, dog_id, dogs!inner(human_id, name)")
         .eq("booking_date", tomorrow)
         .eq("status", "Booked");
       if (cronErr) {
@@ -275,186 +324,140 @@ serve(async (req) => {
     // 2. Group by (human_id, booking_date) — one message per customer per day.
     const groups = groupByCustomerDay(enriched);
 
-    const results: Array<{ groupKey: string; success: boolean; channel?: string }> = [];
+    const results: Array<{ groupKey: string; human_id?: string; success: boolean; channel?: string }> = [];
 
     for (const [groupKey, groupRows] of groups) {
-      const humanId = groupRows[0].human_id;
+      const ownerId = groupRows[0].human_id;
       const bookingDate = groupRows[0].booking_date;
 
-      // 3. Fetch the customer once (dog names already came from the embed).
-      const { data: human, error: humanError } = await supabase
-        .from("humans")
-        .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out, reminder_hours, reminder_channels")
-        .eq("id", humanId)
-        .single();
+      // 3. Recipients = union of each booking's notify list (the dog owner is
+      //    the default when a booking has no explicit notify_human_ids). Each
+      //    recipient is reminded about exactly the bookings that list them.
+      const recipientIds = Array.from(
+        new Set(groupRows.flatMap((r) => recipientIdsForBooking(r.notify_human_ids, ownerId))),
+      );
+      const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-      if (humanError || !human) {
-        console.error(`Human lookup failed for ${humanId}:`, humanError?.message);
-        results.push({ groupKey, success: false });
-        continue;
-      }
-
-      const h = human as Human & {
-        whatsapp_opted_out?: boolean;
-        sms_opted_out?: boolean;
-        email_opted_out?: boolean;
-      };
-
-      // 4. De-dupe dogs by id (earliest slot wins) for the name list.
-      const dogMap = new Map<string, { name: string; slot: string }>();
-      for (const r of groupRows) {
-        const existing = dogMap.get(r.dog_id);
-        if (!existing || r.slot < existing.slot) {
-          dogMap.set(r.dog_id, { name: r.dog_name, slot: r.slot });
-        }
-      }
-      const uniqueDogs = [...dogMap.values()].sort((a, b) => a.slot.localeCompare(b.slot));
-      const dogNames = joinNames(uniqueDogs.map((d) => sanitise(d.name)));
-      const isPlural = uniqueDogs.length > 1;
-
-      // 5. Build the message. Tight — single GSM-7 segment where possible,
-      //    no emoji/em-dash. The reminder only confirms time + dog(s).
-      const firstName = sanitise(human.name.split(" ")[0]);
-      const dateFormatted = formatDate(bookingDate);
-      const slots = [...new Set(groupRows.map((r) => r.slot))].sort();
-      const services = [...new Set(groupRows.map((r) => r.service))];
-
-      let message: string;
-      // appointmentWhen feeds the {{appointment_when}} slot of the Meta
-      // template appointment_reminder_v1 ("…booked in with us … for
-      // {{appointment_when}}"). It must read naturally after "for".
-      let appointmentWhen: string;
-      if (slots.length === 1 && services.length === 1) {
-        // Common case (incl. multi-dog at the same slot) — wording unchanged.
-        const timeFormatted = formatTime(slots[0]);
-        message =
-          `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${services[0]} ` +
-          `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
-        appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
-      } else if (slots.length === 1) {
-        // Same time, different services — stay generic so we never name the
-        // wrong service for a dog.
-        const timeFormatted = formatTime(slots[0]);
-        message =
-          `Hi ${firstName}, just a reminder ${dogNames} ${isPlural ? "are" : "is"} booked in ` +
-          `tomorrow (${dateFormatted}) at ${timeFormatted}. See you then!`;
-        appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
-      } else {
-        // Dogs at different times — list each dog with its own time.
-        const perDog = joinNames(
-          uniqueDogs.map((d) => `${sanitise(d.name)} at ${formatTime(d.slot)}`),
-        );
-        message =
-          `Hi ${firstName}, just a reminder about your bookings ` +
-          `tomorrow (${dateFormatted}): ${perDog}. See you then!`;
-        // The template has one when-slot, so fold the per-dog times in.
-        appointmentWhen = `${dateFormatted} (${perDog})`;
-      }
-
-      // 6. Pick channel BEFORE we send. WhatsApp → SMS → email. Skip any
-      //    channel the customer has opted out of (PECR, mig 041).
-      let channel: "whatsapp" | "sms" | "email";
-      if (h.whatsapp && h.phone && !h.whatsapp_opted_out) {
-        channel = "whatsapp";
-      } else if (h.sms && h.phone && !h.sms_opted_out) {
-        channel = "sms";
-      } else if (h.email && !h.email_opted_out) {
-        channel = "email";
-      } else {
-        console.warn(`No contact method (or all opted out) for human ${h.id} — skipping reminder`);
-        results.push({ groupKey, success: false });
-        continue;
-      }
-
-      // 7. IDEMPOTENCY: insert one pending log row per booking, atomically.
-      //    The partial unique index (booking_id, trigger_type) WHERE status
-      //    IN ('pending','sent') (mig 042) means a re-click where ANY of the
-      //    customer's dogs already has a pending/sent reminder makes the whole
-      //    insert fail with 23505 — so we skip the group rather than double-send.
-      const pendingEntries = groupRows.map((r) => ({
-        booking_id: r.id,
-        group_id: r.group_id ?? null,
-        human_id: h.id,
-        channel,
-        trigger_type: "reminder",
-        status: "pending",
-        // Stored up front so the SMS-fallback job can resend the exact
-        // wording even if this WhatsApp send later fails to deliver.
-        message_text: message,
-      }));
-
-      const { data: pendingRows, error: pendingError } = await supabase
-        .from("notification_log")
-        .insert(pendingEntries)
-        .select("id");
-
-      if (pendingError) {
-        if (pendingError.code === "23505") {
-          // Already reminded this customer for this day — skip silently.
-          results.push({ groupKey, success: true, channel: "skipped (duplicate)" });
+      for (const humanId of recipientIds) {
+        const human = humansById.get(humanId);
+        if (!human) {
+          console.error(`Human lookup failed for ${humanId}`);
+          results.push({ groupKey, human_id: humanId, success: false });
           continue;
         }
-        console.error(`Pending log insert failed for ${groupKey}:`, pendingError.message);
-        results.push({ groupKey, success: false });
-        continue;
-      }
 
-      // 8. Send. WhatsApp goes via the Meta template (records to the inbox
-      //    with a meta_message_id so staff see delivery status, and an
-      //    undelivered send can be chased by SMS). SMS goes via sms-send
-      //    (also inbox-recorded). Email stays direct via SendGrid.
-      let sent = false;
-      let providerMessageId: string | null = null;
-      if (channel === "whatsapp") {
-        const result = await invokeInternal("whatsapp-send", {
-          mode: "template",
-          to: h.phone,
-          template_name: "appointment_reminder_v1",
-          language: "en_GB",
-          params: [firstName, dogNames, appointmentWhen],
-          human_id: h.id,
-        });
-        providerMessageId = (result.body.meta_message_id as string | null) ?? null;
-        // A null meta_message_id means whatsapp-send returned ok but Meta
-        // produced no message — treat as a failure, not a silent 'sent'.
-        sent = result.ok && result.body.ok === true && providerMessageId != null;
-        if (!sent) {
-          console.error(`reminder whatsapp-send failed for ${groupKey}:`, result.status, JSON.stringify(result.body));
+        const rows = groupRows.filter((r) =>
+          recipientIdsForBooking(r.notify_human_ids, ownerId).includes(humanId),
+        );
+        if (rows.length === 0) continue;
+
+        // 4. Channel preference WhatsApp → SMS → email, skipping opted-out
+        //    channels (PECR).
+        const channel = pickChannel(human);
+        if (!channel) {
+          console.warn(`No contact method (or all opted out) for human ${humanId} — skipping reminder`);
+          results.push({ groupKey, human_id: humanId, success: false });
+          continue;
         }
-      } else if (channel === "sms") {
-        const result = await invokeInternal("sms-send", {
-          mode: "template",
-          to: h.phone,
-          text: message,
-          template_name: "appointment_reminder",
-          human_id: h.id,
-        });
-        sent = result.ok && result.body.ok === true;
-        providerMessageId = (result.body.twilio_sid as string | null) ?? null;
-        if (!sent) {
-          console.error(`reminder sms-send failed for ${groupKey}:`, result.status, JSON.stringify(result.body));
+
+        // 5. Build this recipient's message from their bookings only.
+        const firstName = sanitise(human.name.split(" ")[0]);
+        const { message, appointmentWhen, dogNames, isPlural } = buildReminder(
+          rows,
+          firstName,
+          bookingDate,
+        );
+
+        // 6. IDEMPOTENCY: one pending row per booking for THIS recipient. The
+        //    unique index (booking_id, trigger_type, human_id) WHERE status IN
+        //    ('pending','sent') means a re-run where this recipient already has
+        //    a pending/sent reminder for these bookings fails with 23505 — we
+        //    skip them; other recipients keep their own rows.
+        const pendingEntries = rows.map((r) => ({
+          booking_id: r.id,
+          group_id: r.group_id ?? null,
+          human_id: human.id,
+          channel,
+          trigger_type: "reminder",
+          status: "pending",
+          // Stored up front so the SMS-fallback job can resend the exact wording
+          // even if this WhatsApp send later fails to deliver.
+          message_text: message,
+        }));
+
+        const { data: pendingRows, error: pendingError } = await supabase
+          .from("notification_log")
+          .insert(pendingEntries)
+          .select("id");
+
+        if (pendingError) {
+          if (pendingError.code === "23505") {
+            // Already reminded this recipient for these bookings — skip silently.
+            results.push({ groupKey, human_id: humanId, success: true, channel: "skipped (duplicate)" });
+            continue;
+          }
+          console.error(`Pending log insert failed for ${groupKey}/${humanId}:`, pendingError.message);
+          results.push({ groupKey, human_id: humanId, success: false });
+          continue;
         }
-      } else {
-        const subject = `Reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in tomorrow at Smarter Dog Grooming`;
-        // channel==='email' is only chosen when h.email is set (step 6).
-        sent = await sendEmail(h.email!, subject, message);
+
+        // 7. Send. WhatsApp via the Meta template (records to the inbox with a
+        //    meta_message_id so staff see delivery status, and an undelivered
+        //    send can be chased by SMS). SMS via sms-send (also inbox-recorded).
+        //    Email stays direct via SendGrid.
+        let sent = false;
+        let providerMessageId: string | null = null;
+        if (channel === "whatsapp") {
+          const result = await invokeInternal("whatsapp-send", {
+            mode: "template",
+            to: human.phone,
+            template_name: "appointment_reminder_v1",
+            language: "en_GB",
+            params: [firstName, dogNames, appointmentWhen],
+            human_id: human.id,
+          });
+          providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+          // A null meta_message_id means whatsapp-send returned ok but Meta
+          // produced no message — treat as a failure, not a silent 'sent'.
+          sent = result.ok && result.body.ok === true && providerMessageId != null;
+          if (!sent) {
+            console.error(`reminder whatsapp-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
+          }
+        } else if (channel === "sms") {
+          const result = await invokeInternal("sms-send", {
+            mode: "template",
+            to: human.phone,
+            text: message,
+            template_name: "appointment_reminder",
+            human_id: human.id,
+          });
+          sent = result.ok && result.body.ok === true;
+          providerMessageId = (result.body.twilio_sid as string | null) ?? null;
+          if (!sent) {
+            console.error(`reminder sms-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
+          }
+        } else {
+          const subject = `Reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in tomorrow at Smarter Dog Grooming`;
+          // channel==='email' is only chosen when the recipient has an email.
+          sent = await sendEmail(human.email!, subject, message);
+        }
+
+        // 8. Update the pending rows with the outcome. provider_message_id links
+        //    the WhatsApp send to its whatsapp_messages delivery status for the
+        //    SMS-fallback job.
+        const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
+        await supabase
+          .from("notification_log")
+          .update({
+            status: sent ? "sent" : "failed",
+            sent_at: sent ? new Date().toISOString() : null,
+            provider_message_id: sent ? providerMessageId : null,
+            error_message: sent ? null : "Delivery failed — check provider logs",
+          })
+          .in("id", pendingIds);
+
+        results.push({ groupKey, human_id: humanId, success: sent, channel });
       }
-
-      // 9. Update the pending rows with the outcome. provider_message_id
-      //    links the WhatsApp send to its whatsapp_messages delivery status
-      //    for the SMS-fallback job.
-      const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
-      await supabase
-        .from("notification_log")
-        .update({
-          status: sent ? "sent" : "failed",
-          sent_at: sent ? new Date().toISOString() : null,
-          provider_message_id: sent ? providerMessageId : null,
-          error_message: sent ? null : "Delivery failed — check provider logs",
-        })
-        .in("id", pendingIds);
-
-      results.push({ groupKey, success: sent, channel });
     }
 
     return new Response(

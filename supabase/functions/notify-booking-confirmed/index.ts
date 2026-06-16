@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
+import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -78,17 +79,6 @@ serve(async (req) => {
       return new Response("Dog lookup failed", { status: 500 });
     }
 
-    const { data: human, error: humanError } = await supabase
-      .from("humans")
-      .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
-      .eq("id", dog.human_id)
-      .single();
-
-    if (humanError || !human) {
-      console.error("Human lookup failed:", humanError?.message);
-      return new Response("Human lookup failed", { status: 500 });
-    }
-
     // 3. Resolve dog names + booking IDs (all dogs in the group, or just this one)
     let dogNames: string;
     let bookingIds: string[] = [booking.id];
@@ -116,119 +106,125 @@ serve(async (req) => {
       dogNames = sanitise(dog.name);
     }
 
-    // 4. Pick channel BEFORE we send (we need to record it in the pending row).
-    //    Preference: WhatsApp → SMS → email. Skip any channel the customer has
-    //    opted out of (PECR compliance, mig 041).
-    let channel: "whatsapp" | "sms" | "email";
-    if (human.whatsapp && human.phone && !human.whatsapp_opted_out) {
-      channel = "whatsapp";
-    } else if (human.sms && human.phone && !human.sms_opted_out) {
-      channel = "sms";
-    } else if (human.email && !human.email_opted_out) {
-      channel = "email";
-    } else {
-      return new Response("No contact method available (or all opted out) for this customer", { status: 200 });
-    }
+    // 4. Resolve recipients — the booking's explicit notify_human_ids (owner +
+    //    chosen trusted humans) or the dog owner as the default. Each recipient
+    //    gets their own channel, personalised message and notification_log row.
+    const recipientIds = recipientIdsForBooking(booking.notify_human_ids, dog.human_id);
+    const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-    // 5. Format the message
-    //    Kept tight — fits a single GSM-7 SMS segment for customers without
-    //    WhatsApp/email. Emojis and em-dashes force UCS-2 encoding (70 chars
-    //    per segment vs 160) and cost 4x more per send. Sender ID
-    //    "Smarter Dog" already brands the message, so no signature needed.
-    const firstName = sanitise(human.name.split(" ")[0]);
-    const isPlural = dogNames.includes(" and ");
     const dateFormatted = formatDate(booking.booking_date);
     const timeFormatted = formatTime(booking.slot);
     const serviceName = booking.service;
     // Feeds the {{appointment_when}} slot of booking_confirmed_v1.
     const appointmentWhen = `${dateFormatted} at ${timeFormatted}`;
+    const isPlural = dogNames.includes(" and ");
 
-    const message =
-      `Hi ${firstName}, ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} on ${dateFormatted} at ${timeFormatted}. ` +
-      `See you then!`;
+    const results: Array<{ human_id: string; channel?: string; sent?: boolean; skipped?: string }> = [];
 
-    // 6. IDEMPOTENCY: insert pending log rows for ALL bookings in the group
-    //    atomically. The partial unique index `(booking_id, trigger_type)
-    //    WHERE status IN ('pending','sent')` (mig 042) physically prevents
-    //    a second invocation — if any booking already has a pending or sent
-    //    row, the whole INSERT fails with code 23505 and we return early.
-    //    This replaces the old 2-second-wait + dedup-by-group-id pattern;
-    //    that pattern was racy and required Twilio to be idempotent itself.
-    const pendingEntries = bookingIds.map((bid) => ({
-      booking_id: bid,
-      group_id: booking.group_id ?? null,
-      human_id: human.id,
-      channel,
-      trigger_type: "confirmed",
-      status: "pending",
-      // Stored so reminder-sms-fallback can resend this exact wording over SMS
-      // if the WhatsApp confirmation isn't delivered.
-      message_text: message,
-    }));
-
-    const { data: pendingRows, error: pendingError } = await supabase
-      .from("notification_log")
-      .insert(pendingEntries)
-      .select("id");
-
-    if (pendingError) {
-      if (pendingError.code === "23505") {
-        return new Response("Skipped: duplicate (already pending or sent)", { status: 200 });
+    for (const humanId of recipientIds) {
+      const human = humansById.get(humanId);
+      if (!human) {
+        results.push({ human_id: humanId, skipped: "human not found" });
+        continue;
       }
-      console.error("Pending log insert failed:", pendingError.message);
-      return new Response("Pending log insert failed", { status: 500 });
-    }
 
-    // 7. Send. WhatsApp via the approved Meta template booking_confirmed_v1
-    //    and SMS via sms-send — both record to the staff inbox with a
-    //    delivery status. Email stays direct via SendGrid.
-    let sent = false;
-    let providerMessageId: string | null = null;
-    if (channel === "whatsapp") {
-      const result = await invokeInternal("whatsapp-send", {
-        mode: "template",
-        to: human.phone,
-        template_name: "booking_confirmed_v1",
-        language: "en_GB",
-        params: [firstName, dogNames, appointmentWhen, serviceName],
-        human_id: human.id,
-      });
-      providerMessageId = (result.body.meta_message_id as string | null) ?? null;
-      // A null meta_message_id means whatsapp-send returned ok but Meta
-      // produced no message — treat as a failure, not a silent 'sent'.
-      sent = result.ok && result.body.ok === true && providerMessageId != null;
-      if (!sent) console.error("confirmed whatsapp-send failed:", result.status, JSON.stringify(result.body));
-    } else if (channel === "sms") {
-      const result = await invokeInternal("sms-send", {
-        mode: "template",
-        to: human.phone,
-        text: message,
-        template_name: "booking_confirmed",
-        human_id: human.id,
-      });
-      sent = result.ok && result.body.ok === true;
-      providerMessageId = (result.body.twilio_sid as string | null) ?? null;
-      if (!sent) console.error("confirmed sms-send failed:", result.status, JSON.stringify(result.body));
-    } else {
-      const subject = `Booking confirmed — ${dogNames} at Smarter Dog Grooming`;
-      sent = await sendEmail(human.email!, subject, message);
-    }
+      // Channel preference WhatsApp → SMS → email, skipping opted-out channels.
+      const channel = pickChannel(human);
+      if (!channel) {
+        results.push({ human_id: humanId, skipped: "no contact method" });
+        continue;
+      }
 
-    // 8. Update the pending rows with the outcome. provider_message_id links
-    //    the WhatsApp send to its whatsapp_messages delivery status.
-    const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
-    await supabase
-      .from("notification_log")
-      .update({
-        status: sent ? "sent" : "failed",
-        sent_at: sent ? new Date().toISOString() : null,
-        provider_message_id: sent ? providerMessageId : null,
-        error_message: sent ? null : "Delivery failed — check provider logs",
-      })
-      .in("id", pendingIds);
+      // Kept tight — fits a single GSM-7 SMS segment. No emoji/em-dash.
+      const firstName = sanitise(human.name.split(" ")[0]);
+      const message =
+        `Hi ${firstName}, ${dogNames} ${isPlural ? "are" : "is"} booked in for a ${serviceName} on ${dateFormatted} at ${timeFormatted}. ` +
+        `See you then!`;
+
+      // IDEMPOTENCY: one pending row per booking for THIS recipient. The unique
+      // index (booking_id, trigger_type, human_id) WHERE status IN
+      // ('pending','sent') means a re-fire where this recipient already has a
+      // pending/sent row fails with 23505 — we skip them; other recipients keep
+      // their own rows and are unaffected.
+      const pendingEntries = bookingIds.map((bid) => ({
+        booking_id: bid,
+        group_id: booking.group_id ?? null,
+        human_id: human.id,
+        channel,
+        trigger_type: "confirmed",
+        status: "pending",
+        // Stored so reminder-sms-fallback can resend this exact wording over SMS
+        // if the WhatsApp confirmation isn't delivered.
+        message_text: message,
+      }));
+
+      const { data: pendingRows, error: pendingError } = await supabase
+        .from("notification_log")
+        .insert(pendingEntries)
+        .select("id");
+
+      if (pendingError) {
+        if (pendingError.code === "23505") {
+          results.push({ human_id: humanId, skipped: "already sent" });
+          continue;
+        }
+        console.error("Pending log insert failed:", pendingError.message);
+        results.push({ human_id: humanId, skipped: "log insert failed" });
+        continue;
+      }
+
+      // Send. WhatsApp via the approved Meta template booking_confirmed_v1 and
+      // SMS via sms-send — both record to the staff inbox with a delivery
+      // status. Email stays direct via SendGrid.
+      let sent = false;
+      let providerMessageId: string | null = null;
+      if (channel === "whatsapp") {
+        const result = await invokeInternal("whatsapp-send", {
+          mode: "template",
+          to: human.phone,
+          template_name: "booking_confirmed_v1",
+          language: "en_GB",
+          params: [firstName, dogNames, appointmentWhen, serviceName],
+          human_id: human.id,
+        });
+        providerMessageId = (result.body.meta_message_id as string | null) ?? null;
+        // A null meta_message_id means whatsapp-send returned ok but Meta
+        // produced no message — treat as a failure, not a silent 'sent'.
+        sent = result.ok && result.body.ok === true && providerMessageId != null;
+        if (!sent) console.error("confirmed whatsapp-send failed:", result.status, JSON.stringify(result.body));
+      } else if (channel === "sms") {
+        const result = await invokeInternal("sms-send", {
+          mode: "template",
+          to: human.phone,
+          text: message,
+          template_name: "booking_confirmed",
+          human_id: human.id,
+        });
+        sent = result.ok && result.body.ok === true;
+        providerMessageId = (result.body.twilio_sid as string | null) ?? null;
+        if (!sent) console.error("confirmed sms-send failed:", result.status, JSON.stringify(result.body));
+      } else {
+        const subject = `Booking confirmed — ${dogNames} at Smarter Dog Grooming`;
+        sent = await sendEmail(human.email!, subject, message);
+      }
+
+      // Update this recipient's pending rows with the outcome.
+      const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
+      await supabase
+        .from("notification_log")
+        .update({
+          status: sent ? "sent" : "failed",
+          sent_at: sent ? new Date().toISOString() : null,
+          provider_message_id: sent ? providerMessageId : null,
+          error_message: sent ? null : "Delivery failed — check provider logs",
+        })
+        .in("id", pendingIds);
+
+      results.push({ human_id: humanId, channel, sent });
+    }
 
     return new Response(
-      JSON.stringify({ success: sent, channel, dogNames }),
+      JSON.stringify({ dogNames, recipients: results }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },

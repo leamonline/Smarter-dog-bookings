@@ -6,8 +6,10 @@ import { toDateStr } from "../../supabase/transforms";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
+import { NotifyRecipientsDialog } from "./new-booking/NotifyRecipientsDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
 
 // ─── main modal ─────────────────────────────────────────────────────────────
 
@@ -68,6 +70,14 @@ export function NewBookingModal({
   const [pendingPastConfirm, setPendingPastConfirm] = useState(false);
   const [pendingCapacityOverride, setPendingCapacityOverride] = useState(null);
   // shape: { reason: string, targetDateStr: string }
+
+  // Notification-recipient picker. Shown at confirm time when the dog's owner
+  // has trusted humans (owner pre-ticked, trusted opt-in). The chosen ids ride
+  // into each booking via notifyHumanIdsRef so buildBookingsForOverride reads
+  // them synchronously — component state would lag a tick behind the save.
+  const [pendingNotifyPicker, setPendingNotifyPicker] = useState(null);
+  const [ownerTrusted, setOwnerTrusted] = useState([]);
+  const notifyHumanIdsRef = useRef(null);
 
   // When the modal opens from a WhatsApp message the humans map may not
   // have hydrated yet, so dogQuery falls back to the conversation's
@@ -151,6 +161,33 @@ export function NewBookingModal({
   const selectedHumanId = dogEntries[0]?.dog?._humanId || null;
   const primaryTheme = hasDogs ? (SIZE_THEME[dogEntries[0].dog.size || "small"] || SIZE_FALLBACK) : SIZE_FALLBACK;
   const selectedDogs = dogEntries.map(e => ({ id: e.dog.id, size: e.dog.size || "small", name: e.dog.name }));
+
+  // Load the owner's trusted humans when the owner changes so the recipient
+  // picker knows whether to appear — trusted contacts hydrate lazily, so the
+  // humans map often doesn't carry them yet. Also clears any prior choice.
+  useEffect(() => {
+    notifyHumanIdsRef.current = null;
+    let cancelled = false;
+    if (!selectedHumanId) {
+      setOwnerTrusted([]);
+      return;
+    }
+    const owner = Object.values(humans || {}).find((h) => h?.id === selectedHumanId);
+    if (owner?.trustedContacts?.length) {
+      setOwnerTrusted(owner.trustedContacts);
+      return;
+    }
+    fetchTrustedContactsForHuman(selectedHumanId)
+      .then((res) => {
+        if (!cancelled) setOwnerTrusted(res.trustedContacts || []);
+      })
+      .catch(() => {
+        if (!cancelled) setOwnerTrusted([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedHumanId, humans]);
 
   // ─── handlers ───────────────────────────────────────────────────────────
 
@@ -265,15 +302,51 @@ export function NewBookingModal({
       }
     }
 
-    // Past-date guard. If the selected date is before today, require an
-    // explicit confirmation so staff can't accidentally book yesterday.
+    // Recipient picker: when the owner has trusted humans and we haven't asked
+    // yet, choose who gets notified before saving. Owner is the default; trusted
+    // humans are opt-in. Skipped entirely when there are no trusted humans.
+    if (ownerTrusted.length > 0 && notifyHumanIdsRef.current === null) {
+      const owner = Object.values(humans || {}).find((h) => h?.id === selectedHumanId);
+      setPendingNotifyPicker({
+        owner: {
+          id: selectedHumanId,
+          fullName:
+            owner?.fullName ||
+            `${owner?.name || ""} ${owner?.surname || ""}`.trim() ||
+            "Owner",
+        },
+        trusted: ownerTrusted
+          .filter((c) => c.id)
+          .map((c) => ({ id: c.id, fullName: c.fullName, relationship: c.relationship })),
+      });
+      return;
+    }
+
+    runSaveFlow();
+  };
+
+  // Past-date guard, then save. Split out so the recipient picker can run first
+  // and then resume the normal save path.
+  const runSaveFlow = () => {
     const todayStr = toDateStr(new Date());
     if (selectedDateStr < todayStr) {
       setPendingPastConfirm(true);
       return;
     }
-
     saveBooking();
+  };
+
+  // Resolve the recipient picker: store the chosen ids (owner-only collapses to
+  // the default — leave the ref empty so no redundant notify_human_ids is sent),
+  // then resume the save flow.
+  const confirmNotifyRecipients = (selectedIds) => {
+    const ownerId = pendingNotifyPicker?.owner?.id;
+    const ownerOnly =
+      selectedIds.length === 0 ||
+      (selectedIds.length === 1 && selectedIds[0] === ownerId);
+    notifyHumanIdsRef.current = ownerOnly ? [] : selectedIds;
+    setPendingNotifyPicker(null);
+    runSaveFlow();
   };
 
   const buildBookingsForOverride = (capacity) => {
@@ -338,6 +411,9 @@ export function NewBookingModal({
             _dogId: entry.dog.id,
             _bookingDate: targetDateStr,
             ...(capacity ? { staff_capacity_override: true } : {}),
+            ...(notifyHumanIdsRef.current?.length
+              ? { notify_human_ids: notifyHumanIdsRef.current }
+              : {}),
           });
         });
       } else if (i === 0) {
@@ -534,6 +610,15 @@ export function NewBookingModal({
             variant="primary"
             onConfirm={confirmCapacityOverride}
             onCancel={() => setPendingCapacityOverride(null)}
+          />
+        )}
+
+        {pendingNotifyPicker && (
+          <NotifyRecipientsDialog
+            owner={pendingNotifyPicker.owner}
+            trusted={pendingNotifyPicker.trusted}
+            onConfirm={confirmNotifyRecipients}
+            onCancel={() => setPendingNotifyPicker(null)}
           />
         )}
     </AccessibleModal>
