@@ -950,6 +950,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
+                  onUpdateHuman={updateHuman}
                   daySettings={daySettings}
                 />
               </Suspense>

@@ -12,6 +12,7 @@ import {
 } from "../../engine/bookingRules";
 import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
+import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
 
 const BookingDetailModal = lazy(() =>
   import("../modals/BookingDetailModal.jsx").then((module) => ({
@@ -199,6 +200,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   // shape: { nextStatus: string, previous: string }
   const alertsButtonRef = useRef(null);
   const toast = useToast();
+  const deliveryFailure = useBookingDeliveryFailure(booking.id);
 
   const applyStatusChange = (nextStatus, previous) => {
     if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
@@ -349,6 +351,22 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
+          )}
+          {deliveryFailure && deliveryFailure.length > 0 && (
+            <span
+              role="img"
+              aria-label="A message to this customer failed to deliver"
+              title={`Failed to deliver: ${deliveryFailure
+                .map((f) => f.trigger_type)
+                .join(", ")}. Open the booking to fix the number and resend.`}
+              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-red-700 bg-red-50 border border-red-200 shrink-0"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </span>
           )}

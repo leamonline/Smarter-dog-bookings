@@ -19,6 +19,7 @@ import {
   computeBookingPricing,
 } from "../../engine/bookingRules";
 import { toDateStr } from "../../supabase/transforms";
+import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
 
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
 import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
@@ -29,6 +30,7 @@ import { ServicesAddonsCard } from "./booking-detail/ServicesAddonsCard.jsx";
 import { PaymentsPickupCard } from "./booking-detail/PaymentsPickupCard.jsx";
 import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
+import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
 
 export function BookingDetailModal({
@@ -46,6 +48,7 @@ export function BookingDetailModal({
   dogs,
   humans,
   onUpdateDog,
+  onUpdateHuman,
   daySettings = {},
 }) {
   const dogData = useMemo(
@@ -83,6 +86,9 @@ export function BookingDetailModal({
       primaryHuman,
     [humans, booking.pickupBy, booking._ownerId, booking.owner, primaryHuman],
   );
+
+  // Failed customer notifications for THIS booking (null when all delivered).
+  const deliveryFailures = useBookingDeliveryFailure(booking.id);
 
   const sizeTheme = SIZE_THEME[booking.size] || SIZE_FALLBACK;
   // The booking's status colour — same map as the dashboard card pill — drives
@@ -274,6 +280,13 @@ export function BookingDetailModal({
             booking={booking}
             currentDateStr={currentDateStr}
             onUpdate={onUpdate}
+          />
+
+          <DeliveryFailureCard
+            booking={booking}
+            failures={deliveryFailures}
+            primaryHuman={primaryHuman}
+            onUpdateHuman={onUpdateHuman}
           />
 
           {booking._groupId && (
