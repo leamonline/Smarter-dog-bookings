@@ -194,6 +194,12 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         confirmed: booking.confirmed ?? false,
         ...(booking.group_id ? { group_id: booking.group_id } : {}),
         ...(booking.staff_capacity_override ? { staff_capacity_override: true } : {}),
+        // Explicit notification recipients (owner + chosen trusted humans).
+        // Omitted when only the owner is selected — the notify functions then
+        // fall back to the dog owner (the default for every other booking).
+        ...(booking.notify_human_ids?.length
+          ? { notify_human_ids: booking.notify_human_ids }
+          : {}),
       };
 
       // Optimistic: insert a RAW row keyed by a client-generated id that we

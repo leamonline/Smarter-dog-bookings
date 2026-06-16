@@ -4,6 +4,7 @@ import { sendSmsBoolean, sendWhatsAppBoolean } from "../_shared/twilio.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate } from "../_shared/format.ts";
+import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -46,93 +47,91 @@ serve(async (req) => {
       return new Response("Dog lookup failed", { status: 500 });
     }
 
-    // 2. Look up the customer
-    const { data: human, error: humanError } = await supabase
-      .from("humans")
-      .select("id, name, phone, whatsapp, sms, email, whatsapp_opted_out, sms_opted_out, email_opted_out")
-      .eq("id", dog.human_id)
-      .single();
+    // 2. Resolve recipients — explicit notify_human_ids (owner + chosen trusted
+    //    humans) or the dog owner. Each gets their own channel + log row.
+    const recipientIds = recipientIdsForBooking(booking.notify_human_ids, dog.human_id);
+    const humansById = await fetchHumansByIds(supabase, recipientIds);
 
-    if (humanError || !human) {
-      console.error("Human lookup failed:", humanError?.message);
-      return new Response("Human lookup failed", { status: 500 });
-    }
-
-    // 3. Build the cancellation message
-    //    We can't tell from the webhook payload whether this was customer- or
-    //    staff-initiated, so we use the default customer-initiated tone.
-    const firstName = sanitise(human.name.split(" ")[0]);
+    // 3. Message bits shared across recipients. We can't tell from the webhook
+    //    payload whether this was customer- or staff-initiated, so we use the
+    //    default customer-initiated tone.
     const dogName = sanitise(dog.name);
     const dateFormatted = formatDate(booking.booking_date);
 
-    // Tight — single GSM-7 segment to keep SMS cost at £0.04 per send.
-    const message =
-      `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. ` +
-      `Rebook anytime.`;
+    const results: Array<{ human_id: string; channel?: string; sent?: boolean; skipped?: string }> = [];
 
-    // 4. Pick channel BEFORE we send (we need to record it in the pending row).
-    //    Preference: WhatsApp → SMS → email. Skip any channel the customer has
-    //    opted out of (PECR compliance, mig 041).
-    let channel: "whatsapp" | "sms" | "email";
-    if (human.whatsapp && human.phone && !human.whatsapp_opted_out) {
-      channel = "whatsapp";
-    } else if (human.sms && human.phone && !human.sms_opted_out) {
-      channel = "sms";
-    } else if (human.email && !human.email_opted_out) {
-      channel = "email";
-    } else {
-      return new Response("No contact method available (or all opted out) for this customer", { status: 200 });
-    }
-
-    // 5. IDEMPOTENCY: insert pending log row up front. The partial unique
-    //    index `(booking_id, trigger_type) WHERE status IN ('pending','sent')`
-    //    (mig 042) prevents double-sends if the trigger fires twice.
-    //    Cancellation is an UPDATE (status='Cancelled') not a DELETE in this
-    //    app — the booking row still exists, so booking_id is valid.
-    const { data: pendingRow, error: pendingError } = await supabase
-      .from("notification_log")
-      .insert({
-        booking_id: booking.id,
-        group_id: booking.group_id ?? null,
-        human_id: human.id,
-        channel,
-        trigger_type: "cancelled",
-        status: "pending",
-      })
-      .select("id")
-      .single();
-
-    if (pendingError) {
-      if (pendingError.code === "23505") {
-        return new Response("Skipped: cancellation already notified", { status: 200 });
+    for (const humanId of recipientIds) {
+      const human = humansById.get(humanId);
+      if (!human) {
+        results.push({ human_id: humanId, skipped: "human not found" });
+        continue;
       }
-      console.error("Pending log insert failed:", pendingError.message);
-      return new Response("Pending log insert failed", { status: 500 });
-    }
 
-    // 6. Send via Twilio (SMS/WhatsApp) or SendGrid (email).
-    let sent = false;
-    if (channel === "whatsapp") {
-      sent = await sendWhatsAppBoolean(human.phone, message);
-    } else if (channel === "sms") {
-      sent = await sendSmsBoolean(human.phone, message);
-    } else {
-      const subject = `Your ${dogName} appointment has been cancelled`;
-      sent = await sendEmail(human.email, subject, message);
-    }
+      // Channel preference WhatsApp → SMS → email, skipping opted-out channels.
+      const channel = pickChannel(human);
+      if (!channel) {
+        results.push({ human_id: humanId, skipped: "no contact method" });
+        continue;
+      }
 
-    // 7. Update the pending row with the outcome.
-    await supabase
-      .from("notification_log")
-      .update({
-        status: sent ? "sent" : "failed",
-        sent_at: sent ? new Date().toISOString() : null,
-        error_message: sent ? null : "Delivery failed — check provider logs",
-      })
-      .eq("id", pendingRow.id);
+      const firstName = sanitise(human.name.split(" ")[0]);
+      // Tight — single GSM-7 segment to keep SMS cost at £0.04 per send.
+      const message =
+        `Hi ${firstName}, your appointment for ${dogName} on ${dateFormatted} has been cancelled. ` +
+        `Rebook anytime.`;
+
+      // IDEMPOTENCY: pending row up front, per recipient. Unique index
+      // (booking_id, trigger_type, human_id) skips a recipient already notified
+      // without blocking the others. Cancellation is an UPDATE
+      // (status='Cancelled'), so the booking row — and booking_id — still exist.
+      const { data: pendingRow, error: pendingError } = await supabase
+        .from("notification_log")
+        .insert({
+          booking_id: booking.id,
+          group_id: booking.group_id ?? null,
+          human_id: human.id,
+          channel,
+          trigger_type: "cancelled",
+          status: "pending",
+        })
+        .select("id")
+        .single();
+
+      if (pendingError) {
+        if (pendingError.code === "23505") {
+          results.push({ human_id: humanId, skipped: "already sent" });
+          continue;
+        }
+        console.error("Pending log insert failed:", pendingError.message);
+        results.push({ human_id: humanId, skipped: "log insert failed" });
+        continue;
+      }
+
+      // Send via Twilio (SMS/WhatsApp) or SendGrid (email).
+      let sent = false;
+      if (channel === "whatsapp") {
+        sent = await sendWhatsAppBoolean(human.phone!, message);
+      } else if (channel === "sms") {
+        sent = await sendSmsBoolean(human.phone!, message);
+      } else {
+        const subject = `Your ${dogName} appointment has been cancelled`;
+        sent = await sendEmail(human.email!, subject, message);
+      }
+
+      await supabase
+        .from("notification_log")
+        .update({
+          status: sent ? "sent" : "failed",
+          sent_at: sent ? new Date().toISOString() : null,
+          error_message: sent ? null : "Delivery failed — check provider logs",
+        })
+        .eq("id", pendingRow.id);
+
+      results.push({ human_id: humanId, channel, sent });
+    }
 
     return new Response(
-      JSON.stringify({ success: sent, channel, dogName }),
+      JSON.stringify({ dogName, recipients: results }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
