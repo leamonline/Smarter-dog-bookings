@@ -11,6 +11,7 @@ import { useCallback, useRef } from "react";
 import { supabase } from "../../client.js";
 import { replaceTrustedContacts } from "../../rpc";
 import { findHumanByIdOrName } from "../../transforms";
+import { looksLikeUuid } from "../../../engine/bookingRules";
 import { logger } from "../../../lib/logger";
 import { fullNameFromRow } from "./helpers";
 import type { HumansMap, TrustedContact } from "./helpers";
@@ -120,10 +121,16 @@ export function useTrustedContacts() {
 
       const nextPairs: { id: string; relationship: string }[] = [];
 
+      // Never drop a contact that already carries a real UUID just because it
+      // isn't in the current (paginated) snapshot — the snapshot only holds the
+      // 50-row page, but the replace RPC writes the WHOLE set, so a dropped id
+      // silently unlinks that person. Fall back to the raw UUID when resolution
+      // misses; only entries with no usable id are skipped.
       if (hasTrustedContactsUpdate) {
         for (const entry of updates.trustedContacts as any[]) {
-          const resolved = findHumanByIdOrName(prevHumansById, prevHumans, entry?.id ?? entry);
-          const id = (resolved as any)?.id;
+          const rawId = entry?.id ?? entry;
+          const resolved = findHumanByIdOrName(prevHumansById, prevHumans, rawId);
+          const id = (resolved as any)?.id || (looksLikeUuid(rawId) ? rawId : null);
           if (!id) continue;
           nextPairs.push({
             id,
@@ -136,7 +143,7 @@ export function useTrustedContacts() {
       } else {
         for (const value of updates.trustedIds as any[]) {
           const resolved = findHumanByIdOrName(prevHumansById, prevHumans, value);
-          const id = (resolved as any)?.id;
+          const id = (resolved as any)?.id || (looksLikeUuid(value) ? value : null);
           if (!id) continue;
           nextPairs.push({
             id,
@@ -165,20 +172,35 @@ export function useTrustedContacts() {
         return { ok: false, error: replaceErr };
       }
 
+      // Resolve display names from the snapshot first; for ids that live past
+      // the paginated window (so they're not in the snapshot) fall back to a
+      // single batched DB lookup. Without this a contact can save to the DB yet
+      // render blank because its name couldn't be resolved locally.
+      const nameById = new Map<string, string>();
+      const missingIds: string[] = [];
+      for (const pair of nextPairs) {
+        const resolved = findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any;
+        if (resolved?.fullName) nameById.set(pair.id, resolved.fullName);
+        else missingIds.push(pair.id);
+      }
+      if (missingIds.length > 0) {
+        const fetched = await fetchHumanNamesByIds(missingIds);
+        for (const [id, fullName] of Object.entries(fetched)) {
+          if (fullName) nameById.set(id, fullName);
+        }
+      }
+
       const trustedNames = nextPairs
-        .map(
-          (pair) =>
-            (findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any)?.fullName,
-        )
-        .filter(Boolean);
+        .map((pair) => nameById.get(pair.id))
+        .filter(Boolean) as string[];
 
       const savedTrustedContacts = nextPairs
         .map((pair) => {
-          const resolved = findHumanByIdOrName(prevHumansById, prevHumans, pair.id) as any;
-          if (!resolved?.fullName) return null;
+          const fullName = nameById.get(pair.id);
+          if (!fullName) return null;
           return {
             id: pair.id,
-            fullName: resolved.fullName,
+            fullName,
             relationship: pair.relationship,
           };
         })
