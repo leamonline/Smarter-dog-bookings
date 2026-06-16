@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabase/client.js";
 import { CenteredScreen, PortalCard } from "../ui/PageShell.jsx";
+import { isPasswordPwned } from "../../utils/pwnedPassword";
 
 /**
  * Handles the Supabase password recovery flow.
@@ -64,6 +65,15 @@ export function ResetPasswordPage() {
     }
 
     setSaving(true);
+
+    // Reject known-breached passwords (HaveIBeenPwned, k-anonymity). A free
+    // stand-in for Supabase's Pro-only leaked-password protection; fails open.
+    if (await isPasswordPwned(password)) {
+      setSaving(false);
+      setError("That password has appeared in a known data breach. Please choose a different one.");
+      return;
+    }
+
     const { error: err } = await supabase.auth.updateUser({ password });
     setSaving(false);
 

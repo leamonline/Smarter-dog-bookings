@@ -2,6 +2,7 @@ import { useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
+import { isPasswordPwned } from "../../../utils/pwnedPassword";
 import { PawPrint, Eye, EyeOff, KeyRound } from "lucide-react";
 
 // Minimum we ask customers for. Kept gentle for a non-technical, mostly
@@ -58,6 +59,18 @@ export function SetPasswordGate({ mode = "set", username, onComplete, onSignOut 
     }
 
     setSaving(true);
+
+    // Free stand-in for Supabase's Pro-only leaked-password protection:
+    // reject passwords known to be in a breach (HaveIBeenPwned, k-anonymity).
+    // Fails open, so a network blip never blocks setting a password.
+    if (await isPasswordPwned(password)) {
+      setSaving(false);
+      setError(
+        "That password has appeared in a known data breach, so it isn't safe to use. Please choose a different one.",
+      );
+      return;
+    }
+
     const { error: err } = await supabase.auth.updateUser({ password });
     setSaving(false);
 
