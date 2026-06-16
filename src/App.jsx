@@ -827,6 +827,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   ensureDogsForHumans={ensureDogsForHumans}
                   onUpdateHuman={updateHuman}
                   onAddHuman={addHuman}
+                  onAddDog={addDog}
                   onDeleteHuman={sbDeleteHuman}
                   bookingsByDate={bookingsByDate}
                   fetchHumanById={sbFetchHumanById}

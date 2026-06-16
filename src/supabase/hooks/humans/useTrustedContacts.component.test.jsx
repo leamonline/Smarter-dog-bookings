@@ -214,6 +214,42 @@ describe("useTrustedContacts replaceTrustedLinks", () => {
     expect(outcome.trustedNames).toEqual(["Dave Smith"]);
   });
 
+  it("keeps a valid-UUID contact that isn't in the snapshot, hydrating its name from the DB", async () => {
+    // The picked human lives past the paginated 50-row window, so it is in
+    // NEITHER prevHumans nor prevHumansById. The old code dropped it (silent
+    // unlink on the full-replace RPC); now its UUID carries it through and the
+    // display name is fetched so it never renders blank.
+    const offPageId = "0a8e0c2e-1111-4111-8111-111111111111";
+    const stub = makeStub((ctx) => {
+      if (ctx.table === "humans")
+        return {
+          data: [{ id: offPageId, name: "Pat", surname: "Lee" }],
+          error: null,
+        };
+      return undefined;
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useTrustedContacts());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.replaceTrustedLinks({
+        humanId: "h1",
+        updates: { trustedContacts: [{ id: offPageId, relationship: "" }] },
+        prevHumans,
+        prevHumansById,
+        currentTrustedContacts: [],
+      });
+    });
+
+    expect(stub._rpcCalls.at(-1).args.p_contacts).toEqual([
+      { trusted_id: offPageId, relationship: null },
+    ]);
+    expect(outcome.savedTrustedContacts).toEqual([
+      { id: offPageId, fullName: "Pat Lee", relationship: "" },
+    ]);
+  });
+
   it("surfaces an RPC failure with the previous links left intact server-side", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const stub = makeStub(undefined, () => ({

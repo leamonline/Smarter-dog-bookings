@@ -14,6 +14,7 @@ import {
   NotesPanel,
   AtAGlanceStrip,
   DogsPanel,
+  LinkDogActions,
   TrustedHumansPanel,
   RemindersPanel,
   MergeHumanDialog,
@@ -22,6 +23,8 @@ import {
   useHumanDraft,
   useHumanCardActions,
 } from "./human-card/index.js";
+import { AddDogModal } from "./AddDogModal.jsx";
+import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
 
 const EMPTY_HUMAN = {
   id: "",
@@ -53,6 +56,7 @@ export function HumanCardModal({
   ensureDogsForHumans,
   onUpdateHuman,
   onAddHuman,
+  onAddDog,
   onDeleteHuman,
   bookingsByDate,
   fetchHumanById,
@@ -102,6 +106,61 @@ export function HumanCardModal({
 
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
+
+  const [showAddDog, setShowAddDog] = useState(false);
+
+  // Hydrate a person's current trusted links from the DB before a replace, so
+  // we never overwrite their set with a stale/empty in-memory copy (the
+  // replace_trusted_contacts RPC rewrites the whole set).
+  const loadTrusted = useCallback(async (h) => {
+    const inMemory = h?.trustedContacts || [];
+    if (!h?.id) return inMemory;
+    try {
+      const { trustedContacts } = await fetchTrustedContactsForHuman(h.id);
+      return trustedContacts.length ? trustedContacts : inMemory;
+    } catch {
+      return inMemory;
+    }
+  }, []);
+
+  // Link THIS human as a trusted contact on an existing dog — i.e. add them to
+  // that dog's owner's trusted set, plus the reciprocal back-link, exactly as
+  // the dog card does when adding a trusted human.
+  const handleLinkTrustedOnDog = useCallback(
+    async (dog) => {
+      if (!onUpdateHuman || !human?.id) return;
+      const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
+      if (!owner?.id) {
+        toast.show("Couldn't find that dog's owner.", "error");
+        return;
+      }
+      if (owner.id === human.id) {
+        toast.show("They already own this dog.", "error");
+        return;
+      }
+      const ownerContacts = await loadTrusted(owner);
+      if (ownerContacts.some((c) => c.id === human.id || c.fullName === humanFullName)) {
+        toast.show(`${humanFullName} is already trusted on ${dog.name}.`, "success");
+        return;
+      }
+      const ownerKey = owner.fullName || owner.id;
+      const saved = await onUpdateHuman(ownerKey, {
+        trustedContacts: [...ownerContacts, { id: human.id, relationship: "" }],
+      });
+      if (!saved) {
+        toast.show("Couldn't link to that dog — please try again.", "error");
+        return;
+      }
+      const myContacts = await loadTrusted(human);
+      if (!myContacts.some((c) => c.id === owner.id || c.fullName === owner.fullName)) {
+        await onUpdateHuman(humanFullName || human.id, {
+          trustedContacts: [...myContacts, { id: owner.id, relationship: "" }],
+        });
+      }
+      toast.show(`Linked ${humanFullName} to ${dog.name}`, "success");
+    },
+    [onUpdateHuman, human, humans, humanFullName, toast, loadTrusted],
+  );
 
   // Edit-mode lifecycle: draft fields, dirty tracking, save + validation,
   // input focus, "E" shortcut. Paused while a confirm dialog is open.
@@ -304,6 +363,17 @@ export function HumanCardModal({
                 bookingsByDate={bookingsByDate}
                 onClose={onClose}
                 onOpenDog={onOpenDog}
+                actions={
+                  human.id ? (
+                    <LinkDogActions
+                      human={human}
+                      humans={humans}
+                      dogs={dogs}
+                      onAddOwnedDog={onAddDog ? () => setShowAddDog(true) : undefined}
+                      onLinkTrustedOnDog={onUpdateHuman ? handleLinkTrustedOnDog : undefined}
+                    />
+                  ) : null
+                }
               />
               <TrustedHumansPanel
                 human={human}
@@ -418,6 +488,16 @@ export function HumanCardModal({
             }
           }}
           onClose={() => setShowMerge(false)}
+        />
+      )}
+
+      {showAddDog && onAddDog && (
+        <AddDogModal
+          onClose={() => setShowAddDog(false)}
+          onAdd={onAddDog}
+          onAddHuman={onAddHuman}
+          humans={humans}
+          presetOwner={{ id: human.id, label: humanFullName, phone: human.phone }}
         />
       )}
     </>
