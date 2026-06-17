@@ -4,7 +4,7 @@ import { PanelShell } from "../shell/PanelShell.jsx";
 import { IconSearch } from "../../icons/index.jsx";
 import { titleCase } from "../../../utils/text";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
-import { normalisePhoneDigits } from "../dog-card/helpers.js";
+import { validateContactPhone } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 // Trusted Humans = informational (sky/blue accent on the dashboard
@@ -191,9 +191,12 @@ export function TrustedHumansPanel({
 
   const handleAddNewTrusted = async () => {
     if (!newName.trim() || !onAddHuman) return;
-    const trimmedPhone = newPhone.trim();
-    if (trimmedPhone && normalisePhoneDigits(trimmedPhone).length < 10) {
-      toast.show("Please enter a valid phone number (at least 10 digits).", "error");
+    // Phone is optional here; when given, a UK mobile is normalised to E.164 and
+    // a mobile-shaped number with the wrong digit count is rejected (the
+    // "131026 undeliverable" class) rather than stored.
+    const { value: normalisedPhone, error: phoneError } = validateContactPhone(newPhone);
+    if (phoneError) {
+      toast.show(phoneError, "error");
       return;
     }
     const relationship = (newRelationship || "").trim();
@@ -218,7 +221,7 @@ export function TrustedHumansPanel({
       const result = await onAddHuman({
         name: newName.trim(),
         surname: newSurname.trim(),
-        phone: trimmedPhone,
+        phone: normalisedPhone,
       });
       const newId = result?.id || result?.[0]?.id;
       if (newId) {

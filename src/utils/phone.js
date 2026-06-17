@@ -63,6 +63,61 @@ export function normalisePhoneDigits(phone) {
   return digits;
 }
 
+/**
+ * Validate a phone number typed for a customer/contact and return the value to
+ * store alongside any error message.
+ *
+ * The rule, in plain terms: **if it looks like a UK mobile, it must be a valid
+ * one.** A UK mobile is normalised to E.164 (+447XXXXXXXXX) — the form every
+ * messaging path expects. A number that looks like a UK mobile but isn't the
+ * right length (e.g. a digit dropped on entry) is rejected, because it sails
+ * through a naive digit-count check and then silently fails to deliver on
+ * WhatsApp/SMS — error 131026 "Message undeliverable". Landlines and non-UK
+ * numbers are NOT mobile-shaped, so they're accepted as-is (trimmed) provided
+ * they have at least 10 digits: still useful as a contact-of-record even though
+ * we can't message them.
+ *
+ * Returns { value, error }:
+ *   • valid UK mobile   → { value: "+447700900123", error: "" }   (normalised)
+ *   • broken UK mobile  → { value: "",              error: <mobile-specific> }
+ *   • landline / non-UK → { value: "<trimmed>",     error: "" }
+ *   • too short         → { value: "",              error: <generic> }
+ *   • empty input       → { value: "",              error: "" }    (caller decides if required)
+ */
+export function validateContactPhone(raw) {
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  if (!trimmed) return { value: "", error: "" };
+
+  // A clean UK mobile (in any accepted format) — store the canonical E.164.
+  const mobile = normaliseUkMobile(trimmed);
+  if (mobile) return { value: mobile, error: "" };
+
+  // Not a valid mobile. Decide whether it was *meant* to be one: strip to
+  // digits and look at the national part (drop a 44 or 0 prefix). A leading 7
+  // means someone was typing a mobile — so a missing/extra digit is an error,
+  // not a landline.
+  const digits = normalisePhoneDigits(trimmed);
+  const national = digits.startsWith("44")
+    ? digits.slice(2)
+    : digits.startsWith("0")
+      ? digits.slice(1)
+      : digits;
+  if (national.startsWith("7")) {
+    return {
+      value: "",
+      error:
+        "That looks like a UK mobile but the digits don't add up — check for a missing or extra digit (it should be 11, e.g. 07700 900123).",
+    };
+  }
+
+  // Landline / international / other — keep it if it's a plausible length.
+  if (digits.length >= 10) return { value: trimmed, error: "" };
+  return {
+    value: "",
+    error: "Please enter a valid phone number (at least 10 digits).",
+  };
+}
+
 // `tel:` link with a safe "#" fallback. Use in `<a href={telLink(phone)}>`
 // where the anchor renders unconditionally.
 export function telLink(phone) {

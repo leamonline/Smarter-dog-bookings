@@ -72,7 +72,7 @@ describe("useHumanDraft", () => {
     expect(result.current.draft.name).toBe("Sarah");
   });
 
-  it("saveHuman rejects a phone under 10 digits and stays in edit mode", async () => {
+  it("saveHuman rejects a mobile-shaped number with the wrong digit count and stays in edit mode", async () => {
     const { result, onUpdateHuman } = renderDraft();
     act(() => result.current.startEdit("name"));
     act(() => result.current.setDraftField("phone", "0770 123"));
@@ -83,7 +83,7 @@ describe("useHumanDraft", () => {
     expect(onUpdateHuman).not.toHaveBeenCalled();
     expect(result.current.isEditing).toBe(true);
     expect(
-      screen.getByText("Please enter a valid phone number (at least 10 digits)."),
+      screen.getByText(/the digits don't add up/i),
     ).toBeInTheDocument();
   });
 
