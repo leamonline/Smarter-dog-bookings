@@ -2,17 +2,22 @@
 // src/components/dashboard/BookingHistoryCard.jsx
 //
 // Append-only feed of recent booking events for the dashboard
-// sidebar. Three event types from booking_events:
+// sidebar. Four event types from booking_events, each naming the
+// actor who made/amended the booking. Staff and the WhatsApp AI lead
+// the line ("Leam booked in …", "Smarter Dog AI booked in …");
+// customers stay owner-led:
 //
-//   created     — "Catherine Green booked a Full Groom for Alfie
-//                  (Yorkshire Terrier) Mon 1 Jun at 9:00am"
-//   rescheduled — "Catherine Green moved Alfie's Full Groom from
-//                  Mon 1 Jun at 9:00am to Wed 3 Jun at 10:30am"
+//   created     — "Leam booked in Alfie (Yorkshire Terrier) with
+//                  Catherine Green for a Full Groom at Mon 1 Jun at 9:00am"
+//   rescheduled — "Leam moved Alfie's Full Groom (Catherine Green)
+//                  from Mon 1 Jun at 9:00am to Wed 3 Jun at 10:30am"
 //   cancelled   — "Catherine Green cancelled Alfie's Full Groom
 //                  for Mon 1 Jun at 9:00am"
+//   reconfirmed — "Catherine Green reconfirmed the Full Groom for
+//                  Alfie (Yorkshire Terrier)"
 //
-// Subscribes to realtime so new bookings, reschedules, and
-// cancellations appear instantly.
+// Subscribes to realtime so new bookings, reschedules,
+// cancellations, and reconfirmations appear instantly.
 // ============================================================
 
 import { useBookingEvents } from "../../supabase/hooks/useBookingEvents.js";
@@ -58,26 +63,45 @@ function formatRelative(iso) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+const firstWord = (s) => (s || "").trim().split(/\s+/)[0] || "";
+
 export function eventSentence(event) {
   if (!event) return "";
-  const customer = event.customer_name || "Someone";
+  const owner = event.customer_name || "Someone";
   const dog = event.dog_name || "a dog";
   const breed = dogParenthetical(event.dog_breed);
   const service = formatService(event.service);
   const date = formatDate(event.booking_date);
   const time = formatTime(event.slot);
 
+  // Staff and the AI lead the line; customers / system / legacy-null rows
+  // stay owner-led. Staff show first name only; the AI name is verbatim.
+  let leadActor = null;
+  if (event.actor_name) {
+    if (event.actor_role === "staff") leadActor = firstWord(event.actor_name);
+    else if (event.actor_role === "ai") leadActor = event.actor_name;
+  }
+
+  if (event.event_type === "reconfirmed") {
+    return `${owner} reconfirmed the ${service} for ${dog}${breed}.`;
+  }
   if (event.event_type === "rescheduled") {
     const prevDate = formatDate(event.previous_booking_date);
     const prevTime = formatTime(event.previous_slot);
-    return `${customer} moved ${dog}${breed}'s ${service} from ${prevDate} at ${prevTime} to ${date} at ${time}.`;
+    return leadActor
+      ? `${leadActor} moved ${dog}${breed}'s ${service} (${owner}) from ${prevDate} at ${prevTime} to ${date} at ${time}.`
+      : `${owner} moved ${dog}${breed}'s ${service} from ${prevDate} at ${prevTime} to ${date} at ${time}.`;
   }
   if (event.event_type === "cancelled") {
     const reason = event.cancel_reason ? ` (${event.cancel_reason})` : "";
-    return `${customer} cancelled ${dog}${breed}'s ${service} for ${date} at ${time}${reason}.`;
+    return leadActor
+      ? `${leadActor} cancelled ${dog}${breed}'s ${service} (${owner}) for ${date} at ${time}${reason}.`
+      : `${owner} cancelled ${dog}${breed}'s ${service} for ${date} at ${time}${reason}.`;
   }
   // created
-  return `${customer} booked a ${service} for ${dog}${breed} ${date} at ${time}.`;
+  return leadActor
+    ? `${leadActor} booked in ${dog}${breed} with ${owner} for a ${service} at ${date} at ${time}.`
+    : `${owner} booked a ${service} for ${dog}${breed} ${date} at ${time}.`;
 }
 
 const EVENT_TONE = {
@@ -95,6 +119,11 @@ const EVENT_TONE = {
     dot: "bg-rose-500",
     pill: "text-rose-700",
     label: "Cancelled",
+  },
+  reconfirmed: {
+    dot: "bg-teal-500",
+    pill: "text-teal-700",
+    label: "Reconfirmed",
   },
 };
 
