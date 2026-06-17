@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { titleCase } from "../../../utils/text";
-import { IconMessage } from "../../icons/index.jsx";
 import {
   DetailRow,
   LogisticsLabel,
@@ -16,8 +15,8 @@ import { PanelShell } from "../shell/index.js";
  * Card 3 of the booking detail surface: payments and pick-up. Edit mode
  * exposes the payment status, deposit amount and pick-up human select
  * (limited to the owner plus their trusted contacts); read mode shows the
- * pick-up human and, when we hold a phone number, a one-tap
- * "ready for collection" SMS link tinted to match the booking status.
+ * chosen pick-up human. Pick-up messaging now lives in the ReminderCard so
+ * "told them it's ready" stays distinct from the reminder status.
  */
 export function PaymentsPickupCard({
   booking,
@@ -26,8 +25,6 @@ export function PaymentsPickupCard({
   setEditData,
   humans,
   primaryHuman,
-  pickupHuman,
-  statusObj,
 }) {
   const trustedHumans = useMemo(() => {
     const trusted = primaryHuman?.trustedIds || [];
@@ -43,7 +40,7 @@ export function PaymentsPickupCard({
     return unique;
   }, [primaryHuman, booking._ownerId, booking.owner]);
 
-  const pickupOptions = trustedHumans.map((value) => {
+  const basePickupOptions = trustedHumans.map((value) => {
     const human = getHumanByIdOrName(humans, value);
     return {
       value: human?.id || value,
@@ -54,6 +51,25 @@ export function PaymentsPickupCard({
       ),
     };
   });
+
+  // Always keep the booking's CURRENT pick-up human selectable, even if they
+  // aren't (or are no longer) in the owner's trusted list — otherwise the
+  // <select> value wouldn't match any <option> and would silently fall back
+  // to showing the owner. The option value is editData.pickupBy verbatim so
+  // it always matches the controlled select's value.
+  const currentValue = editData.pickupBy || "";
+  const pickupOptions =
+    !currentValue || basePickupOptions.some((o) => o.value === currentValue)
+      ? basePickupOptions
+      : [
+          {
+            value: currentValue,
+            label: titleCase(
+              getHumanByIdOrName(humans, currentValue)?.fullName || currentValue,
+            ),
+          },
+          ...basePickupOptions,
+        ];
 
   const selectedPickupLabel = titleCase(
     getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
@@ -109,19 +125,8 @@ export function PaymentsPickupCard({
       <Row
         label="Pick-up Human"
         value={titleCase(booking.pickupBy || booking.owner)}
-        last={!pickupHuman?.phone}
+        last
       />
-      {pickupHuman?.phone && (
-        <a
-          href={`sms:${pickupHuman.phone}?body=${encodeURIComponent(`Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon 🎓🐶❤️ X`)}`}
-          className="flex items-center justify-center gap-2 my-3 py-3 rounded-xl text-[14px] font-bold no-underline transition-all duration-150 hover:-translate-y-0.5 hover:brightness-95 shadow-[0_6px_16px_-6px_rgba(15,23,42,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-          style={{ background: statusObj.border, color: statusObj.onAccent }}
-          aria-label={`Send pickup-ready SMS to ${titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}`}
-        >
-          <IconMessage size={16} colour="currentColor" />
-          <span>Message {titleCase(pickupHuman.fullName || booking.pickupBy || booking.owner)}</span>
-        </a>
-      )}
     </PanelShell>
   );
 }

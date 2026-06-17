@@ -3,7 +3,7 @@
 // non-edit happy path so the planned nested-modal hoist (register
 // item #9) has a baseline.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
@@ -147,5 +147,47 @@ describe("BookingDetailModal", () => {
     // In edit mode the service comes from a <select>; in read mode it's
     // a static span. The presence of a combobox is the cheapest proof.
     expect(screen.getAllByRole("combobox").length).toBeGreaterThan(0);
+  });
+
+  // Regression: changing the pick-up human must persist the NEW human's id,
+  // not the stale one carried over by the `...booking` spread. updateBooking
+  // resolves pickup_by_id from `_pickupById` first, so the save mapper has to
+  // refresh that id (and the display name) from the current selection.
+  it("persists the newly selected pick-up human on Save (id + name)", async () => {
+    const dave = {
+      ...human,
+      id: "human-2",
+      fullName: "Dave Smith",
+      name: "Dave",
+      surname: "Smith",
+      phone: "07700900222",
+    };
+    const sarah = { ...human, trustedIds: ["human-2"] };
+    const onUpdate = vi.fn().mockResolvedValue({ id: "b-1" });
+    const onUpdateDog = vi.fn().mockResolvedValue({ id: "dog-1" });
+
+    renderModal({
+      humans: { "Sarah Jones": sarah, "Dave Smith": dave },
+      onUpdate,
+      onUpdateDog,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit booking" }));
+
+    // The pick-up <select> is the combobox that offers Dave as an option.
+    const pickupSelect = screen
+      .getAllByRole("combobox")
+      .find((sel) => within(sel).queryByRole("option", { name: "Dave Smith" }));
+    expect(pickupSelect).toBeTruthy();
+
+    fireEvent.change(pickupSelect, { target: { value: "human-2" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save Changes/ }));
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ _pickupById: "human-2", pickupBy: "Dave Smith" }),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 });

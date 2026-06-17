@@ -7,9 +7,14 @@
 export const MODAL_INPUT_CLS =
   "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
+// Structural labels share one calm, muted tone (slate). Saturated colour is
+// reserved for *state* — status pills, alerts, the reminder card — so the
+// editing surface reads quietly and the "Total Due" stays the loudest thing
+// on screen. LogisticsLabel/FinanceLabel are kept as distinct names purely
+// for call-site readability; they render identically.
 export function LogisticsLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-brand-teal-text uppercase tracking-wide">
+    <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide">
       {text}
     </span>
   );
@@ -17,7 +22,7 @@ export function LogisticsLabel({ text }) {
 
 export function FinanceLabel({ text }) {
   return (
-    <span className="text-[12px] font-extrabold text-brand-green uppercase tracking-wide">
+    <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wide">
       {text}
     </span>
   );
@@ -73,26 +78,29 @@ export function DetailRow({
   verticalEdit = false,
   isEditing,
 }) {
+  const inlineEdit = isEditing && editNode && !verticalEdit;
   return (
     <div className="py-2.5 border-b border-slate-200">
+      {/* Side-by-side on wider screens; stacks (label over control/value)
+          below 480px so the label and its value never collide. */}
       <div
-        className={`flex justify-between ${
-          isEditing && editNode && !verticalEdit ? "items-center" : "items-start"
+        className={`flex max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-1 justify-between ${
+          inlineEdit ? "items-center" : "items-start"
         }`}
       >
         <span
-          className={`text-[13px] text-slate-500 shrink-0 pr-3 ${
-            isEditing && editNode && !verticalEdit ? "" : "pt-0.5"
+          className={`text-[13px] text-slate-500 shrink-0 pr-3 max-[480px]:pr-0 ${
+            inlineEdit ? "max-[480px]:pt-0" : "pt-0.5"
           }`}
         >
           {label}
         </span>
-        {isEditing && editNode && !verticalEdit ? (
-          <div className="flex-1 flex justify-end max-w-[65%]">
+        {inlineEdit ? (
+          <div className="flex-1 flex justify-end max-w-[65%] max-[480px]:max-w-none max-[480px]:w-full max-[480px]:justify-start">
             {editNode}
           </div>
         ) : (
-          <span className="text-[13px] font-semibold text-slate-800 text-right break-words">
+          <span className="text-[13px] font-semibold text-slate-800 text-right max-[480px]:text-left break-words">
             {value}
           </span>
         )}
@@ -115,12 +123,12 @@ export function DetailRow({
  */
 export function Row({ label, value, last = false, onClick }) {
   return (
-    <div className={`flex justify-between items-start gap-3 py-3 ${last ? "" : "border-b border-slate-100"}`}>
-      <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500 shrink-0 pt-0.5">
+    <div className={`flex max-[480px]:flex-col justify-between items-start gap-3 max-[480px]:gap-0.5 py-3 ${last ? "" : "border-b border-slate-100"}`}>
+      <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500 shrink-0 pt-0.5 max-[480px]:pt-0">
         {label}
       </span>
       <span
-        className={`text-[14px] font-semibold text-slate-900 text-right break-words leading-snug ${onClick ? "cursor-pointer hover:underline decoration-slate-300 underline-offset-2" : ""}`}
+        className={`text-[14px] font-semibold text-slate-900 text-right max-[480px]:text-left break-words leading-snug ${onClick ? "cursor-pointer hover:underline decoration-slate-300 underline-offset-2" : ""}`}
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
         onClick={onClick}

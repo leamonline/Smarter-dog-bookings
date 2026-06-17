@@ -1,0 +1,189 @@
+import { Bell, Check, CheckCheck, CircleCheck, Send } from "lucide-react";
+import { useToast } from "../../../contexts/ToastContext.jsx";
+import { titleCase } from "../../../utils/text";
+import { IconMessage } from "../../icons/index.jsx";
+
+/**
+ * Card 4 of the booking detail surface: the "are you still coming?" reminder.
+ *
+ * Everything visible — the card tint, the status icon, the status text and
+ * which reminder action is offered — is driven off a SINGLE source of truth:
+ * `booking.reminderState` (none | sent | read | confirmed). That value is
+ * mirrored onto the root as `data-state` and looked up in STATE_CONFIG, so
+ * wiring this to the backend later is just "make reminderState change".
+ *
+ * Pick-up messaging is kept deliberately separate from the reminder status
+ * (a distinct "Message …" action), so "we told them it's ready" never gets
+ * conflated with "they confirmed they're coming".
+ */
+
+function formatWhen(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("en-GB", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+// Per-state presentation. `action` is the reminder action this state offers
+// ("send" | "resend" | null) — read/confirmed are status-only by design.
+// `status(ctx)` returns the human-readable line that screen readers get too.
+const STATE_CONFIG = {
+  none: {
+    card: "bg-slate-50 border-slate-200",
+    chip: "bg-slate-100 text-slate-500",
+    eyebrow: "text-slate-500",
+    statusTone: "text-slate-600",
+    StatusIcon: Bell,
+    action: "send",
+    status: () => "No reminder sent yet",
+  },
+  sent: {
+    card: "bg-amber-50 border-amber-200",
+    chip: "bg-amber-100 text-amber-700",
+    eyebrow: "text-amber-700/80",
+    statusTone: "text-amber-900",
+    StatusIcon: Check,
+    action: "resend",
+    status: (ctx) =>
+      `Reminder sent${ctx.sentWhen ? ` · ${ctx.sentWhen}` : ""}`,
+  },
+  read: {
+    card: "bg-sky-50 border-sky-200",
+    chip: "bg-sky-100 text-sky-700",
+    eyebrow: "text-sky-700/80",
+    statusTone: "text-sky-900",
+    StatusIcon: CheckCheck,
+    action: null,
+    status: (ctx) =>
+      `Read by ${ctx.client}${ctx.readWhen ? ` · ${ctx.readWhen}` : ""}`,
+  },
+  confirmed: {
+    card: "bg-emerald-50 border-emerald-200",
+    chip: "bg-emerald-100 text-emerald-700",
+    eyebrow: "text-emerald-700/80",
+    statusTone: "text-emerald-900",
+    StatusIcon: CircleCheck,
+    action: null,
+    status: (ctx) => `Confirmed by ${ctx.client}`,
+  },
+};
+
+export function ReminderCard({ booking, pickupHuman, isEditing }) {
+  const toast = useToast();
+
+  // Single source of truth. Fall back to the one signal we persist today
+  // (the confirmation timestamp) so the card is honest before the rest of
+  // the lifecycle is wired up.
+  const state =
+    booking.reminderState ||
+    (booking.reminderConfirmedAt ? "confirmed" : "none");
+  const cfg = STATE_CONFIG[state] || STATE_CONFIG.none;
+
+  const client = titleCase(
+    booking.reminderConfirmedBy ||
+      pickupHuman?.fullName ||
+      booking.pickupBy ||
+      booking.owner ||
+      "the customer",
+  );
+  const statusText = cfg.status({
+    client,
+    sentWhen: formatWhen(booking.reminderSentAt),
+    readWhen: formatWhen(booking.reminderReadAt),
+  });
+
+  // Send/resend are stubs until the per-booking reminder endpoint is wired
+  // in here. The dashboard's tomorrow-reminders panel already drives the
+  // real reminder-send edge function (see SendReminderModal), so point
+  // staff there for now rather than silently doing nothing.
+  // TODO: invoke supabase.functions.invoke("reminder-send", { booking_id })
+  //       with channel selection, then update booking.reminderState.
+  const handleReminderAction = () => {
+    toast.show(
+      "Reminders are sent from the dashboard reminders panel for now.",
+      "info",
+    );
+  };
+
+  const StatusIcon = cfg.StatusIcon;
+  const pickupName = titleCase(
+    pickupHuman?.fullName || booking.pickupBy || booking.owner,
+  );
+  const showPickupMessage = !isEditing && !!pickupHuman?.phone;
+
+  return (
+    <section
+      data-state={state}
+      aria-label="Reminder"
+      className={`mb-3 rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-3 ${cfg.card}`}
+    >
+      {/* Header — same anatomy as PanelShell: eyebrow left, icon chip right */}
+      <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-black/5">
+        <h3 className={`text-[10px] font-bold uppercase tracking-wider ${cfg.eyebrow}`}>
+          Reminder
+        </h3>
+        <span
+          aria-hidden="true"
+          className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${cfg.chip}`}
+        >
+          <Bell size={12} strokeWidth={2.4} />
+        </span>
+      </div>
+
+      {/* Status line — readable by screen readers (role=status announces
+          changes), not icon-only. The icon is decorative; the text carries
+          the meaning. */}
+      <div role="status" className={`flex items-center gap-2 ${cfg.statusTone}`}>
+        <StatusIcon size={16} strokeWidth={2.4} className="shrink-0" aria-hidden="true" />
+        <span className="text-[13px] font-bold leading-snug">{statusText}</span>
+      </div>
+
+      {/* Actions — reminder action (state-driven) kept distinct from the
+          pick-up message action. */}
+      {(cfg.action || showPickupMessage) && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {cfg.action === "send" && (
+            <button
+              type="button"
+              onClick={handleReminderAction}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+            >
+              <Send size={13} aria-hidden="true" />
+              Send reminder
+            </button>
+          )}
+          {cfg.action === "resend" && (
+            <button
+              type="button"
+              onClick={handleReminderAction}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-[1.5px] border-amber-300 bg-white text-amber-800 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-1"
+            >
+              <Send size={13} aria-hidden="true" />
+              Resend
+            </button>
+          )}
+
+          {showPickupMessage && (
+            <a
+              href={`sms:${pickupHuman.phone}?body=${encodeURIComponent(
+                `Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon 🎓🐶❤️ X`,
+              )}`}
+              aria-label={`Send pickup-ready SMS to ${pickupName}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-[1.5px] border-slate-200 bg-white text-slate-700 text-[13px] font-bold no-underline cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+            >
+              <IconMessage size={14} colour="currentColor" />
+              <span>Message {pickupName}</span>
+            </a>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

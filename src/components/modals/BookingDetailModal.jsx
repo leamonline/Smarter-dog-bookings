@@ -28,6 +28,7 @@ import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { AppointmentDetailsCard } from "./booking-detail/AppointmentDetailsCard.jsx";
 import { ServicesAddonsCard } from "./booking-detail/ServicesAddonsCard.jsx";
 import { PaymentsPickupCard } from "./booking-detail/PaymentsPickupCard.jsx";
+import { ReminderCard } from "./booking-detail/ReminderCard.jsx";
 import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
@@ -199,14 +200,17 @@ export function BookingDetailModal({
   const autosaveFn = useCallback(async () => {
     if (!editData.slot) return;
     const newDateStr = toDateStr(editData.date);
+    // Resolve the chosen pick-up once and persist BOTH name and id — see the
+    // note in useBookingSave: updateBooking reads pickup_by_id from
+    // `_pickupById` first, so the id must be refreshed or the change is lost.
+    const pickedPickup = getHumanByIdOrName(humans, editData.pickupBy);
     await onUpdate(
       {
         ...booking,
         service: normalizeServiceForSize(editData.service, booking.size),
         addons: editData.addons,
-        pickupBy:
-          getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
-          editData.pickupBy,
+        pickupBy: pickedPickup?.fullName || editData.pickupBy,
+        _pickupById: pickedPickup?.id ?? null,
         payment: editData.payment,
         depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
         slot: editData.slot,
@@ -231,6 +235,9 @@ export function BookingDetailModal({
       maxHeightClass="max-h-[90vh]"
       dismissOnEscape={false}
       bodyClassName="px-5 pt-1 pb-2"
+      // Marks every field in this modal for the iOS focus-zoom fix (≥16px
+      // on touch, 13px only on mouse/desktop). See `.bm-fields` in index.css.
+      rootClassName="bm-fields"
       header={
         <BookingHeader
           booking={booking}
@@ -351,8 +358,16 @@ export function BookingDetailModal({
             setEditData={setEditData}
             humans={humans}
             primaryHuman={primaryHuman}
+          />
+
+          {/* ── Card 4: Reminder ── (between Payment & Pickup and the
+              footer actions). The pickup-message action targets the saved
+              pick-up human (pickupHuman) and only shows in view mode, so it
+              always reflects the persisted pick-up selection. */}
+          <ReminderCard
+            booking={booking}
             pickupHuman={pickupHuman}
-            statusObj={statusObj}
+            isEditing={isEditing}
           />
 
           {saveError && (

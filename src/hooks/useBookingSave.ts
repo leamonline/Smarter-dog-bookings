@@ -182,14 +182,19 @@ export function useBookingSave({
       }
 
       const newDateStr = toDateStr(editData.date);
+      // Resolve the chosen pick-up human ONCE and write BOTH the display
+      // name and the id. updateBooking persists pickup_by_id from
+      // `_pickupById` first (falling back to a name lookup), so without
+      // refreshing the id here the stale spread `_pickupById` would win and
+      // the new pick-up selection would never persist.
+      const pickedPickup = getHumanByIdOrName(humans, editData.pickupBy);
       const updateResult = await onUpdate(
         {
           ...booking,
           service: normalizedService,
           addons: editData.addons,
-          pickupBy:
-            getHumanByIdOrName(humans, editData.pickupBy)?.fullName ||
-            editData.pickupBy,
+          pickupBy: pickedPickup?.fullName || editData.pickupBy,
+          _pickupById: pickedPickup?.id ?? null,
           payment: editData.payment,
           depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
           slot: editData.slot,
