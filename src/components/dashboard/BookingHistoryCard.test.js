@@ -69,3 +69,95 @@ describe("eventSentence", () => {
     expect(eventSentence(null)).toBe("");
   });
 });
+
+describe("eventSentence — actor attribution", () => {
+  const base = {
+    customer_name: "Catherine Green",
+    dog_name: "Alfie",
+    dog_breed: "Yorkshire Terrier",
+    service: "full-groom",
+    booking_date: "2026-06-01", // a Monday
+    slot: "09:00",
+  };
+
+  it("leads a staff-made booking with the staff first name and names the owner", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "created",
+        actor_role: "staff",
+        actor_name: "Leam Online", // trimmed to first word
+      }),
+    ).toBe(
+      "Leam booked in Alfie (Yorkshire Terrier) with Catherine Green for a Full Groom at Mon 1 Jun at 9:00am.",
+    );
+  });
+
+  it("leads an AI auto-booking with the full AI name (no trimming)", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "created",
+        actor_role: "ai",
+        actor_name: "Smarter Dog AI",
+      }),
+    ).toBe(
+      "Smarter Dog AI booked in Alfie (Yorkshire Terrier) with Catherine Green for a Full Groom at Mon 1 Jun at 9:00am.",
+    );
+  });
+
+  it("keeps a customer-made booking owner-led even with an actor set", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "created",
+        actor_role: "customer",
+        actor_name: "Catherine Green",
+      }),
+    ).toBe(
+      "Catherine Green booked a Full Groom for Alfie (Yorkshire Terrier) Mon 1 Jun at 9:00am.",
+    );
+  });
+
+  it("leads a staff reschedule with the owner in brackets", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "rescheduled",
+        actor_role: "staff",
+        actor_name: "Leam",
+        previous_booking_date: "2026-06-01",
+        previous_slot: "09:00",
+        booking_date: "2026-06-03", // a Wednesday
+        slot: "10:30",
+      }),
+    ).toBe(
+      "Leam moved Alfie (Yorkshire Terrier)'s Full Groom (Catherine Green) from Mon 1 Jun at 9:00am to Wed 3 Jun at 10:30am.",
+    );
+  });
+
+  it("leads a staff cancellation with the owner in brackets and keeps the reason", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "cancelled",
+        actor_role: "staff",
+        actor_name: "Leam",
+        cancel_reason: "Dog feeling poorly",
+      }),
+    ).toBe(
+      "Leam cancelled Alfie (Yorkshire Terrier)'s Full Groom (Catherine Green) for Mon 1 Jun at 9:00am (Dog feeling poorly).",
+    );
+  });
+
+  it("renders a reconfirmed event as owner-led", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "reconfirmed",
+        actor_role: "customer",
+        actor_name: "Catherine Green",
+      }),
+    ).toBe("Catherine Green reconfirmed the Full Groom for Alfie (Yorkshire Terrier).");
+  });
+});

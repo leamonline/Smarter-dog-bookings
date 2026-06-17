@@ -30,7 +30,7 @@ export function useBookingEvents({ limit = 10 } = {}) {
       const { data, error: queryErr } = await supabase
         .from("booking_events")
         .select(
-          "id, booking_id, event_type, customer_name, dog_name, dog_breed, service, booking_date, slot, previous_booking_date, previous_slot, cancel_reason, occurred_at",
+          "id, booking_id, event_type, customer_name, dog_name, dog_breed, service, booking_date, slot, previous_booking_date, previous_slot, cancel_reason, actor_id, actor_role, actor_name, occurred_at",
         )
         .order("occurred_at", { ascending: false })
         .limit(limit);
