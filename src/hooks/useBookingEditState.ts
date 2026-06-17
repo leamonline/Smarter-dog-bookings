@@ -68,7 +68,16 @@ function buildEditState(
 
   return {
     service,
-    pickupBy: booking.pickupBy || booking.owner || "",
+    // Prefer the resolved human id so the pick-up <select> defaults to the
+    // booking's current pick-up human (its options are keyed by id). Falls
+    // back to the stored name when no id is linked; the save path resolves
+    // either form back to a fullName via getHumanByIdOrName.
+    pickupBy:
+      booking._pickupById ||
+      booking._ownerId ||
+      booking.pickupBy ||
+      booking.owner ||
+      "",
     payment: booking.payment || "Due at Pick-up",
     depositAmount: booking.depositAmount ?? 10,
     groomNotes: dogData?.groomNotes || "",

@@ -16,6 +16,15 @@ export interface Service {
 // type can never drift from the canonical status list again.
 export type BookingStatusId = BookingStatus;
 
+// Lifecycle of the "are you still coming?" reminder for a booking. One
+// source of truth that drives the ReminderCard's colour, icon, status
+// text and which action is shown:
+//   none      → not sent yet (neutral)
+//   sent      → delivered, awaiting a read receipt (amber)
+//   read      → customer opened it (blue)
+//   confirmed → customer confirmed they're coming (green — the goal)
+export type ReminderState = "none" | "sent" | "read" | "confirmed";
+
 export interface TrustedContact {
   id: string;
   fullName: string;
@@ -89,6 +98,15 @@ export interface Booking {
   staffCapacityOverrideBy: string | null;
   staffCapacityOverrideAt: string | null;
   reminderConfirmedAt: string | null;
+  // Reminder lifecycle (see ReminderState). `reminderState` is the single
+  // field the ReminderCard reads; the timestamps/`reminderConfirmedBy` are
+  // optional metadata the card surfaces when present. Optional so the many
+  // Booking constructors don't all have to set them — transforms populates
+  // the real read path and the card falls back to "none".
+  reminderState?: ReminderState;
+  reminderSentAt?: string | null;
+  reminderReadAt?: string | null;
+  reminderConfirmedBy?: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;

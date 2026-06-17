@@ -344,6 +344,15 @@ export function dbBookingsToArray(
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
+      // Reminder lifecycle. Today the only signal we persist per booking is
+      // the confirmation timestamp, so we can resolve "confirmed" vs "none".
+      // TODO: derive "sent"/"read" by joining notification_log (and a read
+      // receipt) once those are surfaced per booking — wiring the card only
+      // needs this one field to start reflecting them.
+      reminderState: row.reminder_confirmed_at ? "confirmed" : "none",
+      reminderSentAt: null,
+      reminderReadAt: null,
+      reminderConfirmedBy: null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
       _pickupById: row.pickup_by_id,

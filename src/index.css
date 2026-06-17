@@ -278,6 +278,26 @@
    tracking-wider` pattern. */
 .text-label      { text-transform: uppercase; }
 
+/* ── Booking modal: iOS focus-zoom fix ────────────────────────────
+   iOS Safari zooms the viewport whenever a focused input/select/textarea
+   has a font-size < 16px. The booking modal's fields are 13px, so every
+   tap on a field used to jolt-zoom the page. Force ≥16px on touch and keep
+   the denser 13px ONLY for true mouse/desktop (hover + fine pointer).
+
+   This lives in index.css (unlayered) on purpose: unlayered rules win over
+   Tailwind's layered `text-[13px]` utilities, so it catches every field —
+   current and future — under the `.bm-fields` root without touching each
+   call site. We deliberately do NOT add maximum-scale/user-scalable to the
+   viewport (that breaks pinch-zoom / accessibility); the fix is field-only. */
+.bm-fields :is(input, select, textarea) {
+  font-size: 16px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bm-fields :is(input, select, textarea) {
+    font-size: 13px;
+  }
+}
+
 /* ── Global focus ─────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-border-focus);

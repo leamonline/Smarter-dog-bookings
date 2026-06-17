@@ -22,6 +22,10 @@ export function ModalShell({
   dismissOnEscape = true,
   zIndex,
   bodyClassName = "",
+  // Extra classes for the modal container (the outer box). Lets a single
+  // modal opt into a marker class (e.g. `.bm-fields` for the iOS zoom fix)
+  // without changing the shared chrome for the other entity modals.
+  rootClassName = "",
 }) {
   return (
     <AccessibleModal
@@ -30,7 +34,7 @@ export function ModalShell({
       dismissOnEscape={dismissOnEscape}
       zIndex={zIndex}
       backdropClass={backdropClass}
-      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] ${widthClass} ${maxHeightClass} max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none`}
+      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] ${widthClass} ${maxHeightClass} max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none ${rootClassName}`}
     >
       {accent ? (
         <div aria-hidden="true" className="h-1 shrink-0" style={{ background: accent }} />
