@@ -6,7 +6,7 @@ import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
-import { normalisePhoneDigits } from "./dog-card/helpers.js";
+import { validateContactPhone } from "./dog-card/helpers.js";
 
 const SORTED_BREEDS = [
   ...BREED_LIST.small.map(b => ({ name: b, size: "small" })),
@@ -81,13 +81,16 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
     if (!name.trim()) errors.name = "Dog name is required.";
     if (!finalBreed) errors.breed = "Breed is required.";
     if (!size) errors.size = "Size is required — pick a breed and it will fill in automatically.";
+    // Normalise the new owner's phone (UK mobile → E.164) and reject a
+    // mobile-shaped number with the wrong digit count, same as AddHumanModal.
+    let newOwnerPhoneE164 = "";
     if (showNewOwner) {
+      const ownerPhone = validateContactPhone(newOwnerPhone);
+      newOwnerPhoneE164 = ownerPhone.value;
       if (!newOwnerName.trim() || !newOwnerSurname.trim() || !newOwnerPhone.trim()) {
         errors.owner = "New owner needs a first name, surname, and phone number.";
-      } else if (normalisePhoneDigits(newOwnerPhone).length < 10) {
-        // Same check as AddHumanModal — anything shorter can't be a UK
-        // mobile/landline and breaks wa.me/tel: links downstream.
-        errors.owner = "Please enter a valid phone number (at least 10 digits).";
+      } else if (ownerPhone.error) {
+        errors.owner = ownerPhone.error;
       } else if (!onAddHuman) {
         errors.owner = "Cannot create new owners right now.";
       }
@@ -112,7 +115,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
         newHuman = await onAddHuman({
           name: newOwnerName.trim(),
           surname: newOwnerSurname.trim(),
-          phone: newOwnerPhone.trim(),
+          phone: newOwnerPhoneE164,
         });
       } catch (err) {
         setSubmitting(false);

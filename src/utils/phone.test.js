@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normaliseUkMobile, formatPhoneForDisplay, stripFormatChars } from "./phone.js";
+import {
+  normaliseUkMobile,
+  formatPhoneForDisplay,
+  stripFormatChars,
+  validateContactPhone,
+} from "./phone.js";
 
 describe("normaliseUkMobile", () => {
   it("accepts the canonical E.164 form unchanged", () => {
@@ -65,6 +70,46 @@ describe("formatPhoneForDisplay", () => {
     expect(formatPhoneForDisplay(null)).toBe("");
     expect(formatPhoneForDisplay(undefined)).toBe("");
     expect(formatPhoneForDisplay(447700900123)).toBe("");
+  });
+});
+
+describe("validateContactPhone", () => {
+  it("normalises a valid UK mobile (any accepted format) to E.164", () => {
+    expect(validateContactPhone("07700900123")).toEqual({ value: "+447700900123", error: "" });
+    expect(validateContactPhone("+44 7700 900123")).toEqual({ value: "+447700900123", error: "" });
+    expect(validateContactPhone("  447700900123  ")).toEqual({ value: "+447700900123", error: "" });
+    // Real rows from the customer table, stored unnormalised — should be fixed up.
+    expect(validateContactPhone("+44 7393 834335")).toEqual({ value: "+447393834335", error: "" });
+    expect(validateContactPhone("07860553279")).toEqual({ value: "+447860553279", error: "" });
+  });
+
+  it("rejects a mobile-shaped number with the wrong digit count", () => {
+    // The Rachel Cassidy bug: +44 then only 9 digits (one short).
+    expect(validateContactPhone("+44768938855").value).toBe("");
+    expect(validateContactPhone("+44768938855").error).toMatch(/missing or extra digit/i);
+    // Other real broken rows from the table.
+    expect(validateContactPhone("+44737714789").value).toBe("");
+    expect(validateContactPhone("+44786942779").value).toBe("");
+    expect(validateContactPhone("0757013935").value).toBe("");
+    // A mobile with an extra digit.
+    expect(validateContactPhone("+4477009001234").value).toBe("");
+  });
+
+  it("accepts UK landlines and non-UK numbers as-is (trimmed)", () => {
+    // Manchester landlines that genuinely live in the table.
+    expect(validateContactPhone("+441612855218")).toEqual({ value: "+441612855218", error: "" });
+    expect(validateContactPhone("  0161 285 5218  ")).toEqual({ value: "0161 285 5218", error: "" });
+    // Non-UK / other — not mobile-shaped, kept if long enough.
+    expect(validateContactPhone("+33123456789")).toEqual({ value: "+33123456789", error: "" });
+  });
+
+  it("rejects too-short non-mobile input and treats empty as optional", () => {
+    expect(validateContactPhone("12345").value).toBe("");
+    expect(validateContactPhone("12345").error).toMatch(/at least 10 digits/i);
+    expect(validateContactPhone("")).toEqual({ value: "", error: "" });
+    expect(validateContactPhone("   ")).toEqual({ value: "", error: "" });
+    expect(validateContactPhone(null)).toEqual({ value: "", error: "" });
+    expect(validateContactPhone(undefined)).toEqual({ value: "", error: "" });
   });
 });
 

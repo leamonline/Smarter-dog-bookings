@@ -4,7 +4,7 @@
 // setters from here.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { normalisePhoneDigits } from "../dog-card/helpers.js";
+import { validateContactPhone } from "../dog-card/helpers.js";
 
 const DRAFT_KEYS = [
   "name",
@@ -117,12 +117,20 @@ export function useHumanDraft({ human, humanId, onUpdateHuman, shortcutPaused })
   const saveHuman = async () => {
     if (!dirty || saving) return;
     const trimmedPhone = draft.phone.trim();
-    if (trimmedPhone && normalisePhoneDigits(trimmedPhone).length < 10) {
-      toast.show(
-        "Please enter a valid phone number (at least 10 digits).",
-        "error",
-      );
-      return;
+    // Only re-validate the phone when it actually changed, so editing other
+    // fields on a record with a legacy/landline number is never blocked. When
+    // it has changed, a UK mobile is normalised to E.164 and a mobile-shaped
+    // number with the wrong digit count is rejected (the "131026 undeliverable"
+    // class) before it can be stored.
+    const phoneChanged = trimmedPhone !== (human.phone || "").trim();
+    let phoneToSave = trimmedPhone;
+    if (phoneChanged) {
+      const { value, error } = validateContactPhone(trimmedPhone);
+      if (error) {
+        toast.show(error, "error");
+        return;
+      }
+      phoneToSave = value;
     }
     setSaving(true);
     try {
@@ -130,7 +138,7 @@ export function useHumanDraft({ human, humanId, onUpdateHuman, shortcutPaused })
         name: draft.name.trim(),
         surname: draft.surname.trim(),
         fullName: `${draft.name.trim()} ${draft.surname.trim()}`.trim(),
-        phone: trimmedPhone,
+        phone: phoneToSave,
         email: draft.email.trim(),
         address: draft.address.trim(),
         fb: draft.fb.trim(),

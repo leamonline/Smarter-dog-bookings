@@ -92,7 +92,8 @@ describe("TrustedHumansPanel — duplicate guard on 'create new trusted human'",
 
     await waitFor(() => expect(onAddHuman).toHaveBeenCalledTimes(1));
     expect(onAddHuman).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Sarah", surname: "Jones", phone: "07700900111" }),
+      // The typed national number is normalised to E.164 before it's stored.
+      expect.objectContaining({ name: "Sarah", surname: "Jones", phone: "+447700900111" }),
     );
   });
 });

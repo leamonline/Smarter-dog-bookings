@@ -5,7 +5,7 @@ import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { titleCase } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
-import { normalisePhoneDigits } from "./dog-card/helpers.js";
+import { validateContactPhone } from "./dog-card/helpers.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 
 export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findHumanByFullName }) {
@@ -76,12 +76,12 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       setError("First name, surname, and phone number are required.");
       return;
     }
-    // Phone validation: must reduce to at least 10 digits after stripping
-    // non-numeric characters. Anything shorter can't be a UK mobile/landline
-    // and breaks the wa.me / tel: links downstream.
-    const phoneDigits = normalisePhoneDigits(phone);
-    if (phoneDigits.length < 10) {
-      setError("Please enter a valid phone number (at least 10 digits).");
+    // A UK mobile is normalised to E.164; a mobile-shaped number with the wrong
+    // digit count is rejected (it would pass a naive digit-count check and then
+    // silently fail to deliver on WhatsApp/SMS); landlines/non-UK pass through.
+    const { value: normalisedPhone, error: phoneError } = validateContactPhone(phone);
+    if (phoneError) {
+      setError(phoneError);
       return;
     }
     // Soft duplicate guard. The DB no longer enforces a unique (name, surname),
@@ -109,7 +109,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       result = await onAdd({
         name: name.trim(),
         surname: surname.trim(),
-        phone: phone.trim(),
+        phone: normalisedPhone,
         email: email.trim(),
         address: address.trim(),
         sms,

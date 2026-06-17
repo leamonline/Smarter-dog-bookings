@@ -2,7 +2,7 @@ export { titleCase } from "../../../utils/text";
 // Phone-link helpers used to live here. They moved to `src/utils/phone.js`
 // so the same `normalisePhoneDigits` is shared with the inbox-summary
 // path. Re-exported so existing dog-card consumers keep their import.
-export { normalisePhoneDigits, telLink, waLink } from "../../../utils/phone.js";
+export { normalisePhoneDigits, telLink, waLink, validateContactPhone } from "../../../utils/phone.js";
 
 export function calcAge(dob) {
   if (!dob) return null;
