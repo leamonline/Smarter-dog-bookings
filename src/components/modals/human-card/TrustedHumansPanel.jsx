@@ -47,7 +47,7 @@ function TrustedRow({
             onClick={onRemove}
             aria-label={`Remove ${titleCase(trustedLabel)} as trusted human`}
             title="Remove"
-            className="w-6 h-6 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-300 hover:text-brand-coral hover:bg-brand-coral-light/60 transition-colors"
+            className="w-6 h-6 max-sm:w-11 max-sm:h-11 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-300 hover:text-brand-coral hover:bg-brand-coral-light/60 transition-colors"
           >
             <X size={12} strokeWidth={2.4} aria-hidden="true" />
           </button>

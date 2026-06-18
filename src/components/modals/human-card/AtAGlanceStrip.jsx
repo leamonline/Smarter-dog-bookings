@@ -162,7 +162,7 @@ export function AtAGlanceStrip({
   }, [human, dogs, dogsByHumanId, bookingsByDate]);
 
   return (
-    <div aria-label="At a glance" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div role="group" aria-label="At a glance" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       <Tile
         caption="Bookings"
         value={stats.lifetime}

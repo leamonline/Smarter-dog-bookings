@@ -100,7 +100,7 @@ export function HumanHeader({
               >
                 {titleCase(humanFullName) || "Unnamed human"}
               </h2>
-              <div className="flex items-center gap-2 mt-1.5 min-h-[20px]">
+              <div className="flex items-center gap-2 mt-1.5 min-h-[20px] max-sm:min-h-[44px]">
                 {human.phone ? (
                   <>
                     <a
@@ -118,7 +118,7 @@ export function HumanHeader({
                       }}
                       aria-label={`Copy phone number ${human.phone}`}
                       title="Copy to clipboard"
-                      className="w-6 h-6 max-sm:w-9 max-sm:h-9 shrink-0 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all"
+                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent border-none cursor-pointer text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all"
                     >
                       <Copy size={12} strokeWidth={2.4} aria-hidden="true" />
                     </button>
@@ -127,7 +127,7 @@ export function HumanHeader({
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`Call ${human.phone}`}
                       title="Call"
-                      className="w-6 h-6 max-sm:w-9 max-sm:h-9 shrink-0 rounded-md flex items-center justify-center bg-transparent text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all no-underline"
+                      className="w-6 h-6 max-sm:w-11 max-sm:h-11 shrink-0 rounded-md flex items-center justify-center bg-transparent text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-all no-underline"
                     >
                       <Phone size={12} strokeWidth={2.4} aria-hidden="true" />
                     </a>
@@ -139,7 +139,7 @@ export function HumanHeader({
                         onClick={(e) => e.stopPropagation()}
                         aria-label={`Message ${human.phone} on WhatsApp`}
                         title="Open in WhatsApp"
-                        className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md no-underline hover:bg-emerald-100 transition-colors"
+                        className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 max-sm:min-h-[44px] max-sm:px-3 rounded-md no-underline hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                       >
                         WA
                       </a>
