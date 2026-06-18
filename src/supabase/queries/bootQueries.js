@@ -13,7 +13,7 @@
 export function fetchBookingsWeek(client, startStr, endStr, signal) {
   const query = client
     .from("bookings")
-    .select("*")
+    .select("*, notification_log(trigger_type, status, sent_at, channel)")
     .gte("booking_date", startStr)
     .lte("booking_date", endStr)
     .order("booking_date")

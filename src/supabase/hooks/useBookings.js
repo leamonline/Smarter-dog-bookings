@@ -100,9 +100,15 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
           if (!inRange(newRow?.booking_date)) return;
           setRows((prev) => {
             const base = prev || [];
+            const existing = base.find((r) => r.id === newRow.id);
+            // Realtime payloads omit the notification_log embed; keep the
+            // one we already fetched so reminderState survives the patch.
+            const merged = existing?.notification_log
+              ? { ...newRow, notification_log: existing.notification_log }
+              : newRow;
             return base.some((r) => r.id === newRow.id)
-              ? base.map((r) => (r.id === newRow.id ? newRow : r))
-              : [...base, newRow];
+              ? base.map((r) => (r.id === newRow.id ? merged : r))
+              : [...base, merged];
           });
         },
       )
@@ -120,9 +126,13 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
             if (!inRange(newRow?.booking_date)) {
               return base.filter((r) => r.id !== id);
             }
+            const existing = base.find((r) => r.id === id);
+            const merged = existing?.notification_log
+              ? { ...newRow, notification_log: existing.notification_log }
+              : newRow;
             return base.some((r) => r.id === id)
-              ? base.map((r) => (r.id === id ? newRow : r))
-              : [...base, newRow];
+              ? base.map((r) => (r.id === id ? merged : r))
+              : [...base, merged];
           });
         },
       )
@@ -135,12 +145,24 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
           setRows((prev) => (prev || []).filter((r) => r.id !== id));
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notification_log" },
+        (payload) => {
+          // Reminder sends write notification_log, not bookings. Re-pull the
+          // week (which embeds notification_log) so reminderState re-derives.
+          // Reminder events are rare, so a full refetch is acceptable.
+          const triggerType = payload.new?.trigger_type ?? payload.old?.trigger_type;
+          if (triggerType === "reminder") refetch();
+        },
+      )
       .subscribe();
 
     return () => {
       controller.abort();
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is a stable useCallback([]) ref, so it needn't be a dep; the effect already re-subscribes on refreshKey, which refetch bumps
   }, [weekStart, refreshKey]);
 
   // Derived view. Recomputes when the rows change OR when the dogs/humans

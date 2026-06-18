@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useState } from "react";
+import { useMemo, useEffect, useCallback, useState, lazy, Suspense } from "react";
 import { ModalShell } from "./shell/index.js";
 import { useBookingEditState } from "../../hooks/useBookingEditState.ts";
 import { useSlotAvailability } from "../../hooks/useSlotAvailability.ts";
@@ -33,6 +33,14 @@ import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
+import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
+
+// Lazy so the channel composers don't load until staff first send from here.
+const SendReminderModal = lazy(() =>
+  import("./send-reminder/SendReminderModal.jsx").then((m) => ({
+    default: m.SendReminderModal,
+  })),
+);
 
 export function BookingDetailModal({
   booking,
@@ -99,6 +107,18 @@ export function BookingDetailModal({
   const [showSeries, setShowSeries] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [showSendReminder, setShowSendReminder] = useState(false);
+  // Optimistic flip for the open modal: SendReminderModal.onSent doesn't
+  // report the channel, so we set state+time only; the realtime refetch
+  // (useBookings) backfills the real channel on reopen.
+  const [reminderSentOverride, setReminderSentOverride] = useState(null);
+
+  // A different booking opened in the same modal instance must not inherit
+  // the previous booking's override or open send modal.
+  useEffect(() => {
+    setReminderSentOverride(null);
+    setShowSendReminder(false);
+  }, [booking.id]);
 
   const editDateStr = toDateStr(editData.date);
   const editSettings = daySettings[editDateStr] || {
@@ -365,9 +385,19 @@ export function BookingDetailModal({
               pick-up human (pickupHuman) and only shows in view mode, so it
               always reflects the persisted pick-up selection. */}
           <ReminderCard
-            booking={booking}
+            // Apply the optimistic "sent" flip only when the booking isn't
+            // already confirmed — never let the override downgrade a
+            // confirmed booking back to "sent" (confirmed always wins).
+            booking={
+              reminderSentOverride &&
+              booking.reminderState !== "confirmed" &&
+              !booking.reminderConfirmedAt
+                ? { ...booking, ...reminderSentOverride }
+                : booking
+            }
             pickupHuman={pickupHuman}
             isEditing={isEditing}
+            onSendReminder={() => setShowSendReminder(true)}
           />
 
           {saveError && (
@@ -408,6 +438,22 @@ export function BookingDetailModal({
         onRemove={onRemove}
         onClose={onClose}
       />
+      {showSendReminder && (
+        <Suspense fallback={null}>
+          <SendReminderModal
+            row={bookingToReminderRow(booking)}
+            targetDate={booking._bookingDate}
+            onClose={() => setShowSendReminder(false)}
+            onSent={() => {
+              setReminderSentOverride({
+                reminderState: "sent",
+                reminderSentAt: new Date().toISOString(),
+              });
+              setShowSendReminder(false);
+            }}
+          />
+        </Suspense>
+      )}
     </ModalShell>
   );
 }

@@ -72,6 +72,12 @@ interface DbBookingRow {
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
+  notification_log?: Array<{
+    trigger_type: string;
+    status: string;
+    sent_at: string | null;
+    channel: string | null;
+  }>;
 }
 
 interface DbConfigRow {
@@ -321,6 +327,22 @@ export function dbBookingsToArray(
     const breed = dog.breed || breedSnapshot || "";
     const owner = ownerHuman?.fullName || ownerSnapshot || "";
 
+    // Reminder lifecycle. `confirmed` (the customer tapped the WhatsApp
+    // Confirm button, persisted on bookings.reminder_confirmed_at) always
+    // wins; otherwise a successfully-sent reminder row gives `sent`; else
+    // `none`. failed/pending rows don't count — failures live on the
+    // Delivery Failure card.
+    const reminderLog = row.notification_log ?? [];
+    const sentReminder =
+      reminderLog
+        .filter((n) => n.trigger_type === "reminder" && n.status === "sent")
+        .sort((a, b) => (b.sent_at ?? "").localeCompare(a.sent_at ?? ""))[0] ?? null;
+    const reminderState = row.reminder_confirmed_at
+      ? "confirmed"
+      : sentReminder
+        ? "sent"
+        : "none";
+
     return {
       id: row.id,
       slot: row.slot,
@@ -344,14 +366,12 @@ export function dbBookingsToArray(
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
-      // Reminder lifecycle. Today the only signal we persist per booking is
-      // the confirmation timestamp, so we can resolve "confirmed" vs "none".
-      // TODO: derive "sent"/"read" by joining notification_log (and a read
-      // receipt) once those are surfaced per booking — wiring the card only
-      // needs this one field to start reflecting them.
-      reminderState: row.reminder_confirmed_at ? "confirmed" : "none",
-      reminderSentAt: null,
+      // Lifecycle derived above from notification_log + reminder_confirmed_at.
+      // "read" stays null (no WhatsApp read receipt is captured).
+      reminderState,
+      reminderSentAt: sentReminder?.sent_at ?? null,
       reminderReadAt: null,
+      reminderChannel: sentReminder?.channel ?? null,
       reminderConfirmedBy: null,
       _dogId: row.dog_id,
       _ownerId: dog.human_id || null,
