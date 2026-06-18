@@ -88,7 +88,6 @@ function Tile({ caption, value, sub, tone = "navy", onClick, disabled, ariaLabel
 
 export function AtAGlanceStrip({
   human,
-  humanFullName,
   dogs,
   dogsByHumanId,
   bookingsByDate,
@@ -99,19 +98,17 @@ export function AtAGlanceStrip({
   const stats = useMemo(() => {
     // Use the merged dogs lookup so customers whose dogs sit past the
     // paginated dogs window still match their bookings here.
+    // Match by dog id / owner id only — a dog-name or owner-name match would
+    // pull in other customers' same-named dogs (see HumanBookingHistory).
     const ownedDogs = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
     const ownedDogIds = new Set(ownedDogs.map((d) => d.id));
-    const ownedDogNames = new Set(ownedDogs.map((d) => d.name));
 
     const todayStr = toDateStr(new Date());
     const matchedBookings = [];
     for (const [dateStr, bookings] of Object.entries(bookingsByDate || {})) {
       for (const b of bookings || []) {
         const isOwned =
-          ownedDogIds.has(b._dogId) ||
-          ownedDogNames.has(b.dogName) ||
-          b._ownerId === human.id ||
-          b.owner === humanFullName;
+          ownedDogIds.has(b._dogId) || b._ownerId === human.id;
         if (isOwned) {
           matchedBookings.push({ ...b, date: dateStr });
         }
@@ -162,7 +159,7 @@ export function AtAGlanceStrip({
       isNextToday: nextApptDate === todayStr,
       totalSpend,
     };
-  }, [human, humanFullName, dogs, dogsByHumanId, bookingsByDate]);
+  }, [human, dogs, dogsByHumanId, bookingsByDate]);
 
   return (
     <div aria-label="At a glance" className="grid grid-cols-2 sm:grid-cols-4 gap-2">

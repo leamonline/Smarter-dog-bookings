@@ -18,6 +18,7 @@ function bookingsFixture(count) {
         service: "full_groom",
         status: "Completed",
         owner: "Sarah Thompson",
+        _ownerId: "h1",
       },
     ];
   }
@@ -64,5 +65,38 @@ describe("HumanBookingHistory expansion", () => {
   it("renders no CTA when onNewBookingForHuman is not provided", () => {
     renderHistory();
     expect(screen.queryByRole("button", { name: /New booking/ })).toBeNull();
+  });
+
+  // Regression: two owners can each have a dog called "Biscuit". The other
+  // owner's groom must NOT leak onto this human's card just because the dog
+  // names collide — matching is by dog id / owner id, never by name.
+  it("excludes a same-named dog's bookings owned by someone else", () => {
+    const bookingsByDate = {
+      "2026-05-01": [
+        { id: "mine", dogName: "Biscuit", service: "full_groom", status: "Completed", _ownerId: "h1" },
+        { id: "theirs", dogName: "Biscuit", service: "full_groom", status: "Completed", _ownerId: "other", _dogId: "other-dog", owner: "Someone Else" },
+      ],
+    };
+    renderHistory({ bookingsByDate });
+
+    expect(screen.getByLabelText(/^Open booking on 2026-05-01/)).toBeTruthy();
+    expect(screen.getAllByLabelText(/^Open booking/)).toHaveLength(1);
+    expect(screen.getByText("· 1")).toBeTruthy();
+  });
+
+  // The human's dog can sit past the paginated `dogs` window, so the match
+  // must read the dog id out of `dogsByHumanId` (the pagination-proof source).
+  it("matches a booking by dog id via dogsByHumanId even with no owner id", () => {
+    const bookingsByDate = {
+      "2026-05-02": [
+        { id: "byid", dogName: "Biscuit", service: "full_groom", status: "Completed", _dogId: "dog-1" },
+      ],
+    };
+    renderHistory({
+      bookingsByDate,
+      dogsByHumanId: { h1: [{ id: "dog-1", name: "Biscuit" }] },
+    });
+
+    expect(screen.getAllByLabelText(/^Open booking/)).toHaveLength(1);
   });
 });
