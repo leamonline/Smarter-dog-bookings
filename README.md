@@ -1,20 +1,76 @@
-# SmarterDog — Salon Dashboard
+# SmarterDog — Salon Booking Platform
 
-A booking and management dashboard for dog grooming salons. Built with React + Vite + Supabase.
+A booking and management platform for dog grooming salons. It ships **two
+interfaces from one codebase**:
+
+- **Staff dashboard** (`/`) — the front-desk app: weekly calendar, capacity engine,
+  customer/dog directories, WhatsApp inbox, reminders, reports and settings.
+- **Customer portal** (`/customer`) — a self-service app where customers log in,
+  book through a guided wizard, manage their dogs and trusted contacts, and view
+  upcoming appointments.
+
+Built with React 19 + Vite + Supabase (PostgreSQL + Auth + RLS + Edge Functions).
 
 ## Features
+
+### Staff dashboard
 
 - **Weekly calendar** with slot-based booking (08:30–13:00)
 - **Capacity engine** — enforces the 2-2-1 rule for large dogs
 - **Booking workflow** — Not Arrived → Checked In → In Bath → Ready for Pick-up → Completed
 - **Dogs & Humans directories** — full contact management with alerts, notes, and trusted contacts
 - **WhatsApp inbox** — two-way customer messaging with AI-drafted replies and AI-proposed booking actions, staff-approved before anything goes live
+- **Reminders & notifications** — multi-channel (WhatsApp, SMS, email) booking confirmations, reminders, ready-for-pickup and cancellations
 - **Waitlist** — track overflow requests and notify when slots open
-- **Calendar feeds** — per-user ICS feeds for staff and customers
+- **Reports** — revenue, booking/customer counts, seat-fill rate, service mix, demand patterns and top customers, over selectable 7/30/90-day periods
 - **Groom photos** — before/after shots stored per booking
+- **Settings** — business details, hours/closures, services & pricing, booking rules, capacity, customer portal and notifications (owner can edit, staff read-only)
+- **Calendar feeds** — per-user ICS feeds for staff and customers
 - **Role-based auth** — owner vs staff access levels
 - **Offline mode** — works without Supabase using sample data
 - **Responsive** — optimised for tablet (front desk) and mobile
+
+### Customer portal
+
+- **Phone-OTP or password login** via Supabase Auth (Twilio Verify delivers the code)
+- **Self-signup** ("Join the Pack") with a pending-approval gate
+- **5-step booking wizard** — pick dog(s) → choose services → date → time slot → confirm
+- **Dashboard** — upcoming appointments with countdown, past appointments with "book again", reschedule/cancel
+- **Dog management** — add and edit the customer's own dogs
+- **Trusted contacts** — emergency contacts / authorised pickups
+- **Calendar subscription** — ICS feed for the customer's own appointments
+
+## Tech Stack
+
+- **React 19** + **Vite 7** + **React Router 7**
+- **Tailwind CSS 4** with CSS-variable brand design tokens
+- **Supabase** (PostgreSQL + Auth + Row Level Security + Edge Functions)
+- **React Aria** for accessible components, **Lucide** for icons
+- **PWA** via `vite-plugin-pwa`
+- Tested with **Vitest** (unit/component) and **Playwright** (e2e)
+
+## Architecture
+
+- **Frontend** — a single-page app served by **Vercel**. `src/index.jsx` routes
+  `/customer/*` to the customer portal (`CustomerApp.jsx`) and everything else to the
+  staff dashboard (`App.jsx`).
+- **Supabase** — Postgres database, Auth, Row Level Security, Realtime and Storage
+  (private `dog-photos` bucket).
+- **Edge Functions** — backend logic in Deno (notifications, WhatsApp, calendar
+  feeds, postcode lookup). See [Edge Functions](#edge-functions) below.
+- **External services** — Meta WhatsApp Cloud API, Anthropic Claude (AI
+  receptionist), Twilio (SMS + WhatsApp fallback), SendGrid (email), APITier (UK
+  postcode lookup), Cloudflare Turnstile (login CAPTCHA), Sentry (error reporting).
+
+Repo layout:
+
+```
+src/                    React app (staff + customer)
+supabase/migrations/    SQL migrations (run in filename order)
+supabase/functions/     Deno Edge Functions
+scripts/                seed / migration-check / WhatsApp-flow tooling
+docs/                   deep-dive docs (WhatsApp, capacity engine, migrations)
+```
 
 ## Quick Start
 
@@ -32,6 +88,9 @@ EOF
 # Start dev server
 npm run dev
 ```
+
+See [`.env.example`](.env.example) for the complete, documented list of environment
+variables (browser-visible, server-only, and Edge Function secrets).
 
 ## Supabase Setup
 
@@ -201,19 +260,72 @@ See [docs/migrations.md](docs/migrations.md). The short version:
 run files in filename order against a fresh project; don't blindly
 re-run old migrations against prod.
 
+## Edge Functions
+
+Backend logic lives in `supabase/functions/` as Deno Edge Functions (with a
+`_shared/` module of common helpers). They fall into a few groups:
+
+- **WhatsApp** — `whatsapp-webhook` (inbound Meta events), `whatsapp-agent` (AI
+  receptionist), `whatsapp-send`, `whatsapp-generate-reply`, `whatsapp-flow-endpoint`,
+  `whatsapp-register`, `whatsapp-admin`.
+- **Notifications** — `notify-booking-confirmed`, `notify-booking-cancelled`,
+  `notify-booking-ready`, `notify-booking-reminder`, `notify-waitlist-joined`,
+  `notify-customer-welcome`, `resend-booking-notification`.
+- **Messaging** — `sms-send`, `reminder-send`, `reminder-sms-fallback`.
+- **Customer / utilities** — `customer-phone-on-file`, `apply-customer-confirm`,
+  `postcode-lookup`, `calendar-feed`, `calendar-ics`, `dashboard-summary`.
+
+Functions authenticate in-function (HMAC, internal secret, or JWT) rather than at the
+gateway. Their secrets are set with `supabase secrets set` — **never** from
+`.env.local` (which only feeds the browser build). They deploy automatically via
+GitHub Actions (see [Deploy](#deploy)).
+
+## Development
+
+```bash
+npm run dev            # start the Vite dev server
+npm run build          # production build → dist/
+npm run preview        # preview the production build locally
+
+npm test               # run all unit/component tests (Vitest)
+npm run test:logic     # logic-only test project
+npm run test:component # component test project
+npm run test:watch     # watch mode
+npm run coverage       # tests with coverage report
+npm run e2e            # Playwright end-to-end tests
+npm run e2e:ui         # Playwright in UI mode
+
+npm run typecheck      # tsc --noEmit (app + node-tests configs)
+npm run lint           # ESLint + import-extension check
+npm run check:migrations  # validate migration filenames/order
+
+# WhatsApp Flow tooling
+npm run flow:generate-keys
+npm run flow:publish
+npm run flow:send
+```
+
 ## Deploy
 
-### Vercel
-Connect this repo — Vercel auto-detects Vite. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` as environment variables.
+### Frontend (Vercel)
+Connect this repo — Vercel auto-detects Vite and deploys on every merge to `main`.
+Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (plus any optional
+`VITE_*` vars) as Vercel environment variables.
 
-### Manual
+### Edge Functions (GitHub Actions)
+`.github/workflows/deploy-edge-functions.yml` redeploys changed functions on push to
+`main` (and redeploys everything when `_shared/` changes). It needs the
+`SUPABASE_ACCESS_TOKEN` repo secret.
+
+### ⚠️ Database migrations are applied manually
+Merging to `main` deploys the frontend and Edge Functions, **but not the database**.
+Migrations in `supabase/migrations/` must be applied by hand (Supabase SQL Editor or
+CLI). The frontend can otherwise ship ahead of the schema and break production. The
+`check-migrations-applied` and `check-migrations-drift` workflows flag any committed
+migration that hasn't been applied to prod.
+
+### Manual build
 ```bash
 npm run build   # outputs to dist/
 # Serve dist/ with any static file server
 ```
-
-## Tech Stack
-
-- **React 19** + **Vite 8**
-- **Supabase** (PostgreSQL + Auth + Row Level Security)
-- Inline CSS with brand design tokens
