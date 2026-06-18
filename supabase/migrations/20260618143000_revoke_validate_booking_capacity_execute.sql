@@ -1,0 +1,24 @@
+-- Lock down validate_booking_capacity() to the trigger path only.
+--
+-- Apply individually to prod; idempotent. Migrations aren't auto-applied.
+-- (Already applied to prod 2026-06-18 via MCP apply_migration
+-- "revoke_validate_booking_capacity_execute"; this file records it for the repo.)
+--
+-- validate_booking_capacity() is the BEFORE INSERT/UPDATE capacity trigger on
+-- bookings (trg_validate_booking_capacity). It was made SECURITY DEFINER on
+-- 2026-06-16 (20260616120000_capacity_trigger_security_definer.sql) so the
+-- trigger runs as the table owner and can read the capacity helpers — but the
+-- default EXECUTE grant to PUBLIC/anon/authenticated was left in place. That
+-- made it the ONLY anon-callable SECURITY DEFINER function in the schema:
+-- anyone could POST /rest/v1/rpc/validate_booking_capacity and have it run as
+-- postgres (get_advisors lint 0028).
+--
+-- A trigger fires regardless of the invoking role's EXECUTE privilege on the
+-- trigger function, so revoking EXECUTE does NOT affect the capacity trigger
+-- for staff (authenticated) inserts or customer (DEFINER RPC) inserts — it
+-- only closes the direct REST RPC surface. service_role keeps its grant.
+--
+-- Both the PUBLIC grant and the explicit anon/authenticated grants must be
+-- revoked: leaving PUBLIC would let anon keep EXECUTE by inheritance.
+-- Idempotent: revoking an absent grant is a no-op.
+revoke execute on function public.validate_booking_capacity() from public, anon, authenticated;
