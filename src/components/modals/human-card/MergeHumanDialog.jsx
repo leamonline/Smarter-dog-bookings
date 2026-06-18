@@ -19,13 +19,15 @@ function fullNameOf(h) {
 
 function countBookings(human, dogs, dogsByHumanId, bookingsByDate) {
   if (!human || !bookingsByDate) return 0;
-  const names = new Set(
-    getDogsForHuman(human, dogs || {}, dogsByHumanId || {}).map((d) => d.name),
+  // Match by dog id, not name — a shared dog name across owners would
+  // otherwise inflate the count (see HumanBookingHistory).
+  const ids = new Set(
+    getDogsForHuman(human, dogs || {}, dogsByHumanId || {}).map((d) => d.id),
   );
   let n = 0;
   for (const list of Object.values(bookingsByDate)) {
     for (const b of list || []) {
-      if (names.has(b.dogName) || b._ownerId === human.id || b.owner === human.fullName) {
+      if (ids.has(b._dogId) || b._ownerId === human.id) {
         n++;
       }
     }

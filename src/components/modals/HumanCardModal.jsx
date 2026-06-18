@@ -312,7 +312,6 @@ export function HumanCardModal({
         <div className="mb-3 md:mb-4">
           <AtAGlanceStrip
             human={human}
-            humanFullName={humanFullName}
             dogs={dogs}
             dogsByHumanId={dogsByHumanId}
             bookingsByDate={bookingsByDate}

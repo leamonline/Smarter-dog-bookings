@@ -35,20 +35,18 @@ export function HumanBookingHistory({
   const history = useMemo(() => {
     if (!bookingsByDate || !human) return [];
 
-    const humanDogNames = new Set(
+    // Match by dog id, never by name — two owners can each have a "Daisy",
+    // and a name match would leak the other owner's grooms onto this card.
+    const humanDogIds = new Set(
       getDogsForHuman(human, dogs || {}, dogsByHumanId || {}).map(
-        (dog) => dog.name,
+        (dog) => dog.id,
       ),
     );
 
     const entries = [];
     for (const [dateStr, bookings] of Object.entries(bookingsByDate)) {
       for (const booking of bookings) {
-        if (
-          humanDogNames.has(booking.dogName) ||
-          booking._ownerId === human.id ||
-          booking.owner === human.fullName
-        ) {
+        if (humanDogIds.has(booking._dogId) || booking._ownerId === human.id) {
           entries.push({ ...booking, date: dateStr });
         }
       }
