@@ -1,0 +1,106 @@
+-- Drop the dangerous, unused link_or_create_customer_human(text, text, text).
+--
+-- Apply individually to prod; idempotent. Migrations aren't auto-applied.
+-- (Already applied to prod 2026-06-18 via MCP apply_migration
+-- "drop_link_or_create_customer_human"; this file records it for the repo.)
+--
+-- WHY: this SECURITY DEFINER function was an account-takeover surface — it
+-- bonded any UNCLAIMED humans row to the caller's auth.uid() off a
+-- caller-supplied phone (the 2026-06-15 audit, migration 20260615150000,
+-- revoked EXECUTE from public/anon/authenticated as containment, but the body
+-- still existed in prod). It was prod-only drift, never created by a repo
+-- migration. The app's real link path is link_customer_to_human() (no-arg,
+-- derives the phone from auth.users for the calling auth.uid()).
+--
+-- VERIFIED BEFORE DROP (2026-06-18): no caller in the app (only the revoke
+-- migration + the generated database.types.ts reference it), no other function
+-- body (pg_proc.prosrc) calls it, and no RLS policy references it. After the
+-- drop: link_customer_to_human is intact.
+--
+-- RECOVERABILITY: the dropped definition is preserved verbatim in the comment
+-- block at the bottom of this file (it lives nowhere else in version control).
+drop function if exists public.link_or_create_customer_human(text, text, text);
+
+-- ============================================================================
+-- Prior definition (for the record / recovery only — NOT executed):
+-- ============================================================================
+-- CREATE OR REPLACE FUNCTION public.link_or_create_customer_human(p_phone text, p_name text DEFAULT NULL::text, p_email text DEFAULT NULL::text)
+--  RETURNS jsonb
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
+-- declare
+--   v_uid          uuid := auth.uid();
+--   v_normalised   text;
+--   v_match_count  int;
+--   v_existing     humans%rowtype;
+--   v_human        humans%rowtype;
+-- begin
+--   if v_uid is null then
+--     raise exception 'unauthenticated' using errcode = '28000';
+--   end if;
+--
+--   -- Re-entrancy: caller already owns a humans row -> return it, never relink/create.
+--   select * into v_existing
+--   from   humans
+--   where  customer_user_id = v_uid
+--   limit  1;
+--
+--   if found then
+--     return jsonb_build_object('status', 'existing', 'human', to_jsonb(v_existing));
+--   end if;
+--
+--   -- Normalise phone independently of the frontend.
+--   v_normalised := regexp_replace(
+--                     regexp_replace(coalesce(p_phone, ''), '[^0-9+]', '', 'g'),
+--                     '^(\+?44|0044)', '0'
+--                   );
+--
+--   if v_normalised = '' then
+--     raise exception 'phone_required' using errcode = '22023';
+--   end if;
+--
+--   -- Refuse to guess on duplicate matches.
+--   select count(*) into v_match_count
+--   from   humans
+--   where  phone_normalised = v_normalised;
+--
+--   if v_match_count > 1 then
+--     return jsonb_build_object('status', 'ambiguous', 'human', null);
+--   end if;
+--
+--   if v_match_count = 1 then
+--     select * into v_human
+--     from   humans
+--     where  phone_normalised = v_normalised
+--     limit  1;
+--
+--     if v_human.customer_user_id is null then
+--       update humans
+--       set    customer_user_id = v_uid,
+--              updated_at       = now()
+--       where  id = v_human.id
+--       returning * into v_human;
+--       return jsonb_build_object('status', 'linked', 'human', to_jsonb(v_human));
+--     elsif v_human.customer_user_id = v_uid then
+--       return jsonb_build_object('status', 'existing', 'human', to_jsonb(v_human));
+--     else
+--       return jsonb_build_object('status', 'claimed_by_other', 'human', null);
+--     end if;
+--   end if;
+--
+--   -- No match: create a fresh humans row for this user.
+--   insert into humans (name, surname, phone, email, customer_user_id)
+--   values (
+--     coalesce(nullif(trim(p_name),  ''), 'Customer'),
+--     null,
+--     v_normalised,
+--     nullif(trim(p_email), ''),
+--     v_uid
+--   )
+--   returning * into v_human;
+--
+--   return jsonb_build_object('status', 'created', 'human', to_jsonb(v_human));
+-- end;
+-- $function$
