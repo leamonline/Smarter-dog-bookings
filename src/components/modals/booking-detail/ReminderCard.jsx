@@ -1,5 +1,4 @@
 import { Bell, Check, CheckCheck, CircleCheck, Send } from "lucide-react";
-import { useToast } from "../../../contexts/ToastContext.jsx";
 import { titleCase } from "../../../utils/text";
 import { IconMessage } from "../../icons/index.jsx";
 
@@ -50,7 +49,7 @@ const STATE_CONFIG = {
     eyebrow: "text-amber-700/80",
     statusTone: "text-amber-900",
     StatusIcon: Check,
-    action: "resend",
+    action: null, // read-only once sent — reminder-send is idempotent (no resend)
     status: (ctx) =>
       `Reminder sent${ctx.sentWhen ? ` · ${ctx.sentWhen}` : ""}`,
   },
@@ -75,9 +74,7 @@ const STATE_CONFIG = {
   },
 };
 
-export function ReminderCard({ booking, pickupHuman, isEditing }) {
-  const toast = useToast();
-
+export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }) {
   // Single source of truth. Fall back to the one signal we persist today
   // (the confirmation timestamp) so the card is honest before the rest of
   // the lifecycle is wired up.
@@ -98,19 +95,6 @@ export function ReminderCard({ booking, pickupHuman, isEditing }) {
     sentWhen: formatWhen(booking.reminderSentAt),
     readWhen: formatWhen(booking.reminderReadAt),
   });
-
-  // Send/resend are stubs until the per-booking reminder endpoint is wired
-  // in here. The dashboard's tomorrow-reminders panel already drives the
-  // real reminder-send edge function (see SendReminderModal), so point
-  // staff there for now rather than silently doing nothing.
-  // TODO: invoke supabase.functions.invoke("reminder-send", { booking_id })
-  //       with channel selection, then update booking.reminderState.
-  const handleReminderAction = () => {
-    toast.show(
-      "Reminders are sent from the dashboard reminders panel for now.",
-      "info",
-    );
-  };
 
   const StatusIcon = cfg.StatusIcon;
   const pickupName = titleCase(
@@ -152,21 +136,11 @@ export function ReminderCard({ booking, pickupHuman, isEditing }) {
           {cfg.action === "send" && (
             <button
               type="button"
-              onClick={handleReminderAction}
+              onClick={onSendReminder}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
             >
               <Send size={13} aria-hidden="true" />
               Send reminder
-            </button>
-          )}
-          {cfg.action === "resend" && (
-            <button
-              type="button"
-              onClick={handleReminderAction}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-[1.5px] border-amber-300 bg-white text-amber-800 text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-1"
-            >
-              <Send size={13} aria-hidden="true" />
-              Resend
             </button>
           )}
 
