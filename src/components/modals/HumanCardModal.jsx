@@ -255,7 +255,7 @@ export function HumanCardModal({
         <button
           type="button"
           onClick={() => onNewBookingForHuman(human.id)}
-          className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark"
+          className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] rounded-full border-none text-sm font-bold font-inherit cursor-pointer transition-colors bg-action text-on-action hover:bg-brand-yellow-dark"
         >
           <Plus size={15} strokeWidth={2.6} aria-hidden="true" />
           New booking
@@ -269,6 +269,7 @@ export function HumanCardModal({
         onClose={requestClose}
         titleId="human-card-title"
         accent="var(--color-brand-teal)"
+        widthClass="w-[min(1040px,95vw)]"
         bodyClassName="px-5 pb-4"
         header={
           <HumanHeader
@@ -321,9 +322,37 @@ export function HumanCardModal({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
-            {/* Left column — Contact, Channels, Notes */}
-            <div className="md:col-span-5 flex flex-col gap-3 min-h-0">
+        {/* One locked section order — Dogs, Contact, Channels, Trusted,
+            Reminders, Notes — in every layout. The @container splits it into
+            two balanced columns once the modal itself is wide enough (≈iPad
+            landscape up), NOT the viewport: the modal width is capped/decoupled
+            from the viewport above sm, so a container query is the honest test.
+            Reading down the left column then the right == the single-column
+            stack, so no `order-*` hack and visual order == DOM == tab order. */}
+        <div className="@container">
+          <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3 @3xl:gap-4 items-start">
+            {/* Column 1 — Dogs, Contact, Channels */}
+            <div className="flex flex-col gap-3 min-h-0">
+              <DogsPanel
+                human={human}
+                humanFullName={humanFullName}
+                dogs={dogs}
+                dogsByHumanId={dogsByHumanId}
+                bookingsByDate={bookingsByDate}
+                onClose={onClose}
+                onOpenDog={onOpenDog}
+                actions={
+                  human.id ? (
+                    <LinkDogActions
+                      human={human}
+                      humans={humans}
+                      dogs={dogs}
+                      onAddOwnedDog={onAddDog ? () => setShowAddDog(true) : undefined}
+                      onLinkTrustedOnDog={onUpdateHuman ? handleLinkTrustedOnDog : undefined}
+                    />
+                  ) : null
+                }
+              />
               <ContactPanel
                 isEditing={isEditing}
                 human={human}
@@ -350,6 +379,23 @@ export function HumanCardModal({
                 editTiktok={draft.tiktok}
                 setEditTiktok={(v) => setDraftField("tiktok", v)}
               />
+            </div>
+
+            {/* Column 2 — Trusted, Reminders, Notes. Notes keeps its flex-1
+                grow so it absorbs the leftover height at the column bottom. */}
+            <div className="flex flex-col gap-3 min-h-0">
+              <TrustedHumansPanel
+                human={human}
+                humanFullName={humanFullName}
+                humans={humans}
+                onClose={onClose}
+                onOpenHuman={onOpenHuman}
+                onUpdateHuman={onUpdateHuman}
+                onAddHuman={onAddHuman}
+                findHumanByFullName={findHumanByFullName}
+                searchHumansByTerm={searchHumansByTerm}
+              />
+              <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
               <NotesPanel
                 isEditing={isEditing}
                 human={human}
@@ -363,46 +409,8 @@ export function HumanCardModal({
                 notesInputRef={notesInputRef}
               />
             </div>
-
-            {/* Right column — Dogs, Trusted, Reminders. On mobile
-                (single column) it floats above the left column so Dogs —
-                the day-to-day stuff — lead, ahead of Channels/Notes.
-                Reset to DOM order at md. */}
-            <div className="order-first md:order-none md:col-span-7 flex flex-col gap-3 min-h-0">
-              <DogsPanel
-                human={human}
-                humanFullName={humanFullName}
-                dogs={dogs}
-                dogsByHumanId={dogsByHumanId}
-                bookingsByDate={bookingsByDate}
-                onClose={onClose}
-                onOpenDog={onOpenDog}
-                actions={
-                  human.id ? (
-                    <LinkDogActions
-                      human={human}
-                      humans={humans}
-                      dogs={dogs}
-                      onAddOwnedDog={onAddDog ? () => setShowAddDog(true) : undefined}
-                      onLinkTrustedOnDog={onUpdateHuman ? handleLinkTrustedOnDog : undefined}
-                    />
-                  ) : null
-                }
-              />
-              <TrustedHumansPanel
-                human={human}
-                humanFullName={humanFullName}
-                humans={humans}
-                onClose={onClose}
-                onOpenHuman={onOpenHuman}
-                onUpdateHuman={onUpdateHuman}
-                onAddHuman={onAddHuman}
-                findHumanByFullName={findHumanByFullName}
-                searchHumansByTerm={searchHumansByTerm}
-              />
-              <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
-            </div>
           </div>
+        </div>
 
         {/* Booking history spans both columns underneath the grid. */}
         <div ref={historyRef} className="mt-3 md:mt-4 scroll-mt-2">
