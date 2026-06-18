@@ -903,3 +903,92 @@ describe("dbBookingsToArray — reminder_confirmed_at", () => {
     expect(out[0].reminderConfirmedAt).toBeNull();
   });
 });
+
+describe("dbBookingsToArray — reminder lifecycle from notification_log", () => {
+  const dogsById = buildDogsById([{ id: "d-1", name: "Bella", human_id: "h-1" } as any]);
+  const humansById = buildHumansById([{ id: "h-1", name: "Jane", surname: "S" } as any]);
+
+  it("derives reminderState 'sent' from a sent reminder log row", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          reminder_confirmed_at: null,
+          notification_log: [
+            { trigger_type: "reminder", status: "sent", sent_at: "2026-06-18T08:00:00Z", channel: "whatsapp" },
+          ],
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderState).toBe("sent");
+    expect(out[0].reminderSentAt).toBe("2026-06-18T08:00:00Z");
+    expect(out[0].reminderChannel).toBe("whatsapp");
+  });
+
+  it("prefers 'confirmed' over 'sent' when reminder_confirmed_at is set", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          reminder_confirmed_at: "2026-06-18T09:00:00Z",
+          notification_log: [
+            { trigger_type: "reminder", status: "sent", sent_at: "2026-06-18T08:00:00Z", channel: "sms" },
+          ],
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderState).toBe("confirmed");
+  });
+
+  it("ignores failed/pending reminder rows and non-reminder rows (stays 'none')", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          reminder_confirmed_at: null,
+          notification_log: [
+            { trigger_type: "reminder", status: "failed", sent_at: null, channel: "whatsapp" },
+            { trigger_type: "reminder", status: "pending", sent_at: null, channel: "whatsapp" },
+            { trigger_type: "confirmed", status: "sent", sent_at: "2026-06-18T07:00:00Z", channel: "whatsapp" },
+          ],
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderState).toBe("none");
+    expect(out[0].reminderSentAt).toBeNull();
+    expect(out[0].reminderChannel).toBeNull();
+  });
+
+  it("defaults to 'none' when there is no notification_log", () => {
+    const out = dbBookingsToArray([bookingRow({ dog_id: "d-1" }) as any], dogsById, humansById);
+    expect(out[0].reminderState).toBe("none");
+  });
+
+  it("picks the latest sent reminder when several exist", () => {
+    const out = dbBookingsToArray(
+      [
+        bookingRow({
+          id: "b-1",
+          dog_id: "d-1",
+          notification_log: [
+            { trigger_type: "reminder", status: "sent", sent_at: "2026-06-18T08:00:00Z", channel: "whatsapp" },
+            { trigger_type: "reminder", status: "sent", sent_at: "2026-06-18T10:00:00Z", channel: "sms" },
+          ],
+        }) as any,
+      ],
+      dogsById,
+      humansById,
+    );
+    expect(out[0].reminderSentAt).toBe("2026-06-18T10:00:00Z");
+    expect(out[0].reminderChannel).toBe("sms");
+  });
+});

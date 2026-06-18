@@ -107,6 +107,7 @@ export interface Booking {
   reminderSentAt?: string | null;
   reminderReadAt?: string | null;
   reminderConfirmedBy?: string | null;
+  reminderChannel?: string | null;
   _dogId: string;
   _ownerId: string | null;
   _pickupById: string | null;
