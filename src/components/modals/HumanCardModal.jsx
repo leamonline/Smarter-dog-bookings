@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { ModalShell } from "./shell/index.js";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
@@ -22,28 +22,10 @@ import {
   RejectSignupDialog,
   useHumanDraft,
   useHumanCardActions,
+  useResolvedHuman,
 } from "./human-card/index.js";
 import { AddDogModal } from "./AddDogModal.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
-
-const EMPTY_HUMAN = {
-  id: "",
-  fullName: "",
-  name: "",
-  surname: "",
-  phone: "",
-  sms: false,
-  whatsapp: false,
-  email: "",
-  fb: "",
-  insta: "",
-  tiktok: "",
-  address: "",
-  notes: "",
-  trustedIds: [],
-  trustedContacts: [],
-  historyFlag: "",
-};
 
 export function HumanCardModal({
   humanId,
@@ -80,14 +62,12 @@ export function HumanCardModal({
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingExit, setPendingExit] = useState(false);
 
-  // If the requested human isn't in the local map (e.g. their row sits
-  // past the initial PAGE_SIZE pagination boundary), fetch them on demand
-  // so the card doesn't fall back to showing the raw UUID.
-  useEffect(() => {
-    if (!humanId || !fetchHumanById) return;
-    if (humans?.[humanId]) return;
-    fetchHumanById(humanId);
-  }, [humanId, humans, fetchHumanById]);
+  // Resolve the human: the live map entry when present (so edits flow
+  // straight through), otherwise an on-demand fetch held in LOCAL state so
+  // a deep-link / refresh to a human past the pagination boundary hydrates
+  // the card instead of leaving it on "Unnamed human / No phone". See
+  // useResolvedHuman for the full rationale — it mirrors useResolvedDog.
+  const { resolvedHuman } = useResolvedHuman(humanId, humans, fetchHumanById);
 
   // Same pattern for dogs: useDogs paginates by name, so a customer's
   // dogs may sit past the first page (one missing, all missing depending
@@ -98,11 +78,7 @@ export function HumanCardModal({
     ensureDogsForHumans([humanId]);
   }, [humanId, ensureDogsForHumans]);
 
-  const human = useMemo(
-    () =>
-      getHumanByIdOrName(humans, humanId) || { ...EMPTY_HUMAN, id: humanId },
-    [humans, humanId],
-  );
+  const human = resolvedHuman;
 
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();

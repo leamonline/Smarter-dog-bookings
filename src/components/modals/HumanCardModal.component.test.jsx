@@ -3,7 +3,7 @@
 // the planned extraction (HumanForm / HumanBookingHistorySection /
 // TrustedContactsEditor / DogPillList).
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 import { BOOKING_STATUS } from "../../constants/index";
 
@@ -219,5 +219,57 @@ describe("HumanCardModal", () => {
     expect(onArchiveHuman).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     expect(onArchiveHuman).toHaveBeenCalledWith("human-1");
+  });
+
+  // Regression: deep-linking / refreshing straight to /humans/<uuid> for a
+  // human whose row sits past the directory's PAGE_SIZE boundary used to leave
+  // the card stuck on "Unnamed human / No phone". The map never holds that row
+  // at first paint, and the modal threw away fetchHumanById's return value —
+  // it relied on the shared map eventually catching up, which on a quiet boot
+  // never re-triggered. The card must now hydrate from the fetched row itself,
+  // exactly as clicking the same person from the directory does.
+  describe("deep-link hydration", () => {
+    const deepLinked = {
+      ...human,
+      id: "human-far-page",
+      fullName: "Hazel Wagschal",
+      name: "Hazel",
+      surname: "Wagschal",
+      phone: "07826 094636",
+    };
+
+    it("hydrates from fetchHumanById when the human isn't in the humans map", async () => {
+      const fetchHumanById = vi.fn(() => Promise.resolve(deepLinked));
+      renderModal({
+        humanId: "human-far-page",
+        humans: {}, // past the paginated window — not in the shared map
+        fetchHumanById,
+      });
+
+      // First paint: nothing to resolve yet, so the placeholder shows.
+      expect(screen.getByText("Unnamed human")).toBeInTheDocument();
+
+      // Once the on-demand fetch lands the card hydrates from the returned
+      // row, even though the shared humans map was never updated.
+      expect(await screen.findByText("Hazel Wagschal")).toBeInTheDocument();
+      expect(fetchHumanById).toHaveBeenCalledWith("human-far-page");
+      expect(
+        screen.getByRole("link", { name: "07826 094636" }),
+      ).toBeInTheDocument();
+    });
+
+    it("prefers the live map entry over an on-demand fetch when present", async () => {
+      const fetchHumanById = vi.fn(() => Promise.resolve(deepLinked));
+      // The same id is already in the map (e.g. opened from the directory):
+      // the card resolves it synchronously and never needs the fetch.
+      renderModal({
+        humanId: "human-far-page",
+        humans: { "Hazel Wagschal": deepLinked },
+        fetchHumanById,
+      });
+
+      expect(screen.getByText("Hazel Wagschal")).toBeInTheDocument();
+      await waitFor(() => expect(fetchHumanById).not.toHaveBeenCalled());
+    });
   });
 });
