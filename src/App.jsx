@@ -884,6 +884,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   bookingsByDate={bookingsByDate}
                   fetchBookingHistoryForDog={sbFetchBookingHistoryForDog}
                   fetchDogById={fetchDogById}
+                  fetchHumanById={sbFetchHumanById}
                   handleAdd={handleAdd}
                   findHumanByFullName={sbFindHumanByFullName}
                   searchHumansByTerm={sbSearchHumansByTerm}

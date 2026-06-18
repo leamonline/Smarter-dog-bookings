@@ -211,6 +211,51 @@ describe("useHumansData realtime", () => {
       p_offset: 0,
     });
   });
+
+  it("preserves already-hydrated trustedContacts when a refetch rebuilds the cache", async () => {
+    const stub = makeStub(() => ({
+      data: { rows: [h1, h2], total: 2, letters: [] },
+      error: null,
+    }));
+    setSupabase(stub);
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Simulate a profile open hydrating h1's trusted contacts into the
+    // shared caches. buildHumanMapEntry stubs these to []; fetchHumanById is
+    // what normally fills them — here we set them directly via the exposed
+    // setters to model that hydrated state.
+    const trusted = [{ id: "h2", fullName: "Dave Smith", relationship: "" }];
+    act(() => {
+      result.current.setHumansById((prev) => ({
+        ...prev,
+        h1: { ...prev.h1, trustedContacts: trusted, trustedIds: ["Dave Smith"] },
+      }));
+      result.current.setHumans((prev) => ({
+        ...prev,
+        "Sarah Jones": {
+          ...prev["Sarah Jones"],
+          trustedContacts: trusted,
+          trustedIds: ["Dave Smith"],
+        },
+      }));
+    });
+
+    // A realtime humans UPDATE refetches page 0 with fresh empty-trusted
+    // stubs. Without the preserve-on-merge fix this wiped the hydrated links.
+    const before = stub.rpc.mock.calls.length;
+    act(() => stub._channel.fire("UPDATE", { new: { id: "h1" } }));
+    await waitFor(() => expect(stub.rpc.mock.calls.length).toBe(before + 1));
+
+    await waitFor(() =>
+      expect(result.current.humansById.h1.trustedContacts).toEqual(trusted),
+    );
+    expect(result.current.humansById.h1.trustedIds).toEqual(["Dave Smith"]);
+    expect(result.current.humans["Sarah Jones"].trustedContacts).toEqual(trusted);
+    expect(result.current.humans["Sarah Jones"].trustedIds).toEqual(["Dave Smith"]);
+    // h2 was never hydrated, so it stays an empty stub (no false positives).
+    expect(result.current.humansById.h2.trustedContacts).toEqual([]);
+  });
 });
 
 describe("useHumansData fetchArchivedHumans", () => {

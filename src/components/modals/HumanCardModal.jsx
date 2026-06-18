@@ -107,6 +107,21 @@ export function HumanCardModal({
   const humanFullName =
     human.fullName || `${human.name || ""} ${human.surname || ""}`.trim();
 
+  // Also fetch the dogs of anyone this person is trusted on, so the Dogs
+  // panel can list them under "Trusted to drop off / pick up". The effect
+  // above only loads the viewed human's OWN dogs; a dog they're trusted on
+  // is owned by someone else, so without this it never enters the cache.
+  // Joined into a stable key so the effect doesn't re-run on array identity
+  // churn; ensureDogsForHumans dedupes already-fetched ids itself.
+  const trustedContactIdsKey = (human.trustedContacts || [])
+    .map((c) => c.id)
+    .filter(Boolean)
+    .join(",");
+  useEffect(() => {
+    if (!ensureDogsForHumans || !trustedContactIdsKey) return;
+    ensureDogsForHumans(trustedContactIdsKey.split(","));
+  }, [ensureDogsForHumans, trustedContactIdsKey]);
+
   const [showAddDog, setShowAddDog] = useState(false);
 
   // Hydrate a person's current trusted links from the DB before a replace, so
