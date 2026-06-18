@@ -98,14 +98,31 @@ export function DogsPanel({
     const owned = getDogsForHuman(human, dogs || {}, dogsByHumanId || {});
 
     const trusted = [];
+    const seen = new Set();
+    // Primary path: pull each trusted contact's dogs straight from
+    // dogsByHumanId (populated by ensureDogsForHumans for the trusted ids in
+    // HumanCardModal). id-based, so it doesn't hinge on owner-name string
+    // matching the way the legacy fallback below does.
+    for (const contact of human.trustedContacts || []) {
+      if (!contact.id || contact.id === human.id) continue;
+      for (const dog of dogsByHumanId[contact.id] || []) {
+        if (seen.has(dog.id)) continue;
+        seen.add(dog.id);
+        trusted.push(dog);
+      }
+    }
+    // Fallback: legacy name/id match over the paginated dogs map, covering
+    // links present in trustedIds whose owner's dogs weren't pre-fetched.
     const trustedSet = new Set(human.trustedIds || []);
     if (trustedSet.size > 0) {
       for (const dog of Object.values(dogs || {})) {
+        if (seen.has(dog.id)) continue;
         const ownerId = dog._humanId || null;
         const ownerName = dog.humanId || "";
         // Skip dogs already owned by this human.
         if (ownerId === human.id || ownerName === humanFullName) continue;
         if (trustedSet.has(ownerId) || trustedSet.has(ownerName)) {
+          seen.add(dog.id);
           trusted.push(dog);
         }
       }

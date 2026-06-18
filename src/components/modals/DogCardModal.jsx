@@ -2,7 +2,7 @@
 // dog-card/ hooks (useResolvedDog, useDogEditForm, useTrustedHumans);
 // the heavyweight flows (chain booking, photo gallery) are sibling
 // modals that only mount when staff open them.
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { ModalShell } from "./shell/index.js";
 import { getHumanByIdOrName, looksLikeUuid } from "../../engine/bookingRules";
@@ -39,6 +39,7 @@ export function DogCardModal({
   bookingsByDate,
   fetchBookingHistoryForDog,
   fetchDogById,
+  fetchHumanById,
   handleAdd,
   findHumanByFullName,
   searchHumansByTerm,
@@ -56,6 +57,16 @@ export function DogCardModal({
   const owner =
     getHumanByIdOrName(humans, resolvedDog._humanId || resolvedDog.humanId) ||
     null;
+
+  // Hydrate the owner's trusted contacts so the Trusted Humans section can
+  // render them. The owner comes straight from the (paginated) humans cache,
+  // where buildHumanMapEntry stubs trustedContacts to []; fetchHumanById
+  // fetches the join rows and folds them into the cache. Without this the
+  // section is blank unless the owner's own profile happened to be opened.
+  const ownerId = owner?.id || null;
+  useEffect(() => {
+    if (ownerId && fetchHumanById) fetchHumanById(ownerId);
+  }, [ownerId, fetchHumanById]);
 
   // formatOwnerLabel is the single source of truth for owner display copy
   // (refuses to render UUIDs, returns "Unknown owner" when the human row

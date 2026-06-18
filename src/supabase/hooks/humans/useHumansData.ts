@@ -135,12 +135,33 @@ export function useHumansData({
       const entries = rows.map((row) => buildHumanMapEntry(row));
 
       const byId: Record<string, any> = {};
-      const byName: Record<string, any> = {};
       for (const e of entries) {
         byId[e.id] = e;
-        byName[e.fullName || e.id] = e;
       }
-      setHumansById((prev) => ({ ...prev, ...byId }));
+
+      // buildHumanMapEntry stubs trustedContacts/trustedIds to [] (the
+      // directory RPC never returns them — they're hydrated lazily by
+      // fetchHumanById). A realtime humans INSERT/UPDATE re-runs this fetch,
+      // so a plain overwrite would wipe any already-hydrated trusted links
+      // off the cache, blanking the Trusted Humans panels until a full
+      // reload. Carry the previous trusted fields forward whenever the fresh
+      // stub has none. Done per-map against each map's own `prev`; both maps
+      // hold the same underlying entry/array references, so the preserved
+      // data stays in sync.
+      const preserveTrusted = (prevEntry: any, fresh: any) =>
+        prevEntry?.trustedContacts?.length && !fresh.trustedContacts?.length
+          ? {
+              ...fresh,
+              trustedContacts: prevEntry.trustedContacts,
+              trustedIds: prevEntry.trustedIds,
+            }
+          : fresh;
+
+      setHumansById((prev) => {
+        const next = { ...prev };
+        for (const e of entries) next[e.id] = preserveTrusted(prev[e.id], e);
+        return next;
+      });
       setHumans((prev) => {
         // Keep the map name-keyed; drop any stale UUID-keyed copies of these
         // ids so HumansView never renders the same human twice.
@@ -148,7 +169,11 @@ export function useHumansData({
         for (const [k, v] of Object.entries(prev)) {
           if (!byId[k]) next[k] = v;
         }
-        return { ...next, ...byName };
+        for (const e of entries) {
+          const key = e.fullName || e.id;
+          next[key] = preserveTrusted(prev[key], e);
+        }
+        return next;
       });
       setDirectoryHumans((prev) => (append ? [...prev, ...entries] : entries));
       setTotalCount(result.total ?? 0);
