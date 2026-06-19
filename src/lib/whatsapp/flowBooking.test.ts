@@ -4,14 +4,21 @@ import {
   addDays,
   addonOptions,
   availableDateOptions,
+  availableGroupDateOptions,
   availableSlotOptions,
   type BookingInsert,
+  bookingGroupSummary,
   bookingRef,
   bookingSummary,
   confirmBooking,
+  confirmGroupBooking,
   type DogRow,
+  type ExistingBooking,
   type FlowDb,
   formatDateLong,
+  type GroupBookingItem,
+  type GroupInsertResult,
+  groupSlotOptions,
   type HumanRow,
   type InsertResult,
   listPetOptions,
@@ -26,15 +33,29 @@ const DOGS: DogRow[] = [
   { id: "d2", name: "Rex", breed: "Labrador", size: "large", human_id: "h1" },
 ];
 
+interface GroupInsertCall {
+  items: GroupBookingItem[];
+  dateStr: string;
+  humanId: string;
+}
+
 interface FakeOpts {
   smallMed?: { booking_date: string; slot: string }[];
   largeDays?: { booking_date: string; has_capacity: boolean }[];
   insert?: (row: BookingInsert) => InsertResult;
   dogs?: DogRow[];
+  // Multi-dog path: existing occupancy per date, and the group-insert result.
+  bookingsByDate?: Record<string, ExistingBooking[]>;
+  groupInsert?: (items: GroupBookingItem[], dateStr: string, humanId: string) => GroupInsertResult;
 }
 
-function makeDb(opts: FakeOpts = {}): { db: FlowDb; inserted: BookingInsert[] } {
+function makeDb(opts: FakeOpts = {}): {
+  db: FlowDb;
+  inserted: BookingInsert[];
+  groupInserts: GroupInsertCall[];
+} {
   const inserted: BookingInsert[] = [];
+  const groupInserts: GroupInsertCall[] = [];
   const dogs = opts.dogs ?? DOGS;
   const db: FlowDb = {
     getHumanByPhone: async (phone) => (phone === HUMAN.phone ? HUMAN : null),
@@ -47,8 +68,15 @@ function makeDb(opts: FakeOpts = {}): { db: FlowDb; inserted: BookingInsert[] } 
       inserted.push(row);
       return opts.insert ? opts.insert(row) : { id: "booking-uuid-1" };
     },
+    getBookingsForDate: async (dateStr) => opts.bookingsByDate?.[dateStr] ?? [],
+    insertBookingGroup: async (items, dateStr, humanId) => {
+      groupInserts.push({ items, dateStr, humanId });
+      return opts.groupInsert
+        ? opts.groupInsert(items, dateStr, humanId)
+        : { ids: items.map((_, i) => `grp-${i}`) };
+    },
   };
-  return { db, inserted };
+  return { db, inserted, groupInserts };
 }
 
 describe("option builders", () => {
@@ -61,7 +89,8 @@ describe("option builders", () => {
 
   it("filters services by size and labels 'from' prices", () => {
     const small = serviceOptions("small", null);
-    expect(small.find((s) => s.id === "puppy-groom")?.description).toBe("£38");
+    // Guide prices always read "from £X" (the salon never quotes fixed).
+    expect(small.find((s) => s.id === "puppy-groom")?.description).toBe("from £38");
     expect(small.find((s) => s.id === "full-groom")?.description).toBe("from £42");
 
     // puppy-groom is N/A for large dogs, so it must not be offered.
@@ -210,5 +239,145 @@ describe("date + summary helpers", () => {
     expect(summary).toContain("Tuesday 2 June at 9:30 am");
     expect(summary).toContain("Add-ons: Flea Bath");
     expect(summary).toContain("From £42");
+  });
+});
+
+// ── Multi-dog (group) booking ──────────────────────────────────
+const TWO_SMALL: DogRow[] = [
+  { id: "s1", name: "Bella", breed: "Cockapoo", size: "small", human_id: "h1" },
+  { id: "s2", name: "Coco", breed: "Bichon", size: "small", human_id: "h1" },
+];
+
+describe("groupSlotOptions", () => {
+  it("offers drop-off times the whole group fits, ordered by the grid", async () => {
+    // Empty day: two small dogs fit in any single slot (2 seats each).
+    const { db } = makeDb({ dogs: TWO_SMALL, bookingsByDate: { "2026-06-02": [] } });
+    const slots = await groupSlotOptions(
+      db,
+      [{ id: "s1", size: "small" }, { id: "s2", size: "small" }],
+      "2026-06-02",
+    );
+    const ids = slots.map((s) => s.id);
+    expect(ids).toContain("09:00");
+    // Ordered by the canonical grid (08:30 before 09:00 before 13:00).
+    expect(ids).toEqual([...ids].sort((a, b) => a.localeCompare(b)));
+  });
+});
+
+describe("confirmGroupBooking", () => {
+  const baseTwo = {
+    humanId: "h1",
+    dateStr: "2026-06-02",
+    dropOff: "09:00",
+    dogs: [
+      { dogId: "s1", serviceId: "full-groom", addons: ["Flea Bath"] },
+      { dogId: "s2", serviceId: "bath-and-brush", addons: [] },
+    ],
+  };
+
+  it("inserts one group with a row per dog and returns all ids", async () => {
+    const { db, groupInserts } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupInsert: (items) => ({ ids: items.map((_, i) => `id-${i}`) }),
+    });
+    const res = await confirmGroupBooking(db, baseTwo);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.bookingIds).toHaveLength(2);
+    expect(groupInserts).toHaveLength(1);
+    expect(groupInserts[0].items).toHaveLength(2);
+    // Each dog carried its own service; size is pinned from the dog row.
+    const s1 = groupInserts[0].items.find((i) => i.dog_id === "s1");
+    const s2 = groupInserts[0].items.find((i) => i.dog_id === "s2");
+    expect(s1).toMatchObject({ service: "full-groom", size: "small", slot: "09:00", addons: ["Flea Bath"] });
+    expect(s2).toMatchObject({ service: "bath-and-brush", size: "small", slot: "09:00" });
+  });
+
+  it("books a single dog as a group of one", async () => {
+    const { db, groupInserts } = makeDb({ dogs: TWO_SMALL, bookingsByDate: { "2026-06-02": [] } });
+    const res = await confirmGroupBooking(db, {
+      humanId: "h1",
+      dateStr: "2026-06-02",
+      dropOff: "09:00",
+      dogs: [{ dogId: "s1", serviceId: "full-groom", addons: [] }],
+    });
+    expect(res.ok).toBe(true);
+    expect(groupInserts[0].items).toHaveLength(1);
+  });
+
+  it("rejects when a dog isn't on the caller's account", async () => {
+    const { db } = makeDb({ dogs: TWO_SMALL, bookingsByDate: { "2026-06-02": [] } });
+    const res = await confirmGroupBooking(db, {
+      ...baseTwo,
+      dogs: [{ dogId: "s1", serviceId: "full-groom", addons: [] }, { dogId: "stranger", serviceId: "full-groom", addons: [] }],
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.kind).toBe("ownership");
+  });
+
+  it("maps the capacity trigger (P0001) to slot_taken", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupInsert: () => ({ errorCode: "P0001", errorMessage: "Slot is full" }),
+    });
+    const res = await confirmGroupBooking(db, baseTwo);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.kind).toBe("slot_taken");
+  });
+
+  it("retries (slot_taken) when the chosen drop-off no longer fits the group", async () => {
+    const { db, groupInserts } = makeDb({ dogs: TWO_SMALL, bookingsByDate: { "2026-06-02": [] } });
+    const res = await confirmGroupBooking(db, { ...baseTwo, dropOff: "07:00" }); // not a real grid slot
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.kind).toBe("slot_taken");
+    expect(groupInserts).toHaveLength(0); // never attempted the insert
+  });
+});
+
+describe("availableGroupDateOptions", () => {
+  it("uses small/medium availability when no large dog is in the group", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      smallMed: [{ booking_date: "2026-06-02", slot: "09:00" }],
+      largeDays: [{ booking_date: "2026-06-03", has_capacity: true }],
+    });
+    const dates = await availableGroupDateOptions(
+      db,
+      [{ id: "s1", size: "small" }, { id: "s2", size: "small" }],
+      new Date("2026-05-26T09:00:00Z"),
+    );
+    expect(dates.map((d) => d.id)).toEqual(["2026-06-02"]);
+  });
+
+  it("falls back to large-dog day capacity when the group includes a large dog", async () => {
+    const { db } = makeDb({
+      smallMed: [{ booking_date: "2026-06-02", slot: "09:00" }],
+      largeDays: [{ booking_date: "2026-06-03", has_capacity: true }],
+    });
+    const dates = await availableGroupDateOptions(
+      db,
+      [{ id: "d1", size: "small" }, { id: "d2", size: "large" }],
+      new Date("2026-05-26T09:00:00Z"),
+    );
+    expect(dates.map((d) => d.id)).toEqual(["2026-06-03"]);
+  });
+});
+
+describe("bookingGroupSummary", () => {
+  it("lists the day once then a line per dog with prices", () => {
+    const summary = bookingGroupSummary({
+      dogs: [
+        { dogName: "Bella", serviceId: "full-groom", size: "small", addons: ["Flea Bath"] },
+        { dogName: "Coco", serviceId: "bath-and-brush", size: "small", addons: [] },
+      ],
+      pricing: null,
+      dateStr: "2026-06-02",
+      dropOff: "09:00",
+    });
+    expect(summary).toContain("Tuesday 2 June at 9:00 am");
+    expect(summary).toContain("Bella — Full Groom (from £42)");
+    expect(summary).toContain("Coco — Bath & Brush (from £38)");
+    expect(summary).toContain("Add-ons: Flea Bath");
   });
 });

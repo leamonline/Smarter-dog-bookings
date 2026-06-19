@@ -2,10 +2,12 @@
   "version": "7.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "WELCOME": ["SELECT_PET", "NO_PETS"],
-    "SELECT_PET": ["SELECT_SERVICE"],
-    "SELECT_SERVICE": ["SELECT_ADDONS"],
-    "SELECT_ADDONS": ["SELECT_DATE"],
+    "WELCOME": ["SELECT_PET", "NO_PETS", "SELECT_DATE"],
+    "SELECT_PET": ["DOG_A"],
+    "DOG_A": ["DOG_B", "SELECT_DATE"],
+    "DOG_B": ["DOG_C", "SELECT_DATE"],
+    "DOG_C": ["DOG_D", "SELECT_DATE"],
+    "DOG_D": ["SELECT_DATE"],
     "SELECT_DATE": ["SELECT_TIME"],
     "SELECT_TIME": ["CONFIRM"],
     "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME_RETRY"],
@@ -43,7 +45,7 @@
     },
     {
       "id": "SELECT_PET",
-      "title": "Your dog",
+      "title": "Your dogs",
       "data": {
         "pets": {
           "type": "array",
@@ -56,22 +58,26 @@
             }
           },
           "__example__": [
-            { "id": "11111111-1111-1111-1111-111111111111", "title": "Bella", "description": "Cockapoo · small" }
+            { "id": "11111111-1111-1111-1111-111111111111", "title": "Bella", "description": "Cockapoo · small" },
+            { "id": "22222222-2222-2222-2222-222222222222", "title": "Max", "description": "Labrador · large" }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
+          { "type": "TextBody", "text": "Who's coming in for a pamper? Pick up to four 🐾" },
           {
             "type": "Form",
             "name": "pet_form",
             "children": [
               {
-                "type": "RadioButtonsGroup",
-                "name": "dog_id",
-                "label": "Which dog is this for?",
+                "type": "CheckboxGroup",
+                "name": "dog_ids",
+                "label": "Which dogs is this for?",
                 "required": true,
+                "min-selected-items": 1,
+                "max-selected-items": 4,
                 "data-source": "${data.pets}"
               },
               {
@@ -79,7 +85,7 @@
                 "label": "Continue",
                 "on-click-action": {
                   "name": "data_exchange",
-                  "payload": { "dog_id": "${form.dog_id}" }
+                  "payload": { "dog_ids": "${form.dog_ids}" }
                 }
               }
             ]
@@ -88,68 +94,21 @@
       }
     },
     {
-      "id": "SELECT_SERVICE",
-      "title": "Service",
+      "id": "DOG_A",
+      "title": "Dog 1",
       "data": {
-        "dog_name": { "type": "string", "__example__": "Bella" },
+        "heading": { "type": "string", "__example__": "What's Bella in for? 🐾" },
         "services": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" }
-            }
-          },
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
           "__example__": [
             { "id": "full-groom", "title": "Full Groom", "description": "from £46" },
             { "id": "bath-and-brush", "title": "Bath & Brush", "description": "from £42" }
           ]
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
-          {
-            "type": "Form",
-            "name": "service_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "service",
-                "label": "Service",
-                "required": true,
-                "data-source": "${data.services}"
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": { "service": "${form.service}" }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "SELECT_ADDONS",
-      "title": "Add-ons",
-      "data": {
+        },
         "addons": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" }
-            }
-          },
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
           "__example__": [
             { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" },
             { "id": "Sensitive Shampoo", "title": "Sensitive Shampoo", "description": "" }
@@ -159,26 +118,123 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextBody", "text": "Optional extras — tap any you'd like, or just continue." },
+          { "type": "TextSubheading", "text": "${data.heading}" },
           {
             "type": "Form",
-            "name": "addons_form",
+            "name": "dog_a_form",
             "children": [
-              {
-                "type": "CheckboxGroup",
-                "name": "addons",
-                "label": "Add-ons",
-                "required": false,
-                "data-source": "${data.addons}"
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": { "addons": "${form.addons}" }
-                }
-              }
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_B",
+      "title": "Dog 2",
+      "data": {
+        "heading": { "type": "string", "__example__": "What's Max in for? 🐾" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £60" },
+            { "id": "bath-and-brush", "title": "Bath & Brush", "description": "from £55" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "${data.heading}" },
+          {
+            "type": "Form",
+            "name": "dog_b_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_C",
+      "title": "Dog 3",
+      "data": {
+        "heading": { "type": "string", "__example__": "What's Coco in for? 🐾" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £46" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "${data.heading}" },
+          {
+            "type": "Form",
+            "name": "dog_c_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_D",
+      "title": "Dog 4",
+      "data": {
+        "heading": { "type": "string", "__example__": "What's Rex in for? 🐾" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £46" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "${data.heading}" },
+          {
+            "type": "Form",
+            "name": "dog_d_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
             ]
           }
         ]
@@ -206,7 +262,7 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextBody", "text": "We're open Mon–Wed. Here are the next available days:" },
+          { "type": "TextBody", "text": "Here's when we can fit you in — pick a day that suits 🐾" },
           {
             "type": "Form",
             "name": "date_form",
@@ -236,6 +292,7 @@
       "title": "Choose a time",
       "data": {
         "date_label": { "type": "string", "__example__": "Tuesday 2 June" },
+        "time_heading": { "type": "string", "__example__": "Lovely — what time works on Tuesday 2 June? 🐾" },
         "show_error": { "type": "boolean", "__example__": false },
         "error_message": { "type": "string", "__example__": "" },
         "time_slots": {
@@ -261,7 +318,7 @@
             "text": "${data.error_message}",
             "visible": "${data.show_error}"
           },
-          { "type": "TextSubheading", "text": "Drop-off times for ${data.date_label}" },
+          { "type": "TextSubheading", "text": "${data.time_heading}" },
           {
             "type": "Form",
             "name": "time_form",
@@ -290,13 +347,13 @@
       "id": "CONFIRM",
       "title": "Confirm booking",
       "data": {
-        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am\nFrom £46" },
+        "summary": { "type": "string", "__example__": "Tuesday 2 June at 9:30 am\n\nBella — Full Groom (from £46)\nMax — Bath & Brush (from £55)" },
         "fine_print": { "type": "string", "__example__": "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon." }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextSubheading", "text": "Please check the details" },
+          { "type": "TextSubheading", "text": "Just to check we've got it right 🐾" },
           { "type": "TextBody", "text": "${data.summary}" },
           { "type": "TextCaption", "text": "${data.fine_print}" },
           {
@@ -318,6 +375,7 @@
       "title": "Pick another time",
       "data": {
         "date_label": { "type": "string", "__example__": "Tuesday 2 June" },
+        "time_heading": { "type": "string", "__example__": "No worries — pick another time on Tuesday 2 June" },
         "error_message": { "type": "string", "__example__": "That slot just got taken — please pick another." },
         "time_slots": {
           "type": "array",
@@ -338,7 +396,7 @@
         "type": "SingleColumnLayout",
         "children": [
           { "type": "TextBody", "text": "${data.error_message}" },
-          { "type": "TextSubheading", "text": "Other times on ${data.date_label}" },
+          { "type": "TextSubheading", "text": "${data.time_heading}" },
           {
             "type": "Form",
             "name": "time_retry_form",
@@ -370,14 +428,15 @@
       "success": true,
       "data": {
         "booking_ref": { "type": "string", "__example__": "SD-3F9A2C" },
-        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am" }
+        "ref_line": { "type": "string", "__example__": "Your reference: SD-3F9A2C" },
+        "summary": { "type": "string", "__example__": "Tuesday 2 June at 9:30 am\nBella — Full Groom\nMax — Bath & Brush" }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           { "type": "TextHeading", "text": "All booked in 🐶" },
           { "type": "TextBody", "text": "${data.summary}" },
-          { "type": "TextCaption", "text": "Your reference: ${data.booking_ref}" },
+          { "type": "TextCaption", "text": "${data.ref_line}" },
           {
             "type": "Form",
             "name": "success_form",

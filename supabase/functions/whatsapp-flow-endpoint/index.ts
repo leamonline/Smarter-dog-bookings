@@ -40,28 +40,38 @@ import {
 } from "../_shared/flowCrypto.ts";
 import {
   addonOptions,
-  availableDateOptions,
-  availableSlotOptions,
+  availableGroupDateOptions,
+  bookingGroupSummary,
   bookingRef,
-  bookingSummary,
-  confirmBooking,
+  confirmGroupBooking,
   type FlowDb,
   formatDateLong,
+  groupSlotOptions,
   listPetOptions,
   serviceName,
   serviceOptions,
 } from "../_shared/flowBooking.ts";
-import { slotLabel } from "../_shared/salonConstants.ts";
+import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
+import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
 import {
+  cancelOldBookingForReschedule,
   completeSession,
   createServiceClient,
   failSession,
+  type FlowDogMeta,
   type FlowSessionRow,
   type FlowState,
+  getActiveOwnedBookings,
   loadSession,
   makeFlowDb,
   saveSession,
 } from "./db.ts";
+
+// Reschedule fail-safe copy (the old booking is left untouched in these cases).
+const RESCHEDULE_CHANGED_MSG =
+  "Looks like this booking has changed since you started — please send us a message and the team will help. 🐾";
+const RESCHEDULE_CUTOFF_MSG =
+  "This appointment is now within 24 hours, so I can't move it automatically here. Please message us and the team will sort it. 🐾";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DATA_API_VERSION = "3.0";
@@ -101,10 +111,36 @@ function strArr(v: unknown): string[] {
   return Array.isArray(v) ? v.map((x) => String(x)) : [];
 }
 
-function successResponse(bookingId: string, state: FlowState): unknown {
-  const parts = [`${state.dog_name ?? "Your dog"} — ${serviceName(state.service ?? "")}`];
-  if (state.date) parts.push(`${formatDateLong(state.date)}${state.slot ? ` at ${slotLabel(state.slot)}` : ""}`);
-  return screenResponse("SUCCESS", { booking_ref: bookingRef(bookingId), summary: parts.join("\n") });
+function dogsFromState(state: FlowState): Array<{ id: string; size: DogSize }> {
+  const meta = state.dog_meta ?? {};
+  return (state.dog_ids ?? [])
+    .filter((id) => meta[id])
+    .map((id) => ({ id, size: meta[id].size }));
+}
+
+function successResponse(
+  bookingIds: string[],
+  state: FlowState,
+  opts: { rescheduled?: boolean } = {},
+): unknown {
+  const ref = bookingIds.length ? bookingRef(bookingIds[0]) : "SD-PENDING";
+  const meta = state.dog_meta ?? {};
+  const services = state.services ?? {};
+  const lines: string[] = [];
+  if (state.date) {
+    const when = `${formatDateLong(state.date)}${state.drop_off ? ` at ${slotLabel(state.drop_off)}` : ""}`;
+    lines.push(opts.rescheduled ? `Moved to ${when}` : when);
+  }
+  for (const id of state.dog_ids ?? []) {
+    lines.push(`${meta[id]?.name ?? "Your dog"} — ${serviceName(services[id] ?? "")}`);
+  }
+  // ref_line is a whole-value binding (embedded ${data.booking_ref} won't
+  // resolve); booking_ref is still passed for the completion-action payload.
+  return screenResponse("SUCCESS", {
+    booking_ref: ref,
+    ref_line: `Your reference: ${ref}`,
+    summary: lines.join("\n"),
+  });
 }
 
 async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient): Promise<unknown> {
@@ -115,7 +151,7 @@ async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient):
   }
   return screenResponse("WELCOME", {
     greeting: name ? `Hi ${name}! 🐾` : "Hi there! 🐾",
-    intro: "Let's get your dog booked in for a groom.",
+    intro: "Let's get your pup booked in for a fresh new groom.",
   });
 }
 
@@ -127,6 +163,26 @@ async function buildScreen(
   supabase: SupabaseClient,
 ): Promise<unknown> {
   const state = session.state;
+
+  // Per-dog screens DOG_A..DOG_D: service + add-ons for the dog at that
+  // position. Forward-only routing (Meta rejects loop-back edges), and screen
+  // ids must be letters/underscores only (no digits) — so the position is the
+  // letter A..D. Derived from the screen id, so it's correct on INIT/BACK too.
+  if (target.startsWith("DOG_")) {
+    const idx = target.charCodeAt(4) - 65; // 'A' -> 0
+    const dogId = (state.dog_ids ?? [])[idx];
+    const meta = dogId ? state.dog_meta?.[dogId] : undefined;
+    if (!meta) return screenResponse("BOOKING_FAILED", { message: "Please start again." });
+    const pricing = await db.getPricing();
+    // Whole-value heading (Meta doesn't resolve embedded ${data.x} inside a
+    // longer string — only a full-value binding).
+    return screenResponse(target, {
+      heading: `What's ${meta.name} in for? 🐾`,
+      services: serviceOptions(meta.size, pricing),
+      addons: addonOptions(),
+    });
+  }
+
   switch (target) {
     case "WELCOME":
       return renderWelcome(session, supabase);
@@ -137,19 +193,8 @@ async function buildScreen(
       return screenResponse("SELECT_PET", { pets });
     }
 
-    case "SELECT_SERVICE": {
-      const pricing = await db.getPricing();
-      return screenResponse("SELECT_SERVICE", {
-        dog_name: state.dog_name ?? "your dog",
-        services: serviceOptions(state.size ?? "small", pricing),
-      });
-    }
-
-    case "SELECT_ADDONS":
-      return screenResponse("SELECT_ADDONS", { addons: addonOptions() });
-
     case "SELECT_DATE": {
-      const dates = await availableDateOptions(db, state.size ?? "small", new Date());
+      const dates = await availableGroupDateOptions(db, dogsFromState(state), new Date());
       if (!dates.length) {
         return screenResponse("BOOKING_FAILED", {
           message: "We've no availability in the next 60 days. Please message us and we'll help.",
@@ -159,7 +204,7 @@ async function buildScreen(
     }
 
     case "SELECT_TIME": {
-      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       if (!slots.length) {
         return screenResponse("BOOKING_FAILED", {
           message: 'That day just filled up. Reply "book" to choose another day.',
@@ -167,6 +212,7 @@ async function buildScreen(
       }
       return screenResponse("SELECT_TIME", {
         date_label: state.date ? formatDateLong(state.date) : "",
+        time_heading: state.date ? `Lovely — what time works on ${formatDateLong(state.date)}? 🐾` : "Pick a time",
         time_slots: slots,
         show_error: false,
         error_message: "",
@@ -174,7 +220,7 @@ async function buildScreen(
     }
 
     case "SELECT_TIME_RETRY": {
-      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       if (!slots.length) {
         return screenResponse("BOOKING_FAILED", {
           message: 'That day just filled up. Reply "book" to choose another day.',
@@ -182,6 +228,7 @@ async function buildScreen(
       }
       return screenResponse("SELECT_TIME_RETRY", {
         date_label: state.date ? formatDateLong(state.date) : "",
+        time_heading: state.date ? `No worries — pick another time on ${formatDateLong(state.date)}` : "Pick another time",
         time_slots: slots,
         error_message: "That slot just got taken — please pick another.",
       });
@@ -189,16 +236,19 @@ async function buildScreen(
 
     case "CONFIRM": {
       const pricing = await db.getPricing();
+      const meta = state.dog_meta ?? {};
+      const services = state.services ?? {};
+      const addons = state.addons ?? {};
+      const dogs = (state.dog_ids ?? [])
+        .filter((id) => meta[id])
+        .map((id) => ({
+          dogName: meta[id].name,
+          serviceId: services[id] ?? "",
+          size: meta[id].size,
+          addons: addons[id] ?? [],
+        }));
       return screenResponse("CONFIRM", {
-        summary: bookingSummary({
-          dogName: state.dog_name ?? "",
-          serviceId: state.service ?? "",
-          size: state.size ?? "small",
-          pricing,
-          addons: state.addons ?? [],
-          dateStr: state.date ?? "",
-          slot: state.slot ?? "",
-        }),
+        summary: bookingGroupSummary({ dogs, pricing, dateStr: state.date ?? "", dropOff: state.drop_off ?? "" }),
         fine_print: FINE_PRINT,
       });
     }
@@ -211,6 +261,59 @@ async function buildScreen(
   }
 }
 
+/**
+ * Re-validate a reschedule's OLD visit at CONFIRM, against the frozen
+ * snapshot. Returns ok, or a customer-safe fail-safe message. Runs BEFORE the
+ * new booking is created so a changed/late old visit never spawns a new one.
+ */
+async function validateRescheduleOld(
+  supabase: SupabaseClient,
+  humanId: string,
+  state: FlowState,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const sel = state.reschedule_group_id
+    ? { groupId: state.reschedule_group_id }
+    : { bookingId: state.reschedule_booking_id };
+  const oldRows = await getActiveOwnedBookings(supabase, humanId, sel);
+  if (!oldRows.length) return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+
+  // Same dogs as the snapshot?
+  const dogSet = [...new Set(oldRows.map((r) => r.dog_id))].sort();
+  const snapDogs = [...(state.dog_snapshot ?? [])].sort();
+  if (dogSet.length !== snapDogs.length || dogSet.some((d, i) => d !== snapDogs[i])) {
+    return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+  }
+  // Same service per dog as the snapshot (the live OLD booking)?
+  const svcSnap = state.service_snapshot ?? {};
+  for (const r of oldRows) {
+    if ((svcSnap[r.dog_id] ?? null) !== (r.service ?? null)) {
+      return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+    }
+  }
+  // Defence-in-depth: the NEW booking's services (carried in the flow state)
+  // must still equal the snapshot — a reschedule never changes the service.
+  const curSvc = state.services ?? {};
+  for (const k of new Set([...Object.keys(svcSnap), ...Object.keys(curSvc)])) {
+    if (svcSnap[k] !== curSvc[k]) return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+  }
+  // Did staff MOVE the old visit (date/slot) while the customer was choosing?
+  // The frozen snapshot must still match the live earliest drop-off.
+  if (state.old_date && state.old_slot) {
+    const liveEarliest = oldRows.map((r) => `${r.booking_date}T${r.slot}`).sort()[0];
+    if (liveEarliest !== `${state.old_date}T${state.old_slot}`) {
+      return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+    }
+  }
+  // Still outside the 24h cut-off (use the earliest old slot, salon-local)?
+  const earliest = oldRows
+    .map((r) => visitStartInstant(r.booking_date, r.slot))
+    .sort((a, b) => a.getTime() - b.getTime())[0];
+  if (isInsideManageCutoff(earliest, new Date())) {
+    return { ok: false, message: RESCHEDULE_CUTOFF_MSG };
+  }
+  return { ok: true };
+}
+
 async function handleConfirm(
   session: FlowSessionRow,
   state: FlowState,
@@ -219,34 +322,80 @@ async function handleConfirm(
   opts: { allowRetry?: boolean } = {},
 ): Promise<unknown> {
   const allowRetry = opts.allowRetry ?? true;
+  const isReschedule = state.flow_mode === "reschedule";
 
-  // Idempotency: a duplicate confirm returns the existing booking.
-  if (session.booking_id) return successResponse(session.booking_id, state);
+  // Idempotency: a duplicate confirm returns the existing booking group.
+  if (session.booking_id) return successResponse([session.booking_id], state, { rescheduled: isReschedule });
 
-  if (!session.human_id || !state.dog_id || !state.service || !state.date || !state.slot) {
+  const dogIds = state.dog_ids ?? [];
+  const services = state.services ?? {};
+  const addons = state.addons ?? {};
+  if (
+    !session.human_id || !dogIds.length || dogIds.length > 4 ||
+    !state.date || !state.drop_off || !dogIds.every((id) => services[id])
+  ) {
     return screenResponse("BOOKING_FAILED", { message: "Some details were missing. Please start again." });
   }
 
-  const res = await confirmBooking(db, {
+  // Reschedule: re-validate the OLD visit BEFORE creating the new one, so a
+  // stale/changed/late old visit never produces a new booking.
+  if (isReschedule) {
+    // Guard: a reschedule session must carry its old-visit snapshot. If the
+    // pre-seed was incomplete, fail safe rather than booking a duplicate.
+    if (
+      !(state.dog_snapshot?.length) ||
+      !(state.reschedule_group_id || state.reschedule_booking_id) ||
+      !state.service_snapshot
+    ) {
+      await failSession(supabase, session.flow_token);
+      return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
+    }
+    const v = await validateRescheduleOld(supabase, session.human_id, state);
+    if (!v.ok) {
+      await failSession(supabase, session.flow_token);
+      return screenResponse("BOOKING_FAILED", { message: v.message });
+    }
+  }
+
+  const res = await confirmGroupBooking(db, {
     humanId: session.human_id,
-    dogId: state.dog_id,
-    serviceId: state.service,
     dateStr: state.date,
-    slot: state.slot,
-    addons: state.addons ?? [],
+    dropOff: state.drop_off,
+    dogs: dogIds.map((id) => ({ dogId: id, serviceId: services[id], addons: addons[id] ?? [] })),
   });
 
   if (res.ok) {
-    await completeSession(supabase, session.flow_token, res.bookingId);
-    return successResponse(res.bookingId, state);
+    // Reschedule: new booking created — NOW cancel the old visit (new-first,
+    // cancel-old-second so a failure never loses the original). A partial
+    // cancel leaves a duplicate, logged loudly for staff (visible in the
+    // calendar); the customer still sees their confirmed new booking.
+    if (isReschedule) {
+      const sel = state.reschedule_group_id
+        ? { groupId: state.reschedule_group_id }
+        : { bookingId: state.reschedule_booking_id };
+      const cancelled = await cancelOldBookingForReschedule(supabase, session.human_id, sel);
+      const expected = (state.old_booking_ids ?? []).length || 1;
+      if (cancelled.cancelledCount < expected) {
+        console.error(
+          `[reschedule] DUPLICATE-RISK: new booking ${res.bookingIds.join(",")} created but only ` +
+            `${cancelled.cancelledCount}/${expected} old rows cancelled ` +
+            `(group=${state.reschedule_group_id ?? "-"} booking=${state.reschedule_booking_id ?? "-"} ` +
+            `human=${session.human_id}). Staff must remove the old booking.`,
+        );
+      }
+    }
+    // Store the first booking id as the idempotency marker for re-confirms.
+    await completeSession(supabase, session.flow_token, res.bookingIds[0]);
+    return successResponse(res.bookingIds, state, { rescheduled: isReschedule });
   }
 
   if (res.kind === "slot_taken" && allowRetry) {
-    const slots = await availableSlotOptions(db, state.size ?? "small", state.date);
+    const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
     await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
     return screenResponse("SELECT_TIME_RETRY", {
       date_label: formatDateLong(state.date),
-      time_slots: slots.length ? slots : [{ id: state.slot, title: slotLabel(state.slot) }],
+      time_heading: `No worries — pick another time on ${formatDateLong(state.date)}`,
+      time_slots: slots.length ? slots : [{ id: state.drop_off, title: slotLabel(state.drop_off) }],
       error_message: res.message,
     });
   }
@@ -271,45 +420,71 @@ async function handleDataExchange(
   }
 
   if (current === "SELECT_TIME_RETRY") {
-    state.slot = str(data.slot);
+    state.drop_off = str(data.slot);
     await saveSession(supabase, token, { screen: "SELECT_TIME_RETRY", state });
     return handleConfirm({ ...session, state }, state, db, supabase, { allowRetry: false });
+  }
+
+  // Per-dog screen submit: store this dog's service + add-ons, then advance to
+  // the next selected dog (DOG_A→DOG_B…) or on to SELECT_DATE.
+  if (current.startsWith("DOG_")) {
+    const idx = current.charCodeAt(4) - 65; // 'A' -> 0
+    const dogId = (state.dog_ids ?? [])[idx];
+    if (dogId) {
+      state.services = { ...(state.services ?? {}), [dogId]: str(data.service) };
+      state.addons = { ...(state.addons ?? {}), [dogId]: strArr(data.addons) };
+    }
+    const next = idx + 1;
+    const nextScreen = next < (state.dog_ids ?? []).length
+      ? `DOG_${String.fromCharCode(65 + next)}`
+      : "SELECT_DATE";
+    await saveSession(supabase, token, { screen: nextScreen, state });
+    return buildScreen(nextScreen, { ...session, state }, db, supabase);
   }
 
   let target: string;
   switch (current) {
     case "WELCOME": {
+      // Reschedule: dogs + services are pre-seeded — skip pet + per-dog
+      // screens and go straight to picking a new day/time.
+      if (state.flow_mode === "reschedule" && (state.dog_ids?.length ?? 0) > 0) {
+        target = "SELECT_DATE";
+        break;
+      }
       const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
       target = pets.length ? "SELECT_PET" : "NO_PETS";
       break;
     }
     case "SELECT_PET": {
-      state.dog_id = str(data.dog_id);
-      const dog = state.dog_id ? await db.getDogById(state.dog_id) : null;
-      if (!dog || dog.human_id !== session.human_id) {
-        // Re-ask rather than trust a stray/incorrect dog id.
+      // Multi-select: validate ownership + pin name/size for each chosen dog.
+      const ids = strArr(data.dog_ids);
+      const meta: Record<string, FlowDogMeta> = {};
+      const ordered: string[] = [];
+      for (const id of ids) {
+        const dog = await db.getDogById(id);
+        if (dog && dog.human_id === session.human_id) {
+          meta[id] = { name: dog.name, size: dog.size };
+          ordered.push(id);
+        }
+      }
+      if (!ordered.length || ordered.length > 4) {
+        // Re-ask rather than trust a stray/empty/oversized selection.
         await saveSession(supabase, token, { screen: "SELECT_PET", state });
         return buildScreen("SELECT_PET", { ...session, state }, db, supabase);
       }
-      state.size = dog.size;
-      state.dog_name = dog.name;
-      target = "SELECT_SERVICE";
+      state.dog_ids = ordered;
+      state.dog_meta = meta;
+      state.services = {};
+      state.addons = {};
+      target = "DOG_A";
       break;
     }
-    case "SELECT_SERVICE":
-      state.service = str(data.service);
-      target = "SELECT_ADDONS";
-      break;
-    case "SELECT_ADDONS":
-      state.addons = strArr(data.addons);
-      target = "SELECT_DATE";
-      break;
     case "SELECT_DATE":
       state.date = str(data.date);
       target = "SELECT_TIME";
       break;
     case "SELECT_TIME":
-      state.slot = str(data.slot);
+      state.drop_off = str(data.slot);
       target = "CONFIRM";
       break;
     default:
@@ -347,6 +522,9 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
   const db = makeFlowDb(supabase);
 
   if (req.action === "INIT") {
+    // Always render WELCOME on INIT (proven booking behaviour). Reschedule
+    // opens on WELCOME too and routes WELCOME→SELECT_DATE on Continue, so it
+    // doesn't need INIT to land elsewhere.
     return renderWelcome(session, supabase);
   }
   if (req.action === "BACK") {
