@@ -1343,7 +1343,9 @@ function sendManageText(conversationId: string, text: string): Promise<boolean> 
   return callWhatsappSend({ mode: "manual", conversation_id: conversationId, text });
 }
 
-/** Debounce: a manage list/flow message sent on this convo in the last 3 min. */
+/** Debounce: a manage *picker list* sent on this convo in the last 3 min.
+ *  Deliberately does NOT match `[flow:…]` sends — those include the ordinary
+ *  booking Flow (Message 2), which must not swallow a later reschedule. */
 async function recentlySentManageBooking(supabase: SupabaseClient, conversationId: string): Promise<boolean> {
   const since = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   const { data } = await supabase
@@ -1352,7 +1354,7 @@ async function recentlySentManageBooking(supabase: SupabaseClient, conversationI
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
     .gte("sent_at", since)
-    .or("content.ilike.[manage_list]%,content.ilike.[flow:%");
+    .ilike("content", "[manage_list]%");
   return (data?.length ?? 0) > 0;
 }
 
