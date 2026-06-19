@@ -412,7 +412,7 @@ export function DogsView({
   };
   const activeFilters = Object.values(FILTER_LABELS).filter(Boolean);
   const hasFilters = activeFilters.length > 0;
-  const narrowed = hasSearchQuery || hasFilters;
+  const narrowed = hasSearchQuery || hasFilters || Boolean(activeLetter);
   const filterSuffix = hasFilters ? ` · ${activeFilters.join(", ")}` : "";
 
   const headerCountText = showArchived

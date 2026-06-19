@@ -78,6 +78,12 @@ describe("DogsView directory", () => {
     expect(onLetterChange).toHaveBeenCalledWith("B");
   });
 
+  it("labels the count as 'matching' (not 'registered') when only a letter filter is active", () => {
+    renderView({ activeLetter: "B", totalCount: 2 });
+    expect(screen.getByText("2 matching dogs")).toBeInTheDocument();
+    expect(screen.queryByText("2 dogs registered")).not.toBeInTheDocument();
+  });
+
   it("the sort toggle marks the active mode and switches on click", () => {
     const { onSortModeChange } = renderView();
     expect(screen.getByRole("button", { name: "Name" })).toHaveAttribute("aria-pressed", "true");

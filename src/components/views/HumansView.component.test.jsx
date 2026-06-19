@@ -53,6 +53,12 @@ describe("HumansView directory", () => {
     }
   });
 
+  it("labels the count as 'matching' (not 'registered') when only a letter filter is active", () => {
+    renderView({ activeLetter: "D", totalCount: 2 });
+    expect(screen.getByText("2 matching humans")).toBeInTheDocument();
+    expect(screen.queryByText("2 humans registered")).not.toBeInTheDocument();
+  });
+
   it("renders the directory list in the server-provided order", () => {
     renderView();
     const cards = screen.getAllByRole("button", { name: /profile$/ });
