@@ -78,15 +78,18 @@ export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
           </div>
           <div className="flex flex-wrap gap-1.5 items-center">
             {Object.keys(config?.largeDogSlots || {}).sort().map((time) => (
-              <span
+              <button
+                type="button"
                 key={time}
                 onClick={() => removeLargeDogSlot(time)}
-                className={`inline-flex items-center gap-1 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold transition-all ${
+                disabled={!canEdit}
+                aria-label={`Remove approved slot ${time}`}
+                className={`inline-flex items-center gap-1 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold border-none transition-all ${
                   canEdit ? "cursor-pointer hover:bg-brand-coral hover:text-white" : "cursor-not-allowed opacity-60"
                 }`}
               >
                 {time} {"\u00D7"}
-              </span>
+              </button>
             ))}
             <span className="inline-flex items-center gap-1.5">
               <input

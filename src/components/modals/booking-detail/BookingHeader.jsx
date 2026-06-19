@@ -111,6 +111,7 @@ export function BookingHeader({
             <span
               className="cursor-pointer hover:underline underline-offset-2"
               role="button"
+              aria-label="Open dog profile"
               tabIndex={0}
               onClick={openDog}
               onKeyDown={(e) => {

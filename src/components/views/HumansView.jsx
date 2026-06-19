@@ -103,7 +103,7 @@ function DogChips({ dogs: dogList, max, dim }) {
         );
       })}
       {overflow > 0 && (
-        <span className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
+        <span aria-label={`${overflow} more dog${overflow === 1 ? "" : "s"}`} className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
       )}
     </>
   );
@@ -676,7 +676,7 @@ export function HumansView({
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
-        <div className="text-body text-slate-500">
+        <div role="status" aria-live="polite" className="text-body text-slate-500">
           {isSearching ? (
             <span className="italic">Searching...</span>
           ) : (
