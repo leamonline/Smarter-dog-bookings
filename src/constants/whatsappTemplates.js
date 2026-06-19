@@ -78,7 +78,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "service", label: "Service (e.g. Full Groom)", autoFill: null },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, ${values.dog_name || PLACEHOLDER.dog_name}'s ${values.service || PLACEHOLDER.service} is confirmed for ${values.appointment_when || PLACEHOLDER.when} at Smarter Dog Grooming Salon. We're looking forward to seeing you both. Reply here if anything changes.`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, ${values.dog_name || PLACEHOLDER.dog_name}'s ${values.service || PLACEHOLDER.service} is confirmed for ${values.appointment_when || PLACEHOLDER.when} at Smarter Dog Grooming Salon. We're looking forward to seeing you. Reply here if anything changes.`,
   },
   {
     name: "booking_changed_v1",

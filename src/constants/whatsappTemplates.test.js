@@ -72,7 +72,7 @@ describe("buildTemplateParams", () => {
       service: "Full Groom",
     };
     expect(template.preview(values)).toBe(
-      "Hi Jon, Bella's Full Groom is confirmed for Monday 25 May at 9:00am at Smarter Dog Grooming Salon. We're looking forward to seeing you both. Reply here if anything changes.",
+      "Hi Jon, Bella's Full Groom is confirmed for Monday 25 May at 9:00am at Smarter Dog Grooming Salon. We're looking forward to seeing you. Reply here if anything changes.",
     );
   });
 
