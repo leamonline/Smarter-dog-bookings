@@ -53,18 +53,18 @@ export function DatePickerModal({
     >
         {/* Header */}
         <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 py-3.5 flex items-center justify-between">
-          <button type="button" onClick={prevMonth} aria-label="Previous month" className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+          <button type="button" onClick={prevMonth} aria-label="Previous month" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
             <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M10 3l-5 5 5 5" />
             </svg>
           </button>
           <div id="date-picker-title" className="text-base font-bold text-white">{monthName}</div>
-          <button type="button" onClick={nextMonth} aria-label="Next month" className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+          <button type="button" onClick={nextMonth} aria-label="Next month" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
             <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 3l5 5-5 5" />
             </svg>
           </button>
-          <button type="button" onClick={onClose} aria-label="Close date picker" className="bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center text-sm text-white font-bold ml-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
+          <button type="button" onClick={onClose} aria-label="Close date picker" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center text-sm text-white font-bold ml-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         {/* Day headers */}

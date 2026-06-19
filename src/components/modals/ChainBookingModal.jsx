@@ -314,7 +314,7 @@ export function ChainBookingModal({
           </div>
           <button
             onClick={onClose}
-            className="bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
+            className="tap-target bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
             style={{ color: sizeTheme.headerText }}
           >
             {"\u00D7"}

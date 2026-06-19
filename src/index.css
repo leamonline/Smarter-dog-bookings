@@ -387,6 +387,16 @@ body {
   @apply rounded-full font-bold transition-all duration-300 cursor-pointer;
 }
 
+/* Touch-target floor: guarantees a control meets the 44x44px minimum
+   (WCAG 2.5.5 / Apple HIG) by expanding the hit area via min-width/height.
+   The glyph/icon size is unchanged — only the tappable box grows. Pair with
+   the element's own flex/inline-flex centring (most icon buttons already
+   centre their content). */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .card-glass {
   @apply bg-white/60 backdrop-blur-sm border border-white/50 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer;
 }

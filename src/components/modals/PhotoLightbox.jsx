@@ -64,7 +64,7 @@ export function PhotoLightbox({
           )}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 bg-black/50 text-white border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
+            className="tap-target absolute top-3 right-3 bg-black/50 text-white border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
           >
             {"\u00D7"}
           </button>

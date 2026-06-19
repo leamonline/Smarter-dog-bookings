@@ -57,7 +57,7 @@ export function TodoModal({ onClose }) {
           type="button"
           onClick={onClose}
           aria-label="Close to-do list"
-          className="w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/20"
+          className="tap-target w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/20"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
