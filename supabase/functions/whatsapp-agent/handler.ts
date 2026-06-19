@@ -1202,13 +1202,14 @@ async function dispatchIfEligible(
 // ── Booking-entry dispatch helpers ───────────────────────────
 
 /** True if we've recently sent a booking-entry or Flow message on this
- *  conversation (last 30 min) — used to debounce repeated "book" texts so a
- *  customer mid-flow isn't pelted with fresh entry prompts. */
+ *  conversation — used only to swallow accidental rapid-repeat "book" texts
+ *  (e.g. the same message sent twice). Kept short (3 min) so a genuine new
+ *  booking request a few minutes later still gets a fresh entry. */
 async function recentlySentBookEntry(
   supabase: SupabaseClient,
   conversationId: string,
 ): Promise<boolean> {
-  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("whatsapp_messages")
     .select("id, content")
