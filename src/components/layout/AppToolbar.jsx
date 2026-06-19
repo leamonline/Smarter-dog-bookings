@@ -373,10 +373,10 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
 
       {/* ── Mobile bottom tab bar (below md) ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+        className="xl:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
         aria-label="Primary"
       >
-        <div className="flex">
+        <div className="flex max-w-xl mx-auto">
           {MOBILE_NAV.map((item) => {
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
