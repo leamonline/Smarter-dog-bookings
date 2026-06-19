@@ -2,7 +2,7 @@
   "version": "7.1",
   "data_api_version": "3.0",
   "routing_model": {
-    "WELCOME": ["SELECT_PET", "NO_PETS"],
+    "WELCOME": ["SELECT_PET", "NO_PETS", "SELECT_DATE"],
     "SELECT_PET": ["DOG_A"],
     "DOG_A": ["DOG_B", "SELECT_DATE"],
     "DOG_B": ["DOG_C", "SELECT_DATE"],
