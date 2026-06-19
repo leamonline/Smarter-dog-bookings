@@ -77,7 +77,7 @@ export function TodoModal({ onClose }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Add a note..."
-            className="flex-1 py-1.5 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal/20 transition-colors"
+            className="flex-1 py-1.5 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none placeholder:text-slate-500 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal/20 transition-colors"
           />
           <button
             type="submit"

@@ -26,11 +26,11 @@ const VARIANTS = {
   primary:
     "bg-brand-yellow text-brand-purple border-transparent shadow-cta-yellow " +
     "hover:bg-brand-yellow-dark focus-visible:ring-brand-yellow-dark " +
-    "disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none",
+    "disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none",
   danger:
     "bg-brand-coral text-white border-transparent " +
     "hover:bg-brand-coral-dark focus-visible:ring-brand-coral-dark " +
-    "disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none",
+    "disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none",
   ghost:
     "bg-white text-slate-700 border-[1.5px] border-slate-200 " +
     "hover:bg-slate-50 hover:border-slate-400 focus-visible:ring-slate-400 " +

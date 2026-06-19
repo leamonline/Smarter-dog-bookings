@@ -15,8 +15,8 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // "Today" keeps whichever status colour applies and is marked with a
 // yellow ring (see below) so it still stands out.
 function dayCircleStyle({ isPast, dogCount, isOpen }) {
-  if (isPast) return "bg-slate-200 text-slate-500";
-  if (dogCount == null) return "bg-slate-100 text-slate-500";
+  if (isPast) return "bg-slate-200 text-slate-600";
+  if (dogCount == null) return "bg-slate-100 text-slate-600";
   if (!isOpen) return "bg-rose-500 text-white";
   if (dogCount >= DAY_CAPACITY) return "bg-sky-500 text-white";
   if (dogCount === 0) return "bg-emerald-100 text-emerald-800";
