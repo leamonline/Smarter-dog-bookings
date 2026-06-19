@@ -28,7 +28,7 @@ const kickerClass =
 // customer-portal.css, which isn't loaded on the staff app.
 const fieldInputClass =
   "w-full px-4 py-3 min-h-[52px] rounded-xl border-[1.5px] border-[rgba(45,0,75,0.14)] bg-white " +
-  "text-base text-[var(--sd-navy)] placeholder:text-slate-400 placeholder:font-medium " +
+  "text-base text-[var(--sd-navy)] placeholder:text-slate-500 placeholder:font-medium " +
   "outline-none transition-colors focus:border-[var(--sd-navy)] " + focusRing;
 
 const alertErrorClass =

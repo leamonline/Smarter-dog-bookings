@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component {
               : "An unexpected error occurred loading this section."}
           </div>
           {this.state.errorId ? (
-            <div className="text-slate-400 text-[11px] font-mono mb-4">
+            <div className="text-slate-500 text-[11px] font-mono mb-4">
               Reference: {this.state.errorId}
             </div>
           ) : null}
