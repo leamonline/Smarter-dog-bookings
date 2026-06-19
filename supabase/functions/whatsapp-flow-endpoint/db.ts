@@ -13,21 +13,34 @@ import type {
   AvailabilitySlot,
   BookingInsert,
   DogRow,
+  ExistingBooking,
   FlowDb,
+  GroupBookingItem,
+  GroupInsertResult,
   HumanRow,
   InsertResult,
   LargeDogDay,
 } from "../_shared/flowBooking.ts";
 import type { DogSize, PricingMap } from "../_shared/salonConstants.ts";
 
+/** Pinned (server-resolved) per-dog identity for the booking group. */
+export interface FlowDogMeta {
+  name: string;
+  size: DogSize;
+}
+
+// Multi-dog session state. dog_ids holds the selection order; dog_meta pins
+// each dog's name + authoritative size; services/addons are keyed by dog id;
+// cursor walks the per-dog SERVICE→ADDONS loop. (jsonb column — no schema
+// change.)
 export interface FlowState {
-  dog_id?: string;
-  dog_name?: string;
-  size?: DogSize;
-  service?: string;
-  addons?: string[];
+  dog_ids?: string[];
+  dog_meta?: Record<string, FlowDogMeta>;
+  services?: Record<string, string>;
+  addons?: Record<string, string[]>;
+  cursor?: number;
   date?: string;
-  slot?: string;
+  drop_off?: string;
 }
 
 export interface FlowSessionRow {
@@ -126,6 +139,49 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         return { errorCode: error.code, errorMessage: error.message };
       }
       return { id: (data as { id: string }).id };
+    },
+
+    async getBookingsForDate(dateStr: string): Promise<ExistingBooking[]> {
+      // Service role bypasses RLS, so this sees every customer's booking —
+      // exactly what the 2-2-1 group allocator needs (the portal reaches the
+      // same full occupancy via the get_slot_occupancy RPC). Cancelled rows
+      // don't hold a seat.
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("slot, size")
+        .eq("booking_date", dateStr)
+        .neq("status", "Cancelled");
+      if (error) {
+        console.error("getBookingsForDate failed:", error.message);
+        return [];
+      }
+      return (data as ExistingBooking[]) ?? [];
+    },
+
+    async insertBookingGroup(
+      items: GroupBookingItem[],
+      dateStr: string,
+      humanId: string,
+    ): Promise<GroupInsertResult> {
+      const payload = items.map((it) => ({
+        dog_id: it.dog_id,
+        slot: it.slot,
+        service: it.service,
+        size: it.size,
+        addons: it.addons,
+      }));
+      const { data, error } = await supabase.rpc("create_whatsapp_booking_group", {
+        p_bookings: payload,
+        p_booking_date: dateStr,
+        p_human_id: humanId,
+      });
+      if (error) {
+        return { errorCode: error.code, errorMessage: error.message };
+      }
+      const ids = Array.isArray(data)
+        ? (data as Array<{ id: string }>).map((r) => r.id)
+        : [];
+      return { ids };
     },
   };
 }

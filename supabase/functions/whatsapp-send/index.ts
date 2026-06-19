@@ -151,7 +151,14 @@ interface FlowMode {
   conversation_id?: string;
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode;
+interface BookEntryMode {
+  mode: "book_entry";
+  to: string;
+  conversation_id: string;
+  human_id?: string | null;
+}
+
+type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode | BookEntryMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -755,6 +762,67 @@ async function handleFlowMode(
   return json(req, { ok: true, flow_token: flowToken, meta_message_id: metaMessageId });
 }
 
+// ── Booking-entry handler ─────────────────────────────────────
+// Message 1 of the WhatsApp booking entry: a tap-to-confirm identity
+// check sent automatically when a recognised customer asks to book. The
+// customer is greeted by name; the dogs are confirmed later inside the
+// Flow (server-validated multi-select). On "Yes" the agent follows up with
+// the portal link + the "Book on WhatsApp" Flow (see whatsapp-agent's
+// bookentry:start routing). Tagged [book_entry] so the agent can debounce.
+async function handleBookEntryMode(
+  req: Request,
+  supabase: SupabaseClient,
+  body: BookEntryMode,
+): Promise<Response> {
+  if (!body.to || !body.conversation_id) {
+    return json(req, { error: "book_entry requires to + conversation_id" }, 400);
+  }
+
+  let name = "";
+  if (body.human_id) {
+    const { data } = await supabase.from("humans").select("name").eq("id", body.human_id).maybeSingle();
+    name = (data as { name?: string } | null)?.name ?? "";
+  }
+
+  const greeting = name ? `Hi ${name} 🐾` : "Hi there 🐾";
+  const bodyText =
+    `${greeting} — lovely to hear from you. Shall we get you booked in for a groom?\n\n` +
+    `Tap below and I'll get you sorted — or let me know if I've got the wrong person.`;
+
+  const metaBody = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: toMetaTo(body.to),
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: bodyText },
+      action: {
+        buttons: [
+          { type: "reply", reply: { id: "bookentry:start", title: "Yes, book in" } },
+          { type: "reply", reply: { id: "bookentry:notme", title: "Not me" } },
+        ],
+      },
+    },
+  };
+
+  let metaRes: MetaSendSuccess;
+  try {
+    metaRes = await callMeta(metaBody);
+  } catch (err) {
+    console.error(
+      "whatsapp-send book_entry mode: Meta send failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return json(req, { error: "Meta send failed" }, 502);
+  }
+
+  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+  await recordOutbound(supabase, body.conversation_id, metaMessageId, `[book_entry] ${bodyText}`, metaBody);
+
+  return json(req, { ok: true, meta_message_id: metaMessageId });
+}
+
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -787,7 +855,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons' | 'flow')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons' | 'flow' | 'book_entry')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -803,6 +871,8 @@ serve(async (req) => {
       return await handleConfirmButtons(req, supabase, parsed);
     } else if (parsed.mode === "flow") {
       return await handleFlowMode(req, supabase, parsed);
+    } else if (parsed.mode === "book_entry") {
+      return await handleBookEntryMode(req, supabase, parsed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }

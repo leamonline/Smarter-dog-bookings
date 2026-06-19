@@ -5,7 +5,7 @@
     "WELCOME": ["SELECT_PET", "NO_PETS"],
     "SELECT_PET": ["SELECT_SERVICE"],
     "SELECT_SERVICE": ["SELECT_ADDONS"],
-    "SELECT_ADDONS": ["SELECT_DATE"],
+    "SELECT_ADDONS": ["SELECT_SERVICE", "SELECT_DATE"],
     "SELECT_DATE": ["SELECT_TIME"],
     "SELECT_TIME": ["CONFIRM"],
     "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME_RETRY"],
@@ -43,7 +43,7 @@
     },
     {
       "id": "SELECT_PET",
-      "title": "Your dog",
+      "title": "Your dogs",
       "data": {
         "pets": {
           "type": "array",
@@ -56,22 +56,26 @@
             }
           },
           "__example__": [
-            { "id": "11111111-1111-1111-1111-111111111111", "title": "Bella", "description": "Cockapoo · small" }
+            { "id": "11111111-1111-1111-1111-111111111111", "title": "Bella", "description": "Cockapoo · small" },
+            { "id": "22222222-2222-2222-2222-222222222222", "title": "Max", "description": "Labrador · large" }
           ]
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
+          { "type": "TextBody", "text": "Pick the dog (or dogs) you'd like to book — up to four in one visit." },
           {
             "type": "Form",
             "name": "pet_form",
             "children": [
               {
-                "type": "RadioButtonsGroup",
-                "name": "dog_id",
-                "label": "Which dog is this for?",
+                "type": "CheckboxGroup",
+                "name": "dog_ids",
+                "label": "Which dogs is this for?",
                 "required": true,
+                "min-selected-items": 1,
+                "max-selected-items": 4,
                 "data-source": "${data.pets}"
               },
               {
@@ -79,7 +83,7 @@
                 "label": "Continue",
                 "on-click-action": {
                   "name": "data_exchange",
-                  "payload": { "dog_id": "${form.dog_id}" }
+                  "payload": { "dog_ids": "${form.dog_ids}" }
                 }
               }
             ]
@@ -140,6 +144,7 @@
       "id": "SELECT_ADDONS",
       "title": "Add-ons",
       "data": {
+        "dog_name": { "type": "string", "__example__": "Bella" },
         "addons": {
           "type": "array",
           "items": {
@@ -159,7 +164,7 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextBody", "text": "Optional extras — tap any you'd like, or just continue." },
+          { "type": "TextBody", "text": "Optional extras for ${data.dog_name} — tap any you'd like, or just continue." },
           {
             "type": "Form",
             "name": "addons_form",
@@ -290,7 +295,7 @@
       "id": "CONFIRM",
       "title": "Confirm booking",
       "data": {
-        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am\nFrom £46" },
+        "summary": { "type": "string", "__example__": "Tuesday 2 June at 9:30 am\n\nBella — Full Groom (from £46)\nMax — Bath & Brush (from £55)" },
         "fine_print": { "type": "string", "__example__": "Prices start from the amount shown and may vary by coat condition. Final price is confirmed at the salon." }
       },
       "layout": {
@@ -370,7 +375,7 @@
       "success": true,
       "data": {
         "booking_ref": { "type": "string", "__example__": "SD-3F9A2C" },
-        "summary": { "type": "string", "__example__": "Bella — Full Groom\nTuesday 2 June at 9:30 am" }
+        "summary": { "type": "string", "__example__": "Tuesday 2 June at 9:30 am\nBella — Full Groom\nMax — Bath & Brush" }
       },
       "layout": {
         "type": "SingleColumnLayout",

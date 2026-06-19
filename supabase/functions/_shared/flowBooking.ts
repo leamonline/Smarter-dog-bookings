@@ -29,6 +29,11 @@ import {
   slotLabel,
 } from "./salonConstants.ts";
 import { ADDONS } from "./salonConstants.ts";
+import {
+  type Booking as CapacityBooking,
+  findGroupedSlots,
+  type SlotAllocation,
+} from "./capacity.ts";
 
 // ── Row shapes (the subset of columns we read/write) ───────────
 
@@ -75,6 +80,27 @@ export interface InsertResult {
   errorMessage?: string;
 }
 
+/** Existing booking on a date — the slim shape the 2-2-1 engine reads. */
+export interface ExistingBooking {
+  slot: string;
+  size: DogSize;
+}
+
+/** One dog's row in a multi-dog group insert (per-dog slot from the allocator). */
+export interface GroupBookingItem {
+  dog_id: string;
+  size: DogSize;
+  service: string;
+  slot: string;
+  addons: string[];
+}
+
+export interface GroupInsertResult {
+  ids?: string[];
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 // ── Injected IO surface ────────────────────────────────────────
 
 export interface FlowDb {
@@ -85,6 +111,15 @@ export interface FlowDb {
   getSmallMediumAvailability(fromDate: string, toDate: string): Promise<AvailabilitySlot[]>;
   getLargeDogDays(fromDate: string, toDate: string): Promise<LargeDogDay[]>;
   insertBooking(row: BookingInsert): Promise<InsertResult>;
+  // Multi-dog path: all active bookings on a date (service role bypasses RLS)
+  // feed the 2-2-1 group allocator; the group insert goes through the
+  // create_whatsapp_booking_group RPC (atomic, shared group_id).
+  getBookingsForDate(dateStr: string): Promise<ExistingBooking[]>;
+  insertBookingGroup(
+    items: GroupBookingItem[],
+    dateStr: string,
+    humanId: string,
+  ): Promise<GroupInsertResult>;
 }
 
 // ── Flow option shape (RadioButtons/Checkbox data-source) ───────
@@ -170,6 +205,24 @@ export function bookingSummary(args: {
   return lines.join("\n");
 }
 
+/** Multi-dog CONFIRM summary: the day/time once, then a line per dog. */
+export function bookingGroupSummary(args: {
+  dogs: Array<{ dogName: string; serviceId: string; size: DogSize; addons: string[] }>;
+  pricing: PricingMap | null;
+  dateStr: string;
+  dropOff: string;
+}): string {
+  const lines = [`${formatDateLong(args.dateStr)} at ${slotLabel(args.dropOff)}`, ""];
+  for (const d of args.dogs) {
+    const price = priceLabel(priceString(d.serviceId, d.size, args.pricing));
+    let line = `${d.dogName} — ${serviceName(d.serviceId)}`;
+    if (price) line += ` (${price})`;
+    lines.push(line);
+    if (d.addons.length) lines.push(`  Add-ons: ${d.addons.join(", ")}`);
+  }
+  return lines.join("\n");
+}
+
 // ── Date math (salon-local) ────────────────────────────────────
 
 /** YYYY-MM-DD for a Date in the salon timezone. */
@@ -236,6 +289,143 @@ export async function availableSlotOptions(
   }
   const rows = await db.getSmallMediumAvailability(dateStr, dateStr);
   return slotOptions(rows.filter((r) => r.booking_date === dateStr).map((r) => r.slot));
+}
+
+// ── Multi-dog orchestration (mirrors the portal wizard) ────────
+//
+// A group is 1-4 of the customer's dogs booked in one visit. Drop-off
+// times and per-dog slot assignments come from the SAME 2-2-1 engine the
+// portal uses (findGroupedSlots over all active bookings on the date — the
+// service role bypasses RLS, so a plain select sees every customer's row).
+// The write goes through create_whatsapp_booking_group (atomic, one shared
+// group_id); the capacity + calendar triggers remain the hard guard.
+
+/** A "size for the day-availability filter" for a mixed-size group. */
+function groupDaySize(sizes: DogSize[]): DogSize {
+  return sizes.some((s) => s === "large") ? "large" : "small";
+}
+
+/**
+ * Days a group can be dropped off, from `today` for `windowDays`. Day-level
+ * only — uses the existing availability RPCs with the group's most-constrained
+ * size; the exact per-slot group fit is resolved on the time screen
+ * (groupSlotOptions) and finally by the insert trigger.
+ */
+export async function availableGroupDateOptions(
+  db: FlowDb,
+  dogs: Array<{ id: string; size: DogSize }>,
+  today: Date,
+  windowDays = 60,
+): Promise<FlowOption[]> {
+  return availableDateOptions(db, groupDaySize(dogs.map((d) => d.size)), today, windowDays);
+}
+
+/** All group allocations (drop-off + per-dog slots) for a date. */
+export async function groupAllocations(
+  db: FlowDb,
+  dogs: Array<{ id: string; size: DogSize }>,
+  dateStr: string,
+): Promise<SlotAllocation[]> {
+  const existing = await db.getBookingsForDate(dateStr);
+  return findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS]);
+}
+
+/** Bookable drop-off times for a group on a date (one option per drop-off). */
+export async function groupSlotOptions(
+  db: FlowDb,
+  dogs: Array<{ id: string; size: DogSize }>,
+  dateStr: string,
+): Promise<FlowOption[]> {
+  const allocations = await groupAllocations(db, dogs, dateStr);
+  return slotOptions(allocations.map((a) => a.dropOffTime));
+}
+
+export interface GroupConfirmDog {
+  dogId: string;
+  serviceId: string;
+  addons: string[];
+}
+
+export interface GroupConfirmInput {
+  humanId: string;
+  dogs: GroupConfirmDog[]; // in the order the customer selected them
+  dateStr: string;
+  dropOff: string; // the chosen drop-off time
+}
+
+export type GroupConfirmResult =
+  | { ok: true; bookingIds: string[] }
+  | { ok: false; kind: "slot_taken" | "ownership" | "error"; message: string };
+
+/**
+ * Create a 1-4 dog booking group. Re-resolves every dog server-side (pins
+ * size, re-checks ownership against humanId), re-runs the allocator to map
+ * each dog to a seat for the chosen drop-off, then inserts atomically. A
+ * P0001 from the capacity/calendar trigger surfaces as a "slot taken" retry.
+ */
+export async function confirmGroupBooking(
+  db: FlowDb,
+  input: GroupConfirmInput,
+): Promise<GroupConfirmResult> {
+  if (!input.dogs.length || input.dogs.length > 4) {
+    return { ok: false, kind: "error", message: "Pick between 1 and 4 dogs." };
+  }
+
+  // Re-resolve every dog under the service role (RLS-bypassing): pins the
+  // authoritative size and re-checks ownership. Never trust the session's
+  // claimed size.
+  const sizeByDog = new Map<string, DogSize>();
+  for (const d of input.dogs) {
+    const dog = await db.getDogById(d.dogId);
+    if (!dog || dog.human_id !== input.humanId) {
+      return { ok: false, kind: "ownership", message: "One of those dogs isn't on your file." };
+    }
+    sizeByDog.set(d.dogId, dog.size);
+  }
+
+  const resolvedDogs = input.dogs.map((d) => ({ id: d.dogId, size: sizeByDog.get(d.dogId)! }));
+
+  // Find the allocation for the chosen drop-off. If it's gone (someone took a
+  // seat since the time screen), bounce to a retry.
+  const allocations = await groupAllocations(db, resolvedDogs, input.dateStr);
+  const allocation = allocations.find((a) => a.dropOffTime === input.dropOff);
+  if (!allocation) {
+    return {
+      ok: false,
+      kind: "slot_taken",
+      message: "That time was just taken — please pick another.",
+    };
+  }
+
+  const serviceByDog = new Map(input.dogs.map((d) => [d.dogId, d]));
+  const items: GroupBookingItem[] = allocation.assignments.map((a) => {
+    const dog = serviceByDog.get(a.dogId)!;
+    return {
+      dog_id: a.dogId,
+      size: sizeByDog.get(a.dogId)!,
+      service: dog.serviceId,
+      slot: a.slot,
+      addons: dog.addons,
+    };
+  });
+
+  const res = await db.insertBookingGroup(items, input.dateStr, input.humanId);
+  if (res.ids?.length) {
+    return { ok: true, bookingIds: res.ids };
+  }
+
+  if (res.errorCode === CAPACITY_TRIGGER_SQLSTATE) {
+    return {
+      ok: false,
+      kind: "slot_taken",
+      message: res.errorMessage || "That slot was just taken — please pick another time.",
+    };
+  }
+  return {
+    ok: false,
+    kind: "error",
+    message: res.errorMessage || "Couldn't save the booking.",
+  };
 }
 
 export interface ConfirmInput {

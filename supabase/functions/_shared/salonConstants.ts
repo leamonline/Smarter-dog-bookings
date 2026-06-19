@@ -27,6 +27,47 @@ export const LARGE_DOG_CANDIDATE_SLOTS: readonly string[] = [
   "08:30", "09:00", "12:00", "12:30", "13:00",
 ];
 
+// Full large-dog slot rules — MIRRORS src/constants/salon.ts LARGE_DOG_SLOTS.
+// Consumed by _shared/capacity.ts (the 2-2-1 engine mirror) to offer
+// group-fitting slots; the DB capacity trigger remains the hard guard.
+export interface LargeDogSlotRule {
+  seats: number;
+  canShare: boolean;
+  needsApproval: boolean;
+  conditional?: boolean;
+}
+
+export const LARGE_DOG_SLOTS: Record<string, LargeDogSlotRule> = {
+  "08:30": { seats: 1, canShare: true, needsApproval: false },
+  "09:00": { seats: 1, canShare: true, needsApproval: false, conditional: true },
+  "12:00": { seats: 1, canShare: true, needsApproval: false },
+  "12:30": { seats: 2, canShare: false, needsApproval: false },
+  "13:00": { seats: 2, canShare: false, needsApproval: false },
+};
+
+// Named size accessors — mirrors src/constants/salon.ts DOG_SIZE so the
+// literal "large" doesn't leak into the engine mirror.
+export const DOG_SIZE = {
+  SMALL: "small",
+  MEDIUM: "medium",
+  LARGE: "large",
+} as const satisfies Record<string, DogSize>;
+
+// Canonical booking-status IDs — mirrors src/constants/salon.ts BOOKING_STATUS.
+export const BOOKING_STATUS = {
+  BOOKED: "Booked",
+  CHECKED_IN: "Checked in",
+  IN_BATH: "In bath",
+  READY_FOR_PICKUP: "Ready for pick-up",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const;
+
+// Customer self-service portal sign-in/sign-up URL (prod default). This
+// module stays pure (no Deno/env access); callers in the Edge functions
+// override per-environment via `Deno.env.get("CUSTOMER_PORTAL_URL")`.
+export const CUSTOMER_PORTAL_URL = "https://smarterdog.vercel.app/customer/login";
+
 export interface ServiceDef {
   id: string;
   name: string;

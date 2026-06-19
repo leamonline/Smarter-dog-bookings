@@ -90,6 +90,7 @@ import {
   reactionFields,
   type MetaInboundMessage,
 } from "../_shared/inboundMessage.ts";
+import { CUSTOMER_PORTAL_URL as PORTAL_URL_DEFAULT } from "../_shared/salonConstants.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -119,6 +120,20 @@ const AI_BOOKING_DAILY_CAP = (() => {
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+
+// ── Booking entry (Message 1 → portal-or-Flow) ──────────────
+// Master switch for the auto-sent booking-entry flow. OFF by default for a
+// dark rollout (matches AI_AUTO_SEND_LOW_RISK). When on, a recognised
+// customer who asks to book is auto-sent a tap-to-confirm identity message,
+// bypassing the staff-wait gate.
+const WHATSAPP_BOOK_ENTRY_ENABLED =
+  (Deno.env.get("WHATSAPP_BOOK_ENTRY_ENABLED") ?? "false").toLowerCase() === "true";
+// The published Appointment Booking Flow id (Meta). Required to open the
+// Flow from the "Yes, book in" tap; without it we fall back to a portal-only
+// reply.
+const WHATSAPP_BOOKING_FLOW_ID = Deno.env.get("WHATSAPP_BOOKING_FLOW_ID") ?? "";
+// Customer self-service portal sign-in/sign-up URL (env override → shared default).
+const CUSTOMER_PORTAL_URL = Deno.env.get("CUSTOMER_PORTAL_URL") ?? PORTAL_URL_DEFAULT;
 
 // ── Types ───────────────────────────────────────────────────
 // The inbound-message shape + its interpreters live in _shared so they
@@ -858,9 +873,22 @@ async function buildContext(
         `This customer is recognised AND staff have turned autonomous booking off for this conversation.`,
         `When the latest message is booking-related (intents: booking_query, booking_propose, booking_confirm, booking_change), do NOT propose a booking_action. Instead, draft a warm, on-brand reply that:`,
         `  1. Acknowledges what the customer asked for.`,
-        `  2. Tells them they can book themselves at https://smarterdog.vercel.app/customer/login (it's quicker and they'll see live availability).`,
+        `  2. Tells them they can book themselves at ${CUSTOMER_PORTAL_URL} (it's quicker and they'll see live availability).`,
         `  3. Reassures them you'll happily handle it if they prefer — just ask.`,
         `Keep the brand sign-off (🎓🐶❤️ X) on the final line as normal. Don't paste the URL more than once. For non-booking intents (faq, greeting, smalltalk, escalate, etc.) this block doesn't apply — reply normally without the self-service link.`,
+      ].join("\n"),
+    );
+  }
+
+  // New-customer sign-up nudge: an unrecognised person asking to get started
+  // can be pointed at the portal to set up their account ("Join the Pack"),
+  // alongside the in-chat onboarding you're already running.
+  if (!humanId) {
+    parts.push(
+      [
+        `--- New customer sign-up ---`,
+        `This person isn't on our records yet. If they're asking to book or get set up, you MAY include this sign-up link ONCE so they can create their account: ${CUSTOMER_PORTAL_URL}`,
+        `Keep gathering their details conversationally as usual (see NEW CUSTOMER COLLECTION). Don't paste the link more than once, and don't use it for non-booking chit-chat.`,
       ].join("\n"),
     );
   }
@@ -1168,6 +1196,101 @@ async function dispatchIfEligible(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn("dispatchIfEligible failed (non-fatal):", message);
+  }
+}
+
+// ── Booking-entry dispatch helpers ───────────────────────────
+
+/** True if we've recently sent a booking-entry or Flow message on this
+ *  conversation (last 30 min) — used to debounce repeated "book" texts so a
+ *  customer mid-flow isn't pelted with fresh entry prompts. */
+async function recentlySentBookEntry(
+  supabase: SupabaseClient,
+  conversationId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select("id, content")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .gte("sent_at", since)
+    .or("content.ilike.[book_entry]%,content.ilike.[flow:%");
+  if (error) {
+    console.warn("recentlySentBookEntry query failed (treating as not-recent):", error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
+/** Message 1: the tap-to-confirm identity message (book_entry send mode). */
+async function dispatchBookEntry(
+  conversationId: string,
+  humanId: string,
+  phoneE164: string,
+): Promise<void> {
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("dispatchBookEntry: SEND_INTERNAL_SECRET not set; skipping");
+    return;
+  }
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": SEND_INTERNAL_SECRET },
+      body: JSON.stringify({
+        mode: "book_entry",
+        to: phoneE164,
+        conversation_id: conversationId,
+        human_id: humanId,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`dispatchBookEntry: whatsapp-send returned ${res.status}: ${await res.text()}`);
+    }
+  } catch (err) {
+    console.warn("dispatchBookEntry failed (non-fatal):", err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** Message 2: portal link in the body + a "Book on WhatsApp" Flow CTA. Sent
+ *  when the customer taps "Yes, book in" on Message 1. */
+async function dispatchBookingFlow(
+  conversationId: string,
+  humanId: string,
+  phoneE164: string,
+): Promise<void> {
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("dispatchBookingFlow: SEND_INTERNAL_SECRET not set; skipping");
+    return;
+  }
+  if (!WHATSAPP_BOOKING_FLOW_ID) {
+    console.warn("dispatchBookingFlow: WHATSAPP_BOOKING_FLOW_ID not set; cannot open the Flow");
+    return;
+  }
+  const bodyText =
+    `Lovely 🐾 The quickest way is to manage everything yourself in your account: ` +
+    `${CUSTOMER_PORTAL_URL} — just log in with this number.\n\n` +
+    `Or tap below to book right here on WhatsApp.`;
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": SEND_INTERNAL_SECRET },
+      body: JSON.stringify({
+        mode: "flow",
+        to: phoneE164,
+        conversation_id: conversationId,
+        human_id: humanId,
+        flow_id: WHATSAPP_BOOKING_FLOW_ID,
+        flow_type: "appointment_booking",
+        body_text: bodyText,
+        cta: "Book on WhatsApp",
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`dispatchBookingFlow: whatsapp-send returned ${res.status}: ${await res.text()}`);
+    }
+  } catch (err) {
+    console.warn("dispatchBookingFlow failed (non-fatal):", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -2052,6 +2175,32 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             }
           }
 
+          // Booking-entry taps (Message 1 of the booking flow). "Yes, book in"
+          // opens the Flow (with the portal link in the body); "Not me" is the
+          // identity safety valve — hand to staff, never auto-book.
+          if (buttonReply?.id?.startsWith("bookentry:")) {
+            const choice = buttonReply.id.slice("bookentry:".length);
+            if (choice === "start" && conversation.human_id) {
+              await dispatchBookingFlow(conversation.id, conversation.human_id, phoneE164);
+            } else if (choice === "notme") {
+              const policy: DraftPolicy = {
+                riskLevel: "high",
+                handoffRequired: true,
+                autoSendEligible: false,
+              };
+              const draft: DraftFromClaude = {
+                intent: "escalate",
+                confidence: 0,
+                proposed_text: fallbackReplyForIntent("handoff"),
+                extracted_state: null,
+              };
+              await saveDraft(supabase, conversation.id, event.id, draft, policy, 0, 0, {
+                reason: "book_entry: customer tapped 'Not me'",
+              });
+            }
+            continue; // handled — no Claude draft for a booking-entry tap
+          }
+
           // Reminder confirm: customer tapped the "Confirm" Quick Reply on
           // their appointment_reminder template. This arrives as a
           // *template button reply* (msg.button.text), NOT an interactive
@@ -2072,6 +2221,22 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               console.warn("mark_reminder_confirmed dispatch failed:", err);
             }
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
+          }
+
+          // Booking-entry fast path: a recognised customer asking for a NEW
+          // booking gets the auto-sent identity confirm (Message 1), which
+          // bypasses the staff-wait gate below. Only new-booking intent
+          // qualifies — cancel/reschedule/faq fall through to the normal
+          // path. Debounced so a customer mid-flow isn't re-prompted.
+          if (
+            WHATSAPP_BOOK_ENTRY_ENABLED &&
+            conversation.human_id &&
+            !forceDraft &&
+            guessIntentFromText(text ?? "") === "booking_propose" &&
+            !(await recentlySentBookEntry(supabase, conversation.id))
+          ) {
+            await dispatchBookEntry(conversation.id, conversation.human_id, phoneE164);
+            continue;
           }
 
           // AI on demand. AI replies are generated ONLY on an explicit

@@ -40,22 +40,23 @@ import {
 } from "../_shared/flowCrypto.ts";
 import {
   addonOptions,
-  availableDateOptions,
-  availableSlotOptions,
+  availableGroupDateOptions,
+  bookingGroupSummary,
   bookingRef,
-  bookingSummary,
-  confirmBooking,
+  confirmGroupBooking,
   type FlowDb,
   formatDateLong,
+  groupSlotOptions,
   listPetOptions,
   serviceName,
   serviceOptions,
 } from "../_shared/flowBooking.ts";
-import { slotLabel } from "../_shared/salonConstants.ts";
+import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
 import {
   completeSession,
   createServiceClient,
   failSession,
+  type FlowDogMeta,
   type FlowSessionRow,
   type FlowState,
   loadSession,
@@ -101,10 +102,25 @@ function strArr(v: unknown): string[] {
   return Array.isArray(v) ? v.map((x) => String(x)) : [];
 }
 
-function successResponse(bookingId: string, state: FlowState): unknown {
-  const parts = [`${state.dog_name ?? "Your dog"} — ${serviceName(state.service ?? "")}`];
-  if (state.date) parts.push(`${formatDateLong(state.date)}${state.slot ? ` at ${slotLabel(state.slot)}` : ""}`);
-  return screenResponse("SUCCESS", { booking_ref: bookingRef(bookingId), summary: parts.join("\n") });
+function dogsFromState(state: FlowState): Array<{ id: string; size: DogSize }> {
+  const meta = state.dog_meta ?? {};
+  return (state.dog_ids ?? [])
+    .filter((id) => meta[id])
+    .map((id) => ({ id, size: meta[id].size }));
+}
+
+function successResponse(bookingIds: string[], state: FlowState): unknown {
+  const ref = bookingIds.length ? bookingRef(bookingIds[0]) : "SD-PENDING";
+  const meta = state.dog_meta ?? {};
+  const services = state.services ?? {};
+  const lines: string[] = [];
+  if (state.date) {
+    lines.push(`${formatDateLong(state.date)}${state.drop_off ? ` at ${slotLabel(state.drop_off)}` : ""}`);
+  }
+  for (const id of state.dog_ids ?? []) {
+    lines.push(`${meta[id]?.name ?? "Your dog"} — ${serviceName(services[id] ?? "")}`);
+  }
+  return screenResponse("SUCCESS", { booking_ref: ref, summary: lines.join("\n") });
 }
 
 async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient): Promise<unknown> {
@@ -138,18 +154,27 @@ async function buildScreen(
     }
 
     case "SELECT_SERVICE": {
+      // Per-dog loop: the dog at the current cursor.
+      const cursor = state.cursor ?? 0;
+      const dogId = (state.dog_ids ?? [])[cursor];
+      const meta = dogId ? state.dog_meta?.[dogId] : undefined;
+      if (!meta) return screenResponse("BOOKING_FAILED", { message: "Please start again." });
       const pricing = await db.getPricing();
       return screenResponse("SELECT_SERVICE", {
-        dog_name: state.dog_name ?? "your dog",
-        services: serviceOptions(state.size ?? "small", pricing),
+        dog_name: meta.name,
+        services: serviceOptions(meta.size, pricing),
       });
     }
 
-    case "SELECT_ADDONS":
-      return screenResponse("SELECT_ADDONS", { addons: addonOptions() });
+    case "SELECT_ADDONS": {
+      const cursor = state.cursor ?? 0;
+      const dogId = (state.dog_ids ?? [])[cursor];
+      const name = (dogId && state.dog_meta?.[dogId]?.name) || "your dog";
+      return screenResponse("SELECT_ADDONS", { dog_name: name, addons: addonOptions() });
+    }
 
     case "SELECT_DATE": {
-      const dates = await availableDateOptions(db, state.size ?? "small", new Date());
+      const dates = await availableGroupDateOptions(db, dogsFromState(state), new Date());
       if (!dates.length) {
         return screenResponse("BOOKING_FAILED", {
           message: "We've no availability in the next 60 days. Please message us and we'll help.",
@@ -159,7 +184,7 @@ async function buildScreen(
     }
 
     case "SELECT_TIME": {
-      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       if (!slots.length) {
         return screenResponse("BOOKING_FAILED", {
           message: 'That day just filled up. Reply "book" to choose another day.',
@@ -174,7 +199,7 @@ async function buildScreen(
     }
 
     case "SELECT_TIME_RETRY": {
-      const slots = await availableSlotOptions(db, state.size ?? "small", state.date ?? "");
+      const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
       if (!slots.length) {
         return screenResponse("BOOKING_FAILED", {
           message: 'That day just filled up. Reply "book" to choose another day.',
@@ -189,16 +214,19 @@ async function buildScreen(
 
     case "CONFIRM": {
       const pricing = await db.getPricing();
+      const meta = state.dog_meta ?? {};
+      const services = state.services ?? {};
+      const addons = state.addons ?? {};
+      const dogs = (state.dog_ids ?? [])
+        .filter((id) => meta[id])
+        .map((id) => ({
+          dogName: meta[id].name,
+          serviceId: services[id] ?? "",
+          size: meta[id].size,
+          addons: addons[id] ?? [],
+        }));
       return screenResponse("CONFIRM", {
-        summary: bookingSummary({
-          dogName: state.dog_name ?? "",
-          serviceId: state.service ?? "",
-          size: state.size ?? "small",
-          pricing,
-          addons: state.addons ?? [],
-          dateStr: state.date ?? "",
-          slot: state.slot ?? "",
-        }),
+        summary: bookingGroupSummary({ dogs, pricing, dateStr: state.date ?? "", dropOff: state.drop_off ?? "" }),
         fine_print: FINE_PRINT,
       });
     }
@@ -220,33 +248,38 @@ async function handleConfirm(
 ): Promise<unknown> {
   const allowRetry = opts.allowRetry ?? true;
 
-  // Idempotency: a duplicate confirm returns the existing booking.
-  if (session.booking_id) return successResponse(session.booking_id, state);
+  // Idempotency: a duplicate confirm returns the existing booking group.
+  if (session.booking_id) return successResponse([session.booking_id], state);
 
-  if (!session.human_id || !state.dog_id || !state.service || !state.date || !state.slot) {
+  const dogIds = state.dog_ids ?? [];
+  const services = state.services ?? {};
+  const addons = state.addons ?? {};
+  if (
+    !session.human_id || !dogIds.length || dogIds.length > 4 ||
+    !state.date || !state.drop_off || !dogIds.every((id) => services[id])
+  ) {
     return screenResponse("BOOKING_FAILED", { message: "Some details were missing. Please start again." });
   }
 
-  const res = await confirmBooking(db, {
+  const res = await confirmGroupBooking(db, {
     humanId: session.human_id,
-    dogId: state.dog_id,
-    serviceId: state.service,
     dateStr: state.date,
-    slot: state.slot,
-    addons: state.addons ?? [],
+    dropOff: state.drop_off,
+    dogs: dogIds.map((id) => ({ dogId: id, serviceId: services[id], addons: addons[id] ?? [] })),
   });
 
   if (res.ok) {
-    await completeSession(supabase, session.flow_token, res.bookingId);
-    return successResponse(res.bookingId, state);
+    // Store the first booking id as the idempotency marker for re-confirms.
+    await completeSession(supabase, session.flow_token, res.bookingIds[0]);
+    return successResponse(res.bookingIds, state);
   }
 
   if (res.kind === "slot_taken" && allowRetry) {
-    const slots = await availableSlotOptions(db, state.size ?? "small", state.date);
+    const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
     await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
     return screenResponse("SELECT_TIME_RETRY", {
       date_label: formatDateLong(state.date),
-      time_slots: slots.length ? slots : [{ id: state.slot, title: slotLabel(state.slot) }],
+      time_slots: slots.length ? slots : [{ id: state.drop_off, title: slotLabel(state.drop_off) }],
       error_message: res.message,
     });
   }
@@ -271,7 +304,7 @@ async function handleDataExchange(
   }
 
   if (current === "SELECT_TIME_RETRY") {
-    state.slot = str(data.slot);
+    state.drop_off = str(data.slot);
     await saveSession(supabase, token, { screen: "SELECT_TIME_RETRY", state });
     return handleConfirm({ ...session, state }, state, db, supabase, { allowRetry: false });
   }
@@ -284,32 +317,57 @@ async function handleDataExchange(
       break;
     }
     case "SELECT_PET": {
-      state.dog_id = str(data.dog_id);
-      const dog = state.dog_id ? await db.getDogById(state.dog_id) : null;
-      if (!dog || dog.human_id !== session.human_id) {
-        // Re-ask rather than trust a stray/incorrect dog id.
+      // Multi-select: validate ownership + pin name/size for each chosen dog.
+      const ids = strArr(data.dog_ids);
+      const meta: Record<string, FlowDogMeta> = {};
+      const ordered: string[] = [];
+      for (const id of ids) {
+        const dog = await db.getDogById(id);
+        if (dog && dog.human_id === session.human_id) {
+          meta[id] = { name: dog.name, size: dog.size };
+          ordered.push(id);
+        }
+      }
+      if (!ordered.length || ordered.length > 4) {
+        // Re-ask rather than trust a stray/empty/oversized selection.
         await saveSession(supabase, token, { screen: "SELECT_PET", state });
         return buildScreen("SELECT_PET", { ...session, state }, db, supabase);
       }
-      state.size = dog.size;
-      state.dog_name = dog.name;
+      state.dog_ids = ordered;
+      state.dog_meta = meta;
+      state.services = {};
+      state.addons = {};
+      state.cursor = 0;
       target = "SELECT_SERVICE";
       break;
     }
-    case "SELECT_SERVICE":
-      state.service = str(data.service);
+    case "SELECT_SERVICE": {
+      const cursor = state.cursor ?? 0;
+      const dogId = (state.dog_ids ?? [])[cursor];
+      if (dogId) state.services = { ...(state.services ?? {}), [dogId]: str(data.service) };
       target = "SELECT_ADDONS";
       break;
-    case "SELECT_ADDONS":
-      state.addons = strArr(data.addons);
-      target = "SELECT_DATE";
+    }
+    case "SELECT_ADDONS": {
+      const cursor = state.cursor ?? 0;
+      const dogId = (state.dog_ids ?? [])[cursor];
+      if (dogId) state.addons = { ...(state.addons ?? {}), [dogId]: strArr(data.addons) };
+      const next = cursor + 1;
+      if (next < (state.dog_ids ?? []).length) {
+        // Loop back to SELECT_SERVICE for the next dog.
+        state.cursor = next;
+        target = "SELECT_SERVICE";
+      } else {
+        target = "SELECT_DATE";
+      }
       break;
+    }
     case "SELECT_DATE":
       state.date = str(data.date);
       target = "SELECT_TIME";
       break;
     case "SELECT_TIME":
-      state.slot = str(data.slot);
+      state.drop_off = str(data.slot);
       target = "CONFIRM";
       break;
     default:

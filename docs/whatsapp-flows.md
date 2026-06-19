@@ -127,13 +127,58 @@ npm run flow:send -- --to +447700900123 --flow-id <flowId> --human-id <your-huma
   prints them. If Meta requires a newer Flow JSON version, bump `version` in
   `whatsapp-flows/appointment-booking.json`.
 
+## Booking entry (auto-trigger) + multi-dog
+
+Flow A is now wired into the conversation and books **1–4 dogs in one
+visit** (mirroring the customer portal wizard).
+
+**The entry journey (recognised customer texts to book):**
+
+1. `whatsapp-agent` detects new-booking intent (`guessIntentFromText` ===
+   `booking_propose`) and auto-sends **Message 1** — a tap-to-confirm
+   identity message (`whatsapp-send` mode `book_entry`): "Hi [Name] 👋 …
+   shall we get you booked in?" with **Yes, book in** (`bookentry:start`)
+   and **Not me** (`bookentry:notme`). This bypasses the staff-wait gate.
+2. **Yes** → the agent sends **Message 2** — the portal sign-in link in the
+   body **plus** a **Book on WhatsApp** Flow CTA (`whatsapp-send` mode
+   `flow`). **Not me** → handed to staff (flagged draft); never auto-books.
+3. The Flow runs: **SELECT_PET (checkboxes, 1–4 dogs)** → per dog
+   **SERVICE → ADDONS** (the endpoint loops the two screens, advancing a
+   `cursor` in session state) → **DATE** → **TIME** (only slots that fit the
+   whole group) → **CONFIRM** → **SUCCESS**.
+
+Identity safety: the customer is confirmed by the tap; the dogs by the
+Flow's server-side multi-select (it only lists *their* dogs and re-checks
+ownership at the insert).
+
+**Multi-dog write path.** Drop-off times and per-dog seat assignments come
+from `findGroupedSlots` — the same 2-2-1 engine the portal uses, mirrored
+for Deno in `supabase/functions/_shared/capacity.ts` (a parity test guards
+against drift). The grouped insert goes through a service-role RPC
+**`create_whatsapp_booking_group(p_bookings, p_booking_date, p_human_id)`**
+(migration `20260619120000…`) — the WhatsApp twin of
+`create_customer_booking_group`, with the owner passed explicitly from the
+trusted flow session (the customer RPC keys off `auth.uid()`, which a
+service-role call doesn't have). One shared `group_id`; the capacity +
+calendar triggers remain the hard guard.
+
+**Flags / env:**
+- `WHATSAPP_BOOK_ENTRY_ENABLED` (default `false`) — master switch for the
+  auto-entry. Ship dark, flip on after testing.
+- `WHATSAPP_BOOKING_FLOW_ID` — the published Flow id the "Book on WhatsApp"
+  CTA opens.
+- `CUSTOMER_PORTAL_URL` — overrides the portal link (default
+  `https://smarterdog.vercel.app/customer/login`).
+
 ## Not done yet (follow-ups)
 
-- **Trigger from a keyword** — auto-send Flow A when a customer texts "book"
-  (wire into `whatsapp-agent`). Today the Flow is sent via `flow:send` or a
-  `whatsapp-send` `flow` call.
 - **`nfm_reply` handling** — the flow-completion receipt isn't parsed by the
   agent yet (booking already happens at CONFIRM, so this is cosmetic).
 - **Large-dog per-slot precision** — large dogs are offered the candidate
-  large slots; the trigger is the final guard. Small/medium are exact.
+  large slots; the trigger is the final guard. Small/medium are exact. Large
+  multi-dog groups beyond what the 2-2-1 engine fits fall back to the portal.
+- **`BACK` inside the per-dog SERVICE/ADDONS loop** re-renders from the
+  current cursor; deep multi-step back-tracking across dogs isn't tracked.
+- **Free-text reply to Message 1** (instead of tapping) falls through to the
+  normal staff-review path.
 - **Flow B (intake)** and **Flow C (cancel/reschedule)**.
