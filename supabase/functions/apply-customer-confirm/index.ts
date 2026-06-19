@@ -48,7 +48,7 @@ async function sendAckText(conversation_id: string, text: string) {
         "content-type": "application/json",
         "x-internal-secret": SEND_INTERNAL_SECRET,
       },
-      body: JSON.stringify({ mode: "text", conversation_id, text }),
+      body: JSON.stringify({ mode: "manual", conversation_id, text }),
     });
   } catch (err) {
     console.warn("sendAckText failed (non-fatal):", err);
