@@ -283,10 +283,24 @@ async function validateRescheduleOld(
   if (dogSet.length !== snapDogs.length || dogSet.some((d, i) => d !== snapDogs[i])) {
     return { ok: false, message: RESCHEDULE_CHANGED_MSG };
   }
-  // Same service per dog as the snapshot?
+  // Same service per dog as the snapshot (the live OLD booking)?
   const svcSnap = state.service_snapshot ?? {};
   for (const r of oldRows) {
     if ((svcSnap[r.dog_id] ?? null) !== (r.service ?? null)) {
+      return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+    }
+  }
+  // Defence-in-depth: the NEW booking's services (carried in the flow state)
+  // must still equal the snapshot — a reschedule never changes the service.
+  const curSvc = state.services ?? {};
+  for (const k of new Set([...Object.keys(svcSnap), ...Object.keys(curSvc)])) {
+    if (svcSnap[k] !== curSvc[k]) return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+  }
+  // Did staff MOVE the old visit (date/slot) while the customer was choosing?
+  // The frozen snapshot must still match the live earliest drop-off.
+  if (state.old_date && state.old_slot) {
+    const liveEarliest = oldRows.map((r) => `${r.booking_date}T${r.slot}`).sort()[0];
+    if (liveEarliest !== `${state.old_date}T${state.old_slot}`) {
       return { ok: false, message: RESCHEDULE_CHANGED_MSG };
     }
   }
@@ -326,6 +340,16 @@ async function handleConfirm(
   // Reschedule: re-validate the OLD visit BEFORE creating the new one, so a
   // stale/changed/late old visit never produces a new booking.
   if (isReschedule) {
+    // Guard: a reschedule session must carry its old-visit snapshot. If the
+    // pre-seed was incomplete, fail safe rather than booking a duplicate.
+    if (
+      !(state.dog_snapshot?.length) ||
+      !(state.reschedule_group_id || state.reschedule_booking_id) ||
+      !state.service_snapshot
+    ) {
+      await failSession(supabase, session.flow_token);
+      return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
+    }
     const v = await validateRescheduleOld(supabase, session.human_id, state);
     if (!v.ok) {
       await failSession(supabase, session.flow_token);

@@ -592,7 +592,14 @@ serve(async (req) => {
       // staged outside 24h but confirmed AFTER the booking crossed into the
       // window is blocked here, regardless of the original stage time.
       if (action.payload.enforce_24h_cutoff) {
-        const start = visitStartInstant(existing.booking_date as string, existing.slot as string);
+        // Use the VISIT's drop-off (earliest slot in the group), frozen at
+        // stage time, not just the target booking's slot — for a multi-dog
+        // group the target row may not be the earliest. The booking date can't
+        // move without a reschedule, so the frozen start is authoritative.
+        const startIso = action.payload.visit_start_at as string | undefined;
+        const start = startIso
+          ? new Date(startIso)
+          : visitStartInstant(existing.booking_date as string, existing.slot as string);
         if (isInsideManageCutoff(start, new Date())) {
           const { data: blockedRows } = await supabase
             .from("whatsapp_booking_actions")
@@ -628,6 +635,7 @@ serve(async (req) => {
       // notify-booking-cancelled trigger. Filter on status='Booked' to catch
       // the check-in race window.
       let cancelledCount = 0;
+      let partialCancel = false;
       if (action.payload.cancel_whole_group) {
         const { data: rpcData, error: rpcErr } = await supabase.rpc("cancel_whatsapp_booking_by_id", {
           p_booking_id: oldBookingId,
@@ -641,7 +649,9 @@ serve(async (req) => {
           ? (action.payload.booking_ids as unknown[]).length
           : 1;
         if (cancelledCount > 0 && cancelledCount < expected) {
-          // Partial group cancel — never silent. Staff must clean up the rest.
+          // Partial group cancel — never silent. Staff must clean up the rest,
+          // and the customer is told it's not fully done (see ack below).
+          partialCancel = true;
           console.error(
             `apply-customer-confirm: PARTIAL group cancel ${cancelledCount}/${expected} for action ${action.id} ` +
               `booking ${oldBookingId}; staff must check the remaining rows.`,
@@ -693,9 +703,11 @@ serve(async (req) => {
 
       await sendAckText(
         action.conversation_id,
-        "All cancelled ✓ Hope to see you another time. 🎓🐶❤️ X",
+        partialCancel
+          ? "I've cancelled what I could — looks like one's already in with us, so the team will sort the rest. 🎓🐶❤️ X"
+          : "All cancelled ✓ Hope to see you another time. 🎓🐶❤️ X",
       );
-      return new Response("cancelled", { status: 200 });
+      return new Response(partialCancel ? "partially_cancelled" : "cancelled", { status: 200 });
     }
 
     // Defensive: unknown action kind from a future schema bump
