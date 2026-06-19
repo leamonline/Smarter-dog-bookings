@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
+import { useDraftPersistence } from "../../hooks/useDraftPersistence.js";
 import { toDateStr } from "../../supabase/transforms";
 import { MyDetailsCard } from "./MyDetailsCard.jsx";
 import { DogsSection } from "./DogsSection.jsx";
@@ -54,6 +55,35 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     insta: humanRecord?.insta || "",
     tiktok: humanRecord?.tiktok || "",
   });
+
+  // Persist an in-progress edit of "My details" so navigating away mid-edit
+  // doesn't discard it. The card shows live server data until the customer
+  // hits Edit, so we hydrate from the draft on entering edit mode (once),
+  // save while editing, and clear on save/cancel.
+  const detailsDraftKey = `sdb:draft:mydetails:${humanRecord?.id ?? "anon"}`;
+  const {
+    restored: restoredDetails,
+    save: saveDetailsDraft,
+    clear: clearDetailsDraft,
+  } = useDraftPersistence(detailsDraftKey);
+  const draftAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (editing) saveDetailsDraft(details);
+  }, [editing, details, saveDetailsDraft]);
+
+  // Wrap setEditing so entering edit mode hydrates any saved draft exactly
+  // once per mount (re-applying it after a save would clobber fresh data).
+  const handleSetEditing = useCallback(
+    (next) => {
+      if (next === true && !draftAppliedRef.current && restoredDetails) {
+        setDetails(restoredDetails);
+        draftAppliedRef.current = true;
+      }
+      setEditing(next);
+    },
+    [restoredDetails],
+  );
 
   const humanName = `${humanRecord?.name || ""} ${humanRecord?.surname || ""}`.trim();
 
@@ -152,9 +182,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       );
       return;
     }
+    clearDetailsDraft();
     setEditing(false);
     toast.show("Details saved", "success");
-  }, [humanRecord, details, toast]);
+  }, [humanRecord, details, toast, clearDetailsDraft]);
 
   const handleCancel = useCallback(() => {
     setSaveError(null);
@@ -168,8 +199,9 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
       insta: humanRecord?.insta || "",
       tiktok: humanRecord?.tiktok || "",
     });
+    clearDetailsDraft();
     setEditing(false);
-  }, [humanRecord]);
+  }, [humanRecord, clearDetailsDraft]);
 
   const handleLoadMore = useCallback(async () => {
     if (!supabase) return;
@@ -337,7 +369,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           <div className="portal-section--full portal-trio">
             <MyDetailsCard
               editing={editing}
-              setEditing={setEditing}
+              setEditing={handleSetEditing}
               saving={saving}
               saveError={saveError}
               details={details}

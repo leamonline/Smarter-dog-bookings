@@ -9,6 +9,7 @@ import {
   listOnDateForCapacity,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman } from "../../../supabase/repositories/dogsRepo";
+import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { PRICING } from "../../../constants/index";
@@ -132,14 +133,36 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     return state?.rescheduleFrom ?? null;
   });
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  // Persist an in-progress booking to localStorage so navigating away (back
+  // button, refresh) doesn't wipe the customer's selections. Disabled during a
+  // reschedule: that flow carries one-shot route state and its own cancel-after
+  // semantics, so a leftover draft from an abandoned normal booking must not
+  // bleed into it.
+  interface BookingDraft {
+    step: 1 | 2 | 3 | 4 | 5;
+    selectedDogs: WizardDog[];
+    services: Record<string, ServiceId>;
+    selectedDate: string | null;
+    slotAllocation: SlotAllocation | null;
+  }
+  const draftKey = `sdb:draft:booking:${humanRecord.id}`;
+  const {
+    restored,
+    save: saveDraft,
+    clear: clearDraft,
+  } = useDraftPersistence(draftKey, { enabled: !rescheduleFrom });
+  const draft = restored as unknown as BookingDraft | null;
+
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => draft?.step ?? 1);
   const [dogs, setDogs] = useState<RawDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [dogsError, setDogsError] = useState<string | null>(null);
-  const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>([]);
-  const [services, setServices] = useState<Record<string, ServiceId>>({});
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [slotAllocation, setSlotAllocation] = useState<SlotAllocation | null>(null);
+  const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>(() => draft?.selectedDogs ?? []);
+  const [services, setServices] = useState<Record<string, ServiceId>>(() => draft?.services ?? {});
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => draft?.selectedDate ?? null);
+  const [slotAllocation, setSlotAllocation] = useState<SlotAllocation | null>(
+    () => draft?.slotAllocation ?? null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
@@ -152,13 +175,24 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     stepHeadingRef.current?.focus();
   }, [step]);
 
-  // Warn before navigating away mid-wizard (U5)
+  // Warn before navigating away mid-wizard (U5). With the draft persistence
+  // below this is now a backstop rather than the only protection.
   useEffect(() => {
     if (step <= 1 || booked || waitlistJoined) return;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [step, booked, waitlistJoined]);
+
+  // Save a draft snapshot as selections change; clear it once the flow has
+  // reached a terminal state so a completed booking can't be "restored".
+  useEffect(() => {
+    if (booked || waitlistJoined) {
+      clearDraft();
+      return;
+    }
+    saveDraft({ step, selectedDogs, services, selectedDate, slotAllocation });
+  }, [saveDraft, clearDraft, booked, waitlistJoined, step, selectedDogs, services, selectedDate, slotAllocation]);
 
   // Shared so both the auto-fetch effect and the retry button below
   // route through one signal — clicking retry aborts the prior load,
@@ -415,7 +449,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         {/* Header */}
         <div className="booking-wizard-header">
           <button
-            onClick={onCancel}
+            onClick={() => { clearDraft(); onCancel(); }}
             className="booking-wizard-back"
             aria-label="Cancel booking and return to dashboard"
           >
