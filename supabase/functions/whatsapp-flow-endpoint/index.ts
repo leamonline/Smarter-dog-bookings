@@ -522,10 +522,10 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
   const db = makeFlowDb(supabase);
 
   if (req.action === "INIT") {
-    // Open on the session's screen so a reschedule (pre-seeded on SELECT_DATE)
-    // starts there; a normal booking session has screen='WELCOME', and
-    // buildScreen('WELCOME') is renderWelcome — so this is a no-op for it.
-    return buildScreen(session.screen ?? "WELCOME", session, db, supabase);
+    // Always render WELCOME on INIT (proven booking behaviour). Reschedule
+    // opens on WELCOME too and routes WELCOME→SELECT_DATE on Continue, so it
+    // doesn't need INIT to land elsewhere.
+    return renderWelcome(session, supabase);
   }
   if (req.action === "BACK") {
     return buildScreen(req.screen ?? session.screen ?? "WELCOME", session, db, supabase);
