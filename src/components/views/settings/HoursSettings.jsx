@@ -112,12 +112,15 @@ export function HoursSettings({ config, onUpdateConfig, canEdit = true }) {
                 className="inline-flex items-center gap-1.5 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-semibold"
               >
                 {c.date}{c.label ? ` \u2014 ${c.label}` : ""}
-                <span
+                <button
+                  type="button"
                   onClick={() => removeClosure(i)}
-                  className={`${canEdit ? "cursor-pointer hover:opacity-100" : "cursor-not-allowed"} opacity-60 text-sm`}
+                  disabled={!canEdit}
+                  aria-label={`Remove closure ${c.date}`}
+                  className={`${canEdit ? "cursor-pointer hover:opacity-100" : "cursor-not-allowed"} opacity-60 text-sm bg-transparent border-none p-0 font-inherit`}
                 >
                   {"\u00D7"}
-                </span>
+                </button>
               </span>
             ))}
           </div>
@@ -134,6 +137,7 @@ export function HoursSettings({ config, onUpdateConfig, canEdit = true }) {
               disabled={!canEdit}
               value={newClosureLabel}
               onChange={(e) => setNewClosureLabel(e.target.value)}
+              aria-label="Closure label (optional)"
               placeholder="Label (optional)"
               className={`${INPUT_CLS} !w-[180px] !py-1.5 !px-2.5`}
             />

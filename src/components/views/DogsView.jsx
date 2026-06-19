@@ -90,6 +90,7 @@ function AlertChip({ alerts, className = "" }) {
   return (
     <span
       title={alerts.join(", ")}
+      aria-label={alerts.join(", ")}
       className={`inline-flex items-center gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md ${className}`}
     >
       <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
@@ -469,7 +470,7 @@ export function DogsView({
       <FloatingDecor />
       {/* Header banner — Dogs keep their cyan section identity. */}
       <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-4 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
-        <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
+        <svg aria-hidden="true" className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-2xl md:text-display font-black text-white font-display">Dogs Directory</div>
@@ -488,6 +489,7 @@ export function DogsView({
               </div>
               <input
                 type="text"
+                aria-label="Search dogs by name, breed or owner"
                 placeholder="Search by name, breed or owner..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}

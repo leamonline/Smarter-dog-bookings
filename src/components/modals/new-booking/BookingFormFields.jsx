@@ -57,7 +57,7 @@ export function BookingFormFields({
               sizeTheme={primaryTheme}
             />
           ) : (
-            <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
+            <div role="status" aria-live="polite" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
               The salon is closed on {selectedDateDisplay}. Pick an open day in the calendar above, or open this day from the day view first.
             </div>
           )}
@@ -66,7 +66,7 @@ export function BookingFormFields({
 
       {/* ─── Error ─── */}
       {error && (
-        <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-4">
+        <div role="status" aria-live="polite" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-4">
           {error}
         </div>
       )}
@@ -74,8 +74,9 @@ export function BookingFormFields({
       {/* ─── STEP 4: Recurring (Optional) ─── */}
       {hasDogs && selectedDateStr && selectedSlot && (
         <div className="mb-4">
-          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
+          <label htmlFor="recurring-weeks-select" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
           <select
+            id="recurring-weeks-select"
             value={recurringWeeks}
             onChange={(e) => setRecurringWeeks(Number(e.target.value))}
             className="w-full py-3 px-3.5 rounded-control border-[1.5px] border-slate-200 text-sm font-inherit box-border outline-none text-slate-800 transition-colors cursor-pointer bg-white focus:border-brand-teal"

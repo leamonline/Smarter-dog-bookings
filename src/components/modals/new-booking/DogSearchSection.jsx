@@ -117,6 +117,7 @@ export function DogSearchSection({
                 <button
                   type="button"
                   onClick={() => onRemoveDog(entry.dog.id)}
+                  aria-label={`Remove ${titleCase(entry.dog.name)}`}
                   className="bg-transparent border-none cursor-pointer text-lg text-slate-500 font-bold py-1 px-2 rounded-md transition-all hover:text-brand-coral"
                 >
                   ×
@@ -126,6 +127,7 @@ export function DogSearchSection({
               <select
                 value={entry.service}
                 onChange={(e) => onServiceChange(entry.dog.id, e.target.value)}
+                aria-label={`Service for ${titleCase(entry.dog.name)}`}
                 className="w-full mt-2 px-2.5 py-2 rounded-lg border border-slate-200 text-xs font-inherit font-semibold cursor-pointer bg-white text-slate-800 box-border"
               >
                 {SERVICES.map((s) => (
@@ -223,13 +225,14 @@ export function DogSearchSection({
         </div>
       ) : (
         <div>
-          <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Search Dog</label>
+          <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Search Dog</label>
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
               <IconSearch size={15} colour="#6B7280" />
             </div>
             <input
               ref={searchRef}
+              id="dog-search-input"
               placeholder="Start typing a dog's name, breed, or owner..."
               value={dogQuery}
               onChange={(e) => { setDogQuery(e.target.value); setError(""); onSearchDogs?.(e.target.value); }}
