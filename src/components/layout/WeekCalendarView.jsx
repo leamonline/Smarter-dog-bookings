@@ -9,6 +9,7 @@ import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
+import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 
@@ -19,6 +20,7 @@ import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
 import { UtilityTabs } from "../dashboard/UtilityTabs.jsx";
+import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
 import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
 
 const DatePickerModal = lazy(() =>
@@ -94,6 +96,11 @@ export function WeekCalendarView({
   const { unread: waUnread } = useWhatsAppUnread();
   const reminders = useTomorrowReminders();
   const pendingReminderCount = reminders.totalCount - reminders.sentCount;
+  // Delivery failures (failed confirmations/reminders) only surfaced in the
+  // desktop RightWorkflowSidebar; surface them on mobile/tablet too via a
+  // banner above the utility tabs so a broken number isn't missed on a phone.
+  // Singleton hook — shares one fetch/subscription with the desktop sidebar.
+  const failures = useDeliveryFailures();
 
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
@@ -260,6 +267,11 @@ export function WeekCalendarView({
               {/* Tablet (md-xl): compact tabbed utility panel.
                   Desktop (xl+): full stacked workflow sidebar. */}
               <div className="xl:hidden">
+                {failures.count > 0 && (
+                  <div className="mb-3">
+                    <DeliveryFailuresCard data={failures} />
+                  </div>
+                )}
                 <UtilityTabs
                   waitlistCount={waitlist.length}
                   todoCount={openTodoCount}
