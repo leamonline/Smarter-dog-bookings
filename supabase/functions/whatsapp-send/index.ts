@@ -679,7 +679,7 @@ async function handleFlowMode(
     }
     initialData = {
       greeting: name ? `Hi ${name}! 🐾` : "Hi there! 🐾",
-      intro: "Let's get your dog booked in for a groom.",
+      intro: "Let's get your pup booked in for a fresh new groom.",
       ...initialData,
     };
   }

@@ -120,7 +120,13 @@ function successResponse(bookingIds: string[], state: FlowState): unknown {
   for (const id of state.dog_ids ?? []) {
     lines.push(`${meta[id]?.name ?? "Your dog"} — ${serviceName(services[id] ?? "")}`);
   }
-  return screenResponse("SUCCESS", { booking_ref: ref, summary: lines.join("\n") });
+  // ref_line is a whole-value binding (embedded ${data.booking_ref} won't
+  // resolve); booking_ref is still passed for the completion-action payload.
+  return screenResponse("SUCCESS", {
+    booking_ref: ref,
+    ref_line: `Your reference: ${ref}`,
+    summary: lines.join("\n"),
+  });
 }
 
 async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient): Promise<unknown> {
@@ -131,7 +137,7 @@ async function renderWelcome(session: FlowSessionRow, supabase: SupabaseClient):
   }
   return screenResponse("WELCOME", {
     greeting: name ? `Hi ${name}! 🐾` : "Hi there! 🐾",
-    intro: "Let's get your dog booked in for a groom.",
+    intro: "Let's get your pup booked in for a fresh new groom.",
   });
 }
 
@@ -154,8 +160,10 @@ async function buildScreen(
     const meta = dogId ? state.dog_meta?.[dogId] : undefined;
     if (!meta) return screenResponse("BOOKING_FAILED", { message: "Please start again." });
     const pricing = await db.getPricing();
+    // Whole-value heading (Meta doesn't resolve embedded ${data.x} inside a
+    // longer string — only a full-value binding).
     return screenResponse(target, {
-      dog_name: meta.name,
+      heading: `What's ${meta.name} in for? 🐾`,
       services: serviceOptions(meta.size, pricing),
       addons: addonOptions(),
     });
@@ -190,6 +198,7 @@ async function buildScreen(
       }
       return screenResponse("SELECT_TIME", {
         date_label: state.date ? formatDateLong(state.date) : "",
+        time_heading: state.date ? `Lovely — what time works on ${formatDateLong(state.date)}? 🐾` : "Pick a time",
         time_slots: slots,
         show_error: false,
         error_message: "",
@@ -205,6 +214,7 @@ async function buildScreen(
       }
       return screenResponse("SELECT_TIME_RETRY", {
         date_label: state.date ? formatDateLong(state.date) : "",
+        time_heading: state.date ? `No worries — pick another time on ${formatDateLong(state.date)}` : "Pick another time",
         time_slots: slots,
         error_message: "That slot just got taken — please pick another.",
       });
@@ -277,6 +287,7 @@ async function handleConfirm(
     await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
     return screenResponse("SELECT_TIME_RETRY", {
       date_label: formatDateLong(state.date),
+      time_heading: `No worries — pick another time on ${formatDateLong(state.date)}`,
       time_slots: slots.length ? slots : [{ id: state.drop_off, title: slotLabel(state.drop_off) }],
       error_message: res.message,
     });

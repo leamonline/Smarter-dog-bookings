@@ -122,10 +122,13 @@ export function isServiceAllowedForSize(
   return price.length > 0 && price.toUpperCase() !== "N/A";
 }
 
-/** "£46+" → "from £46"; "£38" → "£38"; "" / "N/A" → "". */
+/** "£46+" → "from £46"; "£38" → "from £38"; "" / "N/A" → "". Guide prices are
+ *  always shown as "from £X" (the salon never quotes a fixed price up front),
+ *  regardless of whether the stored value carries a trailing "+". */
 export function priceLabel(price: string): string {
   if (!price || price.toUpperCase() === "N/A") return "";
-  return price.endsWith("+") ? `from ${price.slice(0, -1)}` : price;
+  const base = price.endsWith("+") ? price.slice(0, -1) : price;
+  return `from ${base}`;
 }
 
 /** "09:30" → "9:30 am", "13:00" → "1:00 pm". */

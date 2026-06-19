@@ -89,7 +89,8 @@ describe("option builders", () => {
 
   it("filters services by size and labels 'from' prices", () => {
     const small = serviceOptions("small", null);
-    expect(small.find((s) => s.id === "puppy-groom")?.description).toBe("£38");
+    // Guide prices always read "from £X" (the salon never quotes fixed).
+    expect(small.find((s) => s.id === "puppy-groom")?.description).toBe("from £38");
     expect(small.find((s) => s.id === "full-groom")?.description).toBe("from £42");
 
     // puppy-groom is N/A for large dogs, so it must not be offered.
