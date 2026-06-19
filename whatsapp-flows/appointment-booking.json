@@ -3,9 +3,11 @@
   "data_api_version": "3.0",
   "routing_model": {
     "WELCOME": ["SELECT_PET", "NO_PETS"],
-    "SELECT_PET": ["SELECT_SERVICE"],
-    "SELECT_SERVICE": ["SELECT_ADDONS"],
-    "SELECT_ADDONS": ["SELECT_SERVICE", "SELECT_DATE"],
+    "SELECT_PET": ["DOG_A"],
+    "DOG_A": ["DOG_B", "SELECT_DATE"],
+    "DOG_B": ["DOG_C", "SELECT_DATE"],
+    "DOG_C": ["DOG_D", "SELECT_DATE"],
+    "DOG_D": ["SELECT_DATE"],
     "SELECT_DATE": ["SELECT_TIME"],
     "SELECT_TIME": ["CONFIRM"],
     "CONFIRM": ["SUCCESS", "BOOKING_FAILED", "SELECT_TIME_RETRY"],
@@ -92,69 +94,21 @@
       }
     },
     {
-      "id": "SELECT_SERVICE",
-      "title": "Service",
+      "id": "DOG_A",
+      "title": "Dog 1",
       "data": {
         "dog_name": { "type": "string", "__example__": "Bella" },
         "services": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" }
-            }
-          },
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
           "__example__": [
             { "id": "full-groom", "title": "Full Groom", "description": "from £46" },
             { "id": "bath-and-brush", "title": "Bath & Brush", "description": "from £42" }
           ]
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
-          {
-            "type": "Form",
-            "name": "service_form",
-            "children": [
-              {
-                "type": "RadioButtonsGroup",
-                "name": "service",
-                "label": "Service",
-                "required": true,
-                "data-source": "${data.services}"
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": { "service": "${form.service}" }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "SELECT_ADDONS",
-      "title": "Add-ons",
-      "data": {
-        "dog_name": { "type": "string", "__example__": "Bella" },
+        },
         "addons": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" }
-            }
-          },
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
           "__example__": [
             { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" },
             { "id": "Sensitive Shampoo", "title": "Sensitive Shampoo", "description": "" }
@@ -164,26 +118,123 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextBody", "text": "Optional extras for ${data.dog_name} — tap any you'd like, or just continue." },
+          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
           {
             "type": "Form",
-            "name": "addons_form",
+            "name": "dog_a_form",
             "children": [
-              {
-                "type": "CheckboxGroup",
-                "name": "addons",
-                "label": "Add-ons",
-                "required": false,
-                "data-source": "${data.addons}"
-              },
-              {
-                "type": "Footer",
-                "label": "Continue",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": { "addons": "${form.addons}" }
-                }
-              }
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons (optional)", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_B",
+      "title": "Dog 2",
+      "data": {
+        "dog_name": { "type": "string", "__example__": "Max" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £60" },
+            { "id": "bath-and-brush", "title": "Bath & Brush", "description": "from £55" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
+          {
+            "type": "Form",
+            "name": "dog_b_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons (optional)", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_C",
+      "title": "Dog 3",
+      "data": {
+        "dog_name": { "type": "string", "__example__": "Coco" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £46" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
+          {
+            "type": "Form",
+            "name": "dog_c_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons (optional)", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOG_D",
+      "title": "Dog 4",
+      "data": {
+        "dog_name": { "type": "string", "__example__": "Rex" },
+        "services": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "full-groom", "title": "Full Groom", "description": "from £46" }
+          ]
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" } } },
+          "__example__": [
+            { "id": "Flea Bath", "title": "Flea Bath", "description": "+£10" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "What would you like for ${data.dog_name}?" },
+          {
+            "type": "Form",
+            "name": "dog_d_form",
+            "children": [
+              { "type": "RadioButtonsGroup", "name": "service", "label": "Service", "required": true, "data-source": "${data.services}" },
+              { "type": "CheckboxGroup", "name": "addons", "label": "Add-ons (optional)", "required": false, "data-source": "${data.addons}" },
+              { "type": "Footer", "label": "Continue", "on-click-action": { "name": "data_exchange", "payload": { "service": "${form.service}", "addons": "${form.addons}" } } }
             ]
           }
         ]

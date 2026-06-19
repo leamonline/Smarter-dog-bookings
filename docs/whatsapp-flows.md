@@ -142,10 +142,13 @@ visit** (mirroring the customer portal wizard).
 2. **Yes** → the agent sends **Message 2** — the portal sign-in link in the
    body **plus** a **Book on WhatsApp** Flow CTA (`whatsapp-send` mode
    `flow`). **Not me** → handed to staff (flagged draft); never auto-books.
-3. The Flow runs: **SELECT_PET (checkboxes, 1–4 dogs)** → per dog
-   **SERVICE → ADDONS** (the endpoint loops the two screens, advancing a
-   `cursor` in session state) → **DATE** → **TIME** (only slots that fit the
-   whole group) → **CONFIRM** → **SUCCESS**.
+3. The Flow runs: **SELECT_PET (checkboxes, 1–4 dogs)** → one screen per dog
+   **DOG_A…DOG_D** (service + add-ons together; the endpoint advances by the
+   letter in the screen id and jumps to the date screen once the last
+   selected dog is done) → **DATE** → **TIME** (only slots that fit the whole
+   group) → **CONFIRM** → **SUCCESS**. Per-dog screens are distinct (not a
+   loop) because Meta's routing model is forward-only and screen ids must be
+   letters/underscores — no digits.
 
 Identity safety: the customer is confirmed by the tap; the dogs by the
 Flow's server-side multi-select (it only lists *their* dogs and re-checks
@@ -177,8 +180,8 @@ calendar triggers remain the hard guard.
 - **Large-dog per-slot precision** — large dogs are offered the candidate
   large slots; the trigger is the final guard. Small/medium are exact. Large
   multi-dog groups beyond what the 2-2-1 engine fits fall back to the portal.
-- **`BACK` inside the per-dog SERVICE/ADDONS loop** re-renders from the
-  current cursor; deep multi-step back-tracking across dogs isn't tracked.
+- **`BACK` across the per-dog DOG_A…DOG_D screens** re-renders the dog at
+  that screen's letter; the forward flow is the primary path.
 - **Free-text reply to Message 1** (instead of tapping) falls through to the
   normal staff-review path.
 - **Flow B (intake)** and **Flow C (cancel/reschedule)**.

@@ -30,15 +30,15 @@ export interface FlowDogMeta {
 }
 
 // Multi-dog session state. dog_ids holds the selection order; dog_meta pins
-// each dog's name + authoritative size; services/addons are keyed by dog id;
-// cursor walks the per-dog SERVICE→ADDONS loop. (jsonb column — no schema
-// change.)
+// each dog's name + authoritative size; services/addons are keyed by dog id.
+// The per-dog screens are DOG_1..DOG_4 (forward-only routing), so the dog
+// position comes from the screen id rather than a stored cursor. (jsonb
+// column — no schema change.)
 export interface FlowState {
   dog_ids?: string[];
   dog_meta?: Record<string, FlowDogMeta>;
   services?: Record<string, string>;
   addons?: Record<string, string[]>;
-  cursor?: number;
   date?: string;
   drop_off?: string;
 }

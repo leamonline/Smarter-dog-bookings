@@ -143,6 +143,24 @@ async function buildScreen(
   supabase: SupabaseClient,
 ): Promise<unknown> {
   const state = session.state;
+
+  // Per-dog screens DOG_A..DOG_D: service + add-ons for the dog at that
+  // position. Forward-only routing (Meta rejects loop-back edges), and screen
+  // ids must be letters/underscores only (no digits) — so the position is the
+  // letter A..D. Derived from the screen id, so it's correct on INIT/BACK too.
+  if (target.startsWith("DOG_")) {
+    const idx = target.charCodeAt(4) - 65; // 'A' -> 0
+    const dogId = (state.dog_ids ?? [])[idx];
+    const meta = dogId ? state.dog_meta?.[dogId] : undefined;
+    if (!meta) return screenResponse("BOOKING_FAILED", { message: "Please start again." });
+    const pricing = await db.getPricing();
+    return screenResponse(target, {
+      dog_name: meta.name,
+      services: serviceOptions(meta.size, pricing),
+      addons: addonOptions(),
+    });
+  }
+
   switch (target) {
     case "WELCOME":
       return renderWelcome(session, supabase);
@@ -151,26 +169,6 @@ async function buildScreen(
       const pets = session.human_id ? await listPetOptions(db, session.human_id) : [];
       if (!pets.length) return screenResponse("NO_PETS", { message: NO_PETS_MSG });
       return screenResponse("SELECT_PET", { pets });
-    }
-
-    case "SELECT_SERVICE": {
-      // Per-dog loop: the dog at the current cursor.
-      const cursor = state.cursor ?? 0;
-      const dogId = (state.dog_ids ?? [])[cursor];
-      const meta = dogId ? state.dog_meta?.[dogId] : undefined;
-      if (!meta) return screenResponse("BOOKING_FAILED", { message: "Please start again." });
-      const pricing = await db.getPricing();
-      return screenResponse("SELECT_SERVICE", {
-        dog_name: meta.name,
-        services: serviceOptions(meta.size, pricing),
-      });
-    }
-
-    case "SELECT_ADDONS": {
-      const cursor = state.cursor ?? 0;
-      const dogId = (state.dog_ids ?? [])[cursor];
-      const name = (dogId && state.dog_meta?.[dogId]?.name) || "your dog";
-      return screenResponse("SELECT_ADDONS", { dog_name: name, addons: addonOptions() });
     }
 
     case "SELECT_DATE": {
@@ -309,6 +307,23 @@ async function handleDataExchange(
     return handleConfirm({ ...session, state }, state, db, supabase, { allowRetry: false });
   }
 
+  // Per-dog screen submit: store this dog's service + add-ons, then advance to
+  // the next selected dog (DOG_A→DOG_B…) or on to SELECT_DATE.
+  if (current.startsWith("DOG_")) {
+    const idx = current.charCodeAt(4) - 65; // 'A' -> 0
+    const dogId = (state.dog_ids ?? [])[idx];
+    if (dogId) {
+      state.services = { ...(state.services ?? {}), [dogId]: str(data.service) };
+      state.addons = { ...(state.addons ?? {}), [dogId]: strArr(data.addons) };
+    }
+    const next = idx + 1;
+    const nextScreen = next < (state.dog_ids ?? []).length
+      ? `DOG_${String.fromCharCode(65 + next)}`
+      : "SELECT_DATE";
+    await saveSession(supabase, token, { screen: nextScreen, state });
+    return buildScreen(nextScreen, { ...session, state }, db, supabase);
+  }
+
   let target: string;
   switch (current) {
     case "WELCOME": {
@@ -337,29 +352,7 @@ async function handleDataExchange(
       state.dog_meta = meta;
       state.services = {};
       state.addons = {};
-      state.cursor = 0;
-      target = "SELECT_SERVICE";
-      break;
-    }
-    case "SELECT_SERVICE": {
-      const cursor = state.cursor ?? 0;
-      const dogId = (state.dog_ids ?? [])[cursor];
-      if (dogId) state.services = { ...(state.services ?? {}), [dogId]: str(data.service) };
-      target = "SELECT_ADDONS";
-      break;
-    }
-    case "SELECT_ADDONS": {
-      const cursor = state.cursor ?? 0;
-      const dogId = (state.dog_ids ?? [])[cursor];
-      if (dogId) state.addons = { ...(state.addons ?? {}), [dogId]: strArr(data.addons) };
-      const next = cursor + 1;
-      if (next < (state.dog_ids ?? []).length) {
-        // Loop back to SELECT_SERVICE for the next dog.
-        state.cursor = next;
-        target = "SELECT_SERVICE";
-      } else {
-        target = "SELECT_DATE";
-      }
+      target = "DOG_1";
       break;
     }
     case "SELECT_DATE":
