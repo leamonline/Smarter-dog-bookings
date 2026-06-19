@@ -18,7 +18,7 @@ Confirmed issues: **3 Critical, 71 Major, 74 Minor, 11 Polish.** The five highes
 2. **Pervasive accessibility debt.** Two contrast failures are Critical on their own (placeholder text and disabled‑button text are effectively invisible); on top of that, form inputs across the New Booking / Dogs / Humans / Settings modals lack associated labels, error regions lack `aria-live`, several "buttons" are non‑semantic, and there's no keyboard alternative to drag‑and‑drop rescheduling.
 3. **Touch targets are too small almost everywhere on phone/iPad** — the A–Z rail, icon buttons (WhatsApp, edit, alerts), status pills, prev/next chevrons, mini‑calendar dates and to‑do controls all fall below the 44×44 px minimum. This is the difference between "works on a phone" and "delightful on a phone".
 4. **The Settings save model is inconsistent and unguarded** — explicit "Save changes" on one tab, silent autosave on another, autosave‑with‑notice on a third, with no field validation and no "unsaved changes" warning when navigating away.
-5. **A cluster of control bugs/inconsistencies erodes trust** — the Dogs "Name" sort doesn't reorder the list, the A–Z filter leaves a wrong "X dogs registered" count, the two directories default to different sorts, the Inbox filter row overflows and clips, and Reports shows tiny 10 px chart labels and +628% deltas off a near‑zero baseline.
+5. **A cluster of control issues erodes trust** — the A–Z filter left a wrong "X dogs registered" count (**now fixed**), the Inbox filter row overflows and clips, and Reports shows tiny 10 px chart labels and +628% deltas off a near‑zero baseline. _(Two items originally listed here — the Dogs "Name" sort and a directory default-sort mismatch — were investigated and found NOT to be bugs; see §4d.)_
 
 The encouraging part: a large share of the Major findings are **quick wins** (token bumps, `aria-label`/`htmlFor` additions, min‑size utility classes). A focused week or two clears most of the list.
 
@@ -99,8 +99,9 @@ Below 44×44 px and called out individually in the digest: **A–Z jump‑bar le
 ### 4d. Functionality
 
 **Major (selected)**
-- **Dogs "Name" sort is a no‑op** — selecting it doesn't reorder the list. `views/DogsView.jsx`. [All] *(confirmed live: order unchanged before/after.)*
-- **A–Z filter leaves a wrong count** — header still reads "46 dogs registered" after filtering, and there's no "show all" reset. [All]
+- ~~**Dogs "Name" sort is a no‑op**~~ — **VERIFIED NOT A BUG (2026-06-19).** Traced `DogsView.jsx` → `useDogs.ts` (refetch effect deps include `dirSort`) → `search_dogs_directory` RPC (orders by `lower(name)` when `sort:'name'`). The live "no reorder" was a screenshot taken ~1s after the toggle, before the async refetch returned. No code change.
+- ~~Inconsistent directory default sorts~~ — **VERIFIED NOT A BUG.** Dogs default `dirSort` is `"name"` (alphabetical) unless `localStorage.dogsDirSort==='recent'`; Humans default is first-name. Both alphabetical by default — the live mismatch was this reviewer's stale `localStorage`.
+- **A–Z filter left a wrong count** — `narrowed` omitted `activeLetter`, so a letter-only view read "X dogs registered" instead of "X matching dogs". **FIXED** in `DogsView.jsx` + `HumansView.jsx` with regression tests. [All]
 - **Inconsistent Settings save model** — explicit Save (Business) vs silent autosave (Capacity) vs autosave‑with‑notice (Pricing); **no field validation**, **no unsaved‑changes warning** on navigate‑away. `views/settings/*`. [All]
 - **Silent delete** — the appointment modal closes before the delete completes, with no confirmation feedback. `booking-detail/BookingActions.jsx`. [All]
 - **Subtle autosave indicator** in the appointment modal; easy to miss whether an edit saved. [All]

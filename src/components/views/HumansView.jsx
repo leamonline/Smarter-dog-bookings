@@ -405,7 +405,7 @@ export function HumansView({
 
   const activeFilters = FILTER_CHIPS.filter((c) => filters?.[c.key]).map((c) => c.label);
   const hasFilters = activeFilters.length > 0;
-  const narrowed = hasSearchQuery || hasFilters; // showing a subset, not the full list
+  const narrowed = hasSearchQuery || hasFilters || Boolean(activeLetter); // showing a subset, not the full list
   const filterSuffix = hasFilters ? ` · ${activeFilters.join(", ")}` : "";
 
   const headerCountText = showArchived
