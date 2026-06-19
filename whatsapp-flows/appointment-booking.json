@@ -262,7 +262,7 @@
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
-          { "type": "TextBody", "text": "We're open Mon to Wed — here's when we can fit you in 🐾" },
+          { "type": "TextBody", "text": "Here's when we can fit you in — pick a day that suits 🐾" },
           {
             "type": "Form",
             "name": "date_form",
