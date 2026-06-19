@@ -21,6 +21,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
+import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -587,6 +588,28 @@ serve(async (req) => {
         return new Response("not_cancellable", { status: 200 });
       }
 
+      // 24h cut-off re-check — manage-booking (Flow C) cancels only. An action
+      // staged outside 24h but confirmed AFTER the booking crossed into the
+      // window is blocked here, regardless of the original stage time.
+      if (action.payload.enforce_24h_cutoff) {
+        const start = visitStartInstant(existing.booking_date as string, existing.slot as string);
+        if (isInsideManageCutoff(start, new Date())) {
+          const { data: blockedRows } = await supabase
+            .from("whatsapp_booking_actions")
+            .update({ state: "rejected_by_customer", rejection_reason: "within_24h_at_confirm" })
+            .eq("id", action.id)
+            .eq("state", "awaiting_customer_confirm")
+            .select("id");
+          if (blockedRows && blockedRows.length > 0) {
+            await sendAckText(
+              action.conversation_id,
+              "That groom's now within 24 hours, so I can't cancel it automatically — one of the team will be in touch. 🎓🐶❤️ X",
+            );
+          }
+          return new Response("within_24h", { status: 200 });
+        }
+      }
+
       // Optimistic-lock the action.
       const { data: confirmedRows } = await supabase
         .from("whatsapp_booking_actions")
@@ -599,26 +622,49 @@ serve(async (req) => {
         return new Response("already_processed", { status: 200 });
       }
 
-      // Apply the cancellation. UPDATE-to-cancel fires the existing
-      // notify-booking-cancelled trigger (migration history). Filter on
-      // status='Booked' to catch the check-in race window.
-      const { data: updatedRows, error: updateErr } = await supabase
-        .from("bookings")
-        .update({
-          status: "Cancelled",
-          cancel_reason: reason.slice(0, 500),
-        })
-        .eq("id", oldBookingId)
-        .eq("status", "Booked")
-        .select("id");
-      if (updateErr) {
-        // Capacity isn't relevant to cancellation — any error here is
-        // a real failure. Fall through to staff queue via outer catch.
-        throw new Error(updateErr.message);
+      // Apply the cancellation. For manage-booking (Flow C) this is the WHOLE
+      // visit (every booking in the group) via the group-aware RPC; the
+      // autonomous path keeps its single-row UPDATE. Both fire the existing
+      // notify-booking-cancelled trigger. Filter on status='Booked' to catch
+      // the check-in race window.
+      let cancelledCount = 0;
+      if (action.payload.cancel_whole_group) {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("cancel_whatsapp_booking_by_id", {
+          p_booking_id: oldBookingId,
+          p_human_id: caBookingHumanId,
+          p_reason: reason.slice(0, 500),
+        });
+        if (rpcErr) throw new Error(rpcErr.message);
+        const row = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as { cancelled_count?: number } | null;
+        cancelledCount = row?.cancelled_count ?? 0;
+        const expected = Array.isArray(action.payload.booking_ids)
+          ? (action.payload.booking_ids as unknown[]).length
+          : 1;
+        if (cancelledCount > 0 && cancelledCount < expected) {
+          // Partial group cancel — never silent. Staff must clean up the rest.
+          console.error(
+            `apply-customer-confirm: PARTIAL group cancel ${cancelledCount}/${expected} for action ${action.id} ` +
+              `booking ${oldBookingId}; staff must check the remaining rows.`,
+          );
+        }
+      } else {
+        const { data: updatedRows, error: updateErr } = await supabase
+          .from("bookings")
+          .update({ status: "Cancelled", cancel_reason: reason.slice(0, 500) })
+          .eq("id", oldBookingId)
+          .eq("status", "Booked")
+          .select("id");
+        if (updateErr) {
+          // Capacity isn't relevant to cancellation — any error here is a real
+          // failure. Fall through to staff queue via outer catch.
+          throw new Error(updateErr.message);
+        }
+        cancelledCount = updatedRows?.length ?? 0;
       }
-      if (!updatedRows || updatedRows.length === 0) {
-        // Status changed between fetch and UPDATE (e.g. groomer just
-        // checked the dog in). Hand off to staff.
+      if (cancelledCount === 0) {
+        // Nothing cancelled — status changed between fetch and apply (e.g. the
+        // groomer just checked the dog in), or a race. NEVER report success on
+        // zero rows: hand off to staff.
         await supabase
           .from("whatsapp_booking_actions")
           .update({

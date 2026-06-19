@@ -41,6 +41,20 @@ export interface FlowState {
   addons?: Record<string, string[]>;
   date?: string;
   drop_off?: string;
+  // ── Reschedule mode (pre-seeded by the agent) ──
+  // When flow_mode==='reschedule' the Flow opens on SELECT_DATE with the dogs
+  // + services above already pinned; on CONFIRM the endpoint creates the new
+  // booking group, then cancels the old visit. The *_snapshot fields freeze
+  // the old visit so CONFIRM can detect it changing underneath the customer.
+  flow_mode?: "reschedule";
+  reschedule_group_id?: string | null;
+  reschedule_booking_id?: string;
+  old_booking_ids?: string[];
+  old_date?: string;
+  old_slot?: string;
+  old_start_at?: string;
+  service_snapshot?: Record<string, string>;
+  dog_snapshot?: string[];
 }
 
 export interface FlowSessionRow {
@@ -235,4 +249,72 @@ export async function failSession(supabase: SupabaseClient, flowToken: string): 
     .update({ status: "failed", updated_at: new Date().toISOString() })
     .eq("flow_token", flowToken);
   if (error) console.error("failSession failed:", error.message);
+}
+
+// ── Reschedule helpers (re-validate + cancel the old visit) ────
+
+/** A current 'Booked' booking row owned by the customer, for re-validating a
+ *  reschedule's old visit at CONFIRM time. */
+export interface OldBookingRow {
+  id: string;
+  dog_id: string;
+  service: string | null;
+  group_id: string | null;
+  booking_date: string;
+  slot: string;
+}
+
+/** Re-fetch the still-active ('Booked'), owned bookings of the old visit. The
+ *  dogs!inner + human_id filter is the server-side ownership guard. */
+export async function getActiveOwnedBookings(
+  supabase: SupabaseClient,
+  humanId: string,
+  sel: { groupId?: string | null; bookingId?: string },
+): Promise<OldBookingRow[]> {
+  let q = supabase
+    .from("bookings")
+    .select("id, dog_id, service, group_id, booking_date, slot, dogs!inner(human_id)")
+    .eq("status", "Booked")
+    .eq("dogs.human_id", humanId);
+  if (sel.groupId) q = q.eq("group_id", sel.groupId);
+  else if (sel.bookingId) q = q.eq("id", sel.bookingId);
+  else return [];
+  const { data, error } = await q;
+  if (error) {
+    console.error("getActiveOwnedBookings failed:", error.message);
+    return [];
+  }
+  return ((data as Array<Record<string, unknown>>) ?? []).map((r) => ({
+    id: r.id as string,
+    dog_id: r.dog_id as string,
+    service: (r.service as string | null) ?? null,
+    group_id: (r.group_id as string | null) ?? null,
+    booking_date: r.booking_date as string,
+    slot: r.slot as string,
+  }));
+}
+
+/** Cancel the old visit after a reschedule's new booking is created. Uses the
+ *  group RPC when grouped, else the by-id RPC (which still cancels the whole
+ *  group it resolves). Returns the actual cancelled count so the caller can
+ *  detect a partial/duplicate. */
+export async function cancelOldBookingForReschedule(
+  supabase: SupabaseClient,
+  humanId: string,
+  sel: { groupId?: string | null; bookingId?: string },
+): Promise<{ cancelledCount: number; bookingIds: string[] }> {
+  const p_reason = "Rescheduled via WhatsApp";
+  const rpc = sel.groupId ? "cancel_whatsapp_booking_group" : "cancel_whatsapp_booking_by_id";
+  const args = sel.groupId
+    ? { p_group_id: sel.groupId, p_human_id: humanId, p_reason }
+    : { p_booking_id: sel.bookingId, p_human_id: humanId, p_reason };
+  const { data, error } = await supabase.rpc(rpc, args);
+  if (error) {
+    console.error(`${rpc} failed:`, error.message);
+    return { cancelledCount: 0, bookingIds: [] };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { cancelled_count?: number; booking_ids?: string[] }
+    | null;
+  return { cancelledCount: row?.cancelled_count ?? 0, bookingIds: row?.booking_ids ?? [] };
 }

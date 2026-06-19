@@ -142,6 +142,11 @@ interface FlowMode {
   flow_type?: "appointment_booking" | "new_client_intake" | "cancel_reschedule";
   initial_screen?: string;
   initial_data?: Record<string, unknown>;
+  // Pre-seeded session state (e.g. a reschedule: dogs/services/old-visit
+  // snapshot) persisted into the flow session so the Flow can open mid-way
+  // (on SELECT_DATE) with the form already filled. initial_data is only the
+  // WELCOME greeting/intro; initial_state is the full server-side form state.
+  initial_state?: Record<string, unknown>;
   body_text: string;
   cta: string;
   header_text?: string;
@@ -158,7 +163,18 @@ interface BookEntryMode {
   human_id?: string | null;
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode | BookEntryMode;
+interface ListMode {
+  mode: "list";
+  to: string;
+  conversation_id: string;
+  human_id?: string | null;
+  body_text: string;
+  button_text: string;
+  section_title?: string;
+  rows: Array<{ id: string; title: string; description?: string }>;
+}
+
+type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode | BookEntryMode | ListMode;
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -691,7 +707,7 @@ async function handleFlowMode(
     human_id: body.human_id ?? null,
     flow_type: body.flow_type ?? "appointment_booking",
     screen: initialScreen,
-    state: {},
+    state: body.initial_state ?? {},
     status: "active",
   });
   if (sessErr) {
@@ -823,6 +839,54 @@ async function handleBookEntryMode(
   return json(req, { ok: true, meta_message_id: metaMessageId });
 }
 
+// ── Interactive list handler ──────────────────────────────────
+// Sends a WhatsApp interactive list ("menu" of rows). Used by the
+// manage-booking flow when a customer has more than one upcoming visit to
+// pick from. Row ids are nonce-backed (manage:<nonce>:<visit_key>) and are
+// only ever hints — the agent re-validates server-side on the list_reply tap.
+async function handleListMode(
+  req: Request,
+  supabase: SupabaseClient,
+  body: ListMode,
+): Promise<Response> {
+  if (!body.to || !body.conversation_id || !Array.isArray(body.rows) || body.rows.length === 0) {
+    return json(req, { error: "list requires to + conversation_id + rows" }, 400);
+  }
+  // Meta limits: ≤10 rows, button ≤20, row title ≤24, description ≤72, id ≤200.
+  const rows = body.rows.slice(0, 10).map((r) => ({
+    id: String(r.id).slice(0, 200),
+    title: String(r.title).slice(0, 24),
+    ...(r.description ? { description: String(r.description).slice(0, 72) } : {}),
+  }));
+
+  const metaBody = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: toMetaTo(body.to),
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: body.body_text },
+      action: {
+        button: (body.button_text || "Choose").slice(0, 20),
+        sections: [{ title: (body.section_title || "Your bookings").slice(0, 24), rows }],
+      },
+    },
+  };
+
+  let metaRes: MetaSendSuccess;
+  try {
+    metaRes = await callMeta(metaBody);
+  } catch (err) {
+    console.error("whatsapp-send list mode: Meta send failed:", err instanceof Error ? err.message : String(err));
+    return json(req, { error: "Meta send failed" }, 502);
+  }
+
+  const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+  await recordOutbound(supabase, body.conversation_id, metaMessageId, `[manage_list] ${body.body_text}`, metaBody);
+  return json(req, { ok: true, meta_message_id: metaMessageId });
+}
+
 function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -855,7 +919,7 @@ serve(async (req) => {
   }
 
   if (!parsed || !("mode" in parsed)) {
-    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons' | 'flow' | 'book_entry')" }, 400);
+    return json(req, { error: "mode is required ('draft' | 'manual' | 'template' | 'confirm_buttons' | 'flow' | 'book_entry' | 'list')" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -873,6 +937,8 @@ serve(async (req) => {
       return await handleFlowMode(req, supabase, parsed);
     } else if (parsed.mode === "book_entry") {
       return await handleBookEntryMode(req, supabase, parsed);
+    } else if (parsed.mode === "list") {
+      return await handleListMode(req, supabase, parsed);
     } else {
       return json(req, { error: `unknown mode: ${(parsed as any).mode}` }, 400);
     }

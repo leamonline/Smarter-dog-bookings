@@ -90,7 +90,19 @@ import {
   reactionFields,
   type MetaInboundMessage,
 } from "../_shared/inboundMessage.ts";
-import { CUSTOMER_PORTAL_URL as PORTAL_URL_DEFAULT } from "../_shared/salonConstants.ts";
+import { CUSTOMER_PORTAL_URL as PORTAL_URL_DEFAULT, type DogSize } from "../_shared/salonConstants.ts";
+import {
+  buildRescheduleInitialState,
+  groupUpcomingBookings,
+  isInsideManageCutoff,
+  joinNames,
+  type ManageBookingRow,
+  manageRowId,
+  parseManageRowId,
+  salonToday,
+  type UpcomingVisit,
+  visitStartInstant,
+} from "../_shared/manageBooking.ts";
 
 // ── Environment ─────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -134,6 +146,11 @@ const WHATSAPP_BOOK_ENTRY_ENABLED =
 const WHATSAPP_BOOKING_FLOW_ID = Deno.env.get("WHATSAPP_BOOKING_FLOW_ID") ?? "";
 // Customer self-service portal sign-in/sign-up URL (env override → shared default).
 const CUSTOMER_PORTAL_URL = Deno.env.get("CUSTOMER_PORTAL_URL") ?? PORTAL_URL_DEFAULT;
+// Master switch for WhatsApp self-service cancel/reschedule (Flow C). Off by
+// default; independent of WHATSAPP_BOOK_ENTRY_ENABLED so it can roll out
+// separately. When off, cancel/reschedule fall through to the staff gate.
+const WHATSAPP_MANAGE_BOOKING_ENABLED =
+  (Deno.env.get("WHATSAPP_MANAGE_BOOKING_ENABLED") ?? "false").toLowerCase() === "true";
 
 // ── Types ───────────────────────────────────────────────────
 // The inbound-message shape + its interpreters live in _shared so they
@@ -1295,6 +1312,381 @@ async function dispatchBookingFlow(
   }
 }
 
+// ── Manage-booking (Flow C): cancel & reschedule ─────────────
+// A recognised customer can cancel or reschedule their own upcoming visit.
+// Whole-visit granularity; 24h cut-off → staff; reschedule reuses the booking
+// Flow; multiple upcoming → a nonce-backed list. Cancellation reuses the
+// existing confirm-buttons + apply-customer-confirm machinery; the actual
+// destructive write is the group-aware cancel RPC.
+
+/** POST to whatsapp-send; true on 2xx. */
+async function callWhatsappSend(body: Record<string, unknown>): Promise<boolean> {
+  if (!SEND_INTERNAL_SECRET) {
+    console.warn("callWhatsappSend: SEND_INTERNAL_SECRET not set; skipping");
+    return false;
+  }
+  try {
+    const res = await fetch(WHATSAPP_SEND_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": SEND_INTERNAL_SECRET },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) console.warn(`whatsapp-send ${body.mode} returned ${res.status}: ${await res.text()}`);
+    return res.ok;
+  } catch (err) {
+    console.warn(`whatsapp-send ${body.mode} failed:`, err instanceof Error ? err.message : String(err));
+    return false;
+  }
+}
+
+function sendManageText(conversationId: string, text: string): Promise<boolean> {
+  return callWhatsappSend({ mode: "manual", conversation_id: conversationId, text });
+}
+
+/** Debounce: a manage list/flow message sent on this convo in the last 3 min. */
+async function recentlySentManageBooking(supabase: SupabaseClient, conversationId: string): Promise<boolean> {
+  const since = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .gte("sent_at", since)
+    .or("content.ilike.[manage_list]%,content.ilike.[flow:%");
+  return (data?.length ?? 0) > 0;
+}
+
+/** A live (awaiting confirm, unexpired) cancel already staged on this convo. */
+async function hasLiveCancelAction(supabase: SupabaseClient, conversationId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("whatsapp_booking_actions")
+    .select("id, customer_confirm_expires_at")
+    .eq("conversation_id", conversationId)
+    .eq("action", "cancel")
+    .eq("state", "awaiting_customer_confirm")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const row = data?.[0] as { customer_confirm_expires_at?: string } | undefined;
+  if (!row) return false;
+  const exp = row.customer_confirm_expires_at ? new Date(row.customer_confirm_expires_at) : null;
+  return !exp || exp > new Date();
+}
+
+interface ResolvedUpcoming {
+  visits: UpcomingVisit[];
+  dogSizes: Record<string, DogSize>;
+}
+
+/** Fetch + group a customer's upcoming Booked visits (ownership via dogs join). */
+async function resolveUpcomingGroupsForHuman(
+  supabase: SupabaseClient,
+  humanId: string,
+  now: Date,
+): Promise<ResolvedUpcoming> {
+  const today = salonToday(now);
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id, group_id, booking_date, slot, service, dog_id, dogs!inner(human_id, name, size)")
+    .eq("status", "Booked")
+    .eq("dogs.human_id", humanId)
+    .gte("booking_date", today)
+    .order("booking_date")
+    .order("slot");
+  if (error) {
+    console.error("resolveUpcomingGroupsForHuman failed:", error.message);
+    return { visits: [], dogSizes: {} };
+  }
+  const dogSizes: Record<string, DogSize> = {};
+  const rows: ManageBookingRow[] = ((data as Array<Record<string, unknown>>) ?? []).map((r) => {
+    const dog = r.dogs as { name?: string; size?: DogSize } | null;
+    if (dog?.size) dogSizes[r.dog_id as string] = dog.size;
+    return {
+      id: r.id as string,
+      group_id: (r.group_id as string | null) ?? null,
+      booking_date: r.booking_date as string,
+      slot: r.slot as string,
+      service: (r.service as string | null) ?? null,
+      dog_id: r.dog_id as string,
+      dog_name: dog?.name ?? "your dog",
+      size: dog?.size ?? null,
+    };
+  });
+  return { visits: groupUpcomingBookings(rows), dogSizes };
+}
+
+function dispatchManageList(
+  conversationId: string,
+  humanId: string,
+  phoneE164: string,
+  nonce: string,
+  visits: UpcomingVisit[],
+): Promise<boolean> {
+  const rows = visits.slice(0, 10).map((v) => ({
+    id: manageRowId(nonce, v.key),
+    title: joinNames(v.dogs.map((d) => d.name)),
+    description: v.label.replace(/^.*groom on /, ""), // "Wed 24 Jun at 9:30"
+  }));
+  return callWhatsappSend({
+    mode: "list",
+    to: phoneE164,
+    conversation_id: conversationId,
+    human_id: humanId,
+    body_text: "You've got a few grooms coming up — which one would you like to manage? 🐾",
+    button_text: "Choose a groom",
+    section_title: "Upcoming grooms",
+    rows,
+  });
+}
+
+async function dispatchManageCancel(
+  supabase: SupabaseClient,
+  conversationId: string,
+  visit: UpcomingVisit,
+): Promise<boolean> {
+  // Single active: supersede any prior pending/awaiting cancel on this convo.
+  await supabase
+    .from("whatsapp_booking_actions")
+    .update({ state: "rejected_by_customer", rejection_reason: "superseded_by_new_manage" })
+    .eq("conversation_id", conversationId)
+    .eq("action", "cancel")
+    .in("state", ["pending", "awaiting_customer_confirm"]);
+
+  const { data, error } = await supabase
+    .from("whatsapp_booking_actions")
+    .insert({
+      conversation_id: conversationId,
+      action: "cancel",
+      target_booking_id: visit.bookingIds[0],
+      payload: {
+        reason: "Customer cancelled via WhatsApp",
+        cancel_whole_group: true,
+        enforce_24h_cutoff: true,
+        visit_start_at: visit.startAt,
+        booking_ids: visit.bookingIds,
+        group_id: visit.groupId,
+      },
+      state: "pending",
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("dispatchManageCancel: stage failed:", error?.message);
+    return false;
+  }
+  return callWhatsappSend({
+    mode: "confirm_buttons",
+    conversation_id: conversationId,
+    booking_action_id: (data as { id: string }).id,
+    summary_text: `Just checking — do you want to cancel ${visit.label}?`,
+    action_kind: "cancel",
+  });
+}
+
+function dispatchRescheduleFlow(
+  conversationId: string,
+  humanId: string,
+  phoneE164: string,
+  visit: UpcomingVisit,
+  dogSizes: Record<string, DogSize>,
+): Promise<boolean> {
+  if (!WHATSAPP_BOOKING_FLOW_ID) {
+    console.warn("dispatchRescheduleFlow: WHATSAPP_BOOKING_FLOW_ID not set; cannot open the Flow");
+    return Promise.resolve(false);
+  }
+  const initialState = buildRescheduleInitialState(visit, dogSizes);
+  // Open on WELCOME (rendered inline) with the dogs/services pre-seeded; the
+  // endpoint routes WELCOME→SELECT_DATE for reschedule mode, skipping the pet
+  // + per-dog screens. (SELECT_DATE can't be the opening screen — its dates
+  // data is computed by the endpoint, not carried in the flow message.)
+  return callWhatsappSend({
+    mode: "flow",
+    to: phoneE164,
+    conversation_id: conversationId,
+    human_id: humanId,
+    flow_id: WHATSAPP_BOOKING_FLOW_ID,
+    flow_type: "cancel_reschedule",
+    initial_state: initialState,
+    initial_data: {
+      greeting: "Let's move your groom 🐾",
+      intro: "Same dogs and service — just pick a new day and time on the next screens.",
+    },
+    body_text: `No worries — let's move ${visit.label}. Tap below to pick a new day and time 🐾`,
+    cta: "Pick a new time",
+  });
+}
+
+/** 24h cut-off: tell the customer warmly + flag the conversation for staff. */
+async function manageCutoffHandoff(
+  supabase: SupabaseClient,
+  conversationId: string,
+  eventId: string | null,
+  action: "cancel" | "reschedule",
+): Promise<void> {
+  const msg = action === "cancel"
+    ? "This one's within 24 hours, so I can't cancel it automatically here. I've flagged it for the team and someone will pick it up as soon as they can. 🐾"
+    : "This appointment is within 24 hours, so I can't move it automatically here. I've flagged it for the team so they can help you properly. 🐾";
+  await sendManageText(conversationId, msg);
+  const policy: DraftPolicy = { riskLevel: "high", handoffRequired: true, autoSendEligible: false };
+  const draft: DraftFromClaude = {
+    intent: "escalate",
+    confidence: 0,
+    proposed_text:
+      `[Within 24h ${action}] Customer asked to ${action} within 24h of their groom — needs the team. They've already been told you'll be in touch.`,
+    extracted_state: null,
+  };
+  await saveDraft(supabase, conversationId, eventId, draft, policy, 0, 0, { reason: `manage_24h_cutoff:${action}` });
+}
+
+/** Run the chosen action against a resolved visit; re-applies the 24h cut-off. */
+async function executeManageAction(
+  supabase: SupabaseClient,
+  conversationId: string,
+  humanId: string,
+  phoneE164: string,
+  eventId: string | null,
+  action: "cancel" | "reschedule",
+  visit: UpcomingVisit,
+  dogSizes: Record<string, DogSize>,
+): Promise<void> {
+  if (isInsideManageCutoff(new Date(visit.startAt), new Date())) {
+    await manageCutoffHandoff(supabase, conversationId, eventId, action);
+    return;
+  }
+  if (action === "cancel") {
+    await dispatchManageCancel(supabase, conversationId, visit);
+  } else {
+    await dispatchRescheduleFlow(conversationId, humanId, phoneE164, visit, dogSizes);
+  }
+}
+
+/**
+ * Handle a manage-booking (cancel/reschedule) message for a recognised
+ * customer. Returns true if it owned the message (agent should `continue`).
+ * Triggers: a manage:* list tap, a Cancel/Reschedule template button, or typed
+ * booking_cancel/booking_change intent. Client ids are hints — everything is
+ * re-resolved + re-checked server-side.
+ */
+async function handleManageBooking(
+  supabase: SupabaseClient,
+  conversation: ConversationRow,
+  msg: MetaInboundMessage,
+  text: string | null,
+  phoneE164: string,
+  eventId: string | null,
+): Promise<boolean> {
+  const humanId = conversation.human_id;
+  if (!humanId) return false;
+  const now = new Date();
+
+  // (a) List selection — a tap on a manage:<nonce>:<key> row.
+  const parsed = parseManageRowId(msg.interactive?.list_reply?.id);
+  if (parsed) {
+    const { data: session } = await supabase
+      .from("whatsapp_manage_sessions")
+      .select("id, human_id, action, status, expires_at")
+      .eq("id", parsed.nonce)
+      .maybeSingle();
+    const s = session as
+      | { id: string; human_id: string; action: string; status: string; expires_at: string }
+      | null;
+    if (!s || s.human_id !== humanId || s.status !== "pending_selection" || new Date(s.expires_at) < now) {
+      await sendManageText(
+        conversation.id,
+        'That selection has expired — just send "cancel" or "reschedule" again and I\'ll pull your bookings up. 🐾',
+      );
+      return true;
+    }
+    // Re-resolve live, re-validate, consume the nonce (single-use).
+    const { visits, dogSizes } = await resolveUpcomingGroupsForHuman(supabase, humanId, now);
+    await supabase
+      .from("whatsapp_manage_sessions")
+      .update({ status: "consumed", selected_key: parsed.visitKey })
+      .eq("id", s.id);
+    const visit = visits.find((v) => v.key === parsed.visitKey);
+    if (!visit) {
+      await sendManageText(
+        conversation.id,
+        'That booking is no longer available to manage — send "cancel" or "reschedule" again and I\'ll show you what\'s booked. 🐾',
+      );
+      return true;
+    }
+    await executeManageAction(
+      supabase,
+      conversation.id,
+      humanId,
+      phoneE164,
+      eventId,
+      s.action === "reschedule" ? "reschedule" : "cancel",
+      visit,
+      dogSizes,
+    );
+    return true;
+  }
+
+  // (b)/(c) Fresh intent — Cancel/Reschedule template button or typed text.
+  const btn = msg.button?.text?.trim().toLowerCase();
+  let action: "cancel" | "reschedule" | null = null;
+  if (btn === "cancel") action = "cancel";
+  else if (btn === "reschedule" || btn === "rebook") action = "reschedule";
+  else if (text) {
+    const intent = guessIntentFromText(text);
+    if (intent === "booking_cancel") action = "cancel";
+    else if (intent === "booking_change") action = "reschedule";
+  }
+  if (!action) return false;
+
+  // Debounce: a live cancel confirm already out, or a recent list/flow send.
+  if (action === "cancel" && (await hasLiveCancelAction(supabase, conversation.id))) {
+    await sendManageText(
+      conversation.id,
+      'You\'ve already got a cancellation waiting — just tap "Yes, cancel" or "No" on the message above. 🐾',
+    );
+    return true;
+  }
+  if (await recentlySentManageBooking(supabase, conversation.id)) return true;
+
+  const { visits, dogSizes } = await resolveUpcomingGroupsForHuman(supabase, humanId, now);
+  if (visits.length === 0) {
+    await sendManageText(
+      conversation.id,
+      "I can't see any upcoming grooms booked in for you just now. Want to book one in? 🐾",
+    );
+    return true;
+  }
+  if (visits.length === 1) {
+    await executeManageAction(supabase, conversation.id, humanId, phoneE164, eventId, action, visits[0], dogSizes);
+    return true;
+  }
+
+  // Multiple upcoming → nonce-backed list. Supersede any prior pending pick.
+  await supabase
+    .from("whatsapp_manage_sessions")
+    .update({ status: "superseded" })
+    .eq("human_id", humanId)
+    .eq("status", "pending_selection");
+  const { data: sess, error: sessErr } = await supabase
+    .from("whatsapp_manage_sessions")
+    .insert({
+      human_id: humanId,
+      conversation_id: conversation.id,
+      action,
+      candidate_visits: visits,
+      status: "pending_selection",
+    })
+    .select("id")
+    .single();
+  if (sessErr || !sess) {
+    console.error("handleManageBooking: manage session insert failed:", sessErr?.message);
+    await sendManageText(
+      conversation.id,
+      "Sorry — something went wrong pulling your bookings up. Please try again in a moment. 🐾",
+    );
+    return true;
+  }
+  await dispatchManageList(conversation.id, humanId, phoneE164, (sess as { id: string }).id, visits);
+  return true;
+}
+
 // Slot values the autonomous create path will write. Used as a final
 // guard in case parseBookingAction lets through a parseable-but-not-real
 // HH:MM. Reschedule's new_slot is validated against the same set.
@@ -2222,6 +2614,18 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               console.warn("mark_reminder_confirmed dispatch failed:", err);
             }
             continue; // quiet acknowledgement — no AI draft for a bare Confirm tap
+          }
+
+          // Manage-booking (Flow C): a recognised customer cancelling or
+          // rescheduling their own upcoming visit. MUST run before the
+          // known-customer staff gate below — otherwise "cancel"/"reschedule"
+          // map to booking_cancel/booking_change, which the booking-entry
+          // fast path ignores, and the message is silently swallowed (the live
+          // bug this fixes). Gated, and only acts when it recognises the
+          // intent; otherwise it returns false and we fall through.
+          if (WHATSAPP_MANAGE_BOOKING_ENABLED && conversation.human_id && !forceDraft) {
+            const handled = await handleManageBooking(supabase, conversation, msg, text, phoneE164, event.id);
+            if (handled) continue;
           }
 
           // Booking-entry fast path: a recognised customer asking for a NEW
