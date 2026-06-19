@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "runDirectory": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium",
+  "streamPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/data/stream.json",
+  "runStatePath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/run-state.json",
+  "latestActionPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/latest-action.json",
+  "paths": {
+    "streamPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/data/stream.json",
+    "runStatePath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/run-state.json",
+    "latestActionPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/latest-action.json"
+  },
+  "itemCount": 13,
+  "items": [
+    {
+      "id": "sticker-sheet-a4",
+      "title": "A4 Sticker Sheet",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-sheet-a4.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-sheet-a4.jpg",
+      "sourceImageUrl": "/generated/sticker-sheet-a4.png"
+    },
+    {
+      "id": "sticker-bookings-sorted",
+      "title": "Sticker - Bookings Sorted",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-bookings-sorted.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-bookings-sorted.jpg",
+      "sourceImageUrl": "/generated/sticker-bookings-sorted.png"
+    },
+    {
+      "id": "sticker-messages-calmer",
+      "title": "Sticker - Messages Calmer",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-messages-calmer.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-messages-calmer.jpg",
+      "sourceImageUrl": "/generated/sticker-messages-calmer.png"
+    },
+    {
+      "id": "sticker-capacity-ready",
+      "title": "Sticker - 2-2-1 Ready",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-capacity-ready.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-capacity-ready.jpg",
+      "sourceImageUrl": "/generated/sticker-capacity-ready.png"
+    },
+    {
+      "id": "sticker-join-the-pack",
+      "title": "Sticker - Join the Pack",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-join-the-pack.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-join-the-pack.jpg",
+      "sourceImageUrl": "/generated/sticker-join-the-pack.png"
+    },
+    {
+      "id": "sticker-launch-crew",
+      "title": "Sticker - Launch Crew",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-launch-crew.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-launch-crew.jpg",
+      "sourceImageUrl": "/generated/sticker-launch-crew.png"
+    },
+    {
+      "id": "sticker-built-for-grooming",
+      "title": "Sticker - Built for Grooming",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/sticker-built-for-grooming.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/sticker-built-for-grooming.jpg",
+      "sourceImageUrl": "/generated/sticker-built-for-grooming.png"
+    },
+    {
+      "id": "poster-software-launch-a3",
+      "title": "A3 Poster - Software Launch",
+      "caption": "posters",
+      "tone": "posters",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/poster-software-launch-a3.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/poster-software-launch-a3.jpg",
+      "sourceImageUrl": "/generated/poster-software-launch-a3.png"
+    },
+    {
+      "id": "poster-customer-portal-a3",
+      "title": "A3 Poster - Customer Portal",
+      "caption": "posters",
+      "tone": "posters",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/poster-customer-portal-a3.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/poster-customer-portal-a3.jpg",
+      "sourceImageUrl": "/generated/poster-customer-portal-a3.png"
+    },
+    {
+      "id": "banner-web-launch-1600x600",
+      "title": "Web Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/banner-web-launch-1600x600.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/banner-web-launch-1600x600.jpg",
+      "sourceImageUrl": "/generated/banner-web-launch-1600x600.png"
+    },
+    {
+      "id": "banner-social-launch-1200x628",
+      "title": "Social Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/banner-social-launch-1200x628.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/banner-social-launch-1200x628.jpg",
+      "sourceImageUrl": "/generated/banner-social-launch-1200x628.png"
+    },
+    {
+      "id": "banner-email-launch-1200x400",
+      "title": "Email Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/banner-email-launch-1200x400.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/banner-email-launch-1200x400.jpg",
+      "sourceImageUrl": "/generated/banner-email-launch-1200x400.png"
+    },
+    {
+      "id": "banner-story-launch-1080x1920",
+      "title": "Story Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/banner-story-launch-1080x1920.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/banner-story-launch-1080x1920.jpg",
+      "sourceImageUrl": "/generated/banner-story-launch-1080x1920.png"
+    }
+  ],
+  "visibleItemIds": [
+    "sticker-sheet-a4",
+    "sticker-bookings-sorted",
+    "sticker-messages-calmer",
+    "sticker-capacity-ready",
+    "sticker-join-the-pack",
+    "sticker-launch-crew",
+    "sticker-built-for-grooming",
+    "poster-software-launch-a3",
+    "poster-customer-portal-a3",
+    "banner-web-launch-1600x600",
+    "banner-social-launch-1200x628",
+    "banner-email-launch-1200x400",
+    "banner-story-launch-1080x1920"
+  ],
+  "hiddenImageIds": [],
+  "selectedImageIds": [],
+  "currentImageId": "sticker-sheet-a4",
+  "updatedAt": "2026-06-19T10:39:36.788949Z"
+}
