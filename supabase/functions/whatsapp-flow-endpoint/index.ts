@@ -352,7 +352,7 @@ async function handleDataExchange(
       state.dog_meta = meta;
       state.services = {};
       state.addons = {};
-      target = "DOG_1";
+      target = "DOG_A";
       break;
     }
     case "SELECT_DATE":
