@@ -192,7 +192,7 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
             type="button"
             onClick={onClose}
             aria-label="Close add dog"
-            className="bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="tap-target bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: headerTheme.text }}
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>

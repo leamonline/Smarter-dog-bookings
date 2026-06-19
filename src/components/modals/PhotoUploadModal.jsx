@@ -87,7 +87,7 @@ export function PhotoUploadModal({
         </h2>
         <button
           onClick={onClose}
-          className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
+          className="tap-target bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
           style={{ color: sizeTheme.headerText }}
         >
           {"\u00D7"}
