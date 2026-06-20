@@ -3,16 +3,16 @@ import AxeBuilder from '@axe-core/playwright';
 
 const ROUTES = [
   { path: '/services', heading: /How we look after your dog/i },
-  { path: '/houndsly', heading: /Coming Soon/i },
   { path: '/approach', heading: /Our approach/i },
   { path: '/faq', heading: /Frequently Asked Questions/i },
   { path: '/privacy', heading: /Privacy Policy/i },
   { path: '/terms', heading: /Terms/i },
   { path: '/matted-coat-policy', heading: /Matted Coat Policy/i },
-  // '/book' is intentionally omitted: it is a pure external redirect
-  // (ExternalRedirect -> window.location.replace to the customer portal), so an
-  // axe scan would race the navigation away. Its redirect is covered by the
-  // unit test src/components/ExternalRedirect.test.jsx.
+  // '/book' and '/houndsly' are intentionally omitted: both are pure external
+  // redirects (ExternalRedirect -> window.location.replace to the customer
+  // portal / houndsly.co.uk), so an axe scan would race the navigation away.
+  // The redirect behaviour is covered by the unit test
+  // src/components/ExternalRedirect.test.jsx.
 ];
 
 test.describe('Route accessibility', () => {
