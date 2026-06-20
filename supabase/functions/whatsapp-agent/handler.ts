@@ -790,8 +790,12 @@ async function buildContext(
     .order("sent_at", { ascending: false })
     .limit(20);
 
+  // Param annotated explicitly: the Supabase row type is resolved from a
+  // remote (esm.sh) type and can intermittently widen to `any`, which trips
+  // noImplicitAny in the Deno type-check. A local supertype keeps it stable.
   const history = (messages ?? []).reverse().map(
-    (m) => `${m.direction === "inbound" ? "Customer" : "Us"}: ${m.content ?? "(non-text)"}`,
+    (m: { direction: string | null; content: string | null }) =>
+      `${m.direction === "inbound" ? "Customer" : "Us"}: ${m.content ?? "(non-text)"}`,
   ).join("\n");
 
   const parts: string[] = [];
@@ -832,7 +836,14 @@ async function buildContext(
       .eq("human_id", humanId);
 
     if (dogs?.length) {
-      const dogLines = dogs.map((d) => {
+      const dogLines = dogs.map((d: {
+        id: string | null;
+        name: string | null;
+        breed: string | null;
+        size: string | null;
+        groom_notes: string | null;
+        alerts: unknown;
+      }) => {
         const alerts = Array.isArray(d.alerts) && d.alerts.length
           ? ` (alerts: ${d.alerts.join(", ")})`
           : "";
