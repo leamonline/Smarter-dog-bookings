@@ -35,7 +35,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
             disabled={!enabled}
             aria-pressed={active}
             aria-label={`Jump to ${letter === "#" ? "non-letter names" : `the letter ${letter}`}`}
-            className={`shrink-0 w-6 h-6 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
+            className={`shrink-0 w-7 h-7 max-md:w-9 max-md:h-9 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
               active
                 ? "bg-brand-yellow text-brand-purple"
                 : enabled
@@ -208,9 +208,9 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
                   rel="noopener noreferrer"
                   title="Open in WhatsApp"
                   aria-label="Open in WhatsApp"
-                  className="inline-flex items-center justify-center w-6 h-6 max-sm:w-9 max-sm:h-9 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+                  className="inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
                 >
-                  <MessageCircle size={12} aria-hidden="true" />
+                  <MessageCircle size={18} aria-hidden="true" />
                 </a>
               </>
             ) : (
@@ -259,9 +259,9 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
               rel="noopener noreferrer"
               title="Open in WhatsApp"
               aria-label="Open in WhatsApp"
-              className="inline-flex items-center justify-center w-6 h-6 max-sm:w-9 max-sm:h-9 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+              className="inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
             >
-              <MessageCircle size={12} aria-hidden="true" />
+              <MessageCircle size={18} aria-hidden="true" />
             </a>
           </div>
         ) : (

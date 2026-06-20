@@ -132,12 +132,12 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
       {/* Actions — reminder action (state-driven) kept distinct from the
           pick-up message action. */}
       {(cfg.action || showPickupMessage) && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mt-3 max-sm:flex-col">
           {cfg.action === "send" && (
             <button
               type="button"
               onClick={onSendReminder}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
             >
               <Send size={13} aria-hidden="true" />
               Send reminder
@@ -150,7 +150,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
                 `Hey, it's Smarter Dog Grooming Salon\n${titleCase(booking.dogName)} will be ready for collection in 15mins.\nSee you soon 🎓🐶❤️ X`,
               )}`}
               aria-label={`Send pickup-ready SMS to ${pickupName}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-[1.5px] border-slate-200 bg-white text-slate-700 text-[13px] font-bold no-underline cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-[1.5px] border-slate-200 bg-white text-slate-700 text-[13px] font-bold no-underline cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
             >
               <IconMessage size={14} colour="currentColor" />
               <span>Message {pickupName}</span>

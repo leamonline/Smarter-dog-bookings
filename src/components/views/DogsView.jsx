@@ -66,7 +66,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
             disabled={!enabled}
             aria-pressed={active}
             aria-label={`Jump to ${letter === "#" ? "non-letter names" : `the letter ${letter}`}`}
-            className={`shrink-0 w-6 h-6 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
+            className={`shrink-0 w-7 h-7 max-md:w-9 max-md:h-9 rounded-md text-micro font-bold flex items-center justify-center transition-colors ${
               active
                 ? "bg-brand-yellow text-brand-purple"
                 : enabled
