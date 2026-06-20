@@ -365,6 +365,7 @@ export function WeekCalendarView({
             ensureDogsForHumans={ensureDogsForHumans}
             onOpenHuman={onOpenHuman}
             waitlist={waitlist}
+            loading={waitlistLoading}
             error={waitlistError}
             joinWaitlist={joinWaitlist}
             leaveWaitlist={leaveWaitlist}

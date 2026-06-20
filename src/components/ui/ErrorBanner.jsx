@@ -2,6 +2,10 @@
 // the original global-banner styling; pass `title`, `retry`, or
 // `retryLabel` to customise. Use <InlineError /> for one-line,
 // in-form error messages instead.
+//
+// Tone guide: keep messages warm and empathetic — avoid cold tech-speak,
+// and use UK English throughout ("colour", "apologise", "Cancelled") to
+// match the salon's customer-facing voice.
 export function ErrorBanner({
   message,
   title = "Something went wrong",

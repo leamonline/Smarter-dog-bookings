@@ -13,6 +13,7 @@ export function WaitlistModal({
   ensureDogsForHumans,
   onOpenHuman,
   waitlist,
+  loading = false,
   error,
   joinWaitlist,
   leaveWaitlist,
@@ -118,7 +119,11 @@ export function WaitlistModal({
 
         <InlineError message={error} />
 
-        {waitlist.length > 0 ? (
+        {loading && (waitlist || []).length === 0 ? (
+          <div className="text-center text-xs italic text-slate-500 py-6">
+            Loading the waitlist…
+          </div>
+        ) : (waitlist || []).length > 0 ? (
           <ul className="list-none m-0 p-0 flex flex-col gap-1">
             {waitlist.map((entry) => {
               const h = entry.humans;

@@ -81,7 +81,7 @@ export function CustomerContextPanel({
           )}
 
           {loading ? (
-            <div className="py-6"><LoadingSpinner /></div>
+            <div className="py-6"><LoadingSpinner label="Loading customer…" /></div>
           ) : error ? (
             <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
               Couldn't load customer details: {error}

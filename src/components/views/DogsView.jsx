@@ -683,6 +683,13 @@ export function DogsView({
                         ? "Try clearing some filters or searching by breed or owner name."
                         : null
                     }
+                    action={
+                      searchQuery ? (
+                        <Button variant="ghost" onClick={() => onSearch("")}>
+                          Clear search
+                        </Button>
+                      ) : null
+                    }
                   />
                 </div>
               )}

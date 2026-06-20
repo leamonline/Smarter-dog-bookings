@@ -38,7 +38,7 @@ describe("CustomerContextPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByText("Loading customer…")).toBeInTheDocument();
     expect(screen.queryByText("Old Customer")).not.toBeInTheDocument();
     expect(screen.queryByText("Old Customer has one dog.")).not.toBeInTheDocument();
   });
