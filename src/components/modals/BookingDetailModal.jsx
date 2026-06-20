@@ -114,10 +114,17 @@ export function BookingDetailModal({
   const [reminderSentOverride, setReminderSentOverride] = useState(null);
 
   // A different booking opened in the same modal instance must not inherit
-  // the previous booking's override or open send modal.
+  // the previous booking's override, open send modal, or edit-mode state.
+  // resetEditState() rebuilds editData for the new booking and flips isEditing
+  // back off, so staff can't land in edit mode for the wrong booking.
   useEffect(() => {
     setReminderSentOverride(null);
     setShowSendReminder(false);
+    resetEditState();
+    // Keyed on booking.id only: resetEditState's identity also changes with
+    // date/dog props, and depending on it would wipe an in-progress edit on
+    // unrelated re-renders. We only want a reset when the booking itself swaps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking.id]);
 
   const editDateStr = toDateStr(editData.date);
