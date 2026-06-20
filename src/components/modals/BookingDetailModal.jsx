@@ -258,10 +258,10 @@ export function BookingDetailModal({
       onClose={handleCloseAttempt}
       titleId="booking-detail-title"
       accent={statusObj.border}
-      widthClass="w-[min(480px,95vw)]"
+      widthClass="w-[min(480px,93vw)]"
       maxHeightClass="max-h-[90vh]"
       dismissOnEscape={false}
-      bodyClassName="px-5 pt-1 pb-2"
+      bodyClassName="px-5 max-[400px]:px-3 pt-1 pb-2"
       // Marks every field in this modal for the iOS focus-zoom fix (≥16px
       // on touch, 13px only on mouse/desktop). See `.bm-fields` in index.css.
       rootClassName="bm-fields"

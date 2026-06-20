@@ -55,8 +55,11 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
         desc='Base prices per size — shown as "from" on the booking portal'
       />
       <CardBody>
+        {/* Header + rows scroll together on narrow screens so the price
+            columns stay aligned and legible instead of crushing the layout. */}
+        <div className="overflow-x-auto">
         {/* Header row */}
-        <div className="grid grid-cols-[1fr_90px_90px_90px_32px] gap-2 pb-2 border-b-2 border-slate-200 mb-1">
+        <div className="grid grid-cols-[1fr_90px_90px_90px_32px] gap-2 pb-2 border-b-2 border-slate-200 mb-1 min-w-[440px]">
           <span className={`${SECTION_LABEL_CLS} !mb-0`}>Service</span>
           <span className={`${SECTION_LABEL_CLS} !mb-0 text-center`}>
             <span className="inline-block w-2 h-2 rounded-full bg-size-small mr-0.5 align-middle" />
@@ -77,7 +80,7 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
         {currentServices.map((s, idx) => (
           <div
             key={s.id}
-            className={`grid grid-cols-[1fr_90px_90px_90px_32px] gap-2 items-center py-2.5 ${
+            className={`grid grid-cols-[1fr_90px_90px_90px_32px] gap-2 items-center py-2.5 min-w-[440px] ${
               idx < currentServices.length - 1 ? "border-b border-slate-200" : ""
             }`}
           >
@@ -116,6 +119,7 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
             </button>
           </div>
         ))}
+        </div>
 
         {/* Add service */}
         <div className="flex gap-2 mt-3 items-center">
