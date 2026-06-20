@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Calendar, LogIn, Droplets, Sparkles, Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import { SERVICES, STATUS_DISPLAY, BOOKING_STATUS, BOOKING_STATUSES } from "../../constants/index";
+import { SizeDot } from "../ui/SizeDot.jsx";
 import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
@@ -43,12 +44,6 @@ const STATUS_ICONS = {
   [BOOKING_STATUS.IN_BATH]: Droplets,
   [BOOKING_STATUS.READY_FOR_PICKUP]: Sparkles,
   [BOOKING_STATUS.COMPLETED]: Check,
-};
-
-const SIZE_TOOLTIP = {
-  small: "Small dog",
-  medium: "Medium dog",
-  large: "Large dog",
 };
 
 // Short human-readable timestamp for the override-badge tooltip:
@@ -279,13 +274,11 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         <div className="p-2 md:p-3 flex flex-col gap-0.5 md:gap-1">
         {/* Row 1: size dot + dog name (breed) + price */}
         <div className="flex items-baseline gap-2">
-          <span
-            className="w-3 h-3 rounded-full shrink-0 inline-block self-center"
-            style={{ background: sizeTheme.dot, boxShadow: `0 0 0 2px ${sizeTheme.dot}33` }}
-            role="img"
-            aria-label={SIZE_TOOLTIP[booking.size] || "Size not set"}
-            title={SIZE_TOOLTIP[booking.size] || "Size not set"}
-          />
+          {/* SizeDot carries a letter (S/M/L/?), so size isn't conveyed by
+              colour alone — WCAG 2.1 SC 1.4.1. */}
+          <span className="self-center inline-flex shrink-0">
+            <SizeDot size={booking.size} dim={16} />
+          </span>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
