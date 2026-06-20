@@ -38,6 +38,9 @@ export function BookingHeader({
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const ageYo = dogData?.age ? dogData.age.replace(" yrs", "yo") : "";
+  // Same size fallback the edit-state seed uses, so a service change here
+  // reseeds the price against the right size even if booking.size is blank.
+  const sizeForPricing = booking.size || dogData?.size || "small";
 
   // The booking's status colour — the same map the dashboard card uses,
   // so the pill and accent bar colour-match the card it was opened from.
@@ -158,6 +161,7 @@ export function BookingHeader({
         {isEditing && (
           <select
             value={editData.service}
+            aria-label="Service"
             onChange={(e) => {
               setEditData((prev) => ({
                 ...prev,
@@ -166,12 +170,12 @@ export function BookingHeader({
                   dogData?.customPrice !== undefined
                     ? dogData.customPrice
                     : getNumericPrice(
-                        getServicePriceLabel(e.target.value, booking.size),
+                        getServicePriceLabel(e.target.value, sizeForPricing),
                       ),
               }));
               setSaveError("");
             }}
-            className="mt-2 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800 focus:border-brand-teal"
+            className="mt-2 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-[13px] font-semibold outline-none cursor-pointer font-inherit text-slate-800 focus:border-brand-teal focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1"
           >
             {allowedServices.map((service) => (
               <option key={service.id} value={service.id}>
