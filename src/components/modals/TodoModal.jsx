@@ -104,14 +104,14 @@ export function TodoModal({ onClose }) {
                   type="button"
                   onClick={() => handleToggle(todo.id)}
                   aria-label={todo.done ? "Mark as not done" : "Mark as done"}
-                  className={`w-4 h-4 mt-0.5 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                  className={`w-5 h-5 max-md:w-6 max-md:h-6 mt-0.5 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
                     todo.done
                       ? "bg-brand-teal border-brand-teal text-white"
                       : "bg-white border-slate-300 hover:border-brand-teal"
                   }`}
                 >
                   {todo.done && (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
@@ -121,14 +121,14 @@ export function TodoModal({ onClose }) {
                   {todo.text}
                 </span>
 
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity shrink-0">
                   {i > 0 && (
                     <button
                       type="button"
                       onClick={() => handleMove(i, -1)}
                       aria-label="Move up"
                       title="Move up"
-                      className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
+                      className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 15l-6-6-6 6" /></svg>
                     </button>
@@ -139,7 +139,7 @@ export function TodoModal({ onClose }) {
                       onClick={() => handleMove(i, 1)}
                       aria-label="Move down"
                       title="Move down"
-                      className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
+                      className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
                     </button>
@@ -149,7 +149,7 @@ export function TodoModal({ onClose }) {
                     onClick={() => handleRemove(todo.id)}
                     aria-label="Delete"
                     title="Delete"
-                    className="w-5 h-5 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-brand-coral hover:bg-brand-coral/10"
+                    className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-brand-coral hover:bg-brand-coral/10"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>
