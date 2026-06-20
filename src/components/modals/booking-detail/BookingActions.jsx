@@ -55,8 +55,8 @@ export function BookingActions({
   const canSoftCancel = typeof onUpdate === "function" && booking?.status !== BOOKING_STATUS.CANCELLED;
 
   return (
-    <div className="px-5 pt-3 pb-3 bg-white border-t border-slate-100">
-      <div className="flex gap-2">
+    <div className="px-5 max-[400px]:px-3 pt-3 pb-3 bg-white border-t border-slate-100">
+      <div className="flex gap-2 max-[400px]:flex-col">
         {onReschedule && (
           <button
             onClick={onReschedule}

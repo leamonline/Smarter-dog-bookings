@@ -55,11 +55,11 @@ export function HoursSettings({ config, onUpdateConfig, canEdit = true }) {
       <CardHead variant="blue" title="Opening Hours & Closures" desc="Weekly schedule and holiday dates" />
       <CardBody>
         <div className={SECTION_LABEL_CLS}>Weekly Hours</div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 overflow-x-auto">
           {DAYS.map((day) => {
             const d = hours[day] || DEFAULT_BUSINESS_HOURS[day];
             return (
-              <div key={day} className="grid grid-cols-[80px_1fr_1fr_32px] gap-2 items-center py-1">
+              <div key={day} className="grid grid-cols-[80px_1fr_1fr_32px] gap-2 items-center py-1 min-w-[320px]">
                 <span className={`text-[13px] font-bold ${d.closed ? "text-brand-red" : "text-slate-800"}`}>
                   {day}
                 </span>
