@@ -71,7 +71,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
                 ? "bg-brand-yellow text-brand-purple"
                 : enabled
                   ? "text-slate-600 hover:bg-brand-purple/10 hover:text-brand-purple cursor-pointer"
-                  : "text-slate-300 cursor-default"
+                  : "text-slate-400 cursor-default"
             }`}
           >
             {letter}

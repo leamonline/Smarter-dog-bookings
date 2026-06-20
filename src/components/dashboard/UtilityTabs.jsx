@@ -71,7 +71,7 @@ export function UtilityTabs({
                   className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center leading-none ${
                     isActive
                       ? "bg-brand-yellow text-brand-purple"
-                      : "bg-brand-coral text-white"
+                      : "bg-brand-coral-dark text-white"
                   }`}
                 >
                   {count > 99 ? "99+" : count}

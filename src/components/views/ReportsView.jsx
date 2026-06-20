@@ -84,7 +84,7 @@ export function ReportsView({ loadError = null }) {
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-caption sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
                   selected
                     ? "bg-white text-slate-800 shadow-sm"
-                    : "bg-transparent text-slate-500 hover:text-slate-700"
+                    : "bg-transparent text-slate-600 hover:text-slate-800"
                 }`}
               >
                 {p.l}
