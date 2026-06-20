@@ -413,6 +413,8 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               className="flex-1 min-w-0 flex flex-col gap-[3px] animate-pop-in"
               role="listbox"
               aria-label="Set booking status"
+              aria-live="polite"
+              aria-atomic="true"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); }
@@ -427,6 +429,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                     type="button"
                     role="option"
                     aria-selected={isCurrent}
+                    aria-current={isCurrent ? "true" : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isCurrent) changeStatus(s.id);

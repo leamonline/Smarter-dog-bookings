@@ -520,7 +520,13 @@ export function NewBookingModal({
         >
           <div>
             <div id="new-booking-title" className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
-            <div className="text-xs mt-0.5" style={{ color: primaryTheme.headerTextSub }}>
+            <div
+              className="text-xs mt-0.5"
+              style={{ color: primaryTheme.headerTextSub }}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {headerSubtitle}
             </div>
           </div>
