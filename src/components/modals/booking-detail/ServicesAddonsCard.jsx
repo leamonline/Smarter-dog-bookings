@@ -39,15 +39,27 @@ export function ServicesAddonsCard({
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const activePrice = pricing.basePrice;
   const amountDue = pricing.amountDue;
+  // Mirror the size fallback used when customPrice is seeded
+  // (useBookingEditState) so the standard-rate comparison and any
+  // service-change reseed can't disagree if booking.size is missing.
+  const sizeForPricing = booking.size || dogData?.size || "small";
 
   if (isEditing) {
+    // Signal whether the shown base price is the standard rate for this
+    // service/size or a custom override carried on the dog, so staff don't
+    // mistake an overridden price for the salon's standard rate (#307).
+    const standardPrice = getNumericPrice(
+      getServicePriceLabel(editData.service, sizeForPricing),
+    );
+    const isCustomPrice = Number(editData.customPrice) !== Number(standardPrice);
+
     return (
       <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
         <DetailRow
           label={<LogisticsLabel text="Service" />}
           value={serviceObj?.name || currentService}
           editNode={
-            <select value={editData.service} onChange={(e) => { setEditData((prev) => ({ ...prev, service: e.target.value, customPrice: dogData?.customPrice !== undefined ? dogData.customPrice : getNumericPrice(getServicePriceLabel(e.target.value, booking.size)) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
+            <select value={editData.service} onChange={(e) => { setEditData((prev) => ({ ...prev, service: e.target.value, customPrice: dogData?.customPrice !== undefined ? dogData.customPrice : getNumericPrice(getServicePriceLabel(e.target.value, sizeForPricing)) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
               {allowedServices.map((service) => (<option key={service.id} value={service.id}>{service.name}</option>))}
             </select>
           }
@@ -66,9 +78,16 @@ export function ServicesAddonsCard({
         <DetailRow
           label={<FinanceLabel text="Base Price" />}
           value={
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold">{"£"}</span>
-              <input type="number" value={editData.customPrice} onChange={(e) => setEditData((prev) => ({ ...prev, customPrice: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold">{"£"}</span>
+                <input type="number" value={editData.customPrice} onChange={(e) => setEditData((prev) => ({ ...prev, customPrice: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+              </div>
+              <p className={`mt-1 text-[11px] font-semibold ${isCustomPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
+                {isCustomPrice
+                  ? `Custom price — standard is £${standardPrice}`
+                  : "Standard price"}
+              </p>
             </div>
           }
           isEditing={isEditing}

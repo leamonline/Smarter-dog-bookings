@@ -1,12 +1,20 @@
+import { useState } from "react";
 import { BOOKING_STATUS, BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
 export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   const toast = useToast();
   const currentStatus = booking.status || BOOKING_STATUS.BOOKED;
+  // A visually-hidden live region so screen-reader users hear the status
+  // change land — the radiogroup's aria-checked moving isn't announced on
+  // its own when the change is triggered programmatically (#299).
+  const [announcement, setAnnouncement] = useState("");
 
   return (
     <div className="mb-4">
+      <div className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </div>
       <div
         role="radiogroup"
         aria-label="Booking status"
@@ -40,6 +48,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                 // RLS error); the global error banner already surfaces the
                 // message, so suppress the success toast in that case.
                 if (result === null) return;
+                setAnnouncement(`Status changed to ${status.label}`);
                 const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
                 toast.show(
                   `Status: ${status.label}`,

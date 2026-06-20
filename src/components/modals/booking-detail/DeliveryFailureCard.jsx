@@ -46,7 +46,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
   const handleSavePhone = async () => {
     const normalised = normaliseUkMobile(phoneDraft);
     if (!normalised) {
-      setPhoneError("Enter a valid UK mobile (e.g. 07700 900123).");
+      setPhoneError("Enter a valid UK mobile (e.g. 07700 900 123).");
       return;
     }
     if (!primaryHuman || !onUpdateHuman) {
@@ -148,10 +148,16 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                     setPhoneDraft(e.target.value);
                     setPhoneError("");
                   }}
-                  placeholder="07700 900123"
+                  placeholder="07700 900 123"
                   aria-label="Correct mobile number"
+                  aria-invalid={phoneError ? "true" : "false"}
+                  aria-describedby={phoneError ? "delivery-phone-error" : undefined}
                   autoFocus
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-300 text-[13px] outline-none font-inherit text-slate-800 box-border focus:border-brand-teal"
+                  className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-[13px] outline-none font-inherit text-slate-800 box-border ${
+                    phoneError
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-slate-300 focus:border-brand-teal"
+                  }`}
                 />
                 <button
                   type="button"
@@ -163,7 +169,7 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
                 </button>
               </div>
               {phoneError && (
-                <p role="alert" className="mt-1 text-[11px] text-red-600 font-semibold">
+                <p id="delivery-phone-error" role="alert" className="mt-1 text-[11px] text-red-600 font-semibold">
                   {phoneError}
                 </p>
               )}

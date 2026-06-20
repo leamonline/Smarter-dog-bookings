@@ -268,7 +268,7 @@ describe("BookingDetailModal — card surfaces", () => {
     expect(screen.getAllByText("£42").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Reschedule booking" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel booking" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete booking" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete booking permanently" })).toBeInTheDocument();
   });
 
   it("edit mode surfaces the slot grid and save/cancel actions", () => {

@@ -27,11 +27,23 @@ export function BookingActions({
   if (isEditing) {
     return (
       <div className="px-5 py-3 flex flex-col gap-2 bg-white border-t border-slate-100">
-        {autosaveStatus && autosaveStatus !== "idle" && (
-          <div className="text-[11px] font-semibold text-slate-400 text-right">
-            {autosaveStatus === "saving" ? "Saving..." : "Saved"}
-          </div>
-        )}
+        {/* Persistent, colour-coded autosave status (#297): always-mounted
+            live region so screen readers hear it, with a tick on "Saved" and
+            enough contrast not to be missed on small screens. */}
+        <div role="status" aria-live="polite" className="flex justify-end min-h-[18px]">
+          {autosaveStatus === "saving" && (
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-600">
+              <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" aria-hidden="true" />
+              Saving…
+            </span>
+          )}
+          {autosaveStatus === "saved" && (
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand-green-700">
+              <IconTick size={13} colour="currentColor" />
+              Saved
+            </span>
+          )}
+        </div>
         <div className="flex gap-2.5">
         <button
           onClick={onCancelEdit}
@@ -81,11 +93,11 @@ export function BookingActions({
           <span>Cancel</span>
         </button>
       </div>
-      <div className="mt-2 flex justify-center">
+      <div className="mt-2">
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          aria-label="Delete booking"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-slate-400 hover:text-rose-600 bg-transparent border-none cursor-pointer font-inherit transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1"
+          aria-label="Delete booking permanently"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border-[1.5px] border-rose-300 text-[13px] font-bold text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />
@@ -93,7 +105,7 @@ export function BookingActions({
             <path d="M10 11v6M14 11v6" />
             <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
           </svg>
-          <span>Delete</span>
+          <span>Delete booking</span>
         </button>
       </div>
 
