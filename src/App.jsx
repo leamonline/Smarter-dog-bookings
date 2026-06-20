@@ -12,7 +12,6 @@ import { BOOKING_URL } from './constants/links';
 
 // Lazy-loaded routes for code splitting (homepage is eagerly loaded)
 const ServicesPage = lazy(() => import('./components/pages/ServicesPage'));
-const HoundslyPage = lazy(() => import('./components/pages/HoundslyPage'));
 const PrivacyPolicyPage = lazy(() => import('./components/pages/PrivacyPolicyPage'));
 const OurApproachPage = lazy(() => import('./components/pages/OurApproachPage'));
 const FAQPage = lazy(() => import('./components/pages/FAQPage'));
@@ -48,7 +47,7 @@ function App() {
           <Routes>
             <Route path="/" element={<SmarterDogHomepage />} />
             <Route path="/services" element={<ServicesPage />} />
-            <Route path="/houndsly" element={<HoundslyPage />} />
+            <Route path="/houndsly" element={<ExternalRedirect to="https://houndsly.co.uk/" message="Taking you to the Houndsly shop…" />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/approach" element={<OurApproachPage onBookClick={goToBooking} />} />
             <Route path="/faq" element={<FAQPage onBookClick={goToBooking} />} />

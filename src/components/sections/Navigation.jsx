@@ -69,14 +69,16 @@ const Navigation = ({ isLoaded }) => {
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
                     </Link>
 
-                    <Link
-                        to="/houndsly"
+                    <a
+                        href="https://houndsly.co.uk/"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="font-medium text-sm transition-colors relative group px-3 py-1 hover-wiggle"
                         style={{ color: navLinkColor }}
                     >
                         Houndsly
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
-                    </Link>
+                    </a>
 
                     <Link
                         to="/approach"
@@ -147,15 +149,17 @@ const Navigation = ({ isLoaded }) => {
                     >
                         Services
                     </Link>
-                    <Link
-                        to="/houndsly"
+                    <a
+                        href="https://houndsly.co.uk/"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-lg font-medium py-2 border-b border-gray-50"
                         style={{ color: colors.teal }}
                         onClick={closeMenu}
                         role="menuitem"
                     >
                         Houndsly
-                    </Link>
+                    </a>
                     <Link
                         to="/approach"
                         className="text-lg font-medium py-2 border-b border-gray-50"

@@ -45,11 +45,6 @@ const ROUTE_SEO = {
     description: 'Local dog walks, pet shops, vets, and pet sitters near Ashton-under-Lyne. Trusted recommendations from Smarter Dog Grooming Salon in Tameside.',
     robots: 'index,follow',
   },
-  '/houndsly': {
-    canonical: '/houndsly',
-    description: 'Houndsly shop updates from Smarter Dog Grooming Salon. This page is currently marked as coming soon.',
-    robots: 'noindex,nofollow',
-  },
 };
 
 const FAQ_SCHEMA = {
