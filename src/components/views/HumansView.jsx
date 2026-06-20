@@ -669,6 +669,13 @@ export function HumansView({
                         ? "Try searching by phone number or dog breed instead."
                         : null
                     }
+                    action={
+                      searchQuery ? (
+                        <Button variant="ghost" onClick={() => onSearch("")}>
+                          Clear search
+                        </Button>
+                      ) : null
+                    }
                   />
                 </div>
               )}

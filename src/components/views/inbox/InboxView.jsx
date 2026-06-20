@@ -606,7 +606,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           }`}
         >
           {loadingList ? (
-            <div className="p-4"><LoadingSpinner /></div>
+            <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
           ) : listError ? (
             <div role="alert" className="m-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <h2 className="text-sm font-bold text-amber-900">We can&apos;t load your messages right now</h2>
