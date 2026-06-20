@@ -121,6 +121,10 @@ export function AddressPicker({ existingAddress = "", onChange }) {
   }
 
   function enterManual() {
+    // Carry the postcode the customer already typed into manual entry so they
+    // don't have to re-key it — common when their flat/new-build isn't in PAF.
+    const carried = (normalisedPostcode || postcode).trim();
+    if (carried && !manualPostcode.trim()) setManualPostcode(carried.toUpperCase());
     setManualMode(true);
     setLookupStatus("idle");
     setResults([]);
@@ -215,21 +219,37 @@ export function AddressPicker({ existingAddress = "", onChange }) {
       </div>
 
       {lookupStatus === "results" && (
-        <select
-          aria-label="Select your address"
-          value={selectedIndex}
-          onChange={(e) => setSelectedIndex(e.target.value)}
-          className="portal-input mt-2.5 w-full"
-        >
-          <option value="">
-            {results.length} address{results.length === 1 ? "" : "es"} found — select yours…
-          </option>
-          {results.map((a, i) => (
-            <option key={a.udprn || i} value={String(i)}>
-              {a.line}
+        <>
+          <select
+            aria-label="Select your address"
+            value={selectedIndex}
+            onChange={(e) => {
+              // Flats, sub-divided houses and new builds aren't always in the
+              // Royal Mail data, so offer a one-tap route to manual entry that
+              // keeps the postcode they've already typed.
+              if (e.target.value === "__manual__") {
+                enterManual();
+                return;
+              }
+              setSelectedIndex(e.target.value);
+            }}
+            className="portal-input mt-2.5 w-full"
+          >
+            <option value="">
+              {results.length} address{results.length === 1 ? "" : "es"} found — select yours…
             </option>
-          ))}
-        </select>
+            {results.map((a, i) => (
+              <option key={a.udprn || i} value={String(i)}>
+                {a.line}
+              </option>
+            ))}
+            <option value="__manual__">My address isn&apos;t listed — enter it manually</option>
+          </select>
+          <p className="text-[12px] text-slate-400 mt-1">
+            Flats and brand-new builds sometimes don&apos;t show up — if yours
+            isn&apos;t here, you can enter it manually.
+          </p>
+        </>
       )}
 
       {lookupStatus === "invalid" && (

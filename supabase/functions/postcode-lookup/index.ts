@@ -21,6 +21,15 @@
 //   { postcode: "SK14 6JE", addresses: [ { line, postcode, udprn }, ... ] }
 //   (empty addresses array = valid request, no premises matched)
 //
+// Coverage note: APITier's postcode product is Royal Mail PAF only. PAF does
+// NOT include the Multiple Residence dataset (flats, sub-divided houses, halls
+// of residence, multi-business premises — ~800k UK addresses) or very new
+// builds, so those legitimately won't appear here and there's no APITier
+// parameter that adds them. The onboarding UI covers this gap with a
+// manual-entry fallback. A genuine completeness upgrade would mean moving to a
+// provider that exposes Multiple Residence / AddressBase (e.g. Ideal Postcodes,
+// getAddress.io, OS Places) — intentionally out of scope for now.
+//
 // Errors:
 //   400 — invalid/garbage postcode input
 //   429 — rate-limited

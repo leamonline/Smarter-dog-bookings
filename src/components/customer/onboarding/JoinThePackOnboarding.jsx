@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { submitCustomerSignup } from "../../../supabase/rpc";
+import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
@@ -88,7 +89,12 @@ function dogReady(d) {
 export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   const toast = useToast();
 
-  const [step, setStep] = useState(1);
+  // Persist the in-progress signup to localStorage so leaving the page (back
+  // button, refresh, tab close) doesn't wipe everything the customer typed.
+  const draftKey = `sdb:draft:signup:${humanRecord?.id ?? "anon"}`;
+  const { restored, save: saveDraft, clear: clearDraft } = useDraftPersistence(draftKey);
+
+  const [step, setStep] = useState(() => restored?.step ?? 1);
 
   // Owner. The phone is already verified (it's how they got here) and is
   // shown read-only — it's the username they sign in with.
@@ -97,16 +103,28 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   // surname "Pending <number>") to satisfy the NOT NULL / unique(name,
   // surname) constraints. Never prefill the form with that placeholder —
   // the boxes should start empty so the customer types their real name.
-  const [name, setName] = useState(realName(humanRecord?.name));
-  const [surname, setSurname] = useState(realSurname(humanRecord?.surname));
-  const [email, setEmail] = useState("");
-  const [addr, setAddr] = useState({ ready: false, address: null, postcode: null, keepingExisting: false });
-  const [policiesAccepted, setPoliciesAccepted] = useState(false);
+  const [name, setName] = useState(() => restored?.name ?? realName(humanRecord?.name));
+  const [surname, setSurname] = useState(() => restored?.surname ?? realSurname(humanRecord?.surname));
+  const [email, setEmail] = useState(() => restored?.email ?? "");
+  const [addr, setAddr] = useState(
+    () => restored?.addr ?? { ready: false, address: null, postcode: null, keepingExisting: false },
+  );
+  const [policiesAccepted, setPoliciesAccepted] = useState(() => restored?.policiesAccepted ?? false);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   // Dogs
-  const [dogs, setDogs] = useState([blankDog()]);
+  const [dogs, setDogs] = useState(() => restored?.dogs ?? [blankDog()]);
+
+  // A previously-resolved address reappears as a confirmable "keep this
+  // address" card via AddressPicker's existingAddress prop.
+  const existingAddressForPicker =
+    restored?.addr?.address || humanRecord?.address?.trim() || "";
+
+  // Save a snapshot whenever any field changes.
+  useEffect(() => {
+    saveDraft({ step, name, surname, email, addr, policiesAccepted, dogs });
+  }, [saveDraft, step, name, surname, email, addr, policiesAccepted, dogs]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -178,6 +196,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       setError(err.message || "We couldn't save your details. Please try again.");
       return;
     }
+    clearDraft();
     toast.show("Thanks — your details are in!", "success");
     await onComplete?.();
   }
@@ -248,7 +267,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
             <fieldset className="mb-5">
               <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">Your address</legend>
-              <AddressPicker existingAddress={humanRecord?.address?.trim() || ""} onChange={setAddr} />
+              <AddressPicker existingAddress={existingAddressForPicker} onChange={setAddr} />
             </fieldset>
 
             <fieldset className="mb-5">
