@@ -105,6 +105,12 @@ export function WeekCalendarView({
   const isOpen = currentSettings.isOpen;
   const dayBookings = bookingsByDate[currentDateStr] || [];
 
+  // Clicking a delivery-failure row jumps the calendar to that booking's day
+  // (noon-anchored to dodge TZ rollover) so staff can open it and resend.
+  const handleSelectFailure = (failure) => {
+    if (failure?.bookingDate) handleDatePick(new Date(`${failure.bookingDate}T12:00:00`));
+  };
+
   const navigateDay = (delta) => {
     const target = new Date(currentDateObj);
     target.setDate(target.getDate() + delta);
@@ -269,7 +275,10 @@ export function WeekCalendarView({
               <div className="xl:hidden">
                 {failures.count > 0 && (
                   <div className="mb-3">
-                    <DeliveryFailuresCard data={failures} />
+                    <DeliveryFailuresCard
+                      data={failures}
+                      onSelectFailure={handleSelectFailure}
+                    />
                   </div>
                 )}
                 <UtilityTabs
@@ -289,6 +298,7 @@ export function WeekCalendarView({
                 <RightWorkflowSidebar
                   onOpenWaitlist={() => setShowWaitlist(true)}
                   onOpenTodos={() => setShowTodos(true)}
+                  onSelectFailure={handleSelectFailure}
                 />
               </div>
             </>

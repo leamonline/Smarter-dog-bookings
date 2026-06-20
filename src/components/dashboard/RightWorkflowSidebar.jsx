@@ -29,7 +29,7 @@ import { resolveTodosTone } from "./tone/todos";
 
 const TONE_RANK = { attention: 0, active: 1, calm: 2 };
 
-export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
+export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFailure }) {
   const navigate = useNavigate();
   const inboxData = useWhatsAppSummary();
   const remindersData = useTomorrowReminders();
@@ -81,7 +81,12 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
                 key: "delivery-failures",
                 tone: { tone: "attention", urgency: 100 },
                 canonicalIndex: -1,
-                node: <DeliveryFailuresCard data={failuresData} />,
+                node: (
+                  <DeliveryFailuresCard
+                    data={failuresData}
+                    onSelectFailure={onSelectFailure}
+                  />
+                ),
               },
             ]
           : []),
@@ -142,6 +147,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos }) {
       navigate,
       onOpenWaitlist,
       onOpenTodos,
+      onSelectFailure,
     ],
   );
 

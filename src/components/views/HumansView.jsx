@@ -344,6 +344,7 @@ export function HumansView({
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
+  const [archivedError, setArchivedError] = useState(null);
   const [viewMode, setViewModeState] = useState(() =>
     typeof localStorage !== "undefined" && localStorage.getItem("humansViewMode") === "list"
       ? "list"
@@ -372,17 +373,25 @@ export function HumansView({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [dogs, dogsByHumanId, hasSearchQuery, humans, searchQuery]);
 
-  // Load the archived set the first time the toggle is switched on.
+  // Load the archived set the first time the toggle is switched on. On failure
+  // we stash an error (instead of spinning on "Loading archived…" forever);
+  // clearing it via the retry button re-runs this effect.
   useEffect(() => {
-    if (!showArchived || archivedList !== null || !fetchArchivedHumans) return;
+    if (!showArchived || archivedList !== null || archivedError || !fetchArchivedHumans) return;
     let cancelled = false;
-    fetchArchivedHumans().then((rows) => {
-      if (!cancelled) setArchivedList(rows || []);
-    });
+    fetchArchivedHumans()
+      .then((rows) => {
+        if (!cancelled) setArchivedList(rows || []);
+      })
+      .catch(() => {
+        if (!cancelled) setArchivedError("Couldn't load archived humans.");
+      });
     return () => {
       cancelled = true;
     };
-  }, [showArchived, archivedList, fetchArchivedHumans]);
+  }, [showArchived, archivedList, archivedError, fetchArchivedHumans]);
+
+  const retryArchived = useCallback(() => setArchivedError(null), []);
 
   const handleUnarchive = async (humanId) => {
     if (!onUpdateHuman) return;
@@ -612,6 +621,13 @@ export function HumansView({
           {/* Card grid — skeleton during the initial fetch. */}
           {!showArchived && isInitialLoading && displayList.length === 0 ? (
             <CardGridSkeleton rows={3} cols={3} />
+          ) : showArchived && archivedList === null && archivedError ? (
+            <ErrorBanner
+              title="Couldn't load archived humans"
+              message="Check your connection and try again."
+              retry={retryArchived}
+              retryLabel="Try again"
+            />
           ) : showArchived && archivedList === null ? (
             <div className="py-12 text-center text-body text-slate-500 italic">
               Loading archived…

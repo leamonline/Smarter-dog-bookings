@@ -28,26 +28,46 @@ function fmtDate(iso) {
   }
 }
 
-export function DeliveryFailuresCard({ bare = false, data }) {
+export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
   const fallback = useDeliveryFailures();
   const { failures, count, loading } = data ?? fallback;
   const tone = count > 0 ? "attention" : "calm";
 
+  const rowClass =
+    "text-[12px] bg-white/70 border border-red-100 rounded-lg px-2 py-1.5";
+
   const list = (
     <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-      {failures.map((f) => (
-        <li
-          key={f.bookingId}
-          className="text-[12px] bg-white/70 border border-red-100 rounded-lg px-2 py-1.5"
-        >
-          <span className="font-semibold text-red-900">{f.customerName}</span>
-          {f.dogName && <span className="text-red-700/70"> · {f.dogName}</span>}
-          <span className="block text-[11px] text-red-600">
-            {f.triggers.map(triggerLabel).join(", ")} failed
-            {f.bookingDate ? ` · ${fmtDate(f.bookingDate)}` : ""}
-          </span>
-        </li>
-      ))}
+      {failures.map((f) => {
+        const body = (
+          <>
+            <span className="font-semibold text-red-900">{f.customerName}</span>
+            {f.dogName && <span className="text-red-700/70"> · {f.dogName}</span>}
+            <span className="block text-[11px] text-red-600">
+              {f.triggers.map(triggerLabel).join(", ")} failed
+              {f.bookingDate ? ` · ${fmtDate(f.bookingDate)}` : ""}
+            </span>
+          </>
+        );
+        return (
+          <li key={f.bookingId}>
+            {onSelectFailure ? (
+              // Each row jumps the calendar to that booking's day so staff can
+              // open it and resend (the fix lives on the booking itself).
+              <button
+                type="button"
+                onClick={() => onSelectFailure(f)}
+                aria-label={`Open ${f.customerName}'s booking${f.bookingDate ? ` on ${fmtDate(f.bookingDate)}` : ""} to resend`}
+                className={`${rowClass} w-full text-left cursor-pointer hover:bg-white hover:border-red-200 transition-colors`}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className={rowClass}>{body}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 
