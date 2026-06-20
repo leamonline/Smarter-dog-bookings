@@ -73,13 +73,17 @@ export function NotificationSettings({ config, onUpdateConfig, canEdit = true })
                   const s = CHANNEL_STYLES[ch];
                   const isActive = activeChannels.includes(ch);
                   return (
-                    <span
+                    <button
                       key={ch}
+                      type="button"
                       onClick={() => toggleNotifChannel(row.key, ch)}
-                      className={`text-micro font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight motion-safe:transition-all select-none ${
+                      disabled={!canEdit || !n.enabled}
+                      aria-pressed={isActive}
+                      aria-label={`${s.label} ${isActive ? "on" : "off"}`}
+                      className={`text-micro font-bold px-2.5 py-1 rounded-lg uppercase tracking-tight motion-safe:transition-all select-none font-[inherit] ${
                         canEdit && n.enabled
                           ? "cursor-pointer opacity-100"
-                          : "cursor-not-allowed opacity-40 pointer-events-none"
+                          : "cursor-not-allowed opacity-40"
                       }`}
                       style={{
                         background: isActive ? s.bg : "#F1F3F5",
@@ -88,7 +92,7 @@ export function NotificationSettings({ config, onUpdateConfig, canEdit = true })
                       }}
                     >
                       {s.label}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
