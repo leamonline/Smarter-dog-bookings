@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { getSizeForBreed } from "../../constants/index";
-import { AlertTriangle, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AddHumanModal } from "../modals/AddHumanModal.jsx";
@@ -9,7 +9,7 @@ import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
-import { Button, EmptyState } from "../ui/index.js";
+import { Button, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
 const AZ_LETTERS = [
@@ -48,21 +48,6 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
         );
       })}
     </nav>
-  );
-}
-
-// History-flag reason, shown as visible (screen-reader-readable) text next to
-// a coral line icon (currentColor inherits the chip's coral text). Truncated on
-// the card; the profile shows it in full.
-function FlagChip({ flag, className = "" }) {
-  return (
-    <span
-      title={flag}
-      className={`inline-flex items-center gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md ${className}`}
-    >
-      <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
-      <span className="truncate">{flag}</span>
-    </span>
   );
 }
 
@@ -191,7 +176,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-slate-800 truncate">{titleCase(fullName)}</span>
-            {human.historyFlag && <FlagChip flag={human.historyFlag} className="shrink-0 max-w-[45%]" />}
+            {human.historyFlag && <SafetyAlertChip items={[human.historyFlag]} className="shrink-0 max-w-[45%]" />}
           </div>
           <div
             className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0"
@@ -276,7 +261,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           </div>
         )}
 
-        {human.historyFlag && <FlagChip flag={human.historyFlag} className="mt-1 self-start" />}
+        {human.historyFlag && <SafetyAlertChip items={[human.historyFlag]} className="mt-1 self-start" />}
 
         {humanDogs.length === 0 && !showArchived ? (
           // Data-hygiene nudge: a one-off enquiry with no dog on file. Opens
