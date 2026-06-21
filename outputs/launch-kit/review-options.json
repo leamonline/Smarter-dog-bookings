@@ -1,0 +1,9 @@
+{
+  "title": "SmarterDog Launch Kit",
+  "summary": "Launch stickers, posters and promotional banners for the SmarterDog Salon Booking Platform.",
+  "preset": "image-wall",
+  "showCaptions": true,
+  "showControls": true,
+  "minTileWidth": 260,
+  "contactSheetOutput": "launch-kit-contact-sheet.png"
+}

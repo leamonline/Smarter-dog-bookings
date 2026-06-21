@@ -1,0 +1,14 @@
+{
+  "id": "review-renderer-materialized",
+  "action": "write_moodboard_widget_payload",
+  "label": "Materialized Creative Production image review",
+  "createdAt": "2026-06-19T10:39:36.788949Z",
+  "timestamp": "2026-06-19T10:39:36.788949Z",
+  "title": "SmarterDog Premium Launch Direction",
+  "summary": "Premium launch direction using real product screenshots, stronger hierarchy and bold badge-style stickers.",
+  "itemCount": 13,
+  "runDirectory": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium",
+  "streamPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/data/stream.json",
+  "runStatePath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/run-state.json",
+  "latestActionPath": "/Users/leamonline/Documents/GitHub/Smarter-dog-bookings/outputs/launch-kit-premium/latest-action.json"
+}

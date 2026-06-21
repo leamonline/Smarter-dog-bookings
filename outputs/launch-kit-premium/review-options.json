@@ -1,0 +1,9 @@
+{
+  "title": "SmarterDog Premium Launch Direction",
+  "summary": "Premium launch direction using real product screenshots, stronger hierarchy and bold badge-style stickers.",
+  "preset": "image-wall",
+  "showCaptions": true,
+  "showControls": true,
+  "minTileWidth": 280,
+  "contactSheetOutput": "review-contact-sheet.png"
+}

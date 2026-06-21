@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "title": "SmarterDog Launch Kit",
+    "summary": "Launch stickers, posters and promotional banners for the SmarterDog Salon Booking Platform.",
+    "source": "review_renderer",
+    "itemCount": 16
+  },
+  "items": [
+    {
+      "id": "sticker-sheet-a4",
+      "title": "A4 Launch Sticker Sheet",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-sheet-a4.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-sheet-a4.jpg",
+      "sourceImageUrl": "generated/sticker-sheet-a4.png"
+    },
+    {
+      "id": "sticker-bookings-sorted",
+      "title": "Bookings Sorted Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-bookings-sorted.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-bookings-sorted.jpg",
+      "sourceImageUrl": "generated/sticker-bookings-sorted.png"
+    },
+    {
+      "id": "sticker-whatsapp-calm",
+      "title": "WhatsApp Calm Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-whatsapp-calm.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-whatsapp-calm.jpg",
+      "sourceImageUrl": "generated/sticker-whatsapp-calm.png"
+    },
+    {
+      "id": "sticker-capacity-ready",
+      "title": "2-2-1 Ready Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-capacity-ready.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-capacity-ready.jpg",
+      "sourceImageUrl": "generated/sticker-capacity-ready.png"
+    },
+    {
+      "id": "sticker-join-the-pack",
+      "title": "Join the Pack Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-join-the-pack.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-join-the-pack.jpg",
+      "sourceImageUrl": "generated/sticker-join-the-pack.png"
+    },
+    {
+      "id": "sticker-message-pile-ups",
+      "title": "No More Message Pile-ups Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-message-pile-ups.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-message-pile-ups.jpg",
+      "sourceImageUrl": "generated/sticker-message-pile-ups.png"
+    },
+    {
+      "id": "sticker-book-groom-remind-repeat",
+      "title": "Book Groom Remind Repeat Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-book-groom-remind-repeat.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-book-groom-remind-repeat.jpg",
+      "sourceImageUrl": "generated/sticker-book-groom-remind-repeat.png"
+    },
+    {
+      "id": "sticker-ready-for-pickup",
+      "title": "Ready for Pickup Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-ready-for-pickup.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-ready-for-pickup.jpg",
+      "sourceImageUrl": "generated/sticker-ready-for-pickup.png"
+    },
+    {
+      "id": "sticker-launch-crew",
+      "title": "Launch Crew Sticker",
+      "caption": "stickers",
+      "tone": "stickers",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/sticker-launch-crew.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/sticker-launch-crew.jpg",
+      "sourceImageUrl": "generated/sticker-launch-crew.png"
+    },
+    {
+      "id": "poster-salon-day-organised-a3",
+      "title": "Poster - Salon Day",
+      "caption": "posters",
+      "tone": "posters",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/poster-salon-day-organised-a3.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/poster-salon-day-organised-a3.jpg",
+      "sourceImageUrl": "generated/poster-salon-day-organised-a3.png"
+    },
+    {
+      "id": "poster-not-generic-appointment-book-a3",
+      "title": "Poster - Grooming Specific",
+      "caption": "posters",
+      "tone": "posters",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/poster-not-generic-appointment-book-a3.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/poster-not-generic-appointment-book-a3.jpg",
+      "sourceImageUrl": "generated/poster-not-generic-appointment-book-a3.png"
+    },
+    {
+      "id": "poster-join-the-pack-a3",
+      "title": "Poster - Join The Pack",
+      "caption": "posters",
+      "tone": "posters",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/poster-join-the-pack-a3.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/poster-join-the-pack-a3.jpg",
+      "sourceImageUrl": "generated/poster-join-the-pack-a3.png"
+    },
+    {
+      "id": "banner-web-launch-1600x600",
+      "title": "Web Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/banner-web-launch-1600x600.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/banner-web-launch-1600x600.jpg",
+      "sourceImageUrl": "generated/banner-web-launch-1600x600.png"
+    },
+    {
+      "id": "banner-social-one-calm-dashboard-1200x628",
+      "title": "Social Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/banner-social-one-calm-dashboard-1200x628.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/banner-social-one-calm-dashboard-1200x628.jpg",
+      "sourceImageUrl": "generated/banner-social-one-calm-dashboard-1200x628.png"
+    },
+    {
+      "id": "banner-email-now-launching-1200x400",
+      "title": "Email Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/banner-email-now-launching-1200x400.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/banner-email-now-launching-1200x400.jpg",
+      "sourceImageUrl": "generated/banner-email-now-launching-1200x400.png"
+    },
+    {
+      "id": "banner-story-bookings-sorted-1080x1920",
+      "title": "Story Banner",
+      "caption": "banners",
+      "tone": "banners",
+      "prompt": "",
+      "imageUrl": "generated/mcp-thumbs/banner-story-bookings-sorted-1080x1920.jpg",
+      "previewImageUrl": "generated/mcp-thumbs/banner-story-bookings-sorted-1080x1920.jpg",
+      "sourceImageUrl": "generated/banner-story-bookings-sorted-1080x1920.png"
+    }
+  ]
+}
