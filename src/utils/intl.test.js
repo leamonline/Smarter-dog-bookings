@@ -36,4 +36,14 @@ describe("formatDelta", () => {
     expect(formatDelta(NaN, 100)).toBe("—");
     expect(formatDelta(100, Infinity)).toBe("—");
   });
+  it("caps an extreme swing off a near-zero baseline instead of printing noise", () => {
+    // £1 last period → £8 this period would read "+700%"; off a near-zero
+    // baseline that's noise, so the magnitude is capped.
+    expect(formatDelta(80, 1)).toBe(">+999%");
+    expect(formatDelta(1, 80)).toBe("-99%");
+    // A genuinely large but sub-cap swing is still shown verbatim.
+    expect(formatDelta(900, 100)).toBe("+800%");
+    // The symmetric negative cap (defensive; needs a negative current).
+    expect(formatDelta(-9000, 1)).toBe("<-999%");
+  });
 });

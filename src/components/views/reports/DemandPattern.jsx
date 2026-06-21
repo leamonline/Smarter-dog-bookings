@@ -37,7 +37,7 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
                   style={{ height: `${h}%` }}
                   aria-label={`${d.label}: ${d.n} booking${d.n !== 1 ? "s" : ""}`}
                 />
-                <div className="text-micro font-bold text-slate-600 mt-1">{d.label}</div>
+                <div className="text-caption font-bold text-slate-600 mt-1">{d.label}</div>
               </div>
             );
           })}

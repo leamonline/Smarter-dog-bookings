@@ -7,15 +7,21 @@ import { BOOKING_STATUS } from "../../../constants/salon";
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's
   // no meaningful percentage to display in that case, so the badge is
-  // suppressed entirely (rendered as a small em-dash placeholder).
+  // suppressed entirely (rendered as a small em-dash placeholder). It can
+  // also cap an extreme swing off a near-zero baseline as ">+999%"/"<-999%".
   const delta = formatDelta(cur, prev);
   if (delta === "\u2014") return <span className="text-caption font-bold text-ink-muted px-1.5">{"\u2014"}</span>;
   if (prev === 0 && cur === 0) return null;
-  const up = delta.startsWith("+");
+  // Direction comes from the values, not the string, so the capped
+  // ">+999%"/"<-999%" forms (which don't start with a bare +/-) are
+  // classified correctly.
+  const up = cur > prev;
   const good = invert ? !up : up;
+  // Strip the leading sign but keep a ">"/"<" cap marker if present.
+  const magnitude = delta.replace(/^([<>]?)[+-]?/, "$1");
   return (
-    <span className={`inline-flex items-center gap-0.5 text-caption font-bold px-1.5 py-0.5 rounded-full ${good ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"}`}>
-      {up ? "\u2191" : "\u2193"} {delta.replace(/^[+-]/, "")}
+    <span className={`inline-flex items-center gap-0.5 text-caption font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${good ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"}`}>
+      {up ? "\u2191" : "\u2193"} {magnitude}
     </span>
   );
 }
