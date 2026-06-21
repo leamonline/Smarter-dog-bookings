@@ -9,6 +9,7 @@ export { SectionLabel } from "./SectionLabel.jsx";
 export { EmptyState } from "./EmptyState.jsx";
 export { Spinner } from "./Spinner.jsx";
 export { StatusPill } from "./StatusPill.jsx";
+export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
 
 // Existing primitives reused as-is
 export { SizeDot } from "./SizeDot.jsx";

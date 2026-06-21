@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
-import { AlertTriangle, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
@@ -11,7 +11,7 @@ import { filterDogsForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
-import { Button, Badge, EmptyState } from "../ui/index.js";
+import { Button, Badge, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
 const AZ_LETTERS = [
@@ -79,23 +79,6 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
         );
       })}
     </nav>
-  );
-}
-
-// A dog's alert(s), shown as visible (screen-reader-readable) text next to a
-// coral warning icon. Truncated on the card; the profile shows them in full.
-function AlertChip({ alerts, className = "" }) {
-  if (!alerts?.length) return null;
-  const text = alerts.length > 1 ? `${alerts[0]} +${alerts.length - 1}` : alerts[0];
-  return (
-    <span
-      title={alerts.join(", ")}
-      aria-label={alerts.join(", ")}
-      className={`inline-flex items-center gap-1 max-w-full text-micro font-semibold text-brand-coral-text bg-brand-coral-light border border-brand-coral/20 px-1.5 py-0.5 rounded-md ${className}`}
-    >
-      <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
-      <span className="truncate">{text}</span>
-    </span>
   );
 }
 
@@ -217,7 +200,7 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
                 Incomplete
               </Badge>
             )}
-            {dog.alerts?.length > 0 && <AlertChip alerts={dog.alerts} className="shrink-0 max-w-[45%]" />}
+            {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="shrink-0 max-w-[45%]" />}
           </div>
           <div className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0">
             <span className="truncate shrink-0">
@@ -276,7 +259,7 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
         </div>
 
-        {dog.alerts?.length > 0 && <AlertChip alerts={dog.alerts} className="mt-1 self-start" />}
+        {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="mt-1 self-start" />}
 
         {/* Owner — pushed to bottom. While humans are still loading we can't
             tell "missing owner" from "owner row hasn't arrived yet", so show a
