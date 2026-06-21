@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -39,18 +40,34 @@ jobs:
       - run: deno test --node-modules-dir=none --allow-env supabase/functions/whatsapp-agent/__tests__/
 
   e2e:
+    # Playwright is by far the heaviest CI consumer (npm ci + browser
+    # download + the run), so the full browser pass only happens on push
+    # to main and on manual dispatch. On pull requests this job reports
+    # success without spinning up browsers: that keeps the `e2e` status
+    # check green — so branch protection is never left hanging — while
+    # saving the bulk of the Actions minutes that every PR push used to
+    # burn. To run e2e against a branch on demand, use the "Run workflow"
+    # button (workflow_dispatch) on the CI workflow.
     runs-on: ubuntu-latest
     steps:
+      - name: Skip on pull requests
+        if: github.event_name == 'pull_request'
+        run: echo "Skipping Playwright e2e on pull requests to conserve Actions minutes — it runs on push to main and via workflow_dispatch."
       - uses: actions/checkout@v6
+        if: github.event_name != 'pull_request'
       - uses: actions/setup-node@v6
+        if: github.event_name != 'pull_request'
         with:
           node-version: 20
           cache: npm
       - run: npm ci
+        if: github.event_name != 'pull_request'
       - name: Install Playwright browsers
+        if: github.event_name != 'pull_request'
         run: npx playwright install --with-deps chromium
       - run: npm run e2e
-      - if: always()
+        if: github.event_name != 'pull_request'
+      - if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
