@@ -17,9 +17,10 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
 
   return (
     <Section title={isWeekly ? "Weekly Revenue Trend" : "Daily Revenue"} accent="var(--color-brand-teal)" insight={insight}>
-      <div className="flex gap-2 h-[90px]">
-        {/* Y-axis: three ticks (max, half, 0) for readability. */}
-        <div className="flex flex-col justify-between text-micro text-ink-muted font-semibold tabular-nums w-7 text-right pr-0.5 shrink-0">
+      <div className="flex gap-2 h-[90px] sm:h-[110px]">
+        {/* Y-axis: three ticks (max, half, 0) for readability. The width
+            is wide enough for "£999" so the largest tick never clips. */}
+        <div className="flex flex-col justify-between text-caption text-ink-muted font-semibold tabular-nums w-9 text-right pr-0.5 shrink-0">
           {ticks.map((t) => (
             <span key={t} aria-hidden="true">£{t}</span>
           ))}
@@ -56,11 +57,11 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
           </div>
         </div>
       </div>
-      <div className="flex gap-[2px] mt-1.5 ml-9">
+      <div className="flex gap-[2px] mt-1.5 ml-11">
         {chart.map((bar, i) => (
           <div key={i} className="flex-1 text-center">
             {chartLabels.includes(i) && (
-              <span className="text-micro text-ink-muted font-semibold">
+              <span className="text-caption text-ink-muted font-semibold">
                 {days <= 7 ? fmtLabel(bar.date, false) : fmtLabel(bar.date, true)}
               </span>
             )}

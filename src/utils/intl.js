@@ -37,13 +37,22 @@ export function pluralCount(n, singular, plural) {
  * no rate of change you can divide by. Also returns "—" when both
  * values are zero.
  *
+ * Off a near-zero baseline a single booking can swing the percentage
+ * by hundreds of points (the June 2026 review flagged a "+628%" delta
+ * off a near-zero baseline). Rather than print misleading noise, the
+ * magnitude is capped at ±999% and rendered as ">+999%" / "<-999%".
+ *
  * Otherwise returns a signed string like "+12%" or "-4%".
  */
+const DELTA_CAP_PCT = 999;
+
 export function formatDelta(current, previous) {
   if (!Number.isFinite(current) || !Number.isFinite(previous)) return "—";
   if (previous === 0) return "—";
   const pct = ((current - previous) / previous) * 100;
   const rounded = Math.round(pct);
   if (rounded === 0) return "0%";
+  if (rounded > DELTA_CAP_PCT) return `>+${DELTA_CAP_PCT}%`;
+  if (rounded < -DELTA_CAP_PCT) return `<-${DELTA_CAP_PCT}%`;
   return rounded > 0 ? `+${rounded}%` : `${rounded}%`;
 }

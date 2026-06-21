@@ -131,8 +131,9 @@ export function WeeklySnapshot() {
           </div>
         </div>
 
-        {/* Day strip */}
-        <div className="flex gap-1.5 sm:gap-2 items-end h-[68px] mb-3">
+        {/* Day strip — shorter on phones so the bars don't crowd the
+            stacked day/£ labels below them. */}
+        <div className="flex gap-1.5 sm:gap-2 items-end h-[52px] sm:h-[68px] mb-3">
           {thisWeekData.map((day) => {
             const isClosed = day.count === 0 && day.revenue === 0;
             return (
@@ -144,10 +145,10 @@ export function WeeklySnapshot() {
                   style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
                   aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
                 />
-                <div className={`text-micro sm:text-caption font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
+                <div className={`text-caption font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
                   {day.label}
                 </div>
-                <div className="text-micro font-semibold text-ink-muted">
+                <div className="text-caption font-semibold text-ink-muted">
                   {isClosed ? "—" : `£${day.revenue}`}
                 </div>
               </div>
