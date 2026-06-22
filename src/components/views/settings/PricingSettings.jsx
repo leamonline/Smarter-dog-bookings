@@ -109,7 +109,7 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
               onClick={() => deleteService(s.id)}
               disabled={!canEdit}
               aria-label={`Delete ${s.name} service`}
-              className={`w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all ${
+              className={`tap-target w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all ${
                 canEdit
                   ? "cursor-pointer hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
                   : "cursor-not-allowed opacity-60"

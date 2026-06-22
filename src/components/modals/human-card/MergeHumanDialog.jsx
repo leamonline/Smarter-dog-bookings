@@ -179,7 +179,7 @@ export function MergeHumanDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 transition-colors shrink-0"
+            className="tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 cursor-pointer text-slate-500 hover:text-brand-purple hover:border-brand-purple/30 transition-colors shrink-0"
           >
             <X size={16} strokeWidth={2.2} aria-hidden="true" />
           </button>

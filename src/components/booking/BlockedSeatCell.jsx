@@ -1,15 +1,13 @@
 // src/components/booking/BlockedSeatCell.jsx
 export function BlockedSeatCell({ onClick, span }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } }}
-      role="button"
-      tabIndex={0}
-      aria-label="Unblock this seat"
+      aria-label="Blocked seat, activate to unblock"
       title="Click to unblock"
       className={[
-        "group border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer motion-safe:transition-all motion-safe:duration-200 min-h-[36px] md:min-h-[44px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1",
+        "tap-target w-full group border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer motion-safe:transition-all motion-safe:duration-200 min-h-[36px] md:min-h-[44px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1 font-[inherit]",
         span ? "col-span-2" : "",
       ].join(" ")}
     >
@@ -21,6 +19,6 @@ export function BlockedSeatCell({ onClick, span }) {
         <span className="group-hover:hidden">Blocked</span>
         <span className="hidden group-hover:inline">Unblock</span>
       </span>
-    </div>
+    </button>
   );
 }

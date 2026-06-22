@@ -482,7 +482,7 @@ export function ChainBookingModal({
                   </div>
                   <button
                     onClick={() => removeLink(idx)}
-                    className="w-7 h-7 rounded-lg border-none bg-brand-coral-light text-brand-coral text-sm font-bold cursor-pointer flex items-center justify-center shrink-0"
+                    className="tap-target w-7 h-7 rounded-lg border-none bg-brand-coral-light text-brand-coral text-sm font-bold cursor-pointer flex items-center justify-center shrink-0"
                     title="Remove this and later bookings"
                   >
                     {"\u00D7"}

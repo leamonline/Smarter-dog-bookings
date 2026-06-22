@@ -204,9 +204,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             onClick={() => setOpenMenu((m) => (m === "help" ? null : "help"))}
             aria-label="Keyboard shortcuts"
             aria-expanded={openMenu === "help"}
-            aria-haspopup="dialog"
+            aria-haspopup="true"
             title="Keyboard shortcuts"
-            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
+            className={`tap-target w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
               openMenu === "help"
                 ? "bg-brand-yellow text-brand-purple"
                 : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"
@@ -217,7 +217,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
 
           {openMenu === "help" && (
             <div
-              role="dialog"
+              role="region"
               aria-label="Keyboard shortcuts"
               className="absolute top-11 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[220px] overflow-hidden animate-[fadeIn_0.12s_ease-out] p-4"
             >
@@ -240,7 +240,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             aria-expanded={openMenu === "account"}
             aria-haspopup="menu"
             title="Account"
-            className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
+            className={`tap-target w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
               openMenu === "account"
                 ? "bg-brand-yellow text-brand-purple"
                 : "bg-white/[0.06] text-white/85 hover:bg-white/15 hover:text-white"

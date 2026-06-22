@@ -81,7 +81,7 @@ export function TodoModal({ onClose }) {
           />
           <button
             type="submit"
-            className="w-8 h-8 rounded-lg bg-brand-teal text-white border-none flex items-center justify-center cursor-pointer transition-all text-lg font-bold hover:bg-brand-teal-dark shrink-0"
+            className="tap-target w-8 h-8 rounded-lg bg-brand-teal text-white border-none flex items-center justify-center cursor-pointer transition-all text-lg font-bold hover:bg-brand-teal-dark shrink-0"
           >
             +
           </button>
@@ -128,7 +128,7 @@ export function TodoModal({ onClose }) {
                       onClick={() => handleMove(i, -1)}
                       aria-label="Move up"
                       title="Move up"
-                      className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
+                      className="tap-target w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 15l-6-6-6 6" /></svg>
                     </button>
@@ -139,7 +139,7 @@ export function TodoModal({ onClose }) {
                       onClick={() => handleMove(i, 1)}
                       aria-label="Move down"
                       title="Move down"
-                      className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
+                      className="tap-target w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-slate-700 hover:bg-slate-100"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
                     </button>
@@ -149,7 +149,7 @@ export function TodoModal({ onClose }) {
                     onClick={() => handleRemove(todo.id)}
                     aria-label="Delete"
                     title="Delete"
-                    className="w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-brand-coral hover:bg-brand-coral/10"
+                    className="tap-target w-8 h-8 max-md:w-9 max-md:h-9 rounded bg-transparent border-none text-slate-400 cursor-pointer flex items-center justify-center hover:text-brand-coral hover:bg-brand-coral/10"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>

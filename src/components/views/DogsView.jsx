@@ -151,9 +151,9 @@ function OwnerContact({ phone, className = "" }) {
         rel="noopener noreferrer"
         title="Open in WhatsApp"
         aria-label="Open in WhatsApp"
-        className="inline-flex items-center justify-center w-6 h-6 max-sm:w-9 max-sm:h-9 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+        className="tap-target inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
       >
-        <MessageCircle size={12} aria-hidden="true" />
+        <MessageCircle size={18} aria-hidden="true" />
       </a>
     </span>
   );
