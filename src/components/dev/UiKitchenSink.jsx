@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Plus, ArrowRight, Trash2, Check, Search, Pencil, X, MapPin, Bell } from "lucide-react";
 import { SIZE_THEME } from "../../constants/index";
 import { ModalShell, HeaderIconButton, OverflowMenu, PanelShell } from "../modals/shell/index.js";
+import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
 import {
   Button,
   Card,
@@ -482,6 +483,37 @@ export function UiKitchenSink() {
               <SectionLabel className="mb-3">Revenue trend (hover / focus a bar)</SectionLabel>
               <TrendMini />
             </Card>
+          </div>
+        </Block>
+
+        {/* ── Workflow status strip ───────────────────────────── */}
+        <Block
+          title="WorkflowStatusStrip (mobile)"
+          hint="Below xl, the workflow panels live here — above the schedule. Collapsed it surfaces the pending counts; click to expand the full tabs. Shown at a phone column width."
+        >
+          <div className="max-w-sm flex flex-col gap-6">
+            <Spec label="pending items">
+              <WorkflowStatusStrip
+                failures={{ count: 0, failures: [] }}
+                messageCount={3}
+                reminderCount={5}
+                waitlistCount={1}
+                todoCount={2}
+                reminderData={{ targetDate: null, rows: [], sentCount: 0, totalCount: 0, loading: false }}
+                onOpenWaitlist={noop}
+                onOpenTodos={noop}
+                onCreateBookingFromWhatsApp={noop}
+              />
+            </Spec>
+            <Spec label="all clear">
+              <WorkflowStatusStrip
+                failures={{ count: 0, failures: [] }}
+                reminderData={{ targetDate: null, rows: [], sentCount: 0, totalCount: 0, loading: false }}
+                onOpenWaitlist={noop}
+                onOpenTodos={noop}
+                onCreateBookingFromWhatsApp={noop}
+              />
+            </Spec>
           </div>
         </Block>
 

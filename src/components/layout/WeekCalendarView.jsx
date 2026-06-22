@@ -19,8 +19,7 @@ import { BookingMainPanel } from "../dashboard/BookingMainPanel.jsx";
 import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
-import { UtilityTabs } from "../dashboard/UtilityTabs.jsx";
-import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
+import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
 import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
 
 const DatePickerModal = lazy(() =>
@@ -214,6 +213,27 @@ export function WeekCalendarView({
         </button>
       </div>
 
+      {/* Workflow panels (< xl): a compact, collapsible strip ABOVE the
+          schedule so urgent items surface at a glance instead of being
+          buried below the day's slot list. Desktop (xl+) keeps the full
+          RightWorkflowSidebar in the right rail. */}
+      <div className="xl:hidden mb-3">
+        <WorkflowStatusStrip
+          failures={failures}
+          onSelectFailure={handleSelectFailure}
+          messageCount={waUnread}
+          reminderCount={pendingReminderCount}
+          waitlistCount={waitlist.length}
+          todoCount={openTodoCount}
+          reminderData={reminders}
+          onOpenWaitlist={() => setShowWaitlist(true)}
+          onOpenTodos={() => setShowTodos(true)}
+          onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
+          waitlistLoading={waitlistLoading}
+          todoLoading={todoLoading}
+        />
+      </div>
+
       <PullToRefresh onRefresh={onRefresh}>
         <DashboardShell
           left={
@@ -269,39 +289,16 @@ export function WeekCalendarView({
             />
           }
           right={
-            <>
-              {/* Tablet (md-xl): compact tabbed utility panel.
-                  Desktop (xl+): full stacked workflow sidebar. */}
-              <div className="xl:hidden">
-                {failures.count > 0 && (
-                  <div className="mb-3">
-                    <DeliveryFailuresCard
-                      data={failures}
-                      onSelectFailure={handleSelectFailure}
-                    />
-                  </div>
-                )}
-                <UtilityTabs
-                  waitlistCount={waitlist.length}
-                  todoCount={openTodoCount}
-                  messageCount={waUnread}
-                  reminderCount={pendingReminderCount}
-                  reminderData={reminders}
-                  onOpenWaitlist={() => setShowWaitlist(true)}
-                  onOpenTodos={() => setShowTodos(true)}
-                  onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
-                  waitlistLoading={waitlistLoading}
-                  todoLoading={todoLoading}
-                />
-              </div>
-              <div className="hidden xl:block">
-                <RightWorkflowSidebar
-                  onOpenWaitlist={() => setShowWaitlist(true)}
-                  onOpenTodos={() => setShowTodos(true)}
-                  onSelectFailure={handleSelectFailure}
-                />
-              </div>
-            </>
+            // Desktop (xl+) only: the full stacked workflow sidebar. Below
+            // xl the panels live in the WorkflowStatusStrip above the
+            // schedule, so the right column is empty there.
+            <div className="hidden xl:block">
+              <RightWorkflowSidebar
+                onOpenWaitlist={() => setShowWaitlist(true)}
+                onOpenTodos={() => setShowTodos(true)}
+                onSelectFailure={handleSelectFailure}
+              />
+            </div>
           }
         />
       </PullToRefresh>
