@@ -127,7 +127,7 @@ Below 44×44 px and called out individually in the digest: **A–Z jump‑bar le
 
 ### P0 — must fix (blocks "run the day from any device" / accessibility floor)
 1. **Bridge the 768–1279 navigation gap.** Problem: iPad has no section nav. Change: render the primary nav (or a compact menu/bottom‑tab) for `< xl` as well, **and** add Settings to the mobile bottom tab. Impact: makes iPad usable at all — the biggest single jump. *Larger structural item.* `AppToolbar.jsx`, `DashboardShell.jsx`.
-2. **Surface the right‑rail panels on mobile.** Problem: Inbox/Reminders/Waitlist/Tasks vanish below `md`. Change: route them into the mobile layout (a tab or a reachable section). `RightWorkflowSidebar.jsx`/`UtilityTabs.jsx`.
+2. ~~**Surface the right‑rail panels on mobile.**~~ — **DONE (2026-06-22).** Below `xl` the four panels (Inbox/Reminders/Waitlist/Tasks) now live in a compact, collapsible **WorkflowStatusStrip** placed *above* the schedule, not buried below it: collapsed, it surfaces the pending counts at a glance; expanded, it reveals the full `UtilityTabs`. Delivery failures stay fully visible above the toggle whenever there are any. New `dashboard/WorkflowStatusStrip.jsx` + regression test; wired in `layout/WeekCalendarView.jsx`; desktop (`xl+`) keeps the full `RightWorkflowSidebar`.
 3. **Fix the two Critical contrast failures** (placeholder `slate-400`→`slate-500`+, disabled text) — token‑level, an hour's work.
 
 ### P1 — high impact (the bulk of the climb)
