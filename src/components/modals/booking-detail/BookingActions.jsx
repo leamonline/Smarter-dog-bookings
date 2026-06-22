@@ -169,11 +169,20 @@ export function BookingActions({
           confirmLabel="Delete booking"
           onConfirm={async () => {
             const result = await onRemove(booking.id);
-            setShowDeleteConfirm(false);
-            if (result !== false) {
-              toast.show("Booking deleted", "success");
-              onClose();
+            const failed =
+              result === false ||
+              result?.success === false ||
+              result?.ok === false;
+            if (failed) {
+              toast.show(
+                result?.error || "Couldn't delete booking. Please try again.",
+                "error",
+              );
+              return;
             }
+            setShowDeleteConfirm(false);
+            toast.show("Booking deleted", "success");
+            onClose();
           }}
           onClose={() => setShowDeleteConfirm(false)}
         />

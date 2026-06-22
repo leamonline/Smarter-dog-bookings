@@ -6,7 +6,7 @@ import {
 } from "../../../engine/capacity";
 import { formatFullDate } from "../../../engine/utils";
 import { titleCase } from "../../../utils/text";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, AlertTriangle } from "lucide-react";
 import { DetailRow, LogisticsLabel, Row } from "./shared.jsx";
 import { PanelShell } from "../shell/index.js";
 
@@ -80,7 +80,7 @@ export function AppointmentDetailsCard({
                         background: isSelected
                           ? sizeTheme.primary
                           : isOverride
-                            ? "#FFFBEB"
+                            ? "#FEF3C7"
                             : isStaffOpened
                               ? sizeTheme.light
                               : "#FFFFFF",
@@ -89,13 +89,13 @@ export function AppointmentDetailsCard({
                           : allowed
                             ? "#1F2937"
                             : isOverride
-                              ? "#92400E"
+                              ? "#78350F"
                               : "#6B7280",
                         border: `1.5px solid ${
                           isSelected
                             ? sizeTheme.primary
                             : isOverride
-                              ? "#F59E0B"
+                              ? "#FBBF24"
                               : isStaffOpened
                                 ? sizeTheme.primary
                                 : "#E5E7EB"
@@ -103,7 +103,14 @@ export function AppointmentDetailsCard({
                         opacity: isClickable ? 1 : 0.5,
                       }}
                     >
-                      {slot}
+                      {isOverride && !isSelected ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <AlertTriangle size={12} strokeWidth={2.5} aria-hidden="true" />
+                          {slot}
+                        </span>
+                      ) : (
+                        slot
+                      )}
                       {isOverride && !isSelected && (
                         <div className="text-[9px] font-bold mt-0.5 leading-none">over</div>
                       )}

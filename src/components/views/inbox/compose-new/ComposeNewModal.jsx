@@ -253,7 +253,7 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
                 type="button"
                 onClick={() => { setSelectedHuman(null); setError(null); }}
                 aria-label="Back to customer picker"
-                className="text-brand-purple w-7 h-7 rounded-full hover:bg-brand-purple/10 transition-colors text-[16px]"
+                className="tap-target text-brand-purple w-7 h-7 rounded-full hover:bg-brand-purple/10 transition-colors text-[16px] inline-flex items-center justify-center"
               >
                 ←
               </button>

@@ -97,6 +97,9 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedStr;
             const isFull = isOpen && count >= DAY_CAPACITY;
+            // Closed days are encoded with a non-colour cue (a small ✕)
+            // so they're distinguishable without relying on hue (WCAG 1.4.1).
+            const isClosed = !monthLoading && !isOpen;
 
             // Status: closed → red, full → blue, available → green
             // Selected/today still win for clarity. Loading → neutral.
@@ -141,7 +144,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
                 aria-label={ariaLabel}
                 aria-pressed={isSelected}
                 aria-current={isToday ? "date" : undefined}
-                className={`relative w-full aspect-square rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
+                className={`relative w-full aspect-square min-h-[40px] rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
                   isSelected
                     ? "bg-brand-yellow text-brand-purple shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
                     : `bg-transparent ${numberColor} hover:bg-slate-50`
@@ -158,12 +161,20 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
                     aria-hidden="true"
                   />
                 )}
+                {isClosed && !isSelected && (
+                  <span
+                    className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[8px] leading-none text-rose-500"
+                    aria-hidden="true"
+                  >
+                    ✕
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-3 text-micro font-semibold text-ink-muted">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-micro font-semibold text-ink-muted">
           <span className="inline-flex items-center gap-1">
             <span className="w-2 h-2 rounded-full ring-2 ring-brand-purple inline-block" />
             Today
@@ -175,6 +186,18 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
           <span className="inline-flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
             Bookings
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
+            Available
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
+            Fully booked
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-[10px] leading-none text-rose-500" aria-hidden="true">✕</span>
+            Closed
           </span>
         </div>
 

@@ -44,7 +44,7 @@ export function RevenueTrend({ days, chart, maxChartRev, chartLabels, insight })
                   {fmtLabel(bar.date, true)} · {"£"}{bar.rev.toFixed(0)} · {bar.count} dog{bar.count !== 1 ? "s" : ""}
                 </div>
                 <div
-                  className="w-full rounded-t-sm bg-brand-teal/80 group-hover:bg-brand-teal transition-colors"
+                  className="w-full rounded-t-sm bg-brand-teal/80 group-hover:bg-brand-teal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
                   style={{
                     height: `${Math.max((bar.rev / maxChartRev) * 100, 2)}%`,
                     minHeight: bar.rev > 0 ? "4px" : "1px",

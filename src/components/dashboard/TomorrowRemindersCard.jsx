@@ -51,7 +51,7 @@ function ReminderRow({ row, onOpen, busy }) {
             : "Click to choose a channel and send a reminder"
       }
       className={[
-        "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-[12px]",
+        "w-full text-left flex flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2 px-2 py-1.5 rounded-lg transition-colors font-[inherit] text-[12px]",
         sent
           ? "bg-brand-green-50/80 text-brand-green-900 hover:bg-brand-green-100/80 cursor-pointer"
           : busy
@@ -59,6 +59,7 @@ function ReminderRow({ row, onOpen, busy }) {
             : "bg-white/70 hover:bg-white border border-amber-100 text-amber-900 cursor-pointer",
       ].join(" ")}
     >
+      <span className="w-full sm:w-auto flex items-center gap-2 min-w-0">
       <span className="shrink-0 flex items-center gap-0.5">
         {sent ? (
           <>
@@ -81,11 +82,12 @@ function ReminderRow({ row, onOpen, busy }) {
           <Circle size={16} className="text-amber-400" aria-label="No reminder sent yet" />
         )}
       </span>
-      <span className="flex-1 truncate">
+      <span className="flex-1 min-w-0 break-words sm:truncate">
         <span className="font-semibold">{row.customerName}</span>
         <span className="text-amber-800/70"> · {row.dogNamesDisplay}</span>
       </span>
-      <span className="shrink-0 tabular-nums text-amber-800/70">
+      </span>
+      <span className="shrink-0 pl-6 sm:pl-0 tabular-nums text-amber-800/70">
         {formatSlot(row.slot)}
         {row.multiSlot && (
           <span

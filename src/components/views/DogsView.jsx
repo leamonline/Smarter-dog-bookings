@@ -506,7 +506,7 @@ export function DogsView({
                       onClick={() => onToggleFilter("size", s.value)}
                       aria-pressed={active}
                       aria-label={s.label}
-                      className={`inline-flex items-center gap-1.5 text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                      className={`inline-flex items-center gap-1.5 text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
                         active
                           ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                           : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -522,7 +522,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("alert")}
                   aria-pressed={!!filters?.alert}
-                  className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
                     filters?.alert
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -534,7 +534,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("incomplete")}
                   aria-pressed={!!filters?.incomplete}
-                  className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
                     filters?.incomplete
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"

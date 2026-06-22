@@ -217,7 +217,6 @@ export function SlotGrid({
           `relative flex flex-col gap-1.5 md:gap-2 p-2 md:p-[10px_14px]`,
           hasBooking ? "min-h-0" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
-          !hasBooking && !isNow ? "opacity-70 hover:opacity-100 transition-opacity" : "",
           rowBg,
         ].filter(Boolean).join(" ")}
       >

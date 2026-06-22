@@ -76,7 +76,7 @@ export function OverviewDrawer({
 
       <div
         ref={drawerRef}
-        className="relative w-full max-w-sm h-full bg-brand-paper shadow-elevated flex flex-col animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)]"
+        className="relative w-full max-w-[min(24rem,80vw)] h-full bg-brand-paper shadow-elevated flex flex-col animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)]"
       >
         <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-white">
           <div>
