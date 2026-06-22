@@ -30,12 +30,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import {
   displayName,
-  formatSnoozedUntil,
   isAwaitingReply,
-  isConversationSnoozed,
-  isWindowClosingSoon,
-  snoozeUntilForPreset,
-  windowRemainingMs,
 } from "./helpers.js";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
@@ -48,10 +43,10 @@ import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
 import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
 import { ComposePanel } from "./thread/ComposePanel.jsx";
-import { GenerateReplyButton } from "./thread/GenerateReplyButton.jsx";
 import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
 import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
 import { useCustomerContext } from "./hooks/useCustomerContext.js";
+import { useInboxMessageSearch } from "./hooks/useInboxMessageSearch.js";
 import { useFillViewportHeight } from "./hooks/useFillViewportHeight.js";
 import { BookAppointmentModal } from "./customer-context/BookAppointmentModal.jsx";
 
@@ -78,8 +73,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     resolveConversation,
     reopenConversation,
     updateConversationNotes,
-    snoozeConversation,
-    unsnoozeConversation,
     createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
@@ -159,19 +152,17 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     updateConversationNotes(notes, conversationId),
   [updateConversationNotes]);
 
-  const handleSnoozeConversation = useCallback(async (snoozedUntil) => {
-    const res = await snoozeConversation(snoozedUntil);
-    if (res?.ok) toast.show("Conversation snoozed.", "info");
-    else if (res?.reason) toast.show(`Could not snooze: ${res.reason}`, "error");
+  // Generate-reply (AI on demand) now lives inside the compose row, so the
+  // handler is hoisted here and passed down to ComposePanel.
+  const handleGenerateReply = useCallback(async () => {
+    const res = await generateReplyForConversation(selectedId);
+    if (res?.ok) {
+      toast.show("Asking the AI… a draft will appear below shortly.", "info");
+    } else if (res?.reason) {
+      toast.show(`Could not generate: ${res.reason}`, "error");
+    }
     return res;
-  }, [snoozeConversation, toast]);
-
-  const handleUnsnoozeConversation = useCallback(async () => {
-    const res = await unsnoozeConversation();
-    if (res?.ok) toast.show("Conversation back in the active queue.", "info");
-    else if (res?.reason) toast.show(`Could not unsnooze: ${res.reason}`, "error");
-    return res;
-  }, [unsnoozeConversation, toast]);
+  }, [generateReplyForConversation, selectedId, toast]);
 
   // Book-appointment modal — staff quick-booking from the customer
   // panel. createStaffBooking applies it through the same guarded path as
@@ -249,9 +240,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
 
-  // List filter: one of "all" | "awaiting_reply" | "closing_soon" |
-  // "failed_sends" | "snoozed" | "unread" | "drafts" | "bookings" |
-  // "needs_review" | "suggested_close" | "done".
+  // List filter: one of "all" | "awaiting_reply" | "failed_sends" |
+  // "unread" | "drafts" | "done".
   // "all" is the default and shows every ACTIVE conversation (closed
   // conversations only appear under the "done" chip). The other active
   // modes pre-filter to a specific subset so staff can triage in
@@ -259,28 +249,21 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // to "all"). "done" is its own filter — clicking it again returns
   // to "all" (active queue).
   const [listFilter, setListFilter] = useState("all");
-  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), 60 * 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
+  // Free-text search across the FULL message history (not just the
+  // last-message preview). A non-empty query overrides the active
+  // filter and searches the whole inbox — see searchResults below.
+  const [searchQuery, setSearchQuery] = useState("");
+  const trimmedQuery = searchQuery.trim();
+  const isSearching = trimmedQuery.length > 0;
+  const { messageMatchIds, searching: searchingMessages } =
+    useInboxMessageSearch(searchQuery);
 
-  // Split open, currently snoozed, active, and closed once so each
-  // counter doesn't re-walk the list. Due snoozes return to the active
-  // pile automatically on the next minute tick; the DB state can be
-  // cleaned up later by a background pass.
-  const openConversations = useMemo(
+  // Split the active (open) and closed piles once so each counter
+  // doesn't re-walk the list.
+  const activeConversations = useMemo(
     () => conversations.filter((c) => !c.closed_at),
     [conversations],
-  );
-  const snoozedConversations = useMemo(
-    () => openConversations.filter((c) => isConversationSnoozed(c, nowMs)),
-    [openConversations, nowMs],
-  );
-  const activeConversations = useMemo(
-    () => openConversations.filter((c) => !isConversationSnoozed(c, nowMs)),
-    [openConversations, nowMs],
   );
   const closedConversations = useMemo(
     () => conversations.filter((c) => !!c.closed_at),
@@ -299,29 +282,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     () => activeConversations.filter((c) => isAwaitingReply(c)).length,
     [activeConversations],
   );
-  const closingSoonCount = useMemo(
-    () => activeConversations.filter((c) => isWindowClosingSoon(c, nowMs)).length,
-    [activeConversations, nowMs],
-  );
   const failedSendCount = useMemo(
     () => activeConversations.filter((c) => c.has_failed_message).length,
     [activeConversations],
   );
-  const snoozedCount = snoozedConversations.length;
   const draftsCount = useMemo(
     () => activeConversations.filter((c) => c.has_pending_draft).length,
-    [activeConversations],
-  );
-  const bookingsCount = useMemo(
-    () => activeConversations.filter((c) => c.has_pending_booking_action).length,
-    [activeConversations],
-  );
-  const needsReviewCount = useMemo(
-    () => activeConversations.filter((c) => c.needs_human_review).length,
-    [activeConversations],
-  );
-  const suggestedCloseCount = useMemo(
-    () => activeConversations.filter((c) => !!c.closure_suggested_at).length,
     [activeConversations],
   );
   const doneCount = closedConversations.length;
@@ -330,36 +296,44 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     switch (listFilter) {
       case "awaiting_reply":
         return activeConversations.filter((c) => isAwaitingReply(c));
-      case "closing_soon":
-        return activeConversations
-          .filter((c) => isWindowClosingSoon(c, nowMs))
-          .sort((a, b) =>
-            windowRemainingMs(a.last_inbound_at, nowMs) -
-            windowRemainingMs(b.last_inbound_at, nowMs),
-          );
       case "failed_sends":
         return activeConversations.filter((c) => c.has_failed_message);
-      case "snoozed":
-        return [...snoozedConversations].sort((a, b) =>
-          String(a.snoozed_until || "").localeCompare(String(b.snoozed_until || "")),
-        );
       case "unread":
         return activeConversations.filter((c) => (c.unread_count || 0) > 0);
       case "drafts":
         return activeConversations.filter((c) => c.has_pending_draft);
-      case "bookings":
-        return activeConversations.filter((c) => c.has_pending_booking_action);
-      case "needs_review":
-        return activeConversations.filter((c) => c.needs_human_review);
-      case "suggested_close":
-        return activeConversations.filter((c) => !!c.closure_suggested_at);
       case "done":
         return closedConversations;
       case "all":
       default:
         return activeConversations;
     }
-  }, [activeConversations, closedConversations, listFilter, nowMs, snoozedConversations]);
+  }, [activeConversations, closedConversations, listFilter]);
+
+  // Search results override the active filter. We match the whole inbox
+  // (active + closed) on the customer name, phone, last-message preview
+  // and conversation note (instant, client-side), OR on full message
+  // content via messageMatchIds from the debounced server query. Order
+  // follows the list's existing recency sort.
+  const searchResults = useMemo(() => {
+    if (!isSearching) return [];
+    const q = trimmedQuery.toLowerCase();
+    return conversations.filter((c) => {
+      if (messageMatchIds.has(c.id)) return true;
+      const name = displayName(c).toLowerCase();
+      const phone = (c.phone_e164 || "").toLowerCase();
+      const preview = (c.last_customer_text || "").toLowerCase();
+      const note = (c.notes || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        phone.includes(q) ||
+        preview.includes(q) ||
+        note.includes(q)
+      );
+    });
+  }, [conversations, isSearching, trimmedQuery, messageMatchIds]);
+
+  const displayedConversations = isSearching ? searchResults : filteredConversations;
 
   const toggleFilter = useCallback((next) => {
     setListFilter((prev) => (prev === next ? "all" : next));
@@ -368,14 +342,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const FILTER_LABELS = {
     all: "active conversations",
     awaiting_reply: "awaiting reply",
-    closing_soon: "closing soon",
     failed_sends: "failed sends",
-    snoozed: "snoozed conversations",
     unread: "unread",
     drafts: "pending drafts",
-    bookings: "pending booking proposals",
-    needs_review: "needs review",
-    suggested_close: "suggested closes",
     done: "closed conversations",
   };
 
@@ -462,47 +431,83 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       style={fillHeight ? { height: `${fillHeight}px` } : undefined}
       className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
     >
-      <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
-              Inbox
-            </h2>
-            <div className="text-[11px] text-slate-600 mt-0.5">
-              {listFilter === "all"
-                ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
-                  : listFilter === "done"
-                    ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
-                    : listFilter === "snoozed"
-                      ? `${snoozedConversations.length} snoozed conversation${snoozedConversations.length === 1 ? "" : "s"}`
-                    : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
+      <div className="flex flex-col gap-3">
+        {/* Top line — title + New message on the left, message search on
+            the far right. */}
+        <div className="flex justify-between items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
+                Inbox
+              </h2>
+              <div className="text-[11px] text-slate-600 mt-0.5">
+                {isSearching
+                  ? searchingMessages
+                    ? `Searching all messages for “${trimmedQuery}”…`
+                    : `${displayedConversations.length} result${displayedConversations.length === 1 ? "" : "s"} for “${trimmedQuery}”`
+                  : listFilter === "all"
+                    ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
+                    : listFilter === "done"
+                      ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
+                      : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setComposeOpen(true)}
+              title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New message
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setComposeOpen(true)}
-            title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New message
-          </button>
+
+          {/* Search box — far right of the New message line. Searches the
+              full message history, not just the visible last-message
+              preview (see useInboxMessageSearch). */}
+          <div className="relative w-full sm:w-auto sm:min-w-[240px] md:w-[300px]">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search all messages…"
+              aria-label="Search all messages"
+              className="w-full h-9 pl-9 pr-9 rounded-full border border-slate-200 bg-white text-[13px] text-brand-purple placeholder:text-slate-400 focus:outline-none focus:border-brand-yellow font-[inherit]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-colors text-[16px] leading-none cursor-pointer"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-        {/* Single non-wrapping, horizontally-scrollable strip. With 11
-            chips this keeps the header a fixed height on phone/iPad
-            (it never wraps to 2–3 rows), so the viewport-height layout
-            below stays correct. -mx/px keeps focus rings off the clip
+
+        {/* Filter chips — single non-wrapping, horizontally-scrollable
+            strip so the header keeps a fixed height on phone/iPad (never
+            wrapping to extra rows). -mx/px keeps focus rings off the clip
             edge. */}
         <div
-          className="flex items-center gap-2 flex-nowrap overflow-x-auto w-full md:w-auto min-w-0 -mx-1 px-1 [scrollbar-width:thin]"
+          className="flex items-center gap-2 flex-nowrap overflow-x-auto w-full min-w-0 -mx-1 px-1 [scrollbar-width:thin]"
           role="group"
           aria-label="Filter conversations"
         >
@@ -524,28 +529,12 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             hint="Show active conversations where the latest customer message is newer than the latest staff reply."
           />
           <InboxFilterChip
-            label="Closing soon"
-            count={closingSoonCount}
-            active={listFilter === "closing_soon"}
-            onClick={() => toggleFilter("closing_soon")}
-            color="amber"
-            hint="Show WhatsApp conversations awaiting reply with under 4 hours left in the free-form reply window."
-          />
-          <InboxFilterChip
             label="Failed sends"
             count={failedSendCount}
             active={listFilter === "failed_sends"}
             onClick={() => toggleFilter("failed_sends")}
             color="rose"
             hint="Show conversations where the latest outbound send attempt failed."
-          />
-          <InboxFilterChip
-            label="Snoozed"
-            count={snoozedCount}
-            active={listFilter === "snoozed"}
-            onClick={() => toggleFilter("snoozed")}
-            color="sky"
-            hint="Show conversations paused for later follow-up."
           />
           <InboxFilterChip
             label="Unread"
@@ -562,30 +551,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             onClick={() => toggleFilter("drafts")}
             color="amber"
             hint="Show only conversations with a pending AI draft waiting for staff approval."
-          />
-          <InboxFilterChip
-            label="Bookings"
-            count={bookingsCount}
-            active={listFilter === "bookings"}
-            onClick={() => toggleFilter("bookings")}
-            color="emerald"
-            hint="Show only conversations with a pending AI booking proposal."
-          />
-          <InboxFilterChip
-            label="Needs review"
-            count={needsReviewCount}
-            active={listFilter === "needs_review"}
-            onClick={() => toggleFilter("needs_review")}
-            color="rose"
-            hint="Show only conversations whose latest draft is high-risk or marked for human review."
-          />
-          <InboxFilterChip
-            label="Suggested close"
-            count={suggestedCloseCount}
-            active={listFilter === "suggested_close"}
-            onClick={() => toggleFilter("suggested_close")}
-            color="slate"
-            hint="Show conversations the daily pass thinks are ready to mark complete."
           />
           <InboxFilterChip
             label="Done"
@@ -634,22 +599,39 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 When a customer messages your WhatsApp number, their thread will appear here.
               </p>
             </div>
-          ) : filteredConversations.length === 0 ? (
+          ) : displayedConversations.length === 0 ? (
             <div className="p-6 text-center text-slate-600 text-body">
-              <p className="mb-1">
-                No conversations match <span className="font-semibold">{FILTER_LABELS[listFilter] ?? listFilter}</span>.
-              </p>
-              <button
-                type="button"
-                onClick={() => setListFilter("all")}
-                className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
-              >
-                Show all conversations
-              </button>
+              {isSearching ? (
+                <>
+                  <p className="mb-1">
+                    No messages match <span className="font-semibold">“{trimmedQuery}”</span>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
+                  >
+                    Clear search
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="mb-1">
+                    No conversations match <span className="font-semibold">{FILTER_LABELS[listFilter] ?? listFilter}</span>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setListFilter("all")}
+                    className="underline text-brand-purple hover:text-brand-purple-light font-semibold"
+                  >
+                    Show all conversations
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="overflow-y-auto flex-1">
-              {filteredConversations.map((c) => (
+              {displayedConversations.map((c) => (
                 <ConversationListItem
                   key={c.id}
                   conv={c}
@@ -712,12 +694,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       onResolve={handleResolveConversation}
                       onReopen={handleReopenConversation}
                       disabled={actionInFlight}
-                    />
-                    <SnoozeControl
-                      conversation={selectedConversation}
-                      disabled={actionInFlight}
-                      onSnooze={handleSnoozeConversation}
-                      onUnsnooze={handleUnsnoozeConversation}
                     />
                     {/* Customer info — slide-over below xl, redundant
                         at xl (the docked column is already visible). */}
@@ -799,9 +775,10 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 )}
               </div>
 
-              {/* Action dock — pending draft, booking proposal, and the
-                  generate-reply button. Bounded height + internal scroll so
-                  a tall stack can't push the pinned composer off-screen. */}
+              {/* Action dock — pending draft and booking proposal. Bounded
+                  height + internal scroll so a tall stack can't push the
+                  pinned composer off-screen. The generate-reply button now
+                  lives inside the compose row below. */}
               <div className="shrink-0 max-h-[45%] overflow-y-auto">
 
               {/* Pending AI draft — only rendered when there is one.
@@ -827,35 +804,24 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 onReject={handleRejectBookingAction}
                 inFlight={actionInFlight}
               />
-
-              {/* Phase G — AI on demand. Shown when there's at least
-                  one inbound message and no pending draft. Hidden
-                  during in-flight actions to avoid stacking. */}
-              <GenerateReplyButton
-                hasPendingDraft={!!draft}
-                hasInbound={messages.some((m) => m.direction === "inbound")}
-                inFlight={actionInFlight}
-                onGenerate={async () => {
-                  const res = await generateReplyForConversation(selectedId);
-                  if (res?.ok) {
-                    toast.show("Asking the AI… a draft will appear below shortly.", "info");
-                  } else if (res?.reason) {
-                    toast.show(`Could not generate: ${res.reason}`, "error");
-                  }
-                }}
-              />
               </div>
 
               {/* Free-form compose box — always available when a
                   conversation is selected, gated on the 24h window. Sits
                   OUTSIDE the action dock above, so it stays pinned at the
-                  bottom of the detail pane and never scrolls away. */}
+                  bottom of the detail pane and never scrolls away. The
+                  Generate-reply button (Phase G — AI on demand) sits inside
+                  this row between the textarea and Send; it only shows when
+                  there's an inbound message and no pending draft. */}
               <ComposePanel
                 conversation={selectedConversation}
                 onSend={handleSendManualReply}
                 onSendTemplate={sendTemplate}
                 dogNames={dogNames}
                 inFlight={actionInFlight}
+                hasPendingDraft={!!draft}
+                hasInbound={messages.some((m) => m.direction === "inbound")}
+                onGenerateReply={handleGenerateReply}
               />
             </>
           )}
@@ -923,55 +889,5 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         />
       )}
     </div>
-  );
-}
-
-function SnoozeControl({ conversation, disabled, onSnooze, onUnsnooze }) {
-  if (!conversation || conversation.closed_at) return null;
-
-  const isSnoozed = conversation.state === "snoozed";
-
-  if (isSnoozed) {
-    return (
-      <div className="inline-flex items-center gap-1.5">
-        <span
-          className="inline-flex items-center h-8 px-3 rounded-full bg-sky-50 border border-sky-200 text-sky-800 text-[12px] font-semibold"
-          title="This conversation is paused until the follow-up time."
-        >
-          {isConversationSnoozed(conversation)
-            ? formatSnoozedUntil(conversation.snoozed_until)
-            : "Follow-up due"}
-        </span>
-        <button
-          type="button"
-          onClick={onUnsnooze}
-          disabled={disabled}
-          className="inline-flex items-center h-8 px-3 rounded-full bg-white border border-sky-200 text-sky-800 text-[12px] font-semibold cursor-pointer hover:border-sky-300 disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
-        >
-          Unsnooze
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <select
-      aria-label="Snooze conversation"
-      defaultValue=""
-      disabled={disabled}
-      onChange={(event) => {
-        const until = snoozeUntilForPreset(event.target.value);
-        event.target.value = "";
-        if (!until) return;
-        onSnooze?.(until.toISOString());
-      }}
-      className="h-8 rounded-full border border-slate-200 bg-white px-3 text-[12px] font-semibold text-brand-purple cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-brand-yellow font-[inherit]"
-      title="Pause this conversation until later."
-    >
-      <option value="">Snooze</option>
-      <option value="one_hour">1 hour</option>
-      <option value="later_today">Later today</option>
-      <option value="tomorrow">Tomorrow morning</option>
-    </select>
   );
 }

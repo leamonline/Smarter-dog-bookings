@@ -12,8 +12,18 @@
 import { useEffect, useState } from "react";
 import { isWindowOpen, windowCountdown } from "../helpers.js";
 import { TemplatePicker } from "./TemplatePicker.jsx";
+import { GenerateReplyButton } from "./GenerateReplyButton.jsx";
 
-export function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, inFlight }) {
+export function ComposePanel({
+  conversation,
+  onSend,
+  onSendTemplate,
+  dogNames,
+  inFlight,
+  hasPendingDraft,
+  hasInbound,
+  onGenerateReply,
+}) {
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -88,6 +98,12 @@ export function ComposePanel({ conversation, onSend, onSendTemplate, dogNames, i
           rows={2}
           maxLength={2000}
           className="flex-1 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-y disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
+        />
+        <GenerateReplyButton
+          hasPendingDraft={hasPendingDraft}
+          hasInbound={hasInbound}
+          inFlight={inFlight}
+          onGenerate={onGenerateReply}
         />
         <button
           onClick={handleSend}

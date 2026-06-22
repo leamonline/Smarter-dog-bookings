@@ -11,12 +11,9 @@
 import {
   displayName,
   formatWhen,
-  formatSnoozedUntil,
   inboxWindowBadge,
-  isConversationSnoozed,
 } from "../helpers.js";
 import { previewMessageText } from "../thread/messageContent";
-import { StatusPill } from "../StatusPill.jsx";
 
 const SUGGESTED_REASON_LABEL = {
   booking_confirmed_quiet: "Suggest closing — booking confirmed, quiet 7d",
@@ -27,7 +24,7 @@ const SUGGESTED_REASON_LABEL = {
 export function ConversationListItem({ conv, isSelected, onSelect }) {
   const unread = conv.unread_count > 0;
   const isClosed = !!conv.closed_at;
-  const isSnoozed = isConversationSnoozed(conv);
+  const preview = previewMessageText(conv.last_customer_text);
   const suggestedReason = !isClosed && conv.closure_suggested_at
     ? SUGGESTED_REASON_LABEL[conv.closure_suggested_reason] ?? null
     : null;
@@ -58,11 +55,11 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
       aria-current={isSelected ? "true" : undefined}
       className={`relative w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors cursor-pointer font-[inherit] border-l-[3px] ${
         isSelected
-          ? "bg-brand-yellow/20 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
+          ? "bg-brand-yellow/25 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
           : isClosed
             ? "bg-slate-50 hover:bg-slate-100 border-l-transparent opacity-75"
-            : isSnoozed
-              ? "bg-sky-50 hover:bg-sky-100 border-l-sky-200"
+            : unread
+              ? "bg-brand-yellow/15 hover:bg-brand-yellow/25 border-l-transparent"
             : "bg-white hover:bg-slate-50 border-l-transparent"
       }`}
     >
@@ -79,9 +76,13 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
         </span>
       </div>
       <div className="flex justify-between items-center gap-2">
-        <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-600"}`}>
-          {previewMessageText(conv.last_customer_text) || "(no text)"}
-        </span>
+        {preview ? (
+          <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-600"}`}>
+            {preview}
+          </span>
+        ) : (
+          <span />
+        )}
         <div className="flex items-center gap-1 shrink-0">
           {conv.needs_human_review && (
             <span
@@ -121,12 +122,6 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
               {conv.unread_count}
             </span>
           )}
-          {conv.state === "human_takeover" && !isClosed && (
-            <StatusPill state="human_takeover" size="xs" />
-          )}
-          {isSnoozed && (
-            <StatusPill state="snoozed" size="xs" />
-          )}
         </div>
       </div>
 
@@ -147,16 +142,8 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
         </div>
       )}
 
-      {(isSnoozed || windowBadge || conv.has_failed_message) && (
+      {(windowBadge || conv.has_failed_message) && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {isSnoozed && (
-            <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200"
-              title="This conversation is paused until the follow-up time."
-            >
-              {formatSnoozedUntil(conv.snoozed_until)}
-            </span>
-          )}
           {windowBadge && (
             <span
               className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${

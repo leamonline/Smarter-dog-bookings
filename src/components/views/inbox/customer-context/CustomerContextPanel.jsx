@@ -73,6 +73,29 @@ export function CustomerContextPanel({
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="flex flex-col gap-3">
+          {/* A short orientation blurb and the customer's dog(s) sit right
+              under the name — that's what staff glance at first. Both are
+              available only once a matched customer has loaded. */}
+          {!loading && !error && displayHuman && summary && (
+            <p className="text-[12px] text-slate-700 leading-snug">{summary}</p>
+          )}
+
+          {!loading && !error && displayHuman && dogs.length > 0 && (
+            <Section title={dogs.length === 1 ? "Dog" : `Dogs (${dogs.length})`}>
+              <div className="flex flex-col gap-2">
+                {dogs.map((dog) => (
+                  <DogSummaryCard
+                    key={dog.id}
+                    dog={dog}
+                    onOpenDog={onOpenDog}
+                  />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Private note for this thread — kept available even before a
+              customer match resolves (loading / unmatched). */}
           {conversation && (
             <ConversationNoteEditor
               conversation={conversation}
@@ -90,15 +113,14 @@ export function CustomerContextPanel({
             <UnmatchedEmptyState phone={displayPhone} />
           ) : (
             <>
-              {summary && (
-                <p className="text-[12px] text-slate-700 leading-snug">{summary}</p>
-              )}
-
-              <div className="flex flex-wrap gap-2">
+              {/* Quick actions — stacked full-width so each is an easy hit
+                  in the narrow panel: Call, WhatsApp, Open full profile,
+                  Book appointment. */}
+              <div className="flex flex-col gap-2">
                 {tel && (
                   <a
                     href={tel}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold no-underline hover:border-brand-yellow/60 transition-colors"
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold no-underline hover:border-brand-yellow/60 transition-colors"
                     aria-label={`Call ${displayPhone}`}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -112,7 +134,7 @@ export function CustomerContextPanel({
                     href={waMe}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#25D366]/10 border border-[#25D366]/40 text-[#108444] text-[12px] font-semibold no-underline hover:bg-[#25D366]/20 transition-colors"
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-[#25D366]/10 border border-[#25D366]/40 text-[#108444] text-[12px] font-semibold no-underline hover:bg-[#25D366]/20 transition-colors"
                     aria-label={`Open WhatsApp Web for ${displayPhone}`}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -125,7 +147,7 @@ export function CustomerContextPanel({
                   <button
                     type="button"
                     onClick={() => onOpenHuman(displayHuman.id)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                   >
                     Open full profile
                   </button>
@@ -134,7 +156,7 @@ export function CustomerContextPanel({
                   <button
                     type="button"
                     onClick={() => onBookAppointment()}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -151,6 +173,16 @@ export function CustomerContextPanel({
 
               <LastBookingChip lastBooking={lastBooking} />
 
+              {trustedContacts.length > 0 && (
+                <Section title="Trusted contacts">
+                  <TrustedHumansChips
+                    contacts={trustedContacts}
+                    onOpenHuman={onOpenHuman}
+                  />
+                </Section>
+              )}
+
+              {/* Details (email, address, …) sit at the very end. */}
               {(displayHuman.address || displayHuman.email || displayHuman.notes || displayHuman.historyFlag) && (
                 <Section title="Details">
                   {displayHuman.email && (
@@ -173,29 +205,6 @@ export function CustomerContextPanel({
                   {displayHuman.historyFlag && (
                     <DetailLine label="Flag" value={displayHuman.historyFlag} accent="rose" />
                   )}
-                </Section>
-              )}
-
-              {dogs.length > 0 && (
-                <Section title={dogs.length === 1 ? "Dog" : `Dogs (${dogs.length})`}>
-                  <div className="flex flex-col gap-2">
-                    {dogs.map((dog) => (
-                      <DogSummaryCard
-                        key={dog.id}
-                        dog={dog}
-                        onOpenDog={onOpenDog}
-                      />
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {trustedContacts.length > 0 && (
-                <Section title="Trusted contacts">
-                  <TrustedHumansChips
-                    contacts={trustedContacts}
-                    onOpenHuman={onOpenHuman}
-                  />
                 </Section>
               )}
             </>

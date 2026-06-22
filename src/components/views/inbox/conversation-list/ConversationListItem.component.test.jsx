@@ -75,4 +75,52 @@ describe("ConversationListItem", () => {
       "Latest failed send: Meta rejected it",
     );
   });
+
+  it("tints unread rows yellow and leaves read rows white", () => {
+    const { rerender } = render(
+      <ConversationListItem
+        conv={baseConversation({ unread_count: 3 })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button").className).toContain("brand-yellow");
+
+    rerender(
+      <ConversationListItem
+        conv={baseConversation({ unread_count: 0 })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    const readRow = screen.getByRole("button");
+    expect(readRow.className).toContain("bg-white");
+    expect(readRow.className).not.toContain("brand-yellow");
+  });
+
+  it("never shows a 'Handled by staff' badge for human-takeover threads", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({ state: "human_takeover" })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/handled by staff/i)).not.toBeInTheDocument();
+  });
+
+  it("never renders a '(no text)' placeholder when there is no preview text", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({ last_customer_text: null })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("(no text)")).not.toBeInTheDocument();
+    // The name still renders so the row stays usable.
+    expect(screen.getByText("Sarah Jones")).toBeInTheDocument();
+  });
 });

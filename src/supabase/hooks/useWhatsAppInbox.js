@@ -34,7 +34,6 @@ import {
 import { useOutboundSender } from "./inbox/useOutboundSender.js";
 import { useConversationLifecycle } from "./inbox/useConversationLifecycle.js";
 import { useConversationNotes } from "./inbox/useConversationNotes.js";
-import { useConversationSnooze } from "./inbox/useConversationSnooze.js";
 import { useStaffBooking } from "./inbox/useStaffBooking.js";
 import { useAIModeControls } from "./inbox/useAIModeControls.js";
 import { useBookingActionDecisions } from "./inbox/useBookingActionDecisions.js";
@@ -127,7 +126,6 @@ async function fetchConversationsList() {
       closure_suggested_at,
       closure_suggested_reason,
       notes,
-      snoozed_until,
       humans:human_id ( name, surname ),
       whatsapp_drafts ( id, state, risk_level, handoff_required ),
       whatsapp_booking_actions ( id, state )
@@ -331,13 +329,6 @@ export function useWhatsAppInbox() {
 
   const { updateConversationNotes } = useConversationNotes({
     selectedId,
-    setConversations,
-  });
-
-  const { snoozeConversation, unsnoozeConversation } = useConversationSnooze({
-    selectedId,
-    actionInFlight,
-    setActionInFlight,
     setConversations,
   });
 
@@ -662,8 +653,6 @@ export function useWhatsAppInbox() {
     resolveConversation,
     reopenConversation,
     updateConversationNotes,
-    snoozeConversation,
-    unsnoozeConversation,
     createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
