@@ -1,5 +1,4 @@
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { toDateStr } from "../../supabase/transforms";
 
 function formatLong(dateObj) {
   return dateObj.toLocaleDateString("en-GB", {
@@ -21,18 +20,15 @@ function formatShort(dateObj) {
 export function DayHeader({
   currentDateObj,
   onNavigateDay,
-  onJumpToToday,
   onOpenCalendar,
   trailing,
 }) {
-  const todayStr = toDateStr(new Date());
-  const currentStr = toDateStr(currentDateObj);
-  const isToday = todayStr === currentStr;
-
   return (
     // Hidden on phones — the week-pill row (CalendarTabs) carries the
     // chevrons and calendar button there, and the date label moves into
-    // the BookingGridControls pill. Reclaims a full row of chrome.
+    // the BookingGridControls bar. Reclaims a full row of chrome.
+    // "Today" lives on the BookingGridControls bar below (one button for
+    // every breakpoint), so it's intentionally absent here.
     <header className="hidden sm:flex items-center gap-2 bg-white rounded-2xl border border-gray-100 shadow-card-resting py-2 px-3 md:py-2.5 md:px-4">
       <button
         type="button"
@@ -58,17 +54,6 @@ export function DayHeader({
       >
         <ChevronRight size={18} strokeWidth={2.5} />
       </button>
-
-      {!isToday && onJumpToToday && (
-        <button
-          type="button"
-          onClick={onJumpToToday}
-          aria-label="Jump to today"
-          className="hidden sm:inline-flex tap-target items-center justify-center h-9 px-3 rounded-full text-xs font-semibold text-brand-purple bg-white border border-slate-200 cursor-pointer transition-colors hover:border-brand-yellow/60 hover:bg-brand-yellow/10 font-[inherit] shrink-0"
-        >
-          Today
-        </button>
-      )}
 
       {onOpenCalendar && (
         <button

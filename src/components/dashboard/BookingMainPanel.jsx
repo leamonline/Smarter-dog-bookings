@@ -54,7 +54,6 @@ export function BookingMainPanel({
       <DayHeader
         currentDateObj={currentDateObj}
         onNavigateDay={onNavigateDay}
-        onJumpToToday={!isToday ? jumpToToday : undefined}
         onOpenCalendar={onOpenOverview || onOpenCalendar}
       />
 
