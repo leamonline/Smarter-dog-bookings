@@ -1,13 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../supabase/client.js";
-import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
+import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
 
-export function AccountSettings({ user, staffProfile }) {
-  const [account, setAccount] = useState({
+export function AccountSettings({ user, staffProfile, onDirtyChange }) {
+  const initial = {
     displayName: staffProfile?.display_name || "",
     phone: staffProfile?.phone || "",
     email: user?.email || "",
-  });
+  };
+  const [account, setAccount] = useState(initial);
+  const [baseline, setBaseline] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -15,8 +17,21 @@ export function AccountSettings({ user, staffProfile }) {
   const [pwSending, setPwSending] = useState(false);
   const [pwSent, setPwSent] = useState(false);
 
+  const dirty =
+    account.displayName !== baseline.displayName ||
+    account.phone !== baseline.phone ||
+    account.email !== baseline.email;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
+
   const handleSave = useCallback(async () => {
     if (!supabase || !staffProfile?.id) return;
+    if (account.email.trim() && !isValidEmail(account.email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSaved(false);
@@ -35,6 +50,7 @@ export function AccountSettings({ user, staffProfile }) {
         setEmailPending(true);
       }
 
+      setBaseline(account);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
@@ -98,7 +114,7 @@ export function AccountSettings({ user, staffProfile }) {
         </div>
 
         {error && (
-          <div className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
+          <div role="alert" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3 py-2 rounded-lg mb-3">
             {error}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { Card, CardHead, CardBody, Toggle, useConfigSaver } from "./shared.jsx";
+import { Card, CardHead, CardBody, Toggle, useAutosaveStatus, SaveStatus } from "./shared.jsx";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "../../../constants/index";
 
 const ALL_CHANNELS = ["whatsapp", "email", "sms"];
@@ -17,7 +17,7 @@ const NOTIF_ROWS = [
 ];
 
 export function NotificationSettings({ config, onUpdateConfig, canEdit = true }) {
-  const save = useConfigSaver(onUpdateConfig, { canEdit });
+  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
   const notifs = config?.notifications || DEFAULT_NOTIFICATION_SETTINGS;
 
   const toggleNotif = (key) => {
@@ -50,7 +50,7 @@ export function NotificationSettings({ config, onUpdateConfig, canEdit = true })
 
   return (
     <Card id="settings-notifs">
-      <CardHead variant="yellow" title="Notifications" desc="What gets sent to customers and via which channel" />
+      <CardHead variant="yellow" title="Notifications" desc="What gets sent to customers and via which channel" right={<SaveStatus status={status} />} />
       <CardBody>
         {NOTIF_ROWS.map((row, idx) => {
           const n = notifs[row.key] || { enabled: false, channels: [] };
