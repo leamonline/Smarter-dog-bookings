@@ -119,22 +119,37 @@ serve(async (req) => {
     );
   }
 
-  const { data: event } = await supabase
-    .from("whatsapp_events")
-    .select("id")
-    .eq("phone_e164", conv.phone_e164)
-    .eq("signature_valid", true)
-    .order("received_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Anchor on the customer's most recent inbound MESSAGE, not just the
+  // latest event for the phone. whatsapp_events also stores delivery/read
+  // status callbacks (no message to draft from), and those are often the
+  // newest event — picking one made the agent fall through with no reply.
+  // Reactions ("Reacted ❤️") aren't repliable either, so skip them and
+  // use the latest real inbound message's originating event.
+  const { data: inboundMsgs } = await supabase
+    .from("whatsapp_messages")
+    .select("event_id, content, reaction_emoji, sent_at")
+    .eq("conversation_id", conv.id)
+    .eq("direction", "inbound")
+    .not("event_id", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(10);
 
-  if (!event?.id) {
+  const replyTarget = (inboundMsgs ?? []).find(
+    (m) =>
+      m.event_id &&
+      !m.reaction_emoji &&
+      typeof m.content === "string" &&
+      m.content.trim() !== "" &&
+      !/^reacted\b/i.test(m.content.trim()),
+  );
+
+  if (!replyTarget?.event_id) {
     return json(
       req,
       {
         ok: false,
         reason:
-          "No inbound event found for this conversation. The agent needs at least one customer message to reply to.",
+          "No recent customer message to reply to. The AI needs a message from the customer to draft from.",
       },
       422,
     );
@@ -151,7 +166,7 @@ serve(async (req) => {
       "content-type": "application/json",
       "x-agent-secret": AGENT_CALLBACK_SECRET,
     },
-    body: JSON.stringify({ event_id: event.id, suggest_only: true }),
+    body: JSON.stringify({ event_id: replyTarget.event_id, suggest_only: true }),
   });
 
   if (!res.ok) {
