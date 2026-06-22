@@ -7,7 +7,7 @@ export function BlockedSeatCell({ onClick, span }) {
       aria-label="Blocked seat, activate to unblock"
       title="Click to unblock"
       className={[
-        "tap-target w-full group border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer motion-safe:transition-all motion-safe:duration-200 min-h-[117px] md:min-h-[136px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1 font-[inherit]",
+        "tap-target w-full group border-[1.5px] border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer motion-safe:transition-all motion-safe:duration-200 min-h-[92px] md:min-h-[112px] bg-slate-50 text-slate-400 hover:border-brand-coral hover:text-brand-coral hover:bg-brand-coral/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-coral focus-visible:ring-offset-1 font-[inherit]",
         span ? "col-span-2" : "",
       ].join(" ")}
     >
