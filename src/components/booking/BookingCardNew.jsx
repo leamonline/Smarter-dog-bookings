@@ -272,7 +272,11 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
         onDragStart={onDragStart ? (e) => onDragStart(booking, e) : undefined}
         onDragEnd={onDragEnd}
         onClick={handleCardClick}
-        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
+        // min-h matches the ghost / blocked / closed / reserved seat cells
+        // (min-h-[92px] md:min-h-[112px]) so every cell in a slot row lands on
+        // the same height — content shorter than the floor no longer renders a
+        // stubby card. Keep these four in sync if the seat height ever changes.
+        className={`bg-white border-[1.5px] border-slate-200 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all hover:border-brand-purple hover:-translate-y-px box-border focus-within:ring-2 focus-within:ring-brand-yellow focus-within:ring-offset-1 min-h-[92px] md:min-h-[112px] ${searchDimmed ? "opacity-30 pointer-events-none" : ""} ${isBeingDragged ? "opacity-50" : ""}`}
         style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)` }}
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${sizeTheme.glow}0.15)`; }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 1px 4px rgba(0,0,0,0.04), 0 2px 8px ${sizeTheme.glow}0.08)`; }}
