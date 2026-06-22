@@ -74,4 +74,40 @@ describe("CustomerContextPanel", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("Note saved.");
   });
+
+  it("orders the panel: dog card → note → actions → details (email last)", () => {
+    render(
+      <CustomerContextPanel
+        conversation={{ id: "conv-1", phone_e164: "+447700900123", notes: "" }}
+        context={matchedContext({
+          human: {
+            id: "human-1",
+            fullName: "Sarah Jones",
+            name: "Sarah",
+            surname: "Jones",
+            phone: "+447700900123",
+            email: "sarah@example.com",
+          },
+          dogs: [{ id: "dog-1", name: "Rex", breed: "Cockapoo" }],
+        })}
+        onOpenHuman={vi.fn()}
+        onBookAppointment={vi.fn()}
+        onSaveConversationNotes={vi.fn()}
+      />,
+    );
+
+    const dog = screen.getByText("Rex");
+    const note = screen.getByText("Conversation note");
+    const bookAppointment = screen.getByRole("button", { name: /Book appointment/i });
+    const detailsHeading = screen.getByText("Details");
+    const email = screen.getByText("sarah@example.com");
+
+    const follows = (a, b) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(follows(dog, note)).toBe(true); // dog card before the note
+    expect(follows(note, bookAppointment)).toBe(true); // note before the actions
+    expect(follows(bookAppointment, detailsHeading)).toBe(true); // actions before details
+    expect(follows(detailsHeading, email)).toBe(true); // email lives under details, at the end
+  });
 });

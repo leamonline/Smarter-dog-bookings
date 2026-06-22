@@ -12,6 +12,10 @@ function setInboxState(value) {
   globalThis.__useWhatsAppInboxMock = value;
 }
 
+function setMessageSearch(value) {
+  globalThis.__useInboxMessageSearchMock = value;
+}
+
 vi.mock("../../../supabase/hooks/useWhatsAppInbox.js", () => ({
   useWhatsAppInbox: () => globalThis.__useWhatsAppInboxMock,
 }));
@@ -22,6 +26,14 @@ vi.mock("./hooks/useCustomerContext.js", () => ({
     loading: false,
     error: null,
   }),
+}));
+
+vi.mock("./hooks/useInboxMessageSearch.js", () => ({
+  useInboxMessageSearch: () =>
+    globalThis.__useInboxMessageSearchMock ?? {
+      messageMatchIds: new Set(),
+      searching: false,
+    },
 }));
 
 const { InboxView } = await import("./InboxView.jsx");
@@ -50,8 +62,6 @@ function baseState(overrides = {}) {
     resolveConversation: vi.fn(),
     reopenConversation: vi.fn(),
     updateConversationNotes: vi.fn(),
-    snoozeConversation: vi.fn(),
-    unsnoozeConversation: vi.fn(),
     sendTemplate: vi.fn(),
     sendOutboundTemplate: vi.fn(),
     sendOutboundSMS: vi.fn(),
@@ -78,6 +88,7 @@ function renderInbox(state = baseState()) {
 describe("InboxView", () => {
   beforeEach(() => {
     setInboxState(baseState());
+    setMessageSearch({ messageMatchIds: new Set(), searching: false });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -105,15 +116,22 @@ describe("InboxView", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the Unread / Drafts / Bookings filter chip row", () => {
+  it("renders the filter chip row", () => {
     renderInbox();
     const filterRow = screen.getByLabelText("Filter conversations");
     expect(filterRow).toBeInTheDocument();
-    // Spot-check one chip rather than all six so the test doesn't
+    // Spot-check one chip rather than all of them so the test doesn't
     // churn if copy changes.
     expect(
       screen.getByRole("button", { name: /^Unread\b/ }),
     ).toBeInTheDocument();
+  });
+
+  it("no longer offers a Snoozed filter chip", () => {
+    renderInbox();
+    expect(
+      screen.queryByRole("button", { name: /^Snoozed\b/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows all active conversations as an explicit chip", () => {
@@ -194,43 +212,6 @@ describe("InboxView", () => {
     expect(screen.queryByText("Mina Patel")).not.toBeInTheDocument();
   });
 
-  it("filters the closing-soon queue by soonest WhatsApp window first", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
-
-    renderInbox(
-      baseState({
-        conversations: [
-          {
-            id: "conv-soon",
-            phone_e164: "+447700900111",
-            humans: { name: "Soon", surname: "Owner" },
-            last_customer_text: "Still waiting",
-            last_inbound_at: "2026-06-11T13:00:00Z",
-            last_outbound_at: "2026-06-11T12:00:00Z",
-            unread_count: 0,
-          },
-          {
-            id: "conv-later",
-            phone_e164: "+447700900222",
-            humans: { name: "Later", surname: "Owner" },
-            last_customer_text: "Can you help?",
-            last_inbound_at: "2026-06-12T09:00:00Z",
-            last_outbound_at: null,
-            unread_count: 0,
-          },
-        ],
-      }),
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Closing soon: 1. Click to filter." }),
-    );
-
-    expect(screen.getByText("Soon Owner")).toBeInTheDocument();
-    expect(screen.queryByText("Later Owner")).not.toBeInTheDocument();
-  });
-
   it("filters conversations with failed sends", () => {
     renderInbox(
       baseState({
@@ -264,179 +245,85 @@ describe("InboxView", () => {
     expect(screen.queryByText("Okay Send")).not.toBeInTheDocument();
   });
 
-  it("keeps snoozed conversations out of the active queue until staff opens the Snoozed filter", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+  it("no longer offers the Closing soon / Bookings / Needs review / Suggested close chips", () => {
+    renderInbox();
+    for (const label of ["Closing soon", "Bookings", "Needs review", "Suggested close"]) {
+      expect(
+        screen.queryByRole("button", { name: new RegExp(`^${label}\\b`) }),
+      ).not.toBeInTheDocument();
+    }
+    // The chips that remain are still present.
+    expect(screen.getByRole("button", { name: /^All\b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Awaiting reply\b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Failed sends\b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Unread\b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Drafts\b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Done\b/ })).toBeInTheDocument();
+  });
 
+  it("filters the list by customer name as you type in the search box", () => {
     renderInbox(
       baseState({
         conversations: [
           {
-            id: "conv-active",
+            id: "conv-1",
             phone_e164: "+447700900111",
-            state: "ai_handling",
-            humans: { name: "Ready", surname: "Owner" },
-            last_customer_text: "Can you help?",
+            humans: { name: "Sarah", surname: "Jones" },
+            last_customer_text: "Can I book Bella in?",
             unread_count: 0,
           },
           {
-            id: "conv-snoozed",
+            id: "conv-2",
             phone_e164: "+447700900222",
-            state: "snoozed",
-            snoozed_until: "2026-06-12T15:00:00Z",
-            humans: { name: "Later", surname: "Owner" },
-            last_customer_text: "Nudge me later",
-            unread_count: 0,
-          },
-          {
-            id: "conv-due",
-            phone_e164: "+447700900333",
-            state: "snoozed",
-            snoozed_until: "2026-06-12T09:00:00Z",
-            humans: { name: "Due", surname: "Owner" },
-            last_customer_text: "This follow-up is due",
+            humans: { name: "Mina", surname: "Patel" },
+            last_customer_text: "Thanks",
             unread_count: 0,
           },
         ],
       }),
     );
 
-    expect(
-      screen.getByRole("button", { name: "All: 2. Filter is on." }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Snoozed: 1. Click to filter." }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Ready Owner")).toBeInTheDocument();
-    expect(screen.getByText("Due Owner")).toBeInTheDocument();
-    expect(screen.queryByText("Later Owner")).not.toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Snoozed: 1. Click to filter." }),
-    );
-
-    expect(screen.queryByText("Ready Owner")).not.toBeInTheDocument();
-    expect(screen.queryByText("Due Owner")).not.toBeInTheDocument();
-    expect(screen.getByText("Later Owner")).toBeInTheDocument();
-  });
-
-  it("snoozes the selected conversation from the header preset menu", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
-    const snoozeConversation = vi.fn().mockResolvedValue({ ok: true });
-
-    renderInbox(
-      baseState({
-        selectedId: "conv-1",
-        selectedConversation: {
-          id: "conv-1",
-          phone_e164: "+447700900123",
-          state: "ai_handling",
-          last_inbound_at: "2026-06-12T09:00:00Z",
-        },
-        snoozeConversation,
-      }),
-    );
-
-    fireEvent.change(screen.getByLabelText("Snooze conversation"), {
-      target: { value: "one_hour" },
+    fireEvent.change(screen.getByLabelText("Search all messages"), {
+      target: { value: "sarah" },
     });
 
-    expect(snoozeConversation).toHaveBeenCalledWith("2026-06-12T11:00:00.000Z");
+    expect(screen.getByText("Sarah Jones")).toBeInTheDocument();
+    expect(screen.queryByText("Mina Patel")).not.toBeInTheDocument();
   });
 
-  it("lets staff unsnooze a selected snoozed conversation", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
-    const unsnoozeConversation = vi.fn().mockResolvedValue({ ok: true });
+  it("surfaces conversations whose message history matches, even when the preview doesn't", () => {
+    // The server-side message search returns conv-2's id; its name and
+    // last-message preview don't contain the query, so this proves the
+    // search reaches the full message history, not just the preview.
+    setMessageSearch({ messageMatchIds: new Set(["conv-2"]), searching: false });
 
-    renderInbox(
-      baseState({
-        selectedId: "conv-1",
-        selectedConversation: {
-          id: "conv-1",
-          phone_e164: "+447700900123",
-          state: "snoozed",
-          snoozed_until: "2026-06-12T15:00:00Z",
-        },
-        unsnoozeConversation,
-      }),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Unsnooze" }));
-
-    expect(unsnoozeConversation).toHaveBeenCalled();
-  });
-
-  it("keeps close suggestions out of the urgent Needs review count", () => {
     renderInbox(
       baseState({
         conversations: [
           {
-            id: "conv-review",
+            id: "conv-1",
             phone_e164: "+447700900111",
-            humans: { name: "Urgent", surname: "Review" },
-            last_customer_text: "Can you check this?",
-            needs_human_review: true,
+            humans: { name: "Sarah", surname: "Jones" },
+            last_customer_text: "Can I book Bella in?",
             unread_count: 0,
           },
           {
-            id: "conv-close",
+            id: "conv-2",
             phone_e164: "+447700900222",
-            humans: { name: "Tidy", surname: "Close" },
-            last_customer_text: "Thanks!",
-            closure_suggested_at: "2026-06-12T09:00:00Z",
-            closure_suggested_reason: "booking_confirmed_quiet",
+            humans: { name: "Mina", surname: "Patel" },
+            last_customer_text: "Thanks",
             unread_count: 0,
           },
         ],
       }),
     );
 
-    expect(
-      screen.getByRole("button", { name: "Needs review: 1. Click to filter." }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Suggested close: 1. Click to filter." }),
-    ).toBeInTheDocument();
-  });
+    fireEvent.change(screen.getByLabelText("Search all messages"), {
+      target: { value: "matting" },
+    });
 
-  it("filters urgent reviews separately from suggested closes", () => {
-    renderInbox(
-      baseState({
-        conversations: [
-          {
-            id: "conv-review",
-            phone_e164: "+447700900111",
-            humans: { name: "Urgent", surname: "Review" },
-            last_customer_text: "Can you check this?",
-            needs_human_review: true,
-            unread_count: 0,
-          },
-          {
-            id: "conv-close",
-            phone_e164: "+447700900222",
-            humans: { name: "Tidy", surname: "Close" },
-            last_customer_text: "Thanks!",
-            closure_suggested_at: "2026-06-12T09:00:00Z",
-            closure_suggested_reason: "booking_confirmed_quiet",
-            unread_count: 0,
-          },
-        ],
-      }),
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Needs review: 1. Click to filter." }),
-    );
-    expect(screen.getByText("Urgent Review")).toBeInTheDocument();
-    expect(screen.queryByText("Tidy Close")).not.toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Suggested close: 1. Click to filter." }),
-    );
-    expect(screen.queryByText("Urgent Review")).not.toBeInTheDocument();
-    expect(screen.getByText("Tidy Close")).toBeInTheDocument();
+    expect(screen.getByText("Mina Patel")).toBeInTheDocument();
+    expect(screen.queryByText("Sarah Jones")).not.toBeInTheDocument();
   });
 
   it("scrolls the thread to the latest item after messages render", async () => {
