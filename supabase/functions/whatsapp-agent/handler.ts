@@ -2877,6 +2877,21 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
       }
     }
 
+    // Suggest-only safety net: if we reach here in suggest mode we never
+    // hit the post-callClaude early return — i.e. the event held no
+    // draftable customer message (status callback, reaction, button tap,
+    // etc.). Return JSON so the bridge always gets a parseable response,
+    // and don't mutate the event's processing_status.
+    if (suggestOnly) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          reason: "Couldn't find a recent customer message to reply to.",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+
     await supabase
       .from("whatsapp_events")
       .update({
