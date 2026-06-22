@@ -152,12 +152,16 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     updateConversationNotes(notes, conversationId),
   [updateConversationNotes]);
 
-  // Generate-reply (AI on demand) now lives inside the compose row, so the
-  // handler is hoisted here and passed down to ComposePanel.
+  // Generate-reply (AI on demand) lives inside the compose row. It asks
+  // the AI for a suggested reply and ComposePanel types the returned text
+  // into the box — nothing is sent. The handler is hoisted here and
+  // passed down; it returns the result so ComposePanel can read replyText.
   const handleGenerateReply = useCallback(async () => {
     const res = await generateReplyForConversation(selectedId);
-    if (res?.ok) {
-      toast.show("Asking the AI… a draft will appear below shortly.", "info");
+    if (res?.ok && res.replyText) {
+      toast.show("Suggested reply added to the box — review and send when you're ready.", "info");
+    } else if (res?.ok) {
+      toast.show("The AI didn't return a suggestion. Please try again.", "info");
     } else if (res?.reason) {
       toast.show(`Could not generate: ${res.reason}`, "error");
     }

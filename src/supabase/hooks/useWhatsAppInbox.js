@@ -566,16 +566,20 @@ export function useWhatsAppInbox() {
   const generateReplyForConversation = useCallback(async (conversationId) => {
     const id = conversationId ?? selectedId;
     if (!id) return { ok: false, reason: "no conversation selected" };
-    const { error } = await supabase.functions.invoke("whatsapp-generate-reply", {
+    const { data, error } = await supabase.functions.invoke("whatsapp-generate-reply", {
       body: { conversation_id: id },
     });
     if (error) {
       const detail = await parseSupabaseFunctionError(error, "Generate reply failed");
       return { ok: false, reason: detail };
     }
-    // Realtime subscription on whatsapp_drafts will pick up the new
-    // draft and refresh the thread automatically; no manual refetch.
-    return { ok: true };
+    // Suggest-only mode: the function returns the drafted reply text so
+    // the inbox can type it into the compose box. Nothing is persisted
+    // or sent. A 200 with ok:false carries a reason (e.g. AI turned off).
+    if (data && data.ok === false) {
+      return { ok: false, reason: data.reason ?? "Could not generate a reply." };
+    }
+    return { ok: true, replyText: data?.reply_text ?? "" };
   }, [selectedId]);
 
 

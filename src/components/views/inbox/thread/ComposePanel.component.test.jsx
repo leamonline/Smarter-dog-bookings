@@ -74,6 +74,37 @@ describe("ComposePanel", () => {
     expect(onGenerateReply).toHaveBeenCalledTimes(1);
   });
 
+  it("types the AI suggestion into the compose box without sending", async () => {
+    const onSend = vi.fn();
+    const onGenerateReply = vi
+      .fn()
+      .mockResolvedValue({ ok: true, replyText: "Hi Sarah 🐾 — happy to help!" });
+
+    render(
+      <ComposePanel
+        conversation={openWindowConversation()}
+        dogNames={[]}
+        inFlight={false}
+        onSend={onSend}
+        onSendTemplate={vi.fn()}
+        hasInbound
+        hasPendingDraft={false}
+        onGenerateReply={onGenerateReply}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /generate reply/i }));
+    });
+
+    // The suggestion lands in the textarea, ready for the human to edit.
+    expect(screen.getByPlaceholderText("Write a reply…")).toHaveValue(
+      "Hi Sarah 🐾 — happy to help!",
+    );
+    // It must NOT send — sending is the human's job.
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it("hides Generate reply when a draft is pending or there is no inbound yet", () => {
     const { rerender } = render(
       <ComposePanel

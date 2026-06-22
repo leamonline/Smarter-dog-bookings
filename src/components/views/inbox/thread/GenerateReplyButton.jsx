@@ -4,9 +4,10 @@
 // Phase G — AI on demand. A compact button that sits INSIDE the
 // compose row, between the reply textarea and the Send button.
 // Visible whenever a conversation has an inbound message and no
-// pending draft. Clicking it fires whatsapp-generate-reply, which
-// instructs whatsapp-agent to draft a fresh reply for this
-// conversation with force_draft=true.
+// pending draft. Clicking it asks the AI to draft a suggested reply
+// (in Smarter Dog's voice) from the recent messages and types it into
+// the compose box for staff to edit and send. It never sends, and no
+// draft record is created — the human owns the send.
 //
 // Renders nothing when:
 //   - There's already a pending draft (DraftPanel renders that)
@@ -43,7 +44,7 @@ export function GenerateReplyButton({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      title="AI is off by default for this conversation. Click to ask the AI to draft a reply to the customer's most recent message — it'll appear below for you to approve, edit, or reject."
+      title="Ask the AI to draft a suggested reply from the recent messages, in Smarter Dog's style. It's typed into the box for you to edit and send — nothing is sent automatically."
       className={[
         "self-stretch inline-flex items-center gap-1.5 px-3 rounded-full text-[13px] font-bold transition-colors font-[inherit] border shrink-0 whitespace-nowrap",
         "bg-brand-purple text-white border-brand-purple",
