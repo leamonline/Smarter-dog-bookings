@@ -39,8 +39,10 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
   const isPast = thisDay.getTime() < today.getTime();
   const isLoading = dogCount == null;
 
-  // Two display modes: light (mobile/tablet, on white CalendarTabs bg) and
-  // dark (xl+ inside the purple AppToolbar). Mode selected via Tailwind's xl: prefix.
+  // DayTab always renders on a white card — CalendarTabs (the week pills at
+  // the top of the page on tablet/mobile) and WeekOverviewCard (the desktop
+  // left sidebar). So it uses one light colour scheme at every breakpoint; the
+  // bookability status lives on the date circle below.
   return (
     <button
       role="tab"
@@ -61,16 +63,16 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       className={[
         "flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-2.5 rounded-full cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[50px]",
         isActive
-          ? "bg-brand-purple/10 xl:bg-white/15"
-          : "bg-transparent hover:bg-slate-50 xl:hover:bg-white/10",
+          ? "bg-brand-purple/10"
+          : "bg-transparent hover:bg-slate-50",
       ].join(" ")}
     >
       {/* Day name — neutral label; the circle carries the status colour. */}
       <span
         className={`text-[10px] font-bold uppercase tracking-wide leading-none ${
           isActive
-            ? "text-brand-purple xl:text-brand-yellow"
-            : "text-slate-500 xl:text-white/70"
+            ? "text-brand-purple"
+            : "text-slate-500"
         }`}
       >
         {dayName}
@@ -83,7 +85,7 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
           isActive
             ? "bg-brand-yellow text-brand-purple shadow-[0_2px_10px_rgba(254,204,19,0.45)]"
             : dayCircleStyle({ isPast, dogCount, isOpen }),
-          isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1 xl:ring-offset-brand-purple" : "",
+          isToday && !isActive ? "ring-2 ring-brand-yellow ring-offset-1" : "",
         ].join(" ")}
       >
         {dateNum}
@@ -93,8 +95,8 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       <span
         className={`text-[9px] font-bold leading-none ${
           isActive
-            ? "text-brand-purple xl:text-brand-yellow"
-            : "text-slate-600 xl:text-white/70"
+            ? "text-brand-purple"
+            : "text-slate-600"
         }`}
         aria-hidden={isLoading || undefined}
       >
