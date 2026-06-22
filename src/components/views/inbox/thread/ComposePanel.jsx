@@ -9,7 +9,7 @@
 // Enter = send, Shift+Enter = newline. Matches WhatsApp.
 // ============================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isWindowOpen, windowCountdown } from "../helpers.js";
 import { TemplatePicker } from "./TemplatePicker.jsx";
 import { GenerateReplyButton } from "./GenerateReplyButton.jsx";
@@ -27,6 +27,7 @@ export function ComposePanel({
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const textareaRef = useRef(null);
   const lastInboundAt = conversation?.last_inbound_at;
 
   // Reset input when the user switches to a different conversation,
@@ -66,6 +67,26 @@ export function ComposePanel({
     }
   }
 
+  // Generate reply: ask the AI for a suggestion and type it into the box.
+  // It never sends — the staff member reviews, edits, and sends. Replaces
+  // the current contents (the button is normally used on an empty box),
+  // then focuses the textarea with the cursor at the end so it's ready
+  // to edit.
+  async function handleGenerate() {
+    const res = await onGenerateReply?.();
+    if (res?.ok && res.replyText) {
+      setText(res.replyText);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      });
+    }
+    return res;
+  }
+
   if (!windowOpen) {
     // Bound the template picker so its banner + fields + preview can't push
     // the thread off-screen on short viewports — it scrolls internally
@@ -90,6 +111,7 @@ export function ComposePanel({
       )}
       <div className="flex items-end gap-2">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -103,7 +125,7 @@ export function ComposePanel({
           hasPendingDraft={hasPendingDraft}
           hasInbound={hasInbound}
           inFlight={inFlight}
-          onGenerate={onGenerateReply}
+          onGenerate={handleGenerate}
         />
         <button
           onClick={handleSend}

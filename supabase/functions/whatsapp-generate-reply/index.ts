@@ -3,8 +3,10 @@
 //
 // Phase G — AI on demand. Thin staff-facing bridge that fires the
 // whatsapp-agent against a specific conversation's most recent
-// inbound event with force_draft=true. Used by the "Generate reply"
-// button in the inbox.
+// inbound event in suggest_only mode and hands the drafted text back
+// to the inbox. Used by the "Generate reply" button, which types the
+// suggestion into the compose box for staff to edit and send. Nothing
+// is persisted as a draft and nothing is sent automatically.
 //
 // Why it exists separately from whatsapp-agent:
 //   - whatsapp-agent authenticates via a service-only x-agent-secret
@@ -19,7 +21,7 @@
 //   { conversation_id: uuid }
 //
 // Returns:
-//   { ok: true } | { ok: false, reason: string }
+//   { ok: true, reply_text: string } | { ok: false, reason: string }
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -138,10 +140,10 @@ serve(async (req) => {
     );
   }
 
-  // Forward to whatsapp-agent with force_draft. Note: the agent
-  // function is set to processing_status='pending' or 'processed' on
-  // the event; force_draft bypasses the "already processed" check
-  // because we want it to draft regardless.
+  // Forward to whatsapp-agent in suggest_only mode. suggest_only implies
+  // force_draft inside the agent, so it bypasses the "already processed"
+  // check and runs the full Claude path — but returns the drafted text
+  // instead of persisting a draft or sending anything.
   const agentUrl = `${SUPABASE_URL}/functions/v1/whatsapp-agent`;
   const res = await fetch(agentUrl, {
     method: "POST",
@@ -149,7 +151,7 @@ serve(async (req) => {
       "content-type": "application/json",
       "x-agent-secret": AGENT_CALLBACK_SECRET,
     },
-    body: JSON.stringify({ event_id: event.id, force_draft: true }),
+    body: JSON.stringify({ event_id: event.id, suggest_only: true }),
   });
 
   if (!res.ok) {
@@ -165,5 +167,22 @@ serve(async (req) => {
     );
   }
 
-  return json(req, { ok: true });
+  // The agent replies with JSON in suggest_only mode:
+  //   { ok: true, reply_text } | { ok: false, reason }
+  let agentJson: { ok?: boolean; reply_text?: string; reason?: string };
+  try {
+    agentJson = await res.json();
+  } catch {
+    console.error("whatsapp-generate-reply: agent returned non-JSON");
+    return json(
+      req,
+      { ok: false, reason: "The AI returned an unexpected response. Please try again." },
+      502,
+    );
+  }
+  if (agentJson.ok === false) {
+    return json(req, { ok: false, reason: agentJson.reason ?? "Could not generate a reply." });
+  }
+
+  return json(req, { ok: true, reply_text: agentJson.reply_text ?? "" });
 });

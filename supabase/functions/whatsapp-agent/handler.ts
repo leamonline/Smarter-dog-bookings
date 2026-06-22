@@ -2445,7 +2445,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
     return new Response("unauthorized", { status: 401 });
   }
 
-  let body: { event_id?: string; force_draft?: boolean } = {};
+  let body: { event_id?: string; force_draft?: boolean; suggest_only?: boolean } = {};
   try {
     body = await req.json();
   } catch {
@@ -2462,7 +2462,14 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
   // button on the inbox) can override by sending { force_draft: true }
   // alongside event_id — that bypasses the human-only skip and runs
   // the full Claude path for this one turn.
-  const forceDraft = body.force_draft === true;
+  //
+  // suggest_only is the staff "Generate reply" button: it wants the
+  // SAME full Claude path (so it implies force_draft), but instead of
+  // persisting a draft / booking action / auto-sending, the handler
+  // returns the drafted text so the inbox can type it into the compose
+  // box. The human owns the send.
+  const suggestOnly = body.suggest_only === true;
+  const forceDraft = body.force_draft === true || suggestOnly;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -2675,6 +2682,17 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // staff still see a row in the inbox, but don't burn a
           // Claude call when the assistant is intentionally off.
           if (!AI_ASSISTANT_ENABLED) {
+            // Suggest-only never persists a draft; tell staff why the
+            // box stayed empty instead.
+            if (suggestOnly) {
+              return new Response(
+                JSON.stringify({
+                  ok: false,
+                  reason: "The AI assistant is currently turned off.",
+                }),
+                { status: 200, headers: { "content-type": "application/json" } },
+              );
+            }
             const policy: DraftPolicy = {
               riskLevel: "high",
               handoffRequired: true,
@@ -2712,6 +2730,17 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             conversation.autonomous_booking_enabled === true,
           );
           const { draft, tokensIn, tokensOut, raw } = await callClaude(context, inboundText);
+
+          // Suggest-only (the staff "Generate reply" button): hand the
+          // drafted text straight back so the inbox can type it into the
+          // compose box. No draft row, no booking action, no learned-state
+          // write, no auto-send — the human reviews and sends it.
+          if (suggestOnly) {
+            return new Response(
+              JSON.stringify({ ok: true, reply_text: draft.proposed_text }),
+              { status: 200, headers: { "content-type": "application/json" } },
+            );
+          }
 
           // Compute policy AFTER Claude returns so we can use the real
           // intent + confidence. classifyRisk also looks at message
