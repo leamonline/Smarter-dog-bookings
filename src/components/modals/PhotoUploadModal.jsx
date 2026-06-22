@@ -122,7 +122,7 @@ export function PhotoUploadModal({
                 setPreview(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
-              className="absolute top-2 right-2 bg-black/50 text-white border-none rounded-full w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold"
+              className="tap-target absolute top-2 right-2 bg-black/50 text-white border-none rounded-full w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold"
             >
               {"\u00D7"}
             </button>

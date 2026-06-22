@@ -104,7 +104,7 @@ export function TodoModal({ onClose }) {
                   type="button"
                   onClick={() => handleToggle(todo.id)}
                   aria-label={todo.done ? "Mark as not done" : "Mark as done"}
-                  className={`w-5 h-5 max-md:w-6 max-md:h-6 mt-0.5 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                  className={`relative w-5 h-5 max-md:w-6 max-md:h-6 rounded border-[1.5px] flex items-center justify-center cursor-pointer transition-all shrink-0 after:absolute after:content-[''] after:-inset-[12px] ${
                     todo.done
                       ? "bg-brand-teal border-brand-teal text-white"
                       : "bg-white border-slate-300 hover:border-brand-teal"

@@ -274,12 +274,14 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
             <div>
               <label htmlFor="add-dog-size" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">
                 Size
-                {sizeAutoSet && !sizeOverridden && (
-                  <span className="font-medium normal-case tracking-normal text-brand-green ml-1.5">auto</span>
-                )}
-                {!size && breed.trim() && (
-                  <span className="font-medium normal-case tracking-normal text-brand-coral ml-1.5">unknown breed</span>
-                )}
+                <span role="status" aria-live="polite" aria-atomic="true">
+                  {sizeAutoSet && !sizeOverridden && (
+                    <span className="font-medium normal-case tracking-normal text-brand-green ml-1.5">auto</span>
+                  )}
+                  {!size && breed.trim() && (
+                    <span className="font-medium normal-case tracking-normal text-brand-coral ml-1.5">unknown breed</span>
+                  )}
+                </span>
               </label>
               <select
                 id="add-dog-size"
