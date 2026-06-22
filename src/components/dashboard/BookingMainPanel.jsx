@@ -48,7 +48,7 @@ export function BookingMainPanel({
 
   return (
     <section
-      className="flex flex-col gap-3 min-w-0 xl:flex-1 xl:min-h-0 xl:h-full"
+      className="flex flex-col gap-3 min-w-0 lg:flex-1 lg:min-h-0 lg:h-full"
       aria-label="Booking schedule"
     >
       <DayHeader
@@ -99,8 +99,8 @@ export function BookingMainPanel({
               vertical space in the middle column and scrolls
               internally so the bottom edge lines up with the
               Revenue card on the left. */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
-            <div className="xl:flex-1 xl:min-h-0 xl:overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+            <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
               <SlotGrid
                 bookings={bookings}
                 loading={bookingsLoading && bookings.length === 0}

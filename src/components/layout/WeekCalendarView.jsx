@@ -184,7 +184,7 @@ export function WeekCalendarView({
           left-sidebar WeekOverviewCard. On phones (< sm) the DayHeader
           bar is hidden, so prev/next chevrons and the calendar button
           flank the pills here instead — one row of date chrome, not two. */}
-      <div className="xl:hidden mb-3 flex items-center gap-1">
+      <div className="lg:hidden mb-3 flex items-center gap-1">
         <button
           type="button"
           onClick={() => navigateDay(-1)}
@@ -217,7 +217,7 @@ export function WeekCalendarView({
           schedule so urgent items surface at a glance instead of being
           buried below the day's slot list. Desktop (xl+) keeps the full
           RightWorkflowSidebar in the right rail. */}
-      <div className="xl:hidden mb-3">
+      <div className="lg:hidden mb-3">
         <WorkflowStatusStrip
           failures={failures}
           onSelectFailure={handleSelectFailure}
@@ -292,7 +292,7 @@ export function WeekCalendarView({
             // Desktop (xl+) only: the full stacked workflow sidebar. Below
             // xl the panels live in the WorkflowStatusStrip above the
             // schedule, so the right column is empty there.
-            <div className="hidden xl:block">
+            <div className="hidden lg:block">
               <RightWorkflowSidebar
                 onOpenWaitlist={() => setShowWaitlist(true)}
                 onOpenTodos={() => setShowTodos(true)}
