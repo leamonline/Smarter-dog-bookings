@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon";
 import type { Booking } from "../../types/index";
-import { createCustomerBookingGroup, getSlotOccupancy } from "../rpc";
+import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange } from "../rpc";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -76,6 +76,26 @@ export async function listOnDateForCapacity(
   if (error) return { bookings: [], error: new Error(error.message) };
   const rows = (data ?? []) as Array<{ slot: string; size: string }>;
   return { bookings: rows.map(occupancyRowToBooking), error: null };
+}
+
+// Range sibling of listOnDateForCapacity: full non-cancelled occupancy for a
+// date range, grouped by date and mapped into the engine's Booking[] shape.
+// Lets the date step run the capacity engine per day to dim days the selected
+// dogs can't be booked into. Backed by the get_occupancy_range SECURITY
+// DEFINER RPC (same no-PII contract as get_slot_occupancy).
+export async function listRangeForCapacity(
+  client: SupabaseClient,
+  startDate: string,
+  endDate: string,
+): Promise<{ byDate: Record<string, Booking[]>; error: Error | null }> {
+  const { data, error } = await getOccupancyRange(client, { startDate, endDate });
+  if (error) return { byDate: {}, error: new Error(error.message) };
+  const rows = (data ?? []) as Array<{ booking_date: string; slot: string; size: string }>;
+  const byDate: Record<string, Booking[]> = {};
+  for (const row of rows) {
+    (byDate[row.booking_date] ??= []).push(occupancyRowToBooking(row));
+  }
+  return { byDate, error: null };
 }
 
 // Resolve a "cancel one or cancel the whole group" intent to an array

@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getOpenDays } from "../../../supabase/rpc";
+import { listRangeForCapacity } from "../../../supabase/repositories/bookingsRepo";
 import { getDefaultOpenForDate } from "../../../engine/utils";
+import { findGroupedSlots } from "../../../engine/capacity";
+import { DAY_CAPACITY } from "../../../engine/utilisation";
+import { SALON_SLOTS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
+import type { Booking, WizardDog } from "../../../types/index";
 import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {
+  selectedDogs?: WizardDog[];
   selectedDate: string | null;
   onSelect: (date: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
+
+type DayState = "closed" | "full" | "open";
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -34,8 +42,13 @@ function monthLabelFor(days: Date[]): string {
   return `${firstLabel} → ${lastLabel}`;
 }
 
-export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSelectionProps) {
+export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNext, onBack }: DateSelectionProps) {
   const [daySettings, setDaySettings] = useState<Record<string, { is_open: boolean }>>({});
+  // Per-day non-cancelled occupancy, so a full day can be dimmed up front
+  // rather than dead-ending the customer at "Confirm". null = not loaded yet
+  // / failed to load — in which case we fall back to open/closed only (the
+  // slot step and the DB trigger remain the backstop).
+  const [occupancyByDate, setOccupancyByDate] = useState<Record<string, Booking[]> | null>(null);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -59,25 +72,40 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
       setLoading(true);
       try {
         if (!supabase) return;
-        // day_settings is staff-only via RLS, so go through the
-        // get_open_days RPC which returns just (setting_date, is_open).
-        const { data, error } = await getOpenDays(supabase, {
-          startDate: rangeStart,
-          endDate: rangeEnd,
-        });
+        // In parallel: which days are open (day_settings is staff-only via
+        // RLS, so go through get_open_days → (setting_date, is_open)), and the
+        // non-cancelled occupancy per day (get_occupancy_range) so a full day
+        // can be dimmed instead of dead-ending the customer at "Confirm".
+        const [openRes, occRes] = await Promise.all([
+          getOpenDays(supabase, { startDate: rangeStart, endDate: rangeEnd }),
+          listRangeForCapacity(supabase, rangeStart, rangeEnd),
+        ]);
         if (cancelled) return;
-        if (error) {
-          logger.error("Failed to fetch day closures", error, {
+
+        if (openRes.error) {
+          logger.error("Failed to fetch day closures", openRes.error, {
             tags: { component: "DateSelection", op: "get_open_days" },
           });
           setDaySettings({});
-          return;
+        } else {
+          const map: Record<string, { is_open: boolean }> = {};
+          (openRes.data || []).forEach((row: { setting_date: string; is_open: boolean }) => {
+            map[row.setting_date] = { is_open: row.is_open };
+          });
+          setDaySettings(map);
         }
-        const map: Record<string, { is_open: boolean }> = {};
-        (data || []).forEach((row: { setting_date: string; is_open: boolean }) => {
-          map[row.setting_date] = { is_open: row.is_open };
-        });
-        setDaySettings(map);
+
+        if (occRes.error) {
+          // Don't block the whole step on an occupancy blip — degrade to
+          // open/closed only. The slot step and the DB trigger still catch a
+          // genuinely full day.
+          logger.error("Failed to fetch occupancy", occRes.error, {
+            tags: { component: "DateSelection", op: "get_occupancy_range" },
+          });
+          setOccupancyByDate(null);
+        } else {
+          setOccupancyByDate(occRes.byDate);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -89,6 +117,24 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
     const str = toDateStr(date);
     if (daySettings[str] !== undefined) return daySettings[str].is_open;
     return getDefaultOpenForDate(date);
+  };
+
+  const dogsForEngine = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
+
+  // A day is "full" when the selected dogs can't be placed at all — same
+  // engine the slot step uses, so a day that stays selectable here always has
+  // at least one drop-off time. Only judged once occupancy has loaded and we
+  // know what's being booked; otherwise the day stays open (backstopped by the
+  // slot step + the DB cap).
+  const dayStateFor = (date: Date): DayState => {
+    if (!isOpen(date)) return "closed";
+    if (occupancyByDate && dogsForEngine.length > 0) {
+      const dayBookings = occupancyByDate[toDateStr(date)] ?? [];
+      if (findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY).length === 0) {
+        return "full";
+      }
+    }
+    return "open";
   };
 
   const firstDay = days[0];
@@ -111,7 +157,7 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
       <div className="wizard-calendar">
         <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>
         <p className="wizard-calendar-hint">
-          Closed days are dimmed — pick any available day.
+          Closed and fully-booked days are dimmed — pick any available day.
         </p>
 
         <div className="wizard-calendar-grid">
@@ -132,16 +178,29 @@ export function DateSelection({ selectedDate, onSelect, onNext, onBack }: DateSe
             {gridCells.map((d, i) => {
               if (!d) return <div key={`empty-${i}`} />;
               const dateStr = toDateStr(d);
-              const open = isOpen(d);
+              const state = dayStateFor(d);
+              const selectable = state === "open";
               const selected = selectedDate === dateStr;
+              const longLabel = d.toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              });
+              const ariaLabel =
+                state === "closed"
+                  ? `${longLabel}, closed`
+                  : state === "full"
+                    ? `${longLabel}, fully booked`
+                    : longLabel;
               return (
                 <button
                   key={dateStr}
                   type="button"
-                  className="wizard-day"
+                  className={`wizard-day${state === "full" ? " wizard-day--full" : ""}`}
                   aria-pressed={selected}
-                  disabled={!open}
-                  onClick={() => open && onSelect(dateStr)}
+                  aria-label={ariaLabel}
+                  disabled={!selectable}
+                  onClick={() => selectable && onSelect(dateStr)}
                 >
                   {d.getDate()}
                 </button>

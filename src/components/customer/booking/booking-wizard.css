@@ -285,6 +285,12 @@
   border-color: transparent;
   cursor: default;
 }
+/* Fully-booked days are dimmed like closed days, but struck through so the
+   reason reads as "full" rather than "closed". */
+.wizard-day--full:disabled {
+  color: rgba(45, 0, 75, 0.3);
+  text-decoration: line-through;
+}
 
 /* Slot group header */
 .wizard-slot-group {
