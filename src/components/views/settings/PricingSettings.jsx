@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { SERVICES, DOG_SIZES } from "../../../constants/index";
-import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
+import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useAutosaveStatus, SaveStatus } from "./shared.jsx";
 
 export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
-  const save = useConfigSaver(onUpdateConfig, { canEdit });
+  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceIcon, setNewServiceIcon] = useState("");
 
@@ -53,6 +53,7 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
         variant="yellow"
         title="Services & Pricing"
         desc='Base prices per size — shown as "from" on the booking portal'
+        right={<SaveStatus status={status} />}
       />
       <CardBody>
         {/* Header + rows scroll together on narrow screens so the price
@@ -140,9 +141,6 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
           </button>
         </div>
 
-        <div className="mt-3.5 text-caption font-semibold text-ink-muted">
-          Changes save as you type.
-        </div>
       </CardBody>
     </Card>
   );

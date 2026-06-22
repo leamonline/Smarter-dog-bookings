@@ -9,6 +9,7 @@ import { CapacitySettings } from "./settings/CapacitySettings.jsx";
 import { CustomerPortalSettings } from "./settings/CustomerPortalSettings.jsx";
 import { NotificationSettings } from "./settings/NotificationSettings.jsx";
 import { CalendarSettings } from "./settings/CalendarSettings.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const SECTIONS = [
   { id: "business", label: "Your Business" },
@@ -27,6 +28,11 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
   const tablistRef = useRef(null);
   const keyboardNav = useRef(false);
 
+  // The explicit-save tabs (Business, Hours, Account) report unsaved edits up
+  // here so we can guard against losing them on a tab switch or page unload.
+  const [dirty, setDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState(null);
+
   useEffect(() => {
     if (!keyboardNav.current) return;
     tablistRef.current
@@ -34,6 +40,35 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
       ?.focus();
     keyboardNav.current = false;
   }, [activeTab]);
+
+  // Warn before a full-page unload (refresh/close) when there are unsaved edits.
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  // Guarded tab switch — if the current tab has unsaved edits, confirm before
+  // leaving (which would discard them). Clean tabs switch immediately.
+  const requestTab = (id, viaKeyboard = false) => {
+    if (id === activeTab) return;
+    keyboardNav.current = viaKeyboard;
+    if (dirty) {
+      setPendingTab(id);
+      return;
+    }
+    setActiveTab(id);
+  };
+
+  const confirmDiscard = () => {
+    setDirty(false);
+    if (pendingTab) setActiveTab(pendingTab);
+    setPendingTab(null);
+  };
 
   const handleKeyDown = (e) => {
     const idx = SECTIONS.findIndex((s) => s.id === activeTab);
@@ -44,10 +79,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
     else if (e.key === "End") next = SECTIONS.length - 1;
     else return;
     e.preventDefault();
-    if (SECTIONS[next].id !== activeTab) {
-      keyboardNav.current = true;
-      setActiveTab(SECTIONS[next].id);
-    }
+    requestTab(SECTIONS[next].id, true);
   };
 
   return (
@@ -87,7 +119,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
               aria-selected={isActive}
               aria-controls="settings-panel"
               tabIndex={isActive ? 0 : -1}
-              onClick={() => setActiveTab(s.id)}
+              onClick={() => requestTab(s.id)}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer font-[inherit] motion-safe:transition-all border-none ${
                 isActive
                   ? "bg-white text-brand-teal shadow-sm"
@@ -108,9 +140,9 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
         tabIndex={0}
         className="focus:outline-none"
       >
-        {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
-        {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
-        {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} />}
+        {activeTab === "business" && <BusinessSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
+        {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
+        {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} onDirtyChange={setDirty} />}
         {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
@@ -118,6 +150,18 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
         {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "calendar" && <CalendarSettings />}
       </div>
+
+      {pendingTab && (
+        <ConfirmDialog
+          title="Discard unsaved changes?"
+          message="You have unsaved changes on this tab. If you leave now they'll be lost."
+          confirmLabel="Discard changes"
+          cancelLabel="Keep editing"
+          variant="danger"
+          onConfirm={confirmDiscard}
+          onCancel={() => setPendingTab(null)}
+        />
+      )}
     </div>
   );
 }

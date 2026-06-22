@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS, useConfigSaver } from "./shared.jsx";
+import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS, useAutosaveStatus, SaveStatus } from "./shared.jsx";
 
 export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
-  const save = useConfigSaver(onUpdateConfig, { canEdit });
+  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
   const [newSlotTime, setNewSlotTime] = useState("");
 
   const toggleCapacity = () => {
@@ -35,7 +35,7 @@ export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
 
   return (
     <Card id="settings-capacity">
-      <CardHead variant="coral" title="Capacity Engine" desc="The 2-2-1 rule controls how many dogs can be booked at once" />
+      <CardHead variant="coral" title="Capacity Engine" desc="The 2-2-1 rule controls how many dogs can be booked at once" right={<SaveStatus status={status} />} />
       <CardBody>
         <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-700 leading-relaxed">
           <p className="m-0 mb-1.5 font-semibold text-slate-800">

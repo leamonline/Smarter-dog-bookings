@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS } from "./shared.jsx";
+import { useState, useEffect } from "react";
+import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { DEFAULT_BUSINESS_NAME } from "../../../constants/index";
 
-export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
+export function BusinessSettings({ config, onUpdateConfig, canEdit = true, onDirtyChange }) {
   const toast = useToast();
   // Track whether the salon has actively configured its details so we
   // can warn that customers are seeing the default placeholders rather
@@ -15,17 +15,37 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
     !config?.businessAddress &&
     (!config?.businessName || config?.businessName === DEFAULT_BUSINESS_NAME);
 
-  const [business, setBusiness] = useState({
+  const initial = {
     name: config?.businessName || DEFAULT_BUSINESS_NAME,
     phone: config?.businessPhone || "",
     email: config?.businessEmail || "",
     address: config?.businessAddress || "",
-  });
+  };
+  const [business, setBusiness] = useState(initial);
+  // Last-saved values — `dirty` compares against this (not props) so it stays
+  // correct even if the config prop doesn't re-flow after a save.
+  const [baseline, setBaseline] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  const dirty =
+    business.name !== baseline.name ||
+    business.phone !== baseline.phone ||
+    business.email !== baseline.email ||
+    business.address !== baseline.address;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   const handleSave = async () => {
     if (!canEdit) return;
+    if (business.email.trim() && !isValidEmail(business.email)) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+    setEmailError("");
     setSaving(true);
     const result = await onUpdateConfig((prev) => ({
       ...prev,
@@ -39,6 +59,7 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
       toast.show(result.error || "Couldn't save — try again?", "error");
       return;
     }
+    setBaseline(business);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -87,10 +108,20 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true }) {
               type="email"
               disabled={!canEdit}
               value={business.email}
-              onChange={(e) => setBusiness((b) => ({ ...b, email: e.target.value }))}
-              className={INPUT_CLS}
+              onChange={(e) => {
+                setBusiness((b) => ({ ...b, email: e.target.value }));
+                if (emailError) setEmailError("");
+              }}
+              aria-invalid={emailError ? true : undefined}
+              aria-describedby={emailError ? "business-email-error" : undefined}
+              className={`${INPUT_CLS} ${emailError ? "!border-brand-coral" : ""}`}
               placeholder="hello@smarterdog.co.uk"
             />
+            {emailError && (
+              <div id="business-email-error" role="alert" className="text-xs text-brand-coral font-semibold mt-1">
+                {emailError}
+              </div>
+            )}
           </div>
         </div>
         <div className="mb-3.5">

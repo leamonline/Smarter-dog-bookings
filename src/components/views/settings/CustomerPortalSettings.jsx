@@ -1,8 +1,8 @@
-import { Card, CardHead, CardBody, SettingRow, Toggle, useConfigSaver } from "./shared.jsx";
+import { Card, CardHead, CardBody, SettingRow, Toggle, useAutosaveStatus, SaveStatus } from "./shared.jsx";
 import { DEFAULT_CUSTOMER_PORTAL_SETTINGS } from "../../../constants/index";
 
 export function CustomerPortalSettings({ config, onUpdateConfig, canEdit = true }) {
-  const save = useConfigSaver(onUpdateConfig, { canEdit });
+  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
   const portal = config?.customerPortal || DEFAULT_CUSTOMER_PORTAL_SETTINGS;
 
   const togglePortal = (key) => {
@@ -18,7 +18,7 @@ export function CustomerPortalSettings({ config, onUpdateConfig, canEdit = true 
 
   return (
     <Card id="settings-portal">
-      <CardHead variant="teal" title="Customer Portal" desc="Control what customers can see and do" />
+      <CardHead variant="teal" title="Customer Portal" desc="Control what customers can see and do" right={<SaveStatus status={status} />} />
       <CardBody>
         <SettingRow
           label="Show upcoming bookings"
