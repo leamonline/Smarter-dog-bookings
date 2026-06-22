@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { BOOKING_STATUS, BOOKING_STATUSES, getStatusDisplay } from "../../../constants/index";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 
@@ -10,6 +10,27 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   // its own when the change is triggered programmatically (#299).
   const [announcement, setAnnouncement] = useState("");
 
+  // Roving-tabindex keyboard nav. Arrows move FOCUS between steps but don't
+  // commit — committing fires a server update + toast, so we never want that
+  // on a stray arrow press. Enter/Space on the focused step commits via the
+  // button's native onClick.
+  const radioRefs = useRef([]);
+  const handleKeyNav = (e) => {
+    const navKeys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"];
+    if (!navKeys.includes(e.key)) return;
+    e.preventDefault();
+    const count = BOOKING_STATUSES.length;
+    let idx = radioRefs.current.findIndex((el) => el === document.activeElement);
+    if (idx < 0) idx = BOOKING_STATUSES.findIndex((s) => s.id === currentStatus);
+    if (idx < 0) idx = 0;
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % count;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + count) % count;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = count - 1;
+    radioRefs.current[next]?.focus();
+  };
+
   return (
     <div className="mb-4">
       <div className="sr-only" role="status" aria-live="polite">
@@ -19,8 +40,9 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
         role="radiogroup"
         aria-label="Booking status"
         className="grid grid-cols-5 gap-1"
+        onKeyDown={handleKeyNav}
       >
-        {BOOKING_STATUSES.map((status) => {
+        {BOOKING_STATUSES.map((status, idx) => {
           const isActive = currentStatus === status.id;
           // Active step pulls the same colour the dashboard card pill uses for
           // this status, so the stepper colour-matches the card.
@@ -29,9 +51,11 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
           return (
             <button
               key={status.id}
+              ref={(el) => (radioRefs.current[idx] = el)}
               type="button"
               role="radio"
               aria-checked={isActive}
+              tabIndex={isActive ? 0 : -1}
               aria-label={`Set status to ${status.label}`}
               onClick={async () => {
                 if (isActive) return;

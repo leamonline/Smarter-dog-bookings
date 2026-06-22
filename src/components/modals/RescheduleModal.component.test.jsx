@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { SALON_SLOTS } from "../../constants/index";
 import { RescheduleModal } from "./RescheduleModal.jsx";
 
-// 2026-06-01 is a Monday, so the next-7-days picker spans Jun 2 (Tue) … Jun 8.
+// 2026-06-01 is a Monday. The picker spans the viewed day (Jun 1) … Jun 8.
 const MONDAY = new Date(2026, 5, 1);
 
 function modalProps(overrides = {}) {
@@ -18,6 +18,15 @@ function modalProps(overrides = {}) {
     ...overrides,
   };
 }
+
+describe("RescheduleModal — same-day moves", () => {
+  it("offers the viewed day so a booking can be moved to another slot the same day", () => {
+    render(<RescheduleModal {...modalProps({ dayOpenState: { "2026-06-01": true } })} />);
+    // The viewed day (Mon 1 Jun) is now selectable — the keyboard/tap
+    // equivalent of dragging a card to a different slot on the same day.
+    expect(screen.getByRole("button", { name: /1 Jun/ })).toBeEnabled();
+  });
+});
 
 describe("RescheduleModal — closed days", () => {
   it("disables a closed day and leaves an open day selectable", () => {
