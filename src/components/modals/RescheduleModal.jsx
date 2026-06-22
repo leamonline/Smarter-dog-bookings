@@ -32,10 +32,14 @@ export function RescheduleModal({
 }) {
   const theme = sizeTheme || SIZE_FALLBACK;
 
-  // Next 7 days starting tomorrow
+  // The viewed day plus the next 7. Including the viewed day gives a
+  // keyboard/single-pointer way to move a booking to another slot on the
+  // SAME day — the equivalent of dragging a card between slots, which is
+  // otherwise pointer-drag-only. The booking's own current slot auto-hides
+  // (same dog already booked there), so it only ever offers other slots.
   const days = useMemo(() => {
     const result = [];
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 0; i <= 7; i++) {
       const d = addDays(currentDateObj, i);
       const dateStr = toDateStr(d);
       // Open/closed via the shared resolver (explicit override >

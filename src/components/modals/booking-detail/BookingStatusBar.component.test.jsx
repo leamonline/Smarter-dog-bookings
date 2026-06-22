@@ -48,3 +48,56 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
     expect(screen.getByRole("status")).toHaveTextContent("");
   });
 });
+
+describe("BookingStatusBar keyboard navigation", () => {
+  it("uses roving tabindex — only the checked step is tabbable", () => {
+    render(
+      <BookingStatusBar
+        booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
+        currentDateStr="2026-06-20"
+        onUpdate={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("radio", { name: /set status to booked/i })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("radio", { name: /set status to checked in/i })).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("arrow keys move focus only — they never commit a status change", async () => {
+    const user = userEvent.setup();
+    const onUpdate = vi.fn().mockResolvedValue({ id: "b1", status: BOOKING_STATUS.CHECKED_IN });
+    render(
+      <BookingStatusBar
+        booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
+        currentDateStr="2026-06-20"
+        onUpdate={onUpdate}
+      />,
+    );
+    const booked = screen.getByRole("radio", { name: /set status to booked/i });
+    const checkedIn = screen.getByRole("radio", { name: /set status to checked in/i });
+
+    booked.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(checkedIn).toHaveFocus();
+    expect(onUpdate).not.toHaveBeenCalled(); // focus moved, nothing committed
+
+    await user.keyboard("{Enter}");
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate.mock.calls[0][0]).toMatchObject({ status: BOOKING_STATUS.CHECKED_IN });
+  });
+
+  it("wraps from the last step back to the first with ArrowRight", async () => {
+    const user = userEvent.setup();
+    render(
+      <BookingStatusBar
+        booking={{ id: "b1", status: BOOKING_STATUS.COMPLETED }}
+        currentDateStr="2026-06-20"
+        onUpdate={vi.fn()}
+      />,
+    );
+    const completed = screen.getByRole("radio", { name: /set status to completed/i });
+    const booked = screen.getByRole("radio", { name: /set status to booked/i });
+    completed.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(booked).toHaveFocus();
+  });
+});

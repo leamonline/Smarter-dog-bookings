@@ -194,8 +194,17 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
   const [pendingSkipStatus, setPendingSkipStatus] = useState(null);
   // shape: { nextStatus: string, previous: string }
   const alertsButtonRef = useRef(null);
+  const statusOptionRefs = useRef([]);
   const toast = useToast();
   const deliveryFailure = useBookingDeliveryFailure(booking.id);
+
+  // When the inline status picker opens, move focus to the current status so
+  // keyboard users land on a sensible option and can arrow between them.
+  useEffect(() => {
+    if (!statusOpen) return;
+    const curIdx = Math.max(0, STATUS_PROGRESSION.indexOf(booking.status));
+    statusOptionRefs.current[curIdx]?.focus();
+  }, [statusOpen, booking.status]);
 
   const applyStatusChange = (nextStatus, previous) => {
     if (onUpdate) onUpdate({ ...booking, status: nextStatus }, currentDateStr, currentDateStr);
@@ -417,18 +426,33 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-atomic="true"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
-                if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); }
+                if (e.key === "Escape") { e.stopPropagation(); setStatusOpen(false); return; }
+                const navKeys = ["ArrowDown", "ArrowUp", "Home", "End"];
+                if (!navKeys.includes(e.key)) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const count = STATUS_PROGRESSION.length;
+                let idx = statusOptionRefs.current.findIndex((el) => el === document.activeElement);
+                if (idx < 0) idx = Math.max(0, STATUS_PROGRESSION.indexOf(booking.status));
+                let next = idx;
+                if (e.key === "ArrowDown") next = (idx + 1) % count;
+                else if (e.key === "ArrowUp") next = (idx - 1 + count) % count;
+                else if (e.key === "Home") next = 0;
+                else if (e.key === "End") next = count - 1;
+                statusOptionRefs.current[next]?.focus();
               }}
             >
-              {STATUS_PROGRESSION.map((id) => {
+              {STATUS_PROGRESSION.map((id, i) => {
                 const s = { id, ...STATUS_DISPLAY[id] };
                 const isCurrent = s.id === booking.status;
                 return (
                   <button
                     key={s.id}
+                    ref={(el) => (statusOptionRefs.current[i] = el)}
                     type="button"
                     role="option"
                     aria-selected={isCurrent}
+                    tabIndex={isCurrent ? 0 : -1}
                     aria-current={isCurrent ? "true" : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
