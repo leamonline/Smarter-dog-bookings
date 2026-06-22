@@ -119,8 +119,8 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
 
   return (
     <>
-      {/* ── Desktop header (xl+) ── */}
-      <div className="hidden xl:flex items-center gap-3 mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
+      {/* ── Desktop header (lg+) ── */}
+      <div className="hidden lg:flex items-center gap-2 xl:gap-3 mb-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-brand-purple text-white rounded-b-2xl shadow-md">
         <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
           <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-9 w-auto" />
         </NavLink>
@@ -192,7 +192,8 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            New booking
+            <span className="xl:hidden">New</span>
+            <span className="hidden xl:inline">New booking</span>
           </button>
         )}
 
@@ -282,8 +283,8 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
         </div>
       </div>
 
-      {/* ── Mobile/tablet top bar (below xl) — compact like a tablet app toolbar ── */}
-      <div className="xl:hidden mb-3 -mx-4 sm:-mx-6 px-3 sm:px-5 py-2 flex items-center gap-2 bg-brand-purple text-white rounded-b-2xl shadow-md">
+      {/* ── Mobile/tablet top bar (below lg) — compact like a tablet app toolbar ── */}
+      <div className="lg:hidden mb-3 -mx-4 sm:-mx-6 px-3 sm:px-5 py-2 flex items-center gap-2 bg-brand-purple text-white rounded-b-2xl shadow-md">
         <NavLink to="/" className="shrink-0 no-underline brightness-0 invert">
           <img src="/logo.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
         </NavLink>
@@ -371,9 +372,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
         </div>
       </div>
 
-      {/* ── Mobile bottom tab bar (below md) ── */}
+      {/* ── Mobile/tablet bottom tab bar (below lg) ── */}
       <nav
-        className="xl:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
         aria-label="Primary"
       >
         <div className="flex max-w-xl mx-auto">

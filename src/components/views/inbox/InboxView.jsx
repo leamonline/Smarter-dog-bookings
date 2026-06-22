@@ -725,7 +725,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       type="button"
                       onClick={() => setContextOpen(true)}
                       title="Show this customer's dogs, last groom, and trusted contacts."
-                      className="xl:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                      className="lg:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="10" />
@@ -864,7 +864,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         {/* Customer context — docked third column at xl+. Hidden on
             smaller breakpoints (the slide-over below replaces it). */}
         {selectedId && (
-          <div className="hidden xl:flex xl:w-[300px] xl:flex-col border-l border-slate-200 bg-white">
+          <div className="hidden lg:flex lg:w-[280px] xl:w-[300px] lg:flex-col border-l border-slate-200 bg-white">
             <CustomerContextPanel
               context={customerContext}
               conversation={selectedConversation}

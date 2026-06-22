@@ -33,13 +33,13 @@ export function DashboardShell({ left, main, right }) {
     : undefined;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-4 xl:gap-6 relative xl:items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-4 lg:gap-6 relative lg:items-start">
       {/* Left sidebar — visible on xl+, content drives the row height
           for the middle + right columns via ResizeObserver. */}
       {left && (
         <div
           ref={leftRef}
-          className="hidden xl:block xl:order-1 xl:sticky xl:top-4"
+          className="hidden lg:block lg:order-1 lg:sticky lg:top-4"
         >
           {left}
         </div>
@@ -50,7 +50,7 @@ export function DashboardShell({ left, main, right }) {
           at the same point as the Revenue card. Internal scroll
           handles overflow. */}
       <div
-        className="order-1 xl:order-2 min-w-0 xl:sticky xl:top-4 xl:overflow-hidden xl:flex xl:flex-col"
+        className="order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 lg:overflow-hidden lg:flex lg:flex-col"
         style={matchedHeightStyle}
       >
         {main}
@@ -63,7 +63,7 @@ export function DashboardShell({ left, main, right }) {
           shape of the booking grid card in the middle column. */}
       {right && (
         <div
-          className="order-2 xl:order-3 xl:sticky xl:top-4 xl:overflow-y-auto xl:rounded-b-2xl"
+          className="order-2 lg:order-3 lg:sticky lg:top-4 lg:overflow-y-auto lg:rounded-b-2xl"
           style={matchedHeightStyle}
         >
           {right}

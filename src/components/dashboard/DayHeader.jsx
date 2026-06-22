@@ -75,7 +75,7 @@ export function DayHeader({
           type="button"
           onClick={onOpenCalendar}
           aria-label="Open calendar overview"
-          className="xl:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+          className="lg:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
         >
           <CalendarDays size={18} strokeWidth={2} />
         </button>
