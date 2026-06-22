@@ -84,6 +84,7 @@ interface DbConfigRow {
   default_pickup_offset: number | null;
   pricing: Record<string, Record<string, string>> | null;
   enforce_capacity: boolean | null;
+  daily_dog_cap?: number | null;
   large_dog_slots: Record<string, unknown> | null;
   settings?: PersistedSalonSettings | null;
 }
@@ -92,6 +93,7 @@ interface DbConfigOut {
   default_pickup_offset: number;
   pricing: Record<string, Record<string, string>>;
   enforce_capacity: boolean;
+  daily_dog_cap: number;
   large_dog_slots: Record<string, unknown>;
   settings: SalonSettings;
 }
@@ -396,6 +398,7 @@ export function dbConfigToApp(row: DbConfigRow | null): SalonConfig | null {
     defaultPickupOffset: row.default_pickup_offset ?? defaults.defaultPickupOffset,
     pricing: row.pricing || defaults.pricing,
     enforceCapacity: row.enforce_capacity ?? defaults.enforceCapacity,
+    dailyDogCap: row.daily_dog_cap ?? defaults.dailyDogCap,
     largeDogSlots: (row.large_dog_slots || defaults.largeDogSlots) as SalonConfig["largeDogSlots"],
   };
 }
@@ -407,6 +410,7 @@ export function appConfigToDb(config: SalonConfig): DbConfigOut {
     default_pickup_offset: config.defaultPickupOffset ?? defaults.defaultPickupOffset,
     pricing: config.pricing || defaults.pricing,
     enforce_capacity: config.enforceCapacity ?? defaults.enforceCapacity,
+    daily_dog_cap: config.dailyDogCap ?? defaults.dailyDogCap,
     large_dog_slots: config.largeDogSlots || defaults.largeDogSlots,
     settings,
   };

@@ -649,6 +649,51 @@ describe("Multi-Dog Slot Grouping", () => {
   });
 });
 
+describe("Daily dog cap (day-total limit)", () => {
+  // Spread N small-dog bookings round-robin across the slots WITHOUT filling
+  // the day, so empty seats remain and the per-slot 2-2-1 rule would still
+  // take another dog — proving it's the *day* cap, not slot capacity, doing
+  // the blocking.
+  function spread(count) {
+    const result = [];
+    let i = 0;
+    while (result.length < count) {
+      result.push(b(SLOTS[i % SLOTS.length], "small"));
+      i++;
+    }
+    return result;
+  }
+
+  it("blocks the 15th dog when the day already has 14 (overbooking regression)", () => {
+    // 14 dogs across the first 7 slots (2 each); 12:00/12:30/13:00 are EMPTY,
+    // so per-slot rules would happily take another small dog. This is exactly
+    // how a 15th dog booked into an empty 13:00 on an otherwise-full day.
+    const earlySlots = ["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30"];
+    const fourteen = earlySlots.flatMap((s) => [b(s, "small"), b(s, "small")]);
+    expect(fourteen.length).toBe(14);
+    expect(findGroupedSlots(dogs(["small"]), fourteen, SLOTS).length).toBe(0);
+    // Prove it's the day cap, not the slots: lift the cap and a slot reopens.
+    expect(findGroupedSlots(dogs(["small"]), fourteen, SLOTS, 20).length).toBeGreaterThan(0);
+  });
+
+  it("allows the 14th dog (day has room for exactly one)", () => {
+    const thirteen = spread(13);
+    expect(findGroupedSlots(dogs(["small"]), thirteen, SLOTS).length).toBeGreaterThan(0);
+  });
+
+  it("rejects a multi-dog group that would cross the cap (atomic)", () => {
+    // 13 + 2 = 15 > 14 → the whole group is refused, never partially placed.
+    expect(findGroupedSlots(dogs(["small", "small"]), spread(13), SLOTS).length).toBe(0);
+    // 12 + 2 = 14 → fits.
+    expect(findGroupedSlots(dogs(["small", "small"]), spread(12), SLOTS).length).toBeGreaterThan(0);
+  });
+
+  it("honours a custom (configurable) cap", () => {
+    expect(findGroupedSlots(dogs(["small"]), spread(5), SLOTS, 5).length).toBe(0);
+    expect(findGroupedSlots(dogs(["small"]), spread(4), SLOTS, 5).length).toBeGreaterThan(0);
+  });
+});
+
 // ============================================================
 // 14. STAFF CAPACITY OVERRIDE
 // ============================================================

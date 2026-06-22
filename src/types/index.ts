@@ -198,6 +198,8 @@ export interface SalonConfig extends SalonSettings {
   defaultPickupOffset: number;
   pricing: Record<string, Record<string, string>>;
   enforceCapacity: boolean;
+  /** Maximum total dogs that can be booked in a single day (across all slots). */
+  dailyDogCap: number;
   largeDogSlots: Record<string, LargeDogSlotRule>;
 }
 
