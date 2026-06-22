@@ -268,7 +268,7 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-slate-500 hover:text-slate-700 w-7 h-7 rounded-full hover:bg-slate-100 transition-colors text-[16px] cursor-pointer"
+            className="tap-target text-slate-500 hover:text-slate-700 w-7 h-7 rounded-full hover:bg-slate-100 transition-colors text-[16px] cursor-pointer"
           >
             ×
           </button>

@@ -189,7 +189,7 @@ export function WeekCalendarView({
           type="button"
           onClick={() => navigateDay(-1)}
           aria-label="Previous day"
-          className="sm:hidden w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
         >
           <ChevronLeft size={18} strokeWidth={2.5} />
         </button>
@@ -207,7 +207,7 @@ export function WeekCalendarView({
           type="button"
           onClick={() => navigateDay(1)}
           aria-label="Next day"
-          className="sm:hidden w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
         >
           <ChevronRight size={18} strokeWidth={2.5} />
         </button>

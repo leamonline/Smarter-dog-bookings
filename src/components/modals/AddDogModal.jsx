@@ -217,8 +217,8 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
               )}
             </div>
             <div>
-              <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value)}
+              <label htmlFor="add-dog-gender" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">Gender</label>
+              <select id="add-dog-gender" value={gender} onChange={(e) => setGender(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal cursor-pointer">
                 <option value="">Select</option>
                 <option value="male">Male</option>

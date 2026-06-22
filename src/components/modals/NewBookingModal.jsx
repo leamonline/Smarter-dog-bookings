@@ -534,7 +534,7 @@ export function NewBookingModal({
             type="button"
             onClick={onClose}
             aria-label="Close new booking"
-            className="bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="tap-target bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: primaryTheme.headerText }}
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>

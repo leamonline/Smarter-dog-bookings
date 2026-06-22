@@ -81,7 +81,7 @@ export function ReportsView({ loadError = null }) {
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Show last ${p.l}`}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-caption sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
+                className={`min-h-[44px] inline-flex items-center justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-caption sm:text-xs font-bold border-none cursor-pointer transition-all font-[inherit] ${
                   selected
                     ? "bg-white text-slate-800 shadow-sm"
                     : "bg-transparent text-slate-600 hover:text-slate-800"

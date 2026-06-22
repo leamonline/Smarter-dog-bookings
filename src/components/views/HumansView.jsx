@@ -486,6 +486,7 @@ export function HumansView({
               </div>
               <input
                 type="text"
+                aria-label="Search humans"
                 placeholder="Search rolodex..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}

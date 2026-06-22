@@ -5,6 +5,8 @@ function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
+      role="menu"
+      aria-label="Block seats"
       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-control shadow-lg border border-slate-200 p-2 flex flex-col gap-1 z-10 min-w-[140px]"
     >
       {[
@@ -14,9 +16,10 @@ function BlockMenu({ onBlock1, onBlock2, onBlockBoth, onClose }) {
       ].map(({ label, action }) => (
         <button
           key={label}
+          role="menuitem"
           onClick={() => { action(); onClose(); }}
           aria-label={label}
-          className="py-1.5 px-3 rounded-md border-none bg-brand-coral-light text-brand-coral text-xs font-bold cursor-pointer font-[inherit] transition-all text-left hover:bg-brand-coral hover:text-white"
+          className="tap-target py-1.5 px-3 rounded-md border-none bg-brand-coral-light text-brand-coral text-xs font-bold cursor-pointer font-[inherit] transition-all text-left hover:bg-brand-coral hover:text-white"
         >
           {label}
         </button>

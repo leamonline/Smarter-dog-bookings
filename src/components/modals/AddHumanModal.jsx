@@ -247,6 +247,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                   value={dogQuery}
                   onChange={(e) => setDogQuery(e.target.value)}
                   placeholder="Search dogs by name or breed..."
+                  aria-label="Search dogs to link"
                   autoComplete="off"
                   className="w-full px-3.5 py-2.5 pl-[34px] rounded-lg border-[1.5px] border-slate-200 text-[13px] font-inherit box-border outline-none text-slate-800 transition-colors focus:border-brand-teal"
                 />

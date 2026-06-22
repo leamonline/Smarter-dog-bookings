@@ -37,7 +37,7 @@ export function ErrorBanner({
           type="button"
           onClick={onClose}
           aria-label="Dismiss error"
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-white/60 border-none text-brand-red text-sm font-bold cursor-pointer transition-colors hover:bg-white"
+          className="tap-target shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-white/60 border-none text-brand-red text-sm font-bold cursor-pointer transition-colors hover:bg-white"
         >
           {"\u00D7"}
         </button>

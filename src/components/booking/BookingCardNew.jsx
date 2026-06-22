@@ -126,7 +126,7 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
 
   return createPortal(
     <div
-      role="dialog"
+      role="region"
       aria-label={`Notes on ${dogName}`}
       ref={popRef}
       onClick={(e) => e.stopPropagation()}
@@ -146,7 +146,7 @@ function AlertsPopover({ alerts, anchorRect, onClose, dogName }) {
           type="button"
           onClick={onClose}
           aria-label="Close notes"
-          className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer border-none bg-transparent font-[inherit]"
+          className="tap-target w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer border-none bg-transparent font-[inherit]"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -307,10 +307,10 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 }
               }}
               aria-expanded={!!alertsAnchor}
-              aria-haspopup="dialog"
+              aria-haspopup="true"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
               title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-red-700 bg-red-50 border border-red-300 cursor-pointer transition-colors hover:bg-red-700 hover:text-white font-[inherit] shrink-0"
+              className="tap-target self-center inline-flex items-center justify-center w-6 h-6 rounded-full text-red-700 bg-red-50 border border-red-300 cursor-pointer transition-colors hover:bg-red-700 hover:text-white font-[inherit] shrink-0"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />

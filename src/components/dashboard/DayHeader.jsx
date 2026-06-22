@@ -38,7 +38,7 @@ export function DayHeader({
         type="button"
         onClick={() => onNavigateDay(-1)}
         aria-label="Previous day"
-        className="w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+        className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
       >
         <ChevronLeft size={18} strokeWidth={2.5} />
       </button>
@@ -54,7 +54,7 @@ export function DayHeader({
         type="button"
         onClick={() => onNavigateDay(1)}
         aria-label="Next day"
-        className="w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+        className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
       >
         <ChevronRight size={18} strokeWidth={2.5} />
       </button>
@@ -64,7 +64,7 @@ export function DayHeader({
           type="button"
           onClick={onJumpToToday}
           aria-label="Jump to today"
-          className="hidden sm:inline-flex items-center h-9 px-3 rounded-full text-xs font-semibold text-brand-purple bg-white border border-slate-200 cursor-pointer transition-colors hover:border-brand-yellow/60 hover:bg-brand-yellow/10 font-[inherit] shrink-0"
+          className="hidden sm:inline-flex tap-target items-center justify-center h-9 px-3 rounded-full text-xs font-semibold text-brand-purple bg-white border border-slate-200 cursor-pointer transition-colors hover:border-brand-yellow/60 hover:bg-brand-yellow/10 font-[inherit] shrink-0"
         >
           Today
         </button>
@@ -75,7 +75,7 @@ export function DayHeader({
           type="button"
           onClick={onOpenCalendar}
           aria-label="Open calendar overview"
-          className="xl:hidden w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+          className="xl:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
         >
           <CalendarDays size={18} strokeWidth={2} />
         </button>
