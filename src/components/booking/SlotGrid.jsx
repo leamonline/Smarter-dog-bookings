@@ -166,7 +166,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[117px] md:min-h-[136px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[92px] md:min-h-[112px] flex items-center justify-center bg-slate-50 text-slate-500 text-[11px] font-semibold italic"
           >
             (large dog)
           </div>
@@ -184,7 +184,7 @@ export function SlotGrid({
         return (
           <div
             key={seat.seatIndex}
-            className="border-[1.5px] border-slate-200 rounded-xl min-h-[117px] md:min-h-[136px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
+            className="border-[1.5px] border-slate-200 rounded-xl min-h-[92px] md:min-h-[112px] flex flex-col items-center justify-center gap-0.5 bg-slate-50 text-slate-600"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />

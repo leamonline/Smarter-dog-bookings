@@ -319,17 +319,15 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="true"
               aria-label={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"} on this dog`}
               title={`${dogRecord.alerts.length} ${dogRecord.alerts.length === 1 ? "note" : "notes"}`}
-              className="tap-target group/note self-center inline-flex items-center justify-center bg-transparent border-none p-0 cursor-pointer font-[inherit] shrink-0"
+              className="group/note self-center relative inline-flex items-center justify-center w-4 h-4 rounded-full text-red-700 bg-red-50 border border-red-300 cursor-pointer transition-colors hover:bg-red-700 hover:text-white font-[inherit] shrink-0 after:content-[''] after:absolute after:-inset-[14px]"
             >
-              {/* 16px visual circle (matches the SizeDot) sits inside the 44px
-                  transparent tap target the .tap-target util provides. */}
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-red-700 bg-red-50 border border-red-300 transition-colors group-hover/note:bg-red-700 group-hover/note:text-white">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </span>
+              {/* 16px circle matching the SizeDot; the invisible ::after gives
+                  it a ~44px tap target without inflating the row height. */}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
             </button>
           )}
           {booking.staffCapacityOverride && (
