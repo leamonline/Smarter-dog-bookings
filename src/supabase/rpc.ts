@@ -216,6 +216,20 @@ export function getSlotOccupancy(client: SupabaseClient, dateStr: string) {
   return client.rpc("get_slot_occupancy", { p_date: dateStr });
 }
 
+// Range sibling of get_slot_occupancy: (booking_date, slot, size) for every
+// non-cancelled booking between two dates, so the date step can dim the days
+// the selected dogs can't be booked into. SECURITY DEFINER, authenticated
+// only, returns no PII.
+export function getOccupancyRange(
+  client: SupabaseClient,
+  params: { startDate: string; endDate: string },
+) {
+  return client.rpc("get_occupancy_range", {
+    p_from: params.startDate,
+    p_to: params.endDate,
+  });
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status

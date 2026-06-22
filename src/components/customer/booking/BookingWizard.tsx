@@ -561,6 +561,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
         {step === 3 && (
           <DateSelection
+            selectedDogs={selectedDogs}
             selectedDate={selectedDate}
             onSelect={setSelectedDate}
             onNext={() => setStep(4)}
