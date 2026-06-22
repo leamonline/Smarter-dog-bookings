@@ -46,7 +46,7 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
         onDrop={onDrop}
         aria-label="Book this seat"
         title="Add booking"
-        className={`group border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[44px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
+        className={`group border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 text-slate-400 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 min-h-[117px] md:min-h-[136px] font-[inherit] hover:border-brand-yellow hover:text-brand-purple hover:bg-brand-yellow/15 ${spanClass} ${dropClass}`}
       >
         <span className="text-lg font-bold transition-transform duration-200 group-hover:scale-125">+</span>
         <span className="text-xs font-semibold">Book</span>
@@ -60,14 +60,14 @@ export function GhostSeat({ onClick, onBlock, span, onDragOver, onDragLeave, onD
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all duration-200 min-h-[44px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
+      className={`border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-1.5 transition-all duration-200 min-h-[117px] md:min-h-[136px] relative px-1.5 hover:border-brand-yellow/60 ${spanClass} ${dropClass}`}
     >
       {/* Book button — mustard CTA on hover */}
       <button
         onClick={onClick}
         aria-label="Book this seat"
         title="Add booking"
-        className="group/book flex-1 min-h-[40px] rounded-md bg-brand-yellow/15 text-brand-purple border border-brand-yellow/40 flex items-center justify-center gap-1 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow"
+        className="group/book flex-1 min-h-[117px] md:min-h-[136px] rounded-md bg-brand-yellow/15 text-brand-purple border border-brand-yellow/40 flex items-center justify-center gap-1 cursor-pointer motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-1 font-[inherit] hover:bg-brand-yellow"
       >
         <span className="text-[11px] font-bold transition-transform duration-200 group-hover/book:scale-125">+</span>
         <span className="text-[11px] font-bold">Book</span>
