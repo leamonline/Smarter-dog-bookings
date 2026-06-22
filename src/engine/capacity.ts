@@ -561,11 +561,22 @@ export function findGroupedSlots(
   dogs: Array<{ id: string; size: DogSize }>,
   bookings: Booking[],
   activeSlots: string[],
+  dailyDogCap = 14,
 ): SlotAllocation[] {
   const count = dogs.length;
 
   // Out of range
   if (count === 0 || count > 4) return [];
+
+  // Day-total cap. The per-slot 2-2-1 rules below only limit seats *within a
+  // slot*; nothing else looks at the day total, so a near-empty slot (e.g. an
+  // empty 13:00) on an otherwise-full day would still be offered — the gap
+  // that let a 15th dog book past the daily maximum. The whole group must fit
+  // under the cap (atomic). The DB trigger (salon_config.daily_dog_cap) is the
+  // authoritative gate; this mirrors it so the wizard never offers a slot the
+  // server will reject. `bookings` is this day's non-cancelled occupancy, one
+  // row per dog.
+  if (bookings.length + count > dailyDogCap) return [];
 
   const results: SlotAllocation[] = [];
   const seenDropOffs = new Set<string>();

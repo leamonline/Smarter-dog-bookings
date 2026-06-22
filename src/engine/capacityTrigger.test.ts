@@ -72,3 +72,43 @@ describe("capacity trigger: un-cancel re-validation", () => {
     );
   });
 });
+
+describe("capacity trigger: daily dog cap", () => {
+  it("enforces a per-day dog cap from salon_config for non-staff writes", () => {
+    // Regression for the overbooking hole: the per-slot 2-2-1 rule never
+    // looked at the day total, so a 15th dog could book into a free seat on
+    // an otherwise-full day. The effective definition must read the
+    // configurable cap and reject non-staff writes that cross it.
+    const fn = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+validate_booking_capacity\(\)/i,
+    );
+
+    expect(fn, "must read the configurable cap").toMatch(/daily_dog_cap/i);
+
+    // Cap applies to non-staff only (staff overbook deliberately; a
+    // `not v_override` gate would wrongly block routine staff bookings).
+    expect(fn, "day cap must gate on non-staff").toMatch(
+      /not\s+v_is_staff/i,
+    );
+
+    // Must actually reject, not just compute.
+    expect(fn, "must raise when the day is full").toMatch(
+      /Day is fully booked/i,
+    );
+
+    // Race safety: the day-total count needs a per-DATE lock — the per-slot
+    // lock doesn't serialise inserts into different slots on the same day.
+    expect(fn, "must take a per-date advisory lock").toMatch(
+      /pg_advisory_xact_lock\(\s*\n?\s*hashtextextended\(\s*'booking_day_cap/i,
+    );
+  });
+
+  it("records the day count and cap in the capacity audit log", () => {
+    const fn = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+log_booking_capacity_event\(\)/i,
+    );
+
+    expect(fn, "audit logger must persist v_day_count").toMatch(/v_day_count/i);
+    expect(fn, "audit logger must persist v_daily_cap").toMatch(/v_daily_cap/i);
+  });
+});

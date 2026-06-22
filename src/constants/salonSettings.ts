@@ -117,6 +117,7 @@ export function createDefaultSalonConfig(): SalonConfig {
     defaultPickupOffset: 120,
     pricing: cloneJson(PRICING),
     enforceCapacity: true,
+    dailyDogCap: 14,
     largeDogSlots: cloneJson(LARGE_DOG_SLOTS),
     ...createDefaultSalonSettings(),
   };
