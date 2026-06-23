@@ -666,6 +666,33 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     ],
   );
 
+  // "Save & add another dog": append a just-created dog to the PARKED booking
+  // without re-opening the wizard, so staff can register several dogs for one
+  // customer in a single AddDogModal session. The final dog goes through the
+  // normal onAdd -> resumeParkedBooking path, which appends it on top of these.
+  // Pure client-side draft state — the capacity/booking gates are untouched.
+  const appendDogToParked = useCallback(
+    (newDog) => {
+      const draft = pendingBookingRef.current;
+      if (!draft || !newDog) return;
+      const humanKey = newDog.humanId || draft.owner?.label || "";
+      const owner =
+        draft.owner ||
+        (newDog._humanId ? { id: newDog._humanId, label: humanKey, phone: "" } : null);
+      const next = {
+        ...draft,
+        owner,
+        entries: [
+          ...(draft.entries || []),
+          { dog: newDog, humanKey, service: "full-groom", addons: [] },
+        ],
+      };
+      pendingBookingRef.current = next;
+      setPendingBooking(next);
+    },
+    [setPendingBooking],
+  );
+
   // Owner to pre-lock in the add-dog modal when the parked booking already had
   // an owner (e.g. "+ New dog for <owner>"); null on a true cold start so the
   // modal shows its owner search + inline create instead.
@@ -1083,6 +1110,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     // Success: re-open the booking with the new dog selected so
                     // staff don't have to re-search for the dog they just made.
                     if (result) resumeParkedBooking({ newDog: result });
+                    return result;
+                  }}
+                  onAddAnother={async (dogData) => {
+                    const result = await addDog(dogData);
+                    // Accumulate into the parked booking and keep the add-dog
+                    // modal open so the next dog for this customer is one form away.
+                    if (result) appendDogToParked(result);
                     return result;
                   }}
                   onAddHuman={addHuman}
