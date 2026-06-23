@@ -69,12 +69,12 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
     <div>
       {/* Month nav */}
       <div className="flex items-center justify-between mb-2.5">
-        <button onClick={prevMonth} className="bg-slate-50 border border-slate-200 rounded-md w-[30px] h-[30px] cursor-pointer flex items-center justify-center">
-          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-slate-800"><path d="M10 3l-5 5 5 5" /></svg>
+        <button type="button" onClick={prevMonth} aria-label="Previous month" className="tap-target bg-slate-50 border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
+          <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 3l-5 5 5 5" /></svg>
         </button>
         <div className="text-sm font-bold text-slate-800">{monthName}</div>
-        <button onClick={nextMonth} className="bg-slate-50 border border-slate-200 rounded-md w-[30px] h-[30px] cursor-pointer flex items-center justify-center">
-          <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-slate-800"><path d="M6 3l5 5-5 5" /></svg>
+        <button type="button" onClick={nextMonth} aria-label="Next month" className="tap-target bg-slate-50 border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
+          <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
         </button>
       </div>
 
@@ -141,6 +141,17 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
               key={d}
               onClick={() => { if (isClickable) onSelectDate(new Date(viewYear, viewMonth, d)); }}
               disabled={!isClickable}
+              aria-label={`${d} ${monthName}, ${
+                isSelected
+                  ? "selected"
+                  : status === "closed"
+                    ? "closed"
+                    : status === "full"
+                      ? "fully booked"
+                      : status === "past"
+                        ? "past"
+                        : "available"
+              }`}
               className="w-full aspect-square rounded-lg text-[13px] font-inherit transition-all flex items-center justify-center"
               style={{ background: bg, color, border, cursor, opacity, fontWeight }}
               onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = sizeTheme.light; e.currentTarget.style.color = sizeTheme.gradient[0]; } }}
