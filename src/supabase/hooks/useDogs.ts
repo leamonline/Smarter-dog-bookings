@@ -408,6 +408,7 @@ export function useDogs(
       if (updates.sex !== undefined) dbUpdates.sex = updates.sex;
       if (updates.microchip !== undefined) dbUpdates.microchip = updates.microchip;
       if (updates.neutered !== undefined) dbUpdates.neutered = updates.neutered;
+      if (updates.isPregnant !== undefined) dbUpdates.is_pregnant = updates.isPregnant;
       if (updates.vet !== undefined) dbUpdates.vet = updates.vet;
       if (updates.colour !== undefined) dbUpdates.colour = updates.colour;
       if (updates.groomNotes !== undefined)

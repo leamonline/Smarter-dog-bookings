@@ -40,6 +40,7 @@ interface DbDogRow {
   sex?: string | null;
   microchip?: string | null;
   neutered?: boolean | null;
+  is_pregnant?: boolean | null;
   vet?: string | null;
   colour?: string | null;
   size: string | null;
@@ -278,6 +279,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       sex: row.sex || null,
       microchip: row.microchip || null,
       neutered: row.neutered ?? null,
+      isPregnant: row.is_pregnant ?? null,
       vet: row.vet || null,
       colour: row.colour || null,
       size: (row.size as Dog["size"]) || null,

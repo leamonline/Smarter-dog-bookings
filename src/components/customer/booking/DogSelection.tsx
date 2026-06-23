@@ -11,6 +11,7 @@ interface RawDog {
   name: string;
   breed: string;
   size: DogSize | null;
+  isPregnant: boolean;
 }
 
 interface DogSelectionProps {
@@ -38,6 +39,7 @@ export function DogSelection({
 
   const toggleDog = (dog: RawDog) => {
     if (!dog.size) return;
+    if (dog.isPregnant) return;
     const already = isSelected(dog.id);
     if (!already && selectedDogs.length >= 4) return;
     onSelect({ dogId: dog.id, name: dog.name, size: dog.size });
@@ -72,7 +74,7 @@ export function DogSelection({
           {dogs.map((dog) => {
             const selected = isSelected(dog.id);
             const sizeKnown = (DOG_SIZES as readonly string[]).includes(dog.size as string);
-            const disabled = !sizeKnown || (!selected && selectedDogs.length >= 4);
+            const disabled = !sizeKnown || dog.isPregnant || (!selected && selectedDogs.length >= 4);
             const sizeLabel = sizeKnown ? `${dog.size!.charAt(0).toUpperCase()}${dog.size!.slice(1)}` : null;
             return (
               <button
@@ -92,6 +94,11 @@ export function DogSelection({
                   {!sizeKnown && (
                     <span className="text-[12px] font-semibold text-[var(--sd-coral)]">
                       Size not confirmed — message us first
+                    </span>
+                  )}
+                  {dog.isPregnant && (
+                    <span className="text-[12px] font-semibold text-[var(--sd-coral)]">
+                      Can't book online while pregnant — please call us
                     </span>
                   )}
                 </div>
