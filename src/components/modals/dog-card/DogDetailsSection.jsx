@@ -37,6 +37,8 @@ export function DogDetailsSection({
   setEditColour,
   editNeutered,
   setEditNeutered,
+  editIsPregnant,
+  setEditIsPregnant,
   editMicrochip,
   setEditMicrochip,
   editVet,
@@ -292,6 +294,15 @@ export function DogDetailsSection({
               </select>
             </div>
           </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editIsPregnant}
+                onChange={(e) => setEditIsPregnant(e.target.checked)}
+                aria-label="Pregnant"
+              />
+              <span className={SECTION_LABEL_CLS}>Pregnant</span>
+            </label>
 
           {/* Colour edit */}
           <div className="py-2.5 border-b border-slate-100">

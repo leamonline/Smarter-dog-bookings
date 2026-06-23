@@ -39,6 +39,7 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
   const [editNeutered, setEditNeutered] = useState(
     resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "",
   );
+  const [editIsPregnant, setEditIsPregnant] = useState(resolvedDog.isPregnant === true);
   const [editMicrochip, setEditMicrochip] = useState(resolvedDog.microchip || "");
   const [editVet, setEditVet] = useState(resolvedDog.vet || "");
   const [editPrice, setEditPrice] = useState(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
@@ -70,6 +71,7 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
       setEditSex(resolvedDog.sex || "");
       setEditColour(resolvedDog.colour || "");
       setEditNeutered(resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "");
+      setEditIsPregnant(resolvedDog.isPregnant === true);
       setEditMicrochip(resolvedDog.microchip || "");
       setEditVet(resolvedDog.vet || "");
       setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
@@ -150,6 +152,7 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
     if (nextColour !== (resolvedDog.colour || null)) updates.colour = nextColour;
     const nextNeutered = editNeutered === "yes" ? true : editNeutered === "no" ? false : null;
     if (nextNeutered !== (resolvedDog.neutered ?? null)) updates.neutered = nextNeutered;
+    if (editIsPregnant !== (resolvedDog.isPregnant ?? false)) updates.isPregnant = editIsPregnant;
     const nextMicrochip = editMicrochip.trim() || null;
     if (nextMicrochip !== (resolvedDog.microchip || null)) updates.microchip = nextMicrochip;
     const nextVet = editVet.trim() || null;
@@ -172,6 +175,7 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
     setEditSex(resolvedDog.sex || "");
     setEditColour(resolvedDog.colour || "");
     setEditNeutered(resolvedDog.neutered === true ? "yes" : resolvedDog.neutered === false ? "no" : "");
+    setEditIsPregnant(resolvedDog.isPregnant === true);
     setEditMicrochip(resolvedDog.microchip || "");
     setEditVet(resolvedDog.vet || "");
     setEditPrice(resolvedDog.customPrice != null ? String(resolvedDog.customPrice) : "");
@@ -216,6 +220,8 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
     setEditColour,
     editNeutered,
     setEditNeutered,
+    editIsPregnant,
+    setEditIsPregnant,
     editMicrochip,
     setEditMicrochip,
     editVet,

@@ -61,6 +61,7 @@ export interface Dog {
   sex?: string | null;
   microchip?: string | null;
   neutered?: boolean | null;
+  isPregnant?: boolean | null;
   vet?: string | null;
   colour?: string | null;
   size: DogSize | null;

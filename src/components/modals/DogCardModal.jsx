@@ -118,6 +118,8 @@ export function DogCardModal({
     setEditColour,
     editNeutered,
     setEditNeutered,
+    editIsPregnant,
+    setEditIsPregnant,
     editMicrochip,
     setEditMicrochip,
     editVet,
@@ -290,6 +292,8 @@ export function DogCardModal({
           setEditColour={setEditColour}
           editNeutered={editNeutered}
           setEditNeutered={setEditNeutered}
+          editIsPregnant={editIsPregnant}
+          setEditIsPregnant={setEditIsPregnant}
           editMicrochip={editMicrochip}
           setEditMicrochip={setEditMicrochip}
           editVet={editVet}
