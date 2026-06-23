@@ -71,6 +71,7 @@ interface RawDog {
   name: string;
   breed: string;
   size: DogSize | null;
+  isPregnant: boolean;
 }
 
 /**
@@ -225,6 +226,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             name: d.name,
             breed,
             size: storedSize ?? derivedSize ?? null,
+            isPregnant: d.isPregnant,
           };
         })
       );

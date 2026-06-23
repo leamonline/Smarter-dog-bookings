@@ -6,7 +6,7 @@ import type { DogSize } from "../../../types/index";
 
 interface AddDogInlineProps {
   humanId: string;
-  onDogAdded: (dog: { id: string; name: string; breed: string; size: DogSize | null }) => void;
+  onDogAdded: (dog: { id: string; name: string; breed: string; size: DogSize | null; isPregnant: boolean }) => void;
   onCancel: () => void;
 }
 
@@ -51,6 +51,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         name: data.name,
         breed: data.breed || "",
         size: data.size || null,
+        isPregnant: false,
       });
     } catch (e: any) {
       setError(e.message || "Could not save dog");
