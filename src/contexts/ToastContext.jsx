@@ -23,11 +23,15 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const show = useCallback((message, variant = "info", onUndo) => {
+  const show = useCallback((message, variant = "info", action) => {
     const id = ++idRef.current;
-    setToasts((prev) => [...prev, { id, message, variant, onUndo }]);
+    // Back-compat: a bare function is the legacy "Undo" action; an object
+    // { label, onClick } lets callers label the action (e.g. "Book another").
+    const normalised =
+      typeof action === "function" ? { label: "Undo", onClick: action } : action || null;
+    setToasts((prev) => [...prev, { id, message, variant, action: normalised }]);
 
-    const ms = onUndo ? TOAST_DURATION_WITH_UNDO : TOAST_DURATION;
+    const ms = normalised ? TOAST_DURATION_WITH_UNDO : TOAST_DURATION;
     setTimeout(() => dismiss(id), ms);
     return id;
   }, [dismiss]);
@@ -70,13 +74,13 @@ function Toaster({ toasts, onDismiss }) {
     >
       <span>{t.message}</span>
 
-      {t.onUndo && (
+      {t.action && (
         <button
           type="button"
-          onClick={() => { t.onUndo(); onDismiss(t.id); }}
-          className="bg-white/20 hover:bg-white/30 text-inherit border-none rounded-md px-2 py-0.5 text-xs font-bold cursor-pointer transition-colors"
+          onClick={() => { t.action.onClick(); onDismiss(t.id); }}
+          className="bg-white/20 hover:bg-white/30 text-inherit border-none rounded-md px-2 py-0.5 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
         >
-          Undo
+          {t.action.label}
         </button>
       )}
 

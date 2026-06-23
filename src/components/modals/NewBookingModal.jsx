@@ -16,6 +16,10 @@ import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTru
 export function NewBookingModal({
   onClose,
   onAdd,
+  // Booking flow: re-open a fresh booking pre-filled with the same owner after a
+  // successful save, so a second date (e.g. another dog another day) for a new
+  // customer doesn't start from a cold search.
+  onBookAnother,
   dogs,
   humans,
   dogsByHumanId,
@@ -498,7 +502,22 @@ export function NewBookingModal({
   const commitBookings = async (bookings) => {
     const res = await onAdd(bookings, selectedDateStr);
     if (res?.ok) {
-      toast.show("Booking created", "success");
+      // Offer a one-tap path to a second booking for the same owner so the next
+      // date (e.g. another dog another day) doesn't start from a cold search.
+      // The wizard still closes here; the offer rides on the toast action.
+      const owner = selectedHumanId
+        ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
+        : null;
+      const ownerFirstName =
+        owner?.name || owner?.fullName?.split(" ")[0] || "this customer";
+      if (onBookAnother && selectedHumanId) {
+        toast.show("Booking created", "success", {
+          label: `Book another for ${ownerFirstName}`,
+          onClick: () => onBookAnother(selectedHumanId),
+        });
+      } else {
+        toast.show("Booking created", "success");
+      }
       onClose();
     } else {
       setError(res?.error || "Couldn't save the booking — please try again.");

@@ -150,3 +150,32 @@ describe("NewBookingModal — truthful save (Fix C)", () => {
     expect(onAdd).toHaveBeenCalledTimes(1);
   });
 });
+
+// Book another for owner (audit friction C-2): the second booking (e.g. a 4th
+// dog on a different date for the same new customer) used to start cold — the
+// wizard closed and the owner had to be found again. The success toast now
+// offers "Book another for {owner}", which re-opens a fresh booking pre-filled
+// with that owner.
+describe("NewBookingModal — book another for owner (C-2)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("offers 'Book another for {owner}' after a successful save", async () => {
+    const onBookAnother = vi.fn();
+    const props = renderModal({
+      initialEntries: [resumeEntry],
+      humans: { "emma-id": { id: "emma-id", name: "Emma", fullName: "Emma Wilson" } },
+      onBookAnother,
+      onAdd: vi.fn().mockResolvedValue({ ok: true }),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+
+    const again = await screen.findByRole("button", { name: /book another for emma/i });
+    // The wizard still closes on success (truthful-save contract preserved);
+    // the re-book offer rides on the toast.
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(again);
+    expect(onBookAnother).toHaveBeenCalledWith("emma-id");
+  });
+});
