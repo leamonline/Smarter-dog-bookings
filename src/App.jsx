@@ -1049,6 +1049,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   bookingsByDate={bookingsByDate}
                   dayOpenState={dayOpenState}
                   daySettings={daySettings}
+                  onBookAnother={(ownerId) =>
+                    setShowNewBooking({
+                      dateStr: currentDateStr,
+                      slot: "",
+                      initialHumanId: ownerId,
+                    })
+                  }
                   onOpenAddDog={(draft) => parkBooking(draft, "dog")}
                   onOpenAddHuman={(draft) => parkBooking(draft, "human")}
                   initialDateStr={showNewBooking.dateStr}
