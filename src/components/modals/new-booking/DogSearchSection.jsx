@@ -336,9 +336,17 @@ export function DogSearchSection({
                 <div className="text-[13px] text-slate-500 mb-2.5">
                   No dogs found matching "{dogQuery}"
                 </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => onOpenAddDog?.()} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-cyan text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
-                  <button type="button" onClick={() => onOpenAddHuman?.()} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit">+ New Human</button>
+                {/* Lead with the new-dog path: it creates the owner inline, so
+                    it's the one-step route for a brand-new customer. Keeping it
+                    primary + full-width (and saying so) stops staff reaching for
+                    "New Human" first and then having to come back for the dog. */}
+                <button type="button" onClick={() => onOpenAddDog?.()} className="w-full py-[10px] px-3 rounded-lg border-none bg-brand-cyan text-white text-sm font-bold cursor-pointer font-inherit">+ New Dog</button>
+                <p className="mt-1.5 text-[11px] text-slate-500 text-center leading-snug">
+                  New customer? Add their dog here — you can create the owner in the same step.
+                </p>
+                {/* Secondary: register a person with no dog yet (rare mid-booking). */}
+                <div className="mt-2 pt-2 border-t border-slate-100 text-center">
+                  <button type="button" onClick={() => onOpenAddHuman?.()} className="bg-transparent border-none text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:underline">+ New Human</button>
                 </div>
               </div>
             )}
