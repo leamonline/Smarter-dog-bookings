@@ -2,7 +2,7 @@
 // src/components/views/inbox/customer-context/DogSummaryCard.jsx
 //
 // One card per dog in the customer-context panel. Shows the size
-// dot, breed/age, alert pills, and a short groom-notes excerpt.
+// dot, breed/age, alert pills, and the full groom notes.
 // Tapping the card calls onOpenDog so staff can jump to the full
 // DogCardModal for everything else.
 // ============================================================
@@ -23,12 +23,7 @@ export function DogSummaryCard({ dog, onOpenDog }) {
     .filter(Boolean)
     .join(" · ");
 
-  const notesExcerpt =
-    dog.groomNotes && dog.groomNotes.length > 0
-      ? dog.groomNotes.length > 120
-        ? `${dog.groomNotes.slice(0, 117).trim()}…`
-        : dog.groomNotes
-      : null;
+  const groomNotes = dog.groomNotes?.trim() || null;
 
   return (
     <button
@@ -69,9 +64,9 @@ export function DogSummaryCard({ dog, onOpenDog }) {
         </div>
       )}
 
-      {notesExcerpt && (
-        <p className="text-[12px] text-slate-600 mt-1.5 leading-snug line-clamp-3">
-          {notesExcerpt}
+      {groomNotes && (
+        <p className="text-[12px] text-slate-600 mt-1.5 leading-snug whitespace-pre-wrap">
+          {groomNotes}
         </p>
       )}
     </button>

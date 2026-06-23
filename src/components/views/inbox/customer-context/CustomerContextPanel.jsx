@@ -92,28 +92,29 @@ export function CustomerContextPanel({
           )}
 
           {/* Owner notes — the durable profile notes (humans.notes),
-              shown read-only here above the dog card(s). Staff edit them
-              on the full profile. */}
+              shown read-only here above the dog card(s) as a titled card.
+              Staff edit them on the full profile. */}
           {!loading && !error && displayHuman && displayHuman.notes && (
-            <Section title="Notes">
-              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Notes
+              </div>
+              <div className="text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
                 {displayHuman.notes}
               </div>
-            </Section>
+            </div>
           )}
 
           {!loading && !error && displayHuman && dogs.length > 0 && (
-            <Section title={dogs.length === 1 ? "Dog" : `Dogs (${dogs.length})`}>
-              <div className="flex flex-col gap-2">
-                {dogs.map((dog) => (
-                  <DogSummaryCard
-                    key={dog.id}
-                    dog={dog}
-                    onOpenDog={onOpenDog}
-                  />
-                ))}
-              </div>
-            </Section>
+            <div className="flex flex-col gap-2">
+              {dogs.map((dog) => (
+                <DogSummaryCard
+                  key={dog.id}
+                  dog={dog}
+                  onOpenDog={onOpenDog}
+                />
+              ))}
+            </div>
           )}
 
           {loading ? (
@@ -126,102 +127,119 @@ export function CustomerContextPanel({
             <UnmatchedEmptyState phone={displayPhone} />
           ) : (
             <>
-              {/* Quick actions — stacked full-width so each is an easy hit
-                  in the narrow panel: Call, WhatsApp, Email, Open full
-                  profile, Book appointment, Update notes. */}
-              <div className="flex flex-col gap-2">
-                {tel && (
-                  <a
-                    href={tel}
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold no-underline hover:border-brand-yellow/60 transition-colors"
-                    aria-label={`Call ${displayPhone}`}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    Call
-                  </a>
-                )}
-                {waMe && (
-                  <a
-                    href={waMe}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-[#25D366]/10 border border-[#25D366]/40 text-[#108444] text-[12px] font-semibold no-underline hover:bg-[#25D366]/20 transition-colors"
-                    aria-label={`Open WhatsApp Web for ${displayPhone}`}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                    </svg>
-                    WhatsApp
-                  </a>
-                )}
-                {displayHuman.email && (
-                  <a
-                    href={`mailto:${displayHuman.email}`}
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold no-underline hover:border-brand-yellow/60 transition-colors"
-                    aria-label={`Email ${displayHuman.email}`}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <rect x="2" y="4" width="20" height="16" rx="2" />
-                      <path d="m22 7-10 6L2 7" />
-                    </svg>
-                    Email
-                  </a>
-                )}
-                {onOpenHuman && displayHuman && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenHuman(displayHuman.id)}
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                  >
-                    Open full profile
-                  </button>
-                )}
-                {onBookAppointment && displayHuman && (
-                  <button
-                    type="button"
-                    onClick={() => onBookAppointment()}
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <rect x="3" y="4" width="18" height="18" rx="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                      <line x1="12" y1="14" x2="12" y2="18" />
-                      <line x1="10" y1="16" x2="14" y2="16" />
-                    </svg>
-                    Book appointment
-                  </button>
-                )}
-                {onUpdateNotes && displayHuman && (
-                  <button
-                    type="button"
-                    onClick={handleUpdateNotes}
-                    disabled={updatingNotes}
-                    title="Have the AI read this chat and save any durable customer notes and dog grooming requests to their records. Nothing is sent to the customer."
-                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
-                  >
-                    {updatingNotes ? (
-                      <>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
-                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                        </svg>
-                        Updating notes…
-                      </>
-                    ) : (
-                      <>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                        Update notes
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+              {/* Actions — compact with a clear hierarchy: a quick-contact
+                  icon row, the primary Book-appointment CTA, then the
+                  secondary profile / update-notes pair. */}
+              {(tel || waMe || displayHuman.email) && (
+                <div className="flex gap-2">
+                  {tel && (
+                    <a
+                      href={tel}
+                      aria-label={`Call ${displayPhone}`}
+                      title={`Call ${displayPhone}`}
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+                      </svg>
+                      <span className="text-[10px] font-semibold">Call</span>
+                    </a>
+                  )}
+                  {waMe && (
+                    <a
+                      href={waMe}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open WhatsApp Web for ${displayPhone}`}
+                      title={`Open WhatsApp Web for ${displayPhone}`}
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 text-[#108444] no-underline hover:bg-[#25D366]/20 transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                      </svg>
+                      <span className="text-[10px] font-semibold">WhatsApp</span>
+                    </a>
+                  )}
+                  {displayHuman.email && (
+                    <a
+                      href={`mailto:${displayHuman.email}`}
+                      aria-label={`Email ${displayHuman.email}`}
+                      title={`Email ${displayHuman.email}`}
+                      className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border border-slate-200 bg-white text-brand-purple no-underline hover:border-brand-yellow/60 hover:bg-brand-yellow/5 transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-10 6L2 7" />
+                      </svg>
+                      <span className="text-[10px] font-semibold">Email</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {onBookAppointment && displayHuman && (
+                <button
+                  type="button"
+                  onClick={() => onBookAppointment()}
+                  className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <line x1="12" y1="14" x2="12" y2="18" />
+                    <line x1="10" y1="16" x2="14" y2="16" />
+                  </svg>
+                  Book appointment
+                </button>
+              )}
+
+              {(onOpenHuman || onUpdateNotes) && displayHuman && (
+                <div className="flex gap-2">
+                  {onOpenHuman && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenHuman(displayHuman.id)}
+                      title="Open full profile"
+                      aria-label="Open full profile"
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-[11px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      Profile
+                    </button>
+                  )}
+                  {onUpdateNotes && (
+                    <button
+                      type="button"
+                      onClick={handleUpdateNotes}
+                      disabled={updatingNotes}
+                      title="Have the AI read this chat and save any durable customer notes and dog grooming requests to their records. Nothing is sent to the customer."
+                      className="flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-full bg-white border border-slate-300 text-brand-purple text-[11px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
+                    >
+                      {updatingNotes ? (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                          Saving…
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                          Update notes
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
 
               <LastBookingChip lastBooking={lastBooking} />
 
@@ -234,18 +252,18 @@ export function CustomerContextPanel({
                 </Section>
               )}
 
-              {/* Details — address + any history flag sit at the very
-                  end. Email is now an action button above; notes have
-                  their own card above the dogs. */}
+              {/* Address + any history flag sit at the very end (no section
+                  header). Email is an action button above; notes have their
+                  own card above the dogs. */}
               {(displayHuman.address || displayHuman.historyFlag) && (
-                <Section title="Details">
+                <div>
                   {displayHuman.address && (
                     <DetailLine label="Address" value={displayHuman.address} />
                   )}
                   {displayHuman.historyFlag && (
                     <DetailLine label="Flag" value={displayHuman.historyFlag} accent="rose" />
                   )}
-                </Section>
+                </div>
               )}
             </>
           )}
