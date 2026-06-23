@@ -625,7 +625,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-control border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-control border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
               style={{
                 background: submitting ? undefined : headerTheme.from,
                 color: submitting ? undefined : headerTheme.text,

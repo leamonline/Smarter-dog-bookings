@@ -493,3 +493,13 @@ body {
   transform: none !important;
   box-shadow: none !important;
 }
+
+/* Placeholder contrast. The browser default (~slate-400) fails WCAG AA on a
+   white field; slate-500 is the minimum legible tone. The customer portal keeps
+   its own `.portal-input::placeholder` (a class beats this element selector).
+   opacity:1 undoes Firefox's default placeholder dimming. */
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
