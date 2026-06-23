@@ -10,14 +10,6 @@
 import { useEffect, useState } from "react";
 import { WHATSAPP_PICKER_TEMPLATES } from "../../../../constants/whatsappTemplates.js";
 
-// Hint shown under a template param when no value is on file. Keyed by
-// the param's `autoFill` source so adding a new auto-fill source means
-// adding one entry here rather than another ternary branch.
-const TEMPLATE_PARAM_MISSING_HELPER = {
-  customer_first_name: "No customer name on file yet — type one to send",
-  dog_name_select: "No dog on file yet — type the name to send",
-};
-
 // Accepts EITHER a conversation (existing-thread reply, the 24h-window
 // reopen flow) OR a customerFirstName + contextKey directly (outbound
 // compose-new flow, where there isn't a conversation row yet). Both
@@ -97,24 +89,19 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
     .map((p) => p.label.replace(/\s*\(.+\)\s*$/, "").toLowerCase());
 
   return (
-    <div className="flex flex-col gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-      <div className="flex items-start gap-2">
-        <span aria-hidden="true" className="mt-0.5 text-amber-700">⏱</span>
-        <p className="text-[12px] leading-snug text-amber-900">
-          <span className="font-bold">24-hour reply window closed.</span>{" "}
-          <span className="text-amber-800">
-            Send an approved template to reopen the chat — once they reply you&apos;re back to free-form.
-          </span>
-        </p>
-      </div>
+    <div className="flex flex-col gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+      <p className="text-[11px] leading-snug text-amber-900">
+        <span aria-hidden="true">⏱ </span>
+        <span className="font-bold">24-hour reply window closed.</span>{" "}
+        <span className="text-amber-800">Send a template to reopen the chat.</span>
+      </p>
 
-      <div>
-        <label htmlFor="wa-template-select" className="block text-xs font-semibold text-slate-700 mb-1">
-          Template
-        </label>
+      <div className="flex items-center gap-2">
         <select
           id="wa-template-select"
-          className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-brand-yellow"
+          aria-label="Template"
+          title={template.description}
+          className="flex-1 min-w-0 text-[13px] h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
           value={selectedTemplateName}
           onChange={(e) => setSelectedTemplateName(e.target.value)}
         >
@@ -122,76 +109,6 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
             <option key={t.name} value={t.name}>{t.label}</option>
           ))}
         </select>
-        <p className="text-xs text-slate-600 mt-1">{template.description}</p>
-      </div>
-
-      {template.params.map((param) => {
-        const fieldId = `wa-template-${param.key}`;
-        const isAutoFilled =
-          param.autoFill && (paramValues[param.key] ?? "").trim() !== "";
-        const helper = isAutoFilled
-          ? "Pre-filled — edit if needed"
-          : (TEMPLATE_PARAM_MISSING_HELPER[param.autoFill] ?? null);
-        if (param.autoFill === "dog_name_select" && (dogNames ?? []).length > 1) {
-          return (
-            <div key={param.key}>
-              <label htmlFor={fieldId} className="block text-xs font-semibold text-slate-700 mb-1">
-                {param.label}
-              </label>
-              <select
-                id={fieldId}
-                className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-brand-yellow"
-                value={paramValues[param.key] ?? ""}
-                onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
-              >
-                <option value="">Select a dog…</option>
-                {dogNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Pick from this customer&apos;s dogs
-              </p>
-            </div>
-          );
-        }
-        return (
-          <div key={param.key}>
-            <label htmlFor={fieldId} className="block text-xs font-semibold text-slate-700 mb-1">
-              {param.label}
-            </label>
-            <input
-              id={fieldId}
-              type="text"
-              className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-yellow"
-              value={paramValues[param.key] ?? ""}
-              onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
-              placeholder={`Enter ${param.label.toLowerCase()}…`}
-            />
-            {helper && (
-              <p className="text-[11px] text-slate-500 mt-0.5">{helper}</p>
-            )}
-          </div>
-        );
-      })}
-
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-          Preview
-        </div>
-        <div className="bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
-          {preview}
-        </div>
-      </div>
-
-      {error && <p className="text-xs text-red-700">{error}</p>}
-
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[11px] text-slate-600 flex-1 min-w-[160px]">
-          {allFilled
-            ? "All set — sending will reopen the conversation."
-            : `Fill in ${missingLabels.join(", ")} to enable sending.`}
-        </p>
         <button
           onClick={handleSend}
           disabled={!allFilled || sending}
@@ -200,11 +117,64 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
               ? `Send template (disabled — missing ${missingLabels.join(", ")})`
               : "Send template"
           }
-          className="inline-flex items-center h-9 px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
+          title={!allFilled ? `Fill in ${missingLabels.join(", ")}` : "Send template"}
+          className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-yellow-dark transition-colors font-[inherit]"
         >
-          {sending ? "Sending…" : "Send template"}
+          {sending ? "Sending…" : "Send"}
         </button>
       </div>
+
+      {template.params.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {template.params.map((param) => {
+            const fieldId = `wa-template-${param.key}`;
+            const isDogSelect =
+              param.autoFill === "dog_name_select" && (dogNames ?? []).length > 1;
+            return (
+              <label
+                key={param.key}
+                htmlFor={fieldId}
+                className={`flex flex-col gap-0.5 min-w-0 ${param.autoFill ? "" : "col-span-2"}`}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  {param.label.replace(/\s*\(.+\)\s*$/, "")}
+                </span>
+                {isDogSelect ? (
+                  <select
+                    id={fieldId}
+                    className="w-full text-[13px] h-8 border border-slate-300 rounded-lg px-2 bg-white focus:outline-none focus:border-brand-yellow"
+                    value={paramValues[param.key] ?? ""}
+                    onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
+                  >
+                    <option value="">Select a dog…</option>
+                    {dogNames.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={fieldId}
+                    type="text"
+                    className="w-full text-[13px] h-8 border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-yellow"
+                    value={paramValues[param.key] ?? ""}
+                    onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
+                    placeholder={param.label.replace(/\s*\(.+\)\s*$/, "")}
+                  />
+                )}
+              </label>
+            );
+          })}
+        </div>
+      )}
+
+      <div
+        aria-label="Template preview"
+        className="text-[12px] leading-snug text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 max-h-20 overflow-y-auto whitespace-pre-wrap"
+      >
+        {preview}
+      </div>
+
+      {error && <p className="text-[11px] text-red-700">{error}</p>}
     </div>
   );
 }
