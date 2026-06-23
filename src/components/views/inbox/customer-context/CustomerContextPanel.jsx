@@ -31,11 +31,23 @@ export function CustomerContextPanel({
   onOpenDog,
   onSaveConversationNotes,
   onBookAppointment,
+  onUpdateNotes,
   onClose,
   titleId,
 }) {
   const { human, dogs, lastBooking, trustedContacts, summary, loading, error } = context;
   const displayHuman = loading ? null : human;
+  const [updatingNotes, setUpdatingNotes] = useState(false);
+
+  async function handleUpdateNotes() {
+    if (!onUpdateNotes || updatingNotes) return;
+    setUpdatingNotes(true);
+    try {
+      await onUpdateNotes();
+    } finally {
+      setUpdatingNotes(false);
+    }
+  }
 
   const phoneE164 = conversation?.phone_e164 || displayHuman?.phone || "";
   const rawPhone = displayHuman?.phone || phoneE164;
@@ -167,6 +179,32 @@ export function CustomerContextPanel({
                       <line x1="10" y1="16" x2="14" y2="16" />
                     </svg>
                     Book appointment
+                  </button>
+                )}
+                {onUpdateNotes && displayHuman && (
+                  <button
+                    type="button"
+                    onClick={handleUpdateNotes}
+                    disabled={updatingNotes}
+                    title="Have the AI read this chat and save any durable customer notes and dog grooming requests to their records. Nothing is sent to the customer."
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-[inherit]"
+                  >
+                    {updatingNotes ? (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                        Updating notes…
+                      </>
+                    ) : (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                        Update notes
+                      </>
+                    )}
                   </button>
                 )}
               </div>

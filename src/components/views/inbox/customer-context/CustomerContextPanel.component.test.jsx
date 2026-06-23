@@ -75,6 +75,22 @@ describe("CustomerContextPanel", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Note saved.");
   });
 
+  it("offers an Update notes action that calls the handler", async () => {
+    const onUpdateNotes = vi.fn().mockResolvedValue({ ok: true, summary: "Saved a new customer note." });
+
+    render(
+      <CustomerContextPanel
+        conversation={{ id: "conv-1", phone_e164: "+447700900123" }}
+        context={matchedContext()}
+        onUpdateNotes={onUpdateNotes}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /update notes/i }));
+
+    await waitFor(() => expect(onUpdateNotes).toHaveBeenCalledTimes(1));
+  });
+
   it("orders the panel: dog card → note → actions → details (email last)", () => {
     render(
       <CustomerContextPanel

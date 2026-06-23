@@ -78,6 +78,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     sendOutboundTemplate,
     sendOutboundSMS,
     generateReplyForConversation,
+    updateNotesFromConversation,
     dogNames,
     dogNamesById,
     actionInFlight,
@@ -243,6 +244,22 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setBookOpen(false);
   }, [selectedId]);
   const customerContext = useCustomerContext(selectedConversation?.human_id ?? null);
+
+  // "Update notes" — AI reads the thread and appends durable customer
+  // notes + dog grooming requests to their records (nothing is sent).
+  // On success, refresh the panel so new dog groom-notes show straight
+  // away. Returns the result so the panel button can manage its busy
+  // state.
+  const handleUpdateNotes = useCallback(async () => {
+    const res = await updateNotesFromConversation(selectedId);
+    if (res?.ok) {
+      toast.show(res.summary ?? "Notes updated.", "success");
+      customerContext.refetch?.();
+    } else if (res?.reason) {
+      toast.show(`Could not update notes: ${res.reason}`, "error");
+    }
+    return res;
+  }, [updateNotesFromConversation, selectedId, toast, customerContext]);
 
   // List filter: one of "all" | "awaiting_reply" | "failed_sends" |
   // "unread" | "drafts" | "done".
@@ -842,6 +859,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               onOpenDog={onOpenDog}
               onSaveConversationNotes={handleSaveConversationNotes}
               onBookAppointment={() => setBookOpen(true)}
+              onUpdateNotes={handleUpdateNotes}
             />
           </div>
         )}
@@ -872,6 +890,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               setContextOpen(false);
               setBookOpen(true);
             }}
+            onUpdateNotes={handleUpdateNotes}
           />
         </SlideOverPanel>
       )}

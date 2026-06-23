@@ -17,7 +17,7 @@
 // short explanation the caller can surface verbatim.
 // ============================================================
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
 import { registerResume } from "../../../../supabase/refreshOnResume.js";
 import { buildCustomerSummary } from "./customerContextSummary.js";
@@ -47,6 +47,10 @@ export function useCustomerContext(humanId) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => registerResume(() => setRefreshKey((key) => key + 1)), []);
+
+  // Re-run the fetch on demand — used after the "Update notes" action
+  // writes to humans.notes / dogs.groom_notes so the panel reflects it.
+  const refetch = useCallback(() => setRefreshKey((key) => key + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,5 +220,5 @@ export function useCustomerContext(humanId) {
     };
   }, [humanId, refreshKey]);
 
-  return { ...data, loading, error };
+  return { ...data, loading, error, refetch };
 }
