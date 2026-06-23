@@ -325,6 +325,74 @@ describe("useBookings", () => {
     expect(onError).toHaveBeenCalledWith("duplicate slot");
   });
 
+  // Fix C: a capacity-gate rejection (a race after the client preflight) is
+  // mapped to copy a groomer can act on — and crucially still returns null +
+  // rolls back, so the rejection is never mistaken for success upstream.
+  it("addBooking maps a capacity-gate rejection to a friendly message", async () => {
+    const onError = vi.fn();
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [], error: null },
+        insertResult: {
+          data: null,
+          error: { code: "P0001", message: "Slot is full" },
+        },
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById, { onError }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let returned;
+    await act(async () => {
+      returned = await result.current.addBooking("2026-05-18", {
+        _dogId: "dog-1",
+        slot: "11:00",
+        size: "small",
+        service: "full-groom",
+      });
+    });
+
+    expect(returned).toBeNull();
+    expect(result.current.bookingsByDate["2026-05-18"] ?? []).toHaveLength(0);
+    expect(result.current.error).toMatch(/just filled up/i);
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/just filled up/i));
+  });
+
+  // Fix C: the unique-constraint race (same dog, same slot) is mapped too.
+  it("addBooking maps a 23505 duplicate to a friendly message", async () => {
+    const onError = vi.fn();
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [], error: null },
+        insertResult: {
+          data: null,
+          error: { code: "23505", message: "duplicate key value violates unique constraint" },
+        },
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById, { onError }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let returned;
+    await act(async () => {
+      returned = await result.current.addBooking("2026-05-18", {
+        _dogId: "dog-1",
+        slot: "11:00",
+        size: "small",
+        service: "full-groom",
+      });
+    });
+
+    expect(returned).toBeNull();
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/already booked/i));
+  });
+
   it("updateBooking replaces the in-place row when same-day update succeeds", async () => {
     const initialRow = {
       id: "booking-7",
