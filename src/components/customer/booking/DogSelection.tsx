@@ -1,25 +1,18 @@
 import { useState } from "react";
-import type { WizardDog, DogSize } from "../../../types/index";
+import type { WizardDog } from "../../../types/index";
+import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { DOG_SIZES } from "../../../constants/index";
 import { AddDogInline } from "./AddDogInline";
 import { PawPrint, ArrowRight } from "lucide-react";
 import { WizardTick } from "./WizardTick";
 import { titleCase } from "../../../utils/text";
 
-interface RawDog {
-  id: string;
-  name: string;
-  breed: string;
-  size: DogSize | null;
-  isPregnant: boolean;
-}
-
 interface DogSelectionProps {
-  dogs: RawDog[];
+  dogs: CustomerDog[];
   selectedDogs: WizardDog[];
   onSelect: (dog: WizardDog) => void;
   onNext: () => void;
-  onDogAdded: (dog: RawDog) => void;
+  onDogAdded: (dog: CustomerDog) => void;
   humanId: string;
   loading: boolean;
 }
@@ -37,7 +30,7 @@ export function DogSelection({
 
   const isSelected = (dogId: string) => selectedDogs.some((d) => d.dogId === dogId);
 
-  const toggleDog = (dog: RawDog) => {
+  const toggleDog = (dog: CustomerDog) => {
     if (!dog.size) return;
     if (dog.isPregnant) return;
     const already = isSelected(dog.id);
@@ -45,7 +38,7 @@ export function DogSelection({
     onSelect({ dogId: dog.id, name: dog.name, size: dog.size });
   };
 
-  const handleDogAdded = (dog: RawDog) => {
+  const handleDogAdded = (dog: CustomerDog) => {
     onDogAdded(dog);
     setShowAddDog(false);
   };

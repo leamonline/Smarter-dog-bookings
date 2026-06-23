@@ -8,7 +8,7 @@ import {
   listIdsInGroup,
   listOnDateForCapacity,
 } from "../../../supabase/repositories/bookingsRepo";
-import { listForHuman } from "../../../supabase/repositories/dogsRepo";
+import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
@@ -64,14 +64,6 @@ function fmtDateForReason(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
   });
-}
-
-interface RawDog {
-  id: string;
-  name: string;
-  breed: string;
-  size: DogSize | null;
-  isPregnant: boolean;
 }
 
 /**
@@ -155,7 +147,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const draft = restored as unknown as BookingDraft | null;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => draft?.step ?? 1);
-  const [dogs, setDogs] = useState<RawDog[]>([]);
+  const [dogs, setDogs] = useState<CustomerDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [dogsError, setDogsError] = useState<string | null>(null);
   const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>(() => draft?.selectedDogs ?? []);
@@ -256,7 +248,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setServices((prev) => ({ ...prev, [dogId]: serviceId }));
   };
 
-  const handleDogAdded = (dog: RawDog) => {
+  const handleDogAdded = (dog: CustomerDog) => {
     setDogs((prev) => [...prev, dog]);
   };
 

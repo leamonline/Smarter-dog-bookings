@@ -3,10 +3,11 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { getSizeForBreed } from "../../../constants/breeds";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";
+import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 
 interface AddDogInlineProps {
   humanId: string;
-  onDogAdded: (dog: { id: string; name: string; breed: string; size: DogSize | null; isPregnant: boolean }) => void;
+  onDogAdded: (dog: CustomerDog) => void;
   onCancel: () => void;
 }
 

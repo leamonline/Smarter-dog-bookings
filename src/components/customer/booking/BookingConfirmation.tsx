@@ -1,13 +1,7 @@
 import { SERVICES, PRICING } from "../../../constants/index";
-import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
+import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
+import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { PawPrint } from "lucide-react";
-
-interface RawDog {
-  id: string;
-  name: string;
-  breed: string;
-  size: DogSize | null;
-}
 
 interface BookingConfirmationProps {
   selectedDogs: WizardDog[];
@@ -17,7 +11,7 @@ interface BookingConfirmationProps {
   onConfirm: () => void;
   onBack: () => void;
   submitting: boolean;
-  dogs: RawDog[];
+  dogs: CustomerDog[];
 }
 
 function formatDate(dateStr: string): string {
