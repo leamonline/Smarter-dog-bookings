@@ -320,6 +320,23 @@ describe("Mid-Morning Block (10:00 - 11:30)", () => {
 });
 
 // ============================================================
+// 8B. APPROVAL MESSAGE IS PERSON-INDEPENDENT (item 4)
+// ============================================================
+describe("Approval message is person-independent (item 4)", () => {
+  it("rejects a mid-morning large dog with a generic manager-approval reason", () => {
+    const result = canBookSlot([], "10:00", "large", SLOTS);
+    expect(result.allowed).toBe(false);
+    expect(result.needsApproval).toBe(true);
+    expect(result.reason).toBe("Needs manager approval for this slot");
+  });
+
+  it("classifies the new approval reason as an overridable capacity rejection", () => {
+    expect(isCapacityRejection("Needs manager approval for this slot")).toBe(true);
+    expect(isCapacityRejection("Large dogs need Leam's approval for this slot")).toBe(false);
+  });
+});
+
+// ============================================================
 // 9. FULL-TAKEOVER SLOT RULES (12:30, 13:00)
 // ============================================================
 describe("Full-Takeover Slots (12:30, 13:00)", () => {

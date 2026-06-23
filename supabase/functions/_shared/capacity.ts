@@ -322,7 +322,7 @@ export function canBookSlot(
       if (!override.approval) {
         return {
           allowed: false,
-          reason: "Large dogs need Leam's approval for this slot",
+          reason: "Needs manager approval for this slot",
           needsApproval: true,
         };
       }

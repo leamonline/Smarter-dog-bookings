@@ -229,7 +229,7 @@ export function getBookableSeatCount(
 // reasons default to non-overridable — add them here only when they
 // represent a capacity rule, not a data-integrity / programmer error.
 const CAPACITY_REASONS = new Set<string>([
-  "Large dogs need Leam's approval for this slot",
+  "Needs manager approval for this slot",
   "9:00am conditional: 8:30am must be empty",
   "9:00am conditional: 10:00am must have 0–1 seats",
   "12:00 large dog requires 1:00pm to be empty (early close)",
@@ -301,7 +301,7 @@ export function canBookSlot(
       if (!override.approval) {
         return {
           allowed: false,
-          reason: "Large dogs need Leam's approval for this slot",
+          reason: "Needs manager approval for this slot",
           needsApproval: true,
         };
       }

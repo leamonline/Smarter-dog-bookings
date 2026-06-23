@@ -4,7 +4,7 @@
 // Inline capacity preview for the BookingActionPanel. Reads
 // existing bookings for the proposed date via useSlotCapacityPreview
 // and surfaces a one-liner: "Adds to 1 small. Fits the 2-2-1 rule."
-// or "Won't fit — large dogs need Leam's approval for this slot."
+// or "Won't fit — needs manager approval for this slot."
 //
 // Doesn't gate the Apply button — that's the Postgres capacity
 // trigger's job at write time. This is informational, so staff can
