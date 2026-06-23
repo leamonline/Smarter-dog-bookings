@@ -169,3 +169,21 @@ describe("DogSearchSection — typed search (UX #1)", () => {
     expect(props.onClose).not.toHaveBeenCalled();
   });
 });
+
+// Guided cold-start (audit friction C-3): the no-results panel used to offer
+// "+ New Dog" and "+ New Human" as two equal CTAs, which nudged staff to create
+// the person first and then come back for the dog. "+ New Dog" already creates
+// the owner inline, so it's the one-step path for a brand-new customer — the
+// panel now leads with it and explains that, while keeping "+ New Human" for the
+// rare person-only case.
+describe("DogSearchSection — guided cold-start (C-3)", () => {
+  it("explains that the new-dog path also creates the owner in one step", () => {
+    renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
+    expect(
+      screen.getByText(/create the owner in the same step/i),
+    ).toBeInTheDocument();
+    // Both create paths stay available — the change is emphasis, not removal.
+    expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
+  });
+});
