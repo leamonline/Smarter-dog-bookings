@@ -99,6 +99,28 @@ describe("NewBookingModal — cold-start continuity (Fix A)", () => {
     // It must NOT close the wizard itself — the parent parks the booking.
     expect(props.onClose).not.toHaveBeenCalled();
   });
+
+  it("carries the known owner into the draft when '+ New Dog' is clicked before a dog is picked", async () => {
+    // Cold-start gap: staff have created the customer (so initialHumanId is
+    // known) but no dog is selected yet. The captured draft must still carry
+    // that owner so AddDogModal opens owner-locked — no re-search of the
+    // customer they just made.
+    const owner = { id: "emma-id", fullName: "Emma Wilson", phone: "+447700900111" };
+    const props = renderModal({
+      initialHumanId: "emma-id",
+      humans: { "emma-id": owner },
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "+ New Dog" }));
+
+    expect(props.onOpenAddDog).toHaveBeenCalledTimes(1);
+    expect(props.onOpenAddDog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [],
+        owner: expect.objectContaining({ id: "emma-id", label: "Emma Wilson" }),
+      }),
+    );
+  });
 });
 
 describe("NewBookingModal — truthful save (Fix C)", () => {
