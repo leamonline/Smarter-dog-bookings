@@ -582,6 +582,30 @@ export function useWhatsAppInbox() {
     return { ok: true, replyText: data?.reply_text ?? "" };
   }, [selectedId]);
 
+  // "Update notes" button: ask the AI to read the thread and append any
+  // durable customer notes + dog grooming requests to their records.
+  // Nothing is sent to the customer. Returns a human-readable summary of
+  // what (if anything) changed.
+  const updateNotesFromConversation = useCallback(async (conversationId) => {
+    const id = conversationId ?? selectedId;
+    if (!id) return { ok: false, reason: "no conversation selected" };
+    const { data, error } = await supabase.functions.invoke("whatsapp-update-notes", {
+      body: { conversation_id: id },
+    });
+    if (error) {
+      const detail = await parseSupabaseFunctionError(error, "Update notes failed");
+      return { ok: false, reason: detail };
+    }
+    if (data && data.ok === false) {
+      return { ok: false, reason: data.reason ?? "Could not update notes." };
+    }
+    return {
+      ok: true,
+      summary: data?.summary ?? "Notes updated.",
+      updated: data?.updated ?? null,
+    };
+  }, [selectedId]);
+
 
   const sendTemplate = useCallback(
     async (template, paramValues) => {
@@ -662,6 +686,7 @@ export function useWhatsAppInbox() {
     sendOutboundTemplate,
     sendOutboundSMS,
     generateReplyForConversation,
+    updateNotesFromConversation,
     dogNames,
     dogNamesById,
     actionInFlight,
