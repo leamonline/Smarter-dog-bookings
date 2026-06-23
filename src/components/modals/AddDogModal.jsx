@@ -17,9 +17,17 @@ const SORTED_BREEDS = [
 // presetOwner ({ id, label, phone }) locks the owner to a known human — used
 // when the modal is opened from a human's card ("add a dog they own"), so the
 // owner picker is replaced by a fixed, non-editable owner.
-export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = null }) {
+// onAddAnother (booking flow only) enables "Save & add another dog": it persists
+// the dog without closing, so staff can register several dogs for one customer
+// in a single sitting. Other call sites (human card, Dogs directory) don't pass
+// it, so the button stays hidden there.
+export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, presetOwner = null }) {
   const toast = useToast();
-  const ownerLocked = Boolean(presetOwner);
+  // The owner is fixed when opened from a human's card (presetOwner) OR once the
+  // first dog in a "Save & add another" batch sets the owner for the rest of the
+  // session — every dog in a batch belongs to the same customer.
+  const [sessionOwnerLocked, setSessionOwnerLocked] = useState(false);
+  const ownerLocked = Boolean(presetOwner) || sessionOwnerLocked;
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -70,8 +78,33 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
       .slice(0, 5);
   }, [ownerQuery, humans, selectedOwner]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Clear the dog-specific fields (but NOT the owner) so a batch "add another"
+  // leaves staff a fresh form for the next dog of the same customer.
+  const resetDogFields = () => {
+    setName("");
+    setBreed("");
+    setCustomBreed("");
+    setDobMonth("");
+    setDobYear("");
+    setSize("");
+    setSizeAutoSet(false);
+    setSizeOverridden(false);
+    setGender("");
+    setColour("");
+    setNeutered("");
+    setMicrochip("");
+    setVet("");
+    setGroomNotes("");
+    setAlerts([]);
+    setHasAllergy(false);
+    setAllergyInput("");
+    setFieldErrors({});
+  };
+
+  // Shared create path. addAnother=false finishes and closes (the default
+  // "Add Dog"); addAnother=true persists the dog, locks the owner and keeps the
+  // modal open for the next one (booking-flow "Save & add another").
+  const submitDog = async ({ addAnother }) => {
     const finalBreed = isOtherBreed ? customBreed.trim() : breed.trim();
 
     // Aggregate all field-level validation errors in a single pass so
@@ -104,6 +137,8 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
     }
 
     let ownerId = selectedOwner?.id;
+    // The owner we actually used — so a batch "add another" can lock to it.
+    let usedOwner = selectedOwner;
 
     // Create the new owner (if needed) once all client-side validation
     // has passed so we don't leave orphan rows behind on field errors.
@@ -128,6 +163,11 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
         return;
       }
       ownerId = newHuman.id;
+      usedOwner = {
+        id: newHuman.id,
+        label: `${newOwnerName.trim()} ${newOwnerSurname.trim()}`.trim(),
+        phone: newOwnerPhoneE164,
+      };
     }
 
     setSubmitting(true);
@@ -140,7 +180,8 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
       finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
     }
 
-    const result = await onAdd({
+    const submit = addAnother && onAddAnother ? onAddAnother : onAdd;
+    const result = await submit({
       name: name.trim(),
       breed: finalBreed,
       age: "",
@@ -158,11 +199,25 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
     setSubmitting(false);
     if (result) {
       toast.show(name.trim() ? `${name.trim()} added` : "Dog added", "success");
-      onClose();
+      if (addAnother && onAddAnother) {
+        // Keep the modal open for the next dog: pin the owner and clear the
+        // dog-specific fields so staff just type the next name + breed.
+        setSelectedOwner(usedOwner);
+        setSessionOwnerLocked(true);
+        setShowNewOwner(false);
+        resetDogFields();
+      } else {
+        onClose();
+      }
     } else {
       toast.show("Could not add dog", "error");
       setFieldErrors({ banner: "Failed to add dog. A dog with this name may already exist." });
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    submitDog({ addAnother: false });
   };
 
   // Clear a single field's error when the user edits it — feedback
@@ -553,6 +608,20 @@ export function AddDogModal({ onClose, onAdd, onAddHuman, humans, presetOwner = 
           </div>
 
           <InlineError message={fieldErrors.banner} />
+
+          {/* Booking flow only: register several dogs for one customer without
+              bouncing back to the wizard between each. */}
+          {onAddAnother && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => submitDog({ addAnother: true })}
+              className="w-full py-2.5 rounded-control border-[1.5px] bg-white text-sm font-bold cursor-pointer font-inherit transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: headerTheme.from, color: headerTheme.from }}
+            >
+              {submitting ? "Saving..." : "Save & add another dog"}
+            </button>
+          )}
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
