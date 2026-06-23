@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   lazy,
   Suspense,
@@ -289,9 +290,20 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showNewBooking, setShowNewBooking,
     showAddDogModal, setShowAddDogModal,
     showAddHumanModal, setShowAddHumanModal,
+    pendingBooking, setPendingBooking,
     collectionNotice, setCollectionNotice,
     selectedBooking, setSelectedBooking,
   } = useModalState();
+
+  // A booking-in-progress that staff parked to create a new dog/human mid-flow
+  // (see parkBooking/resumeParkedBooking below). Mirrored in a ref so resume can
+  // read the latest value synchronously even when called twice in one tick
+  // (success path: onAdd resumes, then the modal's onClose fires too).
+  const pendingBookingRef = useRef(null);
+  // Friendly message from the most recent staff booking insert failure, written
+  // by useBookings' onError below and read back (after the awaited insert) so the
+  // booking modal can show it instead of a premature "Booking created" toast.
+  const bookingInsertErrorRef = useRef(null);
 
   // ── Profile-page routing (task 4 of the May 2026 review) ───────
   // /dogs/:id and /humans/:id are shareable URLs that open the dog
@@ -460,6 +472,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     refetch: refetchBookings,
   } = useBookings(weekStart, dogsById, humansById, {
     onReadyForPickup: setCollectionNotice,
+    // Capture the (already-friendly) insert error so the booking modal can
+    // surface it after awaiting the save, rather than toasting a false success.
+    onError: (msg) => {
+      bookingInsertErrorRef.current = msg;
+    },
   });
   const {
     config: sbConfig,
@@ -577,6 +594,82 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     },
     [bookingsByDate, setSelectedBooking],
   );
+
+  // ── New-customer cold start: park & resume the in-progress booking ──────
+  // The booking wizard is dog-first, so onboarding a walk-in means stepping
+  // out to create the dog/human. Rather than tearing the wizard down and
+  // losing the staff member's date/slot/dog choices, we PARK the in-progress
+  // booking, open the create modal, then RE-OPEN the wizard with their work
+  // restored and the newly-created dog pre-selected. Pure client-side UI
+  // state — the capacity trigger, the three BEFORE INSERT gates, RLS and the
+  // staff-direct-INSERT write path are all untouched.
+  const parkBooking = useCallback(
+    (draft, which) => {
+      pendingBookingRef.current = draft || null;
+      setPendingBooking(draft || null);
+      setShowNewBooking(null);
+      dogsClearSearch();
+      if (which === "human") setShowAddHumanModal(true);
+      else setShowAddDogModal(true);
+    },
+    [
+      setPendingBooking,
+      setShowNewBooking,
+      dogsClearSearch,
+      setShowAddHumanModal,
+      setShowAddDogModal,
+    ],
+  );
+
+  // Re-open the parked booking, restoring its date/slot and dog entries and —
+  // when a record was just created — selecting it. Guarded by the ref so the
+  // double call on the success path (onAdd resume + the modal's onClose resume)
+  // only re-opens once. A no-op when nothing was parked (e.g. the modal was
+  // opened outside the booking flow), preserving the old standalone behaviour.
+  const resumeParkedBooking = useCallback(
+    ({ newDog = null, newHumanId = null } = {}) => {
+      const draft = pendingBookingRef.current;
+      pendingBookingRef.current = null;
+      setPendingBooking(null);
+      // Close the add modal and re-open the wizard in the SAME update so the two
+      // never mount together (stacked focus-trapped dialogs would fight).
+      setShowAddDogModal(false);
+      setShowAddHumanModal(false);
+      if (!draft) return;
+      const entries = [...(draft.entries || [])];
+      if (newDog) {
+        entries.push({
+          dog: newDog,
+          humanKey: newDog.humanId || draft.owner?.label || "",
+          service: "full-groom",
+          addons: [],
+        });
+      }
+      const hasEntries = entries.length > 0;
+      setShowNewBooking({
+        dateStr: draft.dateStr || currentDateStr,
+        slot: draft.slot || "",
+        initialEntries: hasEntries ? entries : undefined,
+        initialHumanId:
+          (newDog && (newDog._humanId || draft.owner?.id)) ||
+          (!hasEntries && newHumanId) ||
+          draft.owner?.id ||
+          undefined,
+      });
+    },
+    [
+      setPendingBooking,
+      setShowAddDogModal,
+      setShowAddHumanModal,
+      setShowNewBooking,
+      currentDateStr,
+    ],
+  );
+
+  // Owner to pre-lock in the add-dog modal when the parked booking already had
+  // an owner (e.g. "+ New dog for <owner>"); null on a true cold start so the
+  // modal shows its owner search + inline create instead.
+  const pendingPresetOwner = pendingBooking?.owner || null;
 
   // Task 11 of the May 2026 review pass: don't return a full-screen
   // overlay during the initial data fetch. Render the toolbar and
@@ -901,11 +994,26 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     setShowNewBooking(null);
                     dogsClearSearch();
                   }}
-                  onAdd={(bookingOrArray, dateStr) => {
+                  onAdd={async (bookingOrArray, dateStr) => {
+                    // Truthful save: await the real insert(s) and report the
+                    // outcome so the modal only toasts success once the DB
+                    // accepts the booking. handleAddToDate resolves to the saved
+                    // booking (online), null on a DB rejection — e.g. a
+                    // capacity/duplicate race after the client preflight — or
+                    // undefined (offline optimistic add, always fine).
+                    bookingInsertErrorRef.current = null;
                     const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-                    list.forEach(b => handleAddToDate(b, b._bookingDate || dateStr));
-                    setShowNewBooking(null);
-                    dogsClearSearch();
+                    const results = await Promise.all(
+                      list.map((b) => handleAddToDate(b, b._bookingDate || dateStr)),
+                    );
+                    const ok = results.every((r) => r !== null && r !== false);
+                    return {
+                      ok,
+                      error: ok
+                        ? null
+                        : bookingInsertErrorRef.current ||
+                          "Couldn't save the booking — please try again.",
+                    };
                   }}
                   dogs={dogs}
                   humans={humans}
@@ -914,12 +1022,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   bookingsByDate={bookingsByDate}
                   dayOpenState={dayOpenState}
                   daySettings={daySettings}
-                  onOpenAddDog={() => setShowAddDogModal(true)}
-                  onOpenAddHuman={() => setShowAddHumanModal(true)}
+                  onOpenAddDog={(draft) => parkBooking(draft, "dog")}
+                  onOpenAddHuman={(draft) => parkBooking(draft, "human")}
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
                   initialHumanId={showNewBooking.initialHumanId}
                   initialDogId={showNewBooking.initialDogId}
+                  initialEntries={showNewBooking.initialEntries}
                   initialService={showNewBooking.initialService}
                   initialAddons={showNewBooking.initialAddons}
                   initialStaffCapacityOverride={showNewBooking.capacityOverride === true}
@@ -962,11 +1071,22 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <AddDogModal
-                  onClose={() => setShowAddDogModal(false)}
+                  onClose={() => {
+                    setShowAddDogModal(false);
+                    // Cancel: re-open the parked booking with their work intact
+                    // (no new dog). No-op if nothing was parked, or already
+                    // resumed by a successful add below.
+                    resumeParkedBooking();
+                  }}
                   onAdd={async (dogData) => {
                     const result = await addDog(dogData);
+                    // Success: re-open the booking with the new dog selected so
+                    // staff don't have to re-search for the dog they just made.
+                    if (result) resumeParkedBooking({ newDog: result });
                     return result;
                   }}
+                  onAddHuman={addHuman}
+                  presetOwner={pendingPresetOwner}
                   humans={humans}
                 />
               </Suspense>
@@ -977,9 +1097,19 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <AddHumanModal
-                  onClose={() => setShowAddHumanModal(false)}
+                  onClose={() => {
+                    setShowAddHumanModal(false);
+                    // Cancel: re-open the parked booking (no new dog/human).
+                    resumeParkedBooking();
+                  }}
                   onAdd={async (humanData) => {
                     const result = await addHuman(humanData);
+                    // Success: re-open the booking pre-filled with the new
+                    // owner so staff can pick or add their dog without a
+                    // re-search.
+                    if (result) {
+                      resumeParkedBooking({ newHumanId: result.id || result?.[0]?.id });
+                    }
                     return result;
                   }}
                   dogs={dogs}

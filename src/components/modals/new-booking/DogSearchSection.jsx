@@ -25,7 +25,6 @@ export function DogSearchSection({
   onServiceChange,
   onAddonsChange,
   onClearAll,
-  onClose,
   onOpenAddDog,
   onOpenAddHuman,
   onSearchDogs,
@@ -209,7 +208,7 @@ export function DogSearchSection({
                 ))
               )}
               <div
-                onMouseDown={() => { onClose(); onOpenAddDog?.(); }}
+                onMouseDown={() => onOpenAddDog?.()}
                 className="px-3 py-2.5 cursor-pointer text-xs font-bold transition-colors"
                 style={{ color: primaryTheme.gradient[0] }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = primaryTheme.light)}
@@ -338,8 +337,8 @@ export function DogSearchSection({
                   No dogs found matching "{dogQuery}"
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { onClose(); onOpenAddDog?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-cyan text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
-                  <button type="button" onClick={() => { onClose(); onOpenAddHuman?.(); }} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit">+ New Human</button>
+                  <button type="button" onClick={() => onOpenAddDog?.()} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-cyan text-white text-xs font-bold cursor-pointer font-inherit">+ New Dog</button>
+                  <button type="button" onClick={() => onOpenAddHuman?.()} className="flex-1 py-[9px] px-3 rounded-lg border-none bg-brand-teal text-white text-xs font-bold cursor-pointer font-inherit">+ New Human</button>
                 </div>
               </div>
             )}
@@ -355,12 +354,12 @@ export function DogSearchSection({
               <div className="flex gap-1.5">
                 <button
                   type="button"
-                  onClick={() => { onClose(); onOpenAddDog?.(); }}
+                  onClick={() => onOpenAddDog?.()}
                   className="py-1 px-2 rounded-md border border-brand-cyan/40 bg-white text-brand-cyan text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-cyan/5"
                 >+ New Dog</button>
                 <button
                   type="button"
-                  onClick={() => { onClose(); onOpenAddHuman?.(); }}
+                  onClick={() => onOpenAddHuman?.()}
                   className="py-1 px-2 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-teal/5"
                 >+ New Human</button>
               </div>

@@ -155,4 +155,17 @@ describe("DogSearchSection — typed search (UX #1)", () => {
     expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
   });
+
+  // Cold-start continuity (audit Fix A): the create CTAs used to call onClose()
+  // before opening the add modal, which unmounted the wizard and discarded the
+  // in-progress booking. They must now only REQUEST the add modal (the parent
+  // parks the booking) and never tear it down here.
+  it("the create CTAs request the add modal without closing the booking", () => {
+    const props = renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
+    fireEvent.click(screen.getByRole("button", { name: "+ New Dog" }));
+    expect(props.onOpenAddDog).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "+ New Human" }));
+    expect(props.onOpenAddHuman).toHaveBeenCalledTimes(1);
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
 });

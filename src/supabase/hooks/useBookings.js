@@ -5,7 +5,27 @@ import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
 import { BOOKING_STATUS } from "../../constants/salon";
+import { isCapacityRejection } from "../../engine/capacity";
 import { logger } from "../../lib/logger";
+
+// Translate a raw Postgres error from the STAFF booking insert into copy a
+// groomer can act on. Staff bypass the calendar + pregnancy gates (is_staff()),
+// so the realistic late failure is a capacity (2-2-1) or duplicate-slot race:
+// the client preflights capacity and a staff override is stamped when they
+// confirm one, so a DB rejection here means another booking landed first.
+// Anything unmapped falls through to the raw message — never swallowed — so an
+// unmapped failure can't be mistaken for success upstream.
+function friendlyBookingError(err) {
+  const code = err?.code;
+  const raw = err?.message || "";
+  if (code === "23505") {
+    return "That dog is already booked at that time — refresh to see the latest.";
+  }
+  if (isCapacityRejection(raw)) {
+    return "That slot just filled up — please pick another time.";
+  }
+  return raw || "Couldn't save the booking — please try again.";
+}
 
 function groupBookingsByDate(rows, dogsById, humansById) {
   const transformed = dbBookingsToArray(rows, dogsById, humansById);
@@ -247,8 +267,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         logger.error("Failed to add booking", err, {
           tags: { hook: "useBookings", op: "addBooking" },
         });
-        setError(err.message);
-        onErrorRef.current?.(err.message);
+        const friendly = friendlyBookingError(err);
+        setError(friendly);
+        onErrorRef.current?.(friendly);
         return null;
       }
 

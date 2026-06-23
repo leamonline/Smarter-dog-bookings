@@ -32,6 +32,10 @@ export function NewBookingModal({
   // don't have to re-search. initialDogId resolves to a dog entry; service
   // and addons seed that entry.
   initialDogId,
+  // Resume prefill: dog entries (existing selections + any newly-created dog)
+  // restored when the wizard re-opens after staff stepped out to add a
+  // dog/human mid-booking. Carries full dog objects, so no map lookup is needed.
+  initialEntries,
   initialService,
   initialAddons,
   // When true, saveBooking skips the over-capacity ConfirmDialog and
@@ -153,6 +157,34 @@ export function NewBookingModal({
     dogEntries.length,
   ]);
 
+  // Resume prefill. When staff parked a booking to create a dog/human, App
+  // re-opens the wizard with the preserved (and newly-created) dog entries.
+  // We hydrate straight from the passed dog objects — no map lookup or timing
+  // dance like initialDogId needs — so the dog they just created is selected
+  // immediately and their date/slot (above) come back with it.
+  const prefilledEntriesRef = useRef(false);
+  useEffect(() => {
+    if (prefilledEntriesRef.current) return;
+    if (!initialEntries || initialEntries.length === 0) return;
+    if (dogEntries.length > 0) {
+      prefilledEntriesRef.current = true;
+      return;
+    }
+    const hydrated = initialEntries
+      .filter((e) => e?.dog?.id)
+      .map((e) => ({
+        dog: e.dog,
+        humanKey: e.humanKey || e.dog.humanId || "",
+        service: e.service || "full-groom",
+        addons: e.addons || [],
+      }));
+    if (hydrated.length === 0) return;
+    setDogEntries(hydrated);
+    setSelectedHumanKey(hydrated[0].humanKey);
+    setDogQuery(hydrated[hydrated.length - 1].dog.name);
+    prefilledEntriesRef.current = true;
+  }, [initialEntries, dogEntries.length]);
+
   const hasDogs = dogEntries.length > 0;
   // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on
   // every dog object; all dogs in one booking share the same owner. Used to
@@ -197,6 +229,31 @@ export function NewBookingModal({
     setDogQuery(entry.dog.name);
     setError("");
   };
+
+  // Snapshot the in-progress booking so App can park it while staff step out to
+  // create a new dog/human, then re-open the wizard with their work restored
+  // (see App's parkBooking/resumeParkedBooking). Pure UI state — nothing here
+  // touches the write path or the capacity/booking gates.
+  const captureDraft = () => {
+    const owner = selectedHumanId
+      ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
+      : null;
+    return {
+      dateStr: selectedDateStr,
+      slot: selectedSlot,
+      entries: dogEntries.map((e) => ({
+        dog: e.dog,
+        humanKey: e.humanKey,
+        service: e.service,
+        addons: e.addons || [],
+      })),
+      owner: owner
+        ? { id: owner.id, label: owner.fullName || selectedHumanKey, phone: owner.phone || "" }
+        : null,
+    };
+  };
+  const handleOpenAddDog = () => onOpenAddDog?.(captureDraft());
+  const handleOpenAddHuman = () => onOpenAddHuman?.(captureDraft());
 
   const handleAddAnotherDog = (dog) => {
     setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom", addons: [] }]);
@@ -425,7 +482,23 @@ export function NewBookingModal({
     return { bookings: result };
   };
 
-  const saveBooking = () => {
+  // Persist the built bookings, then report honestly. onAdd now awaits the real
+  // DB insert and resolves { ok, error }: we only toast "Booking created" and
+  // close once the database has accepted it. A late rejection — e.g. a
+  // capacity/duplicate race after the client preflight — surfaces in-modal so
+  // staff can pick another slot, instead of a green toast that lied while the
+  // optimistic row was quietly rolled back off the calendar.
+  const commitBookings = async (bookings) => {
+    const res = await onAdd(bookings, selectedDateStr);
+    if (res?.ok) {
+      toast.show("Booking created", "success");
+      onClose();
+    } else {
+      setError(res?.error || "Couldn't save the booking — please try again.");
+    }
+  };
+
+  const saveBooking = async () => {
     // initialStaffCapacityOverride short-circuits the in-modal popup: the
     // day-view already asked "this slot is full, override and book?" and
     // the user confirmed. Going straight to capacity-override mode avoids
@@ -444,11 +517,10 @@ export function NewBookingModal({
       return;
     }
 
-    onAdd(outcome.bookings, selectedDateStr);
-    toast.show("Booking created", "success");
+    await commitBookings(outcome.bookings);
   };
 
-  const confirmCapacityOverride = () => {
+  const confirmCapacityOverride = async () => {
     const outcome = buildBookingsForOverride(true);
     setPendingCapacityOverride(null);
 
@@ -463,8 +535,7 @@ export function NewBookingModal({
       return;
     }
 
-    onAdd(outcome.bookings, selectedDateStr);
-    toast.show("Booking created", "success");
+    await commitBookings(outcome.bookings);
   };
 
   // Format the selected date nicely (long form for the form label).
@@ -566,9 +637,8 @@ export function NewBookingModal({
           onServiceChange={handleServiceChange}
           onAddonsChange={handleAddonsChange}
           onClearAll={handleClearAll}
-          onClose={onClose}
-          onOpenAddDog={onOpenAddDog}
-          onOpenAddHuman={onOpenAddHuman}
+          onOpenAddDog={handleOpenAddDog}
+          onOpenAddHuman={handleOpenAddHuman}
           onSearchDogs={onSearchDogs}
           isSearchingDogs={isSearchingDogs}
           setError={setError}
