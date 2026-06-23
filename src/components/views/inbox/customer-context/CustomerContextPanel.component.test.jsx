@@ -109,15 +109,17 @@ describe("CustomerContextPanel", () => {
     const dog = screen.getByText("Rex");
     const emailBtn = screen.getByRole("link", { name: /email/i });
     const bookAppointment = screen.getByRole("button", { name: /Book appointment/i });
-    const detailsHeading = screen.getByText("Details");
+    const address = screen.getByText("Address"); // detail line at the very end (no "Details" header)
 
     const follows = (a, b) =>
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
     expect(follows(notes, dog)).toBe(true); // NOTES card above the dog card
     expect(follows(dog, bookAppointment)).toBe(true); // dog before the actions
-    expect(follows(bookAppointment, detailsHeading)).toBe(true); // actions before details
+    expect(follows(bookAppointment, address)).toBe(true); // actions before the address line
     // Email is an action button (mailto), not a plain detail line.
     expect(emailBtn).toHaveAttribute("href", "mailto:sarah@example.com");
+    // Section headers are gone — no "Details" label.
+    expect(screen.queryByText("Details")).not.toBeInTheDocument();
   });
 });
