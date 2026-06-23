@@ -30,12 +30,14 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import {
   displayName,
+  formatDayToken,
   isAwaitingReply,
 } from "./helpers.js";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { InboxFilterChip } from "./InboxFilterChip.jsx";
 import { ThreadSkeleton } from "../../ui/Skeleton.jsx";
 import { ConversationListItem } from "./conversation-list/ConversationListItem.jsx";
+import { InitialsAvatar } from "./InitialsAvatar.jsx";
 import { MarkCompleteButton } from "./MarkCompleteButton.jsx";
 import { ComposeNewModal } from "./compose-new/ComposeNewModal.jsx";
 import { MessageBubble } from "./thread/MessageBubble.jsx";
@@ -678,6 +680,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
                       aria-label="Back to inbox"
                     >←</button>
+                    <InitialsAvatar
+                      name={displayName(selectedConversation)}
+                      seed={selectedConversation?.human_id || selectedConversation?.phone_e164 || selectedId}
+                      size={36}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
@@ -763,34 +770,54 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                     No messages yet.
                   </div>
                 ) : (
-                  [
-                    ...messages.map((m) => ({
-                      kind: "message",
-                      at: m.sent_at,
-                      key: `m-${m.id}`,
-                      data: m,
-                    })),
-                    ...bookingActions
-                      .filter((a) => a.state === "applied" || a.state === "auto_applied")
-                      .map((a) => ({
-                        kind: "booking_created",
-                        at: a.applied_at || a.created_at,
-                        key: `a-${a.id}`,
-                        data: a,
+                  (() => {
+                    const items = [
+                      ...messages.map((m) => ({
+                        kind: "message",
+                        at: m.sent_at,
+                        key: `m-${m.id}`,
+                        data: m,
                       })),
-                  ]
-                    .sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")))
-                    .map((item) =>
-                      item.kind === "message" ? (
-                        <MessageBubble key={item.key} message={item.data} />
-                      ) : (
-                        <BookingCreatedCard
-                          key={item.key}
-                          action={item.data}
-                          dogNamesById={dogNamesById}
-                        />
-                      ),
-                    )
+                      ...bookingActions
+                        .filter((a) => a.state === "applied" || a.state === "auto_applied")
+                        .map((a) => ({
+                          kind: "booking_created",
+                          at: a.applied_at || a.created_at,
+                          key: `a-${a.id}`,
+                          data: a,
+                        })),
+                    ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+
+                    // Interleave a centred day-divider whenever the calendar
+                    // day changes, so long threads stay easy to scan.
+                    const rendered = [];
+                    let lastDayKey = null;
+                    for (const item of items) {
+                      const dayKey = item.at ? new Date(item.at).toDateString() : "";
+                      if (dayKey && dayKey !== lastDayKey) {
+                        lastDayKey = dayKey;
+                        rendered.push(
+                          <div key={`day-${dayKey}`} className="flex justify-center my-3">
+                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                              {formatDayToken(item.at)}
+                            </span>
+                          </div>,
+                        );
+                      }
+                      rendered.push(
+                        item.kind === "message" ? (
+                          <MessageBubble key={item.key} message={item.data} />
+                        ) : (
+                          <BookingCreatedCard
+                            key={item.key}
+                            action={item.data}
+                            dogNamesById={dogNamesById}
+                          />
+                        ),
+                      );
+                    }
+                    return rendered;
+                  })()
                 )}
               </div>
 

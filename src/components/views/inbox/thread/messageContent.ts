@@ -24,12 +24,25 @@ import { WHATSAPP_TEMPLATES } from "../../../../constants/whatsappTemplates.js";
 export type ParsedMessageContent =
   | { kind: "text"; text: string }
   | { kind: "template"; templateId: string; values: string[]; rawArgs: string }
+  | { kind: "system"; tag: string; label: string; body: string }
   | { kind: "reaction"; emoji: string | null }
   | { kind: "media"; mediaType: string; icon: string; label: string };
 
 // Outbound template sends are flattened to "[template:<id>] <args>"
 // before they're stored. Capture the id and whatever trails it.
 const TEMPLATE_RE = /^\[template:([^\]]+)\]\s*([\s\S]*)$/;
+
+// Outbound interactive/system sends are stored as "[<tag>(:id)?] <body>"
+// where <body> is the exact text the customer received. We render the body
+// (never the bracket code) with a small friendly label. Only the known
+// tags match, so a genuine customer message starting with "[" is never
+// misread.
+const SYSTEM_LABELS: Record<string, string> = {
+  book_entry: "Booking",
+  flow: "Booking link",
+  manage_list: "Manage booking",
+};
+const SYSTEM_RE = /^\[(flow|book_entry|manage_list)(?::[^\]]+)?\]\s*([\s\S]*)$/;
 
 // Reaction placeholders look like "[reaction message — no text content]".
 // Match defensively on the "[reaction" prefix so minor wording drift in
@@ -91,6 +104,17 @@ export function parseMessageContent(
     return { kind: "template", templateId, values, rawArgs };
   }
 
+  const system = trimmed.match(SYSTEM_RE);
+  if (system) {
+    const tag = system[1];
+    return {
+      kind: "system",
+      tag,
+      label: SYSTEM_LABELS[tag] ?? "Message",
+      body: system[2].trim(),
+    };
+  }
+
   if (REACTION_RE.test(trimmed)) {
     return { kind: "reaction", emoji: extractEmoji(trimmed) };
   }
@@ -127,8 +151,20 @@ export function isReminderConfirm(content: string | null | undefined): boolean {
 export function previewMessageText(content: string | null | undefined): string {
   if (content == null || content.trim() === "") return "";
   const parsed = parseMessageContent(content);
-  if (parsed.kind === "media") return `${parsed.icon} ${parsed.label}`;
-  return content;
+  switch (parsed.kind) {
+    case "media":
+      return `${parsed.icon} ${parsed.label}`;
+    case "reaction":
+      return parsed.emoji ? `Reacted ${parsed.emoji}` : "Reaction";
+    case "template": {
+      const t = presentTemplate(parsed.templateId, parsed.values, parsed.rawArgs);
+      return t.body || t.label;
+    }
+    case "system":
+      return parsed.body || parsed.label;
+    default:
+      return parsed.text ?? content;
+  }
 }
 
 // Best-effort emoji pull for reactions. Today's placeholder carries no
