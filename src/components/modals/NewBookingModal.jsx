@@ -235,8 +235,15 @@ export function NewBookingModal({
   // (see App's parkBooking/resumeParkedBooking). Pure UI state — nothing here
   // touches the write path or the capacity/booking gates.
   const captureDraft = () => {
-    const owner = selectedHumanId
-      ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
+    // Owner of the in-progress booking. Prefer the dogs already chosen
+    // (selectedHumanId, derived from dogEntries[0]); fall back to the owner the
+    // wizard was opened for (initialHumanId) when no dog is picked yet — e.g.
+    // staff just created the customer and now want to add their first dog. This
+    // is what lets AddDogModal open owner-locked instead of re-searching the
+    // customer they made seconds ago.
+    const ownerId = selectedHumanId || initialHumanId || null;
+    const owner = ownerId
+      ? Object.values(humans || {}).find((h) => h?.id === ownerId)
       : null;
     return {
       dateStr: selectedDateStr,
