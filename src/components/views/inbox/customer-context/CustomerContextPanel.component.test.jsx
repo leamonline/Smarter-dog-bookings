@@ -43,36 +43,28 @@ describe("CustomerContextPanel", () => {
     expect(screen.queryByText("Old Customer has one dog.")).not.toBeInTheDocument();
   });
 
-  it("lets staff save a private note on the conversation", async () => {
-    const onSaveConversationNotes = vi.fn().mockResolvedValue({ ok: true });
-
+  it("shows the owner's profile notes as a read-only card and drops the conversation-note editor", () => {
     render(
       <CustomerContextPanel
-        conversation={{
-          id: "conv-1",
-          phone_e164: "+447700900123",
-          notes: "Prefers quieter appointment slots.",
-        }}
-        context={matchedContext()}
-        onSaveConversationNotes={onSaveConversationNotes}
+        conversation={{ id: "conv-1", phone_e164: "+447700900123", notes: "thread note (should NOT show)" }}
+        context={matchedContext({
+          human: {
+            id: "human-1",
+            fullName: "Sarah Jones",
+            name: "Sarah",
+            surname: "Jones",
+            phone: "+447700900123",
+            notes: "Owner prefers morning slots.",
+          },
+        })}
       />,
     );
 
-    const note = screen.getByLabelText("Conversation note");
-    expect(note).toHaveValue("Prefers quieter appointment slots.");
-
-    fireEvent.change(note, {
-      target: { value: "Prefers quieter appointment slots. Ask about matting." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
-
-    await waitFor(() =>
-      expect(onSaveConversationNotes).toHaveBeenCalledWith(
-        "conv-1",
-        "Prefers quieter appointment slots. Ask about matting.",
-      ),
-    );
-    expect(screen.getByRole("status")).toHaveTextContent("Note saved.");
+    // Owner profile notes (humans.notes) are shown read-only.
+    expect(screen.getByText("Owner prefers morning slots.")).toBeInTheDocument();
+    // The old per-conversation note editor is gone.
+    expect(screen.queryByLabelText("Conversation note")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save note" })).not.toBeInTheDocument();
   });
 
   it("offers an Update notes action that calls the handler", async () => {
@@ -91,10 +83,10 @@ describe("CustomerContextPanel", () => {
     await waitFor(() => expect(onUpdateNotes).toHaveBeenCalledTimes(1));
   });
 
-  it("orders the panel: dog card → note → actions → details (email last)", () => {
+  it("orders the panel: notes card → dog → actions → details, with email as a button", () => {
     render(
       <CustomerContextPanel
-        conversation={{ id: "conv-1", phone_e164: "+447700900123", notes: "" }}
+        conversation={{ id: "conv-1", phone_e164: "+447700900123" }}
         context={matchedContext({
           human: {
             id: "human-1",
@@ -103,27 +95,29 @@ describe("CustomerContextPanel", () => {
             surname: "Jones",
             phone: "+447700900123",
             email: "sarah@example.com",
+            notes: "Owner prefers mornings.",
+            address: "1 High St",
           },
           dogs: [{ id: "dog-1", name: "Rex", breed: "Cockapoo" }],
         })}
         onOpenHuman={vi.fn()}
         onBookAppointment={vi.fn()}
-        onSaveConversationNotes={vi.fn()}
       />,
     );
 
+    const notes = screen.getByText("Owner prefers mornings.");
     const dog = screen.getByText("Rex");
-    const note = screen.getByText("Conversation note");
+    const emailBtn = screen.getByRole("link", { name: /email/i });
     const bookAppointment = screen.getByRole("button", { name: /Book appointment/i });
     const detailsHeading = screen.getByText("Details");
-    const email = screen.getByText("sarah@example.com");
 
     const follows = (a, b) =>
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-    expect(follows(dog, note)).toBe(true); // dog card before the note
-    expect(follows(note, bookAppointment)).toBe(true); // note before the actions
+    expect(follows(notes, dog)).toBe(true); // NOTES card above the dog card
+    expect(follows(dog, bookAppointment)).toBe(true); // dog before the actions
     expect(follows(bookAppointment, detailsHeading)).toBe(true); // actions before details
-    expect(follows(detailsHeading, email)).toBe(true); // email lives under details, at the end
+    // Email is an action button (mailto), not a plain detail line.
+    expect(emailBtn).toHaveAttribute("href", "mailto:sarah@example.com");
   });
 });

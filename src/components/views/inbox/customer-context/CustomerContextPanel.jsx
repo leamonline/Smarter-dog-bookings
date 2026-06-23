@@ -15,7 +15,7 @@
 // either mode without spawning duplicate queries.
 // ============================================================
 
-import { useEffect, useId, useState } from "react";
+import { useState } from "react";
 import { LoadingSpinner } from "../../../ui/LoadingSpinner.jsx";
 import { titleCase } from "../../../../utils/text";
 import { formatPhoneForDisplay } from "../../../../utils/phone.js";
@@ -29,7 +29,6 @@ export function CustomerContextPanel({
   conversation,
   onOpenHuman,
   onOpenDog,
-  onSaveConversationNotes,
   onBookAppointment,
   onUpdateNotes,
   onClose,
@@ -92,6 +91,17 @@ export function CustomerContextPanel({
             <p className="text-[12px] text-slate-700 leading-snug">{summary}</p>
           )}
 
+          {/* Owner notes — the durable profile notes (humans.notes),
+              shown read-only here above the dog card(s). Staff edit them
+              on the full profile. */}
+          {!loading && !error && displayHuman && displayHuman.notes && (
+            <Section title="Notes">
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
+                {displayHuman.notes}
+              </div>
+            </Section>
+          )}
+
           {!loading && !error && displayHuman && dogs.length > 0 && (
             <Section title={dogs.length === 1 ? "Dog" : `Dogs (${dogs.length})`}>
               <div className="flex flex-col gap-2">
@@ -106,15 +116,6 @@ export function CustomerContextPanel({
             </Section>
           )}
 
-          {/* Private note for this thread — kept available even before a
-              customer match resolves (loading / unmatched). */}
-          {conversation && (
-            <ConversationNoteEditor
-              conversation={conversation}
-              onSaveConversationNotes={onSaveConversationNotes}
-            />
-          )}
-
           {loading ? (
             <div className="py-6"><LoadingSpinner label="Loading customer…" /></div>
           ) : error ? (
@@ -126,8 +127,8 @@ export function CustomerContextPanel({
           ) : (
             <>
               {/* Quick actions — stacked full-width so each is an easy hit
-                  in the narrow panel: Call, WhatsApp, Open full profile,
-                  Book appointment. */}
+                  in the narrow panel: Call, WhatsApp, Email, Open full
+                  profile, Book appointment, Update notes. */}
               <div className="flex flex-col gap-2">
                 {tel && (
                   <a
@@ -153,6 +154,19 @@ export function CustomerContextPanel({
                       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                     </svg>
                     WhatsApp
+                  </a>
+                )}
+                {displayHuman.email && (
+                  <a
+                    href={`mailto:${displayHuman.email}`}
+                    className="flex w-full items-center justify-center gap-1.5 h-9 px-3 rounded-full bg-white border border-slate-300 text-brand-purple text-[12px] font-semibold no-underline hover:border-brand-yellow/60 transition-colors"
+                    aria-label={`Email ${displayHuman.email}`}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="m22 7-10 6L2 7" />
+                    </svg>
+                    Email
                   </a>
                 )}
                 {onOpenHuman && displayHuman && (
@@ -220,25 +234,13 @@ export function CustomerContextPanel({
                 </Section>
               )}
 
-              {/* Details (email, address, …) sit at the very end. */}
-              {(displayHuman.address || displayHuman.email || displayHuman.notes || displayHuman.historyFlag) && (
+              {/* Details — address + any history flag sit at the very
+                  end. Email is now an action button above; notes have
+                  their own card above the dogs. */}
+              {(displayHuman.address || displayHuman.historyFlag) && (
                 <Section title="Details">
-                  {displayHuman.email && (
-                    <DetailLine
-                      label="Email"
-                      value={displayHuman.email}
-                      href={`mailto:${displayHuman.email}`}
-                    />
-                  )}
                   {displayHuman.address && (
                     <DetailLine label="Address" value={displayHuman.address} />
-                  )}
-                  {displayHuman.notes && (
-                    <DetailLine
-                      label="Notes"
-                      value={displayHuman.notes}
-                      multiline
-                    />
                   )}
                   {displayHuman.historyFlag && (
                     <DetailLine label="Flag" value={displayHuman.historyFlag} accent="rose" />
@@ -250,73 +252,6 @@ export function CustomerContextPanel({
         </div>
       </div>
     </aside>
-  );
-}
-
-function ConversationNoteEditor({ conversation, onSaveConversationNotes }) {
-  const noteId = useId();
-  const [value, setValue] = useState(conversation?.notes ?? "");
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    setValue(conversation?.notes ?? "");
-    setStatus("");
-    setError("");
-  }, [conversation?.id, conversation?.notes]);
-
-  const original = conversation?.notes ?? "";
-  const isDirty = value !== original;
-
-  async function handleSave() {
-    if (!conversation?.id || !onSaveConversationNotes || saving) return;
-    setSaving(true);
-    setStatus("");
-    setError("");
-    const res = await onSaveConversationNotes(conversation.id, value);
-    if (res?.ok) {
-      setStatus("Note saved.");
-    } else {
-      setError(res?.reason ?? "Could not save note.");
-    }
-    setSaving(false);
-  }
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <label
-        htmlFor={noteId}
-        className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5"
-      >
-        Conversation note
-      </label>
-      <textarea
-        id={noteId}
-        value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
-          setStatus("");
-          setError("");
-        }}
-        rows={3}
-        placeholder="Private note for this thread..."
-        className="w-full rounded-lg border border-slate-200 bg-brand-paper px-2 py-1.5 text-[12px] leading-snug text-brand-purple font-[inherit] resize-y focus:outline-none focus:border-brand-yellow"
-      />
-      <div className="mt-1.5 flex items-center justify-between gap-2">
-        <span role={error ? "alert" : "status"} className={`text-[11px] ${error ? "text-rose-700" : "text-slate-500"}`}>
-          {error || status}
-        </span>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!isDirty || saving || !onSaveConversationNotes}
-          className="inline-flex h-7 items-center rounded-full bg-brand-purple px-3 text-[11px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 hover:bg-brand-purple-light transition-colors font-[inherit]"
-        >
-          {saving ? "Saving..." : "Save note"}
-        </button>
-      </div>
-    </section>
   );
 }
 
