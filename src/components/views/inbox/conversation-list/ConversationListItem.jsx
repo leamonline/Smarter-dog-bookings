@@ -14,6 +14,7 @@ import {
   inboxWindowBadge,
 } from "../helpers.js";
 import { previewMessageText } from "../thread/messageContent";
+import { InitialsAvatar } from "../InitialsAvatar.jsx";
 
 const SUGGESTED_REASON_LABEL = {
   booking_confirmed_quiet: "Suggest closing — booking confirmed, quiet 7d",
@@ -24,7 +25,23 @@ const SUGGESTED_REASON_LABEL = {
 export function ConversationListItem({ conv, isSelected, onSelect }) {
   const unread = conv.unread_count > 0;
   const isClosed = !!conv.closed_at;
-  const preview = previewMessageText(conv.last_customer_text);
+  // Preview the last message in EITHER direction (first line only). Falls
+  // back to last_customer_text so a pre-migration front-end still works.
+  const lastText = conv.last_message_text ?? conv.last_customer_text;
+  const lastDirection =
+    conv.last_message_direction ??
+    // Fallback text (last_customer_text) is always the customer's, so pin
+    // it inbound; only infer from timestamps when we actually have the
+    // either-direction last_message_text.
+    (conv.last_message_text == null
+      ? "inbound"
+      : conv.last_outbound_at &&
+          (!conv.last_inbound_at || conv.last_outbound_at > conv.last_inbound_at)
+        ? "outbound"
+        : "inbound");
+  const isOurs = lastDirection === "outbound";
+  const preview = previewMessageText(lastText).split("\n")[0];
+  const lastAt = conv.last_message_at ?? conv.last_inbound_at;
   const suggestedReason = !isClosed && conv.closure_suggested_at
     ? SUGGESTED_REASON_LABEL[conv.closure_suggested_reason] ?? null
     : null;
@@ -63,6 +80,14 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
             : "bg-white hover:bg-slate-50 border-l-transparent"
       }`}
     >
+      <div className="flex gap-2.5">
+        <InitialsAvatar
+          name={displayName(conv)}
+          seed={conv.human_id || conv.phone_e164 || conv.id}
+          size={38}
+          className={`mt-0.5 ${isClosed ? "opacity-60" : ""}`}
+        />
+        <div className="min-w-0 flex-1">
       <div className="flex justify-between items-start gap-2 mb-0.5">
         <span
           className={`text-[13px] truncate ${
@@ -72,16 +97,20 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
           {displayName(conv)}
         </span>
         <span className="text-[10px] text-slate-500 shrink-0 tabular-nums">
-          {formatWhen(isClosed ? conv.closed_at : conv.last_inbound_at)}
+          {formatWhen(isClosed ? conv.closed_at : lastAt)}
         </span>
       </div>
       <div className="flex justify-between items-center gap-2">
         {preview ? (
-          <span className={`text-[11px] truncate ${unread ? "text-slate-700" : "text-slate-600"}`}>
+          <span
+            className={`text-[11px] truncate flex-1 min-w-0 ${
+              isOurs ? "text-left" : "text-right"
+            } ${unread ? "text-slate-700" : "text-slate-600"}`}
+          >
             {preview}
           </span>
         ) : (
-          <span />
+          <span className="flex-1" />
         )}
         <div className="flex items-center gap-1 shrink-0">
           {conv.needs_human_review && (
@@ -166,6 +195,8 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
           )}
         </div>
       )}
+        </div>
+      </div>
     </button>
   );
 }

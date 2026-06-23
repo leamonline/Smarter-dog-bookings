@@ -90,6 +90,27 @@ describe("parseMessageContent", () => {
   it("still treats reactions as reactions, not media", () => {
     expect(parseMessageContent("[reaction message — no text content]").kind).toBe("reaction");
   });
+
+  it("parses interactive/system sends (flow, book_entry, manage_list) into a clean body", () => {
+    expect(parseMessageContent("[flow:1771222127176573] Lovely 🐾 here's the link")).toEqual({
+      kind: "system",
+      tag: "flow",
+      label: "Booking link",
+      body: "Lovely 🐾 here's the link",
+    });
+    expect(parseMessageContent("[book_entry] Hi Holly — shall we get you booked in?")).toEqual({
+      kind: "system",
+      tag: "book_entry",
+      label: "Booking",
+      body: "Hi Holly — shall we get you booked in?",
+    });
+    expect(parseMessageContent("[manage_list] Pick a visit to manage")).toEqual({
+      kind: "system",
+      tag: "manage_list",
+      label: "Manage booking",
+      body: "Pick a visit to manage",
+    });
+  });
 });
 
 describe("previewMessageText", () => {
@@ -107,6 +128,18 @@ describe("previewMessageText", () => {
   it("returns an empty string for null / empty content", () => {
     expect(previewMessageText(null)).toBe("");
     expect(previewMessageText("")).toBe("");
+  });
+
+  it("renders templates and system messages cleanly (never leaks bracket codes)", () => {
+    expect(previewMessageText("[flow:123] Lovely 🐾 here's the link")).toBe(
+      "Lovely 🐾 here's the link",
+    );
+    expect(previewMessageText("[book_entry] Shall we book you in?")).toBe(
+      "Shall we book you in?",
+    );
+    const tpl = previewMessageText("[template:ready_for_collection_v1] Cooper · 10");
+    expect(tpl).not.toContain("[template:");
+    expect(tpl).toContain("Cooper");
   });
 });
 

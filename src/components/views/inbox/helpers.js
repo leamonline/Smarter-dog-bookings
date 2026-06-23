@@ -35,6 +35,34 @@ export function displayName(conv) {
   return formatPhoneForDisplay(conv?.phone_e164) || "Unknown contact";
 }
 
+// Day token for the message meta line and the thread day-dividers:
+// "Today" / "Yesterday" / a weekday name within the last week (e.g.
+// "Sunday") / "12 May" for older dates (year added when it differs).
+export function formatDayToken(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
+  if (dayDiff === 0) return "Today";
+  if (dayDiff === 1) return "Yesterday";
+  if (dayDiff > 1 && dayDiff < 7) {
+    return d.toLocaleDateString("en-GB", { weekday: "long" });
+  }
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+// "05:09" — 24-hour time only.
+export function formatTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
 // Bucket a 0..1 confidence into a human label.
 export function confidenceLabel(c) {
   if (c == null) return "";

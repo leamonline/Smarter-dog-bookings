@@ -110,6 +110,72 @@ describe("ConversationListItem", () => {
     expect(screen.queryByText(/handled by staff/i)).not.toBeInTheDocument();
   });
 
+  it("previews the last message in either direction, first line only", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          last_message_text: "Sure, see you Tuesday\nat 9am",
+          last_message_direction: "outbound",
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Sure, see you Tuesday")).toBeInTheDocument();
+    expect(screen.queryByText(/at 9am/)).not.toBeInTheDocument();
+  });
+
+  it("aligns our messages left and the customer's right", () => {
+    const { rerender } = render(
+      <ConversationListItem
+        conv={baseConversation({ last_message_text: "Our reply", last_message_direction: "outbound" })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Our reply").className).toContain("text-left");
+
+    rerender(
+      <ConversationListItem
+        conv={baseConversation({ last_message_text: "Their message", last_message_direction: "inbound" })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Their message").className).toContain("text-right");
+  });
+
+  it("treats the fallback preview as the customer's even when we replied last (pre-migration)", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          last_outbound_at: "2026-06-12T10:00:00Z", // we replied after the 09:00 inbound
+          // no last_message_text / last_message_direction yet (pre-migration)
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    // The only text available is last_customer_text (the customer's), so it
+    // must align as theirs (right), not as ours.
+    expect(screen.getByText("Can I book Bella in?").className).toContain("text-right");
+  });
+
+  it("never leaks template/flow codes in the preview", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          last_message_text: "[flow:123] Here's your booking link",
+          last_message_direction: "outbound",
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Here's your booking link")).toBeInTheDocument();
+    expect(screen.queryByText(/\[flow:/)).not.toBeInTheDocument();
+  });
+
   it("never renders a '(no text)' placeholder when there is no preview text", () => {
     render(
       <ConversationListItem

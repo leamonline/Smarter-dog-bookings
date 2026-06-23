@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { MessageBubble } from "./MessageBubble.jsx";
 
 const base = {
@@ -10,6 +10,46 @@ const base = {
 };
 
 describe("MessageBubble — special message rendering", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows a 'WhatsApp · day · time · status' meta line (not the old 'WA' chip)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T12:00:00Z"));
+    const { container } = render(
+      <MessageBubble
+        message={{ ...base, direction: "outbound", content: "All booked in!", status: "delivered" }}
+      />,
+    );
+    expect(container.textContent).toContain("WhatsApp");
+    expect(container.textContent).toContain("Today");
+    expect(container.textContent).toContain("delivered");
+  });
+
+  it("hides the uninformative bare 'sent' status (only surfaces delivered / read / failed)", () => {
+    const { container } = render(
+      <MessageBubble message={{ ...base, direction: "outbound", content: "On my way", status: "sent" }} />,
+    );
+    expect(container.textContent).toContain("WhatsApp");
+    expect(container.textContent).not.toContain(" · sent");
+  });
+
+  it("renders a flow/book_entry message as the customer-facing body, never the raw code", () => {
+    const { container } = render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "outbound",
+          content: "[flow:1771222127176573] Lovely 🐾 here's the link",
+        }}
+      />,
+    );
+    expect(container.textContent).toContain("Lovely");
+    expect(screen.getByText("Booking link")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("[flow:");
+  });
+
   it("renders a template send as a friendly bubble, never the raw [template:…] string", () => {
     const { container } = render(
       <MessageBubble

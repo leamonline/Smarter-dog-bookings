@@ -992,6 +992,9 @@ export type Database = {
           id: string
           last_customer_text: string | null
           last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_direction: string | null
+          last_message_text: string | null
           last_outbound_at: string | null
           lead_payload: Json | null
           lead_status: string | null
@@ -1018,6 +1021,9 @@ export type Database = {
           id?: string
           last_customer_text?: string | null
           last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_text?: string | null
           last_outbound_at?: string | null
           lead_payload?: Json | null
           lead_status?: string | null
@@ -1044,6 +1050,9 @@ export type Database = {
           id?: string
           last_customer_text?: string | null
           last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_text?: string | null
           last_outbound_at?: string | null
           lead_payload?: Json | null
           lead_status?: string | null

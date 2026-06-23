@@ -19,12 +19,12 @@
 // for the same customer.
 // ============================================================
 
-import { formatWhen } from "../helpers.js";
+import { formatWhen, formatDayToken, formatTime } from "../helpers.js";
 import { parseMessageContent, presentTemplate, isReminderConfirm } from "./messageContent";
 import { ReactionLine } from "./ReactionLine.jsx";
 
 const CHANNEL_LABEL = {
-  whatsapp: "WA",
+  whatsapp: "WhatsApp",
   sms: "SMS",
 };
 
@@ -72,14 +72,18 @@ export function MessageBubble({ message }) {
     : "bg-green-100 text-slate-800 rounded-br-sm";
   const failedColor = "bg-rose-50 border border-rose-200 text-rose-950 rounded-br-sm";
 
-  const channelChipColor = isSMS
-    ? "bg-sky-200 text-sky-900"
-    : "bg-emerald-200 text-emerald-900";
-
   const template =
     parsed.kind === "template"
       ? presentTemplate(parsed.templateId, parsed.values, parsed.rawArgs)
       : null;
+  // System tags ([flow:…] etc.) are outbound-only, so don't pill-ify a
+  // genuine inbound message that happens to start with "[flow]".
+  const system = !isInbound && parsed.kind === "system" ? parsed : null;
+
+  const channelLabel = CHANNEL_LABEL[channel] ?? channel.toUpperCase();
+  const metaParts = [channelLabel, formatDayToken(message.sent_at), formatTime(message.sent_at)]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"} mb-2`}>
@@ -110,6 +114,21 @@ export function MessageBubble({ message }) {
             </div>
             {template.body}
           </>
+        ) : system ? (
+          <>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span
+                className="inline-flex items-center gap-1 px-1 rounded text-[9px] font-bold tracking-wide bg-brand-purple/15 text-brand-purple"
+                title="Automated interactive message"
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                {system.label}
+              </span>
+            </div>
+            {system.body}
+          </>
         ) : parsed.kind === "media" ? (
           <span className="inline-flex items-center gap-1.5 text-slate-600 italic">
             <span aria-hidden="true" className="not-italic text-[15px]">{parsed.icon}</span>
@@ -118,22 +137,13 @@ export function MessageBubble({ message }) {
         ) : (
           message.content ?? <span className="italic text-slate-500">(non-text message)</span>
         )}
-        <div className="flex items-center gap-1 mt-1 justify-end">
-          <span
-            className={`inline-flex items-center px-1 rounded text-[9px] font-bold tracking-wide ${channelChipColor}`}
-            title={`Sent over ${channel === "sms" ? "SMS via Twilio" : "WhatsApp"}`}
-            aria-label={`Channel: ${channel}`}
-          >
-            {CHANNEL_LABEL[channel] ?? channel.toUpperCase()}
-          </span>
-          <span className="text-[10px] text-slate-500">
-            {formatWhen(message.sent_at)}
-            {!isInbound && message.status && message.status !== "sent" && (
-              <span className={`ml-1 ${isFailed ? "font-bold text-rose-700" : ""}`}>
-                · {message.status}
-              </span>
-            )}
-          </span>
+        <div className="mt-1 text-right text-[10px] text-slate-500">
+          {metaParts}
+          {!isInbound && message.status && message.status !== "sent" && (
+            <span className={isFailed ? "font-bold text-rose-700" : ""}>
+              {" · "}{message.status}
+            </span>
+          )}
         </div>
         {isFailed && (
           <div
