@@ -30,10 +30,15 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
   const lastText = conv.last_message_text ?? conv.last_customer_text;
   const lastDirection =
     conv.last_message_direction ??
-    (conv.last_outbound_at &&
-    (!conv.last_inbound_at || conv.last_outbound_at > conv.last_inbound_at)
-      ? "outbound"
-      : "inbound");
+    // Fallback text (last_customer_text) is always the customer's, so pin
+    // it inbound; only infer from timestamps when we actually have the
+    // either-direction last_message_text.
+    (conv.last_message_text == null
+      ? "inbound"
+      : conv.last_outbound_at &&
+          (!conv.last_inbound_at || conv.last_outbound_at > conv.last_inbound_at)
+        ? "outbound"
+        : "inbound");
   const isOurs = lastDirection === "outbound";
   const preview = previewMessageText(lastText).split("\n")[0];
   const lastAt = conv.last_message_at ?? conv.last_inbound_at;

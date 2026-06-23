@@ -76,7 +76,9 @@ export function MessageBubble({ message }) {
     parsed.kind === "template"
       ? presentTemplate(parsed.templateId, parsed.values, parsed.rawArgs)
       : null;
-  const system = parsed.kind === "system" ? parsed : null;
+  // System tags ([flow:…] etc.) are outbound-only, so don't pill-ify a
+  // genuine inbound message that happens to start with "[flow]".
+  const system = !isInbound && parsed.kind === "system" ? parsed : null;
 
   const channelLabel = CHANNEL_LABEL[channel] ?? channel.toUpperCase();
   const metaParts = [channelLabel, formatDayToken(message.sent_at), formatTime(message.sent_at)]
@@ -137,7 +139,7 @@ export function MessageBubble({ message }) {
         )}
         <div className="mt-1 text-right text-[10px] text-slate-500">
           {metaParts}
-          {!isInbound && message.status && (
+          {!isInbound && message.status && message.status !== "sent" && (
             <span className={isFailed ? "font-bold text-rose-700" : ""}>
               {" · "}{message.status}
             </span>

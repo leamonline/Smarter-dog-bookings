@@ -145,6 +145,22 @@ describe("ConversationListItem", () => {
     expect(screen.getByText("Their message").className).toContain("text-right");
   });
 
+  it("treats the fallback preview as the customer's even when we replied last (pre-migration)", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          last_outbound_at: "2026-06-12T10:00:00Z", // we replied after the 09:00 inbound
+          // no last_message_text / last_message_direction yet (pre-migration)
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    // The only text available is last_customer_text (the customer's), so it
+    // must align as theirs (right), not as ours.
+    expect(screen.getByText("Can I book Bella in?").className).toContain("text-right");
+  });
+
   it("never leaks template/flow codes in the preview", () => {
     render(
       <ConversationListItem

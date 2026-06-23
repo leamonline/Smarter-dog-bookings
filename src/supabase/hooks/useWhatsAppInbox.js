@@ -134,6 +134,10 @@ async function fetchConversationsList() {
       whatsapp_booking_actions ( id, state )
       `,
     )
+    // Sort by the same "last activity" value the row now displays
+    // (last message in either direction), falling back to last_inbound_at
+    // for any row not yet backfilled.
+    .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("last_inbound_at", { ascending: false, nullsFirst: false })
     .limit(200);
 

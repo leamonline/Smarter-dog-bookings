@@ -34,9 +34,10 @@ const TEMPLATE_RE = /^\[template:([^\]]+)\]\s*([\s\S]*)$/;
 
 // Outbound interactive/system sends are stored as "[<tag>(:id)?] <body>"
 // where <body> is the exact text the customer received. We render the body
-// (never the bracket code) with a small friendly label. Only the known
-// tags match, so a genuine customer message starting with "[" is never
-// misread.
+// (never the bracket code) with a small friendly label. Only the known tags
+// match; these are outbound-only, and the bubble only treats OUTBOUND
+// messages as system sends — so an inbound message that literally starts
+// with "[flow] …" still renders verbatim.
 const SYSTEM_LABELS: Record<string, string> = {
   book_entry: "Booking",
   flow: "Booking link",

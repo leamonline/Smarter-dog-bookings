@@ -9,7 +9,7 @@
 // ============================================================
 
 const AVATAR_COLORS = [
-  "bg-brand-purple/15 text-brand-purple",
+  "bg-purple-100 text-purple-700",
   "bg-emerald-100 text-emerald-700",
   "bg-sky-100 text-sky-700",
   "bg-amber-100 text-amber-800",

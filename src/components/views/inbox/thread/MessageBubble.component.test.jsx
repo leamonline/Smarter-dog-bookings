@@ -27,6 +27,14 @@ describe("MessageBubble — special message rendering", () => {
     expect(container.textContent).toContain("delivered");
   });
 
+  it("hides the uninformative bare 'sent' status (only surfaces delivered / read / failed)", () => {
+    const { container } = render(
+      <MessageBubble message={{ ...base, direction: "outbound", content: "On my way", status: "sent" }} />,
+    );
+    expect(container.textContent).toContain("WhatsApp");
+    expect(container.textContent).not.toContain(" · sent");
+  });
+
   it("renders a flow/book_entry message as the customer-facing body, never the raw code", () => {
     const { container } = render(
       <MessageBubble
