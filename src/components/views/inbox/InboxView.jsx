@@ -72,7 +72,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     rejectBookingAction,
     resolveConversation,
     reopenConversation,
-    updateConversationNotes,
     createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
@@ -148,10 +147,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     else if (res?.reason) toast.show(`Could not reopen: ${res.reason}`, "error");
     return res;
   }, [reopenConversation, toast]);
-
-  const handleSaveConversationNotes = useCallback((conversationId, notes) =>
-    updateConversationNotes(notes, conversationId),
-  [updateConversationNotes]);
 
   // Generate-reply (AI on demand) lives inside the compose row. It asks
   // the AI for a suggested reply and ComposePanel types the returned text
@@ -691,6 +686,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                       </div>
                       <div className="text-[11px] text-slate-600 truncate">
                         {formatPhoneForDisplay(selectedConversation?.phone_e164)}
+                        {customerContext.human?.email
+                          ? ` | ${customerContext.human.email}`
+                          : ""}
                       </div>
                     </div>
                   </div>
@@ -857,7 +855,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               conversation={selectedConversation}
               onOpenHuman={onOpenHuman}
               onOpenDog={onOpenDog}
-              onSaveConversationNotes={handleSaveConversationNotes}
               onBookAppointment={() => setBookOpen(true)}
               onUpdateNotes={handleUpdateNotes}
             />
@@ -875,7 +872,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
           <CustomerContextPanel
             context={customerContext}
             conversation={selectedConversation}
-            onSaveConversationNotes={handleSaveConversationNotes}
             onOpenHuman={(id) => {
               setContextOpen(false);
               onOpenHuman?.(id);
