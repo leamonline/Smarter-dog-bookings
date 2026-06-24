@@ -182,6 +182,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     onRemove,
     onUpdate,
     onUpdateDog,
+    onUpdateHuman,
     onOpenHuman,
     onOpenDog,
   } = useSalon();
@@ -536,6 +537,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             dogs={dogs}
             humans={humans}
             onUpdateDog={onUpdateDog}
+            onUpdateHuman={onUpdateHuman}
             daySettings={daySettings}
           />
         </Suspense>
