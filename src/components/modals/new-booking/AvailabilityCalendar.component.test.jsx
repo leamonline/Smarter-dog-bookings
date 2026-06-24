@@ -34,4 +34,11 @@ describe("AvailabilityCalendar — a11y", () => {
     // Day 15 is always in the viewed month; its name should read like a date.
     expect(screen.getByRole("button", { name: /15 \w+ \d{4}/ })).toBeInTheDocument();
   });
+
+  it("shows a legend mapping the day colours (closed vs fully booked were identical)", () => {
+    renderCal();
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByText("Fully booked")).toBeInTheDocument();
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+  });
 });

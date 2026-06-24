@@ -304,7 +304,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
 
           <div className="flex gap-2.5 mt-1">
             <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-control border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed">
+              className="flex-1 py-3 rounded-control border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed">
               {submitting ? "Adding..." : duplicate ? "Add anyway" : "Add Human"}
             </button>
             <button type="button" onClick={onClose}

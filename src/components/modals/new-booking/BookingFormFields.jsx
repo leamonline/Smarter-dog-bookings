@@ -105,7 +105,7 @@ export function BookingFormFields({
             <button
               onClick={onConfirm}
               disabled={!ready}
-              className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
+              className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
               style={{
                 background: ready ? primaryTheme.gradient[0] : undefined,
                 color: ready ? primaryTheme.headerText : undefined,

@@ -119,11 +119,14 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
             fontWeight = 600;
           }
           if (status === "full") {
-            bg = "#FDE8EE";
-            color = "var(--color-brand-coral)";
-            border = "2px solid #FDE8EE";
+            // Slate, not the closed-day pink — "fully booked" and "closed" used
+            // to be the same colour. Slate reads as "no space left" and is
+            // clearly distinct from a closed (pink) day.
+            bg = "#F1F5F9";
+            color = "#64748B";
+            border = "2px solid #E2E8F0";
             cursor = "not-allowed";
-            opacity = 0.6;
+            opacity = 1;
             fontWeight = 600;
           }
           if (isSelected) {
@@ -136,22 +139,23 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
             border = `2px solid ${sizeTheme.gradient[0]}`;
           }
 
+          const statusWord = isSelected
+            ? "selected"
+            : status === "closed"
+              ? "closed"
+              : status === "full"
+                ? "fully booked"
+                : status === "past"
+                  ? "past"
+                  : "available";
+
           return (
             <button
               key={d}
               onClick={() => { if (isClickable) onSelectDate(new Date(viewYear, viewMonth, d)); }}
               disabled={!isClickable}
-              aria-label={`${d} ${monthName}, ${
-                isSelected
-                  ? "selected"
-                  : status === "closed"
-                    ? "closed"
-                    : status === "full"
-                      ? "fully booked"
-                      : status === "past"
-                        ? "past"
-                        : "available"
-              }`}
+              aria-label={`${d} ${monthName}, ${statusWord}`}
+              title={isClickable ? undefined : statusWord.charAt(0).toUpperCase() + statusWord.slice(1)}
               className="w-full aspect-square rounded-lg text-[13px] font-inherit transition-all flex items-center justify-center"
               style={{ background: bg, color, border, cursor, opacity, fontWeight }}
               onMouseEnter={(e) => { if (isClickable && !isSelected) { e.currentTarget.style.background = sizeTheme.light; e.currentTarget.style.color = sizeTheme.gradient[0]; } }}
@@ -161,6 +165,23 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
             </button>
           );
         })}
+      </div>
+
+      {/* Legend — closed and fully-booked days are both unbookable but mean
+          different things, so map the colours rather than leaving staff to guess. */}
+      <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-semibold text-slate-500">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#DCFCE7", border: "1px solid #16A34A" }} aria-hidden="true" />
+          Available
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F1F5F9", border: "1px solid #E2E8F0" }} aria-hidden="true" />
+          Fully booked
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FDE8EE", border: "1px solid #FDE8EE" }} aria-hidden="true" />
+          Closed
+        </span>
       </div>
     </div>
   );
