@@ -164,12 +164,48 @@ async function refresh() {
       })
       .sort((a, b) => (b.latestAt || "").localeCompare(a.latestAt || ""));
 
-    setState({ byBooking, failures, loading: false });
+    // Dashboard-only: hide failures the staff have dismissed (unless they
+    // failed again since). Missing table/RLS (e.g. migration not yet applied)
+    // degrades to "no dismissals" so the card still renders.
+    let dismissals = new Map();
+    if (liveBookingIds.length > 0) {
+      const { data: dRows, error: dErr } = await supabase
+        .from("notification_dismissals")
+        .select("booking_id, dismissed_at")
+        .in("booking_id", liveBookingIds);
+      if (!dErr) {
+        dismissals = new Map((dRows ?? []).map((d) => [d.booking_id, d.dismissed_at]));
+      }
+    }
+
+    setState({
+      byBooking,
+      failures: applyDismissals(failures, dismissals),
+      loading: false,
+    });
   } catch (err) {
     logger.error("useDeliveryFailures fetch failed", err, {
       tags: { hook: "useDeliveryFailures", op: "fetch" },
     });
     setState({ error: err, loading: false });
+  }
+}
+
+// Dismiss a booking's failure from the dashboard card. Optimistically drops
+// it from the local list, then persists via the SECURITY DEFINER RPC (DB
+// clock + is_staff()). On error, refresh() restores the true state. Inert in
+// tests / offline, matching the rest of this module.
+async function dismiss(bookingId) {
+  if (!bookingId || !supabase || IS_TEST) return;
+  setState({ failures: state.failures.filter((f) => f.bookingId !== bookingId) });
+  const { error } = await supabase.rpc("dismiss_delivery_failure", {
+    p_booking_id: bookingId,
+  });
+  if (error) {
+    logger.error("useDeliveryFailures dismiss failed", error, {
+      tags: { hook: "useDeliveryFailures", op: "dismiss" },
+    });
+    refresh();
   }
 }
 
@@ -180,6 +216,11 @@ function startChannel() {
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "notification_log" },
+      () => refresh(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "notification_dismissals" },
       () => refresh(),
     )
     .subscribe();
@@ -215,12 +256,14 @@ registerResume(() => {
 export function useDeliveryFailures() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const refresh_ = useCallback(() => refresh(), []);
+  const dismiss_ = useCallback((bookingId) => dismiss(bookingId), []);
   return {
     failures: snapshot.failures,
     count: snapshot.failures.length,
     loading: snapshot.loading,
     error: snapshot.error,
     refresh: refresh_,
+    dismiss: dismiss_,
   };
 }
 
