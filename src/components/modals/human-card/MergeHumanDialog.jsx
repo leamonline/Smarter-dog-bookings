@@ -160,8 +160,8 @@ export function MergeHumanDialog({
       <AccessibleModal
         onClose={onClose}
         titleId="merge-human-title"
-        backdropClass="bg-[rgba(45,0,75,0.45)]"
-        className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(560px,95vw)] max-h-[min(85vh,640px)] flex flex-col overflow-hidden shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)]"
+        backdropClass="bg-[rgba(45,0,75,0.45)] animate-overlay-fade"
+        className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(560px,95vw)] max-h-[min(85vh,640px)] flex flex-col overflow-hidden animate-shell-in shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none"
       >
         <header className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3">
           <div>
