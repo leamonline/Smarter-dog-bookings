@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { toDateStr } from "../../supabase/transforms";
 import { isDateOpen } from "../../engine/utils";
 
@@ -45,28 +46,49 @@ export function DatePickerModal({
   while (cells.length < 42) cells.push(null);
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="date-picker-title"
-      className="bg-white rounded-2xl w-[min(320px,90vw)] overflow-hidden shadow-modal"
+      accent="var(--color-brand-cyan)"
+      widthClass="w-[min(340px,90vw)]"
+      maxHeightClass="max-h-[90vh]"
       zIndex={1200}
-    >
-        {/* Header */}
-        <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark px-4 py-3.5 flex items-center justify-between">
-          <button type="button" onClick={prevMonth} aria-label="Previous month" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
-            <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M10 3l-5 5 5 5" />
-            </svg>
+      header={
+        <header className="flex items-center gap-1.5 px-3 pt-4 pb-3 bg-[var(--color-brand-paper)]">
+          <HeaderIconButton label="Previous month" onClick={prevMonth}>
+            <ChevronLeft size={18} strokeWidth={2.5} aria-hidden="true" />
+          </HeaderIconButton>
+          <h2
+            id="date-picker-title"
+            className="flex-1 text-center text-base font-bold font-display text-brand-purple"
+          >
+            {monthName}
+          </h2>
+          <HeaderIconButton label="Next month" onClick={nextMonth}>
+            <ChevronRight size={18} strokeWidth={2.5} aria-hidden="true" />
+          </HeaderIconButton>
+          <HeaderIconButton label="Close date picker" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        <div className="border-t border-slate-100 bg-white px-3 py-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              const today = new Date();
+              const todayStr = toDateStr(today);
+              const isOpen = isDateOpen(todayStr, dayOpenState);
+              if (isOpen) onSelectDate(today);
+            }}
+            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full border-[1.5px] border-slate-200 bg-white text-sm font-bold text-brand-purple cursor-pointer font-[inherit] hover:bg-slate-50 transition-colors"
+          >
+            Today
           </button>
-          <div id="date-picker-title" className="text-base font-bold text-white">{monthName}</div>
-          <button type="button" onClick={nextMonth} aria-label="Next month" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
-            <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 3l5 5-5 5" />
-            </svg>
-          </button>
-          <button type="button" onClick={onClose} aria-label="Close date picker" className="tap-target bg-white/20 border-none rounded-md w-8 h-8 cursor-pointer flex items-center justify-center text-sm text-white font-bold ml-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
-
+      }
+    >
         {/* Day headers */}
         <div className="grid grid-cols-7 px-3 pt-2.5 pb-1">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
@@ -115,21 +137,6 @@ export function DatePickerModal({
             );
           })}
         </div>
-
-        {/* Today button */}
-        <div className="px-3 pb-3.5 text-center">
-          <button
-            onClick={() => {
-              const today = new Date();
-              const todayStr = toDateStr(today);
-              const isOpen = isDateOpen(todayStr, dayOpenState);
-              if (isOpen) onSelectDate(today);
-            }}
-            className="bg-transparent border-[1.5px] border-brand-cyan rounded-lg px-5 py-2 text-[13px] font-semibold text-brand-cyan cursor-pointer font-[inherit] hover:bg-sky-50"
-          >
-            Today
-          </button>
-        </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

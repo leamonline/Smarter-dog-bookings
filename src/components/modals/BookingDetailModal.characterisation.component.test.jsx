@@ -151,11 +151,11 @@ describe("BookingDetailModal — nested modal mounting", () => {
     // Date picker
     expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
     // Reschedule
-    expect(screen.queryByText(/Reschedule — Bella/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pick an available day/)).not.toBeInTheDocument();
     // Photo upload
     expect(screen.queryByText("Add Groom Photo")).not.toBeInTheDocument();
     // Recurring series
-    expect(screen.queryByText(/Recurring Series — Bella/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/All bookings in this recurring chain/)).not.toBeInTheDocument();
     // Exit confirm
     expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
   });
@@ -176,9 +176,9 @@ describe("BookingDetailModal — nested modal mounting", () => {
 
   it("mounts the reschedule modal only after the Reschedule action", async () => {
     renderModal();
-    expect(screen.queryByText(/Reschedule — Bella/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pick an available day/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reschedule booking" }));
-    expect(await screen.findByText(/Reschedule — Bella/)).toBeInTheDocument();
+    expect(await screen.findByText(/Pick an available day/)).toBeInTheDocument();
   });
 
   it("mounts the photo upload modal only after the camera button", async () => {
@@ -190,9 +190,9 @@ describe("BookingDetailModal — nested modal mounting", () => {
 
   it("mounts the recurring series modal only after the series button", async () => {
     renderModal({ booking: { ...baseBooking, _groupId: "chain-1" } });
-    expect(screen.queryByText(/Recurring Series — Bella/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/All bookings in this recurring chain/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Part of recurring series/ }));
-    expect(await screen.findByText(/Recurring Series — Bella/)).toBeInTheDocument();
+    expect(await screen.findByText(/All bookings in this recurring chain/)).toBeInTheDocument();
   });
 
   it("hides the recurring series button when the booking has no group", () => {
