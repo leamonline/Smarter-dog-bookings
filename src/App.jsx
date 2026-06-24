@@ -742,6 +742,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onUpdate={handleUpdate}
           onRemove={handleRemove}
           onUpdateDog={updateDog}
+          onUpdateHuman={updateHuman}
           onOpenHuman={handleOpenHuman}
           onOpenDog={handleOpenDog}
         >

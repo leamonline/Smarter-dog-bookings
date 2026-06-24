@@ -52,6 +52,7 @@ function renderCard(booking) {
         onUpdate={vi.fn()}
         onRemove={vi.fn()}
         onUpdateDog={vi.fn()}
+        onUpdateHuman={vi.fn()}
         onOpenHuman={vi.fn()}
         onOpenDog={vi.fn()}
       >

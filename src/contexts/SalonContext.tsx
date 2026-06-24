@@ -19,6 +19,9 @@ export interface SalonContextValue {
   onUpdate: (booking: Booking) => void | Promise<void>;
   onRemove: (bookingId: string) => void | Promise<void>;
   onUpdateDog: (dog: Dog) => void | Promise<void>;
+  /** Staff update path for a human (key, patch) — used by the booking
+   *  detail's delivery-failure "Fix the number" inline save. */
+  onUpdateHuman: (humanKey: string, patch: Partial<Human>) => unknown;
   onOpenHuman: (name: string) => void;
   onOpenDog: (name: string) => void;
 }
@@ -42,6 +45,7 @@ export function SalonProvider({
   onUpdate,
   onRemove,
   onUpdateDog,
+  onUpdateHuman,
   onOpenHuman,
   onOpenDog,
 }: SalonProviderProps) {
@@ -58,6 +62,7 @@ export function SalonProvider({
       onUpdate,
       onRemove,
       onUpdateDog,
+      onUpdateHuman,
       onOpenHuman,
       onOpenDog,
     }),
@@ -73,6 +78,7 @@ export function SalonProvider({
       onUpdate,
       onRemove,
       onUpdateDog,
+      onUpdateHuman,
       onOpenHuman,
       onOpenDog,
     ],
