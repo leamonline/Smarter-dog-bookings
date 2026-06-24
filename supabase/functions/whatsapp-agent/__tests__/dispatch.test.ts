@@ -393,6 +393,77 @@ Deno.test("runs the Claude path for an unknown customer and saves a pending draf
   assertEquals(lastEventPatch()?.processing_status, "processed");
 });
 
+Deno.test("suggest_only re-draft does not re-insert the already-ingested inbound message", async () => {
+  // Regression: the staff "Generate reply" button re-invokes the agent in
+  // suggest_only mode (⇒ force_draft) for an event the webhook already
+  // processed. The inbound message is therefore already in
+  // whatsapp_messages, so a re-insert collides with the unique constraint
+  // on meta_message_id. Before the fix that threw, the outer catch returned
+  // a 200 "handled with error" body, and whatsapp-generate-reply surfaced
+  // "The AI returned an unexpected response." The fix skips the insert on
+  // force_draft. Model the collision so a regression fails loudly.
+  const claudeReply = {
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        intent: "faq",
+        confidence: 0.9,
+        proposed_text: "We're open Monday to Wednesday — happy to book Bella in.",
+      }),
+    }],
+    usage: { input_tokens: 100, output_tokens: 50 },
+  };
+  resetStub(
+    eventSelect(eventRow({ payload: inboundPayload, processing_status: "processed" })),
+    eventUpdate,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/humans"
+        ? json([{ id: "human-1", phone: "07700900111" }])
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_conversations"
+        ? json(conversationRow(), 201)
+        : undefined,
+    // If the agent re-inserts the inbound, the live unique constraint
+    // fires. Reproduce that here so the old behaviour can't pass silently.
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_messages"
+        ? json(
+          {
+            code: "23505",
+            message:
+              'duplicate key value violates unique constraint "idx_whatsapp_messages_meta_msg"',
+          },
+          409,
+        )
+        : undefined,
+    (call) =>
+      call.path === "/v1/messages" && call.headers.get("x-api-key") === "anthropic-test-key"
+        ? json(claudeReply)
+        : undefined,
+    // buildContext reads recent messages + availability RPCs; empty sets.
+    (call) =>
+      call.method === "GET" || call.path.startsWith("/rest/v1/rpc/") ? json([]) : undefined,
+  );
+
+  const res = await handleAgentRequest(
+    agentRequest({ event_id: "event-1", suggest_only: true }),
+  );
+  assertEquals(res.status, 200);
+
+  // suggest_only returns the drafted text as JSON — NOT "handled with error".
+  const body = JSON.parse(await res.text()) as { ok?: boolean; reply_text?: string };
+  assertEquals(body.ok, true);
+  assertStringIncludes(body.reply_text ?? "", "Monday to Wednesday");
+
+  // The crux: a re-draft must not re-ingest the inbound message.
+  assertEquals(
+    calls.filter((c) => c.method === "POST" && c.path === "/rest/v1/whatsapp_messages").length,
+    0,
+    "suggest_only must not re-insert the already-ingested inbound message",
+  );
+});
+
 // ── Failure bookkeeping ──────────────────────────────────────
 
 Deno.test("marks the event failed (but answers 200) when processing throws", async () => {

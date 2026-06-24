@@ -2534,15 +2534,27 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
             text,
           );
 
-          await insertInboundMessage(
-            supabase,
-            conversation.id,
-            event.id,
-            msg.id ?? null,
-            text,
-            msg,
-            sentAt,
-          );
+          // On a re-draft (forceDraft — the staff "Generate reply" /
+          // "regenerate" buttons re-invoke this for an already-ingested
+          // event) the inbound message is already in whatsapp_messages, so
+          // re-inserting it violates the unique constraint on
+          // meta_message_id and throws before we ever reach Claude. The
+          // draft path reads the message from the in-memory `inboundText`
+          // (and conversation history from the DB), not from this insert,
+          // so skip it. The webhook path (forceDraft=false) is unchanged —
+          // there its duplicate-key throw still usefully guards against Meta
+          // redelivering a message and triggering a second draft/auto-send.
+          if (!forceDraft) {
+            await insertInboundMessage(
+              supabase,
+              conversation.id,
+              event.id,
+              msg.id ?? null,
+              text,
+              msg,
+              sentAt,
+            );
+          }
 
           // Button-reply routing: if this inbound is a Yes/No tap on a
           // confirm_buttons message we sent (id matches <uuid>:yes|no),
