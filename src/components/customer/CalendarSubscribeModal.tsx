@@ -116,11 +116,12 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
           Sync to Calendar
         </h2>
         <button
+          type="button"
           onClick={onClose}
-          className="bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
+          className="tap-target inline-flex items-center justify-center bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
           aria-label="Close"
         >
-          {"\u2715"}
+          <span aria-hidden="true">{"\u2715"}</span>
         </button>
       </div>
 
@@ -143,8 +144,9 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button
+              type="button"
               onClick={handleCopy}
-              className="shrink-0 py-1.5 px-3 rounded-md bg-[var(--sd-navy)] text-white text-xs font-semibold border-none cursor-pointer hover:bg-[var(--sd-navy-soft)]"
+              className="shrink-0 inline-flex items-center justify-center min-h-[44px] py-1.5 px-3 rounded-md bg-[var(--sd-navy)] text-white text-xs font-semibold border-none cursor-pointer hover:bg-[var(--sd-navy-soft)]"
             >
               {copied ? "Copied!" : "Copy"}
             </button>
@@ -175,9 +177,10 @@ export function CalendarSubscribeModal({ onClose }: CalendarSubscribeModalProps)
           {/* Regenerate */}
           <div className="border-t border-[rgba(45,0,75,0.07)] pt-3">
             <button
+              type="button"
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="bg-transparent border-none text-[12px] text-[var(--sd-ink-light)] cursor-pointer hover:text-[var(--sd-navy)] transition-colors disabled:opacity-50"
+              className="inline-flex items-center min-h-[44px] bg-transparent border-none text-[12px] text-[var(--sd-ink-light)] cursor-pointer hover:text-[var(--sd-navy)] transition-colors disabled:opacity-50"
             >
               {regenerating ? "Regenerating\u2026" : "Regenerate URL (invalidates old link)"}
             </button>

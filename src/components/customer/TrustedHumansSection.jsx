@@ -146,9 +146,9 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
               type="button"
               onClick={reset}
               aria-label="Close"
-              className="bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
+              className="tap-target inline-flex items-center justify-center bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
             >
-              {"✕"}
+              <span aria-hidden="true">{"✕"}</span>
             </button>
           </div>
 
