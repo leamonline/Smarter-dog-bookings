@@ -54,4 +54,34 @@ describe("DeliveryFailuresCard", () => {
       screen.queryByRole("button", { name: /booking/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("renders a dismiss button per row and calls dismiss with the booking id", () => {
+    const dismiss = vi.fn();
+    render(
+      <DeliveryFailuresCard data={{ ...data, dismiss }} onSelectFailure={vi.fn()} />,
+    );
+    const btn = screen.getByRole("button", { name: "Dismiss Ada · Rex" });
+    btn.click();
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(dismiss).toHaveBeenCalledWith("b1");
+  });
+
+  it("renders no dismiss button when dismiss is unavailable", () => {
+    render(<DeliveryFailuresCard data={data} onSelectFailure={vi.fn()} />);
+    expect(
+      screen.queryByRole("button", { name: /^Dismiss / }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the jump-to-booking button working alongside dismiss", () => {
+    const onSelectFailure = vi.fn();
+    render(
+      <DeliveryFailuresCard
+        data={{ ...data, dismiss: vi.fn() }}
+        onSelectFailure={onSelectFailure}
+      />,
+    );
+    screen.getByRole("button", { name: /Open Ada's booking/i }).click();
+    expect(onSelectFailure).toHaveBeenCalledWith(data.failures[0]);
+  });
 });

@@ -8,7 +8,7 @@
 // frame. Rendered by RightWorkflowSidebar only when count > 0.
 // ============================================================
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import {
   useDeliveryFailures,
@@ -30,7 +30,7 @@ function fmtDate(iso) {
 
 export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
   const fallback = useDeliveryFailures();
-  const { failures, count, loading } = data ?? fallback;
+  const { failures, count, loading, dismiss } = data ?? fallback;
   const tone = count > 0 ? "attention" : "calm";
 
   const rowClass =
@@ -50,7 +50,7 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
           </>
         );
         return (
-          <li key={f.bookingId}>
+          <li key={f.bookingId} className="flex items-stretch gap-1">
             {onSelectFailure ? (
               // Each row jumps the calendar to that booking's day so staff can
               // open it and resend (the fix lives on the booking itself).
@@ -58,12 +58,23 @@ export function DeliveryFailuresCard({ bare = false, data, onSelectFailure }) {
                 type="button"
                 onClick={() => onSelectFailure(f)}
                 aria-label={`Open ${f.customerName}'s booking${f.bookingDate ? ` on ${fmtDate(f.bookingDate)}` : ""} to resend`}
-                className={`${rowClass} w-full text-left cursor-pointer hover:bg-white hover:border-red-200 transition-colors`}
+                className={`${rowClass} flex-1 min-w-0 text-left cursor-pointer hover:bg-white hover:border-red-200 transition-colors`}
               >
                 {body}
               </button>
             ) : (
-              <div className={rowClass}>{body}</div>
+              <div className={`${rowClass} flex-1 min-w-0`}>{body}</div>
+            )}
+            {dismiss && (
+              <button
+                type="button"
+                onClick={() => dismiss(f.bookingId)}
+                aria-label={`Dismiss ${f.customerName}${f.dogName ? ` · ${f.dogName}` : ""}`}
+                title="Dismiss"
+                className="shrink-0 w-7 max-sm:w-11 rounded-lg border border-red-100 bg-white/70 text-red-400 flex items-center justify-center cursor-pointer hover:bg-white hover:text-red-700 hover:border-red-200 transition-colors"
+              >
+                <X size={14} strokeWidth={2.4} aria-hidden="true" />
+              </button>
             )}
           </li>
         );
