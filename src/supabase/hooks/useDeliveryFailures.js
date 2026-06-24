@@ -37,6 +37,20 @@ export function triggerLabel(triggerType) {
   return TRIGGER_LABEL[triggerType] || triggerType;
 }
 
+// Dashboard-only dismissal filter. A booking is hidden when it has a
+// dismissal whose timestamp is >= the booking's most recent failure
+// (latestAt). A newer failure (latestAt > dismissed_at) re-surfaces it.
+// ISO timestamps (both UTC) compare correctly as strings.
+export function applyDismissals(failures, dismissals) {
+  if (!dismissals || dismissals.size === 0) return failures;
+  return failures.filter((f) => {
+    const dismissedAt = dismissals.get(f.bookingId);
+    if (!dismissedAt) return true;   // not dismissed
+    if (!f.latestAt) return true;    // can't compare → keep
+    return f.latestAt > dismissedAt; // keep only if it failed again after the dismissal
+  });
+}
+
 let state = {
   // Map<booking_id, FailureInfo[]> — FailureInfo = { trigger_type, channel,
   // error_message, created_at, human_id }
