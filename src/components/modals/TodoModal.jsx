@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
+import { X } from "lucide-react";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 
@@ -44,29 +45,33 @@ export function TodoModal({ onClose }) {
   };
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId={titleId}
-      className="bg-[#FFFDF2] rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-modal overflow-hidden border border-amber-100"
+      accent="var(--color-brand-yellow)"
+      widthClass="w-[min(480px,95vw)]"
+      bodyClassName="p-4"
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Notes
+            </span>
+            <h2
+              id={titleId}
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              To-Do List
+            </h2>
+          </div>
+          <HeaderIconButton label="Close to-do list" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
     >
-      <div className="bg-brand-yellow px-4 py-3 border-b border-amber-200 flex items-center justify-between">
-        <div id={titleId} className="text-base font-bold text-brand-purple font-display tracking-wide">
-          To-Do List
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close to-do list"
-          className="tap-target w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/20"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="p-4">
+      <div>
         <form
           onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
           className="flex gap-1.5 mb-3"
@@ -159,6 +164,6 @@ export function TodoModal({ onClose }) {
           </ul>
         )}
       </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

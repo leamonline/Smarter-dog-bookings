@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
+import { X } from "lucide-react";
 import { SIZE_THEME, SIZE_FALLBACK, getSizeForBreed, ALERT_OPTIONS } from "../../constants/index";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { BREED_LIST } from "../../constants/breeds";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
@@ -63,7 +64,6 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
   const [newOwnerPhone, setNewOwnerPhone] = useState("");
 
   const sizeTheme = SIZE_THEME[size] || SIZE_FALLBACK;
-  const headerTheme = { from: sizeTheme.gradient[0], to: sizeTheme.gradient[1], text: sizeTheme.headerText };
 
   const ownerResults = useMemo(() => {
     if (!ownerQuery.trim() || selectedOwner) return [];
@@ -232,27 +232,64 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
   };
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="add-dog-title"
-      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
-    >
-        {/* Header */}
-        <div
-          className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
-          style={{ background: `linear-gradient(135deg, ${headerTheme.from}, ${headerTheme.to})` }}
-        >
-          <div id="add-dog-title" className="text-lg font-extrabold" style={{ color: headerTheme.text }}>Add New Dog</div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close add dog"
-            className="tap-target bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-            style={{ color: headerTheme.text }}
-          ><span aria-hidden="true">{"\u00D7"}</span></button>
+      accent={sizeTheme.primary}
+      widthClass="w-[min(420px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              New dog
+            </span>
+            <h2
+              id="add-dog-title"
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              Add New Dog
+            </h2>
+          </div>
+          <HeaderIconButton label="Close add dog" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        <div className="border-t border-slate-100 bg-white px-6 py-3 flex flex-col gap-2.5">
+          {onAddAnother && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => submitDog({ addAnother: true })}
+              className="w-full min-h-[44px] rounded-full border-[1.5px] border-slate-200 bg-white text-brand-purple text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+            >
+              {submitting ? "Saving..." : "Save & add another dog"}
+            </button>
+          )}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2 max-sm:min-h-[44px] rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 inline-flex items-center justify-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="add-dog-form"
+              disabled={submitting}
+              className="ml-auto px-5 py-2 max-sm:min-h-[44px] rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-yellow-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed inline-flex items-center justify-center"
+            >
+              {submitting ? "Adding..." : "Add Dog"}
+            </button>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
+      }
+    >
+        <form id="add-dog-form" onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-3">
           {/* Name, Gender & Breed */}
           <div className="grid grid-cols-2 gap-2.5">
             <div>
@@ -608,38 +645,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
           </div>
 
           <InlineError message={fieldErrors.banner} />
-
-          {/* Booking flow only: register several dogs for one customer without
-              bouncing back to the wizard between each. */}
-          {onAddAnother && (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => submitDog({ addAnother: true })}
-              className="w-full py-2.5 rounded-control border-[1.5px] bg-white text-sm font-bold cursor-pointer font-inherit transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ borderColor: headerTheme.from, color: headerTheme.from }}
-            >
-              {submitting ? "Saving..." : "Save & add another dog"}
-            </button>
-          )}
-
-          <div className="flex gap-2.5 mt-1">
-            <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-control border-none text-sm font-bold cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
-              style={{
-                background: submitting ? undefined : headerTheme.from,
-                color: submitting ? undefined : headerTheme.text,
-              }}
-              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.to; }}
-              onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = headerTheme.from; }}>
-              {submitting ? "Adding..." : "Add Dog"}
-            </button>
-            <button type="button" onClick={onClose}
-              className="py-3 px-5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
-              Cancel
-            </button>
-          </div>
         </form>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

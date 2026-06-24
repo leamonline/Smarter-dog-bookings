@@ -203,7 +203,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
               id="send-reminder-title"
               className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
             >
-              Send reminder
+              Send Reminder
             </h2>
           </div>
           <HeaderIconButton label="Close" onClick={() => onClose?.()}>

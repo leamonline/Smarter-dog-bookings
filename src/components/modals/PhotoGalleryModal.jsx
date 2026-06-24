@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconGallery } from "../icons/index.jsx";
 import { PhotoLightbox } from "./PhotoLightbox.jsx";
 import { titleCase, formatDateStr } from "../../utils/text";
@@ -23,8 +24,6 @@ export function PhotoGalleryModal({
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [failedIds, setFailedIds] = useState(new Set());
   const mountedRef = useRef(true);
-
-  const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -102,33 +101,32 @@ export function PhotoGalleryModal({
 
   return (
     <>
-      <AccessibleModal
+      <ModalShell
         onClose={onClose}
         titleId="photo-gallery-title"
-        className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
+        accent={sizeTheme.primary}
+        widthClass="w-[min(440px,95vw)]"
+        maxHeightClass="max-h-[90vh]"
         zIndex={1100}
+        header={
+          <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Groom photos
+              </span>
+              <h2
+                id="photo-gallery-title"
+                className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              >
+                {titleCase(dogName)}&apos;s Photos
+              </h2>
+            </div>
+            <HeaderIconButton label="Close" onClick={onClose}>
+              <X size={16} strokeWidth={2.2} aria-hidden="true" />
+            </HeaderIconButton>
+          </header>
+        }
       >
-        {/* Header */}
-        <div
-          className="px-5 py-4 rounded-t-2xl flex items-center justify-between"
-          style={{ background: gradient }}
-        >
-          <h2
-            id="photo-gallery-title"
-            className="text-lg font-extrabold m-0"
-            style={{ color: sizeTheme.headerText }}
-          >
-            {titleCase(dogName)}&apos;s Photos
-          </h2>
-          <button
-            onClick={onClose}
-            className="tap-target bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
-            style={{ color: sizeTheme.headerText }}
-          >
-            {"\u00D7"}
-          </button>
-        </div>
-
         <div className="px-4 py-4">
           {/* Loading */}
           {loading && (
@@ -201,7 +199,7 @@ export function PhotoGalleryModal({
             </div>
           )}
         </div>
-      </AccessibleModal>
+      </ModalShell>
 
       {/* Lightbox */}
       {selectedPhoto && (

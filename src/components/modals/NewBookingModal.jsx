@@ -607,12 +607,12 @@ export function NewBookingModal({
     <AccessibleModal
       onClose={onClose}
       titleId="new-booking-title"
-      className="bg-white rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col shadow-[0_12px_48px_rgba(0,0,0,0.2)]"
-      backdropClass="bg-black/40"
+      className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col animate-shell-in shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none"
+      backdropClass="bg-[rgba(45,0,75,0.45)] animate-overlay-fade"
     >
         {/* Header */}
         <div
-          className="px-6 py-[18px] rounded-t-[20px] flex justify-between items-center shrink-0"
+          className="px-6 py-[18px] rounded-t-[20px] max-sm:rounded-t-none flex justify-between items-center shrink-0"
           style={{ background: `linear-gradient(135deg, ${primaryTheme.gradient[0]}, ${primaryTheme.gradient[1]})` }}
         >
           <div>
