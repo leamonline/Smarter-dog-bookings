@@ -11,6 +11,8 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { supabase } from "../../../supabase/client.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
@@ -71,7 +73,7 @@ function ChannelPill({ channel, available, active, onSelect }) {
       title={available.ok ? `Send via ${CHANNEL_LABEL[channel]}` : available.reason}
       aria-pressed={active}
       className={[
-        "inline-flex items-center h-8 px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
+        "inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
         !available.ok
           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
           : active
@@ -182,29 +184,34 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Send reminder"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
+    <ModalShell
+      onClose={() => onClose?.()}
+      titleId="send-reminder-title"
+      accent="var(--color-brand-teal)"
+      widthClass="w-[min(520px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      bodyClassName="p-4 flex flex-col gap-3"
+      rootClassName="bm-fields"
+      zIndex={1100}
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Reminder
+            </span>
+            <h2
+              id="send-reminder-title"
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+            >
+              Send reminder
+            </h2>
+          </div>
+          <HeaderIconButton label="Close" onClick={() => onClose?.()}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
     >
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-brand-paper">
-          <h2 className="text-[15px] font-bold font-display text-brand-purple m-0">Send Reminder</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="tap-target inline-flex items-center justify-center text-slate-500 hover:text-slate-700 w-7 h-7 rounded-full hover:bg-slate-100 transition-colors text-[16px] cursor-pointer bg-transparent border-none"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           {/* Booking summary */}
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
             <div className="text-[14px] font-bold text-brand-purple">{row?.customerName}</div>
@@ -260,8 +267,6 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
               )}
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
