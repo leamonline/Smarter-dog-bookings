@@ -6,7 +6,8 @@ import {
   SIZE_THEME,
   SIZE_FALLBACK,
 } from "../../constants/index";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { useSalon } from "../../contexts/SalonContext";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
@@ -284,46 +285,54 @@ export function ChainBookingModal({
     "px-3 py-2 rounded-lg border-[1.5px] border-slate-200 text-[13px] font-semibold font-inherit bg-white text-slate-800";
 
   return (
-    <AccessibleModal
+    <>
+    <ModalShell
       onClose={onClose}
       titleId="chain-booking-title"
-      className="bg-white rounded-2xl w-[min(420px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
-    >
-      {/* ── Gradient header ── */}
-      <div
-        className="px-6 py-5 rounded-t-2xl"
-        style={{
-          background: `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`,
-        }}
-      >
-        <div className="flex justify-between items-start">
-          <div>
-            <div
+      accent={sizeTheme.primary}
+      widthClass="w-[min(440px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Recurring bookings
+            </span>
+            <h2
               id="chain-booking-title"
-              className="text-[22px] font-extrabold leading-tight"
-              style={{ color: sizeTheme.headerText }}
-            >
-              Recurring Bookings
-            </div>
-            <div
-              className="text-[14px] font-medium mt-0.5"
-              style={{ color: sizeTheme.headerTextSub }}
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
             >
               {dog?.name || "Dog"}
-            </div>
+            </h2>
           </div>
-          <button
-            onClick={onClose}
-            className="tap-target bg-white/20 border-none rounded-lg w-9 h-9 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
-            style={{ color: sizeTheme.headerText }}
-          >
-            {"\u00D7"}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="px-4 pt-4 pb-2" style={{ background: sizeTheme.light }}>
+          <HeaderIconButton label="Close recurring bookings" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        chain.length > 0 ? (
+          <div className="border-t border-slate-100 bg-white px-5 py-3 flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2 max-sm:min-h-[44px] rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 inline-flex items-center justify-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDone}
+              disabled={creating}
+              className="ml-auto px-5 py-2 max-sm:min-h-[44px] rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-yellow-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed inline-flex items-center justify-center"
+            >
+              {creating ? "Creating…" : `Confirm all (${chain.length})`}
+            </button>
+          </div>
+        ) : null
+      }
+    >
+      <div className="px-4 pt-4 pb-2">
         {/* Service & Price */}
         <SectionCard title="Service & Price">
           <div className="flex items-center gap-3 py-1">
@@ -596,34 +605,7 @@ export function ChainBookingModal({
             </div>
           )}
       </div>
-
-      {/* ── Bottom actions ── */}
-      {chain.length > 0 && (
-        <div
-          className="px-4 pt-1 pb-5 flex gap-2.5"
-          style={{ background: sizeTheme.light }}
-        >
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-[13px] font-bold cursor-pointer font-inherit"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDone}
-            disabled={creating}
-            className="flex-1 py-3 rounded-xl border-none text-[13px] font-bold cursor-pointer font-inherit disabled:opacity-50"
-            style={{
-              background: sizeTheme.gradient[0],
-              color: sizeTheme.headerText,
-            }}
-          >
-            {creating
-              ? "Creating..."
-              : `Confirm All (${chain.length})`}
-          </button>
-        </div>
-      )}
+    </ModalShell>
 
       {pendingOverride && (
         <ConfirmDialog
@@ -636,6 +618,6 @@ export function ChainBookingModal({
           onCancel={() => setPendingOverride(null)}
         />
       )}
-    </AccessibleModal>
+    </>
   );
 }

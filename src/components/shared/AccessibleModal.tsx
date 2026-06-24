@@ -15,6 +15,13 @@ interface AccessibleModalProps {
   zIndex?: number;
   /** Set false to disable Escape-to-close (e.g. ExitConfirmDialog) */
   dismissOnEscape?: boolean;
+  /**
+   * Tailwind classes that position the dialog within the full-screen
+   * overlay. Defaults to centring the box; a side drawer overrides this
+   * (e.g. `flex justify-end`) to anchor the panel to one edge. Additive —
+   * existing centred modals keep the default and are unaffected.
+   */
+  overlayClassName?: string;
 }
 
 // Reference-counted body scroll lock. Counting (rather than save/restore
@@ -47,6 +54,7 @@ export function AccessibleModal({
   backdropClass = "bg-black/35",
   zIndex = 1000,
   dismissOnEscape = true,
+  overlayClassName = "flex items-center justify-center",
 }: AccessibleModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { dialogProps } = useDialog(
@@ -82,7 +90,7 @@ export function AccessibleModal({
   // that card instead of covering the screen.
   return createPortal(
     <div
-      className={`fixed inset-0 ${backdropClass} flex items-center justify-center`}
+      className={`fixed inset-0 ${backdropClass} ${overlayClassName}`}
       style={{ zIndex }}
       onClick={onClose}
     >

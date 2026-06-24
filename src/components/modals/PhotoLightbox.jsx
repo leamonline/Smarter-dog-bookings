@@ -63,18 +63,24 @@ export function PhotoLightbox({
             </div>
           )}
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close photo"
             className="tap-target absolute top-3 right-3 bg-black/50 text-white border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold"
           >
-            {"\u00D7"}
+            <span aria-hidden="true">{"\u00D7"}</span>
           </button>
         </div>
 
         {/* Details */}
         <div className="px-5 py-4">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">
+          <h2
+            id="photo-lightbox-title"
+            className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1"
+          >
+            <span className="sr-only">Groom photo — </span>
             {formattedDate}
-          </div>
+          </h2>
 
           {/* Notes — view or edit */}
           {editingNotes ? (

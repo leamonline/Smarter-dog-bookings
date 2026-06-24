@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+import { X } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { InlineError } from "../ui/InlineError.jsx";
 
 export function WaitlistModal({
@@ -61,34 +62,38 @@ export function WaitlistModal({
   };
 
   return (
-    <AccessibleModal
+    <>
+    <ModalShell
       onClose={onClose}
       titleId={titleId}
-      className="bg-emerald-50 rounded-2xl w-[480px] max-w-[calc(100vw-32px)] shadow-modal overflow-hidden border border-emerald-100"
+      accent="#10B981"
+      widthClass="w-[min(480px,95vw)]"
+      bodyClassName="p-4 flex flex-col gap-3"
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Waitlist
+            </span>
+            <h2
+              id={titleId}
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              {dateLabel} ({waitlist.length})
+            </h2>
+          </div>
+          <HeaderIconButton label="Close waitlist" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
     >
-      <div className="bg-emerald-500 px-4 py-3 border-b border-emerald-600 flex items-center justify-between">
-        <div id={titleId} className="text-base font-bold text-white font-display tracking-wide">
-          Waitlist — {dateLabel} ({waitlist.length})
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close waitlist"
-          className="tap-target w-7 h-7 rounded-md flex items-center justify-center border-none cursor-pointer transition-all bg-white/15 text-white hover:bg-white/25"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="p-4 flex flex-col gap-3">
         {!showAdd ? (
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="self-start text-[12px] font-bold text-emerald-700 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-md px-3 py-1.5 cursor-pointer transition-colors"
+            className="self-start inline-flex items-center min-h-[44px] text-[12px] font-bold text-emerald-700 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-full px-4 py-1.5 cursor-pointer transition-colors"
           >
             + Add Person
           </button>
@@ -172,7 +177,7 @@ export function WaitlistModal({
             No one is waiting for this date.
           </div>
         )}
-      </div>
+    </ModalShell>
 
       {confirmRemove && (
         <ConfirmDialog
@@ -192,6 +197,6 @@ export function WaitlistModal({
           onCancel={() => setConfirmRemove(null)}
         />
       )}
-    </AccessibleModal>
+    </>
   );
 }

@@ -16,6 +16,8 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { supabase } from "../../../supabase/client.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers.js";
@@ -64,16 +66,8 @@ export function CollectionNoticeModal({ booking, onClose }) {
   const dogName = joinNames(readyDogNames.map((n) => titleCase(n))) || "Your dog";
   const isPlural = readyDogNames.length > 1;
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose?.();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  // Escape, focus trap, scroll-lock and backdrop click are owned by
+  // ModalShell/AccessibleModal — no hand-rolled key handler needed here.
 
   useEffect(() => {
     let cancelled = false;
@@ -198,31 +192,46 @@ export function CollectionNoticeModal({ booking, onClose }) {
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Send collection notice"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
-    >
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-brand-paper">
-          <h2 className="text-[15px] font-bold font-display text-brand-purple m-0">
-            {dogName} {isPlural ? "are" : "is"} ready
-          </h2>
+    <ModalShell
+      onClose={() => onClose?.()}
+      titleId="collection-notice-title"
+      accent="#10B981"
+      widthClass="w-[min(480px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      bodyClassName="p-4 flex flex-col gap-3"
+      rootClassName="bm-fields"
+      zIndex={1100}
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Ready for collection
+            </span>
+            <h2
+              id="collection-notice-title"
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              {dogName} {isPlural ? "are" : "is"} ready
+            </h2>
+          </div>
+          <HeaderIconButton label="Close" onClick={() => onClose?.()}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        <div className="border-t border-slate-100 bg-white px-5 py-3 flex justify-end">
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="tap-target inline-flex items-center justify-center text-slate-500 hover:text-slate-700 w-7 h-7 rounded-full hover:bg-slate-100 transition-colors text-[16px] cursor-pointer bg-transparent border-none"
+            onClick={() => onClose?.()}
+            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full text-sm font-bold font-[inherit] bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
           >
-            ×
+            {sentIds.size > 0 ? "Done" : "No, close"}
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      }
+    >
+          {/* Body */}
           <p className="text-[13px] text-slate-600 m-0">
             Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
             {isPlural && (
@@ -242,7 +251,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
               value={minutes}
               onChange={(e) => setMinutes(e.target.value.replace(/[^\d]/g, ""))}
               aria-label="Minutes until ready for collection"
-              className="w-16 h-9 rounded-lg border border-slate-300 px-2 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-purple/40"
+              className="w-16 h-9 max-sm:h-11 rounded-lg border border-slate-300 px-2 text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-purple/40"
             />
             <span>mins</span>
           </label>
@@ -288,7 +297,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                       disabled={disabled}
                       title={avail.ok ? `Send WhatsApp to ${displayName(r)}` : avail.reason}
                       className={[
-                        "shrink-0 inline-flex items-center h-8 px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
+                        "shrink-0 inline-flex items-center justify-center h-9 max-sm:min-h-[44px] px-4 rounded-full text-[13px] font-semibold font-[inherit] transition-colors",
                         isSent
                           ? "bg-emerald-100 text-emerald-700 cursor-default"
                           : disabled
@@ -303,18 +312,6 @@ export function CollectionNoticeModal({ booking, onClose }) {
               })}
             </ul>
           )}
-        </div>
-
-        <div className="px-4 py-3 border-t border-slate-100 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center h-9 px-4 rounded-full text-[13px] font-semibold font-[inherit] bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 cursor-pointer"
-          >
-            {sentIds.size > 0 ? "Done" : "No, close"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

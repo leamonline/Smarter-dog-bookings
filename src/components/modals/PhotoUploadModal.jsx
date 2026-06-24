@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { X } from "lucide-react";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconCamera } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { MODAL_INPUT_CLS } from "./booking-detail/shared.jsx";
@@ -28,8 +29,6 @@ export function PhotoUploadModal({
   useEffect(() => {
     return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
-
-  const gradient = `linear-gradient(135deg, ${sizeTheme.gradient[0]}, ${sizeTheme.gradient[1]})`;
 
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0];
@@ -67,34 +66,53 @@ export function PhotoUploadModal({
   };
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="photo-upload-title"
-      className="bg-white rounded-2xl w-[min(380px,92vw)] max-h-[90vh] overflow-auto shadow-modal"
+      accent={sizeTheme.primary}
+      widthClass="w-[min(420px,92vw)]"
+      maxHeightClass="max-h-[90vh]"
       zIndex={1100}
+      bodyClassName="px-5 py-4 flex flex-col gap-4"
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Groom photo
+            </span>
+            <h2
+              id="photo-upload-title"
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              Add Groom Photo
+            </h2>
+          </div>
+          <HeaderIconButton label="Close" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        <div className="border-t border-slate-100 bg-white px-5 py-3 flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 max-sm:min-h-[44px] rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 inline-flex items-center justify-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !file}
+            className="ml-auto px-5 py-2 max-sm:min-h-[44px] rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-yellow-dark disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 inline-flex items-center justify-center"
+          >
+            {saving ? "Saving..." : "Save Photo"}
+          </button>
+        </div>
+      }
     >
-      {/* Header */}
-      <div
-        className="px-5 py-4 rounded-t-2xl flex items-center justify-between"
-        style={{ background: gradient }}
-      >
-        <h2
-          id="photo-upload-title"
-          className="text-lg font-extrabold m-0"
-          style={{ color: sizeTheme.headerText }}
-        >
-          Add Groom Photo
-        </h2>
-        <button
-          onClick={onClose}
-          className="tap-target bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold shrink-0"
-          style={{ color: sizeTheme.headerText }}
-        >
-          {"\u00D7"}
-        </button>
-      </div>
-
-      <div className="px-5 py-4 flex flex-col gap-4">
         {/* Capture / select zone */}
         {!preview ? (
           <button
@@ -122,9 +140,10 @@ export function PhotoUploadModal({
                 setPreview(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
+              aria-label="Remove selected photo"
               className="tap-target absolute top-2 right-2 bg-black/50 text-white border-none rounded-full w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold"
             >
-              {"\u00D7"}
+              <span aria-hidden="true">{"\u00D7"}</span>
             </button>
           </div>
         )}
@@ -155,27 +174,6 @@ export function PhotoUploadModal({
 
         {/* Error */}
         <InlineError message={error} />
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !file}
-            className="flex-1 py-2.5 rounded-xl border-none text-white text-sm font-bold cursor-pointer font-inherit transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: gradient }}
-          >
-            {saving ? "Saving..." : "Save Photo"}
-          </button>
-        </div>
-      </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

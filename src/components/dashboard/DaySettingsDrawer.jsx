@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
 import { X, Plus, Minus, DoorOpen, DoorClosed, Printer } from "lucide-react";
+import { DrawerShell } from "../shared/DrawerShell";
+
+const TITLE_ID = "day-settings-title";
 
 function formatDisplay(slot) {
   if (!slot) return "";
@@ -20,39 +22,6 @@ export function DaySettingsDrawer({
   onToggleDayOpen,
   onPrintDaySheet,
 }) {
-  const closeBtnRef = useRef(null);
-  const drawerRef = useRef(null);
-  const previousFocusRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    previousFocusRef.current = document.activeElement;
-    closeBtnRef.current?.focus();
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose?.();
-      if (e.key === "Tab" && drawerRef.current) {
-        const focusables = drawerRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (!focusables.length) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      previousFocusRef.current?.focus?.();
-    };
-  }, [open, onClose]);
-
   if (!open) return null;
 
   const dayLabel = currentDateObj?.toLocaleDateString("en-GB", {
@@ -62,47 +31,39 @@ export function DaySettingsDrawer({
   });
   const lastSlot = extraSlots[extraSlots.length - 1];
 
+  // DrawerShell (built on AccessibleModal) owns the behaviour — focus trap,
+  // Escape, reference-counted scroll-lock, portal, role/aria-modal, backdrop
+  // click — so this component only renders the panel's header + body.
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Day settings"
-      className="fixed inset-0 z-[1000] flex justify-end"
+    <DrawerShell
+      side="right"
+      onClose={() => onClose?.()}
+      titleId={TITLE_ID}
+      widthClass="max-w-sm"
     >
-      {/* Backdrop */}
-      <button
-        type="button"
-        aria-label="Close day settings"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/35 cursor-pointer border-none animate-[overlayFade_150ms_ease-out]"
-      />
-
-      {/* Drawer */}
-      <div
-        ref={drawerRef}
-        className="relative w-full max-w-sm h-full bg-white shadow-elevated flex flex-col animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)]"
-      >
-        <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)] shrink-0">
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Day settings
             </div>
-            <div className="text-base font-bold text-brand-purple font-display leading-tight">
+            <h2
+              id={TITLE_ID}
+              className="text-base font-bold text-brand-purple font-display leading-tight"
+            >
               {dayLabel}
-            </div>
+            </h2>
           </div>
           <button
-            ref={closeBtnRef}
             type="button"
-            onClick={onClose}
+            onClick={() => onClose?.()}
             aria-label="Close"
-            className="w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-purple transition-colors"
+            className="tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-brand-purple transition-colors"
           >
-            <X size={18} strokeWidth={2.2} />
+            <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 flex flex-col gap-5">
           {/* Open/close */}
           <section>
             <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -197,7 +158,6 @@ export function DaySettingsDrawer({
             </button>
           </section>
         </div>
-      </div>
-    </div>
+    </DrawerShell>
   );
 }

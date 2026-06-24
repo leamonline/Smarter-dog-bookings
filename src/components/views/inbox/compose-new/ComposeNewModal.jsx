@@ -18,8 +18,9 @@
 // ============================================================
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { X, ChevronLeft } from "lucide-react";
 import { supabase } from "../../../../supabase/client.js";
-import { AccessibleModal } from "../../../shared/AccessibleModal.tsx";
+import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
 
@@ -239,42 +240,46 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
   );
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={() => onClose?.()}
       titleId={titleId}
+      accent="var(--color-brand-teal)"
+      widthClass="w-[min(560px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
       zIndex={50}
-      backdropClass="bg-black/40 p-3 sm:p-6 overflow-y-auto"
-      className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden"
-    >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-brand-paper">
-          <div className="flex items-center gap-2">
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
             {selectedHuman && (
-              <button
-                type="button"
+              <HeaderIconButton
+                label="Back to customer picker"
                 onClick={() => { setSelectedHuman(null); setError(null); }}
-                aria-label="Back to customer picker"
-                className="tap-target text-brand-purple w-7 h-7 rounded-full hover:bg-brand-purple/10 transition-colors text-[16px] inline-flex items-center justify-center"
               >
-                ←
-              </button>
+                <ChevronLeft size={18} strokeWidth={2.5} aria-hidden="true" />
+              </HeaderIconButton>
             )}
-            <h2 id={titleId} className="text-[15px] font-bold font-display text-brand-purple m-0">
-              {selectedHuman
-                ? `New message to ${selectedHuman.name ?? ""} ${selectedHuman.surname ?? ""}`.trim()
-                : "New WhatsApp message"}
-            </h2>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                New message
+              </span>
+              <h2
+                id={titleId}
+                className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1 truncate"
+              >
+                {selectedHuman
+                  ? `New message to ${selectedHuman.name ?? ""} ${selectedHuman.surname ?? ""}`.trim()
+                  : "New WhatsApp message"}
+              </h2>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="tap-target text-slate-500 hover:text-slate-700 w-7 h-7 rounded-full hover:bg-slate-100 transition-colors text-[16px] cursor-pointer"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
+          <HeaderIconButton label="Close" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+    >
+        <div>
           {!selectedHuman ? (
             <div className="flex flex-col">
               <div className="px-4 py-3">
@@ -406,6 +411,6 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
             </div>
           )}
         </div>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

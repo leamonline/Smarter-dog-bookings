@@ -43,40 +43,42 @@ export function NotifyRecipientsDialog({ owner, trusted, onConfirm, onCancel }) 
     <AccessibleModal
       onClose={onCancel}
       titleId="notify-recipients-title"
-      className="bg-white rounded-2xl w-[min(380px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
+      className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full max-h-[90vh] overflow-auto animate-[toastIn_0.15s_ease-out]"
+      zIndex={1100}
     >
-      <div className="px-5 py-4">
-        <div id="notify-recipients-title" className="text-base font-extrabold text-brand-purple">
-          Who should we notify?
-        </div>
-        <p className="text-xs text-slate-500 mt-1 mb-3">
-          Booking updates (confirmation, reminder, ready &amp; cancellation) go to
-          everyone ticked.
-        </p>
+      <h2
+        id="notify-recipients-title"
+        className="text-base font-bold text-slate-800 m-0 mb-1"
+      >
+        Who should we notify?
+      </h2>
+      <p className="text-sm text-slate-600 m-0 mb-3 leading-relaxed">
+        Booking updates (confirmation, reminder, ready &amp; cancellation) go to
+        everyone ticked.
+      </p>
 
-        <div className="flex flex-col gap-1.5">
-          {owner?.id && <Row id={owner.id} label={owner.fullName} sub="Owner" />}
-          {trusted.map((t) => (
-            <Row key={t.id} id={t.id} label={t.fullName} sub={t.relationship || "Trusted human"} />
-          ))}
-        </div>
+      <div className="flex flex-col gap-1.5">
+        {owner?.id && <Row id={owner.id} label={owner.fullName} sub="Owner" />}
+        {trusted.map((t) => (
+          <Row key={t.id} id={t.id} label={t.fullName} sub={t.relationship || "Trusted human"} />
+        ))}
+      </div>
 
-        <div className="flex gap-2.5 mt-4">
-          <button
-            type="button"
-            onClick={() => onConfirm([...selected])}
-            className="flex-1 py-2.5 rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit hover:bg-brand-yellow-dark transition-colors"
-          >
-            Confirm booking
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="py-2.5 px-5 rounded-full border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit"
-          >
-            Cancel
-          </button>
-        </div>
+      <div className="flex gap-2 justify-end mt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn btn-ghost"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onConfirm([...selected])}
+          className="btn btn-primary"
+        >
+          Confirm booking
+        </button>
       </div>
     </AccessibleModal>
   );

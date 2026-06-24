@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { X } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { titleCase } from "../../utils/text";
@@ -146,21 +147,52 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
   };
 
   return (
-    <AccessibleModal
+    <ModalShell
       onClose={onClose}
       titleId="add-human-title"
-      className="bg-white rounded-2xl w-[min(400px,95vw)] max-h-[90vh] overflow-auto shadow-modal"
-    >
-        {/* Header */}
-        <div
-          className="px-6 py-5 rounded-t-2xl flex justify-between items-center"
-          style={{ background: "linear-gradient(135deg, var(--color-brand-teal), var(--color-brand-teal-dark))" }}
-        >
-          <div id="add-human-title" className="text-lg font-extrabold text-white">Add New Human</div>
-          <button type="button" onClick={onClose} aria-label="Close add human" className="tap-target bg-white/20 border-none rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-sm font-bold text-white shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"><span aria-hidden="true">{"\u00D7"}</span></button>
+      accent="var(--color-brand-teal)"
+      widthClass="w-[min(420px,95vw)]"
+      maxHeightClass="max-h-[90vh]"
+      rootClassName="bm-fields"
+      header={
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              New customer
+            </span>
+            <h2
+              id="add-human-title"
+              className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"
+            >
+              Add New Human
+            </h2>
+          </div>
+          <HeaderIconButton label="Close add human" onClick={onClose}>
+            <X size={16} strokeWidth={2.2} aria-hidden="true" />
+          </HeaderIconButton>
+        </header>
+      }
+      footer={
+        <div className="border-t border-slate-100 bg-white px-6 py-3 flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 max-sm:min-h-[44px] rounded-control border-[1.5px] border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-slate-50 inline-flex items-center justify-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="add-human-form"
+            disabled={submitting}
+            className="ml-auto px-5 py-2 max-sm:min-h-[44px] rounded-full border-none bg-action text-on-action text-sm font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-yellow-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed inline-flex items-center justify-center"
+          >
+            {submitting ? "Adding..." : duplicate ? "Add anyway" : "Add Human"}
+          </button>
         </div>
-
-        <form onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
+      }
+    >
+        <form id="add-human-form" onSubmit={handleSubmit} autoComplete="off" className="px-6 py-5 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="add-human-first" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1">First Name *</label>
@@ -199,12 +231,12 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           </div>
 
           <div className="flex gap-5">
-            <label className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium">
+            <label className="flex items-center gap-1.5 min-h-[44px] text-[13px] cursor-pointer font-medium">
               <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)}
                 className="accent-brand-teal w-[18px] h-[18px] cursor-pointer" />
               SMS
             </label>
-            <label className="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium">
+            <label className="flex items-center gap-1.5 min-h-[44px] text-[13px] cursor-pointer font-medium">
               <input type="checkbox" checked={whatsapp} onChange={e => setWhatsapp(e.target.checked)}
                 className="accent-brand-teal w-[18px] h-[18px] cursor-pointer" />
               WhatsApp
@@ -301,18 +333,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
           )}
 
           <InlineError message={error} />
-
-          <div className="flex gap-2.5 mt-1">
-            <button type="submit" disabled={submitting}
-              className="flex-1 py-3 rounded-control border-none bg-brand-teal text-white text-sm font-bold cursor-pointer font-inherit transition-all hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed">
-              {submitting ? "Adding..." : duplicate ? "Add anyway" : "Add Human"}
-            </button>
-            <button type="button" onClick={onClose}
-              className="py-3 px-5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">
-              Cancel
-            </button>
-          </div>
         </form>
-    </AccessibleModal>
+    </ModalShell>
   );
 }

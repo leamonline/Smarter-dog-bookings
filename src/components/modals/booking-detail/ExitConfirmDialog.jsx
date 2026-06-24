@@ -5,28 +5,33 @@ export function ExitConfirmDialog({ onDiscard, onKeepEditing }) {
     <AccessibleModal
       onClose={onKeepEditing}
       titleId="exit-confirm-title"
-      className="bg-white rounded-2xl p-6 w-[min(300px,90vw)] shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+      className="bg-white rounded-2xl shadow-xl mx-4 p-5 max-w-sm w-full animate-[toastIn_0.15s_ease-out]"
       zIndex={1100}
+      // Unsaved-changes guard: Escape must NOT silently dismiss — the user
+      // has to choose Discard or Keep editing explicitly.
+      dismissOnEscape={false}
     >
-      <h2 id="exit-confirm-title" className="text-base font-bold text-slate-800 mb-2">
+      <h2 id="exit-confirm-title" className="text-base font-bold text-slate-800 m-0 mb-1">
         Discard changes?
       </h2>
-      <p className="text-[13px] text-slate-500 mb-5 m-0">
+      <p className="text-sm text-slate-600 m-0 mb-4 leading-relaxed">
         You have unsaved changes. Are you sure you want to close?
       </p>
-      <div className="flex gap-2.5">
+      <div className="flex gap-2 justify-end">
         <button
-          onClick={onDiscard}
-          className="flex-1 py-2.5 rounded-control border-none bg-brand-coral text-white text-[13px] font-bold cursor-pointer font-inherit"
-        >
-          Discard
-        </button>
-        <button
+          type="button"
           onClick={onKeepEditing}
           autoFocus
-          className="flex-1 py-2.5 rounded-control border-[1.5px] border-slate-200 bg-white text-slate-800 text-[13px] font-bold cursor-pointer font-inherit"
+          className="btn btn-ghost"
         >
           Keep editing
+        </button>
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="btn btn-danger"
+        >
+          Discard
         </button>
       </div>
     </AccessibleModal>
