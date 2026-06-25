@@ -2,6 +2,7 @@ export { SIZE_THEME, SIZE_FALLBACK } from "./brand";
 export {
   SALON_SLOTS,
   MAX_DOGS_PER_SLOT,
+  DAILY_DOG_CAP,
   SERVICES,
   ALL_DAYS,
   LARGE_DOG_SLOTS,

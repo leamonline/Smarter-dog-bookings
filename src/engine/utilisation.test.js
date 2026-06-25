@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { findNextAvailable, capacityRatio, currentSlotIndex } from "./utilisation";
+import { DAILY_DOG_CAP } from "../constants/salon";
+import { DAY_CAPACITY } from "./utilisation";
+
+it("DAY_CAPACITY is sourced from the single DAILY_DOG_CAP constant", () => {
+  expect(DAY_CAPACITY).toBe(DAILY_DOG_CAP);
+  expect(DAILY_DOG_CAP).toBe(14);
+});
 
 // Today is fixed in tests via the `now` injection so the assertion
 // is deterministic — otherwise a past-date case would flip into a

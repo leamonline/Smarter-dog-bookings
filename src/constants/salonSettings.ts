@@ -1,4 +1,4 @@
-import { LARGE_DOG_SLOTS, PRICING, SERVICES } from "./salon";
+import { LARGE_DOG_SLOTS, PRICING, SERVICES, DAILY_DOG_CAP } from "./salon";
 import type { SalonConfig, SalonSettings } from "../types/index";
 
 export const DEFAULT_BUSINESS_NAME = "Smarter Dog Grooming";
@@ -117,7 +117,7 @@ export function createDefaultSalonConfig(): SalonConfig {
     defaultPickupOffset: 120,
     pricing: cloneJson(PRICING),
     enforceCapacity: true,
-    dailyDogCap: 14,
+    dailyDogCap: DAILY_DOG_CAP,
     largeDogSlots: cloneJson(LARGE_DOG_SLOTS),
     ...createDefaultSalonSettings(),
   };

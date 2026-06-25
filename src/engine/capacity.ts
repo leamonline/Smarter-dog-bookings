@@ -1,4 +1,4 @@
-import { LARGE_DOG_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index";
+import { LARGE_DOG_SLOTS, BOOKING_STATUS, DOG_SIZE, DAILY_DOG_CAP } from "../constants/index";
 import type { Booking, DogSize, SlotCapacities, SeatState, BookingResult, SlotOverrides, LargeDogSlotRule, SlotAllocation } from "../types/index";
 
 // ============================================================
@@ -561,7 +561,7 @@ export function findGroupedSlots(
   dogs: Array<{ id: string; size: DogSize }>,
   bookings: Booking[],
   activeSlots: string[],
-  dailyDogCap = 14,
+  dailyDogCap = DAILY_DOG_CAP,
 ): SlotAllocation[] {
   const count = dogs.length;
 
