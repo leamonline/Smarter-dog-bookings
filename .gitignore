@@ -29,3 +29,4 @@ test-results/
 
 # Local design-alignment working directory — not shipping code
 design-alignment/
+.env*
