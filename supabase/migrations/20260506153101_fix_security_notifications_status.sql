@@ -14,22 +14,25 @@ DROP FUNCTION IF EXISTS public.get_demo_customers();
 DROP VIEW IF EXISTS public.whatsapp_agent_trigger_log;
 
 -- 3. Lock briefings down to service role only.
-REVOKE ALL PRIVILEGES ON TABLE public.briefings FROM PUBLIC, anon, authenticated;
-REVOKE ALL PRIVILEGES ON SEQUENCE public.briefings_id_seq FROM PUBLIC, anon, authenticated;
-
-DROP POLICY IF EXISTS "Allow service role full access" ON public.briefings;
-DROP POLICY IF EXISTS "service_role_full_access_briefings" ON public.briefings;
-
-CREATE POLICY "service_role_full_access_briefings"
-  ON public.briefings
-  AS permissive
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
-
-GRANT ALL PRIVILEGES ON TABLE public.briefings TO service_role;
-GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.briefings_id_seq TO service_role;
+-- Guarded for clean-rebuild safety: `briefings` was created out-of-band on prod
+-- (its create migration was never committed to this repo) and is dropped later
+-- in 20260608010000_drop_briefings_table.sql. On a from-scratch apply
+-- (`supabase db reset` / the db-tests CI) the table is absent, so this block
+-- would fail with 42P01 — skip it when the table doesn't exist. No-op on prod,
+-- where the table existed when this migration first ran.
+do $$
+begin
+  if to_regclass('public.briefings') is not null then
+    execute 'revoke all privileges on table public.briefings from public, anon, authenticated';
+    execute 'revoke all privileges on sequence public.briefings_id_seq from public, anon, authenticated';
+    execute 'drop policy if exists "Allow service role full access" on public.briefings';
+    execute 'drop policy if exists "service_role_full_access_briefings" on public.briefings';
+    execute 'create policy "service_role_full_access_briefings" on public.briefings as permissive for all to service_role using (true) with check (true)';
+    execute 'grant all privileges on table public.briefings to service_role';
+    execute 'grant usage, select, update on sequence public.briefings_id_seq to service_role';
+  end if;
+end;
+$$;
 
 -- 4. Normalize booking statuses and constrain future writes.
 UPDATE public.bookings
