@@ -28,10 +28,14 @@ select ok(
   'RLS enabled on bookings, dogs, humans'
 );
 
--- The customer write-path RPCs exist, and create_customer_dog is SECURITY DEFINER
-select has_function('public', 'create_customer_dog');
+-- The customer write-path RPCs exist, and create_customer_dog is SECURITY DEFINER.
+-- NB: the 1-arg has_function form is used deliberately — the 2-arg
+-- has_function('public','fn') is ambiguous in pgTAP (it reads the first arg as
+-- the function name and the second as a description), so it must be either the
+-- bare name or the full (schema, name, args[]) form.
+select has_function('create_customer_dog');
 select is_definer('create_customer_dog', 'create_customer_dog is SECURITY DEFINER');
-select has_function('public', 'create_customer_booking_group');
+select has_function('create_customer_booking_group');
 
 -- The three BEFORE INSERT booking gates are attached to bookings
 select has_trigger('public', 'bookings', 'trg_enforce_booking_calendar', 'calendar gate present');
