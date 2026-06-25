@@ -66,4 +66,35 @@ describe("capacity engine mirror parity (findGroupedSlots)", () => {
     );
     expect(shared).toEqual(engine);
   });
+
+  it("a full day (14 existing) offers nothing to a new dog — both engines agree", () => {
+    // 14 small dogs already in, spread legally across the grid: any further
+    // dog would breach the daily cap, so both engines must return [].
+    const existing = [
+      { slot: "08:30", size: "small" }, { slot: "08:30", size: "small" },
+      { slot: "09:30", size: "small" }, { slot: "09:30", size: "small" },
+      { slot: "10:30", size: "small" }, { slot: "10:30", size: "small" },
+      { slot: "11:30", size: "small" }, { slot: "11:30", size: "small" },
+      { slot: "12:30", size: "small" }, { slot: "12:30", size: "small" },
+      { slot: "13:00", size: "small" }, { slot: "13:00", size: "small" },
+      { slot: "09:00", size: "small" }, { slot: "11:00", size: "small" },
+    ] as MiniBooking[];
+    const { engine, shared } = bothAgree([{ id: "x", size: "small" }], existing);
+    expect(shared).toEqual(engine);
+    expect(shared.length).toBe(0);
+  });
+
+  it("the cap is atomic — a 2-dog group is rejected when only 1 seat-day remains", () => {
+    // 13 existing → one more dog fits, but a 2-dog group (13+2=15>14) must not.
+    const existing = Array.from({ length: 13 }, (_, i) => ({
+      slot: ["08:30", "09:30", "10:30", "11:30", "12:30"][i % 5],
+      size: "small",
+    })) as MiniBooking[];
+    const { engine, shared } = bothAgree(
+      [{ id: "a", size: "small" }, { id: "b", size: "small" }],
+      existing,
+    );
+    expect(shared).toEqual(engine);
+    expect(shared.length).toBe(0);
+  });
 });
