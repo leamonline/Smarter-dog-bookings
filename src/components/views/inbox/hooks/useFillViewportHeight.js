@@ -28,6 +28,23 @@ const DESKTOP_BOTTOM_GAP = 16;
 const MOBILE_BREAKPOINT = 768; // Tailwind md
 const MIN_HEIGHT = 360; // never collapse below a usable height
 
+// The mobile nav also carries `pb-[env(safe-area-inset-bottom)]`, so on an
+// iPhone with a home indicator its true height is MOBILE_BOTTOM_GAP plus the
+// safe-area inset. With viewport-fit=cover, window.innerHeight includes that
+// inset, so we must subtract it too — otherwise the shell runs ~34px past the
+// nav and the composer sits jammed under it. Measure the inset live (0 off
+// iOS) via a throwaway probe, since env() doesn't resolve in JS otherwise.
+function safeAreaInsetBottom() {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;bottom:0;left:0;width:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none;";
+  document.body.appendChild(probe);
+  const inset = probe.getBoundingClientRect().height;
+  probe.remove();
+  return Number.isFinite(inset) ? inset : 0;
+}
+
 export function useFillViewportHeight(ref) {
   const [height, setHeight] = useState(null);
 
@@ -38,7 +55,9 @@ export function useFillViewportHeight(ref) {
     const compute = () => {
       const top = el.getBoundingClientRect().top;
       const bottomGap =
-        window.innerWidth < MOBILE_BREAKPOINT ? MOBILE_BOTTOM_GAP : DESKTOP_BOTTOM_GAP;
+        window.innerWidth < MOBILE_BREAKPOINT
+          ? MOBILE_BOTTOM_GAP + safeAreaInsetBottom()
+          : DESKTOP_BOTTOM_GAP;
       const available = window.innerHeight - top - bottomGap;
       setHeight(Math.max(MIN_HEIGHT, Math.round(available)));
     };
