@@ -46,7 +46,7 @@ export function GenerateReplyButton({
       disabled={disabled}
       title="Ask the AI to draft a suggested reply from the recent messages, in Smarter Dog's style. It's typed into the box for you to edit and send — nothing is sent automatically."
       className={[
-        "self-stretch inline-flex items-center gap-1.5 px-3 rounded-full text-[13px] font-bold transition-colors font-[inherit] border shrink-0 whitespace-nowrap",
+        "self-stretch inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-full text-[13px] font-bold transition-colors font-[inherit] border shrink-0 whitespace-nowrap",
         "bg-brand-purple text-white border-brand-purple",
         "hover:bg-brand-purple-light hover:border-brand-purple-light",
         "disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
@@ -64,7 +64,8 @@ export function GenerateReplyButton({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
-          Generate reply
+          <span className="sm:hidden">Generate</span>
+          <span className="hidden sm:inline">Generate reply</span>
         </>
       )}
     </button>

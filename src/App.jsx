@@ -43,6 +43,14 @@ const RightRailPreview = import.meta.env.DEV
       })),
     )
   : () => null;
+// Dev-only harness for the inbox compose bar. Same tree-shaking guarantee.
+const ComposePreview = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/ComposePreview.jsx").then((module) => ({
+        default: module.ComposePreview,
+      })),
+    )
+  : () => null;
 // Vercel page-view analytics. Dynamically imported so the library stays out
 // of the App chunk's boot path — it renders nothing and can arrive whenever.
 // PROD-gated the same way it was rendered before; dev gets a no-op.
@@ -926,6 +934,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <Route
                       path="/dev/right-rail-preview"
                       element={<RightRailPreview />}
+                    />
+                  )}
+                  {import.meta.env.DEV && (
+                    <Route
+                      path="/dev/compose-preview"
+                      element={<ComposePreview />}
                     />
                   )}
                   <Route path="*" element={<Navigate to="/" replace />} />
