@@ -21,7 +21,8 @@ name: DB Tests (pgTAP)
 # Requires repo secrets: SUPABASE_ACCESS_TOKEN (already set for edge deploys)
 # and SUPABASE_DB_PASSWORD (the prod database password — add it under Repo
 # Settings → Secrets and variables → Actions; find/reset it in the Supabase
-# dashboard → Project Settings → Database).
+# dashboard → Project Settings → Database). Until SUPABASE_DB_PASSWORD is set,
+# the job SKIPS cleanly (succeeds with a warning) rather than failing red.
 
 on:
   push:
@@ -45,26 +46,38 @@ jobs:
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
+      # Gate: without the DB password we can't dump the baseline. Skip the rest
+      # cleanly (job stays green with a warning) instead of failing red, so the
+      # check is quiet on main until the secret is added.
+      - name: Check for DB password secret
+        id: gate
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::warning::SUPABASE_DB_PASSWORD secret is not set — skipping DB tests. Add it under Repo Settings → Secrets and variables → Actions (find/reset it in the Supabase dashboard → Project Settings → Database) to enable them."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out repo
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Supabase CLI
+        if: steps.gate.outputs.run == 'true'
         uses: supabase/setup-cli@v2
         with:
           version: latest
 
       - name: Dump prod public schema (schema-only — no customer data) as the baseline
+        if: steps.gate.outputs.run == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "::error::SUPABASE_DB_PASSWORD secret is not set. Add it under Repo"
-            echo "Settings → Secrets and variables → Actions. Find/reset the prod DB"
-            echo "password in the Supabase dashboard → Project Settings → Database."
-            exit 1
-          fi
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
           # Schema-only by default; --schema public scopes it to our objects.
           supabase db dump --linked --schema public -f /tmp/baseline.sql
@@ -77,11 +90,13 @@ jobs:
           cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
 
       - name: Start local stack (applies the baseline schema)
+        if: steps.gate.outputs.run == 'true'
         run: supabase start
 
       - name: Run pgTAP database tests
+        if: steps.gate.outputs.run == 'true'
         run: supabase test db
 
       - name: Dump diagnostics on failure
-        if: failure()
+        if: failure() && steps.gate.outputs.run == 'true'
         run: supabase status || true
