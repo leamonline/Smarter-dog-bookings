@@ -123,6 +123,33 @@ export function windowCountdown(lastInboundAt, nowMs = Date.now()) {
   return `Window closes in ${mins}m`;
 }
 
+// For the "New message" composer: find an existing WhatsApp conversation
+// for the picked customer that's STILL inside the 24-hour reply window.
+// When one exists the composer shouldn't force a template gate — the
+// customer messaged recently, so staff can reply free-text in the open
+// chat. Matches by linked human id first, then by E.164 phone, and
+// returns the most-recently-active open one (or null).
+export function findOpenWindowConversation(conversations, human, nowMs = Date.now()) {
+  if (!human || !Array.isArray(conversations)) return null;
+  const phone = human.phone ?? null;
+  let best = null;
+  for (const c of conversations) {
+    const matches =
+      (c?.human_id && c.human_id === human.id) ||
+      (phone && c?.phone_e164 && c.phone_e164 === phone);
+    if (!matches) continue;
+    if ((c?.channel ?? "whatsapp") !== "whatsapp") continue;
+    if (!isWindowOpen(c.last_inbound_at, nowMs)) continue;
+    if (
+      !best ||
+      new Date(c.last_inbound_at).getTime() > new Date(best.last_inbound_at).getTime()
+    ) {
+      best = c;
+    }
+  }
+  return best;
+}
+
 export function isAwaitingReply(conv) {
   if (!conv?.last_inbound_at || conv.closed_at) return false;
   if (!conv.last_outbound_at) return true;

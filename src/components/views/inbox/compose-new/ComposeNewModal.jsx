@@ -12,9 +12,11 @@
 //      outbound message appears in the inbox immediately.
 //
 // Meta only permits pre-approved templates to start a conversation
-// outside the 24-hour window — which always applies here because
-// there's no inbound history. The TemplatePicker enforces that;
-// this modal just wraps it.
+// OUTSIDE the 24-hour window. But if the picked customer messaged
+// recently they're still INSIDE the window — so we detect any existing
+// open-window conversation (findOpenWindowConversation) and route staff
+// into that chat to reply free-text, instead of wrongly forcing a
+// template. Cold contact (no open window) still uses the TemplatePicker.
 // ============================================================
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -22,6 +24,7 @@ import { X, ChevronLeft } from "lucide-react";
 import { supabase } from "../../../../supabase/client.js";
 import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
+import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
 
 // Parallel ilike across humans (name / surname / phone) and dogs
@@ -126,6 +129,39 @@ function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sen
   );
 }
 
+// Shown when the picked customer already has a WhatsApp conversation
+// inside the 24-hour window. No template needed — route staff into the
+// open chat where the normal free-text composer handles the reply.
+function WindowOpenPanel({ firstName, countdown, onOpenChat }) {
+  return (
+    <div className="flex flex-col gap-2.5 p-3 bg-brand-green-50 border border-brand-green-200 rounded-lg">
+      <div className="flex items-start gap-2">
+        <span aria-hidden="true" className="mt-0.5">✅</span>
+        <div className="text-[12px] leading-snug text-brand-green-800">
+          <p className="font-bold">
+            {firstName ? `${firstName} is` : "This customer is"} still inside the
+            24-hour reply window.
+          </p>
+          <p>
+            You can reply with free text — no template needed.
+            {countdown ? ` ${countdown}.` : ""}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenChat}
+        className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full bg-brand-green-600 text-white text-[13px] font-bold cursor-pointer hover:bg-brand-green-700 transition-colors font-[inherit]"
+      >
+        Open chat to reply
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 function CustomerRow({ human, onSelect }) {
   const full = `${human.name ?? ""} ${human.surname ?? ""}`.trim() || "(no name)";
   return (
@@ -142,7 +178,13 @@ function CustomerRow({ human, onSelect }) {
   );
 }
 
-export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
+export function ComposeNewModal({
+  onClose,
+  onSent,
+  onSentSMS,
+  conversations,
+  onOpenConversation,
+}) {
   const titleId = useId();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -209,6 +251,15 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
       contextKey: `human:${selectedHuman.id}`,
     };
   }, [selectedHuman]);
+
+  // If this customer already has a WhatsApp chat inside the 24-hour
+  // window, we skip the template gate and route staff into that chat to
+  // reply free-text. (Found from the already-loaded conversation list —
+  // an open-window conversation is always an active one.)
+  const openConversation = useMemo(
+    () => findOpenWindowConversation(conversations, selectedHuman),
+    [conversations, selectedHuman],
+  );
 
   const handleSend = useCallback(
     async (template, paramValues) => {
@@ -371,12 +422,20 @@ export function ComposeNewModal({ onClose, onSent, onSentSMS }) {
               </div>
 
               {channel === "whatsapp" ? (
-                <TemplatePicker
-                  customerFirstName={compose?.customerFirstName ?? ""}
-                  contextKey={compose?.contextKey ?? ""}
-                  dogNames={dogNames}
-                  onSend={handleSend}
-                />
+                openConversation ? (
+                  <WindowOpenPanel
+                    firstName={selectedHuman.name ?? ""}
+                    countdown={windowCountdown(openConversation.last_inbound_at)}
+                    onOpenChat={() => onOpenConversation?.(openConversation.id)}
+                  />
+                ) : (
+                  <TemplatePicker
+                    customerFirstName={compose?.customerFirstName ?? ""}
+                    contextKey={compose?.contextKey ?? ""}
+                    dogNames={dogNames}
+                    onSend={handleSend}
+                  />
+                )
               ) : (
                 <SMSComposer
                   customerFirstName={compose?.customerFirstName ?? ""}
