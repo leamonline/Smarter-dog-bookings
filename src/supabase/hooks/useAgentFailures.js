@@ -17,6 +17,9 @@ const LOOKBACK_DAYS = 7;
 const IS_TEST = import.meta.env?.MODE === "test";
 
 export function shapeAgentFailures(rows) {
+  // The failed-status filter is a no-op against refresh()'s query (which already
+  // filters server-side) but is load-bearing for the unit test, which feeds in
+  // mixed-status rows. Keep it — don't "tidy" it away.
   return (rows ?? [])
     .filter((r) => r.processing_status === "failed")
     .map((r) => ({
