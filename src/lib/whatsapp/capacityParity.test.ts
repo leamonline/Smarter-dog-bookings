@@ -86,6 +86,8 @@ describe("capacity engine mirror parity (findGroupedSlots)", () => {
 
   it("the cap is atomic — a 2-dog group is rejected when only 1 seat-day remains", () => {
     // 13 existing → one more dog fits, but a 2-dog group (13+2=15>14) must not.
+    // The day-cap guard fires before any per-slot allocation, so this seed's
+    // slot spread is irrelevant — don't "fix" it into a per-slot-legal layout.
     const existing = Array.from({ length: 13 }, (_, i) => ({
       slot: ["08:30", "09:30", "10:30", "11:30", "12:30"][i % 5],
       size: "small",

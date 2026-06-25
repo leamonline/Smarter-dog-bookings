@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findNextAvailable, capacityRatio, currentSlotIndex } from "./utilisation";
+import { findNextAvailable, capacityRatio, currentSlotIndex, DAY_CAPACITY } from "./utilisation";
 import { DAILY_DOG_CAP } from "../constants/salon";
-import { DAY_CAPACITY } from "./utilisation";
 
 it("DAY_CAPACITY is sourced from the single DAILY_DOG_CAP constant", () => {
   expect(DAY_CAPACITY).toBe(DAILY_DOG_CAP);
