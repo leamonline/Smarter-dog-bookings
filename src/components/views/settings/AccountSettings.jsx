@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../supabase/client.js";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
+import { DeviceNotifications } from "./DeviceNotifications.jsx";
 
 export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   const initial = {
@@ -72,6 +73,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   };
 
   return (
+    <>
     <Card id="settings-account">
       <CardHead variant="blue" title="Your Account" desc="Login credentials and contact details" />
       <CardBody>
@@ -145,5 +147,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
         </div>
       </CardBody>
     </Card>
+    <DeviceNotifications user={user} />
+    </>
   );
 }

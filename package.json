@@ -21,6 +21,7 @@
     "lint": "eslint . && node scripts/check-import-extensions.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "flow:generate-keys": "node scripts/generate-flow-keys.mjs",
+    "vapid:generate": "node scripts/generate-vapid-keys.mjs",
     "flow:publish": "node scripts/publish-flow.mjs",
     "flow:send": "node scripts/send-flow.mjs"
   },

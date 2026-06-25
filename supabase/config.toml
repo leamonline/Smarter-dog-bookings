@@ -80,6 +80,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.notify-waitlist-joined]
 verify_jwt = false
+[functions.notify-staff]
+verify_jwt = false
 [functions.calendar-feed]
 verify_jwt = false
 [functions.calendar-ics]
