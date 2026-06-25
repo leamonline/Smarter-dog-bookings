@@ -50,15 +50,19 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 - `000_schema_smoke.test.sql` — structural: core tables exist, RLS is enabled,
   the booking gates and write-path RPCs are present. Deterministic; also the
   canary that the baseline applied correctly.
+- `010_booking_gates.test.sql` — behavioural: the non-staff BEFORE INSERT
+  calendar gate rejects an out-of-range slot, a past date, and a closed weekday,
+  and the pregnancy gate rejects a pregnant dog — all raising `P0001`. These are
+  negative cases, so they raise before the AFTER-insert notify triggers run.
 
 ### Planned (behavioural — follow-up)
 
-These need fixture setup (seed a customer human + dog, set the JWT role/claims,
-pick an open future date) and are best iterated with a local stack:
+These need more fixture setup (a `salon_config` row, JWT role/claims, or taming
+the AFTER-insert notify triggers on the success path) and are best iterated with
+a local stack:
 
-- pregnancy gate raises `P0001` for a non-staff insert of a pregnant dog
-  (staff bypass);
-- daily-cap gate rejects the 15th dog (non-staff) but lets staff through;
-- calendar gate rejects past dates / closed days / invalid slots;
+- daily-cap / capacity gate rejects the over-cap dog (non-staff) but lets staff
+  through;
+- a valid booking succeeds (the happy path, past all three gates);
 - `create_customer_booking_group` rejects a dog the caller doesn't own;
 - RLS isolation — customer A cannot read customer B's bookings/dogs/humans.
