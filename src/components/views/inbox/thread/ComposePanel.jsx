@@ -92,7 +92,7 @@ export function ComposePanel({
     // the thread off-screen on short viewports — it scrolls internally
     // instead of overflowing the detail pane.
     return (
-      <div className="p-3 bg-white border-t border-slate-200 max-h-[50dvh] overflow-y-auto">
+      <div className="compose-fields p-3 bg-white border-t border-slate-200 max-h-[50dvh] overflow-y-auto">
         <TemplatePicker
           conversation={conversation}
           dogNames={dogNames ?? []}
@@ -103,13 +103,17 @@ export function ComposePanel({
   }
 
   return (
-    <div className="p-3 bg-white border-t border-slate-200">
+    <div className="compose-fields p-3 bg-white border-t border-slate-200">
       {error && (
         <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
           {error}
         </div>
       )}
-      <div className="flex items-end gap-2">
+      {/* Mobile: textarea spans the full width with the buttons on a row
+          beneath it. Desktop (sm+): single row — textarea grows, buttons sit
+          inline to the right (visually unchanged). min-w-0 lets the textarea
+          shrink in the row instead of shoving Send off-screen. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <textarea
           ref={textareaRef}
           value={text}
@@ -119,28 +123,32 @@ export function ComposePanel({
           disabled={inFlight}
           rows={2}
           maxLength={2000}
-          className="flex-1 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-y disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
+          className="w-full sm:flex-1 min-w-0 text-[14px] p-2 bg-white border border-slate-200 rounded-xl font-[inherit] resize-y disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
-        <GenerateReplyButton
-          hasPendingDraft={hasPendingDraft}
-          hasInbound={hasInbound}
-          inFlight={inFlight}
-          onGenerate={handleGenerate}
-        />
-        <button
-          onClick={handleSend}
-          disabled={inFlight || !text.trim()}
-          className="self-stretch inline-flex items-center px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
-        >
-          Send
-        </button>
+        <div className="flex gap-2 justify-end shrink-0 sm:self-stretch">
+          <GenerateReplyButton
+            hasPendingDraft={hasPendingDraft}
+            hasInbound={hasInbound}
+            inFlight={inFlight}
+            onGenerate={handleGenerate}
+          />
+          <button
+            onClick={handleSend}
+            disabled={inFlight || !text.trim()}
+            className="self-stretch inline-flex items-center px-3 sm:px-4 rounded-full bg-brand-yellow text-brand-purple text-[13px] font-bold cursor-pointer disabled:opacity-50 hover:bg-brand-yellow-dark transition-colors shrink-0 font-[inherit]"
+          >
+            Send
+          </button>
+        </div>
       </div>
-      <div className="flex justify-between items-center mt-1">
-        <span className="text-[11px] text-slate-500">
+      <div className="flex justify-between items-center gap-2 mt-1">
+        {/* Keyboard hint is desktop-only guidance — hide on touch so the
+            countdown has room and never clips on a phone. */}
+        <span className="hidden sm:inline text-[11px] text-slate-500">
           Enter to send · Shift+Enter for new line
         </span>
         {countdown && (
-          <span className="text-[11px] text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
+          <span className="ml-auto shrink-0 text-[11px] text-slate-500" title="When this window closes, you'll need to send a Meta-approved template to reopen the chat.">
             {countdown}
           </span>
         )}

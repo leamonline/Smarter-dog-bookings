@@ -298,6 +298,19 @@
   }
 }
 
+/* ── Inbox composer: iOS focus-zoom fix (touch-only) ──────────────
+   Same rationale as .bm-fields above: iOS Safari zooms when a focused
+   field is < 16px. The compose textarea (14px) and the out-of-window
+   template fields (13px) trip it. Bump to 16px on touch ONLY, so desktop
+   keeps its denser sizes (the composer mixes 13–14px, unlike the booking
+   modal). Unlayered so it beats Tailwind's text-[14px]/text-[13px]
+   utilities. No viewport maximum-scale change (breaks pinch-zoom). */
+@media (hover: none) and (pointer: coarse) {
+  .compose-fields :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+
 /* ── Global focus ─────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-border-focus);
