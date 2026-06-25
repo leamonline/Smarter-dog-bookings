@@ -449,7 +449,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
       style={fillHeight ? { height: `${fillHeight}px` } : undefined}
       className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
     >
-      <div className="flex flex-col gap-3">
+      {/* List-level chrome (title, New message, search, filter chips).
+          On mobile it's only relevant on the list itself — hide it once a
+          conversation is open so the thread fills the screen. Always shown
+          on md+ where the list + thread sit side by side. */}
+      <div
+        className={`flex flex-col gap-3 ${showDetailOnMobile ? "hidden md:flex" : "flex"}`}
+      >
         {/* Top line — title + New message on the left, message search on
             the far right. */}
         <div className="flex justify-between items-center gap-3 flex-wrap">
@@ -671,73 +677,75 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             </div>
           ) : (
             <>
-              {/* Header */}
-              <div className="flex flex-col gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-brand-paper">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      onClick={() => selectConversation(null)}
-                      className="md:hidden text-brand-purple text-[18px] w-9 h-9 rounded-full hover:bg-brand-purple/5 transition-colors"
-                      aria-label="Back to inbox"
-                    >←</button>
-                    <InitialsAvatar
-                      name={displayName(selectedConversation)}
-                      seed={selectedConversation?.human_id || selectedConversation?.phone_e164 || selectedId}
-                      size={36}
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-bold text-brand-purple font-display leading-tight truncate max-w-[260px]">
-                          {displayName(selectedConversation)}
+              {/* Header — one compact row: back · customer (tap for info) ·
+                  mark complete. */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-brand-paper">
+                {/* Back to the conversation list — mobile only, clearly
+                    labelled (a bare ← was too easy to miss). */}
+                <button
+                  type="button"
+                  onClick={() => selectConversation(null)}
+                  className="md:hidden shrink-0 inline-flex items-center gap-0.5 h-9 pl-1.5 pr-2.5 rounded-full text-brand-purple text-[13px] font-bold hover:bg-brand-purple/5 transition-colors font-[inherit]"
+                  aria-label="Back to all conversations"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Inbox
+                </button>
+
+                {/* Customer — the whole row is a button that opens the info
+                    slide-over (a chevron + hover make it read as tappable).
+                    Inert at lg+, where the context column is already docked. */}
+                <button
+                  type="button"
+                  onClick={() => setContextOpen(true)}
+                  title="Show this customer's dogs, last groom, and trusted contacts."
+                  aria-label="Show customer info"
+                  className="min-w-0 flex-1 flex items-center gap-2.5 text-left rounded-xl px-1.5 py-1 -my-0.5 cursor-pointer transition-colors hover:bg-brand-purple/[0.06] active:bg-brand-purple/10 lg:pointer-events-none lg:cursor-default lg:hover:bg-transparent lg:active:bg-transparent"
+                >
+                  <InitialsAvatar
+                    name={displayName(selectedConversation)}
+                    seed={selectedConversation?.human_id || selectedConversation?.phone_e164 || selectedId}
+                    size={36}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="truncate text-[14px] font-bold text-brand-purple font-display leading-tight">
+                        {displayName(selectedConversation)}
+                      </span>
+                      {/* Tappable affordance — mobile/tablet only. */}
+                      <svg className="lg:hidden shrink-0 text-slate-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                      {selectedConversation?.closed_at && (
+                        <span
+                          className="shrink-0 inline-flex items-center h-5 px-2 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold"
+                          title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
+                            selectedConversation.closure_reason && selectedConversation.closure_reason !== "manual"
+                              ? ` · auto-reason: ${selectedConversation.closure_reason}`
+                              : ""
+                          }. A new customer message will reopen it automatically.`}
+                        >
+                          Closed
                         </span>
-                      </div>
-                      <div className="text-[11px] text-slate-600 truncate">
-                        {formatPhoneForDisplay(selectedConversation?.phone_e164)}
-                        {customerContext.human?.email
-                          ? ` | ${customerContext.human.email}`
-                          : ""}
-                      </div>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">
+                      {formatPhoneForDisplay(selectedConversation?.phone_e164)}
+                      {customerContext.human?.email
+                        ? ` | ${customerContext.human.email}`
+                        : ""}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {selectedConversation?.closed_at && (
-                      <span
-                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[12px] font-semibold"
-                        title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
-                          selectedConversation.closure_reason && selectedConversation.closure_reason !== "manual"
-                            ? ` · auto-reason: ${selectedConversation.closure_reason}`
-                            : ""
-                        }. A new customer message will reopen it automatically.`}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Closed
-                      </span>
-                    )}
-                    <MarkCompleteButton
-                      conversation={selectedConversation}
-                      onResolve={handleResolveConversation}
-                      onReopen={handleReopenConversation}
-                      disabled={actionInFlight}
-                    />
-                    {/* Customer info — slide-over below xl, redundant
-                        at xl (the docked column is already visible). */}
-                    <button
-                      type="button"
-                      onClick={() => setContextOpen(true)}
-                      title="Show this customer's dogs, last groom, and trusted contacts."
-                      className="lg:hidden inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white border border-slate-200 text-brand-purple text-[12px] font-semibold cursor-pointer hover:border-brand-yellow/60 transition-colors font-[inherit]"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="16" x2="12" y2="12" />
-                        <line x1="12" y1="8" x2="12.01" y2="8" />
-                      </svg>
-                      Customer info
-                    </button>
-                  </div>
-                </div>
+                </button>
+
+                <MarkCompleteButton
+                  conversation={selectedConversation}
+                  onResolve={handleResolveConversation}
+                  onReopen={handleReopenConversation}
+                  disabled={actionInFlight}
+                />
               </div>
 
               {/* Thread — kept visible above any draft / booking / template

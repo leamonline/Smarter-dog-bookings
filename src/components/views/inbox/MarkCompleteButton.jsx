@@ -59,6 +59,7 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
       type="button"
       onClick={handleClick}
       disabled={disabled}
+      aria-label={isClosed ? "Reopen conversation" : "Mark conversation complete"}
       title={
         isClosed
           ? `Bring this conversation back into the active queue${
@@ -69,7 +70,10 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
           : "Mark this conversation complete and remove it from the active queue. Shortcut: E"
       }
       className={[
-        "inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit]",
+        // Icon-only on mobile (the label hides) → tighter padding; full
+        // pill with label on sm+. The header sits on a single compact row
+        // on phones, so the action stays a one-tap icon.
+        "inline-flex items-center gap-1 h-8 px-2 sm:px-3 rounded-full text-xs font-semibold cursor-pointer motion-safe:transition-colors font-[inherit] shrink-0",
         isClosed
           ? "bg-white border border-slate-200 text-brand-purple hover:border-brand-yellow/60"
           : "bg-brand-green-50 border border-brand-green-200 text-brand-green-800 hover:bg-brand-green-100",
@@ -82,14 +86,14 @@ export function MarkCompleteButton({ conversation, onResolve, onReopen, disabled
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
             <path d="M21 3v5h-5" />
           </svg>
-          Reopen
+          <span className="hidden sm:inline">Reopen</span>
         </>
       ) : (
         <>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Mark complete
+          <span className="hidden sm:inline">Mark complete</span>
         </>
       )}
     </button>
