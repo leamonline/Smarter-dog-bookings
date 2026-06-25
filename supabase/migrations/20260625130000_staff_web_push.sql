@@ -155,8 +155,9 @@ alter table public.notification_log
   add constraint notification_log_channel_check
   check (channel in ('whatsapp', 'sms', 'email', 'webpush'));
 
--- 3b. trigger_type CHECK → keep all existing values, add the six
---     staff Web Push categories.
+-- 3b. trigger_type CHECK → keep ALL existing prod values (incl. the
+--     *_sms_fallback variants added by the June SMS-fallback migrations),
+--     add the six staff Web Push categories.
 do $$
 declare
   v_conname text;
@@ -180,6 +181,7 @@ alter table public.notification_log
   add constraint notification_log_trigger_type_check
   check (trigger_type in (
     'confirmed', 'reminder', 'cancelled', 'waitlist_joined', 'ready', 'welcome',
+    'reminder_sms_fallback', 'confirmed_sms_fallback',
     'staff_message', 'staff_new_booking', 'staff_cancellation',
     'staff_reschedule', 'staff_new_client', 'staff_waitlist'
   ));
