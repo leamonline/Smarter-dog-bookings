@@ -24,6 +24,7 @@ import {
   LARGE_DOG_SLOTS,
   BOOKING_STATUS,
   DOG_SIZE,
+  DAILY_DOG_CAP,
   type DogSize,
   type LargeDogSlotRule,
 } from "./salonConstants.ts";
@@ -561,11 +562,20 @@ export function findGroupedSlots(
   dogs: Array<{ id: string; size: DogSize }>,
   bookings: Booking[],
   activeSlots: string[],
+  dailyDogCap = DAILY_DOG_CAP,
 ): SlotAllocation[] {
   const count = dogs.length;
 
   // Out of range
   if (count === 0 || count > 4) return [];
+
+  // Day-total cap — MIRRORS src/engine/capacity.ts. The per-slot 2-2-1 rules
+  // only limit seats *within a slot*; without this guard a near-empty slot on
+  // an otherwise-full day is still offered, letting the WhatsApp Flow propose a
+  // drop-off the DB trigger (salon_config.daily_dog_cap) then rejects. The
+  // whole group must fit (atomic). `bookings` is this day's non-cancelled
+  // occupancy, one row per dog.
+  if (bookings.length + count > dailyDogCap) return [];
 
   const results: SlotAllocation[] = [];
   const seenDropOffs = new Set<string>();
