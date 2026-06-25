@@ -54,15 +54,16 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
   calendar gate rejects an out-of-range slot, a past date, and a closed weekday,
   and the pregnancy gate rejects a pregnant dog — all raising `P0001`. These are
   negative cases, so they raise before the AFTER-insert notify triggers run.
+- `020_rls_isolation.test.sql` — behavioural: acting as the `authenticated` role
+  with a JWT `sub` claim, a customer reads only their own humans/dogs/bookings;
+  another customer's rows are invisible; `anon` sees nothing.
 
 ### Planned (behavioural — follow-up)
 
-These need more fixture setup (a `salon_config` row, JWT role/claims, or taming
-the AFTER-insert notify triggers on the success path) and are best iterated with
-a local stack:
+These need more fixture setup (a `salon_config` row, or taming the AFTER-insert
+notify triggers on the success path) and are best iterated with a local stack:
 
 - daily-cap / capacity gate rejects the over-cap dog (non-staff) but lets staff
   through;
 - a valid booking succeeds (the happy path, past all three gates);
-- `create_customer_booking_group` rejects a dog the caller doesn't own;
-- RLS isolation — customer A cannot read customer B's bookings/dogs/humans.
+- `create_customer_booking_group` rejects a dog the caller doesn't own.
