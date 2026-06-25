@@ -1,16 +1,18 @@
 # WhatsApp AI receptionist
 
-The `whatsapp-agent` Edge Function is the brain of the WhatsApp
-inbox. It calls Claude with the full conversation context (recent
-messages, customer + dogs, availability windows, persisted agent
-state) and writes a draft reply for staff to review. It never sends
-a message to the customer directly and never mutates a booking —
-both of those go through guarded paths (`whatsapp-send` and the
+The `whatsapp-agent` Edge Function is the brain of the WhatsApp inbox. It
+calls Claude with the full conversation context (recent messages, customer +
+dogs, availability windows, persisted agent state) to classify intent/risk and
+draft a reply. It never sends to the customer directly and never mutates a
+booking — both go through guarded paths (`whatsapp-send` and the
 `apply_whatsapp_booking_action` RPC).
 
-**Defaults are deliberately conservative.** Every draft is held for
-human approval. Auto-send is plumbed but off everywhere unless you
-explicitly opt in.
+**Drafting is on demand, not on every inbound.** A *known* customer's inbound
+message is persisted and the loop continues — no automatic Claude draft —
+until staff click **"Generate reply"** (the `force_draft` / `suggest_only`
+path). Only an *unknown* customer (no linked `human_id`) still gets one
+automatic agent pass for onboarding. Auto-send is plumbed but off everywhere
+unless explicitly opted in, and booking-touching intents can never auto-send.
 
 ## Function secrets
 

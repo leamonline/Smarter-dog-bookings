@@ -1,3 +1,8 @@
+> **⚠️ SUPERSEDED (annotated 2026-06-25).** Pre-launch context; the app is live
+> on Vercel. Migration filenames here (`001_…`, `002_…`, `003_…`) are stale —
+> the repo uses timestamp names (`20260330095121_initial_schema.sql`, etc.).
+> See `docs/migrations.md` for the current process. Kept for history only.
+
 # SmarterDog Salon Dashboard — Launch Plan
 
 ## Current Status
