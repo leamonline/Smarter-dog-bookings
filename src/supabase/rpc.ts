@@ -72,6 +72,20 @@ export function updateCustomerDog(
   });
 }
 
+// Customer-self-service: add a dog to the caller's own human. SECURITY
+// DEFINER, validates ownership of p_human_id; granted authenticated only.
+export function createCustomerDog(
+  client: SupabaseClient,
+  params: { name: string; breed?: string | null; size?: string | null; humanId: string },
+) {
+  return client.rpc("create_customer_dog", {
+    p_name: params.name,
+    p_breed: params.breed ?? null,
+    p_size: params.size ?? null,
+    p_human_id: params.humanId,
+  });
+}
+
 // Staff trusted-contact linking ----------------------------------------
 
 // Atomically replace every trusted-contact link for a human. The old
