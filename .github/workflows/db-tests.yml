@@ -1,0 +1,87 @@
+name: DB Tests (pgTAP)
+
+# Runtime coverage for the parts Vitest can't reach: the booking BEFORE INSERT
+# gates, RLS, and the SECURITY DEFINER write-path RPCs.
+#
+# WHY A SCHEMA BASELINE (not migration replay): the committed migration history
+# does NOT rebuild from scratch — it has drift (timestamps that map to different
+# migrations than prod) and by-design prod-environment prerequisites (e.g. a
+# migration that RAISES unless a Vault secret was provisioned out-of-band). So
+# instead of replaying migrations, we dump prod's CURRENT public schema
+# (schema-only — `supabase db dump` carries NO data and NO custom roles unless
+# you pass --data-only/--role-only, and excludes the managed auth/storage
+# schemas) and use that as the single baseline the local stack boots from. The
+# tests then run against a faithful copy of the real schema.
+#
+# `supabase start` supplies the base Supabase environment (the auth schema +
+# auth.uid(), the anon/authenticated/service_role roles, extensions) that the
+# dumped public objects reference. `supabase test db` runs supabase/tests/*.sql
+# under pgTAP; each test is wrapped in a transaction that is rolled back.
+#
+# Requires repo secrets: SUPABASE_ACCESS_TOKEN (already set for edge deploys)
+# and SUPABASE_DB_PASSWORD (the prod database password — add it under Repo
+# Settings → Secrets and variables → Actions; find/reset it in the Supabase
+# dashboard → Project Settings → Database).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/db-tests.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/db-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  db-tests:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: latest
+
+      - name: Dump prod public schema (schema-only — no customer data) as the baseline
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD secret is not set. Add it under Repo"
+            echo "Settings → Secrets and variables → Actions. Find/reset the prod DB"
+            echo "password in the Supabase dashboard → Project Settings → Database."
+            exit 1
+          fi
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          # Schema-only by default; --schema public scopes it to our objects.
+          supabase db dump --linked --schema public -f /tmp/baseline.sql
+          echo "baseline: $(wc -l < /tmp/baseline.sql) lines"
+          # Replace the (non-rebuildable) migration history with the prod schema
+          # as a single baseline migration, so `supabase start` boots a faithful
+          # schema. The checkout is ephemeral — this does not touch the repo.
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
+
+      - name: Start local stack (applies the baseline schema)
+        run: supabase start
+
+      - name: Run pgTAP database tests
+        run: supabase test db
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: supabase status || true
