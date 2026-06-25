@@ -16,10 +16,12 @@ import { WaitlistCard } from "./WaitlistCard.jsx";
 import { TodoListCard } from "./TodoListCard.jsx";
 import { BookingHistoryCard } from "./BookingHistoryCard.jsx";
 import { DeliveryFailuresCard } from "./DeliveryFailuresCard.jsx";
+import { AgentFailuresCard } from "./AgentFailuresCard.jsx";
 import { RightRailCalmRow } from "./RightRailCalmRow.jsx";
 import { useWhatsAppSummary } from "../../supabase/hooks/useWhatsAppSummary.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
+import { useAgentFailures } from "../../supabase/hooks/useAgentFailures.js";
 import { useWaitlistUpcoming } from "../../supabase/hooks/useWaitlistUpcoming.js";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { resolveInboxTone } from "./tone/inbox";
@@ -34,6 +36,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
   const inboxData = useWhatsAppSummary();
   const remindersData = useTomorrowReminders();
   const failuresData = useDeliveryFailures();
+  const agentFailuresData = useAgentFailures();
   const { entries: waitlistEntries, loading: waitlistLoading } =
     useWaitlistUpcoming();
   const { todos, loading: todosLoading } = useTodos();
@@ -90,6 +93,19 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
               },
             ]
           : []),
+        // Agent failures: surfaces swallowed WhatsApp-agent errors. Hidden when
+        // count === 0 (the card returns null). Sits at attention + urgency 90,
+        // just below delivery failures, so it can't be missed either.
+        ...(agentFailuresData.count > 0
+          ? [
+              {
+                key: "agent-failures",
+                tone: { tone: "attention", urgency: 90 },
+                canonicalIndex: -1,
+                node: <AgentFailuresCard data={agentFailuresData} />,
+              },
+            ]
+          : []),
         {
           key: "inbox",
           tone: tones.inbox,
@@ -140,6 +156,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
       inboxData,
       remindersData,
       failuresData,
+      agentFailuresData,
       waitlistEntries,
       waitlistLoading,
       todos,
