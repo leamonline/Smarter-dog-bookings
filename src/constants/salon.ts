@@ -6,6 +6,12 @@ export const SALON_SLOTS = [
 /** Maximum dogs that can be groomed in a single slot (the 2-2-1 rule = 5 seats). */
 export const MAX_DOGS_PER_SLOT = 5;
 
+/** Maximum dogs the salon will groom in one day (a throughput cap, separate
+ *  from per-slot seats). Mirrored in supabase/functions/_shared/salonConstants.ts
+ *  (Deno) and in salon_config.daily_dog_cap (DB, authoritative). Change all
+ *  three together — the capacityParity test guards the TS pair. */
+export const DAILY_DOG_CAP = 14;
+
 export const SERVICES = [
   { id: "full-groom", name: "Full Groom" },
   { id: "bath-and-brush", name: "Bath & Brush" },

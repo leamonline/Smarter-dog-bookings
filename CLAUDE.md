@@ -91,7 +91,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   can't have three back-to-back double slots — the offending one drops to 1 seat — so any rolling
   3-slot window holds at most **2+2+1 = 5 dogs** (`MAX_DOGS_PER_SLOT = 5`).
   `getMaxSeatsForSlot` [capacity.ts:38](src/engine/capacity.ts:38); enforced in DB by
-  `validate_booking_capacity()` ([migration 20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql)).
+  `validate_booking_capacity()` ([migration 20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql)) (original trigger; the live body is now in `20260622100000_daily_dog_cap.sql` — grep `validate_booking_capacity` for the latest).
 - **Large dogs:** slot-dependent seat cost + conditional rules (1 seat at 08:30/09:00/12:00; 2-seat
   full takeover at 12:30/13:00; a 12:00 large dog early-closes 13:00). `LARGE_DOG_SLOTS`
   [salon.ts:31](src/constants/salon.ts:31); logic in `canBookSlot` [capacity.ts:261](src/engine/capacity.ts:261).
@@ -138,8 +138,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
 - **The capacity engine is implemented THREE times** and must stay in sync: `src/engine/capacity.ts`
   (frontend), `supabase/functions/_shared/capacity.ts` (Deno, ~line-for-line duplicate), and the
-  Postgres trigger ([20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql), the
-  authoritative gate). Change one rule → change all three.
+  Postgres trigger ([20260331083432](supabase/migrations/20260331083432_capacity_trigger.sql), original trigger; the live body is now in `20260622100000_daily_dog_cap.sql` — grep `validate_booking_capacity` for the latest). Change one rule → change all three.
 - **Migrations are applied to prod BY HAND.** Merging to `main` deploys the frontend (Vercel) and
   changed Edge Functions (GH Action) **but not the database** (README §"⚠️ Database migrations").
   Apply a migration to prod **before** merging code that depends on it, or prod breaks. CI's

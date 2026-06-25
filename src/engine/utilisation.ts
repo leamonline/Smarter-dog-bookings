@@ -1,4 +1,4 @@
-import { SALON_SLOTS } from "../constants/index";
+import { SALON_SLOTS, DAILY_DOG_CAP } from "../constants/index";
 import { canBookSlot } from "./capacity";
 import { isDateOpen } from "./utils";
 import { toDateStr } from "../supabase/transforms";
@@ -9,7 +9,7 @@ import type {
   DogSize,
 } from "../types/index";
 
-export const DAY_CAPACITY = 14;
+export const DAY_CAPACITY = DAILY_DOG_CAP;
 
 export interface WeekDate {
   dateObj: Date;

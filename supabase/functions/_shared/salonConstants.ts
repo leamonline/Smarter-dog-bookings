@@ -20,6 +20,12 @@ export const SALON_SLOTS: readonly string[] = [
   "11:00", "11:30", "12:00", "12:30", "13:00",
 ];
 
+// Maximum dogs the salon will groom in one day — MIRRORS DAILY_DOG_CAP in
+// src/constants/salon.ts and salon_config.daily_dog_cap (DB, authoritative).
+// The capacityParity test asserts this Deno mirror and the frontend engine
+// agree on a near-full day.
+export const DAILY_DOG_CAP = 14;
+
 // Large dogs can only ever occupy these drop-off times (mirrors
 // LARGE_DOG_SLOTS in src/constants/salon.ts). Per-slot eligibility is
 // still enforced by the DB capacity trigger; this is the candidate set.

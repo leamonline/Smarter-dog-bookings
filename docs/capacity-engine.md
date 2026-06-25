@@ -39,10 +39,13 @@ booking ("Small seats full", "Not a large-dog slot", etc.) so the
   exports `canBookSlot()` and `getSeatStatesForSlot()`. These compute
   the same yes/no the trigger will, and feed the seat-state
   rendering in the day grid.
-- **Database, source of truth** — [supabase/migrations/20260331083432_capacity_trigger.sql](../supabase/migrations/20260331083432_capacity_trigger.sql)
-  installs `enforce_booking_capacity()` as a `BEFORE INSERT` trigger
-  on `bookings`. This is what rejects an insert that the frontend
-  somehow let through.
+- **Database, source of truth** — the `validate_booking_capacity()`
+  `BEFORE INSERT` trigger on `bookings`. Originally added in
+  `20260331083432_capacity_trigger.sql`, but the **live body has since been
+  re-issued** — the current definition lives in
+  [supabase/migrations/20260622100000_daily_dog_cap.sql](../supabase/migrations/20260622100000_daily_dog_cap.sql)
+  (grep migrations for `validate_booking_capacity` and read the most recent).
+  This is what rejects an insert the frontend somehow let through.
 
 ## Approved large-dog slots
 
@@ -92,3 +95,23 @@ the Capacity Engine settings card.
 
 If you're touching the engine, run `npm run test src/engine/capacity.test.js`
 before opening a PR.
+
+## Daily dog cap (separate from per-slot seats)
+
+Beyond the 2-2-1 per-slot rule, the salon caps the **whole day** at
+`salon_config.daily_dog_cap` (default **14** dogs). This is a throughput
+limit, not slots×2. It is enforced for **non-staff** inserts inside
+`validate_booking_capacity()` (migration `20260622100000_daily_dog_cap.sql`),
+and mirrored client-side in `findGroupedSlots()` — in the frontend engine
+(`src/engine/capacity.ts`), the Deno Flow mirror
+(`supabase/functions/_shared/capacity.ts`), and as the `DAILY_DOG_CAP`
+constant in `src/constants/salon.ts` + `_shared/salonConstants.ts`. Staff are
+never day-capped.
+
+## Pregnancy gate
+
+A pregnant dog (`dogs.is_pregnant`) is blocked from every non-staff booking
+insert by the separate `enforce_dog_not_pregnant()` `BEFORE INSERT` trigger
+(migration `20260623130000_dog_pregnancy_gate.sql`), which raises P0001. Staff
+bypass it (clinical judgement). The booking wizard greys out a pregnant dog as
+a preflight only — the trigger is the authority.

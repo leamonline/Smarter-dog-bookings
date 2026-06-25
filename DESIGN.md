@@ -1,3 +1,9 @@
+> **⚠️ SUPERSEDED (annotated 2026-06-25).** This early rebrand spec describes a
+> cyan/`#00C2FF` + `#FFCC00` + Montserrat design the code does NOT use. The
+> shipped system is purple `#2D004B` / action `#FECC13` / paper `#FAF9F6` with
+> Quicksand display + Montserrat body — see `src/index.css` and
+> `docs/modal-standard.md`, which are canonical. Kept for history only.
+
 # Smarter Dog — Design System
 
 ## 1. Visual Theme & Atmosphere
