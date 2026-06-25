@@ -1,0 +1,52 @@
+name: DB Tests (pgTAP)
+
+# Runtime coverage for the parts Vitest can't reach: the booking BEFORE INSERT
+# gates, RLS, and the SECURITY DEFINER write-path RPCs.
+#
+# The migrations assume the full Supabase environment (the `auth` schema +
+# auth.uid(), the anon/authenticated/service_role roles, the supabase_realtime
+# publication, the standard extensions), so a bare Postgres container can't run
+# them. We boot the real local stack via the Supabase CLI (CI runners have
+# Docker). `supabase start` applies every file in supabase/migrations/ in order
+# from an empty database — so a green run also proves the schema rebuilds
+# cleanly from scratch. `supabase test db` then runs supabase/tests/*.test.sql
+# under pgTAP; each test wraps itself in a transaction that is rolled back, so
+# nothing persists.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/db-tests.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/db-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  db-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: latest
+
+      - name: Start local Supabase stack (applies all migrations from scratch)
+        run: supabase start
+
+      - name: Run pgTAP database tests
+        run: supabase test db
+
+      - name: Dump migration/db logs on failure
+        if: failure()
+        run: supabase status || true
