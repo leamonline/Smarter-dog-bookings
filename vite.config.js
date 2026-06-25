@@ -12,6 +12,12 @@ export default defineConfig({
       manifest: false, // use public/manifest.json directly
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // Pull the staff Web Push handlers (push / notificationclick) into the
+        // generated precache SW. importScripts keeps generateSW + precache +
+        // the manualChunks shape untouched — it only ADDS listeners. The file
+        // lives in public/ so it ships verbatim at /push-sw.js. Staff-only;
+        // a customer or unsubscribed staff member never receives a push.
+        importScripts: ["/push-sw.js"],
         // When a new SW activates, evict precache entries from
         // previous deployments. Without this, an old SW holding
         // stale precached chunks can serve the SPA fallback HTML

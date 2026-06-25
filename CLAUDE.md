@@ -163,6 +163,14 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **WhatsApp auto-send / autonomous booking are OFF by default** behind 5 gates + a kill switch
   (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send (unit-test-enforced). Don't loosen
   casually. See [docs/whatsapp-agent.md](docs/whatsapp-agent.md).
+- **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
+  Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/
+  waitlist. Dark-launched behind `STAFF_PUSH_ENABLED` (default off); changes NOTHING for customers or
+  un-enabled staff. New `notify-staff` edge fn + `_shared/webpush.ts` (pure Web Crypto VAPID/RFC-8291) +
+  `_shared/staffPush.ts` + AFTER-INSERT triggers on `booking_events`/`whatsapp_messages`/`salon_todos`/
+  `waitlist_entries` (each swallows POST errors so it can't roll back a write). iOS needs
+  Add-to-Home-Screen (16.4+). Don't fold it into the customer `notify-*` fns or
+  `salon_config.settings.notifications`. See [docs/staff-web-push.md](docs/staff-web-push.md).
 - **Known debt (don't be surprised):** ~12 components import `supabase` directly (bypassing
   hooks/repositories); realtime channel names aren't centralised (double-mount in HMR can collide);
   `as any` clusters in reports/booking-wizard/slot-availability. See `TECHNICAL-DEBT-REGISTER.md`.
