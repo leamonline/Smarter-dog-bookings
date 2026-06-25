@@ -4,6 +4,7 @@ import { getSizeForBreed } from "../../../constants/breeds";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
+import { createForHuman } from "../../../supabase/repositories/dogsRepo";
 
 interface AddDogInlineProps {
   humanId: string;
@@ -34,26 +35,14 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       const finalBreed = breed.trim();
       const dogSize = size || getSizeForBreed(finalBreed) as DogSize || null;
 
-      const { data, error: err } = await supabase
-        .from("dogs")
-        .insert({
-          name: name.trim(),
-          breed: finalBreed || null,
-          size: dogSize,
-          human_id: humanId,
-        })
-        .select()
-        .single();
-
-      if (err) throw err;
-
-      onDogAdded({
-        id: data.id,
-        name: data.name,
-        breed: data.breed || "",
-        size: data.size || null,
-        isPregnant: false,
+      const { dog, error: err } = await createForHuman(supabase, {
+        humanId,
+        name: name.trim(),
+        breed: finalBreed || null,
+        size: dogSize,
       });
+      if (err || !dog) throw err ?? new Error("Could not save dog");
+      onDogAdded(dog);
     } catch (e: any) {
       setError(e.message || "Could not save dog");
     } finally {
