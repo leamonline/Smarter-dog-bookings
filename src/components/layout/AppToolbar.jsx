@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Keyboard, UserCircle2 } from "lucide-react";
+import { Keyboard, UserCircle2, UserPlus } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
 import { DogSilhouette } from "../decor/index.jsx";
@@ -89,7 +89,7 @@ const PRIMARY_NAV = [
 
 const MOBILE_NAV = PRIMARY_NAV.slice(0, 5);
 
-export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOverview }) {
+export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview }) {
   // openMenu is null | "help" | "account" — only one dropdown is open at a
   // time, and outside-click clears whichever one is showing.
   const [openMenu, setOpenMenu] = useState(null);
@@ -194,6 +194,20 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             </svg>
             <span className="xl:hidden">New</span>
             <span className="hidden xl:inline">New booking</span>
+          </button>
+        )}
+
+        {/* Secondary CTA — set up a brand-new customer + dog(s) + first
+            booking in one guided wizard. */}
+        {onNewClient && (
+          <button
+            type="button"
+            onClick={onNewClient}
+            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-sm font-bold bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 font-[inherit] focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+            aria-label="New client"
+          >
+            <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
+            <span className="hidden xl:inline">New client</span>
           </button>
         )}
 
@@ -315,6 +329,16 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onOpenOver
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             <span className="hidden sm:inline">New booking</span>
             <span className="sm:hidden">New</span>
+          </button>
+        )}
+        {onNewClient && (
+          <button
+            type="button"
+            onClick={onNewClient}
+            aria-label="New client"
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 shrink-0 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+          >
+            <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
           </button>
         )}
         <button

@@ -50,6 +50,8 @@ interface UseModalStateReturn {
   setShowAddDogModal: (show: boolean) => void;
   showAddHumanModal: boolean;
   setShowAddHumanModal: (show: boolean) => void;
+  showNewClient: boolean;
+  setShowNewClient: (show: boolean) => void;
   pendingBooking: PendingBooking | null;
   setPendingBooking: (data: PendingBooking | null) => void;
   collectionNotice: Booking | null;
@@ -68,6 +70,7 @@ export function useModalState(): UseModalStateReturn {
   const [showNewBooking, setShowNewBooking] = useState<NewBookingData | null>(null);
   const [showAddDogModal, setShowAddDogModal] = useState<boolean>(false);
   const [showAddHumanModal, setShowAddHumanModal] = useState<boolean>(false);
+  const [showNewClient, setShowNewClient] = useState<boolean>(false);
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
   const [collectionNotice, setCollectionNotice] = useState<Booking | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -93,6 +96,8 @@ export function useModalState(): UseModalStateReturn {
     setShowAddDogModal,
     showAddHumanModal,
     setShowAddHumanModal,
+    showNewClient,
+    setShowNewClient,
     pendingBooking,
     setPendingBooking,
     collectionNotice,
