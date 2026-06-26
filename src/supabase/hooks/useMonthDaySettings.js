@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { ALL_DAYS } from "../../constants/index";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
@@ -92,7 +93,7 @@ export function useMonthDaySettings(year, month) {
     fetchSettings();
 
     const channel = supabase
-      .channel(`month-day-settings-${year}-${month}-${Date.now()}`)
+      .channel(uniqueChannelName(`${CHANNELS.monthDaySettings}-${year}-${month}`))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "day_settings" },

@@ -25,6 +25,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { buildTemplateParams } from "../../constants/whatsappTemplates.js";
 import { logger } from "../../lib/logger";
 import {
@@ -388,7 +389,7 @@ export function useWhatsAppInbox() {
     refreshList();
 
     const channel = supabase
-      .channel("whatsapp-inbox-list")
+      .channel(CHANNELS.whatsappInboxList)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations" },
@@ -533,7 +534,7 @@ export function useWhatsAppInbox() {
   useEffect(() => {
     if (!supabase || !selectedId) return;
     const channel = supabase
-      .channel(`whatsapp-inbox-detail-${selectedId}`)
+      .channel(`${CHANNELS.whatsappInboxDetail}-${selectedId}`)
       .on(
         "postgres_changes",
         {

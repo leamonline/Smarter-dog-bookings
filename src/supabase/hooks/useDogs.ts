@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { searchDogsDirectory } from "../rpc";
 import {
   dbDogsToMap,
@@ -243,7 +244,7 @@ export function useDogs(
     }
 
     const channel = supabase
-      .channel(`dogs-realtime-${Date.now()}-${Math.random()}`)
+      .channel(uniqueChannelName(CHANNELS.dogsRealtime))
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dogs" },

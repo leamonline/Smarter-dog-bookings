@@ -30,6 +30,7 @@
 
 import { useSyncExternalStore } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
@@ -66,7 +67,7 @@ async function refresh() {
 function startChannel() {
   if (channel || !supabase) return;
   channel = supabase
-    .channel("whatsapp-toolbar-unread")
+    .channel(CHANNELS.whatsappToolbarUnread)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "whatsapp_conversations" },

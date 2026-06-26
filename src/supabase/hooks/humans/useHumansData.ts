@@ -6,6 +6,7 @@
 // (mutations, lifecycle, lookups) can keep the caches coherent.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../client.js";
+import { CHANNELS, uniqueChannelName } from "../../realtimeChannels";
 import { searchHumansDirectory } from "../../rpc";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
@@ -216,7 +217,7 @@ export function useHumansData({
     }
 
     const channel = supabase
-      .channel(`humans-realtime-${Date.now()}-${Math.random()}`)
+      .channel(uniqueChannelName(CHANNELS.humansRealtime))
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "humans" },

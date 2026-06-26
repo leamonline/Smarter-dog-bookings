@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
 
@@ -48,7 +49,7 @@ export function useWaitlist(targetDateObj) {
     fetchWaitlist();
 
     const channel = supabase
-      .channel("waitlist_changes")
+      .channel(CHANNELS.waitlistChanges)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "waitlist_entries" },

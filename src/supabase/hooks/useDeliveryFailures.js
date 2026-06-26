@@ -18,6 +18,7 @@
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
@@ -212,7 +213,7 @@ async function dismiss(bookingId) {
 function startChannel() {
   if (channel || !supabase || IS_TEST) return;
   channel = supabase
-    .channel("dashboard-delivery-failures")
+    .channel(CHANNELS.dashboardDeliveryFailures)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "notification_log" },

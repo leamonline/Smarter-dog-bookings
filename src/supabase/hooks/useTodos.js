@@ -16,6 +16,7 @@
 
 import { useSyncExternalStore, useMemo } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 
 let state = { todos: [], loading: true, error: null };
@@ -55,7 +56,7 @@ function startChannel() {
   // name is safe (the old per-instance useId() name existed only to stop
   // two mounts colliding on the same channel).
   channel = supabase
-    .channel("salon-todos")
+    .channel(CHANNELS.salonTodos)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "salon_todos" },

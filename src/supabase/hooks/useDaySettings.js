@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchDaySettingsWeek } from "../queries/bootQueries.js";
 import { ALL_DAYS } from "../../constants/index";
@@ -101,7 +102,7 @@ export function useDaySettings(weekStart) {
 
     // Real-time subscription for day_settings within the current week
     const channel = supabase
-      .channel(`day-settings-rt-${Date.now()}`)
+      .channel(uniqueChannelName(CHANNELS.daySettings))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "day_settings" },

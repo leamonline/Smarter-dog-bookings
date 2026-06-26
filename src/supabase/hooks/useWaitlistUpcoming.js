@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
@@ -75,7 +76,7 @@ export function useWaitlistUpcoming() {
     fetchEntries(controller.signal);
 
     const channel = supabase
-      .channel("waitlist_upcoming_changes")
+      .channel(CHANNELS.waitlistUpcoming)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "waitlist_entries" },
