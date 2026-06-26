@@ -51,6 +51,14 @@ const ComposePreview = import.meta.env.DEV
       })),
     )
   : () => null;
+// Dev-only harness for the New client wizard. Same tree-shaking guarantee.
+const NewClientPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/dev/NewClientPreview.jsx").then((module) => ({
+        default: module.NewClientPreview,
+      })),
+    )
+  : () => null;
 // Vercel page-view analytics. Dynamically imported so the library stays out
 // of the App chunk's boot path — it renders nothing and can arrive whenever.
 // PROD-gated the same way it was rendered before; dev gets a no-op.
@@ -128,6 +136,11 @@ const AddDogModal = lazy(() =>
 const AddHumanModal = lazy(() =>
   import("./components/modals/AddHumanModal.jsx").then((module) => ({
     default: module.AddHumanModal,
+  })),
+);
+const NewClientWizard = lazy(() =>
+  import("./components/modals/new-client/index.js").then((module) => ({
+    default: module.NewClientWizard,
   })),
 );
 const CollectionNoticeModal = lazy(() =>
@@ -298,6 +311,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showNewBooking, setShowNewBooking,
     showAddDogModal, setShowAddDogModal,
     showAddHumanModal, setShowAddHumanModal,
+    showNewClient, setShowNewClient,
     pendingBooking, setPendingBooking,
     collectionNotice, setCollectionNotice,
     selectedBooking, setSelectedBooking,
@@ -731,6 +745,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           isOnline={isOnline}
           user={user}
           onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
+          onNewClient={() => setShowNewClient(true)}
           onOpenOverview={() => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("smarterdog:open-overview"));
@@ -776,6 +791,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
+                      onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
@@ -809,6 +825,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
                       onAddHuman={addHuman}
+                      onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
@@ -940,6 +957,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <Route
                       path="/dev/compose-preview"
                       element={<ComposePreview />}
+                    />
+                  )}
+                  {import.meta.env.DEV && (
+                    <Route
+                      path="/dev/new-client"
+                      element={<NewClientPreview />}
                     />
                   )}
                   <Route path="*" element={<Navigate to="/" replace />} />
@@ -1172,6 +1195,42 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   humans={humans}
                   onUpdateDog={updateDog}
                   findHumanByFullName={sbFindHumanByFullName}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {showNewClient && (
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <NewClientWizard
+                  onClose={() => setShowNewClient(false)}
+                  addHuman={addHuman}
+                  addDog={addDog}
+                  onAddBookings={async (bookingOrArray, dateStr) => {
+                    // Same truthful-save wrapper NewBookingModal uses: await the
+                    // real insert(s) and report { ok, error } (friendly P0001).
+                    bookingInsertErrorRef.current = null;
+                    const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
+                    const results = await Promise.all(
+                      list.map((b) => handleAddToDate(b, b._bookingDate || dateStr)),
+                    );
+                    const ok = results.every((r) => r !== null && r !== false);
+                    return {
+                      ok,
+                      error: ok
+                        ? null
+                        : bookingInsertErrorRef.current ||
+                          "Couldn't save the booking — please try again.",
+                    };
+                  }}
+                  findHumanByFullName={sbFindHumanByFullName}
+                  onBookAnother={(ownerId) =>
+                    setShowNewBooking({ dateStr: currentDateStr, slot: "", initialHumanId: ownerId })
+                  }
+                  bookingsByDate={bookingsByDate}
+                  dayOpenState={dayOpenState}
+                  daySettings={daySettings}
                 />
               </Suspense>
             </ErrorBoundary>

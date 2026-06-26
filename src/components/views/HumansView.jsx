@@ -303,6 +303,7 @@ export function HumansView({
   ensureDogsForHumans,
   onOpenHuman,
   onAddHuman,
+  onNewClient,
   onUpdateHuman,
   fetchArchivedHumans,
   findHumanByFullName,
@@ -493,7 +494,12 @@ export function HumansView({
                 className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white/25 text-sm font-inherit outline-none text-white placeholder:text-white/85 transition-colors focus:bg-white/35 focus:border-white/60"
               />
             </div>
-            <Button variant="primary" onClick={() => setShowAddModal(true)}>
+            {onNewClient && (
+              <Button variant="primary" onClick={onNewClient}>
+                + New client
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setShowAddModal(true)}>
               + Add Human
             </Button>
           </div>
