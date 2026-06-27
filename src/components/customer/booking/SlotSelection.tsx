@@ -3,7 +3,7 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
-import { listOnDateForCapacity } from "../../../supabase/repositories/bookingsRepo";
+import { listOnDateForCapacity, listBlockedSeats } from "../../../supabase/repositories/bookingsRepo";
 import type { WizardDog, SlotAllocation } from "../../../types/index";
 import { Clock, ArrowRight, PawPrint } from "lucide-react";
 import { WizardTick } from "./WizardTick";
@@ -58,11 +58,14 @@ export function SlotSelection({
         }
         // Full occupancy via the get_slot_occupancy SECURITY DEFINER RPC —
         // the per-customer bookings RLS would otherwise hide other
-        // customers' bookings and let full slots show as available.
-        const { bookings, error } = await listOnDateForCapacity(
-          supabase,
-          selectedDate,
-        );
+        // customers' bookings and let full slots show as available. Blocked
+        // seats (staff overrides) come from get_blocked_seats: day_settings is
+        // staff-only, so without this the engine can't see a blocked seat and
+        // would offer it. listBlockedSeats degrades to {} on error.
+        const [{ bookings, error }, { byDate: blockedByDate }] = await Promise.all([
+          listOnDateForCapacity(supabase, selectedDate),
+          listBlockedSeats(supabase, selectedDate, selectedDate),
+        ]);
 
         if (cancelled) return;
 
@@ -81,7 +84,13 @@ export function SlotSelection({
         // DAY_CAPACITY mirrors the authoritative DB cap (salon_config.daily_dog_cap,
         // default 14): a full day shows "Fully booked" rather than offering a slot
         // the create_customer_booking_group trigger would reject.
-        const results = findGroupedSlots(dogs, bookings, SALON_SLOTS, DAY_CAPACITY);
+        const results = findGroupedSlots(
+          dogs,
+          bookings,
+          SALON_SLOTS,
+          DAY_CAPACITY,
+          blockedByDate[selectedDate] || {},
+        );
         if (!cancelled) setAvailableSlots(results);
       } finally {
         if (!cancelled) setLoading(false);

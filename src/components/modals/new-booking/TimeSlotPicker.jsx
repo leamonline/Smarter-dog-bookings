@@ -15,12 +15,18 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
     if (!cap || cap.available <= 0) {
       return { slot, status: "full", reason: "No capacity in this slot" };
     }
+    // Staff-blocked seats live in day_settings.overrides[slot] and aren't
+    // bookings, so computeSlotCapacities above can't see them — feed them to
+    // canBookSlot so a slot whose only free seat is blocked shows as "over"
+    // (overridable) instead of available.
+    const slotOverrides = settings?.overrides?.[slot] || {};
     let simulated = [...dayBookings];
     let status = "available";
     let reason = "";
     let blockedDogName = "";
     for (const dog of selectedDogs) {
       const check = canBookSlot(simulated, slot, dog.size, activeSlots, {
+        overrides: slotOverrides,
         dogId: dog.id,
         staffOverride: true,
       });

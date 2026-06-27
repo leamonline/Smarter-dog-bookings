@@ -7,10 +7,11 @@ import {
   joinWaitlist,
   listIdsInGroup,
   listOnDateForCapacity,
+  listBlockedSeats,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
-import { SALON_SLOTS } from "../../../constants/index";
+import { SALON_SLOTS, DAILY_DOG_CAP } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
@@ -259,14 +260,23 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     try {
       if (!supabase) throw new Error("Not connected");
 
-      const { bookings, error: rereadError } = await listOnDateForCapacity(
-        supabase,
-        selectedDate,
-      );
+      const [{ bookings, error: rereadError }, { byDate: blockedByDate }] =
+        await Promise.all([
+          listOnDateForCapacity(supabase, selectedDate),
+          listBlockedSeats(supabase, selectedDate, selectedDate),
+        ]);
       if (rereadError) throw rereadError;
 
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
-      const stillAvailable = findGroupedSlots(dogsForSlots, bookings, SALON_SLOTS);
+      // Re-check against the same blocked-seat overrides the slot picker used,
+      // so a seat blocked after the customer picked it is caught here too.
+      const stillAvailable = findGroupedSlots(
+        dogsForSlots,
+        bookings,
+        SALON_SLOTS,
+        DAILY_DOG_CAP,
+        blockedByDate[selectedDate] || {},
+      );
       const match = stillAvailable.find((a) => a.dropOffTime === slotAllocation.dropOffTime);
 
       if (!match) {

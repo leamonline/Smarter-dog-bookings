@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getOpenDays } from "../../../supabase/rpc";
-import { listRangeForCapacity } from "../../../supabase/repositories/bookingsRepo";
+import { listRangeForCapacity, listBlockedSeats } from "../../../supabase/repositories/bookingsRepo";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { SALON_SLOTS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
-import type { Booking, WizardDog } from "../../../types/index";
+import type { Booking, WizardDog, SlotOverrides } from "../../../types/index";
 import { ArrowRight } from "lucide-react";
 
 interface DateSelectionProps {
@@ -49,6 +49,10 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
   // / failed to load — in which case we fall back to open/closed only (the
   // slot step and the DB trigger remain the backstop).
   const [occupancyByDate, setOccupancyByDate] = useState<Record<string, Booking[]> | null>(null);
+  // Staff-blocked seats per day (day_settings.overrides), so a day that's full
+  // only because of blocks is dimmed consistently with the slot step. Defaults
+  // to {} (listBlockedSeats degrades gracefully on error).
+  const [blockedByDate, setBlockedByDate] = useState<Record<string, Record<string, SlotOverrides>>>({});
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -76,11 +80,14 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
         // RLS, so go through get_open_days → (setting_date, is_open)), and the
         // non-cancelled occupancy per day (get_occupancy_range) so a full day
         // can be dimmed instead of dead-ending the customer at "Confirm".
-        const [openRes, occRes] = await Promise.all([
+        const [openRes, occRes, blockedRes] = await Promise.all([
           getOpenDays(supabase, { startDate: rangeStart, endDate: rangeEnd }),
           listRangeForCapacity(supabase, rangeStart, rangeEnd),
+          listBlockedSeats(supabase, rangeStart, rangeEnd),
         ]);
         if (cancelled) return;
+
+        setBlockedByDate(blockedRes.byDate);
 
         if (openRes.error) {
           logger.error("Failed to fetch day closures", openRes.error, {
@@ -130,7 +137,8 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
     if (!isOpen(date)) return "closed";
     if (occupancyByDate && dogsForEngine.length > 0) {
       const dayBookings = occupancyByDate[toDateStr(date)] ?? [];
-      if (findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY).length === 0) {
+      const dayOverrides = blockedByDate[toDateStr(date)] || {};
+      if (findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY, dayOverrides).length === 0) {
         return "full";
       }
     }
