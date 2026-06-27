@@ -244,6 +244,21 @@ export function getOccupancyRange(
   });
 }
 
+// Staff-blocked seat positions (day_settings.overrides = "blocked") across a
+// date range, so the customer capacity engine can treat a blocked seat as
+// taken. day_settings is staff-only via RLS, so this SECURITY DEFINER RPC is
+// the only customer read path; it returns only (setting_date, slot, seat_index)
+// — never "open" overrides or other staff fields. Authenticated only.
+export function getBlockedSeats(
+  client: SupabaseClient,
+  params: { startDate: string; endDate: string },
+) {
+  return client.rpc("get_blocked_seats", {
+    p_start: params.startDate,
+    p_end: params.endDate,
+  });
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status

@@ -7,10 +7,11 @@ import { describe, expect, it } from "vitest";
 // the mirror can't silently drift from the source of truth.
 import { findGroupedSlots as findEngine } from "../../engine/capacity";
 import { findGroupedSlots as findShared } from "../../../supabase/functions/_shared/capacity.ts";
-import { SALON_SLOTS } from "../../constants/salon";
+import { SALON_SLOTS, DAILY_DOG_CAP } from "../../constants/salon";
 
 type MiniDog = { id: string; size: "small" | "medium" | "large" };
 type MiniBooking = { slot: string; size: "small" | "medium" | "large" };
+type MiniOverrides = Record<string, Record<number, "blocked" | "open">>;
 
 // Drop the random groupId; compare drop-off + per-dog assignment signatures.
 function norm(allocs: Array<{ dropOffTime: string; assignments: Array<{ dogId: string; slot: string }> }>) {
@@ -22,9 +23,9 @@ function norm(allocs: Array<{ dropOffTime: string; assignments: Array<{ dogId: s
     .sort((x, y) => x.dropOffTime.localeCompare(y.dropOffTime) || x.sig.localeCompare(y.sig));
 }
 
-function bothAgree(dogs: MiniDog[], bookings: MiniBooking[]) {
-  const engine = findEngine(dogs as never, bookings as never, SALON_SLOTS as never);
-  const shared = findShared(dogs as never, bookings as never, [...SALON_SLOTS]);
+function bothAgree(dogs: MiniDog[], bookings: MiniBooking[], overrides: MiniOverrides = {}) {
+  const engine = findEngine(dogs as never, bookings as never, SALON_SLOTS as never, DAILY_DOG_CAP, overrides as never);
+  const shared = findShared(dogs as never, bookings as never, [...SALON_SLOTS], DAILY_DOG_CAP, overrides as never);
   return { engine: norm(engine), shared: norm(shared) };
 }
 
@@ -98,5 +99,31 @@ describe("capacity engine mirror parity (findGroupedSlots)", () => {
     );
     expect(shared).toEqual(engine);
     expect(shared.length).toBe(0);
+  });
+
+  it("a staff-blocked seat removes that slot — both engines agree", () => {
+    // 10:30 holds one small dog; staff blocked its second seat. A new small dog
+    // can't take 10:30 even though 2-2-1 alone would allow it.
+    const { engine, shared } = bothAgree(
+      [{ id: "x", size: "small" }],
+      [{ slot: "10:30", size: "small" }],
+      { "10:30": { 1: "blocked" } },
+    );
+    expect(shared).toEqual(engine);
+    expect(shared.some((a) => a.dropOffTime === "10:30")).toBe(false);
+    // Other slots are unaffected — the day still offers times.
+    expect(shared.length).toBeGreaterThan(0);
+  });
+
+  it("blocking both seats of a slot removes only that slot — neighbours unaffected", () => {
+    const { engine, shared } = bothAgree(
+      [{ id: "x", size: "small" }],
+      [],
+      { "10:30": { 0: "blocked", 1: "blocked" } },
+    );
+    expect(shared).toEqual(engine);
+    expect(shared.some((a) => a.dropOffTime === "10:30")).toBe(false);
+    expect(shared.some((a) => a.dropOffTime === "10:00")).toBe(true);
+    expect(shared.some((a) => a.dropOffTime === "11:00")).toBe(true);
   });
 });

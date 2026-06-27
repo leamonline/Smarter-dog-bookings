@@ -8,8 +8,8 @@
 // (linked via humans.customer_user_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon";
-import type { Booking } from "../../types/index";
-import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange } from "../rpc";
+import type { Booking, SlotOverrides } from "../../types/index";
+import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange, getBlockedSeats } from "../rpc";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -96,6 +96,35 @@ export async function listRangeForCapacity(
     (byDate[row.booking_date] ??= []).push(occupancyRowToBooking(row));
   }
   return { byDate, error: null };
+}
+
+// Staff-blocked seats for a date range, folded into the capacity engine's
+// whole-day overrides shape keyed by date:
+//   { "<date>": { "<slot>": { <seatIndex>: "blocked" } } }
+// Backed by the get_blocked_seats SECURITY DEFINER RPC (day_settings is
+// staff-only via RLS). Degrades gracefully: on any error — including the RPC
+// not yet existing in an environment where the migration hasn't been applied —
+// it returns an empty map so the wizard behaves exactly as before rather than
+// breaking. Pass startDate === endDate for a single day.
+export async function listBlockedSeats(
+  client: SupabaseClient,
+  startDate: string,
+  endDate: string,
+): Promise<{ byDate: Record<string, Record<string, SlotOverrides>> }> {
+  const { data, error } = await getBlockedSeats(client, { startDate, endDate });
+  if (error) return { byDate: {} };
+  const rows = (data ?? []) as Array<{
+    setting_date: string;
+    slot: string;
+    seat_index: number;
+  }>;
+  const byDate: Record<string, Record<string, SlotOverrides>> = {};
+  for (const row of rows) {
+    const day = (byDate[row.setting_date] ??= {});
+    const slot = (day[row.slot] ??= {});
+    slot[row.seat_index] = "blocked";
+  }
+  return { byDate };
 }
 
 // Resolve a "cancel one or cancel the whole group" intent to an array

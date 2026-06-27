@@ -446,9 +446,14 @@ export function NewBookingModal({
       let allFit = true;
       let failureReason = "";
 
+      // Staff-blocked seats (day_settings.overrides) must gate the save the
+      // same way they gate the picker — otherwise a slot shown as "over" would
+      // save silently into a blocked seat without the override confirm dialog.
+      const slotOverrides = settings?.overrides?.[selectedSlot] || {};
       for (const entry of dogEntries) {
         const size = entry.dog.size || "small";
         const check = canBookSlot(simulated, selectedSlot, size, activeSlots, {
+          overrides: slotOverrides,
           dogId: entry.dog.id,
           staffOverride: capacity
             ? { approval: true, capacity: true }

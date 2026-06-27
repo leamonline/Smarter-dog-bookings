@@ -483,6 +483,7 @@ function searchAllocationsForSlots(
   bookings: Booking[],
   activeSlots: string[],
   targetSlots: string[],
+  overrides: Record<string, SlotOverrides> = {},
 ): SlotAllocation[] {
   const results: SlotAllocation[] = [];
   const seen = new Set<string>();
@@ -537,7 +538,9 @@ function searchAllocationsForSlots(
       const dog = remainingDogs[i];
 
       for (const slot of targetSlots) {
-        const result = canBookSlot(simulatedBookings, slot, dog.size, activeSlots);
+        const result = canBookSlot(simulatedBookings, slot, dog.size, activeSlots, {
+          overrides: overrides[slot] || {},
+        });
         if (!result.allowed) continue;
 
         const nextRemaining = [
@@ -563,6 +566,11 @@ export function findGroupedSlots(
   bookings: Booking[],
   activeSlots: string[],
   dailyDogCap = DAILY_DOG_CAP,
+  // Whole-day staff-blocked seats (day_settings.overrides), keyed by slot.
+  // MIRRORS src/engine/capacity.ts. A blocked seat removes a free seat from
+  // its own slot only — it doesn't count toward the daily cap or the 2-2-1
+  // windowing, so it can't cascade to neighbours.
+  overrides: Record<string, SlotOverrides> = {},
 ): SlotAllocation[] {
   const count = dogs.length;
 
@@ -589,7 +597,7 @@ export function findGroupedSlots(
   }
 
   for (const slot of activeSlots) {
-    addResults(searchAllocationsForSlots(dogs, bookings, activeSlots, [slot]));
+    addResults(searchAllocationsForSlots(dogs, bookings, activeSlots, [slot], overrides));
   }
 
   for (let i = 0; i < activeSlots.length - 1; i++) {
@@ -599,6 +607,7 @@ export function findGroupedSlots(
         bookings,
         activeSlots,
         [activeSlots[i], activeSlots[i + 1]],
+        overrides,
       ),
     );
   }
