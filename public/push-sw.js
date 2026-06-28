@@ -95,16 +95,17 @@ self.addEventListener("notificationclick", (event) => {
         allClients.find((c) => "focus" in c);
 
       if (target) {
-        try {
-          if (
-            "navigate" in target &&
-            targetUrl &&
-            new URL(target.url).pathname !== targetUrl
-          ) {
-            await target.navigate(targetUrl);
+        // Soft client-side navigation: ask the focused staff window to route
+        // via React Router (no full reload, so an unsaved compose draft or
+        // scroll position survives). The old hard target.navigate() reload is
+        // gone; a stale client without the message listener simply gets
+        // focused, which self-heals on its next load.
+        if (targetUrl) {
+          try {
+            target.postMessage({ type: "sw-navigate", url: targetUrl });
+          } catch (_err) {
+            // postMessage unsupported — focusing the window is the fallback.
           }
-        } catch (_err) {
-          // Cross-origin or navigation not allowed — just focus what's there.
         }
         return target.focus();
       }

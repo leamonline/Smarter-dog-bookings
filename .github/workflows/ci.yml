@@ -25,9 +25,9 @@ jobs:
       - run: npm run build
 
   agent-tests:
-    # Dispatch-contract tests for the whatsapp-agent Edge Function run
-    # under Deno (the function's own runtime), not vitest — see
-    # supabase/functions/whatsapp-agent/__tests__/dispatch.test.ts.
+    # Deno-runtime tests for the Edge Functions (their own runtime, not vitest):
+    # the whatsapp-agent dispatch-contract tests, plus the pure staff-push
+    # reconciliation tests in supabase/functions/_shared/staffPush.test.ts.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -36,8 +36,10 @@ jobs:
           deno-version: v2.x
       # --node-modules-dir=none: the repo's package.json otherwise makes
       # Deno expect an installed node_modules for npm type resolution,
-      # and this job deliberately never runs npm ci.
-      - run: deno test --node-modules-dir=none --allow-env supabase/functions/whatsapp-agent/__tests__/
+      # and this job deliberately never runs npm ci. Pass explicit paths (not a
+      # bare _shared/ dir) so webpush.proof.ts — a manual proof, not a test —
+      # isn't picked up.
+      - run: deno test --node-modules-dir=none --allow-env supabase/functions/whatsapp-agent/__tests__/ supabase/functions/_shared/staffPush.test.ts
 
   e2e:
     # Playwright is by far the heaviest CI consumer (npm ci + browser

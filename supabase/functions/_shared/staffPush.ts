@@ -168,6 +168,8 @@ export interface StaffSubscriptionRow {
   endpoint: string;
   p256dh: string | null;
   auth: string | null;
+  /** Consecutive soft-delivery failures; reset to 0 on a delivered push. */
+  failure_count?: number | null;
 }
 
 export interface StaffAlertPrefsRow {
@@ -203,4 +205,64 @@ export function selectRecipients(
     if (!prefs) return true; // no row → all categories enabled
     return prefs[column as keyof StaffAlertPrefsRow] === true;
   });
+}
+
+/** One subscription's outcome from a send pass (what reconcile consumes). */
+export interface PushDeliveryResult {
+  sub: StaffSubscriptionRow;
+  res: { success?: boolean; gone?: boolean } | null;
+}
+
+/** What the caller should write back after a send pass. */
+export interface PushReconciliation {
+  sent: number;
+  failed: number;
+  /** 410/404 ("gone") + over-threshold soft-failers — delete these. */
+  deadIds: string[];
+  /** Delivered — refresh last_used_at + reset failure_count to 0. */
+  usedIds: string[];
+  /** Soft failures still under threshold, grouped by their NEW failure_count. */
+  bumps: { failureCount: number; ids: string[] }[];
+}
+
+/**
+ * Decide what to do with each subscription after a send pass. Delivered subs
+ * reset to a clean slate; 410/404 ("gone") subs are pruned immediately; a soft
+ * failure (timeout, 5xx, network) bumps failure_count, and once it REACHES
+ * `threshold` the device is pruned too — so a permanently broken endpoint that
+ * never returns 410 still gets cleaned up (self-healing). Pure, so the
+ * threshold / off-by-one behaviour is unit-tested without a live client.
+ */
+export function reconcilePushDeliveries(
+  results: PushDeliveryResult[],
+  threshold: number,
+): PushReconciliation {
+  const deadIds: string[] = [];
+  const usedIds: string[] = [];
+  const byCount = new Map<number, string[]>();
+  let sent = 0;
+  let failed = 0;
+
+  for (const { sub, res } of results) {
+    if (res?.success) {
+      sent++;
+      usedIds.push(sub.id);
+    } else if (res?.gone) {
+      failed++;
+      deadIds.push(sub.id);
+    } else {
+      failed++;
+      const next = (sub.failure_count ?? 0) + 1;
+      if (next >= threshold) {
+        deadIds.push(sub.id);
+      } else {
+        const ids = byCount.get(next) ?? [];
+        ids.push(sub.id);
+        byCount.set(next, ids);
+      }
+    }
+  }
+
+  const bumps = [...byCount.entries()].map(([failureCount, ids]) => ({ failureCount, ids }));
+  return { sent, failed, deadIds, usedIds, bumps };
 }

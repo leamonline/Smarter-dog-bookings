@@ -380,6 +380,26 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     if (/^\/humans\/[^/]+$/.test(location.pathname)) navigate("/humans");
   }, [navigate, location.pathname, setSelectedHumanId]);
 
+  // A staff push-notification click focuses this window and asks it to route
+  // here via React Router (no full reload — see public/push-sw.js). Only honour
+  // same-app absolute paths; ignore the customer portal and anything malformed.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return undefined;
+    const onMessage = (event) => {
+      const data = event.data;
+      if (
+        data?.type === "sw-navigate" &&
+        typeof data.url === "string" &&
+        data.url.startsWith("/") &&
+        !data.url.startsWith("/customer")
+      ) {
+        navigate(data.url);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [navigate]);
+
   const {
     weekStart,
     selectedDay,
