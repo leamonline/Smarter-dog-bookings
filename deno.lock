@@ -63,6 +63,7 @@
         "npm:react-dom@^19.2.7",
         "npm:react-router-dom@^7.17.0",
         "npm:react@^19.2.7",
+        "npm:supabase@^2.108.0",
         "npm:tailwindcss@^4.2.2",
         "npm:tsx@^4.22.4",
         "npm:typescript-eslint@^8.61.1",

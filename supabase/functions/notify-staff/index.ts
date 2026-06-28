@@ -30,6 +30,7 @@ import { isAuthorizedWebhook, timingSafeEqualHeader } from "../_shared/webhook-a
 import {
   buildStaffPushMessage,
   isStaffEventType,
+  reconcilePushDeliveries,
   selectRecipients,
   type StaffAlertPrefsRow,
   type StaffSubscriptionRow,
@@ -142,7 +143,7 @@ serve(async (req) => {
     // 5. Load subscriptions + per-staff prefs (service role bypasses RLS).
     const { data: subs } = await supabase
       .from("staff_push_subscriptions")
-      .select("id, user_id, endpoint, p256dh, auth");
+      .select("id, user_id, endpoint, p256dh, auth, failure_count");
     const { data: prefs } = await supabase
       .from("staff_alert_prefs")
       .select("user_id, messages, new_booking, cancellation, reschedule, new_client, waitlist");
@@ -186,22 +187,15 @@ serve(async (req) => {
       }),
     );
 
-    // 7. Prune dead subscriptions; bump last_used_at on success; tally.
-    const deadIds: string[] = [];
-    const usedIds: string[] = [];
-    let sent = 0;
-    let failed = 0;
-    for (const { sub, res } of results) {
-      if (res?.success) {
-        sent++;
-        usedIds.push(sub.id);
-      } else if (res?.gone) {
-        deadIds.push(sub.id);
-        failed++;
-      } else {
-        failed++;
-      }
-    }
+    // 7. Reconcile subscriptions from the send results, then apply the writes:
+    //    delivered → reset; gone (410/404) → prune; soft failure → bump the
+    //    counter, and once it reaches the threshold prune that device too, so a
+    //    permanently broken endpoint that never returns 410 still gets cleaned.
+    const FAILURE_PRUNE_THRESHOLD = 5;
+    const { sent, failed, deadIds, usedIds, bumps } = reconcilePushDeliveries(
+      results,
+      FAILURE_PRUNE_THRESHOLD,
+    );
 
     if (deadIds.length > 0) {
       await supabase.from("staff_push_subscriptions").delete().in("id", deadIds);
@@ -211,6 +205,12 @@ serve(async (req) => {
         .from("staff_push_subscriptions")
         .update({ last_used_at: new Date().toISOString(), failure_count: 0 })
         .in("id", usedIds);
+    }
+    for (const { failureCount, ids } of bumps) {
+      await supabase
+        .from("staff_push_subscriptions")
+        .update({ failure_count: failureCount })
+        .in("id", ids);
     }
 
     if (logId) {
