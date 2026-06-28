@@ -323,6 +323,62 @@ Deno.test("persists a known customer's inbound but draws no AI draft without for
   assertEquals(lastEventPatch()?.processing_status, "processed");
 });
 
+Deno.test("a duplicate inbound (Meta redelivery / concurrent re-run) is marked ignored, not failed", async () => {
+  // Concurrency/redelivery: two invocations of the same pending event both
+  // pass the status guard; one wins the whatsapp_messages insert and the
+  // other collides with idx_whatsapp_messages_meta_msg. The webhook path (no
+  // force_draft) must treat that collision as a no-op — event 'ignored', not
+  // 'failed', so it stays off the "AI agent issues" card — and must not draft
+  // a second reply. Model the collision so a regression (back to 'failed')
+  // fails loudly.
+  resetStub(
+    eventSelect(eventRow({ payload: inboundPayload })),
+    eventUpdate,
+    (call) =>
+      call.method === "GET" && call.path === "/rest/v1/humans"
+        ? json([{ id: "human-1", phone: "07700900111" }])
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_conversations"
+        ? json(conversationRow(), 201)
+        : undefined,
+    (call) =>
+      call.method === "POST" && call.path === "/rest/v1/whatsapp_messages"
+        ? json(
+          {
+            code: "23505",
+            message:
+              'duplicate key value violates unique constraint "idx_whatsapp_messages_meta_msg"',
+          },
+          409,
+        )
+        : undefined,
+  );
+
+  const res = await handleAgentRequest(agentRequest({ event_id: "event-1" }));
+  assertEquals(res.status, 200);
+  assertStringIncludes(await res.text(), "ignored");
+
+  // Event settled as ignored (not failed), with the error cleared. The update
+  // is guarded on still-pending so it can't downgrade a winning run.
+  const patch = lastEventPatch();
+  assertEquals(patch?.processing_status, "ignored");
+  assertEquals(patch?.error_message, null);
+  assertEquals(patch?.["processing_status"] === "failed", false);
+
+  // No second reply: no Claude call, no draft row.
+  assertEquals(
+    calls.filter((c) => c.path === "/v1/messages").length,
+    0,
+    "duplicate inbound must not call Claude",
+  );
+  assertEquals(
+    calls.filter((c) => c.path === "/rest/v1/whatsapp_drafts").length,
+    0,
+    "duplicate inbound must not create a draft",
+  );
+});
+
 Deno.test("runs the Claude path for an unknown customer and saves a pending draft", async () => {
   const claudeReply = {
     content: [{
