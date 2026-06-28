@@ -42,7 +42,7 @@ jobs:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
       - name: Check out repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Need the pushed range so multi-commit pushes deploy every
           # changed function, not only the final commit.

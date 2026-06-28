@@ -63,7 +63,7 @@ jobs:
 
       - name: Check out repo
         if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Supabase CLI
         if: steps.gate.outputs.run == 'true'
