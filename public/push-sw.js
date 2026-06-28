@@ -78,23 +78,35 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       });
 
-      // Prefer focusing an already-open staff app window, navigating it to
-      // the target if it supports it.
-      for (const client of allClients) {
-        if ("focus" in client) {
-          try {
-            if (
-              "navigate" in client &&
-              targetUrl &&
-              new URL(client.url).pathname !== targetUrl
-            ) {
-              await client.navigate(targetUrl);
-            }
-          } catch (_err) {
-            // Cross-origin or navigation not allowed — just focus what's there.
-          }
-          return client.focus();
+      // Prefer an already-open STAFF window. This origin also serves the
+      // customer portal under /customer/* (same SW scope), so without this
+      // filter a notification click could yank a customer-portal tab over to
+      // the staff inbox. Fall back to any focusable window only if no staff
+      // window is open.
+      const isStaffWindow = (c) => {
+        try {
+          return !new URL(c.url).pathname.startsWith("/customer");
+        } catch (_err) {
+          return true;
         }
+      };
+      const target =
+        allClients.find((c) => "focus" in c && isStaffWindow(c)) ||
+        allClients.find((c) => "focus" in c);
+
+      if (target) {
+        try {
+          if (
+            "navigate" in target &&
+            targetUrl &&
+            new URL(target.url).pathname !== targetUrl
+          ) {
+            await target.navigate(targetUrl);
+          }
+        } catch (_err) {
+          // Cross-origin or navigation not allowed — just focus what's there.
+        }
+        return target.focus();
       }
 
       // Nothing open — open a fresh window at the target.

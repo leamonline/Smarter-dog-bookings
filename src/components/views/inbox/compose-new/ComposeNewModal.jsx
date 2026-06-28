@@ -200,13 +200,22 @@ export function ComposeNewModal({
     };
   }, [selectedHuman]);
 
+  // Tick every minute so the open-window detection + countdown below don't go
+  // stale if the modal sits open across the 24h boundary (mirrors ComposePanel).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!selectedHuman) return undefined;
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [selectedHuman]);
+
   // If this customer already has a WhatsApp chat inside the 24-hour
   // window, we skip the template gate and route staff into that chat to
   // reply free-text. (Found from the already-loaded conversation list —
   // an open-window conversation is always an active one.)
   const openConversation = useMemo(
-    () => findOpenWindowConversation(conversations, selectedHuman),
-    [conversations, selectedHuman],
+    () => findOpenWindowConversation(conversations, selectedHuman, nowMs),
+    [conversations, selectedHuman, nowMs],
   );
 
   const handleSend = useCallback(
@@ -373,7 +382,7 @@ export function ComposeNewModal({
                 openConversation ? (
                   <WindowOpenPanel
                     firstName={selectedHuman.name ?? ""}
-                    countdown={windowCountdown(openConversation.last_inbound_at)}
+                    countdown={windowCountdown(openConversation.last_inbound_at, nowMs)}
                     onOpenChat={() => onOpenConversation?.(openConversation.id)}
                   />
                 ) : (
