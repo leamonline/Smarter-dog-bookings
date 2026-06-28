@@ -33,6 +33,8 @@ import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
 import { OfflineDemoBanner } from "./components/ui/OfflineDemoBanner.jsx";
 import { NetworkOfflineBanner } from "./components/ui/NetworkOfflineBanner.jsx";
 import { AppToolbar } from "./components/layout/AppToolbar.jsx";
+import { AppContextRow } from "./components/layout/AppContextRow.jsx";
+import { MobileNavStrip } from "./components/layout/MobileNavStrip.jsx";
 // Dev-only preview catalogue for the right-rail tones. Tree-shaken
 // out of production bundles by Vite (the route below is gated on
 // `import.meta.env.DEV`, which folds to `false` in prod).
@@ -747,7 +749,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // big spinner.
   return (
     <ToastProvider>
-      <AppFrame className="text-slate-800 pb-20 lg:pb-5">
+      <AppFrame className="text-slate-800 pb-5">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"
@@ -772,6 +774,17 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             }
           }}
         />
+
+        <AppContextRow
+          dateLabel={currentDateObj.toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+          isOpen={currentSettings.isOpen}
+        />
+        <MobileNavStrip />
 
         <SalonProvider
           dogs={dogs}
