@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: 20
@@ -30,7 +30,7 @@ jobs:
     # reconciliation tests in supabase/functions/_shared/staffPush.test.ts.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -57,7 +57,7 @@ jobs:
       - name: Skip on pull requests
         if: github.event_name == 'pull_request'
         run: echo "Skipping Playwright e2e on pull requests to conserve Actions minutes — it runs on push to main and via workflow_dispatch."
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: github.event_name != 'pull_request'
       - uses: actions/setup-node@v6
         if: github.event_name != 'pull_request'
