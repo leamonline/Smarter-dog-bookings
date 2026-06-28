@@ -36,10 +36,12 @@ jobs:
           deno-version: v2.x
       # --node-modules-dir=none: the repo's package.json otherwise makes
       # Deno expect an installed node_modules for npm type resolution,
-      # and this job deliberately never runs npm ci. Pass explicit paths (not a
-      # bare _shared/ dir) so webpush.proof.ts — a manual proof, not a test —
-      # isn't picked up.
-      - run: deno test --node-modules-dir=none --allow-env supabase/functions/whatsapp-agent/__tests__/ supabase/functions/_shared/staffPush.test.ts
+      # and this job deliberately never runs npm ci. A single discovery root
+      # auto-runs every *.test.ts under functions/ (whatsapp-agent/__tests__/ +
+      # _shared/), so a newly-added Deno test can't be silently skipped by
+      # forgetting to list it. Non-test files (e.g. webpush.proof.ts) don't
+      # match Deno's test glob and are ignored.
+      - run: deno test --node-modules-dir=none --allow-env supabase/functions/
 
   e2e:
     # Playwright is by far the heaviest CI consumer (npm ci + browser
