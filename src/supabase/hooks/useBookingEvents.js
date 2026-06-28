@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
@@ -50,7 +51,7 @@ export function useBookingEvents({ limit = 10 } = {}) {
     if (!supabase) return;
     refresh();
     const channel = supabase
-      .channel("dashboard-booking-events")
+      .channel(CHANNELS.dashboardBookingEvents)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "booking_events" },

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
 
@@ -63,7 +64,7 @@ export function useMonthBookings(year, month) {
     fetchBookings();
 
     const channel = supabase
-      .channel(`month-bookings-${year}-${month}-${Date.now()}`)
+      .channel(uniqueChannelName(`${CHANNELS.monthBookings}-${year}-${month}`))
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bookings" },

@@ -42,6 +42,7 @@
 
 import { useSyncExternalStore, useCallback } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
 import { logger } from "../../lib/logger";
@@ -265,7 +266,7 @@ function startChannels() {
   //      every time staff opens a thread and marks it read.
   if (!countsChannel) {
     countsChannel = supabase
-      .channel("whatsapp-dashboard-counts")
+      .channel(CHANNELS.whatsappDashboardCounts)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_conversations" },
@@ -291,7 +292,7 @@ function startChannels() {
 
   if (!summaryChannel) {
     summaryChannel = supabase
-      .channel("whatsapp-dashboard-summary")
+      .channel(CHANNELS.whatsappDashboardSummary)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },

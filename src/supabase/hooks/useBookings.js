@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
@@ -111,7 +112,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     // need the row + the week range now — no transform or dogs/humans
     // lookup here (that moved into the memo).
     const channel = supabase
-      .channel(`bookings-realtime-${Date.now()}-${Math.random()}`)
+      .channel(uniqueChannelName(CHANNELS.bookingsRealtime))
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bookings" },

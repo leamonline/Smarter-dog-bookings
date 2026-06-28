@@ -22,6 +22,7 @@
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
 import { supabase } from "../client.js";
+import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 import { groupRemindersByCustomer } from "./groupRemindersByCustomer.js";
@@ -113,7 +114,7 @@ async function refresh() {
 function startChannel() {
   if (channel || !supabase) return;
   channel = supabase
-    .channel("dashboard-tomorrow-reminders")
+    .channel(CHANNELS.dashboardTomorrowReminders)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "notification_log" },
