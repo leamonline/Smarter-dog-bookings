@@ -20,7 +20,7 @@ import { logger } from "../../../lib/logger";
 import { StepCustomer } from "./StepCustomer.jsx";
 import { StepDogs } from "./StepDogs.jsx";
 import { StepFirstBooking } from "./StepFirstBooking.jsx";
-import { buildWizardBookings } from "./buildWizardBookings.js";
+import { commitNewClient } from "./commitNewClient.js";
 import { canAdvanceCustomer, canAdvanceDogs, canConfirm } from "./wizardValidation.js";
 
 const STEP_TITLES = ["Customer", "Their dogs", "First booking"];
@@ -58,7 +58,7 @@ export function NewClientWizard({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   // Once the customer is written we never go back / re-create (idempotent retry).
-  const committedRef = useRef({ humanId: null, keyToDogId: {} });
+  const committedRef = useRef({ humanId: null, keyToDogId: {}, bookedKeys: new Set() });
   const [customerCreated, setCustomerCreated] = useState(false);
 
   // ── Step 1 ──
@@ -127,53 +127,20 @@ export function NewClientWizard({
     setSubmitting(true);
     setError(null);
     try {
-      // 1. customer
-      let humanId = committedRef.current.humanId;
-      if (!humanId) {
-        const created = await addHuman({
-          name: human.name.trim(),
-          surname: human.surname.trim(),
-          phone: normalisedPhoneRef.current || human.phone.trim(),
-          email: human.email.trim(),
-          address: human.address.trim(),
-          sms: human.sms,
-          whatsapp: human.whatsapp,
-          notes: human.notes.trim(),
-        });
-        humanId = created?.id || created?.[0]?.id;
-        if (!humanId) throw new Error("Couldn't create the customer. Please try again.");
-        committedRef.current.humanId = humanId;
-        setCustomerCreated(true);
-      }
+      const { humanId } = await commitNewClient({
+        addHuman,
+        addDog,
+        onAddBookings,
+        human,
+        phone: normalisedPhoneRef.current || human.phone.trim(),
+        dogs,
+        selections,
+        dateStr,
+        slot,
+        committed: committedRef.current,
+        onCustomerCreated: () => setCustomerCreated(true),
+      });
 
-      // 2. dogs (skip any already created on a prior attempt)
-      const keyToDogId = committedRef.current.keyToDogId;
-      for (const dog of dogs) {
-        if (keyToDogId[dog.clientKey]) continue;
-        const created = await addDog({
-          name: dog.name, breed: dog.breed, size: dog.size, humanId,
-          gender: dog.gender, colour: dog.colour, groomNotes: dog.groomNotes,
-        });
-        const dogId = created?.id;
-        if (!dogId) {
-          throw new Error(
-            `${human.name || "The customer"} and earlier dogs were saved, but "${dog.name}" didn't add. You can finish from their profile.`,
-          );
-        }
-        keyToDogId[dog.clientKey] = dogId;
-      }
-
-      // 3. bookings (per booked dog)
-      const bookings = buildWizardBookings({ humanId, keyToDogId, dogs, selections, dateStr, slot });
-      const res = await onAddBookings(bookings, dateStr);
-      if (!res?.ok) {
-        throw new Error(
-          res?.error ||
-            "The customer and dogs were saved, but the booking didn't go through — try another slot or book from their profile.",
-        );
-      }
-
-      // success
       const action = onBookAnother && humanId
         ? { label: `Book another for ${human.name}`, onClick: () => onBookAnother(humanId) }
         : undefined;

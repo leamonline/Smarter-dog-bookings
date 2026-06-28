@@ -506,7 +506,14 @@ export function useDogs(
 
   const addDog = useCallback(
     async (dogData: Record<string, any>) => {
-      const owner = findHumanByIdOrName(humansById, dogData.humanId);
+      // Normally resolve the owner from the live map. The New client wizard
+      // creates a human + dog in the same tick, before humansById has
+      // re-rendered with the new owner, so it hands the freshly-created owner
+      // in via `_ownerOverride` — without it the lookup misses and the dog
+      // would never save. Other callers don't pass it and behave as before.
+      const owner = dogData._ownerOverride?.id
+        ? dogData._ownerOverride
+        : findHumanByIdOrName(humansById, dogData.humanId);
 
       if (!owner?.id) {
         logger.error("Owner not found", undefined, {
