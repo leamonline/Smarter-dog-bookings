@@ -26,60 +26,8 @@ import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
-
-// Parallel ilike across humans (name / surname / phone) and dogs
-// (name), then resolve dogs back to their owner. Mirrors the
-// searchHumansByTerm pattern in useHumans but kept local to the
-// inbox so this modal doesn't drag the full Humans hook into the
-// inbox bundle.
-async function searchCustomers(query) {
-  const trimmed = query.trim();
-  if (trimmed.length < 2) return [];
-  const likeTerm = `%${trimmed}%`;
-
-  const [byName, bySurname, byPhone, dogHits] = await Promise.all([
-    supabase.from("humans").select("id, name, surname, phone").ilike("name", likeTerm).limit(10),
-    supabase.from("humans").select("id, name, surname, phone").ilike("surname", likeTerm).limit(10),
-    supabase.from("humans").select("id, name, surname, phone").ilike("phone", likeTerm).limit(10),
-    supabase.from("dogs").select("human_id").ilike("name", likeTerm).limit(20),
-  ]);
-
-  // Hydrate the dog→owner rows
-  const dogOwnerIds = (dogHits.data ?? []).map((d) => d.human_id).filter(Boolean);
-  let dogOwners = [];
-  if (dogOwnerIds.length) {
-    const { data } = await supabase
-      .from("humans")
-      .select("id, name, surname, phone")
-      .in("id", dogOwnerIds);
-    dogOwners = data ?? [];
-  }
-
-  // Dedupe by human id; keep first-seen ordering.
-  const seen = new Set();
-  const merged = [];
-  for (const row of [
-    ...(byName.data ?? []),
-    ...(bySurname.data ?? []),
-    ...(byPhone.data ?? []),
-    ...dogOwners,
-  ]) {
-    if (!row?.id || seen.has(row.id)) continue;
-    seen.add(row.id);
-    merged.push(row);
-  }
-  return merged.slice(0, 20);
-}
-
-async function fetchDogsForHuman(humanId) {
-  if (!humanId) return [];
-  const { data } = await supabase
-    .from("dogs")
-    .select("id, name")
-    .eq("human_id", humanId)
-    .order("name");
-  return (data ?? []).map((d) => d.name).filter(Boolean);
-}
+import { searchHumansAndDogs } from "../../../../supabase/repositories/humansRepo";
+import { listForHuman } from "../../../../supabase/repositories/dogsRepo";
 
 function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
   const info = smsSegmentInfo(value);
@@ -213,7 +161,7 @@ export function ComposeNewModal({
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const rows = await searchCustomers(query);
+        const rows = await searchHumansAndDogs(supabase, query);
         if (!controller.signal.aborted) setResults(rows);
       } catch (e) {
         if (!controller.signal.aborted) {
@@ -235,8 +183,8 @@ export function ComposeNewModal({
       return;
     }
     let cancelled = false;
-    fetchDogsForHuman(selectedHuman.id).then((names) => {
-      if (!cancelled) setDogNames(names);
+    listForHuman(supabase, { humanId: selectedHuman.id }).then(({ dogs }) => {
+      if (!cancelled) setDogNames(dogs.map((d) => d.name).filter(Boolean));
     });
     return () => { cancelled = true; };
   }, [selectedHuman]);
