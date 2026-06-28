@@ -43,9 +43,14 @@ export function NewClientPreview() {
           onClose={() => setOpen(false)}
           addHuman={async (d) => ({ id: "demo-human-1", ...d })}
           addDog={async (d) => {
+            // Mirror the real useDogs.addDog: it can only save a dog when it
+            // can resolve the owner. The owner was just created and isn't in
+            // the live map, so the wizard must hand it in via _ownerOverride —
+            // fail without it so this harness catches that regression.
+            if (!d._ownerOverride?.id) return null;
             const id = `demo-dog-${dogN + 1}`;
             setDogN((n) => n + 1);
-            return { id, _humanId: "demo-human-1", ...d };
+            return { id, _humanId: d._ownerOverride.id, ...d };
           }}
           onAddBookings={async () =>
             failBooking
