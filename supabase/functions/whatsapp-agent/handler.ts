@@ -567,7 +567,7 @@ async function insertInboundMessage(
   text: string | null,
   raw: MetaMessage,
   sentAt: string,
-) {
+): Promise<{ duplicate: boolean }> {
   const { reaction_emoji, in_reply_to_meta_id } = reactionFields(raw);
   const { error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
@@ -582,9 +582,20 @@ async function insertInboundMessage(
     status: "delivered", // inbound from Meta is by definition already delivered to us
     sent_at: sentAt,
   });
-  if (error) throw new Error(`insertInboundMessage failed: ${error.message}`);
+  if (error) {
+    // 23505 = unique_violation on idx_whatsapp_messages_meta_msg: the inbound
+    // row already exists — Meta redelivered the message, or a concurrent
+    // invocation of this same event won the insert race. That's a no-op, not a
+    // failure, so signal it instead of throwing; the caller stops here so we
+    // don't draft/auto-send a second reply.
+    if (error.code === "23505" || error.message?.includes("idx_whatsapp_messages_meta_msg")) {
+      return { duplicate: true };
+    }
+    throw new Error(`insertInboundMessage failed: ${error.message}`);
+  }
   // The AFTER INSERT trigger whatsapp_messages_bump_unread (migration
   // 029) increments whatsapp_conversations.unread_count for us.
+  return { duplicate: false };
 }
 
 // ── Availability block ───────────────────────────────────────
@@ -2545,7 +2556,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // there its duplicate-key throw still usefully guards against Meta
           // redelivering a message and triggering a second draft/auto-send.
           if (!forceDraft) {
-            await insertInboundMessage(
+            const { duplicate } = await insertInboundMessage(
               supabase,
               conversation.id,
               event.id,
@@ -2554,6 +2565,25 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               msg,
               sentAt,
             );
+            if (duplicate) {
+              // The inbound row already exists (Meta redelivery, or a
+              // concurrent invocation of this same event won the insert race).
+              // Record this run as ignored — not failed, so it drops off the
+              // "AI agent issues" card — and stop before drafting a second
+              // reply. Guard on still-pending so we never downgrade the winning
+              // run's terminal status (it sets processed/failed unconditionally
+              // at the end of the try).
+              await supabase
+                .from("whatsapp_events")
+                .update({
+                  processing_status: "ignored",
+                  processed_at: new Date().toISOString(),
+                  error_message: null,
+                })
+                .eq("id", event.id)
+                .eq("processing_status", "pending");
+              return new Response("ok (duplicate inbound, ignored)", { status: 200 });
+            }
           }
 
           // Button-reply routing: if this inbound is a Yes/No tap on a
