@@ -16,6 +16,7 @@ const { useConversationLifecycle } = await import("./useConversationLifecycle.js
 function makeStub({ updateResult = { error: null }, currentUserId = "user-1" } = {}) {
   const update = vi.fn(() => ({
     eq: vi.fn(() => Promise.resolve(updateResult)),
+    in: vi.fn(() => Promise.resolve(updateResult)),
   }));
   return {
     from: vi.fn(() => ({ update })),
@@ -153,5 +154,59 @@ describe("useConversationLifecycle", () => {
     // .eq(...) called with "c-99" not selectedId.
     const eqCall = stub._update.mock.results[0].value.eq;
     expect(eqCall).toHaveBeenCalledWith("id", "c-99");
+  });
+
+  it("bulkResolveConversations closes every id in a single .in() round-trip", async () => {
+    const stub = makeStub();
+    const { result } = setup({ stub });
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.bulkResolveConversations(["a", "b", "c"]);
+    });
+    expect(outcome).toEqual({ ok: true, ids: ["a", "b", "c"] });
+    expect(stub._update).toHaveBeenCalledTimes(1);
+    expect(stub._update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        closed_at: expect.any(String),
+        closed_by: "user-1",
+        closure_reason: "manual",
+        closure_suggested_at: null,
+        closure_suggested_reason: null,
+      }),
+    );
+    const inCall = stub._update.mock.results[0].value.in;
+    expect(inCall).toHaveBeenCalledWith("id", ["a", "b", "c"]);
+  });
+
+  it("bulkResolveConversations no-ops on an empty selection", async () => {
+    const stub = makeStub();
+    const { result } = setup({ stub });
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.bulkResolveConversations([]);
+    });
+    expect(outcome).toEqual({ ok: false });
+    expect(stub._update).not.toHaveBeenCalled();
+  });
+
+  it("bulkReopenConversations reopens every id in a single .in() round-trip", async () => {
+    const stub = makeStub();
+    const { result } = setup({ stub });
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.bulkReopenConversations(["a", "b"]);
+    });
+    expect(outcome).toEqual({ ok: true });
+    expect(stub._update).toHaveBeenCalledWith({
+      closed_at: null,
+      closure_reason: null,
+      closure_suggested_at: null,
+      closure_suggested_reason: null,
+    });
+    const inCall = stub._update.mock.results[0].value.in;
+    expect(inCall).toHaveBeenCalledWith("id", ["a", "b"]);
   });
 });
