@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
@@ -117,12 +116,6 @@ export function WeekCalendarView({
     if (failure?.bookingDate) handleDatePick(new Date(`${failure.bookingDate}T12:00:00`));
   };
 
-  const navigateDay = (delta) => {
-    const target = new Date(currentDateObj);
-    target.setDate(target.getDate() + delta);
-    handleDatePick(target);
-  };
-
   const activeSlots = useMemo(() => {
     return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
   }, [currentSettings.extraSlots]);
@@ -193,35 +186,42 @@ export function WeekCalendarView({
           />
         )}
 
-        {/* One segmented pill: day arrows wrap the month/week toggle. */}
-        <div className="flex justify-center mt-2">
-          <div className="inline-flex items-center bg-white rounded-full shadow-card-resting overflow-hidden">
-            <button
-              type="button"
-              onClick={() => navigateDay(-1)}
-              aria-label="Previous day"
-              className="sm:hidden w-10 h-9 flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/55 hover:text-brand-purple hover:bg-slate-50 transition-colors"
-            >
-              <ChevronLeft size={18} strokeWidth={2.5} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMonthExpanded((v) => !v)}
-              aria-expanded={monthExpanded}
-              aria-label={monthExpanded ? "Show week" : "Show month"}
-              className="h-9 px-4 sm:px-5 inline-flex items-center border-x border-slate-100 sm:border-x-0 text-[12px] font-bold text-brand-purple/80 bg-transparent hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
-            >
-              {monthExpanded ? "Show week" : "Show month"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigateDay(1)}
-              aria-label="Next day"
-              className="sm:hidden w-10 h-9 flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/55 hover:text-brand-purple hover:bg-slate-50 transition-colors"
-            >
-              <ChevronRight size={18} strokeWidth={2.5} />
-            </button>
-          </div>
+        {/* View switcher — Today / Week / Month, three equal segments. */}
+        <div className="grid grid-cols-3 gap-1 p-1 mt-2 bg-white rounded-full shadow-card-resting">
+          <button
+            type="button"
+            onClick={() => {
+              handleDatePick(new Date());
+              setMonthExpanded(false);
+            }}
+            className="h-9 rounded-full text-[11px] font-bold uppercase tracking-wide text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthExpanded(false)}
+            aria-pressed={!monthExpanded}
+            className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer font-[inherit] ${
+              !monthExpanded
+                ? "bg-brand-purple text-white"
+                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
+            }`}
+          >
+            Week view
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthExpanded(true)}
+            aria-pressed={monthExpanded}
+            className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer font-[inherit] ${
+              monthExpanded
+                ? "bg-brand-purple text-white"
+                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
+            }`}
+          >
+            Month view
+          </button>
         </div>
       </div>
 
