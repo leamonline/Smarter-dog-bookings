@@ -14,7 +14,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 //   - loading      → neutral until the bookings arrive
 // "Today" keeps whichever status colour applies and is marked with a
 // yellow ring (see below) so it still stands out.
-function dayCircleStyle({ isPast, dogCount, isOpen }) {
+export function dayCircleStyle({ isPast, dogCount, isOpen }) {
   if (isPast) return "bg-slate-200 text-slate-500";
   if (dogCount == null) return "bg-slate-100 text-slate-500";
   if (!isOpen) return "bg-slate-100 text-slate-400";
@@ -23,7 +23,7 @@ function dayCircleStyle({ isPast, dogCount, isOpen }) {
   return "bg-emerald-500 text-white";
 }
 
-function startOfDay(d) {
+export function startOfDay(d) {
   const out = new Date(d);
   out.setHours(0, 0, 0, 0);
   return out;

@@ -5,6 +5,7 @@ import { getDefaultOpenForDate } from "../../engine/utils";
 import { useMonthBookings } from "../../supabase/hooks/useMonthBookings.js";
 import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js";
 import { DAY_CAPACITY } from "../../engine/utilisation";
+import { dayCircleStyle, startOfDay } from "../layout/DayTab.jsx";
 
 export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
   const todayStr = toDateStr(new Date());
@@ -97,29 +98,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedStr;
             const isFull = isOpen && count >= DAY_CAPACITY;
-            // Closed days are encoded with a non-colour cue (a small ✕)
-            // so they're distinguishable without relying on hue (WCAG 1.4.1).
-            const isClosed = !monthLoading && !isOpen;
-
-            // Status: closed → red, full → blue, available → green
-            // Selected/today still win for clarity. Loading → neutral.
-            const numberColor = monthLoading
-              ? "text-slate-300"
-              : !isOpen
-                ? "text-rose-500"
-                : isFull
-                  ? "text-sky-600"
-                  : count > 0
-                    ? "text-emerald-700"
-                    : "text-emerald-600";
-
-            const dotColor = monthLoading || !isOpen
-              ? null
-              : isFull
-                ? "bg-sky-500"
-                : count > 0
-                  ? "bg-emerald-500"
-                  : null;
+            const isPast = startOfDay(date) < startOfDay(new Date());
 
             const ariaLabel = `${date.toLocaleDateString("en-GB", {
               weekday: "long",
@@ -137,6 +116,14 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
                       : ", availability"
             }`;
 
+            // Match the week-strip dots: the date sits in a circle whose
+            // colour answers "can I book this day?" — closed → muted grey,
+            // open → green, full → blue. Selected wins (yellow); today keeps
+            // a yellow ring.
+            const circleStyle = isSelected
+              ? "bg-brand-yellow text-brand-purple shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
+              : dayCircleStyle({ isPast, dogCount: monthLoading ? null : count, isOpen });
+
             return (
               <button
                 key={dateStr}
@@ -144,31 +131,15 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
                 aria-label={ariaLabel}
                 aria-pressed={isSelected}
                 aria-current={isToday ? "date" : undefined}
-                className={`relative w-full aspect-square min-h-[40px] rounded-md text-[11px] font-bold border-none cursor-pointer transition-all flex items-center justify-center ${
-                  isSelected
-                    ? "bg-brand-yellow text-brand-purple shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
-                    : `bg-transparent ${numberColor} hover:bg-slate-50`
-                } ${
-                  isToday
-                    ? "ring-2 ring-brand-purple ring-offset-1 ring-offset-white"
-                    : ""
-                }`}
+                className="w-full aspect-square min-h-[40px] flex items-center justify-center rounded-full border-none cursor-pointer bg-transparent transition-all hover:bg-slate-50"
               >
-                <span>{date.getDate()}</span>
-                {dotColor && !isSelected && (
-                  <span
-                    className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${dotColor}`}
-                    aria-hidden="true"
-                  />
-                )}
-                {isClosed && !isSelected && (
-                  <span
-                    className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[8px] leading-none text-rose-500"
-                    aria-hidden="true"
-                  >
-                    ✕
-                  </span>
-                )}
+                <span
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black font-display leading-none transition-all ${circleStyle} ${
+                    isToday && !isSelected ? "ring-2 ring-brand-yellow ring-offset-1" : ""
+                  }`}
+                >
+                  {date.getDate()}
+                </span>
               </button>
             );
           })}
@@ -176,27 +147,23 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-micro font-semibold text-ink-muted">
           <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full ring-2 ring-brand-purple inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full ring-2 ring-brand-yellow inline-block" />
             Today
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm bg-brand-yellow inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-yellow inline-block" />
             Selected
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-            Bookings
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+            Open
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
-            Available
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
+            Full
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
-            Fully booked
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="text-[10px] leading-none text-rose-500" aria-hidden="true">✕</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block" />
             Closed
           </span>
         </div>

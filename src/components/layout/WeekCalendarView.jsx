@@ -7,7 +7,6 @@ import { CalendarTabs } from "./CalendarTabs.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
-import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -20,8 +19,7 @@ import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
 import { MiniCalendarCard } from "../dashboard/MiniCalendarCard.jsx";
-import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
-import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
+import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
 
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
@@ -36,6 +34,11 @@ const WaitlistModal = lazy(() =>
 const TodoModal = lazy(() =>
   import("../modals/TodoModal.jsx").then((module) => ({
     default: module.TodoModal,
+  })),
+);
+const RemindersModal = lazy(() =>
+  import("../modals/RemindersModal.jsx").then((module) => ({
+    default: module.RemindersModal,
   })),
 );
 
@@ -77,6 +80,7 @@ export function WeekCalendarView({
   // Mobile week strip can expand into a full month grid (reuses the desktop
   // MiniCalendarCard). Picking a day collapses it back to the week view.
   const [monthExpanded, setMonthExpanded] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -87,7 +91,7 @@ export function WeekCalendarView({
   }, []);
 
   const toast = useToast();
-  const { todos, addTodos, loading: todoLoading } = useTodos();
+  const { todos, addTodos } = useTodos();
   const openTodoCount = todos.filter((t) => !t.done).length;
   const {
     waitlist,
@@ -96,7 +100,6 @@ export function WeekCalendarView({
     joinWaitlist,
     leaveWaitlist,
   } = useWaitlist(currentDateObj);
-  const { unread: waUnread } = useWhatsAppUnread();
   const reminders = useTomorrowReminders();
   const pendingReminderCount = reminders.totalCount - reminders.sentCount;
   // Delivery failures (failed confirmations/reminders) only surfaced in the
@@ -130,23 +133,6 @@ export function WeekCalendarView({
       slot: slot || "",
       capacityOverride: options.capacityOverride === true,
     });
-
-  const handleCreateBookingFromWhatsApp = (conversation) => {
-    if (!conversation) {
-      openNewBooking(currentDateStr, "");
-      return;
-    }
-    const text = conversation.lastText || conversation.last_customer_text || "";
-    const hints = parseBookingHintsFromMessage(text, { referenceDate: new Date() });
-    setShowNewBooking({
-      dateStr: hints.dateStr || currentDateStr,
-      slot: hints.slot || "",
-      initialHumanId: conversation.humanId || conversation.human_id || null,
-      sourceConversationId: conversation.conversationId || conversation.id || null,
-      sourceMessageText: text,
-      ownerName: conversation.displayName || null,
-    });
-  };
 
   const handlePrintDaySheet = () => {
     if (typeof window !== "undefined") window.print();
@@ -247,26 +233,15 @@ export function WeekCalendarView({
         </div>
       </div>
 
-      {/* Workflow panels (< xl): a compact, collapsible strip ABOVE the
-          schedule so urgent items surface at a glance instead of being
-          buried below the day's slot list. Desktop (xl+) keeps the full
-          RightWorkflowSidebar in the right rail. */}
-      <div className="lg:hidden mb-3">
-        <WorkflowStatusStrip
-          failures={failures}
-          onSelectFailure={handleSelectFailure}
-          messageCount={waUnread}
-          reminderCount={pendingReminderCount}
-          waitlistCount={waitlist.length}
-          todoCount={openTodoCount}
-          reminderData={reminders}
-          onOpenWaitlist={() => setShowWaitlist(true)}
-          onOpenTodos={() => setShowTodos(true)}
-          onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
-          waitlistLoading={waitlistLoading}
-          todoLoading={todoLoading}
-        />
-      </div>
+      {/* Delivery failures must never be missed — surface them above the
+          schedule on mobile/tablet whenever there are any. The rest of the
+          workflow (reminders / waitlist / tasks) now lives as badges on the
+          day's controls bar. Desktop (xl+) keeps the full RightWorkflowSidebar. */}
+      {failures?.count > 0 && (
+        <div className="lg:hidden mb-3">
+          <DeliveryFailuresCard data={failures} onSelectFailure={handleSelectFailure} />
+        </div>
+      )}
 
       <PullToRefresh onRefresh={onRefresh}>
         <DashboardShell
@@ -315,6 +290,11 @@ export function WeekCalendarView({
               }
               onOverride={handleOverride}
               onOpenWaitlist={() => setShowWaitlist(true)}
+              reminderCount={pendingReminderCount}
+              waitlistCount={waitlist.length}
+              todoCount={openTodoCount}
+              onOpenReminders={() => setShowReminders(true)}
+              onOpenTodos={() => setShowTodos(true)}
               onCloseDay={() => setConfirmDayToggle("close")}
               onOpenDay={() => setConfirmDayToggle("open")}
               onOpenDaySettings={() => setShowDaySettings(true)}
@@ -323,9 +303,9 @@ export function WeekCalendarView({
             />
           }
           right={
-            // Desktop (xl+) only: the full stacked workflow sidebar. Below
-            // xl the panels live in the WorkflowStatusStrip above the
-            // schedule, so the right column is empty there.
+            // Desktop (lg+) only: the full stacked workflow sidebar. Below
+            // lg the workflow signals live as badges on the day's controls
+            // bar (reminders / waitlist / tasks), so this column is empty.
             <div className="hidden lg:block">
               <RightWorkflowSidebar
                 onOpenWaitlist={() => setShowWaitlist(true)}
@@ -408,6 +388,12 @@ export function WeekCalendarView({
       {showTodos && (
         <Suspense fallback={<LoadingSpinner />}>
           <TodoModal onClose={() => setShowTodos(false)} />
+        </Suspense>
+      )}
+
+      {showReminders && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <RemindersModal onClose={() => setShowReminders(false)} />
         </Suspense>
       )}
 

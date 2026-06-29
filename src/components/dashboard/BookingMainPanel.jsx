@@ -26,6 +26,11 @@ export function BookingMainPanel({
   onCloseDay,
   onOpenDay,
   onOpenDaySettings,
+  reminderCount = 0,
+  waitlistCount = 0,
+  todoCount = 0,
+  onOpenReminders,
+  onOpenTodos,
   searchQuery,
 }) {
   const hasBookings = (bookings || []).length > 0;
@@ -64,9 +69,13 @@ export function BookingMainPanel({
         bookingCount={(bookings || []).length}
         isOpen={isOpen}
         onOpenDaySettings={onOpenDaySettings}
-        onOpenOverview={onOpenOverview || onOpenCalendar}
         onJumpToToday={!isToday ? jumpToToday : undefined}
-        onRefresh={onRetry}
+        reminderCount={reminderCount}
+        waitlistCount={waitlistCount}
+        todoCount={todoCount}
+        onOpenReminders={onOpenReminders}
+        onOpenWaitlist={onOpenWaitlist}
+        onOpenTodos={onOpenTodos}
       />
 
       {isOpen ? (
