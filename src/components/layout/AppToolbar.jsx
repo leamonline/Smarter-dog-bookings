@@ -240,7 +240,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         </div>
       </div>
 
-      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ── */}
+      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, New client, menu ── */}
       <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] flex items-center gap-2 bg-brand-purple text-white">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
@@ -257,6 +257,17 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
+          </button>
+        )}
+        {onNewClient && (
+          <button
+            type="button"
+            onClick={onNewClient}
+            aria-label="New client"
+            title="New client"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 shrink-0 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+          >
+            <UserPlus size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
         )}
         <div ref={mobileMenuRef} className="relative shrink-0">
@@ -282,15 +293,6 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                     <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="9" y1="4" x2="9" y2="10" /><line x1="15" y1="4" x2="15" y2="10" />
                   </svg>
                   Week overview
-                </button>
-              )}
-              {onNewClient && (
-                <button
-                  onClick={() => { onNewClient(); setOpenMenu(null); }}
-                  className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
-                >
-                  <UserPlus size={16} strokeWidth={2.2} className="shrink-0 text-slate-500" aria-hidden="true" />
-                  New client
                 </button>
               )}
               <button
