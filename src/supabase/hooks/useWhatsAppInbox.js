@@ -328,6 +328,8 @@ export function useWhatsAppInbox() {
     releaseConversation,
     resolveConversation,
     reopenConversation,
+    bulkResolveConversations,
+    bulkReopenConversations,
   } = useConversationLifecycle({
     selectedId,
     actionInFlight,
@@ -688,6 +690,8 @@ export function useWhatsAppInbox() {
     setAIMode,
     resolveConversation,
     reopenConversation,
+    bulkResolveConversations,
+    bulkReopenConversations,
     updateConversationNotes,
     createStaffBooking,
     sendTemplate,
