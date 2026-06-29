@@ -73,6 +73,10 @@ interface DbBookingRow {
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
+  created_at?: string | null;
+  created_by_id?: string | null;
+  created_by_role?: string | null;
+  created_by_name?: string | null;
   notification_log?: Array<{
     trigger_type: string;
     status: string;
@@ -370,6 +374,11 @@ export function dbBookingsToArray(
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
+      // Who created this booking + when, denormalised from resolve_event_actor.
+      createdAt: row.created_at ?? null,
+      createdById: row.created_by_id ?? null,
+      createdByRole: row.created_by_role ?? null,
+      createdByName: row.created_by_name ?? null,
       // Lifecycle derived above from notification_log + reminder_confirmed_at.
       // "read" stays null (no WhatsApp read receipt is captured).
       reminderState,

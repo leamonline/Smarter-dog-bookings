@@ -9,6 +9,14 @@ import { useStaffName } from "../../../supabase/hooks/useStaffName.js";
 export function BookingMetaFooters({ booking }) {
   return (
     <>
+      {booking.createdByName && (
+        <CreatedByFooter
+          name={booking.createdByName}
+          role={booking.createdByRole}
+          at={booking.createdAt}
+        />
+      )}
+
       {booking.reminderConfirmedAt && (
         <ConfirmedByCustomerFooter at={booking.reminderConfirmedAt} />
       )}
@@ -20,6 +28,37 @@ export function BookingMetaFooters({ booking }) {
         />
       )}
     </>
+  );
+}
+
+function formatWhen(at) {
+  if (!at) return "";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return date;
+}
+
+/**
+ * Who created this booking + when, denormalised onto the row at insert. The AI
+ * name ("Smarter Dog AI") already reads as a role, so we only add a "(staff)" /
+ * "(customer)" qualifier for those. Renders only when the creator is known
+ * (legacy rows predate attribution and stay unlabelled).
+ */
+function CreatedByFooter({ name, role, at }) {
+  if (!name) return null;
+  const roleSuffix =
+    role === "staff" ? " (staff)" : role === "customer" ? " (customer)" : "";
+  const when = formatWhen(at);
+  return (
+    <div className="px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-[12px] font-semibold leading-snug">
+      <span className="uppercase text-[10px] font-extrabold tracking-wider mr-1 text-slate-400">Booked</span>
+      Booked by {name}{roleSuffix}{when ? ` on ${when}` : ""}.
+    </div>
   );
 }
 
