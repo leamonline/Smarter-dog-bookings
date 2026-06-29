@@ -65,7 +65,7 @@ describe("DogSearchSection — add another dog picker", () => {
 
     expect(props.ensureDogsForHumans).toHaveBeenCalledWith(["jayne-id"]);
     expect(screen.getByText("Eti")).toBeInTheDocument();
-    expect(screen.queryByText("No other dogs for this owner.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Just this one dog for them")).not.toBeInTheDocument();
   });
 
   it("does not offer a dog already on the booking", () => {
@@ -89,7 +89,7 @@ describe("DogSearchSection — add another dog picker", () => {
       dogsByHumanId: {},
     });
     expect(screen.getByText("Eti")).toBeInTheDocument();
-    expect(screen.queryByText("No other dogs for this owner.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Just this one dog for them")).not.toBeInTheDocument();
   });
 });
 
@@ -142,16 +142,16 @@ describe("DogSearchSection — typed search (UX #1)", () => {
     expect(screen.queryByText("Searching...")).not.toBeInTheDocument();
   });
 
-  it("shows 'Searching...' only while the server search is in flight with no local match", () => {
+  it("shows 'Looking for matches…' only while the server search is in flight with no local match", () => {
     renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: true });
-    expect(screen.getByText("Searching...")).toBeInTheDocument();
+    expect(screen.getByText("Looking for matches…")).toBeInTheDocument();
   });
 
   it("resolves to the no-results state with create CTAs instead of hanging", () => {
     // The original bug: this state stayed at "Searching..." forever.
     renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
-    expect(screen.queryByText("Searching...")).not.toBeInTheDocument();
-    expect(screen.getByText(/no dogs found matching "zzz"/i)).toBeInTheDocument();
+    expect(screen.queryByText("Looking for matches…")).not.toBeInTheDocument();
+    expect(screen.getByText(/can't find anyone with "zzz"/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
   });

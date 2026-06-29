@@ -44,7 +44,7 @@ export function RecurringBookingModal({
 
     const result = await cancelBookings(ids);
     if (!result.success) {
-      toast.show("Failed to cancel series", "error");
+      toast.show("Couldn't cancel that series", "error");
       setCancelling(false);
       return;
     }
@@ -114,11 +114,11 @@ export function RecurringBookingModal({
 
         {loading ? (
           <div className="py-8 text-center text-sm text-slate-400 font-semibold">
-            Loading series...
+            Loading the bookings…
           </div>
         ) : chainBookings.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400 font-semibold">
-            No bookings found in this series.
+            Nothing in this series
           </div>
         ) : (
           <div className="flex flex-col gap-1.5 mb-5">

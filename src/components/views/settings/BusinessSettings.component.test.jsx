@@ -23,7 +23,7 @@ describe("BusinessSettings email validation", () => {
     await user.type(screen.getByPlaceholderText(/hello@smarterdog/i), "not-an-email");
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/valid email/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/email doesn't look right/i);
     expect(onUpdateConfig).not.toHaveBeenCalled();
   });
 

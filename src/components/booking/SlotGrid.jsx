@@ -47,14 +47,14 @@ export function SlotGrid({
     async (booking, targetSlot) => {
       if (!onMoveBooking) return;
       if (!canDropAt(booking, targetSlot)) {
-        toast.show("Can't move booking there", "error");
+        toast.show("Can't move the booking there", "error");
         return;
       }
       try {
         await onMoveBooking(booking, targetSlot);
         toast.show(`Moved ${booking.dogName || "booking"} to ${targetSlot}`, "success");
       } catch {
-        toast.show("Move failed", "error");
+        toast.show("Move didn't work", "error");
       }
     },
     [onMoveBooking, canDropAt, toast],
@@ -74,7 +74,7 @@ export function SlotGrid({
     const result = await onOverride(slot, seatIndex, "blocked");
     if (result?.ok === false) {
       toast.dismiss?.(blockedToastId);
-      toast.show(result.error || "Couldn't block seat — try again?", "error");
+      toast.show(result.error || "Couldn't block that seat — give it another go?", "error");
     }
   }, [onOverride, toast]);
 
@@ -84,7 +84,7 @@ export function SlotGrid({
     const result = await onOverride(slot, seatIndex, "blocked");
     if (result?.ok === false) {
       toast.dismiss?.(unblockedToastId);
-      toast.show(result.error || "Couldn't unblock seat — try again?", "error");
+      toast.show(result.error || "Couldn't unblock that seat — give it another go?", "error");
     }
   }, [onOverride, toast]);
 

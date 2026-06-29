@@ -104,7 +104,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!resetEmail.trim()) {
-      setResetError("Please enter your email address.");
+      setResetError("We need your email to send the reset link.");
       return;
     }
     setResetSending(true);
@@ -127,7 +127,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setLocalError("Please enter both email and password.");
+      setLocalError("We need both your email and password.");
       return;
     }
     setLocalError("");
@@ -156,7 +156,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </span>
         </h1>
         <p className="text-sm text-center text-[var(--sd-ink-light)] leading-relaxed">
-          Supabase isn't configured, so the app is running with sample data and no authentication.
+          Supabase isn't set up yet, so you're seeing sample data. No authentication right now.
         </p>
       </PortalShell>
     );
@@ -176,7 +176,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             </span>
           </h1>
           <p className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
-            Sign in to start the day.
+            Sign in to get started.
           </p>
         </div>
 
@@ -261,7 +261,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
 
         <div className="mt-6 rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-buttercup-tint)]/50 px-4 py-3">
           <p className="text-xs text-[var(--sd-navy-soft)] leading-relaxed">
-            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite, then use the password reset link to set your password.
+            <strong className="text-[var(--sd-navy)]">Need an account?</strong> Ask the salon owner to send you an invite — the link in their email sets your password up.
           </p>
         </div>
       </PortalShell>
@@ -306,7 +306,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
           </span>
         </h1>
         <p className="text-sm text-center text-[var(--sd-ink-light)] mb-8 leading-relaxed">
-          Enter your email and we'll send you a reset link.
+          Enter your email and we'll send you a link.
         </p>
       </div>
 

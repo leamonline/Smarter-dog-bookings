@@ -28,7 +28,7 @@ describe("BookingStatusBar (#299 screen-reader announcement)", () => {
     );
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(liveRegion).toHaveTextContent("Status changed to Checked in");
+    expect(liveRegion).toHaveTextContent("All set — status updated to Checked in");
   });
 
   it("does not announce when the update fails (onUpdate returns null)", async () => {

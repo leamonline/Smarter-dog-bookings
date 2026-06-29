@@ -17,7 +17,7 @@ describe("resolveRemindersTone", () => {
       now: THU_AFTERNOON,
     });
     expect(r.tone).toBe("calm");
-    expect(r.primaryLine).toMatch(/No bookings/);
+    expect(r.primaryLine).toMatch(/Nothing booked/);
     expect(r.primaryLine).toMatch(/25 May/);
   });
 
@@ -43,7 +43,7 @@ describe("resolveRemindersTone", () => {
     expect(r.tone).toBe("active");
     expect(r.pillLabel).toBe("Pending");
     expect(r.primaryNumber).toBe(6);
-    expect(r.subtitle).toContain("of 8 bookings");
+    expect(r.subtitle).toContain("8 bookings");
     expect(r.progress).toEqual({ current: 2, total: 8 });
   });
 

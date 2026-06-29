@@ -60,7 +60,7 @@ export function StepFirstBooking({
         </ul>
         {booked.length === 0 && (
           <div className="text-[12px] text-slate-500 mt-1.5">
-            Tick at least one dog to book now. Unticked dogs are still saved — you can book them later.
+            Pick at least one dog to book now. Unticked dogs are still saved — you can book them later.
           </div>
         )}
       </div>
@@ -94,7 +94,7 @@ export function StepFirstBooking({
             />
           ) : (
             <div role="status" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3 py-2 rounded-lg">
-              The salon is closed that day — pick an open day above.
+              The salon's closed that day — pick an open day above.
             </div>
           )}
         </div>

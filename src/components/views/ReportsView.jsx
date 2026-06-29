@@ -102,8 +102,8 @@ export function ReportsView({ loadError = null }) {
           role="status"
           className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium px-3 py-2"
         >
-          Insufficient data for reliable comparisons — showing absolute values only.
-          Period-over-period deltas hidden below {LOW_N_THRESHOLD} bookings.
+          Not enough bookings to compare periods just yet — showing numbers only.
+          Comparisons hidden until there are {LOW_N_THRESHOLD}+ bookings.
         </div>
       )}
 
@@ -117,8 +117,8 @@ export function ReportsView({ loadError = null }) {
         </div>
       ) : loadError && stats.curN === 0 ? (
         <ErrorBanner
-          title="Couldn't load reports right now"
-          message="The underlying booking data didn't come through. Refresh to try again."
+          title="We can't load the reports right now"
+          message="The booking data didn't load. Refresh to have another go."
           retry={() => window.location.reload()}
           retryLabel="Refresh"
         />
@@ -127,7 +127,7 @@ export function ReportsView({ loadError = null }) {
           <EmptyState
             icon="📊"
             title="No bookings in this period"
-            description="Try selecting a longer time range."
+            description="Try a longer time range."
           />
         </Card>
       ) : (

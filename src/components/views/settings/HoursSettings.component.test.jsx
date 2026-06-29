@@ -24,7 +24,7 @@ describe("HoursSettings validation", () => {
     // Monday is the first open day → times[0]=open, times[1]=close.
     fireEvent.change(times[1], { target: { value: "08:00" } }); // before the 09:00 open
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/closing time must be after opening time/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/closing time needs to be after opening time/i);
     expect(times[1]).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: /save hours/i })).toBeDisabled();
   });

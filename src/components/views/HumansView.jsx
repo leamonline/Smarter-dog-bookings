@@ -274,7 +274,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
             }}
             className="mt-1 self-start text-xs font-semibold italic text-brand-coral-text bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
           >
-            No dogs registered — add one
+            No dogs yet — add one?
           </button>
         ) : (
           <div className="mt-1 flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[26px]">
@@ -602,7 +602,7 @@ export function HumansView({
       {loadError && displayList.length === 0 && !isInitialLoading && (
         <ErrorBanner
           title="Couldn't load the humans directory"
-          message="Check your connection and try again."
+          message="Check your connection, then try again"
           retry={() => window.location.reload()}
           retryLabel="Refresh"
         />
@@ -616,13 +616,13 @@ export function HumansView({
           ) : showArchived && archivedList === null && archivedError ? (
             <ErrorBanner
               title="Couldn't load archived humans"
-              message="Check your connection and try again."
+              message="Check your connection, then try again"
               retry={retryArchived}
               retryLabel="Try again"
             />
           ) : showArchived && archivedList === null ? (
             <div className="py-12 text-center text-body text-slate-500 italic">
-              Loading archived…
+              Loading archived humans…
             </div>
           ) : (
             <div
@@ -651,10 +651,10 @@ export function HumansView({
                     icon={showArchived ? "🗄️" : "🔍"}
                     title={
                       showArchived
-                        ? "No archived humans."
+                        ? "No archived humans here"
                         : searchQuery
-                          ? `No humans found matching "${searchQuery}"`
-                          : "No humans yet."
+                          ? `No humans matching "${searchQuery}"`
+                          : "No humans just yet"
                     }
                     description={
                       !showArchived && searchQuery
@@ -693,7 +693,7 @@ export function HumansView({
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
         <div role="status" aria-live="polite" className="text-body text-slate-500">
           {isSearching ? (
-            <span className="italic">Searching...</span>
+            <span className="italic">Searching…</span>
           ) : (
             <span>{footerText}</span>
           )}

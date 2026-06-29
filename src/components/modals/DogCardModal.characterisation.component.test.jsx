@@ -477,7 +477,7 @@ describe("DogCardModal characterisation", () => {
       enterEdit();
 
       fireEvent.click(screen.getByTitle("Remove trusted human"));
-      expect(await screen.findByText("Remove trusted human?")).toBeInTheDocument();
+      expect(await screen.findByText("Unlink trusted human?")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
       await waitFor(() => expect(onUpdateHuman).toHaveBeenCalledTimes(2));

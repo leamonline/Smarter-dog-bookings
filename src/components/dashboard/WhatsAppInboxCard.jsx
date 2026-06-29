@@ -29,10 +29,10 @@ function InboxAiSummary({ aiSummary, awaitingReply }) {
       ) : (
         <p className="text-[12px] text-slate-500 italic">
           {awaitingReply === 0
-            ? "Nothing waiting right now."
+            ? "All sorted right now"
             : aiSummary?.error
-              ? "Summary unavailable — open the inbox to see what's waiting."
-              : "No summary yet."}
+              ? "Summary's not ready yet — open the inbox to see what's there"
+              : "No summary yet"}
         </p>
       )}
     </div>

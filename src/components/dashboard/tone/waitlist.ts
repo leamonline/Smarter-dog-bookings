@@ -37,7 +37,7 @@ export function resolveWaitlistTone({
       pillLabel: "Action",
       primaryNumber: imminent,
       primaryLine: null,
-      subtitle: `could be slotted in (of ${total} total)`,
+      subtitle: `could slot in today or tomorrow (${total} waiting total)`,
       ariaSummary: `Waitlist, ${imminent} ${
         imminent === 1 ? "dog" : "dogs"
       } could be slotted in within the next 2 days, ${total} ${

@@ -42,7 +42,7 @@ describe("resolveWaitlistTone", () => {
     expect(r.tone).toBe("attention");
     expect(r.pillLabel).toBe("Action");
     expect(r.primaryNumber).toBe(1);
-    expect(r.subtitle).toBe("could be slotted in (of 2 total)");
+    expect(r.subtitle).toBe("could slot in today or tomorrow (2 waiting total)");
   });
 
   it("escalates to attention when any entry is for tomorrow", () => {

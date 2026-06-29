@@ -8,7 +8,6 @@ export function BookingGridControls({
   onOpenOverview,
   onJumpToToday,
   onRefresh,
-  dateLabel,
 }) {
   // Wordless capacity signal: a slim colour-coded bar + count/cap number.
   // Over-capacity reads as a full rose bar and a number past the cap (e.g.
@@ -44,13 +43,6 @@ export function BookingGridControls({
         Today
       </button>
 
-      {/* On phones the DayHeader bar is hidden, so keep the date visible here. */}
-      {dateLabel && (
-        <span className="sm:hidden text-[12px] font-semibold text-brand-purple/80">
-          {dateLabel}
-        </span>
-      )}
-
       {!isOpen ? (
         <span className="text-[12px] font-bold text-rose-600">Closed</span>
       ) : hasCap ? (
@@ -85,7 +77,7 @@ export function BookingGridControls({
           onClick={() => window.location.reload()}
           aria-label="Refresh the page"
           title="Refresh the page"
-          className="sm:hidden inline-flex items-center py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+          className="sm:hidden inline-flex items-center justify-center min-h-[40px] min-w-[40px] py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
         >
           <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
         </button>
@@ -95,7 +87,7 @@ export function BookingGridControls({
         type="button"
         onClick={onOpenDaySettings}
         aria-label="Day settings"
-        className="inline-flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-full text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+        className="inline-flex items-center justify-center gap-1.5 min-h-[40px] max-sm:min-w-[40px] py-1.5 px-2.5 sm:px-3 rounded-full text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
       >
         <SettingsIcon size={13} strokeWidth={2.2} aria-hidden="true" />
         <span className="hidden sm:inline">Day settings</span>
@@ -109,7 +101,7 @@ export function BookingGridControls({
           type="button"
           onClick={onOpenOverview}
           aria-label="Open calendar overview"
-          className="sm:hidden inline-flex items-center py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+          className="sm:hidden inline-flex items-center justify-center min-h-[40px] min-w-[40px] py-1.5 px-2.5 rounded-full text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
         >
           <CalendarDays size={13} strokeWidth={2.2} aria-hidden="true" />
         </button>

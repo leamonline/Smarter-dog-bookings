@@ -144,11 +144,11 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
       const anyFail = (result?.results ?? []).some((r) => !r.success);
       if (anyFail) {
         toast.show(
-          `Could not send reminder to ${row.customerName} — check the customer's contact preferences.`,
+          `Couldn't send a reminder to ${row.customerName} — check their contact details.`,
           "error",
         );
       } else {
-        toast.show(`Reminder sent to ${row.customerName}.`, "success");
+        toast.show(`Reminder sent to ${row.customerName} — nice one`, "success");
       }
       refresh?.();
     } catch (err) {

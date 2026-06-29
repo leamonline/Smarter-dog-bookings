@@ -27,9 +27,9 @@ export function resolveRemindersTone({
       tone: "calm",
       pillLabel: null,
       primaryNumber: null,
-      primaryLine: `No bookings ${targetLabel}`,
+      primaryLine: `Nothing booked ${targetLabel}`,
       subtitle: null,
-      ariaSummary: `Reminders for ${targetLabel}, no bookings`,
+      ariaSummary: `Reminders for ${targetLabel}, nothing booked`,
       urgency: 0,
       progress: null,
     };
@@ -58,7 +58,7 @@ export function resolveRemindersTone({
     pillLabel: isAttention ? "Send now" : "Pending",
     primaryNumber: unsent,
     primaryLine: null,
-    subtitle: `unsent of ${totalCount} bookings ${targetLabel}`,
+    subtitle: `still to send · ${totalCount} bookings ${targetLabel}`,
     ariaSummary: `Reminders for ${targetLabel}, ${unsent} unsent of ${totalCount}${
       isAttention ? ", send tonight" : ""
     }`,

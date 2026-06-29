@@ -194,7 +194,7 @@ export function BookingDetailModal({
   const setIsEditingWithToast = useCallback((value) => {
     setIsEditing(value);
     if (value === false) {
-      toast.show("Booking updated", "success");
+      toast.show("Booking updated — all saved", "success");
     }
   }, [setIsEditing, toast]);
 

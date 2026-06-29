@@ -169,7 +169,7 @@ export function WeekCalendarView({
       // reminders went onto the to-do list when they actually didn't.
       const result = await addTodos(items);
       if (result?.ok === false) {
-        toast.show(result.error || "Couldn't add rearrange notes to the to-do list.", "error");
+        toast.show(result.error || "Couldn't save the rearrange notes — give it another go", "error");
       }
     }
     toggleDayOpen();

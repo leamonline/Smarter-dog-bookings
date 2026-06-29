@@ -147,7 +147,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
 
         {error && (
           <div role="alert" className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mb-2">
-            Couldn&apos;t load activity.
+            Couldn&apos;t load activity — give it another go.
             <button type="button" onClick={refresh} className="ml-2 underline font-semibold cursor-pointer">
               Retry
             </button>

@@ -613,7 +613,7 @@ export function DogsView({
       {loadError && displayList.length === 0 && !isInitialLoading && (
         <ErrorBanner
           title="Couldn't load the dogs directory"
-          message="Check your connection and try again."
+          message="Check your connection, then try again"
           retry={() => window.location.reload()}
           retryLabel="Refresh"
         />
@@ -626,7 +626,7 @@ export function DogsView({
             <CardGridSkeleton rows={3} cols={3} />
           ) : showArchived && archivedList === null ? (
             <div className="py-12 text-center text-body text-slate-500 italic">
-              Loading archived…
+              Loading archived dogs…
             </div>
           ) : (
             <div
@@ -654,16 +654,16 @@ export function DogsView({
                     icon={showArchived ? "🗄️" : "🐾"}
                     title={
                       showArchived
-                        ? "No archived dogs."
+                        ? "No archived dogs here"
                         : searchQuery
-                          ? `No dogs found matching "${searchQuery}"`
+                          ? `No dogs matching "${searchQuery}"`
                           : narrowed
-                            ? "No dogs match the active filters."
-                            : "No dogs yet."
+                            ? "No dogs match those filters"
+                            : "No dogs just yet"
                     }
                     description={
                       !showArchived && narrowed
-                        ? "Try clearing some filters or searching by breed or owner name."
+                        ? "Try clearing some filters, or search by breed or owner name"
                         : null
                     }
                     action={
@@ -698,7 +698,7 @@ export function DogsView({
       <div className="mt-5 flex items-center justify-between flex-wrap gap-2.5">
         <div className="text-body text-slate-500">
           {isSearching ? (
-            <span className="italic">Searching...</span>
+            <span className="italic">Searching…</span>
           ) : (
             <span>{footerText}</span>
           )}

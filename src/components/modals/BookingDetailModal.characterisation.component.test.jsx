@@ -276,7 +276,7 @@ describe("BookingDetailModal — card surfaces", () => {
     enterEditMode();
     expect(screen.getByRole("button", { name: "08:30" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "09:00" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Save Changes/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Save changes/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     // Back to read mode.
     expect(screen.getByText("Time & Date")).toBeInTheDocument();

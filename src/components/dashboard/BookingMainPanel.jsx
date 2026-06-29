@@ -67,18 +67,13 @@ export function BookingMainPanel({
         onOpenOverview={onOpenOverview || onOpenCalendar}
         onJumpToToday={!isToday ? jumpToToday : undefined}
         onRefresh={onRetry}
-        dateLabel={currentDateObj.toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        })}
       />
 
       {isOpen ? (
         <>
           {showError && (
             <ErrorBanner
-              title="Couldn't load today's bookings"
+              title="Couldn't load the day's bookings"
               message={typeof bookingsError === "string" ? bookingsError : "Check your connection and try again."}
               retry={onRetry}
               retryLabel="Refresh"

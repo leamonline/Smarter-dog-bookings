@@ -56,11 +56,11 @@ export function ResetPasswordPage() {
     setError("");
 
     if (password.length < 12) {
-      setError("Password must be at least 12 characters.");
+      setError("Password needs to be 12 characters or longer.");
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError("Those passwords don't match — give them another look.");
       return;
     }
 
@@ -70,7 +70,7 @@ export function ResetPasswordPage() {
     // stand-in for Supabase's Pro-only leaked-password protection; fails open.
     if (await isPasswordPwned(password)) {
       setSaving(false);
-      setError("That password has appeared in a known data breach. Please choose a different one.");
+      setError("That password isn't safe — it's been in a data breach. Pick a different one.");
       return;
     }
 
@@ -78,7 +78,7 @@ export function ResetPasswordPage() {
     setSaving(false);
 
     if (err) {
-      setError(err.message || "Could not update password. The link may have expired.");
+      setError(err.message || "Something went wrong updating your password — the link might've expired. Give it another go or ask for a new one.");
       return;
     }
 
@@ -93,10 +93,10 @@ export function ResetPasswordPage() {
         <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
           <div className="text-[40px] mb-3">{"\u2705"}</div>
           <div className="text-lg font-extrabold text-slate-800 mb-2">
-            Password updated!
+            Password updated — nice one!
           </div>
           <div className="text-body text-slate-500">
-            Taking you to the dashboard...
+            Redirecting to the dashboard…
           </div>
         </PortalCard>
       </CenteredScreen>
@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
             Link expired
           </div>
           <div className="text-body text-slate-500 mb-5">
-            This reset link has expired or is invalid. Request a new one from the sign-in page.
+            That reset link has expired or isn't valid anymore. Head back to sign in and ask for a new one.
           </div>
           <a
             href="/"
@@ -131,7 +131,7 @@ export function ResetPasswordPage() {
     return (
       <CenteredScreen>
         <PortalCard className="rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] text-center">
-          <div className="text-body text-slate-500">Verifying reset link...</div>
+          <div className="text-body text-slate-500">Verifying your reset link…</div>
         </PortalCard>
       </CenteredScreen>
     );
@@ -152,7 +152,7 @@ export function ResetPasswordPage() {
           Set a new password
         </div>
         <div className="text-body text-slate-500 mb-5">
-          Choose something strong — at least 12 characters.
+          Choose something strong — 12 characters or longer.
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -180,7 +180,7 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
-              placeholder="Min. 12 characters"
+              placeholder="12 characters or longer"
               className="w-full py-3 px-4 rounded-control border-[1.5px] border-slate-200 text-base font-[inherit] box-border outline-none text-slate-800 focus:border-brand-teal"
               autoFocus
             />

@@ -150,7 +150,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
     async (recipient) => {
       if (sendingId) return;
       if (!minutesValid) {
-        toast.show("Enter how many minutes until collection.", "error");
+        toast.show("Let us know how many minutes until collection", "error");
         return;
       }
       const phoneE164 = normaliseUkMobile(recipient.phone || "");
@@ -159,7 +159,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
         return;
       }
       if (!READY_TEMPLATE) {
-        toast.show("The ready-for-collection template isn't configured yet.", "error");
+        toast.show("The collection template isn't set up yet", "error");
         return;
       }
       setSendingId(recipient.id);

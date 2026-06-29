@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component {
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
           <div className="text-4xl mb-4">🐾</div>
           <div className="text-slate-800 font-extrabold text-lg mb-1">
-            Something went wrong
+            That didn't quite work
           </div>
           <div className="text-slate-500 text-sm mb-2 max-w-xs">
             {this.state.error?.message
@@ -54,13 +54,13 @@ export class ErrorBoundary extends Component {
               onClick={this.handleReset}
               className="py-2.5 px-5 rounded-lg bg-brand-teal text-white font-bold text-sm border-none cursor-pointer"
             >
-              Try again
+              Give it another go
             </button>
             <button
               onClick={() => window.location.reload()}
               className="py-2.5 px-5 rounded-lg bg-white text-slate-700 font-bold text-sm border border-slate-200 cursor-pointer"
             >
-              Reload page
+              Reload the page
             </button>
           </div>
         </div>
