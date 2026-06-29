@@ -11,6 +11,7 @@ import { KeyInsights } from "./reports/KeyInsights.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
 import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
+import { WeeklyCashUp } from "./reports/WeeklyCashUp.jsx";
 import { useSalon } from "../../contexts/SalonContext";
 
 const ALLOWED_PERIODS = [7, 30, 90];
@@ -57,14 +58,29 @@ export function ReportsView({ loadError = null }) {
 
   return (
     <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
-      {/* Band 1 — Page title + period control */}
+      {/* Page title */}
+      <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
+        Cash-up &amp; reports
+      </h1>
+
+      {/* Part A — Weekly cash-up (its own week selector, expected takings) */}
+      <WeeklyCashUp />
+
+      {/* Divider between the cash-up sheet and the analytics dashboard */}
+      <div className="flex items-center gap-3 pt-1">
+        <div className="h-px bg-slate-200 flex-1" />
+        <span className="text-label text-ink-muted">Reports &amp; insights</span>
+        <div className="h-px bg-slate-200 flex-1" />
+      </div>
+
+      {/* Part B — Analytics: period control (scopes the analytics below only) */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
-            Reports
-          </h1>
+          <h2 className="text-base sm:text-lg font-extrabold m-0 text-slate-800 font-display leading-tight">
+            Reports analytics
+          </h2>
           <p className="text-caption sm:text-xs text-slate-500 font-medium m-0 mt-0.5">
-            Showing last {activePeriod.l.toLowerCase()}
+            Open days only · showing last {activePeriod.l.toLowerCase()}
           </p>
         </div>
         <div
@@ -94,7 +110,7 @@ export function ReportsView({ loadError = null }) {
         </div>
       </div>
 
-      {/* Band 2 — This-week hero (own data fetch, independent of period filter) */}
+      {/* This-week hero (own data fetch, independent of period filter) */}
       <WeeklySnapshot />
 
       {isLowN && (
