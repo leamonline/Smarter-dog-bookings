@@ -240,32 +240,19 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         </div>
       </div>
 
-      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, New client, menu ── */}
+      {/* ── Mobile/tablet top bar (below lg) — logo, New client, menu ── */}
       <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] flex items-center gap-2 bg-brand-purple text-white">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
         </NavLink>
         <div className="flex-1" />
-        {onNewBooking && (
-          <button
-            type="button"
-            onClick={onNewBooking}
-            aria-label="New booking"
-            title="New booking"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        )}
         {onNewClient && (
           <button
             type="button"
             onClick={onNewClient}
             aria-label="New client"
             title="New client"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white cursor-pointer transition-all hover:bg-white/20 shrink-0 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
           >
             <UserPlus size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>

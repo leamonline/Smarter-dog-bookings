@@ -124,7 +124,6 @@ export function SlotGrid({
     const slotOverrides = overrides?.[slot] || {};
     const seatStates = precalculatedSeatStates || getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
 
-    const allAvailable = seatStates.every((s) => s.type === "available");
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
     // Subtle alternating row tint to give the eye an anchor as it
@@ -257,19 +256,9 @@ export function SlotGrid({
                   />
                 );
               })}
-              {otherSeats.length > 0 &&
-                (allAvailable ? (
-                  // Fully free slot: one "+ Book" row, not one per seat.
-                  <GhostSeat
-                    onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                    onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-                    onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-                    onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-                    isDropTarget={dnd.drag.overSlot === slot}
-                  />
-                ) : (
-                  otherSeats.map(seatCell)
-                ))}
+              {/* Render every seat so each slot always shows its two seats
+                  (free seats become "+ Book" ghosts). */}
+              {otherSeats.map(seatCell)}
             </div>
           </div>
         )}

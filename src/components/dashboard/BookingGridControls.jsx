@@ -47,7 +47,7 @@ export function BookingGridControls({
     // (mobile/tablet) and Day settings.
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-2 sm:p-2.5">
       <span
-        className={`inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-bold ${STATUS[dayStatus].cls}`}
+        className={`inline-flex items-center justify-center w-16 md:w-20 h-7 rounded-full text-[12px] font-bold ${STATUS[dayStatus].cls}`}
       >
         {STATUS[dayStatus].label}
       </span>
