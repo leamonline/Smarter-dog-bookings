@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, BellRing, Clock3, ListChecks } from "lucide-react";
+import { Settings as SettingsIcon, BellRing, Clock3, ListChecks, MessageSquare } from "lucide-react";
 import { capacityRatio, utilisationColor } from "../../engine/utilisation";
 
 export function BookingGridControls({
@@ -11,6 +11,7 @@ export function BookingGridControls({
   onOpenReminders,
   onOpenWaitlist,
   onOpenTodos,
+  onMessageDay,
 }) {
   // Wordless capacity signal: a slim colour-coded bar + count/cap number.
   // Over-capacity reads as a full rose bar and a number past the cap (e.g.
@@ -90,6 +91,19 @@ export function BookingGridControls({
             {count > 99 ? "99+" : count}
           </button>
         ))}
+
+        {onMessageDay && bookingCount > 0 && (
+          <button
+            type="button"
+            onClick={onMessageDay}
+            aria-label="Message this day's customers"
+            title="Send every booked customer a message about this day"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] max-sm:min-w-[40px] py-1.5 px-2.5 sm:px-3 rounded-full text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 cursor-pointer font-[inherit] transition-colors hover:border-brand-yellow/60 hover:text-brand-purple"
+          >
+            <MessageSquare size={13} strokeWidth={2.2} aria-hidden="true" />
+            <span className="hidden sm:inline">Message day</span>
+          </button>
+        )}
 
         <button
           type="button"

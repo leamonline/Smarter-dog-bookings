@@ -30,6 +30,7 @@ export function BookingMainPanel({
   todoCount = 0,
   onOpenReminders,
   onOpenTodos,
+  onMessageDay,
   searchQuery,
 }) {
   const hasBookings = (bookings || []).length > 0;
@@ -63,6 +64,7 @@ export function BookingMainPanel({
         onOpenReminders={onOpenReminders}
         onOpenWaitlist={onOpenWaitlist}
         onOpenTodos={onOpenTodos}
+        onMessageDay={onMessageDay}
       />
 
       {isOpen ? (
