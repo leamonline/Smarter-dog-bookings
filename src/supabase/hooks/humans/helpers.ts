@@ -51,6 +51,9 @@ export function buildHumanMapEntry(row: any) {
     reminderHours: row.reminder_hours ?? 24,
     reminderChannels: row.reminder_channels || ["whatsapp"],
     archivedAt: row.archived_at || null,
+    // "Where did you hear about us?" — captured at self-signup, read-only to
+    // staff. Only on the full select("*") fetch (not the directory projection).
+    heardAboutUs: row.heard_about_us || null,
     // "Join the Pack" self-signup state. approvedAt NULL + signupSubmittedAt
     // set = a pending signup awaiting staff approval (HumanHeader surfaces the
     // badge + approve/reject buttons). Both are absent on the directory RPC's

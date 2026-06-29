@@ -9,6 +9,7 @@ import { AddressPicker } from "./AddressPicker.jsx";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index";
 import { BREED_LIST } from "../../../constants/breeds";
+import { REFERRAL_SOURCES, REFERRAL_SOURCE_OTHER } from "../../../constants/referralSources.ts";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -110,8 +111,15 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     () => restored?.addr ?? { ready: false, address: null, postcode: null, keepingExisting: false },
   );
   const [policiesAccepted, setPoliciesAccepted] = useState(() => restored?.policiesAccepted ?? false);
+  // "Where did you hear about us?" — optional, but picking "Other" requires the
+  // free-text box. Old drafts won't have these keys; default to empty so they
+  // don't break.
+  const [heardAboutUs, setHeardAboutUs] = useState(() => restored?.heardAboutUs ?? "");
+  const [heardAboutUsOther, setHeardAboutUsOther] = useState(() => restored?.heardAboutUsOther ?? "");
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const referralOtherSelected = heardAboutUs === REFERRAL_SOURCE_OTHER;
+  const referralValid = !referralOtherSelected || heardAboutUsOther.trim() !== "";
 
   // Dogs
   const [dogs, setDogs] = useState(() => restored?.dogs ?? [blankDog()]);
@@ -123,8 +131,8 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
 
   // Save a snapshot whenever any field changes.
   useEffect(() => {
-    saveDraft({ step, name, surname, email, addr, policiesAccepted, dogs });
-  }, [saveDraft, step, name, surname, email, addr, policiesAccepted, dogs]);
+    saveDraft({ step, name, surname, email, addr, policiesAccepted, heardAboutUs, heardAboutUsOther, dogs });
+  }, [saveDraft, step, name, surname, email, addr, policiesAccepted, heardAboutUs, heardAboutUsOther, dogs]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -134,6 +142,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     surname.trim() !== "" &&
     emailValid &&
     addr.ready &&
+    referralValid &&
     policiesAccepted;
   const dogsValid = dogs.length > 0 && dogs.every(dogReady);
 
@@ -161,6 +170,12 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     setSaving(true);
     setError(null);
 
+    // "Other" stores the typed text; any other choice stores the label; no
+    // selection stores nothing (the RPC nullifs an empty string).
+    const heardAboutUsValue = referralOtherSelected
+      ? heardAboutUsOther.trim()
+      : heardAboutUs;
+
     const owner = {
       name: name.trim(),
       surname: surname.trim(),
@@ -170,6 +185,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
       // Reminders default on — they just signed up and gave us their number.
       sms: true,
       whatsapp: true,
+      heard_about_us: heardAboutUsValue || null,
       policies_version: POLICIES_VERSION,
     };
 
@@ -281,6 +297,32 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 placeholder="you@example.com"
                 className="portal-input w-full"
               />
+            </fieldset>
+
+            <fieldset className="mb-5">
+              <legend className="text-[13px] font-semibold text-[var(--sd-navy)] mb-2">
+                Where did you hear about us?
+              </legend>
+              <select
+                aria-label="Where did you hear about us?"
+                value={heardAboutUs}
+                onChange={(e) => setHeardAboutUs(e.target.value)}
+                className="portal-input w-full"
+              >
+                <option value="">Choose one (optional)</option>
+                {REFERRAL_SOURCES.map((source) => (
+                  <option key={source} value={source}>{source}</option>
+                ))}
+              </select>
+              {referralOtherSelected && (
+                <input
+                  aria-label="Tell us where you heard about us"
+                  value={heardAboutUsOther}
+                  onChange={(e) => setHeardAboutUsOther(e.target.value)}
+                  placeholder="Tell us where…"
+                  className="portal-input w-full mt-2"
+                />
+              )}
             </fieldset>
 
             <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
