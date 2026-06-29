@@ -133,10 +133,9 @@ export function SlotGrid({
     const rowBg = index % 2 === 0 ? "bg-sky-50/60" : "bg-white";
     const isNow = index === nowIdx;
 
-    // One boxed time button PER ROW: every booking gets its own time box
-    // (like the old list view's arrival pill), and any leftover seats
-    // (free / blocked / reserved) share one trailing box. Every box opens
-    // the same slot-actions menu.
+    // One boxed time button PER SLOT, spanning both seats: the clock + time
+    // (like the old list view's arrival pill) sits beside the stacked seats
+    // and opens the slot-actions menu (book / block / override).
     const timeBox = (
       <div className="self-stretch">
         <SlotRowMenu
@@ -238,14 +237,17 @@ export function SlotGrid({
             <SkeletonCard />
           </div>
         ) : (
-          <>
-            {bookingSeats.map((seat) => {
-              const b = seat.booking;
-              const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
-              return (
-                <div key={b.id || seat.seatIndex} className={rowGrid}>
-                  {timeBox}
+          // One time box spanning the whole slot, with both seats stacked
+          // beside it (booking cards + any free / blocked / large-dog seats).
+          <div className={rowGrid}>
+            {timeBox}
+            <div className="flex flex-col gap-1.5 md:gap-2">
+              {bookingSeats.map((seat) => {
+                const b = seat.booking;
+                const dimmed = searchActive && !`${b.dogName} ${b.breed} ${b.owner} ${b.ownerName || ""}`.toLowerCase().includes(searchLower);
+                return (
                   <BookingCardNew
+                    key={b.id || seat.seatIndex}
                     booking={b}
                     searchDimmed={dimmed}
                     draggable={!!onMoveBooking}
@@ -253,29 +255,23 @@ export function SlotGrid({
                     onDragEnd={onMoveBooking ? dnd.onCardDragEnd : undefined}
                     isBeingDragged={dnd.drag.booking?.id === b.id}
                   />
-                </div>
-              );
-            })}
-            {otherSeats.length > 0 && (
-              <div className={rowGrid}>
-                {timeBox}
-                <div className="flex flex-col gap-1.5 md:gap-2">
-                  {allAvailable ? (
-                    // Fully free slot: one "+ Book" row, not one per seat.
-                    <GhostSeat
-                      onClick={() => onOpenNewBooking(currentDateStr, slot)}
-                      onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
-                      onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
-                      onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
-                      isDropTarget={dnd.drag.overSlot === slot}
-                    />
-                  ) : (
-                    otherSeats.map(seatCell)
-                  )}
-                </div>
-              </div>
-            )}
-          </>
+                );
+              })}
+              {otherSeats.length > 0 &&
+                (allAvailable ? (
+                  // Fully free slot: one "+ Book" row, not one per seat.
+                  <GhostSeat
+                    onClick={() => onOpenNewBooking(currentDateStr, slot)}
+                    onDragOver={onMoveBooking ? (e) => dnd.onSlotDragOver(slot, e) : undefined}
+                    onDragLeave={onMoveBooking ? () => dnd.onSlotDragLeave(slot) : undefined}
+                    onDrop={onMoveBooking ? (e) => dnd.onSlotDrop(slot, e) : undefined}
+                    isDropTarget={dnd.drag.overSlot === slot}
+                  />
+                ) : (
+                  otherSeats.map(seatCell)
+                ))}
+            </div>
+          </div>
         )}
       </div>
     );
