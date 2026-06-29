@@ -5,7 +5,6 @@ export function BookingGridControls({
   bookingCount = 0,
   isOpen = true,
   onOpenDaySettings,
-  onJumpToToday,
   reminderCount = 0,
   waitlistCount = 0,
   todoCount = 0,
@@ -20,12 +19,8 @@ export function BookingGridControls({
   const barPct = Math.min(100, Math.round(cap.ratio * 100));
   const barColor = utilisationColor(barPct, cap.over);
   const hasCap = isOpen && cap.cap > 0;
-  // The parent only passes onJumpToToday when we're on another day. So a
-  // missing handler == "already on today" → render the button greyed + inert
-  // rather than hiding it, keeping the bar's layout identical every day.
-  const canJump = !!onJumpToToday;
 
-  // Open / fully-booked / closed status, shown as a coloured pill by Today.
+  // Open / fully-booked / closed status, shown as a coloured pill.
   const dayStatus = !isOpen
     ? "closed"
     : cap.over || (cap.cap > 0 && cap.count >= cap.cap)
@@ -47,27 +42,10 @@ export function BookingGridControls({
   ].filter((n) => n.count > 0 && n.onOpen);
 
   return (
-    // Single row at every size. The Today button sits where the old "dogs
-    // booked" pill was, sized to the grid's time-column (w-16 md:w-20 = 64/80px)
-    // so it lines up with the 8:30 / 9:00 time buttons below. The slim capacity
-    // bar (7/14) carries the count; the right cluster holds the workflow badges
+    // Single row at every size: an Open / Full / Closed status pill, the slim
+    // capacity bar (7/14), then the right cluster of workflow badges
     // (mobile/tablet) and Day settings.
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-2 sm:p-2.5">
-      <button
-        type="button"
-        onClick={canJump ? onJumpToToday : undefined}
-        disabled={!canJump}
-        aria-label={canJump ? "Jump to today" : "Already viewing today"}
-        title={canJump ? "Jump to today" : "Viewing today"}
-        className={`shrink-0 w-16 md:w-20 inline-flex items-center justify-center py-1.5 rounded-full text-[12px] font-bold font-[inherit] transition-colors ${
-          canJump
-            ? "text-brand-purple bg-brand-yellow/15 border border-brand-yellow/40 cursor-pointer hover:bg-brand-yellow/30"
-            : "text-slate-400 bg-slate-50 border border-slate-200 cursor-default"
-        }`}
-      >
-        Today
-      </button>
-
       <span
         className={`inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-bold ${STATUS[dayStatus].cls}`}
       >

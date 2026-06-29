@@ -1,4 +1,3 @@
-import { toDateStr } from "../../supabase/transforms";
 import { DayHeader } from "./DayHeader.jsx";
 import { EmptyDayPanel } from "./EmptyDayPanel.jsx";
 import { BookingGridControls } from "./BookingGridControls.jsx";
@@ -40,16 +39,6 @@ export function BookingMainPanel({
   // upstream issue and we don't want to double up.
   const showError = isOpen && !hasBookings && !bookingsLoading && bookingsError;
   const showEmpty = isOpen && !hasBookings && !bookingsLoading && !bookingsError;
-  const todayStr = toDateStr(new Date());
-  const currentStr = toDateStr(currentDateObj);
-  const isToday = todayStr === currentStr;
-
-  const jumpToToday = () => {
-    const diffDays = Math.round(
-      (new Date(todayStr) - new Date(currentStr)) / (1000 * 60 * 60 * 24),
-    );
-    if (diffDays !== 0) onNavigateDay(diffDays);
-  };
 
   return (
     <section
@@ -63,13 +52,11 @@ export function BookingMainPanel({
       />
 
       {/* Controls row renders on closed days too — staff still need the
-          date pill, Day settings (to reopen), calendar, Today and refresh
-          without leaving the day. */}
+          status pill and Day settings (to reopen) without leaving the day. */}
       <BookingGridControls
         bookingCount={(bookings || []).length}
         isOpen={isOpen}
         onOpenDaySettings={onOpenDaySettings}
-        onJumpToToday={!isToday ? jumpToToday : undefined}
         reminderCount={reminderCount}
         waitlistCount={waitlistCount}
         todoCount={todoCount}
