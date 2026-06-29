@@ -43,6 +43,11 @@ const RemindersModal = lazy(() =>
     default: module.RemindersModal,
   })),
 );
+const BroadcastMessageModal = lazy(() =>
+  import("../modals/day-closure/BroadcastMessageModal.jsx").then((module) => ({
+    default: module.BroadcastMessageModal,
+  })),
+);
 
 export function WeekCalendarView({
   selectedDay,
@@ -83,6 +88,7 @@ export function WeekCalendarView({
   // MiniCalendarCard). Picking a day collapses it back to the week view.
   const [monthExpanded, setMonthExpanded] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
+  const [showBroadcast, setShowBroadcast] = useState(false);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -317,6 +323,7 @@ export function WeekCalendarView({
               todoCount={openTodoCount}
               onOpenReminders={() => setShowReminders(true)}
               onOpenTodos={() => setShowTodos(true)}
+              onMessageDay={() => setShowBroadcast(true)}
               onCloseDay={() => setConfirmDayToggle("close")}
               onOpenDay={() => setConfirmDayToggle("open")}
               onOpenDaySettings={() => setShowDaySettings(true)}
@@ -429,6 +436,15 @@ export function WeekCalendarView({
       {showReminders && (
         <Suspense fallback={<LoadingSpinner />}>
           <RemindersModal onClose={() => setShowReminders(false)} />
+        </Suspense>
+      )}
+
+      {showBroadcast && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <BroadcastMessageModal
+            defaultDate={currentDateStr}
+            onClose={() => setShowBroadcast(false)}
+          />
         </Suspense>
       )}
 
