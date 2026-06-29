@@ -70,6 +70,8 @@ export interface Dog {
   alerts: string[];
   groomNotes: string;
   customPrice: number | undefined;
+  // Most recent date a booking for this dog reached Completed (forward-only).
+  lastGroomedDate?: string | null;
 }
 
 export interface Booking {
@@ -99,6 +101,9 @@ export interface Booking {
   staffCapacityOverrideBy: string | null;
   staffCapacityOverrideAt: string | null;
   reminderConfirmedAt: string | null;
+  // When the booking was marked Completed (cleared if moved back out). Only the
+  // DB read path populates it; optional for the many Booking constructors.
+  completedAt?: string | null;
   // Reminder lifecycle (see ReminderState). `reminderState` is the single
   // field the ReminderCard reads; the timestamps/`reminderConfirmedBy` are
   // optional metadata the card surfaces when present. Optional so the many

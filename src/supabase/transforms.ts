@@ -48,6 +48,7 @@ interface DbDogRow {
   alerts: string[] | null;
   groom_notes: string | null;
   custom_price: number | undefined;
+  last_groomed_date?: string | null;
 }
 
 interface DbBookingRow {
@@ -73,6 +74,7 @@ interface DbBookingRow {
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
+  completed_at?: string | null;
   notification_log?: Array<{
     trigger_type: string;
     status: string;
@@ -288,6 +290,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       alerts: row.alerts || [],
       groomNotes: row.groom_notes || "",
       customPrice: row.custom_price,
+      lastGroomedDate: row.last_groomed_date || null,
     };
   }
   return map;
@@ -370,6 +373,7 @@ export function dbBookingsToArray(
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
+      completedAt: row.completed_at ?? null,
       // Lifecycle derived above from notification_log + reminder_confirmed_at.
       // "read" stays null (no WhatsApp read receipt is captured).
       reminderState,
