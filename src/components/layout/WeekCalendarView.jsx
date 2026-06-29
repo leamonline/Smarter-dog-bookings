@@ -193,33 +193,35 @@ export function WeekCalendarView({
           />
         )}
 
-        {/* Day navigation flanks the month/week toggle: ‹ [Show month] › */}
-        <div className="flex items-center justify-center gap-2 mt-1.5">
-          <button
-            type="button"
-            onClick={() => navigateDay(-1)}
-            aria-label="Previous day"
-            className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-          >
-            <ChevronLeft size={18} strokeWidth={2.5} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMonthExpanded((v) => !v)}
-            aria-expanded={monthExpanded}
-            aria-label={monthExpanded ? "Show week" : "Show month"}
-            className="inline-flex items-center h-9 px-4 rounded-full text-[12px] font-bold text-brand-purple/80 bg-white hover:text-brand-purple shadow-card-resting transition-colors cursor-pointer font-[inherit]"
-          >
-            {monthExpanded ? "Show week" : "Show month"}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigateDay(1)}
-            aria-label="Next day"
-            className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-          >
-            <ChevronRight size={18} strokeWidth={2.5} />
-          </button>
+        {/* One segmented pill: day arrows wrap the month/week toggle. */}
+        <div className="flex justify-center mt-2">
+          <div className="inline-flex items-center bg-white rounded-full shadow-card-resting overflow-hidden">
+            <button
+              type="button"
+              onClick={() => navigateDay(-1)}
+              aria-label="Previous day"
+              className="sm:hidden w-10 h-9 flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/55 hover:text-brand-purple hover:bg-slate-50 transition-colors"
+            >
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthExpanded((v) => !v)}
+              aria-expanded={monthExpanded}
+              aria-label={monthExpanded ? "Show week" : "Show month"}
+              className="h-9 px-4 sm:px-5 inline-flex items-center border-x border-slate-100 sm:border-x-0 text-[12px] font-bold text-brand-purple/80 bg-transparent hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
+            >
+              {monthExpanded ? "Show week" : "Show month"}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateDay(1)}
+              aria-label="Next day"
+              className="sm:hidden w-10 h-9 flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/55 hover:text-brand-purple hover:bg-slate-50 transition-colors"
+            >
+              <ChevronRight size={18} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -411,7 +411,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 </span>
               ) : pricing.isDepositPaid ? (
                 <span
-                  className="text-[10px] md:text-[11px] font-semibold text-slate-500"
+                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded leading-none"
                   title={`£${pricing.amountDue} due at pick-up (deposit of £${pricing.depositPaid} paid)`}
                 >
                   {"\u00A3"}{pricing.amountDue} due
