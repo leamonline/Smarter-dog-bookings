@@ -48,6 +48,7 @@ interface DbDogRow {
   alerts: string[] | null;
   groom_notes: string | null;
   custom_price: number | undefined;
+  last_groomed_date?: string | null;
 }
 
 interface DbBookingRow {
@@ -73,6 +74,7 @@ interface DbBookingRow {
   staff_capacity_override_by?: string | null;
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
+  completed_at?: string | null;
   created_at?: string | null;
   created_by_id?: string | null;
   created_by_role?: string | null;
@@ -292,6 +294,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, DbHuman
       alerts: row.alerts || [],
       groomNotes: row.groom_notes || "",
       customPrice: row.custom_price,
+      lastGroomedDate: row.last_groomed_date || null,
     };
   }
   return map;
@@ -374,6 +377,7 @@ export function dbBookingsToArray(
       staffCapacityOverrideBy: row.staff_capacity_override_by ?? null,
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
+      completedAt: row.completed_at ?? null,
       // Who created this booking + when, denormalised from resolve_event_actor.
       createdAt: row.created_at ?? null,
       createdById: row.created_by_id ?? null,

@@ -87,6 +87,11 @@ export function eventSentence(event) {
       ? `${leadActor} cancelled ${dog}${breed}'s ${service} (${owner}) for ${date} at ${time}${reason}.`
       : `${owner} cancelled ${dog}${breed}'s ${service} for ${date} at ${time}${reason}.`;
   }
+  if (event.event_type === "completed") {
+    return leadActor
+      ? `${leadActor} completed ${dog}${breed}'s ${service} (${owner}).`
+      : `${dog}${breed}'s ${service} for ${owner} was completed.`;
+  }
   // created
   return leadActor
     ? `${leadActor} booked in ${dog}${breed} with ${owner} for a ${service} at ${date} at ${time}.`
@@ -113,5 +118,10 @@ export const EVENT_TONE = {
     dot: "bg-teal-500",
     pill: "text-teal-700",
     label: "Reconfirmed",
+  },
+  completed: {
+    dot: "bg-violet-500",
+    pill: "text-violet-700",
+    label: "Completed",
   },
 };

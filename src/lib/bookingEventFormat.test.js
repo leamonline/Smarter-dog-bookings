@@ -65,6 +65,23 @@ describe("eventSentence", () => {
     ).toBe("Someone booked a Full Groom for a dog (Yorkshire Terrier) Mon 1 Jun at 9:00am.");
   });
 
+  it("renders a completed event owner-led when there's no actor", () => {
+    expect(
+      eventSentence({ ...base, event_type: "completed" }),
+    ).toBe("Alfie (Yorkshire Terrier)'s Full Groom for Catherine Green was completed.");
+  });
+
+  it("leads a staff-completed event with the staff first name", () => {
+    expect(
+      eventSentence({
+        ...base,
+        event_type: "completed",
+        actor_role: "staff",
+        actor_name: "Leam Online",
+      }),
+    ).toBe("Leam completed Alfie (Yorkshire Terrier)'s Full Groom (Catherine Green).");
+  });
+
   it("returns empty string for a null event", () => {
     expect(eventSentence(null)).toBe("");
   });
