@@ -68,7 +68,7 @@ export function ContactPanel({
   const toast = useToast();
   const hasAddress = !!human.address;
   const hasEmail = !!human.email;
-  const hasAny = hasAddress || hasEmail;
+  const hasAny = hasAddress || hasEmail || !!human.heardAboutUs;
 
   // Mirror handleCopyPhone's toast pattern from the modal header.
   const handleCopy = (value, label) => {
@@ -113,6 +113,10 @@ export function ContactPanel({
         <div className="flex flex-col gap-1.5">
           <InlineRow caption="Address" value={human.address} onCopy={handleCopy} />
           <InlineRow caption="Email" value={human.email} onCopy={handleCopy} />
+          {/* Referral source captured at signup — read-only, staff-only. */}
+          {human.heardAboutUs && (
+            <InlineRow caption="Heard via" value={human.heardAboutUs} />
+          )}
         </div>
       )}
     </PanelShell>

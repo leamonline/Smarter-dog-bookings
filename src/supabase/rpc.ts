@@ -164,6 +164,9 @@ export interface SignupOwner {
   email?: string | null;
   sms?: boolean;
   whatsapp?: boolean;
+  // "Where did you hear about us?" — the chosen option label or the free text
+  // typed for "Other". Optional; null/absent when the customer skipped it.
+  heard_about_us?: string | null;
   policies_version?: string | null;
 }
 
