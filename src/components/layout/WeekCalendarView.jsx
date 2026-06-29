@@ -19,6 +19,7 @@ import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
 import { MiniCalendarCard } from "../dashboard/MiniCalendarCard.jsx";
+import { CapacityCard } from "../dashboard/CapacityCard.jsx";
 import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
 
 const DatePickerModal = lazy(() =>
@@ -333,6 +334,19 @@ export function WeekCalendarView({
           }
         />
       </PullToRefresh>
+
+      {/* Capacity overview at the foot of the page on mobile/tablet —
+          desktop carries it in the left sidebar. */}
+      <div className="lg:hidden mt-3">
+        <CapacityCard
+          currentDateObj={currentDateObj}
+          dates={dates}
+          bookingsByDate={bookingsByDate}
+          dayOpenState={dayOpenState}
+          daySettings={daySettings}
+          onSelectDate={handleDatePick}
+        />
+      </div>
 
       <OverviewDrawer
         open={showOverview}
