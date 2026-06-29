@@ -99,6 +99,13 @@ export interface Booking {
   staffCapacityOverrideBy: string | null;
   staffCapacityOverrideAt: string | null;
   reminderConfirmedAt: string | null;
+  // Who created the booking + when (denormalised from resolve_event_actor on
+  // insert). Optional: only the DB read path populates them; null for legacy
+  // rows created before attribution existed.
+  createdAt?: string | null;
+  createdById?: string | null;
+  createdByRole?: string | null;
+  createdByName?: string | null;
   // Reminder lifecycle (see ReminderState). `reminderState` is the single
   // field the ReminderCard reads; the timestamps/`reminderConfirmedBy` are
   // optional metadata the card surfaces when present. Optional so the many
