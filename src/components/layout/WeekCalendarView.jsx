@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
@@ -116,6 +117,12 @@ export function WeekCalendarView({
     if (failure?.bookingDate) handleDatePick(new Date(`${failure.bookingDate}T12:00:00`));
   };
 
+  const navigateDay = (delta) => {
+    const target = new Date(currentDateObj);
+    target.setDate(target.getDate() + delta);
+    handleDatePick(target);
+  };
+
   const activeSlots = useMemo(() => {
     return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
   }, [currentSettings.extraSlots]);
@@ -186,15 +193,24 @@ export function WeekCalendarView({
           />
         )}
 
-        {/* View switcher — Today / Week / Month, three equal segments. */}
-        <div className="grid grid-cols-3 gap-1 p-1 mt-2 bg-white rounded-full shadow-card-resting">
+        {/* View switcher (Today / Week / Month) flanked by day arrows. */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <button
+            type="button"
+            onClick={() => navigateDay(-1)}
+            aria-label="Previous day"
+            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          >
+            <ChevronLeft size={18} strokeWidth={2.5} />
+          </button>
+          <div className="grid grid-cols-3 gap-1 p-1 flex-1 max-w-sm bg-white rounded-full shadow-card-resting">
           <button
             type="button"
             onClick={() => {
               handleDatePick(new Date());
               setMonthExpanded(false);
             }}
-            className="h-9 rounded-full text-[11px] font-bold uppercase tracking-wide text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
+            className="h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
           >
             Today
           </button>
@@ -202,7 +218,7 @@ export function WeekCalendarView({
             type="button"
             onClick={() => setMonthExpanded(false)}
             aria-pressed={!monthExpanded}
-            className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer font-[inherit] ${
+            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
               !monthExpanded
                 ? "bg-brand-purple text-white"
                 : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
@@ -214,13 +230,22 @@ export function WeekCalendarView({
             type="button"
             onClick={() => setMonthExpanded(true)}
             aria-pressed={monthExpanded}
-            className={`h-9 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer font-[inherit] ${
+            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
               monthExpanded
                 ? "bg-brand-purple text-white"
                 : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
             }`}
           >
             Month view
+          </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigateDay(1)}
+            aria-label="Next day"
+            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          >
+            <ChevronRight size={18} strokeWidth={2.5} />
           </button>
         </div>
       </div>
