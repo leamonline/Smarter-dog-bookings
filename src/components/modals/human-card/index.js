@@ -1,4 +1,5 @@
 export { HumanBookingHistory } from "./HumanBookingHistory.jsx";
+export { HumanEventTimeline } from "./HumanEventTimeline.jsx";
 export { DogPill } from "./DogPill.jsx";
 export { PanelShell } from "../shell/PanelShell.jsx";
 export { HumanHeader } from "./HumanHeader.jsx";

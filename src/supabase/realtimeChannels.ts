@@ -24,6 +24,7 @@ export const CHANNELS = {
   waitlistChanges: "waitlist_changes",
   waitlistUpcoming: "waitlist_upcoming_changes",
   dashboardBookingEvents: "dashboard-booking-events",
+  humanCardBookingEvents: "human-card-booking-events",
   whatsappDashboardCounts: "whatsapp-dashboard-counts",
   whatsappDashboardSummary: "whatsapp-dashboard-summary",
   dashboardAgentFailures: "dashboard-agent-failures",

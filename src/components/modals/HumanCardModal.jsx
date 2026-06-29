@@ -8,6 +8,7 @@ import {
 import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   HumanBookingHistory,
+  HumanEventTimeline,
   HumanHeader,
   ContactPanel,
   ChannelsPanel,
@@ -398,6 +399,16 @@ export function HumanCardModal({
             onOpenBooking={handleOpenBooking}
             onBookAgain={onBookAgain}
             onNewBookingForHuman={onNewBookingForHuman}
+          />
+        </div>
+
+        {/* Read-only timeline of cancellations / reschedules / completions
+            etc. for this owner's dogs. Actions stay in the booking detail. */}
+        <div className="mt-3 md:mt-4">
+          <HumanEventTimeline
+            human={human}
+            dogs={dogs}
+            dogsByHumanId={dogsByHumanId}
           />
         </div>
       </ModalShell>

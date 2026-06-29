@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
+import { excludeCancelled } from "../../engine/occupancy";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
@@ -40,6 +41,11 @@ const TodoModal = lazy(() =>
 const RemindersModal = lazy(() =>
   import("../modals/RemindersModal.jsx").then((module) => ({
     default: module.RemindersModal,
+  })),
+);
+const BroadcastMessageModal = lazy(() =>
+  import("../modals/day-closure/BroadcastMessageModal.jsx").then((module) => ({
+    default: module.BroadcastMessageModal,
   })),
 );
 
@@ -82,6 +88,7 @@ export function WeekCalendarView({
   // MiniCalendarCard). Picking a day collapses it back to the week view.
   const [monthExpanded, setMonthExpanded] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
+  const [showBroadcast, setShowBroadcast] = useState(false);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -110,7 +117,10 @@ export function WeekCalendarView({
   const failures = useDeliveryFailures();
 
   const isOpen = currentSettings.isOpen;
-  const dayBookings = bookingsByDate[currentDateStr] || [];
+  // Cancelled rows are soft-deletes that free their seat. Strip them here so
+  // the grid, the booking count and the close-day to-do builder all treat the
+  // day as non-cancelled occupancy (what the capacity engine expects).
+  const dayBookings = excludeCancelled(bookingsByDate[currentDateStr] || []);
 
   // Clicking a delivery-failure row jumps the calendar to that booking's day
   // (noon-anchored to dodge TZ rollover) so staff can open it and resend.
@@ -313,6 +323,7 @@ export function WeekCalendarView({
               todoCount={openTodoCount}
               onOpenReminders={() => setShowReminders(true)}
               onOpenTodos={() => setShowTodos(true)}
+              onMessageDay={() => setShowBroadcast(true)}
               onCloseDay={() => setConfirmDayToggle("close")}
               onOpenDay={() => setConfirmDayToggle("open")}
               onOpenDaySettings={() => setShowDaySettings(true)}
@@ -425,6 +436,15 @@ export function WeekCalendarView({
       {showReminders && (
         <Suspense fallback={<LoadingSpinner />}>
           <RemindersModal onClose={() => setShowReminders(false)} />
+        </Suspense>
+      )}
+
+      {showBroadcast && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <BroadcastMessageModal
+            defaultDate={currentDateStr}
+            onClose={() => setShowBroadcast(false)}
+          />
         </Suspense>
       )}
 

@@ -124,10 +124,76 @@ export function useConversationLifecycle({
     }
   }, [selectedId, actionInFlight, setActionInFlight]);
 
+  // Bulk close: the same write as resolveConversation but across many rows in a
+  // single round-trip (.in instead of .eq). The closure_reason is always
+  // 'manual' here — bulk close doesn't inherit per-conversation "suggest
+  // closing" pills. closed_by is stamped from auth.uid() so it can't be spoofed.
+  // Returns the ids it closed so the caller's undo toast can reopen exactly
+  // those.
+  const bulkResolveConversations = useCallback(async (ids) => {
+    const targetIds = (ids || []).filter(Boolean);
+    if (targetIds.length === 0 || actionInFlight) return { ok: false };
+    setActionInFlight(true);
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id ?? null;
+
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          closed_at: new Date().toISOString(),
+          closed_by: userId,
+          closure_reason: "manual",
+          closure_suggested_at: null,
+          closure_suggested_reason: null,
+        })
+        .in("id", targetIds);
+      if (error) throw error;
+      return { ok: true, ids: targetIds };
+    } catch (err) {
+      logger.error("bulkResolveConversations failed", err, {
+        tags: { hook: "useConversationLifecycle", op: "bulkResolveConversations" },
+      });
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [actionInFlight, setActionInFlight]);
+
+  // Undo for a bulk close: reopens every id in one round-trip. Mirrors
+  // reopenConversation but across the captured set.
+  const bulkReopenConversations = useCallback(async (ids) => {
+    const targetIds = (ids || []).filter(Boolean);
+    if (targetIds.length === 0) return { ok: false };
+    setActionInFlight(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          closed_at: null,
+          closure_reason: null,
+          closure_suggested_at: null,
+          closure_suggested_reason: null,
+        })
+        .in("id", targetIds);
+      if (error) throw error;
+      return { ok: true };
+    } catch (err) {
+      logger.error("bulkReopenConversations failed", err, {
+        tags: { hook: "useConversationLifecycle", op: "bulkReopenConversations" },
+      });
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    } finally {
+      setActionInFlight(false);
+    }
+  }, [setActionInFlight]);
+
   return {
     takeoverConversation,
     releaseConversation,
     resolveConversation,
     reopenConversation,
+    bulkResolveConversations,
+    bulkReopenConversations,
   };
 }

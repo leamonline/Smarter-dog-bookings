@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { eventSentence } from "./BookingHistoryCard.jsx";
+import { eventSentence } from "./bookingEventFormat";
 
 describe("eventSentence", () => {
   const base = {

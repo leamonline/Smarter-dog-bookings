@@ -61,6 +61,8 @@ function baseState(overrides = {}) {
     setAIMode: vi.fn(),
     resolveConversation: vi.fn(),
     reopenConversation: vi.fn(),
+    bulkResolveConversations: vi.fn((ids) => Promise.resolve({ ok: true, ids })),
+    bulkReopenConversations: vi.fn(() => Promise.resolve({ ok: true })),
     updateConversationNotes: vi.fn(),
     sendTemplate: vi.fn(),
     sendOutboundTemplate: vi.fn(),
@@ -324,6 +326,55 @@ describe("InboxView", () => {
 
     expect(screen.getByText("Mina Patel")).toBeInTheDocument();
     expect(screen.queryByText("Sarah Jones")).not.toBeInTheDocument();
+  });
+
+  it("bulk-closes the ticked conversations in a single call and reveals the action bar", async () => {
+    const bulkResolveConversations = vi.fn((ids) =>
+      Promise.resolve({ ok: true, ids }),
+    );
+    renderInbox(
+      baseState({
+        bulkResolveConversations,
+        conversations: [
+          { id: "conv-1", phone_e164: "+447700900111", humans: { name: "Sarah", surname: "Jones" }, unread_count: 0 },
+          { id: "conv-2", phone_e164: "+447700900222", humans: { name: "Mina", surname: "Patel" }, unread_count: 0 },
+        ],
+      }),
+    );
+
+    // No action bar until something is ticked.
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Select conversation with Sarah Jones"));
+    fireEvent.click(screen.getByLabelText("Select conversation with Mina Patel"));
+
+    const bar = screen.getByRole("region", { name: "Bulk actions" });
+    expect(bar).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close 2 conversations" }),
+    );
+
+    await waitFor(() =>
+      expect(bulkResolveConversations).toHaveBeenCalledWith(["conv-1", "conv-2"]),
+    );
+  });
+
+  it("clears the selection when the filter changes so hidden rows can't be closed", () => {
+    renderInbox(
+      baseState({
+        conversations: [
+          { id: "conv-1", phone_e164: "+447700900111", humans: { name: "Sarah", surname: "Jones" }, unread_count: 0 },
+        ],
+      }),
+    );
+
+    fireEvent.click(screen.getByLabelText("Select conversation with Sarah Jones"));
+    expect(screen.getByRole("region", { name: "Bulk actions" })).toBeInTheDocument();
+
+    // Switching filters wipes the selection.
+    fireEvent.click(screen.getByRole("button", { name: /^Unread\b/ }));
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).toBeNull();
   });
 
   it("scrolls the thread to the latest item after messages render", async () => {

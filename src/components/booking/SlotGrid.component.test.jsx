@@ -1,24 +1,59 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
+import { SalonProvider } from "../../contexts/SalonContext.tsx";
+import { BOOKING_STATUS } from "../../constants/index";
 import { SlotGrid } from "./SlotGrid.jsx";
 
 const SLOTS = ["08:30", "09:00", "09:30"];
 
-function renderGrid(currentDateStr) {
+function renderGrid(currentDateStr, bookings = []) {
   return render(
     <ToastProvider>
-      <SlotGrid
-        bookings={[]}
-        loading={false}
-        activeSlots={SLOTS}
-        onOpenNewBooking={vi.fn()}
+      <SalonProvider
+        dogs={{}}
+        humans={{}}
+        bookingsByDate={{}}
+        daySettings={{}}
+        dayOpenState={true}
         currentDateStr={currentDateStr}
-        overrides={{}}
-      />
+        currentDateObj={new Date(currentDateStr)}
+        onAdd={vi.fn()}
+        onUpdate={vi.fn()}
+        onRemove={vi.fn()}
+        onUpdateDog={vi.fn()}
+        onUpdateHuman={vi.fn()}
+        onOpenHuman={vi.fn()}
+        onOpenDog={vi.fn()}
+      >
+        <SlotGrid
+          bookings={bookings}
+          loading={false}
+          activeSlots={SLOTS}
+          onOpenNewBooking={vi.fn()}
+          currentDateStr={currentDateStr}
+          overrides={{}}
+        />
+      </SalonProvider>
     </ToastProvider>,
   );
 }
+
+const sampleBooking = (overrides) => ({
+  id: "b1",
+  slot: "08:30",
+  size: "small",
+  service: "full-groom",
+  status: BOOKING_STATUS.BOOKED,
+  dogName: "Booked Dog",
+  breed: "Cockapoo",
+  owner: "Owner One",
+  addons: [],
+  pickupBy: "Owner One",
+  payment: "Due at Pick-up",
+  _dogId: "d1",
+  ...overrides,
+});
 
 describe("SlotGrid — today-only Now indicator", () => {
   afterEach(() => {
@@ -44,5 +79,27 @@ describe("SlotGrid — today-only Now indicator", () => {
     vi.setSystemTime(new Date(2026, 5, 2, 7, 0)); // before the first slot
     renderGrid("2026-06-02");
     expect(screen.queryByText("Now")).toBeNull();
+  });
+});
+
+describe("SlotGrid — cancelled bookings", () => {
+  it("renders active bookings but not cancelled ones in the same slot", () => {
+    renderGrid("2026-06-03", [
+      sampleBooking({ id: "active", dogName: "Active Pup" }),
+      sampleBooking({
+        id: "cancelled",
+        dogName: "Cancelled Pup",
+        status: BOOKING_STATUS.CANCELLED,
+      }),
+    ]);
+    expect(screen.getByText("Active Pup")).toBeInTheDocument();
+    expect(screen.queryByText("Cancelled Pup")).toBeNull();
+  });
+
+  it("frees the seat — a slot holding only a cancelled booking shows no card", () => {
+    renderGrid("2026-06-03", [
+      sampleBooking({ id: "cancelled", dogName: "Cancelled Pup", status: BOOKING_STATUS.CANCELLED }),
+    ]);
+    expect(screen.queryByText("Cancelled Pup")).toBeNull();
   });
 });

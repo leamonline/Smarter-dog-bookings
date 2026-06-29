@@ -22,7 +22,13 @@ const SUGGESTED_REASON_LABEL = {
   customer_cancelled: "Suggest closing — booking cancelled",
 };
 
-export function ConversationListItem({ conv, isSelected, onSelect }) {
+export function ConversationListItem({
+  conv,
+  isSelected,
+  onSelect,
+  isChecked = false,
+  onToggleSelect,
+}) {
   const unread = conv.unread_count > 0;
   const isClosed = !!conv.closed_at;
   // Preview the last message in EITHER direction (first line only). Falls
@@ -67,19 +73,38 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
         : "Needs review: draft is awaiting your approval.";
 
   return (
-    <button
-      onClick={() => onSelect(conv.id)}
-      aria-current={isSelected ? "true" : undefined}
-      className={`relative w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors cursor-pointer font-[inherit] border-l-[3px] ${
-        isSelected
-          ? "bg-brand-yellow/25 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
-          : isClosed
-            ? "bg-slate-50 hover:bg-slate-100 border-l-transparent opacity-75"
-            : unread
-              ? "bg-brand-yellow/15 hover:bg-brand-yellow/25 border-l-transparent"
-            : "bg-white hover:bg-slate-50 border-l-transparent"
+    <div
+      className={`relative flex items-stretch border-b border-slate-100 ${
+        isChecked ? "bg-brand-yellow/30" : ""
       }`}
     >
+      {/* Multi-select checkbox — a sibling of the row button (never nested,
+          which would be invalid HTML). Only rendered when the inbox passes a
+          toggle handler. */}
+      {onToggleSelect && (
+        <div className="flex items-center pl-2.5 pr-0.5 shrink-0">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => onToggleSelect(conv.id)}
+            aria-label={`Select conversation with ${displayName(conv)}`}
+            className="w-4 h-4 accent-brand-purple cursor-pointer"
+          />
+        </div>
+      )}
+      <button
+        onClick={() => onSelect(conv.id)}
+        aria-current={isSelected ? "true" : undefined}
+        className={`relative flex-1 min-w-0 text-left px-3 py-2.5 transition-colors cursor-pointer font-[inherit] border-l-[3px] ${
+          isSelected
+            ? "bg-brand-yellow/25 border-l-brand-yellow shadow-[inset_0_0_0_1px_rgba(254,204,19,0.35)]"
+            : isClosed
+              ? "bg-slate-50 hover:bg-slate-100 border-l-transparent opacity-75"
+              : unread
+                ? "bg-brand-yellow/15 hover:bg-brand-yellow/25 border-l-transparent"
+              : "bg-white hover:bg-slate-50 border-l-transparent"
+        }`}
+      >
       <div className="flex gap-2.5">
         <InitialsAvatar
           name={displayName(conv)}
@@ -197,6 +222,7 @@ export function ConversationListItem({ conv, isSelected, onSelect }) {
       )}
         </div>
       </div>
-    </button>
+      </button>
+    </div>
   );
 }

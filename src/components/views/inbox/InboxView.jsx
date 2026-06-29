@@ -74,6 +74,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     rejectBookingAction,
     resolveConversation,
     reopenConversation,
+    bulkResolveConversations,
+    bulkReopenConversations,
     createStaffBooking,
     sendTemplate,
     sendOutboundTemplate,
@@ -352,6 +354,48 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   }, [conversations, isSearching, trimmedQuery, messageMatchIds]);
 
   const displayedConversations = isSearching ? searchResults : filteredConversations;
+
+  // Multi-select for bulk close. A Set of conversation ids ticked via the
+  // per-row checkboxes; >0 reveals the floating action bar. Cleared whenever
+  // the filter or search mode changes, so a hidden row can never be closed by
+  // a selection the staff member can no longer see.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [listFilter, isSearching]);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // Bulk close: one round-trip closes every ticked conversation, then a single
+  // undo toast reopens exactly those ids (mirrors the single-close undo). No
+  // confirm modal — the undo toast is the safety net at any count. Realtime
+  // echoes the closes into the list with no extra wiring.
+  const handleBulkClose = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const res = await bulkResolveConversations(ids);
+    if (res?.ok) {
+      clearSelection();
+      const n = res.ids.length;
+      toast.show(
+        `${n} conversation${n === 1 ? "" : "s"} closed`,
+        "success",
+        () => bulkReopenConversations(res.ids),
+      );
+    } else if (res?.reason) {
+      toast.show(`Could not close: ${res.reason}`, "error");
+    }
+    return res;
+  }, [selectedIds, bulkResolveConversations, bulkReopenConversations, clearSelection, toast]);
 
   const toggleFilter = useCallback((next) => {
     setListFilter((prev) => (prev === next ? "all" : next));
@@ -655,6 +699,8 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   conv={c}
                   isSelected={c.id === selectedId}
                   onSelect={selectConversation}
+                  isChecked={selectedIds.has(c.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
             </div>
@@ -938,6 +984,39 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             setComposeOpen(false);
           }}
         />
+      )}
+
+      {/* Bulk-select action bar — floats above the list while ≥1 conversation
+          is ticked. Closing is reopenable, so there's no confirm step; the
+          success toast carries the undo. */}
+      {selectedIds.size > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="fixed left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-3 px-3 py-2 rounded-full bg-brand-purple text-white shadow-lg shadow-brand-purple/30"
+        >
+          <span className="text-[13px] font-semibold pl-1">
+            {selectedIds.size} selected
+          </span>
+          <button
+            type="button"
+            onClick={handleBulkClose}
+            disabled={actionInFlight}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed font-[inherit]"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Close {selectedIds.size} conversation{selectedIds.size === 1 ? "" : "s"}
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-[12px] font-semibold text-white/80 hover:text-white pr-1 cursor-pointer bg-transparent border-none font-[inherit]"
+          >
+            Clear
+          </button>
+        </div>
       )}
     </div>
   );

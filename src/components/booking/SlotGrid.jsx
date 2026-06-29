@@ -1,6 +1,7 @@
 // src/components/booking/SlotGrid.jsx
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import { getSeatStatesForSlot, canBookSlot } from "../../engine/capacity";
+import { excludeCancelled } from "../../engine/occupancy";
 import { BookingCardNew } from "./BookingCardNew.jsx";
 import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
@@ -24,9 +25,17 @@ export function SlotGrid({
 }) {
   const toast = useToast();
 
+  // The capacity engine treats its input as the day's non-cancelled occupancy.
+  // Strip cancelled rows once here so the grid never renders a phantom card or
+  // counts a freed seat, independent of how the caller assembled the day.
+  const activeBookings = useMemo(
+    () => excludeCancelled(bookings || []),
+    [bookings],
+  );
+
   const canDropAt = useCallback(
     (booking, targetSlot) => {
-      const otherBookings = bookings.filter((b) => b.id !== booking.id);
+      const otherBookings = activeBookings.filter((b) => b.id !== booking.id);
       const check = canBookSlot(
         otherBookings,
         targetSlot,
@@ -40,7 +49,7 @@ export function SlotGrid({
       );
       return check.allowed;
     },
-    [bookings, activeSlots, overrides],
+    [activeBookings, activeSlots, overrides],
   );
 
   const handleMoveBooking = useCallback(
@@ -113,16 +122,16 @@ export function SlotGrid({
   const rows = useMemo(() => {
     const result = activeSlots.map((slot, i) => {
       const slotOverrides = overrides?.[slot] || {};
-      const seatStates = getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
+      const seatStates = getSeatStatesForSlot(activeBookings, slot, activeSlots, slotOverrides);
       return { type: "slot", slot, index: i, seatStates };
     });
     if (result.length > 0) result[result.length - 1].isLast = true;
     return result;
-  }, [activeSlots, bookings, overrides]);
+  }, [activeSlots, activeBookings, overrides]);
 
   const renderSlot = useCallback((slot, index, precalculatedSeatStates, isLast) => {
     const slotOverrides = overrides?.[slot] || {};
-    const seatStates = precalculatedSeatStates || getSeatStatesForSlot(bookings, slot, activeSlots, slotOverrides);
+    const seatStates = precalculatedSeatStates || getSeatStatesForSlot(activeBookings, slot, activeSlots, slotOverrides);
 
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
@@ -264,7 +273,7 @@ export function SlotGrid({
         )}
       </div>
     );
-  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, bookings, overrides, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
+  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
 
   return (
     <div>
