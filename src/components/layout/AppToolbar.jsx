@@ -241,7 +241,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
       </div>
 
       {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ── */}
-      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 py-2.5 flex items-center gap-2 bg-brand-purple text-white">
+      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] flex items-center gap-2 bg-brand-purple text-white">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
         </NavLink>

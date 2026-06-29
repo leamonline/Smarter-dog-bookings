@@ -749,7 +749,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // big spinner.
   return (
     <ToastProvider>
-      <AppFrame className="text-slate-800 pb-5">
+      <AppFrame className="text-slate-800 max-lg:pt-0 pb-5">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"

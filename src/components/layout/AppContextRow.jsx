@@ -83,21 +83,20 @@ export function AppContextRow({ dateLabel, isOpen }) {
       {/* Mobile/tablet (below lg) — a white identity block between the
           top bar and the nav strip. */}
       <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 bg-white border-b border-slate-200">
-        <h2 className="font-display text-xl font-extrabold text-brand-purple leading-tight">
-          {sectionTitle}
-        </h2>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h2 className="font-display text-xl font-extrabold text-brand-purple leading-tight">
+            {sectionTitle}
+          </h2>
+          {isBookings && (
+            <StatusPill tone={isOpen ? "open" : "closed"}>
+              {isOpen ? "Open today" : "Closed today"}
+            </StatusPill>
+          )}
+        </div>
         {isBookings && (
-          <>
-            <p className="mt-0.5 text-sm font-semibold text-brand-purple-light">
-              {dateLabel}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusPill tone={isOpen ? "open" : "closed"}>
-                {isOpen ? "Open today" : "Closed today"}
-              </StatusPill>
-              <StatusPill tone={inboxChip.tone}>{inboxChip.label}</StatusPill>
-            </div>
-          </>
+          <p className="mt-0.5 text-sm font-semibold text-brand-purple-light">
+            {dateLabel}
+          </p>
         )}
       </div>
     </>

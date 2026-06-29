@@ -7,7 +7,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Status-first colour scheme for the date circle. The colour answers
 // one question — "can I book this day?" — rather than encoding busyness
 // on a gradient:
-//   - closed       → red
+//   - closed       → muted grey (not bookable; calm, not alarming)
 //   - open + space → green   (lighter when wide open, solid as it fills)
 //   - open + full  → blue    (at/over DAY_CAPACITY)
 //   - past         → muted grey (history; not a planning surface)
@@ -15,9 +15,9 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // "Today" keeps whichever status colour applies and is marked with a
 // yellow ring (see below) so it still stands out.
 function dayCircleStyle({ isPast, dogCount, isOpen }) {
-  if (isPast) return "bg-slate-200 text-slate-600";
-  if (dogCount == null) return "bg-slate-100 text-slate-600";
-  if (!isOpen) return "bg-rose-500 text-white";
+  if (isPast) return "bg-slate-200 text-slate-500";
+  if (dogCount == null) return "bg-slate-100 text-slate-500";
+  if (!isOpen) return "bg-slate-100 text-slate-400";
   if (dogCount >= DAY_CAPACITY) return "bg-sky-500 text-white";
   if (dogCount === 0) return "bg-emerald-100 text-emerald-800";
   return "bg-emerald-500 text-white";
@@ -61,10 +61,12 @@ export function DayTab({ dateObj, dogCount, isOpen, isActive, onClick, id }) {
       id={id}
       onClick={onClick}
       className={[
-        "flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-2.5 rounded-full cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[50px]",
+        "flex flex-col items-center gap-1 py-2 px-2 sm:px-2.5 rounded-2xl cursor-pointer transition-all border-none font-[inherit] min-w-[44px] sm:min-w-[52px]",
         isActive
           ? "bg-brand-purple/10"
-          : "bg-transparent hover:bg-slate-50",
+          : !isOpen
+            ? "bg-transparent opacity-60 hover:bg-slate-50 hover:opacity-100"
+            : "bg-transparent hover:bg-slate-50",
       ].join(" ")}
     >
       {/* Day name — neutral label; the circle carries the status colour. */}

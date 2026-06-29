@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
@@ -19,6 +19,7 @@ import { BookingMainPanel } from "../dashboard/BookingMainPanel.jsx";
 import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
+import { MiniCalendarCard } from "../dashboard/MiniCalendarCard.jsx";
 import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
 import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
 
@@ -73,6 +74,9 @@ export function WeekCalendarView({
   const [showTodos, setShowTodos] = useState(false);
   const [showDaySettings, setShowDaySettings] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // Mobile week strip can expand into a full month grid (reuses the desktop
+  // MiniCalendarCard). Picking a day collapses it back to the week view.
+  const [monthExpanded, setMonthExpanded] = useState(false);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -184,33 +188,63 @@ export function WeekCalendarView({
           left-sidebar WeekOverviewCard. On phones (< sm) the DayHeader
           bar is hidden, so prev/next chevrons and the calendar button
           flank the pills here instead — one row of date chrome, not two. */}
-      <div className="lg:hidden mb-3 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => navigateDay(-1)}
-          aria-label="Previous day"
-          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-        >
-          <ChevronLeft size={18} strokeWidth={2.5} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <CalendarTabs
-            dates={dates}
-            selectedDay={selectedDay}
-            onSelectDay={(i) => setSelectedDay(i)}
-            bookingsByDate={bookingsByDate}
-            dayOpenState={dayOpenState}
-            calendarMode="day"
+      <div className="lg:hidden mb-3">
+        {monthExpanded ? (
+          <MiniCalendarCard
+            currentDateObj={currentDateObj}
+            onSelectDate={(d) => {
+              handleDatePick(d);
+              setMonthExpanded(false);
+            }}
           />
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigateDay(-1)}
+              aria-label="Previous day"
+              className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+            >
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <CalendarTabs
+                dates={dates}
+                selectedDay={selectedDay}
+                onSelectDay={(i) => setSelectedDay(i)}
+                bookingsByDate={bookingsByDate}
+                dayOpenState={dayOpenState}
+                calendarMode="day"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => navigateDay(1)}
+              aria-label="Next day"
+              className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+            >
+              <ChevronRight size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+        {/* Expand the week strip into a full month grid (and back). */}
+        <div className="flex justify-center mt-1.5">
+          <button
+            type="button"
+            onClick={() => setMonthExpanded((v) => !v)}
+            aria-expanded={monthExpanded}
+            aria-label={monthExpanded ? "Show week" : "Show month"}
+            className="inline-flex items-center gap-1 h-7 px-3 rounded-full text-[11px] font-bold text-brand-purple/70 bg-white/70 hover:text-brand-purple hover:bg-white shadow-card-resting transition-colors cursor-pointer font-[inherit]"
+          >
+            {monthExpanded ? "Show week" : "Show month"}
+            <ChevronDown
+              size={14}
+              strokeWidth={2.5}
+              className={`transition-transform ${monthExpanded ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => navigateDay(1)}
-          aria-label="Next day"
-          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-        >
-          <ChevronRight size={18} strokeWidth={2.5} />
-        </button>
       </div>
 
       {/* Workflow panels (< xl): a compact, collapsible strip ABOVE the
