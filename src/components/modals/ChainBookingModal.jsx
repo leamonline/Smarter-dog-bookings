@@ -176,7 +176,7 @@ export function ChainBookingModal({
         },
       ]);
       toast.show(
-        `Booked ${formatDate(nextDate)} at ${lastLink.slot}`,
+        `${formatDate(nextDate)} at ${lastLink.slot} — all set`,
         "success",
       );
     } else if (overrideable.has(lastLink.slot)) {
@@ -198,7 +198,7 @@ export function ChainBookingModal({
       });
     } else {
       toast.show(
-        `No slots available on ${formatDate(nextDate)}`,
+        `Nothing available on ${formatDate(nextDate)}`,
         "error",
       );
     }
@@ -230,7 +230,7 @@ export function ChainBookingModal({
         },
       ]);
       toast.show(
-        `Booked ${formatDate(slotPickerFor.date)} at ${slot}`,
+        `${formatDate(slotPickerFor.date)} at ${slot} — all set`,
         "success",
       );
       setSlotPickerFor(null);
@@ -275,7 +275,7 @@ export function ChainBookingModal({
     await onCreateChain(chain);
     setCreating(false);
     toast.show(
-      `${chain.length} booking${chain.length === 1 ? "" : "s"} created`,
+      `Created ${chain.length} booking${chain.length === 1 ? "" : "s"} — nice one`,
       "success",
     );
     onClose();

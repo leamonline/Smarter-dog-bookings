@@ -137,7 +137,7 @@ describe("RightWorkflowSidebar", () => {
       screen.getByRole("status", { name: /right rail summary/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/waitlist empty/i)).toBeInTheDocument();
-    expect(screen.getByText(/no open tasks/i)).toBeInTheDocument();
+    expect(screen.getByText(/all sorted/i)).toBeInTheDocument();
   });
 
   it("orders attention before active among the loud cards", () => {

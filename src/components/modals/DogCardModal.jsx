@@ -364,7 +364,7 @@ export function DogCardModal({
     {pendingDelete && (
       <ConfirmDialog
         title={`Delete ${resolvedDog.name}?`}
-        message="This removes the dog from the salon — booking history and groom photos go with them. Cannot be undone."
+        message="This removes them from the salon — bookings, photos, everything goes too. Can't be undone."
         confirmLabel="Delete dog"
         variant="danger"
         onConfirm={async () => {
@@ -394,8 +394,8 @@ export function DogCardModal({
 
     {trustedToRemove && (
       <ConfirmDialog
-        title="Remove trusted human?"
-        message="This person will no longer be linked as a trusted human."
+        title="Unlink trusted human?"
+        message="They won't be linked as a trusted human any more."
         confirmLabel="Remove"
         variant="danger"
         onConfirm={confirmRemoveTrusted}

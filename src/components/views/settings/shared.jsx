@@ -157,7 +157,7 @@ export function useAutosaveStatus(onUpdateConfig, { canEdit = true } = {}) {
       const result = await onUpdateConfig(updater);
       if (result?.ok === false) {
         setStatus("error");
-        toast.show(result.error || "Couldn't save — try again?", "error");
+        toast.show(result.error || "Couldn't save that — give it another go?", "error");
         return result;
       }
       setStatus("saved");

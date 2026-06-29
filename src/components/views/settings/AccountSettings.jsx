@@ -30,7 +30,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   const handleSave = useCallback(async () => {
     if (!supabase || !staffProfile?.id) return;
     if (account.email.trim() && !isValidEmail(account.email)) {
-      setError("Enter a valid email address.");
+      setError("That email doesn't look right — please check and try again");
       return;
     }
     setSaving(true);
@@ -55,7 +55,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
-      setError(e.message || "Could not save changes.");
+      setError(e.message || "Couldn't save your changes — please try again");
     } finally {
       setSaving(false);
     }
@@ -109,7 +109,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
             />
             {emailPending && (
               <div className="text-xs text-brand-teal-text mt-1.5">
-                Confirmation sent to {account.email} — click the link to confirm.
+                Confirmation sent to {account.email} — click the link in the email to confirm
               </div>
             )}
           </div>
@@ -129,7 +129,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
         <div className="border-t border-slate-200 pt-3.5 mt-3.5">
           <div className="text-sm font-semibold text-slate-800 mb-1">Password</div>
           <div className="text-[13px] text-slate-500 mb-2.5">
-            We'll email you a secure reset link.
+            We'll email you a link to reset your password
           </div>
           <button
             onClick={handlePasswordReset}
@@ -142,7 +142,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
                   : "bg-white text-slate-800 border-slate-200 cursor-pointer hover:border-brand-teal hover:text-brand-teal"
             }`}
           >
-            {pwSending ? "Sending\u2026" : pwSent ? "\u2713 Reset link sent" : "Send password reset link"}
+            {pwSending ? "Sending\u2026" : pwSent ? "\u2713 Link sent \u2014 check your email" : "Send password reset link"}
           </button>
         </div>
       </CardBody>

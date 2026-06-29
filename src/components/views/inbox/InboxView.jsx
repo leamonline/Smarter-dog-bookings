@@ -94,7 +94,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // without stealing focus.
   const handleApproveDraft = useCallback(async (opts) => {
     const res = await approveDraft(opts);
-    if (res?.ok) toast.show("Reply sent.", "success");
+    if (res?.ok) toast.show("Reply sent", "success");
     return res;
   }, [approveDraft, toast]);
 
@@ -112,13 +112,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   const handleSendManualReply = useCallback(async (opts) => {
     const res = await sendManualReply(opts);
-    if (res?.ok) toast.show("Reply sent.", "success");
+    if (res?.ok) toast.show("Reply sent", "success");
     return res;
   }, [sendManualReply, toast]);
 
   const handleApplyBookingAction = useCallback(async (actionId, editedPayload) => {
     const res = await applyBookingAction(actionId, editedPayload);
-    if (res?.ok) toast.show("Booking added to the diary.", "success");
+    if (res?.ok) toast.show("Booking added to the diary", "success");
     return res;
   }, [applyBookingAction, toast]);
 
@@ -136,7 +136,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     const targetId = selectedId;
     const res = await resolveConversation();
     if (res?.ok) {
-      toast.show("Conversation closed.", "success", () => reopenConversation(targetId));
+      toast.show("Conversation closed", "success", () => reopenConversation(targetId));
     } else if (res?.reason) {
       toast.show(`Could not close: ${res.reason}`, "error");
     }
@@ -145,7 +145,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
   const handleReopenConversation = useCallback(async () => {
     const res = await reopenConversation();
-    if (res?.ok) toast.show("Conversation reopened.", "info");
+    if (res?.ok) toast.show("Conversation reopened", "info");
     else if (res?.reason) toast.show(`Could not reopen: ${res.reason}`, "error");
     return res;
   }, [reopenConversation, toast]);
@@ -157,9 +157,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const handleGenerateReply = useCallback(async () => {
     const res = await generateReplyForConversation(selectedId);
     if (res?.ok && res.replyText) {
-      toast.show("Suggested reply added to the box — review and send when you're ready.", "info");
+      toast.show("Suggested reply added — review and send when ready", "info");
     } else if (res?.ok) {
-      toast.show("The AI didn't return a suggestion. Please try again.", "info");
+      toast.show("The AI didn't have a suggestion this time — give it another go", "info");
     } else if (res?.reason) {
       toast.show(`Could not generate: ${res.reason}`, "error");
     }
@@ -173,7 +173,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const [bookOpen, setBookOpen] = useState(false);
   const handleBookAppointment = useCallback(async (payload) => {
     const res = await createStaffBooking(payload);
-    if (res?.ok) toast.show("Booking added to the diary.", "success");
+    if (res?.ok) toast.show("Booking added to the diary", "success");
     else if (res?.reason) toast.show(`Could not book: ${res.reason}`, "error");
     return res;
   }, [createStaffBooking, toast]);
@@ -250,7 +250,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   const handleUpdateNotes = useCallback(async () => {
     const res = await updateNotesFromConversation(selectedId);
     if (res?.ok) {
-      toast.show(res.summary ?? "Notes updated.", "success");
+      toast.show(res.summary ?? "Notes updated", "success");
       customerContext.refetch?.();
     } else if (res?.reason) {
       toast.show(`Could not update notes: ${res.reason}`, "error");

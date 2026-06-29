@@ -58,10 +58,10 @@ export function DeliveryFailureCard({ booking, failures, primaryHuman, onUpdateH
       const ownerKey = primaryHuman.fullName || primaryHuman.id;
       const saved = await onUpdateHuman(ownerKey, { phone: normalised });
       if (!saved) {
-        toast.show("Couldn't save the number — please try again.", "error");
+        toast.show("Couldn't save that number — give it another go", "error");
         return;
       }
-      toast.show("Number updated. You can resend now.", "success");
+      toast.show("Number updated — you can resend now", "success");
       setEditing(false);
     } finally {
       setSavingPhone(false);

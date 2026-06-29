@@ -57,7 +57,7 @@ export function BookingActions({
           className="ml-auto flex-1 max-w-[220px] py-2 px-5 rounded-full border-none text-sm font-bold cursor-pointer font-inherit flex items-center justify-center gap-1.5 transition-colors bg-action text-on-action hover:bg-brand-yellow-dark disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
         >
           <IconTick size={15} colour="currentColor" />{" "}
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? "Saving…" : "Save changes"}
         </button>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function BookingActions({
                 currentDateStr,
               );
               toast.show(
-                "Booking cancelled",
+                "Booking cancelled — you can undo",
                 "success",
                 () =>
                   onUpdate(
@@ -144,7 +144,7 @@ export function BookingActions({
               const result = await onRemove(booking.id);
               if (result !== false) {
                 toast.show(
-                  "Booking cancelled",
+                  "Booking cancelled — you can undo",
                   "success",
                   onAdd ? () => onAdd(booking) : undefined,
                 );
@@ -175,13 +175,13 @@ export function BookingActions({
               result?.ok === false;
             if (failed) {
               toast.show(
-                result?.error || "Couldn't delete booking. Please try again.",
+                result?.error || "Couldn't delete that — give it another go?",
                 "error",
               );
               return;
             }
             setShowDeleteConfirm(false);
-            toast.show("Booking deleted", "success");
+            toast.show("Booking deleted — it's gone", "success");
             onClose();
           }}
           onClose={() => setShowDeleteConfirm(false)}

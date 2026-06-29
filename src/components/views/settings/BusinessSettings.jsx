@@ -42,7 +42,7 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true, onDir
   const handleSave = async () => {
     if (!canEdit) return;
     if (business.email.trim() && !isValidEmail(business.email)) {
-      setEmailError("Enter a valid email address.");
+      setEmailError("That email doesn't look right — please check and try again");
       return;
     }
     setEmailError("");
@@ -56,7 +56,7 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true, onDir
     }));
     setSaving(false);
     if (result?.ok === false) {
-      toast.show(result.error || "Couldn't save — try again?", "error");
+      toast.show(result.error || "Couldn't save that — give it another go?", "error");
       return;
     }
     setBaseline(business);
@@ -73,8 +73,8 @@ export function BusinessSettings({ config, onUpdateConfig, canEdit = true, onDir
             role="status"
             className="mb-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-[12px] font-medium px-3 py-2"
           >
-            <strong className="font-bold">Salon not yet configured</strong> —
-            customers will see default placeholders. Fill in the fields below
+            <strong className="font-bold">Your salon isn't set up yet</strong> —
+            customers will see placeholders. Fill in the fields below
             and tap Save.
           </div>
         )}

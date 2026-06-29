@@ -74,7 +74,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !surname.trim() || !phone.trim()) {
-      setError("First name, surname, and phone number are required.");
+      setError("We need a first name, surname, and phone number.");
       return;
     }
     // A UK mobile is normalised to E.164; a mobile-shaped number with the wrong
@@ -119,7 +119,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       });
     } catch (err) {
       setSubmitting(false);
-      const msg = err?.message || "Failed to add human. They may already exist.";
+      const msg = err?.message || "That didn't quite work — let's try again.";
       toast.show(msg, "error");
       setError(msg);
       return;
@@ -138,11 +138,11 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
       const suffix = selectedDogs.length > 0
         ? ` with ${selectedDogs.length} dog${selectedDogs.length === 1 ? "" : "s"}`
         : "";
-      toast.show(fullName ? `${fullName} added${suffix}` : `Customer added${suffix}`, "success");
+      toast.show(fullName ? `${fullName} saved${suffix}` : `Customer saved${suffix}`, "success");
       onClose();
     } else {
-      toast.show("Could not add customer", "error");
-      setError("Failed to add human. They may already exist.");
+      toast.show("Couldn't save that just now", "error");
+      setError("That didn't quite work — let's try again.");
     }
   };
 
@@ -305,7 +305,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
                           </div>
                           {ownerLabel && (
                             <div className="text-[11px] text-brand-coral font-semibold">
-                              Currently owned by {titleCase(ownerLabel)} — will transfer
+                              {titleCase(ownerLabel)}'s dog — we'll move them over if you want.
                             </div>
                           )}
                         </button>
@@ -328,7 +328,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
               A customer called{" "}
               <strong>{duplicate.fullName || `${duplicate.name} ${duplicate.surname}`.trim()}</strong>
               {duplicate.phone ? ` (${formatPhoneForDisplay(duplicate.phone)})` : ""} already exists.
-              Adding will create a separate record — press <strong>Add anyway</strong> to continue, or change the name.
+              Two people can share a name — press <strong>Add anyway</strong> if this is someone new, or tweak the name to be sure.
             </div>
           )}
 

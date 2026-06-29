@@ -58,7 +58,7 @@ export function BookingFormFields({
             />
           ) : (
             <div role="status" aria-live="polite" className="text-[13px] font-semibold text-brand-coral bg-brand-coral-light px-3.5 py-2.5 rounded-control">
-              The salon is closed on {selectedDateDisplay}. Pick an open day in the calendar above, or open this day from the day view first.
+              We're closed that day. Pick another date from the calendar, or open the day in day view first.
             </div>
           )}
         </div>

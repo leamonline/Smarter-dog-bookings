@@ -72,10 +72,10 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                 // RLS error); the global error banner already surfaces the
                 // message, so suppress the success toast in that case.
                 if (result === null) return;
-                setAnnouncement(`Status changed to ${status.label}`);
+                setAnnouncement(`All set — status updated to ${status.label}`);
                 const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
                 toast.show(
-                  `Status: ${status.label}`,
+                  `${status.label} — saved`,
                   variant,
                   () => onUpdate(
                     { ...booking, status: previousStatus },

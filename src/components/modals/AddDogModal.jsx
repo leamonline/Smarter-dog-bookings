@@ -111,9 +111,9 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
     // the user can see everything that's wrong at once instead of
     // playing whack-a-mole one error at a time.
     const errors = {};
-    if (!name.trim()) errors.name = "Dog name is required.";
-    if (!finalBreed) errors.breed = "Breed is required.";
-    if (!size) errors.size = "Size is required — pick a breed and it will fill in automatically.";
+    if (!name.trim()) errors.name = "Give this dog a name so we know who's coming in.";
+    if (!finalBreed) errors.breed = "We'll need a breed (or 'Mixed' if you're not sure).";
+    if (!size) errors.size = "Pick a size — we can guess from the breed, or you set it manually.";
     // Normalise the new owner's phone (UK mobile → E.164) and reject a
     // mobile-shaped number with the wrong digit count, same as AddHumanModal.
     let newOwnerPhoneE164 = "";
@@ -121,14 +121,14 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
       const ownerPhone = validateContactPhone(newOwnerPhone);
       newOwnerPhoneE164 = ownerPhone.value;
       if (!newOwnerName.trim() || !newOwnerSurname.trim() || !newOwnerPhone.trim()) {
-        errors.owner = "New owner needs a first name, surname, and phone number.";
+        errors.owner = "We need a first name, surname, and phone number for the new owner.";
       } else if (ownerPhone.error) {
         errors.owner = ownerPhone.error;
       } else if (!onAddHuman) {
         errors.owner = "Cannot create new owners right now.";
       }
     } else if (!selectedOwner?.id) {
-      errors.owner = "Please select or add an owner.";
+      errors.owner = "We need to know who owns this dog — pick an owner or add a new one.";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -154,12 +154,12 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
         });
       } catch (err) {
         setSubmitting(false);
-        setFieldErrors({ owner: err?.message || "Failed to create new owner." });
+        setFieldErrors({ owner: err?.message || "Couldn't save the new owner — give it another go." });
         return;
       }
       if (!newHuman) {
         setSubmitting(false);
-        setFieldErrors({ owner: "Failed to create new owner." });
+        setFieldErrors({ owner: "Couldn't save the new owner — give it another go." });
         return;
       }
       ownerId = newHuman.id;
@@ -198,7 +198,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
     });
     setSubmitting(false);
     if (result) {
-      toast.show(name.trim() ? `${name.trim()} added` : "Dog added", "success");
+      toast.show(name.trim() ? `${name.trim()} saved` : "Dog saved", "success");
       if (addAnother && onAddAnother) {
         // Keep the modal open for the next dog: pin the owner and clear the
         // dog-specific fields so staff just type the next name + breed.
@@ -210,8 +210,8 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
         onClose();
       }
     } else {
-      toast.show("Could not add dog", "error");
-      setFieldErrors({ banner: "Failed to add dog. A dog with this name may already exist." });
+      toast.show("Couldn't save that dog just now", "error");
+      setFieldErrors({ banner: "That didn't quite work — there might already be a dog with that name. Try again or pick a different name." });
     }
   };
 

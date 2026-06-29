@@ -11,7 +11,7 @@ describe("resolveTodosTone", () => {
   it("is calm with an empty list", () => {
     const r = resolveTodosTone({ todos: [], now: NOW });
     expect(r.tone).toBe("calm");
-    expect(r.primaryLine).toBe("No open tasks");
+    expect(r.primaryLine).toBe("All tasks sorted");
     expect(r.ariaSummary).toBe("To-do list, no open tasks");
   });
 

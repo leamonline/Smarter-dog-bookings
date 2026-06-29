@@ -119,9 +119,9 @@ export function AddBookingForm({
     const result = await onAdd(payload);
     setSubmitting(false);
     if (result) {
-      toast.show(`${payload.dogName} booked in`, "success");
+      toast.show(`${payload.dogName}'s all set — booked in`, "success");
     } else {
-      setError("Could not save booking. Please try again.");
+      setError("Couldn't save that one — let's try again");
     }
   };
 
@@ -129,12 +129,12 @@ export function AddBookingForm({
     e.preventDefault();
 
     if (!selectedDog) {
-      setError("Select a dog from the list");
+      setError("Pick a dog from the list");
       return;
     }
 
     if (!service || !allowedServices.some((s) => s.id === service)) {
-      setError("Select a valid service for this dog size");
+      setError("Pick a service that works for this dog's size");
       return;
     }
 
@@ -182,9 +182,9 @@ export function AddBookingForm({
     setSubmitting(false);
 
     if (result) {
-      toast.show(`${selectedDog.name} booked in`, "success");
+      toast.show(`${selectedDog.name}'s all set — booked in`, "success");
     } else {
-      setError("Could not save booking. Please try again.");
+      setError("Couldn't save that one — let's try again");
     }
   };
 
@@ -248,7 +248,7 @@ export function AddBookingForm({
                       // map hasn't loaded the owner row.
                       const key = dog.humanId || "";
                       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
-                      return isUuid || !key ? "No owner linked yet" : key;
+                      return isUuid || !key ? "Owner not yet linked" : key;
                     })()}
                     {dog.size ? ` · ${dog.size}` : ""}
                   </div>
@@ -260,7 +260,7 @@ export function AddBookingForm({
             dogResults.length === 0 &&
             !selectedDog && (
               <div className="text-[11px] text-slate-500 mt-0.5 pl-0.5">
-                No dogs found. Add a dog from the Dogs directory first.
+                No dogs match — add them in the Dogs directory first
               </div>
             )}
         </div>
@@ -301,7 +301,7 @@ export function AddBookingForm({
 
       {allowedServices.length === 0 && (
         <div className="text-xs text-brand-coral font-medium py-0.5">
-          No valid services are available for this dog size.
+          No services for this dog size — try another size
         </div>
       )}
 
@@ -342,7 +342,7 @@ export function AddBookingForm({
           disabled={submitting || allowedServices.length === 0}
           className="flex-1 btn btn-primary btn-sm"
         >
-          {submitting ? "Saving..." : "Confirm"}
+          {submitting ? "Saving…" : "Confirm"}
         </button>
         <button
           type="button"

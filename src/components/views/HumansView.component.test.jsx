@@ -149,7 +149,7 @@ describe("HumansView directory", () => {
       dogs: {},
       dogsByHumanId: {},
     });
-    fireEvent.click(screen.getByRole("button", { name: "No dogs registered — add one" }));
+    fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 });

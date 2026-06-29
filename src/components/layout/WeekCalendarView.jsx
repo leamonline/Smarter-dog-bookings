@@ -7,7 +7,6 @@ import { CalendarTabs } from "./CalendarTabs.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useTodos } from "../../supabase/hooks/useTodos.js";
 import { useWaitlist } from "../../supabase/hooks/useWaitlist.js";
-import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { useDeliveryFailures } from "../../supabase/hooks/useDeliveryFailures.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -19,8 +18,9 @@ import { BookingMainPanel } from "../dashboard/BookingMainPanel.jsx";
 import { RightWorkflowSidebar } from "../dashboard/RightWorkflowSidebar.jsx";
 import { DaySettingsDrawer } from "../dashboard/DaySettingsDrawer.jsx";
 import { OverviewDrawer } from "../dashboard/OverviewDrawer.jsx";
-import { WorkflowStatusStrip } from "../dashboard/WorkflowStatusStrip.jsx";
-import { parseBookingHintsFromMessage } from "../../utils/parseBookingHintsFromMessage.js";
+import { MiniCalendarCard } from "../dashboard/MiniCalendarCard.jsx";
+import { CapacityCard } from "../dashboard/CapacityCard.jsx";
+import { DeliveryFailuresCard } from "../dashboard/DeliveryFailuresCard.jsx";
 
 const DatePickerModal = lazy(() =>
   import("../modals/DatePickerModal.jsx").then((module) => ({
@@ -35,6 +35,11 @@ const WaitlistModal = lazy(() =>
 const TodoModal = lazy(() =>
   import("../modals/TodoModal.jsx").then((module) => ({
     default: module.TodoModal,
+  })),
+);
+const RemindersModal = lazy(() =>
+  import("../modals/RemindersModal.jsx").then((module) => ({
+    default: module.RemindersModal,
   })),
 );
 
@@ -73,6 +78,10 @@ export function WeekCalendarView({
   const [showTodos, setShowTodos] = useState(false);
   const [showDaySettings, setShowDaySettings] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // Mobile week strip can expand into a full month grid (reuses the desktop
+  // MiniCalendarCard). Picking a day collapses it back to the week view.
+  const [monthExpanded, setMonthExpanded] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
 
   // Listen for the AppToolbar's "Overview" trigger — keeps the
   // toolbar decoupled from dashboard state.
@@ -83,7 +92,7 @@ export function WeekCalendarView({
   }, []);
 
   const toast = useToast();
-  const { todos, addTodos, loading: todoLoading } = useTodos();
+  const { todos, addTodos } = useTodos();
   const openTodoCount = todos.filter((t) => !t.done).length;
   const {
     waitlist,
@@ -92,7 +101,6 @@ export function WeekCalendarView({
     joinWaitlist,
     leaveWaitlist,
   } = useWaitlist(currentDateObj);
-  const { unread: waUnread } = useWhatsAppUnread();
   const reminders = useTomorrowReminders();
   const pendingReminderCount = reminders.totalCount - reminders.sentCount;
   // Delivery failures (failed confirmations/reminders) only surfaced in the
@@ -127,23 +135,6 @@ export function WeekCalendarView({
       capacityOverride: options.capacityOverride === true,
     });
 
-  const handleCreateBookingFromWhatsApp = (conversation) => {
-    if (!conversation) {
-      openNewBooking(currentDateStr, "");
-      return;
-    }
-    const text = conversation.lastText || conversation.last_customer_text || "";
-    const hints = parseBookingHintsFromMessage(text, { referenceDate: new Date() });
-    setShowNewBooking({
-      dateStr: hints.dateStr || currentDateStr,
-      slot: hints.slot || "",
-      initialHumanId: conversation.humanId || conversation.human_id || null,
-      sourceConversationId: conversation.conversationId || conversation.id || null,
-      sourceMessageText: text,
-      ownerName: conversation.displayName || null,
-    });
-  };
-
   const handlePrintDaySheet = () => {
     if (typeof window !== "undefined") window.print();
   };
@@ -169,7 +160,7 @@ export function WeekCalendarView({
       // reminders went onto the to-do list when they actually didn't.
       const result = await addTodos(items);
       if (result?.ok === false) {
-        toast.show(result.error || "Couldn't add rearrange notes to the to-do list.", "error");
+        toast.show(result.error || "Couldn't save the rearrange notes — give it another go", "error");
       }
     }
     toggleDayOpen();
@@ -181,19 +172,18 @@ export function WeekCalendarView({
       <FloatingDecor />
 
       {/* Compact week pills on tablet/mobile — desktop uses the
-          left-sidebar WeekOverviewCard. On phones (< sm) the DayHeader
-          bar is hidden, so prev/next chevrons and the calendar button
-          flank the pills here instead — one row of date chrome, not two. */}
-      <div className="lg:hidden mb-3 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => navigateDay(-1)}
-          aria-label="Previous day"
-          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-        >
-          <ChevronLeft size={18} strokeWidth={2.5} />
-        </button>
-        <div className="flex-1 min-w-0">
+          left-sidebar WeekOverviewCard. The week strip runs full width; the
+          day's prev/next arrows flank the month/week toggle on the row below. */}
+      <div className="lg:hidden mb-3">
+        {monthExpanded ? (
+          <MiniCalendarCard
+            currentDateObj={currentDateObj}
+            onSelectDate={(d) => {
+              handleDatePick(d);
+              setMonthExpanded(false);
+            }}
+          />
+        ) : (
           <CalendarTabs
             dates={dates}
             selectedDay={selectedDay}
@@ -202,37 +192,74 @@ export function WeekCalendarView({
             dayOpenState={dayOpenState}
             calendarMode="day"
           />
+        )}
+
+        {/* View switcher (Today / Week / Month) flanked by day arrows. */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <button
+            type="button"
+            onClick={() => navigateDay(-1)}
+            aria-label="Previous day"
+            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          >
+            <ChevronLeft size={18} strokeWidth={2.5} />
+          </button>
+          <div className="grid grid-cols-3 gap-1 p-1 flex-1 max-w-sm bg-white rounded-full shadow-card-resting">
+          <button
+            type="button"
+            onClick={() => {
+              handleDatePick(new Date());
+              setMonthExpanded(false);
+            }}
+            className="h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthExpanded(false)}
+            aria-pressed={!monthExpanded}
+            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
+              !monthExpanded
+                ? "bg-brand-purple text-white"
+                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
+            }`}
+          >
+            Week view
+          </button>
+          <button
+            type="button"
+            onClick={() => setMonthExpanded(true)}
+            aria-pressed={monthExpanded}
+            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
+              monthExpanded
+                ? "bg-brand-purple text-white"
+                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
+            }`}
+          >
+            Month view
+          </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigateDay(1)}
+            aria-label="Next day"
+            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
+          >
+            <ChevronRight size={18} strokeWidth={2.5} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => navigateDay(1)}
-          aria-label="Next day"
-          className="sm:hidden tap-target w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-        >
-          <ChevronRight size={18} strokeWidth={2.5} />
-        </button>
       </div>
 
-      {/* Workflow panels (< xl): a compact, collapsible strip ABOVE the
-          schedule so urgent items surface at a glance instead of being
-          buried below the day's slot list. Desktop (xl+) keeps the full
-          RightWorkflowSidebar in the right rail. */}
-      <div className="lg:hidden mb-3">
-        <WorkflowStatusStrip
-          failures={failures}
-          onSelectFailure={handleSelectFailure}
-          messageCount={waUnread}
-          reminderCount={pendingReminderCount}
-          waitlistCount={waitlist.length}
-          todoCount={openTodoCount}
-          reminderData={reminders}
-          onOpenWaitlist={() => setShowWaitlist(true)}
-          onOpenTodos={() => setShowTodos(true)}
-          onCreateBookingFromWhatsApp={handleCreateBookingFromWhatsApp}
-          waitlistLoading={waitlistLoading}
-          todoLoading={todoLoading}
-        />
-      </div>
+      {/* Delivery failures must never be missed — surface them above the
+          schedule on mobile/tablet whenever there are any. The rest of the
+          workflow (reminders / waitlist / tasks) now lives as badges on the
+          day's controls bar. Desktop (xl+) keeps the full RightWorkflowSidebar. */}
+      {failures?.count > 0 && (
+        <div className="lg:hidden mb-3">
+          <DeliveryFailuresCard data={failures} onSelectFailure={handleSelectFailure} />
+        </div>
+      )}
 
       <PullToRefresh onRefresh={onRefresh}>
         <DashboardShell
@@ -281,6 +308,11 @@ export function WeekCalendarView({
               }
               onOverride={handleOverride}
               onOpenWaitlist={() => setShowWaitlist(true)}
+              reminderCount={pendingReminderCount}
+              waitlistCount={waitlist.length}
+              todoCount={openTodoCount}
+              onOpenReminders={() => setShowReminders(true)}
+              onOpenTodos={() => setShowTodos(true)}
               onCloseDay={() => setConfirmDayToggle("close")}
               onOpenDay={() => setConfirmDayToggle("open")}
               onOpenDaySettings={() => setShowDaySettings(true)}
@@ -289,9 +321,9 @@ export function WeekCalendarView({
             />
           }
           right={
-            // Desktop (xl+) only: the full stacked workflow sidebar. Below
-            // xl the panels live in the WorkflowStatusStrip above the
-            // schedule, so the right column is empty there.
+            // Desktop (lg+) only: the full stacked workflow sidebar. Below
+            // lg the workflow signals live as badges on the day's controls
+            // bar (reminders / waitlist / tasks), so this column is empty.
             <div className="hidden lg:block">
               <RightWorkflowSidebar
                 onOpenWaitlist={() => setShowWaitlist(true)}
@@ -302,6 +334,19 @@ export function WeekCalendarView({
           }
         />
       </PullToRefresh>
+
+      {/* Capacity overview at the foot of the page on mobile/tablet —
+          desktop carries it in the left sidebar. */}
+      <div className="lg:hidden mt-3">
+        <CapacityCard
+          currentDateObj={currentDateObj}
+          dates={dates}
+          bookingsByDate={bookingsByDate}
+          dayOpenState={dayOpenState}
+          daySettings={daySettings}
+          onSelectDate={handleDatePick}
+        />
+      </div>
 
       <OverviewDrawer
         open={showOverview}
@@ -374,6 +419,12 @@ export function WeekCalendarView({
       {showTodos && (
         <Suspense fallback={<LoadingSpinner />}>
           <TodoModal onClose={() => setShowTodos(false)} />
+        </Suspense>
+      )}
+
+      {showReminders && (
+        <Suspense fallback={<LoadingSpinner />}>
+          <RemindersModal onClose={() => setShowReminders(false)} />
         </Suspense>
       )}
 

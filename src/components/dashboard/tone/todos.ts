@@ -19,7 +19,7 @@ export function resolveTodosTone({ todos, now }: TodosToneInput): ToneRecord {
       tone: "calm",
       pillLabel: null,
       primaryNumber: null,
-      primaryLine: "No open tasks",
+      primaryLine: "All tasks sorted",
       subtitle: null,
       ariaSummary: "To-do list, no open tasks",
       urgency: 0,

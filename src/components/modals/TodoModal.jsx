@@ -25,7 +25,7 @@ export function TodoModal({ onClose }) {
     if (!text) return;
     setInput("");
     const result = await addTodo(text);
-    reportFailure(result, "Couldn't add task — try again?");
+    reportFailure(result, "Couldn't add that — try again?");
     inputRef.current?.focus();
   };
 
@@ -36,12 +36,12 @@ export function TodoModal({ onClose }) {
 
   const handleRemove = async (id) => {
     const result = await removeTodo(id);
-    reportFailure(result, "Couldn't remove task — try again?");
+    reportFailure(result, "Couldn't delete that — try again?");
   };
 
   const handleMove = async (index, direction) => {
     const result = await moveTodo(index, direction);
-    reportFailure(result, "Couldn't reorder — try again?");
+    reportFailure(result, "Couldn't move that — try again?");
   };
 
   return (
@@ -97,7 +97,7 @@ export function TodoModal({ onClose }) {
         {loading ? (
           <div className="text-center text-xs text-slate-400 py-3">Loading...</div>
         ) : todos.length === 0 && !error ? (
-          <div className="text-center text-xs text-slate-400 py-3">No notes yet</div>
+          <div className="text-center text-xs text-slate-400 py-3">Nothing yet — add one to get started</div>
         ) : (
           <ul className="list-none m-0 p-0 flex flex-col gap-1">
             {todos.map((todo, i) => (

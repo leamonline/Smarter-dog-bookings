@@ -190,7 +190,7 @@ export function RightWorkflowSidebar({ onOpenWaitlist, onOpenTodos, onSelectFail
       case "waitlist":
         return { key, label: "Waitlist empty", hue: "sky", onClick: onOpenWaitlist };
       case "todos":
-        return { key, label: "No open tasks", hue: "rose", onClick: onOpenTodos };
+        return { key, label: "All sorted", hue: "rose", onClick: onOpenTodos };
       default:
         return null;
     }

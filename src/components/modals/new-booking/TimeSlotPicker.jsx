@@ -54,7 +54,7 @@ export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedD
   if (!hasAnyAvailable && !hasAnyOverrideEligible) {
     return (
       <div className="text-[13px] text-slate-500 text-center py-3">
-        No available slots for this size on this date.
+        Nothing available for this size on that day
       </div>
     );
   }

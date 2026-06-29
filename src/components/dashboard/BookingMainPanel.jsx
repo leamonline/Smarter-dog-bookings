@@ -1,4 +1,3 @@
-import { toDateStr } from "../../supabase/transforms";
 import { DayHeader } from "./DayHeader.jsx";
 import { EmptyDayPanel } from "./EmptyDayPanel.jsx";
 import { BookingGridControls } from "./BookingGridControls.jsx";
@@ -26,6 +25,11 @@ export function BookingMainPanel({
   onCloseDay,
   onOpenDay,
   onOpenDaySettings,
+  reminderCount = 0,
+  waitlistCount = 0,
+  todoCount = 0,
+  onOpenReminders,
+  onOpenTodos,
   searchQuery,
 }) {
   const hasBookings = (bookings || []).length > 0;
@@ -35,16 +39,6 @@ export function BookingMainPanel({
   // upstream issue and we don't want to double up.
   const showError = isOpen && !hasBookings && !bookingsLoading && bookingsError;
   const showEmpty = isOpen && !hasBookings && !bookingsLoading && !bookingsError;
-  const todayStr = toDateStr(new Date());
-  const currentStr = toDateStr(currentDateObj);
-  const isToday = todayStr === currentStr;
-
-  const jumpToToday = () => {
-    const diffDays = Math.round(
-      (new Date(todayStr) - new Date(currentStr)) / (1000 * 60 * 60 * 24),
-    );
-    if (diffDays !== 0) onNavigateDay(diffDays);
-  };
 
   return (
     <section
@@ -58,27 +52,24 @@ export function BookingMainPanel({
       />
 
       {/* Controls row renders on closed days too — staff still need the
-          date pill, Day settings (to reopen), calendar, Today and refresh
-          without leaving the day. */}
+          status pill and Day settings (to reopen) without leaving the day. */}
       <BookingGridControls
         bookingCount={(bookings || []).length}
         isOpen={isOpen}
         onOpenDaySettings={onOpenDaySettings}
-        onOpenOverview={onOpenOverview || onOpenCalendar}
-        onJumpToToday={!isToday ? jumpToToday : undefined}
-        onRefresh={onRetry}
-        dateLabel={currentDateObj.toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        })}
+        reminderCount={reminderCount}
+        waitlistCount={waitlistCount}
+        todoCount={todoCount}
+        onOpenReminders={onOpenReminders}
+        onOpenWaitlist={onOpenWaitlist}
+        onOpenTodos={onOpenTodos}
       />
 
       {isOpen ? (
         <>
           {showError && (
             <ErrorBanner
-              title="Couldn't load today's bookings"
+              title="Couldn't load the day's bookings"
               message={typeof bookingsError === "string" ? bookingsError : "Check your connection and try again."}
               retry={onRetry}
               retryLabel="Refresh"

@@ -181,7 +181,7 @@ describe("BookingDetailModal", () => {
     expect(pickupSelect).toBeTruthy();
 
     fireEvent.change(pickupSelect, { target: { value: "human-2" } });
-    fireEvent.click(screen.getByRole("button", { name: /Save Changes/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     expect(onUpdate).toHaveBeenCalledWith(

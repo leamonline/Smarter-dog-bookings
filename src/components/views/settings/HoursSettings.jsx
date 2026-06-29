@@ -59,14 +59,14 @@ export function HoursSettings({ config, onUpdateConfig, canEdit = true, onDirtyC
   const handleSave = async () => {
     if (!canEdit) return;
     if (hasInvalidHours) {
-      toast.show("Closing time must be after opening time.", "error");
+      toast.show("Closing time needs to be after opening time", "error");
       return;
     }
     setSaving(true);
     const result = await onUpdateConfig((prev) => ({ ...prev, businessHours: hours, closures }));
     setSaving(false);
     if (result?.ok === false) {
-      toast.show(result.error || "Couldn't save — try again?", "error");
+      toast.show(result.error || "Couldn't save that — give it another go?", "error");
       return;
     }
     setBaseline(JSON.stringify({ hours, closures }));
@@ -128,7 +128,7 @@ export function HoursSettings({ config, onUpdateConfig, canEdit = true, onDirtyC
                 </div>
                 {isInvalid && (
                   <div id={`hours-err-${day}`} role="alert" className="text-xs text-brand-coral font-semibold pl-[88px] pb-1">
-                    Closing time must be after opening time.
+                    Closing time needs to be after opening time.
                   </div>
                 )}
               </div>

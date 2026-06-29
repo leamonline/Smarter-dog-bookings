@@ -192,7 +192,7 @@ export function DogSearchSection({
               </div>
               {sameOwnerDogs.length === 0 ? (
                 <div className="p-3 text-xs text-slate-500">
-                  No other dogs for this owner.
+                  Just this one dog for them
                 </div>
               ) : (
                 sameOwnerDogs.map(dog => (
@@ -241,7 +241,7 @@ export function DogSearchSection({
             {/* Searching indicator — only when no local results */}
             {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
-                Searching...
+                Looking for matches…
               </div>
             )}
 
@@ -284,7 +284,7 @@ export function DogSearchSection({
                         onMouseDown={() => onSelectEntry({ dog: entry.dog, humanKey: "", humanPhone: "", isTrusted: false, hasAlerts: entry.hasAlerts })}
                         className="w-full text-left px-2 py-1.5 rounded-md text-xs font-semibold text-slate-500 italic bg-transparent border-none cursor-pointer font-[inherit] hover:bg-slate-50"
                       >
-                        No human on file — tap to continue
+                        No human listed — that's fine, carry on
                       </button>
                     ) : (
                       <div className="flex flex-col gap-1">
@@ -334,7 +334,7 @@ export function DogSearchSection({
             {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
                 <div className="text-[13px] text-slate-500 mb-2.5">
-                  No dogs found matching "{dogQuery}"
+                  Can't find anyone with "{dogQuery}" — try another name
                 </div>
                 {/* Lead with the new-dog path: it creates the owner inline, so
                     it's the one-step route for a brand-new customer. Keeping it

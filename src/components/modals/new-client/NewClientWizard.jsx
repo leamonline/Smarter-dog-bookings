@@ -145,14 +145,14 @@ export function NewClientWizard({
         ? { label: `Book another for ${human.name}`, onClick: () => onBookAnother(humanId) }
         : undefined;
       toast.show(
-        `${human.name} added with ${dogs.length} dog${dogs.length === 1 ? "" : "s"} and a booking`,
+        `${human.name} saved with ${dogs.length} dog${dogs.length === 1 ? "" : "s"} and a booking`,
         "success",
         action,
       );
       onClose();
     } catch (e) {
       logger.error("NewClientWizard confirm failed", e);
-      setError(e?.message || "Something went wrong saving — please try again.");
+      setError(e?.message || "That didn't quite work — let's try again.");
     } finally {
       setSubmitting(false);
     }

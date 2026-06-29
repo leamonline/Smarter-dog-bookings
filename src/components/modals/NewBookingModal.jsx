@@ -330,14 +330,14 @@ export function NewBookingModal({
     // checks remain separate because they only make sense once the basics
     // (dog + date + slot) are filled in.
     const missing = [];
-    if (dogEntries.length === 0) missing.push("Choose a dog");
+    if (dogEntries.length === 0) missing.push("Pick a dog");
     if (!selectedDateStr) missing.push("Pick a date");
-    if (!selectedSlot) missing.push("Pick a time slot");
+    if (!selectedSlot) missing.push("Pick a time");
     if (missing.length > 0) {
       setError(
         missing.length === 1
-          ? `${missing[0]} before saving the booking.`
-          : `Before saving, please: ${missing.join(", ").toLowerCase()}.`,
+          ? `${missing[0]} first`
+          : `${missing.join(", ")} first`,
       );
       return;
     }
@@ -347,7 +347,7 @@ export function NewBookingModal({
     // or a stale state — fail loudly rather than silently writing a booking
     // the day view treats as cancelled.
     if (!isDateOpen(selectedDateStr, dayOpenState)) {
-      setError("The salon is closed on this day. Open the day first or pick a different date.");
+      setError("We're closed that day. Open it in day view or pick a different date.");
       return;
     }
 
@@ -365,7 +365,7 @@ export function NewBookingModal({
         return b.dogName === entry.dog.name;
       });
       if (duplicate) {
-        setError(`${entry.dog.name} is already booked at ${selectedSlot} on this date.`);
+        setError(`${entry.dog.name}'s already booked then`);
         return;
       }
     }
@@ -430,7 +430,7 @@ export function NewBookingModal({
       if (!isDateOpen(targetDateStr, dayOpenState)) {
         if (i === 0) {
           return {
-            error: "The salon is closed on this day. Open the day first or pick a different date.",
+            error: "We're closed that day. Open it in day view or pick a different date.",
             targetDateStr,
             bareError: true,
           };
@@ -516,16 +516,16 @@ export function NewBookingModal({
       const ownerFirstName =
         owner?.name || owner?.fullName?.split(" ")[0] || "this customer";
       if (onBookAnother && selectedHumanId) {
-        toast.show("Booking created", "success", {
+        toast.show("Booking saved — nice one", "success", {
           label: `Book another for ${ownerFirstName}`,
           onClick: () => onBookAnother(selectedHumanId),
         });
       } else {
-        toast.show("Booking created", "success");
+        toast.show("Booking saved — nice one", "success");
       }
       onClose();
     } else {
-      setError(res?.error || "Couldn't save the booking — please try again.");
+      setError(res?.error || "That didn't quite work — let's try again");
     }
   };
 
@@ -699,7 +699,7 @@ export function NewBookingModal({
         {pendingPastConfirm && (
           <ConfirmDialog
             title="Log a historical booking?"
-            message={`${selectedDateDisplay || "This date"}${selectedSlotLabel ? ` at ${selectedSlotLabel}` : ""} is in the past. Save it anyway to keep a historical record?`}
+            message={`${selectedDateDisplay || "This date"}${selectedSlotLabel ? ` at ${selectedSlotLabel}` : ""} is in the past — save anyway to keep the record?`}
             confirmLabel="Log as historical"
             cancelLabel="Cancel"
             variant="primary"
@@ -711,7 +711,7 @@ export function NewBookingModal({
         {pendingCapacityOverride && (
           <ConfirmDialog
             title="This booking breaks the capacity rule"
-            message={`${pendingCapacityOverride.reason}. Override and book anyway?`}
+            message={`${pendingCapacityOverride.reason}. Override the capacity rule and book anyway?`}
             confirmLabel="Override and book"
             cancelLabel="Pick another time"
             variant="primary"

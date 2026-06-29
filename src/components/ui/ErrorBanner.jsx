@@ -8,10 +8,10 @@
 // match the salon's customer-facing voice.
 export function ErrorBanner({
   message,
-  title = "Something went wrong",
+  title = "That didn't quite work",
   onClose,
   retry,
-  retryLabel = "Try again",
+  retryLabel = "Give it another go",
 }) {
   return (
     <div

@@ -122,16 +122,16 @@ export function HumanCardModal({
       if (!onUpdateHuman || !human?.id) return;
       const owner = getHumanByIdOrName(humans, dog._humanId || dog.humanId);
       if (!owner?.id) {
-        toast.show("Couldn't find that dog's owner.", "error");
+        toast.show("Hmm, we can't find who owns that dog — try again?", "error");
         return;
       }
       if (owner.id === human.id) {
-        toast.show("They already own this dog.", "error");
+        toast.show("They already own that dog.", "error");
         return;
       }
       const ownerContacts = await loadTrusted(owner);
       if (ownerContacts.some((c) => c.id === human.id || c.fullName === humanFullName)) {
-        toast.show(`${humanFullName} is already trusted on ${dog.name}.`, "success");
+        toast.show(`${humanFullName} is already linked to ${dog.name}.`, "success");
         return;
       }
       const ownerKey = owner.fullName || owner.id;
@@ -139,7 +139,7 @@ export function HumanCardModal({
         trustedContacts: [...ownerContacts, { id: human.id, relationship: "" }],
       });
       if (!saved) {
-        toast.show("Couldn't link to that dog — please try again.", "error");
+        toast.show("Couldn't link that person to the dog — let's try again.", "error");
         return;
       }
       const myContacts = await loadTrusted(human);
@@ -404,8 +404,8 @@ export function HumanCardModal({
 
       {pendingExit && (
         <ConfirmDialog
-          title="Discard changes?"
-          message="Your unsaved edits will be lost."
+          title="Throw away changes?"
+          message="Your edits haven't been saved yet."
           confirmLabel="Discard"
           cancelLabel="Keep editing"
           variant="danger"
@@ -421,7 +421,7 @@ export function HumanCardModal({
       {pendingDelete && (
         <ConfirmDialog
           title="Delete this person?"
-          message="They will be removed from the directory. Any dogs registered to them, their booking history, and groom photos will be deleted. WhatsApp threads stay but lose their link to this person. Cannot be undone."
+          message="They'll be removed from the directory — dogs, bookings, photos all go too. WhatsApp chats stay, but you'll lose the link. This can't be undone."
           confirmLabel="Delete person"
           variant="danger"
           onConfirm={async () => {
@@ -441,7 +441,7 @@ export function HumanCardModal({
       {pendingArchive && (
         <ConfirmDialog
           title="Archive this person?"
-          message="They'll be hidden from the directory and left out of new-booking and trusted-contact search. Their dogs and booking history are kept — you can unarchive them later from the directory's “Show archived” view."
+          message="They'll vanish from the directory and search — but their dogs, bookings, and history stay. You can pull them back anytime via the archive view."
           confirmLabel="Archive"
           cancelLabel="Cancel"
           variant="primary"
@@ -452,7 +452,7 @@ export function HumanCardModal({
               toast.show("Archived", "success");
               onClose?.();
             } else {
-              toast.show("Couldn't archive — please try again", "error");
+              toast.show("Couldn't archive that one — give it another go", "error");
             }
           }}
           onCancel={() => setPendingArchive(false)}

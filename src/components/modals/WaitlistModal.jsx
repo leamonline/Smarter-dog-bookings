@@ -55,7 +55,7 @@ export function WaitlistModal({
       setShowAdd(false);
     } catch (err) {
       console.error(err);
-      toast.show("Failed to join waitlist", "error");
+      toast.show("Couldn't add to the waitlist — try again?", "error");
     } finally {
       setAddingId(null);
     }
@@ -174,7 +174,7 @@ export function WaitlistModal({
           </ul>
         ) : (
           <div className="text-center text-xs italic text-slate-500 py-3">
-            No one is waiting for this date.
+            All caught up — no one waiting today
           </div>
         )}
     </ModalShell>

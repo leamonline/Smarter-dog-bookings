@@ -97,7 +97,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
           role="status"
           className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-900"
         >
-          Settings are read-only for staff accounts. Ask a salon owner to make changes.
+          Staff can't edit these settings — please ask an owner to make changes
         </div>
       )}
 
@@ -154,7 +154,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
       {pendingTab && (
         <ConfirmDialog
           title="Discard unsaved changes?"
-          message="You have unsaved changes on this tab. If you leave now they'll be lost."
+          message="You've made changes here. If you leave now, they'll be lost."
           confirmLabel="Discard changes"
           cancelLabel="Keep editing"
           variant="danger"
