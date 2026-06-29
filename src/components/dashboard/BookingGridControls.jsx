@@ -25,6 +25,18 @@ export function BookingGridControls({
   // rather than hiding it, keeping the bar's layout identical every day.
   const canJump = !!onJumpToToday;
 
+  // Open / fully-booked / closed status, shown as a coloured pill by Today.
+  const dayStatus = !isOpen
+    ? "closed"
+    : cap.over || (cap.cap > 0 && cap.count >= cap.cap)
+      ? "full"
+      : "open";
+  const STATUS = {
+    closed: { label: "Closed", cls: "bg-brand-coral-light text-brand-coral" },
+    full: { label: "Full", cls: "bg-sky-50 text-sky-700" },
+    open: { label: "Open", cls: "bg-emerald-50 text-emerald-700" },
+  };
+
   // Workflow notifications — only the categories with something pending get a
   // colourful badge. Desktop (lg+) has the full RightWorkflowSidebar, so these
   // are mobile/tablet only (lg:hidden) to avoid doubling up.
@@ -56,9 +68,13 @@ export function BookingGridControls({
         Today
       </button>
 
-      {!isOpen ? (
-        <span className="text-[12px] font-bold text-rose-600">Closed</span>
-      ) : hasCap ? (
+      <span
+        className={`inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-bold ${STATUS[dayStatus].cls}`}
+      >
+        {STATUS[dayStatus].label}
+      </span>
+
+      {isOpen && hasCap && (
         <span
           role="img"
           aria-label={cap.over ? `Over capacity (${cap.count}/${cap.cap})` : `${cap.count} of ${cap.cap} places booked`}
@@ -75,7 +91,7 @@ export function BookingGridControls({
             {cap.count}/{cap.cap}
           </span>
         </span>
-      ) : null}
+      )}
 
       <div className="hidden sm:block sm:flex-1" />
 

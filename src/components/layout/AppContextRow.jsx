@@ -13,6 +13,7 @@ import { sectionTitleFor } from "./navConfig.jsx";
 const TONE = {
   closed: "bg-brand-coral-light text-brand-coral",
   open: "bg-emerald-50 text-emerald-700",
+  full: "bg-sky-50 text-sky-700",
   info: "bg-cyan-50 text-cyan-800",
   amber: "bg-amber-50 text-amber-800",
 };
@@ -28,7 +29,7 @@ function StatusPill({ tone, children }) {
   );
 }
 
-export function AppContextRow({ dateLabel, isOpen }) {
+export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
   const location = useLocation();
   const sectionTitle = sectionTitleFor(location.pathname);
   const isBookings = sectionTitle === "Bookings";
@@ -81,23 +82,21 @@ export function AppContextRow({ dateLabel, isOpen }) {
       </div>
 
       {/* Mobile/tablet (below lg) — a white identity block between the
-          top bar and the nav strip. */}
+          top bar and the nav strip. The day's date sits in a pill whose
+          colour carries the day status (open / full / closed). */}
       <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 bg-white border-b border-slate-200">
         <div className="flex items-center gap-2.5 flex-wrap">
           <h2 className="font-display text-xl font-extrabold text-brand-purple leading-tight">
             {sectionTitle}
           </h2>
           {isBookings && (
-            <StatusPill tone={isOpen ? "open" : "closed"}>
-              {isOpen ? "Open today" : "Closed today"}
-            </StatusPill>
+            <span
+              className={`inline-flex items-center h-7 px-3 rounded-full text-xs font-bold whitespace-nowrap ${TONE[dayTone] || TONE.open}`}
+            >
+              {dateLabel}
+            </span>
           )}
         </div>
-        {isBookings && (
-          <p className="mt-0.5 text-sm font-semibold text-brand-purple-light">
-            {dateLabel}
-          </p>
-        )}
       </div>
     </>
   );

@@ -12,6 +12,7 @@ import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-
 import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
+import { DAY_CAPACITY } from "./engine/utilisation";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
 import { useDogs } from "./supabase/hooks/useDogs";
@@ -783,6 +784,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             year: "numeric",
           })}
           isOpen={currentSettings.isOpen}
+          dayTone={
+            !currentSettings.isOpen
+              ? "closed"
+              : (bookingsByDate[currentDateStr] || []).length >= DAY_CAPACITY
+                ? "full"
+                : "open"
+          }
         />
         <MobileNavStrip />
 
