@@ -1,6 +1,9 @@
 import { Section } from "./ReportWidgets.jsx";
 
 export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busiestSlot, dayInsight }) {
+  // Only the salon's open weekdays (Mon–Wed) are shown or ranked — a closed
+  // weekday is never rendered as a bar or picked as "peak".
+  const openDow = dow.filter((d) => d.open);
   const activeSlots = slots.filter((s) => s.n > 0);
   const inactiveSlots = slots.filter((s) => s.n === 0);
   const hasDayData = busiestDay.n > 0;
@@ -25,7 +28,7 @@ export function DemandPattern({ dow, maxDowN, busiestDay, slots, maxSlotN, busie
           </div>
         </div>
         <div className="flex items-end gap-1.5 h-[60px]">
-          {dow.map((d) => {
+          {openDow.map((d) => {
             const isPeak = hasDayData && d.label === busiestDay.label;
             const h = d.n > 0 ? Math.max((d.n / maxDowN) * 100, 8) : 3;
             return (

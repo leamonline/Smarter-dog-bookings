@@ -1,8 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
-import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE } from "../constants/index";
+import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../constants/index";
+import { getDefaultOpenForDate } from "../engine/utils";
+import { fetchDaySettingsWeek } from "../supabase/queries/bootQueries.js";
 import type { Booking, Dog, Human } from "../types/index";
 import type { Database } from "../supabase/database.types";
+
+/** Open-day predicate: did/does the salon open on this "YYYY-MM-DD" date? */
+export type IsOpenDate = (dateStr: string) => boolean;
+
+/**
+ * Weekday default (Mon–Wed open) — the fallback when no per-date day_settings
+ * row exists. Used everywhere as the "at minimum" rule so closed-by-default
+ * weekdays (Thu–Sun) never reach an aggregation, average or "busiest/quietest"
+ * pick, even before any settings are fetched.
+ */
+function defaultIsOpen(dateStr: string): boolean {
+  return getDefaultOpenForDate(new Date(dateStr + "T00:00:00"));
+}
 
 type ReportDogMap = Record<string, { humanId: string; customPrice: number | null }>;
 type ReportHumanMap = Record<string, string>;
@@ -218,14 +233,23 @@ export function computeReportStats(
   dogMap: ReportDogMap,
   humanMap: ReportHumanMap,
   today: Date = new Date(),
+  isOpen: IsOpenDate = defaultIsOpen,
 ) {
   const todayStr = toLocal(today);
   const cutoff = new Date(today);
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = toLocal(cutoff);
 
-  const cur = bookings.filter((b) => b.booking_date > cutoffStr);
-  const prev = bookings.filter((b) => b.booking_date <= cutoffStr);
+  // Open-days-only: closed dates (per day_settings, falling back to the weekday
+  // default) never enter any aggregation, average or "busiest/quietest" pick —
+  // the salon opens Mon–Wed, so 7-weekday stats produced nonsense otherwise.
+  // We filter the inputs here and feed the unchanged maths downstream.
+  const cur = bookings.filter(
+    (b) => b.booking_date > cutoffStr && isOpen(b.booking_date),
+  );
+  const prev = bookings.filter(
+    (b) => b.booking_date <= cutoffStr && isOpen(b.booking_date),
+  );
 
   const rev = (list: ReportBookingRow[]) =>
     list.reduce(
@@ -240,11 +264,14 @@ export function computeReportStats(
   const avgPer = curN > 0 ? curRev / curN : 0;
   const prevAvgPer = prevN > 0 ? prevRev / prevN : 0;
 
-  const openDays = new Set(cur.map((b) => b.booking_date)).size;
+  const allDates = datesInRange(days, today);
+  const openDayDates = allDates.filter(isOpen);
+  // Denominator = open calendar days in the window (not "days that happened to
+  // have a booking"), so closed days don't distort the seat-fill rate.
+  const openDays = openDayDates.length;
   const totalSeats = openDays * SALON_SLOTS.length * 2;
   const util = totalSeats > 0 ? Math.min((curN / totalSeats) * 100, 100) : 0;
 
-  const allDates = datesInRange(days, today);
   const dailyRev: Record<string, number> = {};
   const dailyCount: Record<string, number> = {};
   cur.forEach((b) => {
@@ -256,12 +283,15 @@ export function computeReportStats(
 
   const chart =
     days <= 30
-      ? allDates.map((d) => ({
-        date: d,
-        rev: dailyRev[d] || 0,
-        count: dailyCount[d] || 0,
-      }))
-      : Array.from({ length: Math.ceil(allDates.length / 7) }, (_, i) => {
+      ? // Daily view: plot open dates only — no £0 closed-day bars cluttering it.
+        openDayDates.map((d) => ({
+          date: d,
+          rev: dailyRev[d] || 0,
+          count: dailyCount[d] || 0,
+        }))
+      : // Weekly view: chunk the full calendar by 7 so weeks align; closed days
+        // sum to 0 because dailyRev only holds open-day rows.
+        Array.from({ length: Math.ceil(allDates.length / 7) }, (_, i) => {
         const week = allDates.slice(i * 7, i * 7 + 7);
         return {
           date: week[0],
@@ -311,11 +341,19 @@ export function computeReportStats(
     dayAcc[idx].n++;
     dayAcc[idx].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
   });
-  const dow = dayAcc.map((d, i) => ({ label: dayLabels[i], ...d }));
-  const maxDowN = Math.max(...dow.map((d) => d.n), 1);
-  const busiestDay = dow.reduce(
+  // `open` marks the weekdays the salon generally trades (Mon–Wed via ALL_DAYS).
+  // Closed weekdays are never rendered or ranked — busiest/quietest are chosen
+  // from open weekdays only.
+  const dow = dayAcc.map((d, i) => ({
+    label: dayLabels[i],
+    open: ALL_DAYS[i]?.defaultOpen ?? false,
+    ...d,
+  }));
+  const openDow = dow.filter((d) => d.open);
+  const maxDowN = Math.max(...openDow.map((d) => d.n), 1);
+  const busiestDay = openDow.reduce(
     (best, d) => (d.n > best.n ? d : best),
-    dow[0],
+    openDow[0] ?? dow[0],
   );
 
   const slotAcc: Record<string, number> = {};
@@ -439,10 +477,9 @@ export function buildReportInsights(stats: ReturnType<typeof computeReportStats>
   }
 
   if (stats.busiestDay.n > 0) {
-    const quietest = stats.dow.reduce(
-      (q, d) => (d.n < q.n && d.n > 0 ? d : q),
-      stats.busiestDay,
-    );
+    const quietest = stats.dow
+      .filter((d) => d.open)
+      .reduce((q, d) => (d.n < q.n && d.n > 0 ? d : q), stats.busiestDay);
     if (quietest.label !== stats.busiestDay.label) {
       out.day = `${stats.busiestDay.label} is your busiest day. ${quietest.label} is quietest \u2014 a good candidate for promotions.`;
     } else {
@@ -476,6 +513,11 @@ export function useReportsData(days: number, source?: SalonReportSource) {
   const [loading, setLoading] = useState(true);
   const [reportSource, setReportSource] =
     useState<ReportSourceData>(EMPTY_REPORT_SOURCE);
+  // Per-date open/closed across the analytics window. Empty ⇒ every date falls
+  // back to the weekday default (Mon–Wed) via `defaultIsOpen`.
+  const [dayOpenByDate, setDayOpenByDate] = useState<Record<string, boolean>>(
+    {},
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -485,6 +527,8 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const offlineSource = buildReportSourceFromSalon(source);
         if (!controller.signal.aborted) {
           setReportSource(offlineSource);
+          // Offline has no historical per-date settings — default (Mon–Wed).
+          setDayOpenByDate({});
           setLoading(false);
         }
         return;
@@ -495,8 +539,9 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const since = new Date();
         since.setDate(since.getDate() - days * 2);
         const sinceStr = toLocal(since);
+        const todayStr = toLocal(new Date());
 
-        const [bk, dg, hm] = await Promise.all([
+        const [bk, dg, hm, ds] = await Promise.all([
           supabase
             .from("bookings")
             .select("id, booking_date, service, size, status, payment, slot, dog_id")
@@ -505,6 +550,8 @@ export function useReportsData(days: number, source?: SalonReportSource) {
             .abortSignal(controller.signal),
           supabase.from("dogs").select("id, human_id, custom_price").abortSignal(controller.signal),
           supabase.from("humans").select("id, name, surname").abortSignal(controller.signal),
+          // Same source/shape useDaySettings uses, over the analytics window.
+          fetchDaySettingsWeek(supabase, sinceStr, todayStr, controller.signal),
         ]);
 
         if (controller.signal.aborted) return;
@@ -530,11 +577,23 @@ export function useReportsData(days: number, source?: SalonReportSource) {
           humanMap[h.id] = `${h.name || ""} ${h.surname || ""}`.trim();
         });
 
+        // Day settings degrade gracefully: on error we keep an empty map and
+        // every date falls back to the weekday default.
+        const dayOpen: Record<string, boolean> = {};
+        if (!ds.error) {
+          (
+            (ds.data || []) as Array<{ setting_date: string; is_open: boolean }>
+          ).forEach((row) => {
+            dayOpen[row.setting_date] = row.is_open;
+          });
+        }
+
         setReportSource({
           bookings: (bk.data || []) as ReportBookingRow[],
           dogMap,
           humanMap,
         });
+        setDayOpenByDate(dayOpen);
       } catch (err) {
         if (!controller.signal.aborted) {
           console.error("ReportsView: failed to load data", err);
@@ -549,6 +608,13 @@ export function useReportsData(days: number, source?: SalonReportSource) {
     };
   }, [days, source]);
 
+  // Open-day predicate: explicit day_settings row wins, else weekday default.
+  const isOpen = useMemo<IsOpenDate>(
+    () => (dateStr) =>
+      dateStr in dayOpenByDate ? dayOpenByDate[dateStr] : defaultIsOpen(dateStr),
+    [dayOpenByDate],
+  );
+
   const stats = useMemo(
     () =>
       computeReportStats(
@@ -556,8 +622,10 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         reportSource.bookings,
         reportSource.dogMap,
         reportSource.humanMap,
+        new Date(),
+        isOpen,
       ),
-    [days, reportSource],
+    [days, reportSource, isOpen],
   );
   const chartLabels = useMemo(
     () => buildChartLabels(stats.chart, days),

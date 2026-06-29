@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { SALON_SLOTS } from "../../../constants/index";
 import { useSalon } from "../../../contexts/SalonContext";
 import { computeRevenue } from "../../../engine/pricing";
+import { getDefaultOpenForDate } from "../../../engine/utils";
 import { toDateStr } from "../../../supabase/transforms";
 import { Trend } from "./ReportWidgets.jsx";
 
@@ -41,7 +42,7 @@ function buildInsight(thisWeekData, _thisWeekTotal, thisWeekCount, openSlots, fi
 }
 
 export function WeeklySnapshot() {
-  const { dogs, bookingsByDate } = useSalon();
+  const { dogs, bookingsByDate, daySettings } = useSalon();
 
   const today = new Date();
   const todayStr = toDateStr(today);
@@ -54,31 +55,43 @@ export function WeeklySnapshot() {
     return getWeekDates(lastMon);
   }, [thisWeekDates]);
 
+  const isOpenDate = (date, dateStr) =>
+    daySettings?.[dateStr]?.isOpen ?? getDefaultOpenForDate(date);
+
+  // Open days only — closed weekdays (Mon–Wed is the salon's week) are dropped
+  // entirely rather than plotted as £0 bars.
   const thisWeekData = useMemo(() => {
-    return thisWeekDates.map((date, i) => {
-      const dateStr = toDateStr(date);
-      const dayBookings = bookingsByDate[dateStr] || [];
-      const revenue = computeRevenue(dayBookings, dogs);
-      return {
-        label: DAY_LABELS[i],
-        dateStr,
-        revenue,
-        count: dayBookings.length,
-        isToday: dateStr === todayStr,
-      };
-    });
-  }, [thisWeekDates, bookingsByDate, todayStr, dogs]);
+    return thisWeekDates
+      .map((date, i) => {
+        const dateStr = toDateStr(date);
+        const dayBookings = bookingsByDate[dateStr] || [];
+        const revenue = computeRevenue(dayBookings, dogs);
+        return {
+          label: DAY_LABELS[i],
+          dateStr,
+          revenue,
+          count: dayBookings.length,
+          isToday: dateStr === todayStr,
+          isOpen: isOpenDate(date, dateStr),
+        };
+      })
+      .filter((d) => d.isOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isOpenDate derives from daySettings, already a dep
+  }, [thisWeekDates, bookingsByDate, todayStr, dogs, daySettings]);
 
   const lastWeekTotal = useMemo(() => {
     return lastWeekDates.reduce((sum, date) => {
       const dateStr = toDateStr(date);
+      if (!isOpenDate(date, dateStr)) return sum;
       return sum + computeRevenue(bookingsByDate[dateStr] || [], dogs);
     }, 0);
-  }, [lastWeekDates, bookingsByDate, dogs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isOpenDate derives from daySettings, already a dep
+  }, [lastWeekDates, bookingsByDate, dogs, daySettings]);
 
   const thisWeekTotal = thisWeekData.reduce((s, d) => s + d.revenue, 0);
   const thisWeekCount = thisWeekData.reduce((s, d) => s + d.count, 0);
-  const openDays = thisWeekData.filter((d) => d.count > 0).length;
+  // Denominator = the salon's open days this week (not just days with bookings).
+  const openDays = thisWeekData.length;
   const openSlots = openDays * SALON_SLOTS.length * 2;
   const fillPct = openSlots > 0 ? Math.min((thisWeekCount / openSlots) * 100, 100) : 0;
   const avgPerDog = thisWeekCount > 0 ? thisWeekTotal / thisWeekCount : 0;
@@ -134,26 +147,23 @@ export function WeeklySnapshot() {
         {/* Day strip — shorter on phones so the bars don't crowd the
             stacked day/£ labels below them. */}
         <div className="flex gap-1.5 sm:gap-2 items-end h-[52px] sm:h-[68px] mb-3">
-          {thisWeekData.map((day) => {
-            const isClosed = day.count === 0 && day.revenue === 0;
-            return (
-              <div key={day.label} className="flex-1 text-center flex flex-col items-center justify-end h-full">
-                <div
-                  className={`w-full max-w-[40px] rounded-t-md min-h-[3px] transition-[height] duration-300 ${
-                    day.isToday ? "bg-brand-teal" : day.revenue > 0 ? "bg-brand-cyan" : "bg-slate-200"
-                  }`}
-                  style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
-                  aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
-                />
-                <div className={`text-caption font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
-                  {day.label}
-                </div>
-                <div className="text-caption font-semibold text-ink-muted">
-                  {isClosed ? "—" : `£${day.revenue}`}
-                </div>
+          {thisWeekData.map((day) => (
+            <div key={day.label} className="flex-1 text-center flex flex-col items-center justify-end h-full">
+              <div
+                className={`w-full max-w-[40px] rounded-t-md min-h-[3px] transition-[height] duration-300 ${
+                  day.isToday ? "bg-brand-teal" : day.revenue > 0 ? "bg-brand-cyan" : "bg-slate-200"
+                }`}
+                style={{ height: `${Math.max((day.revenue / maxDayRevenue) * 100, 4)}%` }}
+                aria-label={`${day.label}: £${day.revenue}, ${day.count} booking${day.count !== 1 ? "s" : ""}`}
+              />
+              <div className={`text-caption font-bold mt-1 ${day.isToday ? "text-brand-teal-text" : "text-slate-700"}`}>
+                {day.label}
               </div>
-            );
-          })}
+              <div className="text-caption font-semibold text-ink-muted">
+                £{day.revenue}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Insight */}
