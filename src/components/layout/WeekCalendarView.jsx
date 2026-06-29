@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SALON_SLOTS } from "../../constants/index.ts";
+import { excludeCancelled } from "../../engine/occupancy";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
 import { CalendarTabs } from "./CalendarTabs.jsx";
@@ -110,7 +111,10 @@ export function WeekCalendarView({
   const failures = useDeliveryFailures();
 
   const isOpen = currentSettings.isOpen;
-  const dayBookings = bookingsByDate[currentDateStr] || [];
+  // Cancelled rows are soft-deletes that free their seat. Strip them here so
+  // the grid, the booking count and the close-day to-do builder all treat the
+  // day as non-cancelled occupancy (what the capacity engine expects).
+  const dayBookings = excludeCancelled(bookingsByDate[currentDateStr] || []);
 
   // Clicking a delivery-failure row jumps the calendar to that booking's day
   // (noon-anchored to dodge TZ rollover) so staff can open it and resend.

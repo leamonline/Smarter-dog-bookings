@@ -11,6 +11,7 @@ import {
   getStatusDisplay,
 } from "../../constants/index";
 import { getDefaultOpenForDate } from "../../engine/utils";
+import { excludeCancelled } from "../../engine/occupancy";
 import {
   getAllowedServicesForSize,
   getDogByIdOrName,
@@ -140,7 +141,11 @@ export function BookingDetailModal({
     dayOpenState?.[editDateStr] !== undefined
       ? dayOpenState[editDateStr]
       : editSettings.isOpen;
-  const editDayBookings = bookingsByDate[editDateStr] || [];
+  // Cancelled rows free their seat, so exclude them before the reschedule
+  // slot-picker (canBookSlot / getSeatStatesForSlot) and useSlotAvailability
+  // treat the day as occupied — otherwise a cancelled booking phantom-blocks
+  // an open slot.
+  const editDayBookings = excludeCancelled(bookingsByDate[editDateStr] || []);
   const otherBookings = editDayBookings.filter((b) => b.id !== booking.id);
 
   const { editActiveSlots } = useSlotAvailability({

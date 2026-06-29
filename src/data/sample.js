@@ -35,6 +35,10 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
     { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel" },
     { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright" },
   ],
-  wed: [],
+  wed: [
+    // A cancelled booking on an open day — exercises the rule that cancelled
+    // rows free their seat and must not render in the staff slot grid.
+    { id: 8, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.CANCELLED, addons: [], pickupBy: "Emma Wilson", payment: "Refunded" },
+  ],
   thu: [], fri: [], sat: [], sun: [],
 };
