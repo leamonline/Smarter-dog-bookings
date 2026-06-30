@@ -1,6 +1,17 @@
-import { PRICING, SERVICES } from "../constants/index";
+import { PRICING, SERVICES, BOOKING_STATUS } from "../constants/index";
 import { getAddonsTotal } from "../constants/salon";
 import type { Service, Human, Dog, Booking } from "../types/index";
+
+/**
+ * The single "does this booking count?" rule, shared by the cash-up engine and
+ * the reports analytics so they can never diverge. Cancelled appointments free
+ * their capacity and bring in no money, so they're excluded from every count,
+ * total and rate. (A null/absent status is treated as countable — legacy rows
+ * and freshly-built sample rows default to "Booked", never "Cancelled".)
+ */
+export function isCountableBooking(b: { status?: string | null }): boolean {
+  return b.status !== BOOKING_STATUS.CANCELLED;
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

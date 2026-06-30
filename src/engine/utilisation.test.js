@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { findNextAvailable, capacityRatio, currentSlotIndex, DAY_CAPACITY } from "./utilisation";
+import { findNextAvailable, capacityRatio, currentSlotIndex, computeFillRate, DAY_CAPACITY } from "./utilisation";
 import { DAILY_DOG_CAP } from "../constants/salon";
 
 it("DAY_CAPACITY is sourced from the single DAILY_DOG_CAP constant", () => {
   expect(DAY_CAPACITY).toBe(DAILY_DOG_CAP);
   expect(DAILY_DOG_CAP).toBe(14);
+});
+
+// computeFillRate is the reports "Capacity %": bookings as a share of the real
+// DAILY_DOG_CAP per open day — the SAME scale the calendar's Full/Steady/Quiet
+// badge uses, not a theoretical slots×2 ceiling.
+describe("computeFillRate", () => {
+  it("is a percentage of DAILY_DOG_CAP per open day", () => {
+    expect(computeFillRate(7, 1)).toBe(50); // 7 of 14
+    expect(computeFillRate(7, 2)).toBe(25); // 7 of 28
+    expect(computeFillRate(14, 1)).toBe(100); // exactly full
+  });
+
+  it("clamps to 100 when bookings exceed the cap", () => {
+    expect(computeFillRate(20, 1)).toBe(100);
+  });
+
+  it("is 0 when there are no open days (no capacity to fill)", () => {
+    expect(computeFillRate(5, 0)).toBe(0);
+    expect(computeFillRate(0, 0)).toBe(0);
+  });
 });
 
 // Today is fixed in tests via the `now` injection so the assertion

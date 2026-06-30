@@ -10,7 +10,6 @@ import { DemandPattern } from "./reports/DemandPattern.jsx";
 import { KeyInsights } from "./reports/KeyInsights.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
-import { WeeklySnapshot } from "./reports/WeeklySnapshot.jsx";
 import { WeeklyCashUp } from "./reports/WeeklyCashUp.jsx";
 import { useSalon } from "../../contexts/SalonContext";
 
@@ -110,9 +109,6 @@ export function ReportsView({ loadError = null }) {
         </div>
       </div>
 
-      {/* This-week hero (own data fetch, independent of period filter) */}
-      <WeeklySnapshot />
-
       {isLowN && (
         <div
           role="status"
@@ -151,9 +147,13 @@ export function ReportsView({ loadError = null }) {
           {/* Band 3 — KPI row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi
-              label="Revenue"
+              label="Expected"
               value={`£${stats.curRev.toFixed(0)}`}
-              sub={`vs £${stats.prevRev.toFixed(0)} prev period`}
+              sub={
+                stats.curDue > 0
+                  ? `£${stats.curDue.toFixed(0)} still to collect · vs £${stats.prevRev.toFixed(0)} prev period`
+                  : `all collected · vs £${stats.prevRev.toFixed(0)} prev period`
+              }
               cur={stats.curRev}
               prev={stats.prevRev}
               hideDelta={isLowN}
@@ -171,16 +171,16 @@ export function ReportsView({ loadError = null }) {
             <Kpi
               label="Avg per Dog"
               value={`£${stats.avgPer.toFixed(0)}`}
-              sub="estimated from base prices"
+              sub="expected, incl. add-ons"
               cur={stats.avgPer}
               prev={stats.prevAvgPer}
               hideDelta={isLowN}
               color="#7C3AED"
             />
             <Kpi
-              label="Seat Fill Rate"
+              label="Capacity"
               value={`${stats.util.toFixed(0)}%`}
-              sub={`across ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"} · last ${days} days`}
+              sub={`of the 14/day limit · ${stats.openDays} open ${stats.openDays === 1 ? "day" : "days"}, last ${days} days`}
               color="var(--color-brand-coral)"
             />
           </div>
