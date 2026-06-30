@@ -86,6 +86,9 @@ function CashUpDayCard({ day, meta }) {
                   <span className="font-bold text-slate-800 tabular-nums">
                     {money(row.subtotal)}
                   </span>
+                  {row.subtotal === 0 && (
+                    <Badge tone="warning">£0 — check price</Badge>
+                  )}
                   <Badge tone={STATUS_META[row.status].tone}>
                     {STATUS_META[row.status].label}
                   </Badge>
@@ -178,8 +181,13 @@ export function WeeklyCashUp() {
         month: "short",
         ...(withYear ? { year: "numeric" } : {}),
       });
-    return `${fmt(dates[0].dateObj, false)} – ${fmt(dates[6].dateObj, true)}`;
-  }, [dates]);
+    // Span the open days actually shown below (first → last open date), so the
+    // header can't advertise a full Mon–Sun week while only Mon–Wed have cards.
+    const span = openDates.length > 0 ? openDates : dates;
+    const first = span[0].dateObj;
+    const last = span[span.length - 1].dateObj;
+    return `${fmt(first, false)} – ${fmt(last, true)}`;
+  }, [dates, openDates]);
 
   const isThisWeek = weekOffset === 0;
 
@@ -227,7 +235,7 @@ export function WeeklyCashUp() {
           </div>
         </div>
         <div className="text-caption font-semibold text-white/90 mt-1.5">
-          {isThisWeek ? "This week" : "Week of"} · {weekRangeLabel}
+          {isThisWeek ? "This week" : "Week of"} · {weekRangeLabel} · open days only
         </div>
       </div>
 

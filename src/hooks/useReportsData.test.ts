@@ -29,7 +29,7 @@ describe("offline report data", () => {
       source.bookings,
       source.dogMap,
       source.humanMap,
-      new Date("2026-05-11T12:00:00"),
+      new Date("2026-05-12T12:00:00"),
     );
 
     expect(stats.curN).toBe(10);
@@ -43,7 +43,7 @@ describe("offline report data", () => {
       source.bookings,
       source.dogMap,
       source.humanMap,
-      new Date("2026-05-11T12:00:00"),
+      new Date("2026-05-12T12:00:00"),
     );
 
     expect(stats.svcs[0]).toMatchObject({
@@ -68,7 +68,7 @@ describe("offline report data", () => {
       source.bookings,
       source.dogMap,
       source.humanMap,
-      new Date("2026-05-11T12:00:00"),
+      new Date("2026-05-12T12:00:00"),
     );
 
     expect(coco?.dog_id).toMatch(/^dog:/);
@@ -166,5 +166,109 @@ describe("open-days-only analytics", () => {
     );
     expect(closedWed.curN).toBe(1);
     expect(closedWed.openDays).toBe(2);
+  });
+});
+
+describe("single pricing source, cancelled and period windows", () => {
+  // 2026-06-01 is a Monday; the salon opens Mon–Wed. Trailing-7-day window is
+  // cur (05-25, 06-01]; the symmetric previous period is prev (05-18, 05-25].
+  const today = new Date("2026-06-01T12:00:00");
+  const dogMap = { d1: { humanId: "h1", customPrice: null } };
+  const humanMap = { h1: "Owner One" };
+
+  function row(
+    bookingDate: string,
+    over: Record<string, unknown> = {},
+  ): never {
+    return {
+      id: `${bookingDate}-${over.slot ?? "08:30"}-${String(over.status ?? "b")}`,
+      booking_date: bookingDate,
+      service: "full-groom",
+      size: "small",
+      status: BOOKING_STATUS.BOOKED,
+      payment: "Due at Pick-up",
+      slot: "08:30",
+      dog_id: "d1",
+      addons: [],
+      deposit_amount: null,
+      ...over,
+    } as never;
+  }
+
+  it("counts add-ons in revenue (single pricing source, incl. add-ons)", () => {
+    const stats = computeReportStats(
+      7,
+      [row("2026-06-01", { addons: ["Flea Bath"] })],
+      dogMap,
+      humanMap,
+      today,
+    );
+    expect(stats.curN).toBe(1);
+    expect(stats.curRev).toBe(52); // £42 full-groom small + £10 Flea Bath
+  });
+
+  it("excludes cancelled bookings from counts and revenue", () => {
+    const stats = computeReportStats(
+      7,
+      [
+        row("2026-06-01", { slot: "08:30" }),
+        row("2026-06-01", { slot: "09:00", status: BOOKING_STATUS.CANCELLED }),
+      ],
+      dogMap,
+      humanMap,
+      today,
+    );
+    expect(stats.curN).toBe(1);
+    expect(stats.curRev).toBe(42); // only the live booking
+  });
+
+  it("excludes future-dated bookings from the current window", () => {
+    // 2026-06-02 (Tue) is an OPEN day but after `today` — it must not inflate
+    // the KPIs, since the revenue-trend chart stops at today.
+    const stats = computeReportStats(
+      7,
+      [
+        row("2026-06-01", { slot: "08:30" }), // today
+        row("2026-06-02", { slot: "09:00" }), // future, open
+      ],
+      dogMap,
+      humanMap,
+      today,
+    );
+    expect(stats.curN).toBe(1);
+    expect(stats.curRev).toBe(42);
+  });
+
+  it("splits expected from still-to-collect (curDue = amount due)", () => {
+    const stats = computeReportStats(
+      7,
+      [
+        row("2026-06-01", { slot: "08:30", payment: "Due at Pick-up" }),
+        row("2026-06-01", { slot: "09:00", payment: "Paid in Full" }),
+      ],
+      dogMap,
+      humanMap,
+      today,
+    );
+    expect(stats.curRev).toBe(84); // expected: 2 × £42
+    expect(stats.curDue).toBe(42); // only the unpaid one is still to collect
+  });
+
+  it("compares against the symmetric previous period, not all prior history", () => {
+    const stats = computeReportStats(
+      7,
+      [
+        row("2026-06-01", { slot: "08:30" }), // current period
+        row("2026-05-20", { slot: "09:00" }), // previous period (Wed)
+        row("2026-05-04", { slot: "09:30" }), // older than the prev window
+      ],
+      dogMap,
+      humanMap,
+      today,
+    );
+    expect(stats.curN).toBe(1);
+    // 05-20 only — 05-04 is excluded by the new prev lower bound.
+    expect(stats.prevN).toBe(1);
+    expect(stats.prevRev).toBe(42);
   });
 });

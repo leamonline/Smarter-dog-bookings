@@ -104,6 +104,23 @@ export function currentSlotIndex(activeSlots: string[], now: Date): number {
   return -1;
 }
 
+/**
+ * Reporting fill/capacity rate: bookings as a percentage of the salon's real
+ * throughput limit (DAILY_DOG_CAP per open day), capped at 100. This is the
+ * SAME denominator the weekly calendar's Full/Steady/Quiet badge uses
+ * (computeWeekCapacity), so the reports "Capacity %" reads on the same scale as
+ * the calendar — not against a theoretical slots×2 ceiling the salon can never
+ * reach. Flat dog count, exactly like DAY_CAPACITY: do NOT seat-weight large
+ * dogs here or the reports re-diverge from the calendar.
+ */
+export function computeFillRate(
+  bookingCount: number,
+  openDays: number,
+): number {
+  const cap = openDays * DAY_CAPACITY;
+  return cap > 0 ? Math.min(100, (bookingCount / cap) * 100) : 0;
+}
+
 export function computeWeekCapacity(
   dates: WeekDate[] | null | undefined,
   bookingsByDate: BookingsByDate | null | undefined,

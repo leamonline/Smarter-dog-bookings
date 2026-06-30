@@ -1,5 +1,8 @@
-import { BOOKING_STATUS } from "../constants/index";
-import { computeBookingPricing, getDogByIdOrName } from "./bookingRules";
+import {
+  computeBookingPricing,
+  getDogByIdOrName,
+  isCountableBooking,
+} from "./bookingRules";
 import type { Booking, Dog } from "../types/index";
 
 /**
@@ -99,9 +102,7 @@ export function buildWeeklyCashUp(
     let dayTotal = 0;
     let dueTotal = 0;
 
-    const dayBookings = (byDate[dateStr] || []).filter(
-      (b) => b.status !== BOOKING_STATUS.CANCELLED,
-    );
+    const dayBookings = (byDate[dateStr] || []).filter(isCountableBooking);
 
     const rows: CashUpRow[] = dayBookings.map((booking) => {
       const dog = getDogByIdOrName(

@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase/client.js";
-import { PRICING, SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../constants/index";
+import { SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../constants/index";
 import { getDefaultOpenForDate } from "../engine/utils";
+import { computeBookingPricing, isCountableBooking } from "../engine/bookingRules";
+import { computeFillRate } from "../engine/utilisation";
 import { fetchDaySettingsWeek } from "../supabase/queries/bootQueries.js";
 import type { Booking, Dog, Human } from "../types/index";
 import type { Database } from "../supabase/database.types";
@@ -50,6 +52,8 @@ interface ReportBookingRow {
   payment: string;
   slot: string;
   dog_id: string;
+  addons: string[];
+  deposit_amount: number | null;
 }
 
 interface ReportSourceData {
@@ -71,16 +75,6 @@ const EMPTY_REPORT_SOURCE: ReportSourceData = {
 };
 
 // -- Utility functions -------------------------------------------------------
-
-function estPrice(
-  service: string,
-  size: string,
-  customPrice: number | null | undefined,
-): number {
-  if (customPrice != null && customPrice > 0) return customPrice;
-  const str = (PRICING as Record<string, Record<string, string>>)[service]?.[size] || "\u00A30";
-  return parseFloat(str.replace(/[^0-9.]/g, "")) || 0;
-}
 
 export function fmtSlot(slot: string): string {
   const [h, m] = slot.split(":").map(Number);
@@ -220,6 +214,8 @@ export function buildReportSourceFromSalon(
         payment: booking.payment || "",
         slot: booking.slot || "",
         dog_id: dogId,
+        addons: booking.addons || [],
+        deposit_amount: booking.depositAmount ?? null,
       });
     });
   });
@@ -239,26 +235,61 @@ export function computeReportStats(
   const cutoff = new Date(today);
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = toLocal(cutoff);
+  // Lower bound for the previous period, so "prev" is the symmetric window
+  // (cutoff − N, cutoff] rather than all history before the current window —
+  // otherwise every period-over-period delta compares last-N-days against
+  // everything-ever-before. The fetch already pulls today − 2*days of rows.
+  const prevCutoff = new Date(today);
+  prevCutoff.setDate(prevCutoff.getDate() - days * 2);
+  const prevCutoffStr = toLocal(prevCutoff);
 
   // Open-days-only: closed dates (per day_settings, falling back to the weekday
   // default) never enter any aggregation, average or "busiest/quietest" pick —
   // the salon opens Mon–Wed, so 7-weekday stats produced nonsense otherwise.
-  // We filter the inputs here and feed the unchanged maths downstream.
+  // Cancelled bookings are excluded everywhere via the shared isCountableBooking
+  // rule. The current window is also capped at today so upcoming bookings don't
+  // inflate the KPIs above what the revenue-trend chart (which stops at today)
+  // can show — KPI totals then equal the chart total by construction.
   const cur = bookings.filter(
-    (b) => b.booking_date > cutoffStr && isOpen(b.booking_date),
+    (b) =>
+      b.booking_date > cutoffStr &&
+      b.booking_date <= todayStr &&
+      isCountableBooking(b) &&
+      isOpen(b.booking_date),
   );
   const prev = bookings.filter(
-    (b) => b.booking_date <= cutoffStr && isOpen(b.booking_date),
+    (b) =>
+      b.booking_date > prevCutoffStr &&
+      b.booking_date <= cutoffStr &&
+      isCountableBooking(b) &&
+      isOpen(b.booking_date),
   );
 
-  const rev = (list: ReportBookingRow[]) =>
-    list.reduce(
-      (s, b) => s + estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice),
-      0,
-    );
+  // Single pricing source (computeBookingPricing) — same engine the cash-up and
+  // booking cards use, so add-ons, custom prices (incl. a deliberate £0) and the
+  // expected/still-to-collect split all agree across the page.
+  const pricingOf = (b: ReportBookingRow) =>
+    computeBookingPricing({
+      service: b.service,
+      size: b.size,
+      addons: b.addons,
+      payment: b.payment,
+      depositAmount: b.deposit_amount,
+      customPrice: dogMap[b.dog_id]?.customPrice,
+    });
+  const priceOf = (b: ReportBookingRow) => pricingOf(b).subtotal;
+  const dueOf = (b: ReportBookingRow) => pricingOf(b).amountDue;
 
-  const curRev = rev(cur);
-  const prevRev = rev(prev);
+  const sumBy = (
+    list: ReportBookingRow[],
+    fn: (b: ReportBookingRow) => number,
+  ) => list.reduce((s, b) => s + fn(b), 0);
+
+  const curRev = sumBy(cur, priceOf);
+  const prevRev = sumBy(prev, priceOf);
+  // Expected vs collected: amountDue is what's still to take at pick-up.
+  const curDue = sumBy(cur, dueOf);
+  const prevDue = sumBy(prev, dueOf);
   const curN = cur.length;
   const prevN = prev.length;
   const avgPer = curN > 0 ? curRev / curN : 0;
@@ -269,15 +300,14 @@ export function computeReportStats(
   // Denominator = open calendar days in the window (not "days that happened to
   // have a booking"), so closed days don't distort the seat-fill rate.
   const openDays = openDayDates.length;
-  const totalSeats = openDays * SALON_SLOTS.length * 2;
-  const util = totalSeats > 0 ? Math.min((curN / totalSeats) * 100, 100) : 0;
+  // Capacity against the salon's real daily limit (DAILY_DOG_CAP), the same
+  // scale the weekly calendar's Full/Steady/Quiet badge uses.
+  const util = computeFillRate(curN, openDays);
 
   const dailyRev: Record<string, number> = {};
   const dailyCount: Record<string, number> = {};
   cur.forEach((b) => {
-    dailyRev[b.booking_date] =
-      (dailyRev[b.booking_date] || 0) +
-      estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+    dailyRev[b.booking_date] = (dailyRev[b.booking_date] || 0) + priceOf(b);
     dailyCount[b.booking_date] = (dailyCount[b.booking_date] || 0) + 1;
   });
 
@@ -305,11 +335,7 @@ export function computeReportStats(
   cur.forEach((b) => {
     if (!svcAcc[b.service]) svcAcc[b.service] = { n: 0, rev: 0 };
     svcAcc[b.service].n++;
-    svcAcc[b.service].rev += estPrice(
-      b.service,
-      b.size,
-      dogMap[b.dog_id]?.customPrice,
-    );
+    svcAcc[b.service].rev += priceOf(b);
   });
   const svcs = SERVICES.map((s) => ({
     ...s,
@@ -323,7 +349,7 @@ export function computeReportStats(
     const sz = b.size || "small";
     if (!szAcc[sz]) szAcc[sz] = { n: 0, rev: 0 };
     szAcc[sz].n++;
-    szAcc[sz].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+    szAcc[sz].rev += priceOf(b);
   });
   const sizes = ["small", "medium", "large"].map((s) => ({
     size: s,
@@ -339,7 +365,7 @@ export function computeReportStats(
     const d = new Date(b.booking_date + "T00:00:00").getDay();
     const idx = d === 0 ? 6 : d - 1;
     dayAcc[idx].n++;
-    dayAcc[idx].rev += estPrice(b.service, b.size, dogMap[b.dog_id]?.customPrice);
+    dayAcc[idx].rev += priceOf(b);
   });
   // `open` marks the weekdays the salon generally trades (Mon–Wed via ALL_DAYS).
   // Closed weekdays are never rendered or ranked — busiest/quietest are chosen
@@ -391,11 +417,7 @@ export function computeReportStats(
     if (!hId) return;
     if (!custAcc[hId]) custAcc[hId] = { n: 0, rev: 0, dogs: new Set() };
     custAcc[hId].n++;
-    custAcc[hId].rev += estPrice(
-      b.service,
-      b.size,
-      dogMap[b.dog_id]?.customPrice,
-    );
+    custAcc[hId].rev += priceOf(b);
     custAcc[hId].dogs.add(b.dog_id);
   });
   const topCusts = Object.entries(custAcc)
@@ -419,6 +441,8 @@ export function computeReportStats(
   return {
     curRev,
     prevRev,
+    curDue,
+    prevDue,
     curN,
     prevN,
     avgPer,
@@ -544,7 +568,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const [bk, dg, hm, ds] = await Promise.all([
           supabase
             .from("bookings")
-            .select("id, booking_date, service, size, status, payment, slot, dog_id")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount")
             .gte("booking_date", sinceStr)
             .order("booking_date")
             .abortSignal(controller.signal),
