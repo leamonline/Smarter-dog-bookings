@@ -6,7 +6,17 @@ import { test, expect } from "@playwright/test";
 // live in DogSearchSection.component.test.jsx; this spec exercises the real
 // modal against the offline sample dataset end-to-end.
 test.describe("New Booking dog search", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Post the staff-bookings redesign (#446) the header "New booking" CTA is
+    // desktop-only; on tablet/mobile staff start a booking by tapping a slot.
+    // This spec exercises the modal's dog search, which is viewport-independent
+    // (the search logic also has full unit coverage in
+    // DogSearchSection.component.test.jsx), so we drive it through the desktop
+    // header entry rather than re-implementing the per-slot path per viewport.
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "New booking header CTA is desktop-only after redesign #446",
+    );
     await page.goto("/");
     await page
       .getByRole("button", { name: /new booking/i })
@@ -39,7 +49,9 @@ test.describe("New Booking dog search", () => {
   }) => {
     await page.getByPlaceholder(/start typing a dog's name/i).fill("zzzz");
 
-    await expect(page.getByText(/no dogs found matching "zzzz"/i)).toBeVisible();
+    await expect(
+      page.getByText(/can't find anyone with "zzzz"/i),
+    ).toBeVisible();
     await expect(page.getByText("Searching...")).not.toBeVisible();
   });
 

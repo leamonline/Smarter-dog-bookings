@@ -8,10 +8,12 @@ test.describe("Smoke", () => {
     // straight away (see routeGuards.getStaffAuthRouteState: !isOnline → allow).
     await page.goto("/");
     await expect(page).toHaveURL(/\/(?:\?|$)/);
-    // The "New booking" toolbar action is the most stable landmark for the
-    // calendar shell — it sits in the header on every viewport.
+    // The "New client" toolbar action is the most stable landmark for the
+    // calendar shell — it's the one header CTA present on every viewport.
+    // (Post the staff-bookings redesign #446, "New booking" is a desktop-only
+    // CTA; mobile/tablet lead with "New client" + per-slot booking.)
     await expect(
-      page.getByRole("button", { name: /new booking/i }).first(),
+      page.getByRole("button", { name: /new client/i }).first(),
     ).toBeVisible();
   });
 
