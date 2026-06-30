@@ -13,7 +13,8 @@ RLS + Deno Edge Functions), Tailwind 4, deployed on **Vercel** (smarterdog.verce
 
 ## Run it
 
-Package manager **npm**; **Node 20** (matches CI — there is no `.nvmrc`). `.npmrc` sets
+Package manager **npm**; **Node 20** (matches CI — pinned via `.nvmrc`, so `nvm`/`fnm` auto-switch
+on `cd`; CI sets `node-version: 20` explicitly and ignores the file). `.npmrc` sets
 `legacy-peer-deps=true`, so use `npm` (not `pnpm`/`yarn`).
 
 ```bash
