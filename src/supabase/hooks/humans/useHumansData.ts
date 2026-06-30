@@ -9,6 +9,7 @@ import { supabase } from "../../client.js";
 import { CHANNELS, uniqueChannelName } from "../../realtimeChannels";
 import { searchHumansDirectory } from "../../rpc";
 import { logger } from "../../../lib/logger";
+import { safeGet, safeSet } from "../../../lib/storage";
 import { buildHumanMapEntry } from "./helpers";
 import type { HumansMap } from "./helpers";
 
@@ -51,10 +52,7 @@ export function useHumansData({
   const [directoryHumans, setDirectoryHumans] = useState<any[]>([]);
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [dirSort, setDirSortState] = useState<"first" | "last">(() =>
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem("humansDirSort") === "last"
-      ? "last"
-      : "first",
+    safeGet("local", "humansDirSort") === "last" ? "last" : "first",
   );
   const [dirFilters, setDirFilters] = useState<DirFilters>({
     flagged: false,
@@ -276,11 +274,7 @@ export function useHumansData({
   // reloads; changing it re-runs the fetch effect.
   const setDirSort = useCallback((mode: "first" | "last") => {
     setDirSortState(mode);
-    try {
-      localStorage.setItem("humansDirSort", mode);
-    } catch {
-      /* localStorage unavailable (private mode) — non-fatal */
-    }
+    safeSet("local", "humansDirSort", mode);
   }, []);
 
   // Filter chips combine with each other and with search; each toggle

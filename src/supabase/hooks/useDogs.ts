@@ -9,6 +9,7 @@ import {
 } from "../transforms";
 import { sanitiseFieldValue } from "../../utils/sanitiseFieldValue";
 import { logger } from "../../lib/logger";
+import { safeGet, safeSet } from "../../lib/storage";
 
 const PAGE_SIZE = 50;
 
@@ -71,10 +72,7 @@ export function useDogs(
   const [dogAvailableLetters, setDogAvailableLetters] = useState<string[]>([]);
   const [effectiveSearch, setEffectiveSearch] = useState("");
   const [dirSort, setDirSortState] = useState<"name" | "recent">(() =>
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem("dogsDirSort") === "recent"
-      ? "recent"
-      : "name",
+    safeGet("local", "dogsDirSort") === "recent" ? "recent" : "name",
   );
   // Unlike humans, the size filter is an enum (small/medium/large/unset), not a
   // boolean — alert and incomplete are plain booleans.
@@ -322,11 +320,7 @@ export function useDogs(
   // changing it re-runs the directory fetch effect.
   const setDirSort = useCallback((mode: "name" | "recent") => {
     setDirSortState(mode);
-    try {
-      localStorage.setItem("dogsDirSort", mode);
-    } catch {
-      /* localStorage unavailable (private mode) — non-fatal */
-    }
+    safeSet("local", "dogsDirSort", mode);
   }, []);
 
   // Filter chips. Size is an enum (small/medium/large/unset) so its toggle

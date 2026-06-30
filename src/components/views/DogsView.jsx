@@ -8,6 +8,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { titleCase } from "../../utils/text";
 import { formatOwnerLabel } from "../../utils/formatOwnerLabel.js";
 import { filterDogsForDirectory } from "../../utils/directorySearch";
+import { safeGet, safeSet } from "../../lib/storage";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
@@ -320,17 +321,11 @@ export function DogsView({
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
   const [viewMode, setViewModeState] = useState(() =>
-    typeof localStorage !== "undefined" && localStorage.getItem("dogsViewMode") === "list"
-      ? "list"
-      : "grid",
+    safeGet("local", "dogsViewMode") === "list" ? "list" : "grid",
   );
   const setViewMode = useCallback((mode) => {
     setViewModeState(mode);
-    try {
-      localStorage.setItem("dogsViewMode", mode);
-    } catch {
-      /* localStorage unavailable — non-fatal */
-    }
+    safeSet("local", "dogsViewMode", mode);
   }, []);
   useToast(); // wired for child modals; cards no longer surface toasts directly
 

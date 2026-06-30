@@ -133,6 +133,35 @@ export default [
     rules: { "no-console": "off" },
   },
   {
+    // Debt #17 — direct localStorage/sessionStorage is banned in app code.
+    // Both throw in private/incognito mode, when storage is disabled, or when
+    // the quota is full; route through src/lib/storage (safeGet/safeSet/
+    // safeRemove) which swallows the failure and returns a sentinel. storage.ts
+    // is the sink itself (it's the one place that touches window.localStorage),
+    // and tests run against jsdom's real storage, so both are exempt.
+    files: ["src/**/*.{js,jsx,ts,tsx}"],
+    ignores: [
+      "src/lib/storage.ts",
+      "**/*.test.{js,jsx,ts,tsx}",
+      "**/*.spec.{js,jsx,ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "localStorage",
+          message:
+            "Use safeGet/safeSet/safeRemove from src/lib/storage instead — direct localStorage throws in private mode.",
+        },
+        {
+          name: "sessionStorage",
+          message:
+            "Use safeGet/safeSet/safeRemove from src/lib/storage instead — direct sessionStorage throws in private mode.",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.test.{js,jsx,ts,tsx}", "**/*.spec.{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {

@@ -68,9 +68,9 @@ sustained workstream (week+).
 >
 > **Debt 15 — Status (June 2026):** PARTIALLY CLOSED — `PRICING` is still a display string (`"£42+"`), but parsing/revenue is centralised in the engine (`computeBookingPricing` in `bookingRules.ts`; `computeRevenue` in `engine/pricing.ts` is the single revenue source). Two stragglers still re-parse the string: `useReportsData.ts:67` and `BookingWizard.tsx:477` (estimate display).
 >
-> **Debt 16 — Status (June 2026):** OPEN — no `makeChannelName` helper; naming is still a mix of static literals (`"salon-todos"`, `"waitlist_changes"`) and `Date.now()`/random suffixes. The collision class was mitigated ad hoc: random suffixes on the high-churn hooks and a ref-counted module-level channel in `useWhatsAppUnread.js`.
+> **Debt 16 — Status (June 2026):** CLOSED — `src/supabase/realtimeChannels.ts` is now the central registry: a `CHANNELS` map of canonical base names plus a `uniqueChannelName()` helper, and every realtime hook routes through them. Singleton ref-counted hooks share a stable base; per-instance hooks (bookings/dogs/humans/month/day views) wrap it in `uniqueChannelName()`, so the one-consistent-suffix pattern replaced the ad-hoc `Date.now()`/random mix.
 >
-> **Debt 17 — Status (June 2026):** PARTIALLY CLOSED — `src/lib/storage.ts` (`safeGet`/`safeSet`/`safeRemove`) exists and `chunkReload.js` uses it, but the predicted reinvention happened anyway: direct `localStorage` with inline try/catch in `useDogs.ts`, `humans/useHumansData.ts` and `HumansView.jsx`; still no lint guard.
+> **Debt 17 — Status (June 2026):** CLOSED — the last five direct `localStorage` callers (`useDogs.ts`, `humans/useHumansData.ts`, `DogsView.jsx`, `HumansView.jsx`, `useDraftPersistence.js`) now route through `src/lib/storage.ts` (`safeGet`/`safeSet`/`safeRemove`), dropping their inline `typeof`/try-catch guards. A `no-restricted-globals` ESLint rule now bans bare `localStorage`/`sessionStorage` across `src/**` (exempting `lib/storage.ts` and tests), so the reinvention can't recur.
 
 ## Magic numbers / strings
 
