@@ -19,6 +19,7 @@ export default [
       "docs/**",
       "coverage/**",
       ".firecrawl/**",
+      ".claude/**",
       "playwright-report/**",
       "test-results/**",
     ],
