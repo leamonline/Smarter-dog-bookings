@@ -7,6 +7,7 @@ import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
 import { NotifyRecipientsDialog } from "./new-booking/NotifyRecipientsDialog.jsx";
+import { ConfirmationMethodDialog } from "./new-booking/ConfirmationMethodDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
@@ -86,6 +87,14 @@ export function NewBookingModal({
   const [pendingNotifyPicker, setPendingNotifyPicker] = useState(null);
   const [ownerTrusted, setOwnerTrusted] = useState([]);
   const notifyHumanIdsRef = useRef(null);
+
+  // Confirmation-method picker. Shown after "Confirm booking" on every save so
+  // staff decide whether to message the customer and how. The chosen channel
+  // ('auto' | 'whatsapp' | 'sms' | 'email' | 'none') rides into each booking via
+  // confirmationChannelRef (synchronous, like notifyHumanIdsRef); null means
+  // "not asked yet" so the capacity-override re-entry doesn't re-prompt.
+  const [pendingConfirmMethod, setPendingConfirmMethod] = useState(false);
+  const confirmationChannelRef = useRef(null);
 
   // When the modal opens from a WhatsApp message the humans map may not
   // have hydrated yet, so dogQuery falls back to the conversation's
@@ -203,6 +212,7 @@ export function NewBookingModal({
   // humans map often doesn't carry them yet. Also clears any prior choice.
   useEffect(() => {
     notifyHumanIdsRef.current = null;
+    confirmationChannelRef.current = null;
     let cancelled = false;
     if (!selectedHumanId) {
       setOwnerTrusted([]);
@@ -393,15 +403,30 @@ export function NewBookingModal({
     runSaveFlow();
   };
 
-  // Past-date guard, then save. Split out so the recipient picker can run first
-  // and then resume the normal save path.
+  // Confirmation-method picker (always), then past-date guard, then save. Split
+  // out so the recipient picker can run first and then resume the normal save
+  // path. The confirmation picker is gated on the ref (not state) so the
+  // capacity-override re-entry — which re-runs the save without re-asking —
+  // doesn't pop the dialog a second time.
   const runSaveFlow = () => {
+    if (confirmationChannelRef.current === null) {
+      setPendingConfirmMethod(true);
+      return;
+    }
     const todayStr = toDateStr(new Date());
     if (selectedDateStr < todayStr) {
       setPendingPastConfirm(true);
       return;
     }
     saveBooking();
+  };
+
+  // Resolve the confirmation-method picker: store the chosen channel, then
+  // resume the save flow.
+  const confirmConfirmationMethod = (channel) => {
+    confirmationChannelRef.current = channel;
+    setPendingConfirmMethod(false);
+    runSaveFlow();
   };
 
   // Resolve the recipient picker: store the chosen ids (owner-only collapses to
@@ -486,6 +511,9 @@ export function NewBookingModal({
             ...(capacity ? { staff_capacity_override: true } : {}),
             ...(notifyHumanIdsRef.current?.length
               ? { notify_human_ids: notifyHumanIdsRef.current }
+              : {}),
+            ...(confirmationChannelRef.current
+              ? { confirmation_channel: confirmationChannelRef.current }
               : {}),
           });
         });
@@ -726,6 +754,13 @@ export function NewBookingModal({
             trusted={pendingNotifyPicker.trusted}
             onConfirm={confirmNotifyRecipients}
             onCancel={() => setPendingNotifyPicker(null)}
+          />
+        )}
+
+        {pendingConfirmMethod && (
+          <ConfirmationMethodDialog
+            onConfirm={confirmConfirmationMethod}
+            onCancel={() => setPendingConfirmMethod(false)}
           />
         )}
     </AccessibleModal>

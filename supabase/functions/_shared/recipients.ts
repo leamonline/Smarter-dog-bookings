@@ -53,13 +53,56 @@ export async function fetchHumansByIds(
   return new Map((data as RecipientHuman[]).map((h) => [h.id, h]));
 }
 
+export type NotifyChannel = "whatsapp" | "sms" | "email";
+
+// Can this customer be reached on a specific channel right now? Encodes the
+// per-channel rule once: the channel must be set up, have the contact detail it
+// needs, and not be opted out (PECR). Used when staff force a specific channel
+// (confirmation_channel = 'whatsapp'|'sms'|'email') so an opt-out still wins.
+export function channelAvailableFor(
+  human: RecipientHuman,
+  channel: NotifyChannel,
+): boolean {
+  switch (channel) {
+    case "whatsapp":
+      return !!(human.whatsapp && human.phone && !human.whatsapp_opted_out);
+    case "sms":
+      return !!(human.sms && human.phone && !human.sms_opted_out);
+    case "email":
+      return !!(human.email && !human.email_opted_out);
+    default:
+      return false;
+  }
+}
+
 // Channel preference: WhatsApp -> SMS -> email, skipping any channel the
 // customer has opted out of (PECR). null means no usable channel.
-export function pickChannel(
-  human: RecipientHuman,
-): "whatsapp" | "sms" | "email" | null {
-  if (human.whatsapp && human.phone && !human.whatsapp_opted_out) return "whatsapp";
-  if (human.sms && human.phone && !human.sms_opted_out) return "sms";
-  if (human.email && !human.email_opted_out) return "email";
+export function pickChannel(human: RecipientHuman): NotifyChannel | null {
+  if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
+  if (channelAvailableFor(human, "sms")) return "sms";
+  if (channelAvailableFor(human, "email")) return "email";
   return null;
+}
+
+// Resolve the channel a confirmation should go out on for ONE recipient, given
+// the booking-level staff choice (bookings.confirmation_channel):
+//   'auto' (or anything unexpected) -> best available channel (pickChannel)
+//   'whatsapp'/'sms'/'email'        -> that channel ONLY if reachable + not
+//                                      opted out — no silent fallback, because
+//                                      staff made an explicit choice and an
+//                                      opt-out is a hard stop.
+// 'none' is a booking-level suppression handled by the caller before the
+// recipient loop; if passed here it resolves to a skip.
+export function resolveConfirmationChannel(
+  choice: string,
+  human: RecipientHuman,
+): { channel: NotifyChannel } | { channel: null; skip: string } {
+  if (choice === "none") return { channel: null, skip: "confirmation suppressed" };
+  if (choice === "whatsapp" || choice === "sms" || choice === "email") {
+    return channelAvailableFor(human, choice)
+      ? { channel: choice }
+      : { channel: null, skip: `cannot reach on ${choice}` };
+  }
+  const channel = pickChannel(human);
+  return channel ? { channel } : { channel: null, skip: "no contact method" };
 }

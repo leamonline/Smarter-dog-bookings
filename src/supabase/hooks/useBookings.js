@@ -243,6 +243,13 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         ...(booking.notify_human_ids?.length
           ? { notify_human_ids: booking.notify_human_ids }
           : {}),
+        // Staff confirmation choice from the New Booking dialog
+        // ('auto' | 'whatsapp' | 'sms' | 'email' | 'none'). Omitted when unset
+        // so the column DEFAULT 'auto' applies — the behaviour every other
+        // insert path (customer RPC, AI agent) keeps.
+        ...(booking.confirmation_channel
+          ? { confirmation_channel: booking.confirmation_channel }
+          : {}),
       };
 
       // Optimistic: insert a RAW row keyed by a client-generated id that we

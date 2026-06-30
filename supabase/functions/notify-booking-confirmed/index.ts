@@ -3,7 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
-import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
+import {
+  recipientIdsForBooking,
+  fetchHumansByIds,
+  resolveConfirmationChannel,
+} from "../_shared/recipients.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -63,6 +67,15 @@ serve(async (req) => {
     // 1. Only process active booked appointments.
     if (booking.status !== "Booked") {
       return new Response("Skipped: status is not 'Booked'", { status: 200 });
+    }
+
+    // 1b. Per-booking confirmation choice (staff pick this in the New Booking
+    //     dialog; everything else defaults to 'auto'). 'none' suppresses the
+    //     confirmation entirely; a specific channel forces that method per
+    //     recipient (see resolveConfirmationChannel in the loop below).
+    const confirmationChoice: string = booking.confirmation_channel ?? "auto";
+    if (confirmationChoice === "none") {
+      return new Response("Skipped: confirmation suppressed for this booking", { status: 200 });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -128,12 +141,16 @@ serve(async (req) => {
         continue;
       }
 
-      // Channel preference WhatsApp → SMS → email, skipping opted-out channels.
-      const channel = pickChannel(human);
-      if (!channel) {
-        results.push({ human_id: humanId, skipped: "no contact method" });
+      // Channel: 'auto' picks the best available (WhatsApp → SMS → email); a
+      // forced channel is used only if the recipient is reachable on it and
+      // hasn't opted out (no silent fallback — explicit choice and opt-out both
+      // win). Skip this recipient when there's no usable channel.
+      const resolved = resolveConfirmationChannel(confirmationChoice, human);
+      if (!resolved.channel) {
+        results.push({ human_id: humanId, skipped: resolved.skip });
         continue;
       }
+      const channel = resolved.channel;
 
       // Kept tight — fits a single GSM-7 SMS segment. No emoji/em-dash.
       const firstName = sanitise(human.name.split(" ")[0]);
