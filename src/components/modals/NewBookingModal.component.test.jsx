@@ -61,6 +61,18 @@ function renderModal(overrides = {}) {
   return props;
 }
 
+// The flow now always asks "Send a booking confirmation?" after Confirm. Drive
+// that dialog: open it, optionally pick a method (default is Auto), then confirm.
+async function confirmWithMethod(method) {
+  fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+  await screen.findByText(/send a booking confirmation/i);
+  if (method) fireEvent.click(screen.getByRole("radio", { name: method }));
+  // Two "Confirm booking" buttons now exist (modal + dialog); the dialog's
+  // renders last in the DOM.
+  const buttons = screen.getAllByRole("button", { name: /confirm booking/i });
+  fireEvent.click(buttons[buttons.length - 1]);
+}
+
 const resumeEntry = {
   dog: luna,
   humanKey: "Emma Wilson",
@@ -133,7 +145,7 @@ describe("NewBookingModal — truthful save (Fix C)", () => {
     });
     const props = renderModal({ initialEntries: [resumeEntry], onAdd });
 
-    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+    await confirmWithMethod();
 
     await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/just filled up/i)).toBeInTheDocument();
@@ -144,7 +156,7 @@ describe("NewBookingModal — truthful save (Fix C)", () => {
     const onAdd = vi.fn().mockResolvedValue({ ok: true });
     const props = renderModal({ initialEntries: [resumeEntry], onAdd });
 
-    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+    await confirmWithMethod();
 
     await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
     expect(onAdd).toHaveBeenCalledTimes(1);
@@ -168,7 +180,7 @@ describe("NewBookingModal — book another for owner (C-2)", () => {
       onAdd: vi.fn().mockResolvedValue({ ok: true }),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+    await confirmWithMethod();
 
     const again = await screen.findByRole("button", { name: /book another for emma/i });
     // The wizard still closes on success (truthful-save contract preserved);
@@ -177,5 +189,54 @@ describe("NewBookingModal — book another for owner (C-2)", () => {
 
     fireEvent.click(again);
     expect(onBookAnother).toHaveBeenCalledWith("emma-id");
+  });
+});
+
+// Confirmation method: staff are asked, after Confirm, whether to send a
+// confirmation and how. The choice rides into each booking as
+// confirmation_channel; the edge function reads it to suppress or force a method.
+describe("NewBookingModal — confirmation method", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("asks for a confirmation method after Confirm, before saving", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [resumeEntry], onAdd });
+
+    fireEvent.click(await screen.findByRole("button", { name: /confirm booking/i }));
+
+    // The method dialog is shown and the save hasn't happened yet.
+    expect(await screen.findByText(/send a booking confirmation/i)).toBeInTheDocument();
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("defaults to 'auto' when staff just confirm", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [resumeEntry], onAdd });
+
+    await confirmWithMethod();
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    const bookings = onAdd.mock.calls[0][0];
+    expect(bookings[0].confirmation_channel).toBe("auto");
+  });
+
+  it("stamps the chosen channel on the booking", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [resumeEntry], onAdd });
+
+    await confirmWithMethod(/whatsapp/i);
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    expect(onAdd.mock.calls[0][0][0].confirmation_channel).toBe("whatsapp");
+  });
+
+  it("carries 'none' through when staff choose not to send", async () => {
+    const onAdd = vi.fn().mockResolvedValue({ ok: true });
+    renderModal({ initialEntries: [resumeEntry], onAdd });
+
+    await confirmWithMethod(/don't send/i);
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    expect(onAdd.mock.calls[0][0][0].confirmation_channel).toBe("none");
   });
 });
