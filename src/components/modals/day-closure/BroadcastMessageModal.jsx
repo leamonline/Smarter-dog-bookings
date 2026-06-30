@@ -129,7 +129,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           className="w-full py-2 px-2.5 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none resize-y focus:border-brand-purple"
         />
         <span className="text-[11px] text-slate-400 mt-1 block">
-          This fills the approved template: “Hi [name], a quick update about your Smarter Dog grooming appointment: [your reason]. Please reply here if you need anything.”
+          This fills the approved template: “Hi [name], an important update about your grooming appointment at Smarter Dog Grooming Salon: [your reason]. Please reply to this message and we’ll help with whatever you need.”
         </span>
       </label>
 

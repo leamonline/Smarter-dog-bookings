@@ -20,8 +20,10 @@ export function pickChannelWaSms(human: RecipientHuman): "whatsapp" | "sms" | nu
 
 // The SMS / inbox text. WhatsApp uses the Meta template with [firstName, reason]
 // as the body variables; this mirrors that wording for SMS and the audit log.
+// Keep in sync with the day_closure_v1 template body (whatsapp_templates row,
+// seeded/updated by migration) and the modal caption.
 export function renderMessage(firstName: string, reason: string): string {
-  return `Hi ${firstName}, a quick update about your Smarter Dog grooming appointment: ${reason}. Please reply here if you need anything.`;
+  return `Hi ${firstName}, an important update about your grooming appointment at Smarter Dog Grooming Salon: ${reason}. Please reply to this message and we'll help with whatever you need.`;
 }
 
 // One message per recipient per day: union each booking's notify list (owner by
