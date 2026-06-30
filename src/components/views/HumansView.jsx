@@ -9,6 +9,7 @@ import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
+import { safeGet, safeSet } from "../../lib/storage";
 import { Button, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 
@@ -332,17 +333,11 @@ export function HumansView({
   const [archivedList, setArchivedList] = useState(null);
   const [archivedError, setArchivedError] = useState(null);
   const [viewMode, setViewModeState] = useState(() =>
-    typeof localStorage !== "undefined" && localStorage.getItem("humansViewMode") === "list"
-      ? "list"
-      : "grid",
+    safeGet("local", "humansViewMode") === "list" ? "list" : "grid",
   );
   const setViewMode = useCallback((mode) => {
     setViewModeState(mode);
-    try {
-      localStorage.setItem("humansViewMode", mode);
-    } catch {
-      /* localStorage unavailable — non-fatal */
-    }
+    safeSet("local", "humansViewMode", mode);
   }, []);
 
   // When offline the directory RPC can't run, so fall back to filtering the

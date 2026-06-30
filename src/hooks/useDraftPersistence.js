@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { safeGet, safeSet, safeRemove } from "../lib/storage";
 
 /**
  * useDraftPersistence — persist an in-progress form to localStorage so it
@@ -29,18 +30,19 @@ import { useCallback, useRef } from "react";
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function readDraft(key, maxAgeMs) {
+  const raw = safeGet("local", key);
+  if (!raw) return null;
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || !("data" in parsed)) return null;
     if (typeof parsed.savedAt === "number" && Date.now() - parsed.savedAt > maxAgeMs) {
-      localStorage.removeItem(key);
+      safeRemove("local", key);
       return null;
     }
     return parsed.data ?? null;
   } catch {
-    // Private mode, corrupt JSON, disabled storage — treat as no draft.
+    // Corrupt JSON — treat as no draft. (Storage failures are already
+    // swallowed by safeGet/safeRemove above.)
     return null;
   }
 }
@@ -57,22 +59,15 @@ export function useDraftPersistence(key, { enabled = true, maxAgeMs = DEFAULT_MA
   const save = useCallback(
     (data) => {
       if (!enabled) return;
-      try {
-        localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
-      } catch {
-        // Quota exceeded / storage unavailable — a lost draft is acceptable,
-        // a crash isn't.
-      }
+      // Quota exceeded / storage unavailable is swallowed by safeSet — a lost
+      // draft is acceptable, a crash isn't.
+      safeSet("local", key, JSON.stringify({ savedAt: Date.now(), data }));
     },
     [key, enabled],
   );
 
   const clear = useCallback(() => {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
+    safeRemove("local", key);
   }, [key]);
 
   return { restored: restoredRef.current, save, clear };
