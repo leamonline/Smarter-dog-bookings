@@ -58,7 +58,7 @@ Deno.test("pickChannelWaSms never picks email (no number = null)", () => {
 Deno.test("renderMessage embeds the name and reason", () => {
   assertEquals(
     renderMessage("Sarah", "we're closed Monday for a burst pipe"),
-    "Hi Sarah, a quick update about your Smarter Dog grooming appointment: we're closed Monday for a burst pipe. Please reply here if you need anything.",
+    "Hi Sarah, an important update about your grooming appointment at Smarter Dog Grooming Salon: we're closed Monday for a burst pipe. Please reply to this message and we'll help with whatever you need.",
   );
 });
 
