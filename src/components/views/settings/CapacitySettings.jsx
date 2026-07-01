@@ -1,41 +1,29 @@
-import { useState } from "react";
-import { Card, CardHead, CardBody, SettingRow, Toggle, SECTION_LABEL_CLS, useAutosaveStatus, SaveStatus } from "./shared.jsx";
+import { LARGE_DOG_SLOTS } from "../../../constants/salon";
+import { Card, CardHead, CardBody, SECTION_LABEL_CLS } from "./shared.jsx";
 
-export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
-  const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
-  const [newSlotTime, setNewSlotTime] = useState("");
+// Read-only by design (AUDIT-1). The 2-2-1 rules are hardcoded in three
+// copies that must change together — the frontend engine (LARGE_DOG_SLOTS,
+// rendered here), the Deno mirror in _shared/salonConstants.ts, and the
+// Postgres trigger's SQL helpers. The old editable card wrote
+// salon_config.large_dog_slots / enforce_capacity, which no enforcement
+// path reads; the real kill switch is salon_config.enforce_server_capacity
+// (SQL-only, deliberately not a UI toggle). See docs/capacity-engine.md.
 
-  const toggleCapacity = () => {
-    if (!canEdit) return;
-    save((prev) => ({ ...prev, enforceCapacity: !prev.enforceCapacity }));
-  };
+function slotRuleText(rule) {
+  if (rule.seats === 2) return "Takes both seats — no sharing";
+  return rule.canShare
+    ? "1 seat — shares with small & medium dogs"
+    : "1 seat";
+}
 
-  const addLargeDogSlot = () => {
-    if (!canEdit) return;
-    if (!newSlotTime) return;
-    if (config?.largeDogSlots?.[newSlotTime]) return;
-    save((prev) => ({
-      ...prev,
-      largeDogSlots: {
-        ...prev.largeDogSlots,
-        [newSlotTime]: { seats: 2, canShare: false, needsApproval: false },
-      },
-    }));
-    setNewSlotTime("");
-  };
-
-  const removeLargeDogSlot = (time) => {
-    if (!canEdit) return;
-    save((prev) => {
-      const updated = { ...prev.largeDogSlots };
-      delete updated[time];
-      return { ...prev, largeDogSlots: updated };
-    });
-  };
-
+export function CapacitySettings() {
   return (
     <Card id="settings-capacity">
-      <CardHead variant="coral" title="Capacity Engine" desc="The 2-2-1 rule controls how many dogs can be booked at once" right={<SaveStatus status={status} />} />
+      <CardHead
+        variant="coral"
+        title="Capacity Engine"
+        desc="The 2-2-1 rule controls how many dogs can be booked at once"
+      />
       <CardBody>
         <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-700 leading-relaxed">
           <p className="m-0 mb-1.5 font-semibold text-slate-800">
@@ -66,48 +54,41 @@ export function CapacitySettings({ config, onUpdateConfig, canEdit = true }) {
             .
           </p>
         </div>
-        <SettingRow
-          label="Enforce 2-2-1 strict capacity"
-          sublabel="Prevents overbooking beyond safe limits"
-          control={<Toggle on={config?.enforceCapacity} onToggle={toggleCapacity} disabled={!canEdit} />}
-        />
-        <div className="pt-2">
-          <div className={SECTION_LABEL_CLS}>Large Dog Approved Slots</div>
-          <div className="text-xs text-slate-500 mb-2.5">
-            Times when large dogs are allowed. Click to remove.
-          </div>
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {Object.keys(config?.largeDogSlots || {}).sort().map((time) => (
-              <button
-                type="button"
+
+        <div className={SECTION_LABEL_CLS}>Large Dog Approved Slots</div>
+        <div className="text-xs text-slate-500 mb-2.5">
+          The times a large dog can be booked, and what each one allows.
+        </div>
+        <div className="flex flex-col">
+          {Object.entries(LARGE_DOG_SLOTS)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([time, rule]) => (
+              <div
                 key={time}
-                onClick={() => removeLargeDogSlot(time)}
-                disabled={!canEdit}
-                aria-label={`Remove approved slot ${time}`}
-                className={`inline-flex items-center gap-1 bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold border-none transition-all ${
-                  canEdit ? "cursor-pointer hover:bg-brand-coral hover:text-white" : "cursor-not-allowed opacity-60"
-                }`}
+                className="flex items-center gap-2.5 py-2 border-b border-slate-100 last:border-b-0"
               >
-                {time} {"\u00D7"}
-              </button>
+                <span className="inline-flex items-center bg-brand-coral-light text-brand-coral px-3 py-[5px] rounded-xl text-xs font-bold tabular-nums">
+                  {time}
+                </span>
+                <span className="text-xs text-slate-600">{slotRuleText(rule)}</span>
+                {rule.conditional && (
+                  <span className="inline-flex items-center bg-slate-100 text-slate-500 px-2 py-[3px] rounded-lg text-[11px] font-semibold">
+                    conditional
+                  </span>
+                )}
+              </div>
             ))}
-            <span className="inline-flex items-center gap-1.5">
-              <input
-                type="time"
-                disabled={!canEdit}
-                value={newSlotTime}
-                onChange={(e) => setNewSlotTime(e.target.value)}
-                className="py-[5px] px-2 rounded-lg border-[1.5px] border-dashed border-slate-500 text-xs font-inherit text-slate-800 outline-none w-20 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
-              />
-              <button
-                onClick={addLargeDogSlot}
-                disabled={!canEdit}
-                className="bg-slate-50 border-[1.5px] border-dashed border-slate-500 text-slate-500 px-3 py-[5px] rounded-lg text-xs font-bold cursor-pointer font-inherit transition-all hover:bg-[#E6F5F2] hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-slate-50 disabled:hover:text-slate-500"
-              >
-                + Add
-              </button>
-            </span>
-          </div>
+        </div>
+        <p className="mt-2.5 mb-0 text-xs text-slate-500">
+          A large dog at 12:00 also closes the 13:00 slot early, and
+          back-to-back full-takeover slots are only allowed at 12:30 + 13:00.
+        </p>
+
+        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] text-slate-600 leading-relaxed">
+          These rules are fixed in the app and the database together, so they
+          can't drift out of sync or get switched off by accident. Changing
+          them is a code change — all the copies are updated at once (the doc
+          above explains where they live).
         </div>
       </CardBody>
     </Card>
