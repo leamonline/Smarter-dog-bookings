@@ -111,8 +111,8 @@ export function NewClientWizard({
             setDupAcknowledged(true);
             return;
           }
-        } catch (e) {
-          logger.error("NewClientWizard duplicate lookup failed", e);
+        } catch (err) {
+          logger.error("NewClientWizard duplicate lookup failed", err);
         }
       }
       setStep(2);
@@ -150,9 +150,9 @@ export function NewClientWizard({
         action,
       );
       onClose();
-    } catch (e) {
-      logger.error("NewClientWizard confirm failed", e);
-      setError(e?.message || "That didn't quite work — let's try again.");
+    } catch (err) {
+      logger.error("NewClientWizard confirm failed", err);
+      setError(err?.message || "That didn't quite work — let's try again.");
     } finally {
       setSubmitting(false);
     }

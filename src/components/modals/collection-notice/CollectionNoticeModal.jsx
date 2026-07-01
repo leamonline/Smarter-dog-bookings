@@ -182,8 +182,8 @@ export function CollectionNoticeModal({ booking, onClose }) {
         if (data?.error) throw new Error(data.detail || data.error);
         setSentIds((prev) => new Set(prev).add(recipient.id));
         toast.show(`Collection notice sent to ${displayName(recipient)}.`, "success");
-      } catch (e) {
-        toast.show(e instanceof Error ? e.message : String(e), "error");
+      } catch (err) {
+        toast.show(err instanceof Error ? err.message : String(err), "error");
       } finally {
         setSendingId(null);
       }

@@ -54,8 +54,8 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
       setBaseline(account);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e) {
-      setError(e.message || "Couldn't save your changes — please try again");
+    } catch (err) {
+      setError(err.message || "Couldn't save your changes — please try again");
     } finally {
       setSaving(false);
     }

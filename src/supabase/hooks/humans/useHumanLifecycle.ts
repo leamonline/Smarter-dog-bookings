@@ -106,10 +106,10 @@ export function useHumanLifecycle({
             tags: { hook: "useHumans", op: "approveSignup.welcome" },
             extra: { error: fnErr },
           });
-      } catch (e) {
+      } catch (err) {
         logger.warn("notify-customer-welcome threw", {
           tags: { hook: "useHumans", op: "approveSignup.welcome" },
-          extra: { error: e },
+          extra: { error: err },
         });
       }
 
