@@ -36,6 +36,24 @@ ls supabase/migrations/*.sql | sort
 
 For each file, paste into the Supabase SQL editor and run.
 
+## Checklist: every new function needs an explicit revoke block
+
+Supabase's default privileges grant EXECUTE on new `public` functions
+to `anon` and `authenticated`. RPC migrations already follow the
+revoke-then-grant pattern; **trigger-function migrations keep missing
+it** — the class was fixed in `20260625120000`, regressed within 48
+hours (`20260625140000`, `20260627150000`, `20260627160000`), and was
+re-fixed in `20260701213000`. When a migration creates *any* function —
+trigger functions included — end it with:
+
+```sql
+revoke execute on function public.<fn>(<args>) from public, anon, authenticated;
+-- then grant back only the roles that must call it directly
+```
+
+Trigger functions still fire after the revoke — triggers don't check
+EXECUTE privilege — so there is never a reason to skip this.
+
 ## ⚠️ Don't blindly re-run old migrations
 
 Some early migrations are not idempotent. If you are setting up a
