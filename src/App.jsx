@@ -136,11 +136,6 @@ const AddDogModal = lazy(() =>
     default: module.AddDogModal,
   })),
 );
-const AddHumanModal = lazy(() =>
-  import("./components/modals/AddHumanModal.jsx").then((module) => ({
-    default: module.AddHumanModal,
-  })),
-);
 const NewClientWizard = lazy(() =>
   import("./components/modals/new-client/index.js").then((module) => ({
     default: module.NewClientWizard,
@@ -313,7 +308,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     showDatePicker, setShowDatePicker,
     showNewBooking, setShowNewBooking,
     showAddDogModal, setShowAddDogModal,
-    showAddHumanModal, setShowAddHumanModal,
     showNewClient, setShowNewClient,
     pendingBooking, setPendingBooking,
     collectionNotice, setCollectionNotice,
@@ -649,19 +643,17 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // state — the capacity trigger, the three BEFORE INSERT gates, RLS and the
   // staff-direct-INSERT write path are all untouched.
   const parkBooking = useCallback(
-    (draft, which) => {
+    (draft) => {
       pendingBookingRef.current = draft || null;
       setPendingBooking(draft || null);
       setShowNewBooking(null);
       dogsClearSearch();
-      if (which === "human") setShowAddHumanModal(true);
-      else setShowAddDogModal(true);
+      setShowAddDogModal(true);
     },
     [
       setPendingBooking,
       setShowNewBooking,
       dogsClearSearch,
-      setShowAddHumanModal,
       setShowAddDogModal,
     ],
   );
@@ -672,14 +664,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // only re-opens once. A no-op when nothing was parked (e.g. the modal was
   // opened outside the booking flow), preserving the old standalone behaviour.
   const resumeParkedBooking = useCallback(
-    ({ newDog = null, newHumanId = null } = {}) => {
+    ({ newDog = null } = {}) => {
       const draft = pendingBookingRef.current;
       pendingBookingRef.current = null;
       setPendingBooking(null);
-      // Close the add modal and re-open the wizard in the SAME update so the two
-      // never mount together (stacked focus-trapped dialogs would fight).
+      // Close the add-dog modal and re-open the wizard in the SAME update so the
+      // two never mount together (stacked focus-trapped dialogs would fight).
       setShowAddDogModal(false);
-      setShowAddHumanModal(false);
       if (!draft) return;
       const entries = [...(draft.entries || [])];
       if (newDog) {
@@ -697,7 +688,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
         initialEntries: hasEntries ? entries : undefined,
         initialHumanId:
           (newDog && (newDog._humanId || draft.owner?.id)) ||
-          (!hasEntries && newHumanId) ||
           draft.owner?.id ||
           undefined,
       });
@@ -705,7 +695,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     [
       setPendingBooking,
       setShowAddDogModal,
-      setShowAddHumanModal,
       setShowNewBooking,
       currentDateStr,
     ],
@@ -1135,7 +1124,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       initialHumanId: ownerId,
                     })
                   }
-                  onOpenAddDog={(draft) => parkBooking(draft, "dog")}
+                  onOpenAddDog={(draft) => parkBooking(draft)}
                   onOpenNewClient={() => {
                     // Brand-new customer: hand off to the guided New Client
                     // wizard. The search step only shows before a dog is picked,
@@ -1215,34 +1204,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onAddHuman={addHuman}
                   presetOwner={pendingPresetOwner}
                   humans={humans}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {showAddHumanModal && (
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <AddHumanModal
-                  onClose={() => {
-                    setShowAddHumanModal(false);
-                    // Cancel: re-open the parked booking (no new dog/human).
-                    resumeParkedBooking();
-                  }}
-                  onAdd={async (humanData) => {
-                    const result = await addHuman(humanData);
-                    // Success: re-open the booking pre-filled with the new
-                    // owner so staff can pick or add their dog without a
-                    // re-search.
-                    if (result) {
-                      resumeParkedBooking({ newHumanId: result.id || result?.[0]?.id });
-                    }
-                    return result;
-                  }}
-                  dogs={dogs}
-                  humans={humans}
-                  onUpdateDog={updateDog}
-                  findHumanByFullName={sbFindHumanByFullName}
                 />
               </Suspense>
             </ErrorBoundary>
