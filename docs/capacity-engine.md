@@ -14,8 +14,8 @@ At any given time block, the salon will hold at most:
 - **2 medium dogs**
 - **1 large dog**
 
-…hence "2-2-1". Large dogs may only be booked into time slots that
-are explicitly listed in `salon_config.large_dog_slots`; outside
+…hence "2-2-1". Large dogs may only be booked into a fixed set of
+approved slots (see "Approved large-dog slots" below); outside
 those slots the seat count for large is zero, not one.
 
 ## Worked example
@@ -27,7 +27,7 @@ A Monday at 09:00 with two cockapoos and a Frenchie already booked:
 | Cockapoo #3 | small | ❌ — small seats full (2 / 2) |
 | Standard Poodle | medium | ✅ — medium has 1 / 2 used |
 | Labrador (if 09:00 is an approved large slot) | large | ✅ — large has 0 / 1 used |
-| Labrador (if 09:00 is **not** in `large_dog_slots`) | large | ❌ — no large seat at this time |
+| Labrador (if 09:00 is **not** an approved large slot) | large | ❌ — no large seat at this time |
 
 The detail modal will tell staff exactly which constraint blocked a
 booking ("Small seats full", "Not a large-dog slot", etc.) so the
@@ -49,25 +49,56 @@ booking ("Small seats full", "Not a large-dog slot", etc.) so the
 
 ## Approved large-dog slots
 
-Configured per-salon in `salon_config.large_dog_slots` — a jsonb map
-keyed by HH:MM. Each entry has:
+The approved set is **hardcoded, once per engine copy** — it is not
+read from config:
+
+- `LARGE_DOG_SLOTS` in [src/constants/salon.ts](../src/constants/salon.ts)
+  (frontend engine), a map keyed by HH:MM where each entry has:
 
 | Field | Meaning |
 |---|---|
-| `seats` | How many large dogs fit in this slot (usually 1) |
+| `seats` | How many seats the large dog consumes (1 = can share, 2 = full takeover) |
 | `canShare` | Whether a large dog can share the slot with smaller dogs |
 | `needsApproval` | Owner has to manually wave it through |
-| `conditional` | Slot is only large-eligible on certain days |
+| `conditional` | Slot is only large-eligible situationally |
 
-Staff edit this set from **Settings → Capacity Engine**. The chips
-list every currently-allowed slot; tapping one removes it.
+- `LARGE_DOG_SLOTS` in
+  [supabase/functions/\_shared/salonConstants.ts](../supabase/functions/_shared/salonConstants.ts)
+  (Deno mirror — consumed by `_shared/capacity.ts`; the same file also
+  holds `LARGE_DOG_CANDIDATE_SLOTS`, a keys-only list the WhatsApp Flow
+  uses for its slot options — keep that in step too), and
+- the `IMMUTABLE` SQL helpers `is_large_dog_slot()` /
+  `large_dog_can_share()` (added in `20260331083432_capacity_trigger.sql`)
+  used by the trigger.
+
+Current rules: **08:30** and **09:00** take 1 seat and can share
+(09:00 is conditional); **12:00** takes 1 seat, can share, and
+early-closes 13:00; **12:30** and **13:00** are 2-seat full
+takeovers with no sharing.
+
+> ⚠️ **`salon_config.large_dog_slots` is decorative.** The
+> Settings → Capacity Engine card writes that jsonb column, but no
+> enforcement path reads it — removing a chip in Settings changes
+> nothing (audit finding AUDIT-1, 2026-07-01). Changing the real
+> rules means changing all three hardcoded copies above **together**
+> and extending the parity test
+> (`src/lib/whatsapp/capacityParity.test.ts`).
 
 ## Disabling the rule
 
-`salon_config.enforce_capacity = false` switches the engine off
-entirely — used for one-off events or holidays where staff want to
-hand-pick whatever they fancy. The toggle is visible at the top of
-the Capacity Engine settings card.
+The server-side kill switch is **`salon_config.enforce_server_capacity`**
+— `validate_booking_capacity()` reads it (treating a missing row as
+`true`) and skips validation when it is `false`. There is no UI for
+it; flip it via SQL for one-off events, and flip it back.
+
+Two things that look like off-switches but aren't:
+
+- The toggle on the Capacity Engine settings card writes a
+  **different** column (`salon_config.enforce_capacity`) that nothing
+  reads — it is currently a no-op (AUDIT-1).
+- Per-booking, staff can set `bookings.staff_capacity_override` to
+  bypass capacity for that row only; the trigger honours it for
+  staff inserts and forces it off for non-staff.
 
 ## Assumptions and edge cases
 

@@ -43,8 +43,8 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       });
       if (err || !dog) throw err ?? new Error("Could not save dog");
       onDogAdded(dog);
-    } catch (e: any) {
-      setError(e.message || "Could not save dog");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save dog");
     } finally {
       setSaving(false);
     }

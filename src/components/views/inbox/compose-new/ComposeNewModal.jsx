@@ -164,9 +164,9 @@ export function ComposeNewModal({
       try {
         const rows = await searchHumansAndDogs(supabase, query);
         if (!controller.signal.aborted) setResults(rows);
-      } catch (e) {
+      } catch (err) {
         if (!controller.signal.aborted) {
-          logger.error("compose-new search:", e);
+          logger.error("compose-new search:", err);
           setResults([]);
         }
       } finally {
@@ -184,8 +184,12 @@ export function ComposeNewModal({
       return;
     }
     let cancelled = false;
-    listForHuman(supabase, { humanId: selectedHuman.id }).then(({ dogs }) => {
-      if (!cancelled) setDogNames(dogs.map((d) => d.name).filter(Boolean));
+    listForHuman(supabase, { humanId: selectedHuman.id }).then(({ dogs, error }) => {
+      if (cancelled) return;
+      // listForHuman never rejects — a failed lookup comes back as {dogs: [],
+      // error}. Without this the picker silently shows no dogs.
+      if (error) logger.error("compose-new dogs lookup:", error);
+      setDogNames(dogs.map((d) => d.name).filter(Boolean));
     });
     return () => { cancelled = true; };
   }, [selectedHuman]);
@@ -237,10 +241,10 @@ export function ComposeNewModal({
           throw new Error(res?.reason ?? "Send failed");
         }
         // Success — let parent close the modal.
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         setError(message);
-        throw e; // TemplatePicker shows this inline too
+        throw err; // TemplatePicker shows this inline too
       } finally {
         setSending(false);
       }
@@ -412,8 +416,8 @@ export function ComposeNewModal({
                       if (!res?.ok) {
                         throw new Error(res?.reason ?? "SMS send failed");
                       }
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : String(e));
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : String(err));
                     } finally {
                       setSending(false);
                     }

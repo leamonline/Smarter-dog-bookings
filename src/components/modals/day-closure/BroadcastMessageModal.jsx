@@ -68,8 +68,8 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
           n > 0 ? "success" : "info",
         );
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }

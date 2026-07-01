@@ -1012,7 +1012,12 @@ function parseClaudeJson(text: string, latestMessage: string): DraftFromClaude {
   // brand-voiced template based on a regex sniff of the inbound — at
   // least the customer gets a relevant holding reply rather than a
   // generic apology.
-  console.warn("parseClaudeJson: could not parse, returning fallback. Raw:", text);
+  // Truncate: the raw output can quote customer message content, which
+  // must not be echoed wholesale into the function logs.
+  console.warn(
+    "parseClaudeJson: could not parse, returning fallback. Raw (first 200 chars):",
+    text.slice(0, 200),
+  );
   const guessedIntent = guessIntentFromText(latestMessage);
   return {
     intent: "escalate",

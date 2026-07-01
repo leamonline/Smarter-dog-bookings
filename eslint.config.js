@@ -79,6 +79,15 @@ export default [
       // Empty catches must say why they swallow (no-empty accepts a block
       // whose only content is a comment) — every existing one already does.
       "no-empty": "error",
+      // Debt #24 — the codebase norm is `catch (err)`; single-letter `e`
+      // reads as an event param and invites shadowing bugs.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CatchClause > Identifier.param[name='e']",
+          message: "Name the catch parameter `err` (the codebase norm — Debt #24).",
+        },
+      ],
       "no-constant-binary-expression": "error",
       "no-useless-escape": "error",
       "no-prototype-builtins": "error",
