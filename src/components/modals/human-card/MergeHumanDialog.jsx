@@ -5,6 +5,7 @@ import { ConfirmDialog } from "../../shared/ConfirmDialog.jsx";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { titleCase } from "../../../utils/text";
 import { getDogsForHuman } from "../../../utils/directorySearch";
+import { logger } from "../../../lib/logger";
 
 // Merge-duplicate flow for the HumanCardModal. Pick the other record with
 // the same debounced search the trusted-contacts picker uses, eyeball a
@@ -105,7 +106,7 @@ export function MergeHumanDialog({
     let cancelled = false;
     const handle = setTimeout(() => {
       if (cancelled) return;
-      searchHumansByTerm(q).catch((err) => console.error("merge search failed:", err));
+      searchHumansByTerm(q).catch((err) => logger.error("merge search failed:", err));
     }, 250);
     return () => {
       cancelled = true;

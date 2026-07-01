@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../../supabase/client.js";
 import { registerResume } from "../../../../supabase/refreshOnResume.js";
+import { logger } from "../../../../lib/logger";
 import { buildCustomerSummary } from "./customerContextSummary.js";
 
 const CUSTOMER_CONTEXT_TIMEOUT_MS = 10_000;
@@ -201,7 +202,7 @@ export function useCustomerContext(humanId) {
         setData({ human, dogs, lastBooking, trustedContacts, summary });
       } catch (err) {
         if (cancelled) return;
-        console.error("useCustomerContext:", err);
+        logger.error("useCustomerContext:", err);
         setError(
           timedOut || controller.signal.aborted
             ? "Timed out loading customer details. Please retry."

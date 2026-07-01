@@ -6,6 +6,7 @@ import { titleCase } from "../../../utils/text";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { validateContactPhone } from "../dog-card/helpers.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
+import { logger } from "../../../lib/logger";
 
 // Trusted Humans = informational (sky/blue accent on the dashboard
 // palette). Each row carries the trusted human's name in navy, an
@@ -98,7 +99,7 @@ export function TrustedHumansPanel({
     const handle = setTimeout(() => {
       if (cancelled) return;
       searchHumansByTerm(q).catch((err) => {
-        console.error("trusted-human server search failed:", err);
+        logger.error("trusted-human server search failed:", err);
       });
     }, 250);
     return () => {
@@ -142,7 +143,7 @@ export function TrustedHumansPanel({
           });
         } catch {
           onUpdateHuman(myId, { trustedContacts: current });
-          console.error("Failed to create bidirectional trust; rolled back.");
+          logger.error("Failed to create bidirectional trust; rolled back.");
         }
       }
     }
@@ -178,7 +179,7 @@ export function TrustedHumansPanel({
         });
       }
     } catch {
-      console.error("Failed to add bidirectional trust for new human");
+      logger.error("Failed to add bidirectional trust for new human");
     }
     setShowNewForm(false);
     setNewName("");
@@ -228,7 +229,7 @@ export function TrustedHumansPanel({
         await linkAsTrusted(result, "Trusted human added", relationship);
       }
     } catch (err) {
-      console.error("Failed to create new trusted human:", err);
+      logger.error("Failed to create new trusted human:", err);
       toast.show(err?.message || "Could not add trusted human.", "error");
     }
   };

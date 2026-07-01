@@ -10,6 +10,8 @@
 // booking surfaces — that helper goes through this one for owner
 // labels so the policy stays consistent.
 
+import { logger } from "../lib/logger";
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function looksLikeUuid(value) {
@@ -26,8 +28,9 @@ export function looksLikeUuid(value) {
  *   3. Fallback: "Unknown owner".
  *
  * Any value that resolves to a UUID-shaped string is rejected as if
- * the lookup had failed. In dev builds the helper also console.warns
- * so the leak is caught in review rather than in production.
+ * the lookup had failed. In dev builds the helper also logs a warning
+ * (via the shared logger) so the leak is caught in review rather than
+ * in production.
  *
  * @param {object} dog — a dog row from the dogs map.
  * @param {Record<string, object>} humans — the humans map (key = fullName).
@@ -59,7 +62,7 @@ export function formatOwnerLabel(dog, humans) {
 
   if (!candidateName || looksLikeUuid(candidateName)) {
     if (typeof import.meta !== "undefined" && import.meta.env?.DEV && looksLikeUuid(candidateName)) {
-      console.warn("formatOwnerLabel: refused to render a UUID-shaped owner name", { dogId: dog.id });
+      logger.warn("formatOwnerLabel: refused to render a UUID-shaped owner name", { extra: { dogId: dog.id } });
     }
     return { label: "Unknown owner", phone: human?.phone || "", missing: !human };
   }

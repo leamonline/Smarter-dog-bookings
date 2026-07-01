@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { logger } from "../lib/logger";
 
 // VITE_FORCE_OFFLINE=1 forces the app into offline/sample-data mode regardless
 // of credentials. Used by Playwright E2E (.env.local would otherwise override
@@ -23,11 +24,11 @@ export const supabaseConfigError =
     : null;
 
 if (supabaseConfigError) {
-  console.error(
+  logger.error(
     `[Smarter Dog] ${supabaseConfigError}. Set the env vars on your hosting provider (Vercel / Cloudflare) and redeploy.`,
   );
 } else if (credsMissing) {
-  console.warn(
+  logger.warn(
     "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local. VITE_SUPABASE_ANON_KEY is still supported as a fallback. Running in offline mode.",
   );
 }

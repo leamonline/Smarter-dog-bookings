@@ -5,6 +5,7 @@ import { getDefaultOpenForDate } from "../engine/utils";
 import { computeBookingPricing, isCountableBooking } from "../engine/bookingRules";
 import { computeFillRate } from "../engine/utilisation";
 import { fetchDaySettingsWeek } from "../supabase/queries/bootQueries.js";
+import { logger } from "../lib/logger";
 import type { Booking, Dog, Human } from "../types/index";
 import type { Database } from "../supabase/database.types";
 
@@ -620,7 +621,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         setDayOpenByDate(dayOpen);
       } catch (err) {
         if (!controller.signal.aborted) {
-          console.error("ReportsView: failed to load data", err);
+          logger.error("ReportsView: failed to load data", err);
         }
       }
       if (!controller.signal.aborted) setLoading(false);

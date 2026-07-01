@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "../supabase/client.js";
 import { resizeImage } from "../utils/imageResize.js";
+import { logger } from "../lib/logger";
 
 /**
  * Staff-only hook for managing groom photos.
@@ -21,7 +22,7 @@ export function useGroomPhotos() {
       .order("taken_at", { ascending: false });
 
     if (error) {
-      console.error("Failed to fetch groom photos:", error);
+      logger.error("Failed to fetch groom photos:", error);
       return [];
     }
 
@@ -33,7 +34,9 @@ export function useGroomPhotos() {
           .createSignedUrl(row.storage_path, 3600);
 
         if (urlError) {
-          console.warn("Signed URL failed for", row.storage_path, urlError);
+          logger.warn("Signed URL failed", {
+            extra: { storagePath: row.storage_path, error: urlError },
+          });
         }
 
         return {
@@ -79,7 +82,7 @@ export function useGroomPhotos() {
         .upload(storagePath, prepared, { contentType });
 
       if (uploadError) {
-        console.error("Failed to upload groom photo:", uploadError);
+        logger.error("Failed to upload groom photo:", uploadError);
         return null;
       }
 
@@ -96,7 +99,7 @@ export function useGroomPhotos() {
         .single();
 
       if (insertError) {
-        console.error("Failed to insert groom photo record:", insertError);
+        logger.error("Failed to insert groom photo record:", insertError);
         // Clean up the uploaded file since the DB insert failed
         await supabase.storage.from("groom-photos").remove([storagePath]);
         return null;
@@ -132,7 +135,7 @@ export function useGroomPhotos() {
       .remove([storagePath]);
 
     if (storageError) {
-      console.error("Failed to delete photo from storage:", storageError);
+      logger.error("Failed to delete photo from storage:", storageError);
     }
 
     const { error: dbError } = await supabase
@@ -141,7 +144,7 @@ export function useGroomPhotos() {
       .eq("id", photoId);
 
     if (dbError) {
-      console.error("Failed to delete groom photo record:", dbError);
+      logger.error("Failed to delete groom photo record:", dbError);
       return false;
     }
 
@@ -160,7 +163,7 @@ export function useGroomPhotos() {
       .eq("id", photoId);
 
     if (error) {
-      console.error("Failed to update photo notes:", error);
+      logger.error("Failed to update photo notes:", error);
       return false;
     }
 

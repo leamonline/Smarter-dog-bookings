@@ -8,6 +8,7 @@ import { titleCase } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { validateContactPhone } from "./dog-card/helpers.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
+import { logger } from "../../lib/logger";
 
 export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findHumanByFullName }) {
   const toast = useToast();
@@ -100,7 +101,7 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
         }
       } catch (lookupErr) {
         // Never block adding on a lookup failure — log and carry on.
-        console.error("findHumanByFullName failed:", lookupErr);
+        logger.error("findHumanByFullName failed:", lookupErr);
       }
     }
     setSubmitting(true);
