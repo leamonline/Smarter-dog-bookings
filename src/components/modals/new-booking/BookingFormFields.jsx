@@ -4,7 +4,6 @@ import { isDateOpen } from "./helpers.js";
 
 export function BookingFormFields({
   hasDogs,
-  dogEntries,
   bookingsByDate,
   dayOpenState,
   daySettings,
@@ -15,11 +14,8 @@ export function BookingFormFields({
   recurringWeeks,
   setRecurringWeeks,
   primaryTheme,
-  error,
   onSelectDate,
   onSelectSlot,
-  onConfirm,
-  onClose,
 }) {
   const selectedDayOpen = isDateOpen(selectedDateStr, dayOpenState);
   return (
@@ -64,13 +60,6 @@ export function BookingFormFields({
         </div>
       )}
 
-      {/* ─── Error ─── */}
-      {error && (
-        <div role="status" aria-live="polite" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-4">
-          {error}
-        </div>
-      )}
-
       {/* ─── STEP 4: Recurring (Optional) ─── */}
       {hasDogs && selectedDateStr && selectedSlot && (
         <div className="mb-4">
@@ -93,32 +82,6 @@ export function BookingFormFields({
           )}
         </div>
       )}
-
-      {/* ─── Actions ─── */}
-      <div className="flex gap-2.5">
-        {(() => {
-          const ready = hasDogs && selectedDateStr && selectedSlot;
-          const label = dogEntries.length > 1
-            ? `Confirm ${dogEntries.length} Bookings`
-            : "Confirm Booking";
-          return (
-            <button
-              onClick={onConfirm}
-              disabled={!ready}
-              className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
-              style={{
-                background: ready ? primaryTheme.gradient[0] : undefined,
-                color: ready ? primaryTheme.headerText : undefined,
-              }}
-              onMouseEnter={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.primary; }}
-              onMouseLeave={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.gradient[0]; }}
-            >
-              {label}
-            </button>
-          );
-        })()}
-        <button onClick={onClose} className="py-[13px] px-5 rounded-xl border-[1.5px] border-slate-200 bg-white text-slate-500 text-sm font-semibold cursor-pointer font-inherit">Cancel</button>
-      </div>
     </div>
   );
 }
