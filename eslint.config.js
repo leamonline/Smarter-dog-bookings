@@ -104,31 +104,18 @@ export default [
     rules: { "no-console": "error" },
   },
   {
-    // Carve-outs for the console ban:
+    // Carve-outs for the console ban (Debt #22) — the only legitimate
+    // exemptions now that the rest route through src/lib/logger:
     //   - logger.ts is the sink itself
     //   - seed.ts is a CLI script; console is its UI
-    //   - transforms.ts has one dev-gated warn
-    // Everything else listed here still carries pre-logger call sites and
-    // is scheduled for migration in waves 2–3. This list only shrinks —
-    // never add to it; use the logger instead.
+    // This list only shrinks — never add to it; use the logger instead.
+    // (The engine, src/engine/bookingRules.ts, keeps two dev-only diagnostics
+    // via narrow line-scoped eslint-disable comments rather than a whole-file
+    // carve-out, because it stays React/Sentry-free and so can't import the
+    // logger.)
     files: [
       "src/lib/logger.ts",
       "src/supabase/seed.ts",
-      "src/supabase/transforms.ts",
-      "src/components/modals/AddHumanModal.jsx",
-      "src/components/modals/WaitlistModal.jsx",
-      "src/components/modals/human-card/MergeHumanDialog.jsx",
-      "src/components/modals/human-card/TrustedHumansPanel.jsx",
-      "src/components/ui/Button.jsx",
-      "src/components/ui/ErrorBoundary.jsx",
-      "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
-      "src/components/views/inbox/hooks/useCustomerContext.js",
-      "src/components/views/settings/CalendarSettings.jsx",
-      "src/engine/bookingRules.ts",
-      "src/hooks/useGroomPhotos.js",
-      "src/hooks/useReportsData.ts",
-      "src/supabase/client.js",
-      "src/utils/formatOwnerLabel.js",
     ],
     rules: { "no-console": "off" },
   },

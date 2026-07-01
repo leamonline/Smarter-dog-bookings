@@ -13,6 +13,7 @@
 
 import { forwardRef } from "react";
 import { Spinner } from "./Spinner.jsx";
+import { logger } from "../../lib/logger";
 
 const BASE =
   "inline-flex items-center justify-center gap-2 rounded-full font-semibold font-[inherit] " +
@@ -84,7 +85,7 @@ export const Button = forwardRef(function Button(
 
   if (import.meta.env.DEV && !children && !rest["aria-label"]) {
     // Icon-only buttons must carry an accessible name.
-    console.warn("[Button] icon-only button is missing an aria-label.");
+    logger.warn("[Button] icon-only button is missing an aria-label.");
   }
 
   const content = (

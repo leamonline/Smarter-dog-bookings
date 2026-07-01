@@ -229,7 +229,12 @@ export function resolveBookingDisplay(
   const owner_label = looksLikeUuid(rawOwnerName) || !rawOwnerName ? "Unknown owner" : rawOwnerName;
 
   if (import.meta.env?.DEV) {
+    // The engine is deliberately React/Sentry-free (see CLAUDE.md), so it can't
+    // import the shared logger (which pulls in @sentry/react). These are
+    // dev-only diagnostics, so a narrow line-scoped exception is correct here.
+    // eslint-disable-next-line no-console -- engine stays dependency-free; dev-only diagnostic
     if (looksLikeUuid(rawDogName)) console.warn("resolveBookingDisplay: dog name looked like a UUID", booking.id);
+    // eslint-disable-next-line no-console -- engine stays dependency-free; dev-only diagnostic
     if (looksLikeUuid(rawOwnerName)) console.warn("resolveBookingDisplay: owner name looked like a UUID", booking.id);
   }
 

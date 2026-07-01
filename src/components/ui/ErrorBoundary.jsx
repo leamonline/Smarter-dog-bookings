@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { captureException } from "../../lib/sentry.js";
+import { logger } from "../../lib/logger";
 
 function makeErrorId() {
   return `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -20,7 +21,7 @@ export class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("[ErrorBoundary] Unhandled error:", error, info);
+    logger.error("[ErrorBoundary] Unhandled error:", error, { extra: { info } });
     captureException(error, {
       tags: { errorId: this.state.errorId },
       extra: { componentStack: info?.componentStack },

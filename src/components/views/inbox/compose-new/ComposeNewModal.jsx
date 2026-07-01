@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
 import { supabase } from "../../../../supabase/client.js";
+import { logger } from "../../../../lib/logger";
 import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
@@ -165,7 +166,7 @@ export function ComposeNewModal({
         if (!controller.signal.aborted) setResults(rows);
       } catch (e) {
         if (!controller.signal.aborted) {
-          console.error("compose-new search:", e);
+          logger.error("compose-new search:", e);
           setResults([]);
         }
       } finally {

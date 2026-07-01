@@ -4,6 +4,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { InlineError } from "../ui/InlineError.jsx";
+import { logger } from "../../lib/logger";
 
 export function WaitlistModal({
   onClose,
@@ -54,7 +55,7 @@ export function WaitlistModal({
       await joinWaitlist(humanId, currentDateObj.toISOString().split("T")[0]);
       setShowAdd(false);
     } catch (err) {
-      console.error(err);
+      logger.error("WaitlistModal action failed", err);
       toast.show("Couldn't add to the waitlist — try again?", "error");
     } finally {
       setAddingId(null);

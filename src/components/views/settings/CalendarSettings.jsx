@@ -7,6 +7,7 @@ import {
   getOrCreateCalendarFeedToken,
   revokeCalendarFeedToken,
 } from "../../../supabase/rpc";
+import { logger } from "../../../lib/logger";
 
 export function CalendarSettings() {
   const [feedUrl, setFeedUrl] = useState(null);
@@ -25,7 +26,7 @@ export function CalendarSettings() {
       );
 
       if (error || !token) {
-        console.error("Failed to get calendar token:", error);
+        logger.error("Failed to get calendar token:", error);
         setLoading(false);
         return;
       }
@@ -37,7 +38,7 @@ export function CalendarSettings() {
       const webcalUrl = httpsUrl.replace(/^https?:\/\//, "webcal://");
       setFeedUrl(webcalUrl);
     } catch (err) {
-      console.error("Calendar settings error:", err);
+      logger.error("Calendar settings error:", err);
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export function CalendarSettings() {
       await revokeCalendarFeedToken(supabase, "staff");
       await fetchToken();
     } catch (err) {
-      console.error("Regenerate error:", err);
+      logger.error("Regenerate error:", err);
     } finally {
       setRegenerating(false);
     }

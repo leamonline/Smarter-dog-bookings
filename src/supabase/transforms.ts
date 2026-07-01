@@ -4,6 +4,7 @@
  */
 
 import type { Human, Dog, Booking, SalonConfig, SalonSettings, TrustedContact } from "../types/index";
+import { logger } from "../lib/logger";
 import { sanitiseFieldValue } from "../utils/sanitiseFieldValue";
 import { BOOKING_STATUS } from "../constants/salon";
 import { createDefaultSalonConfig, mergeSalonSettings } from "../constants/salonSettings";
@@ -434,7 +435,7 @@ export function appConfigToDb(config: SalonConfig): DbConfigOut {
 export function toDateStr(date: Date | string): string {
   if (typeof date === "string") return date;
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    if (import.meta.env?.DEV) console.warn("toDateStr received invalid date:", date);
+    logger.warn("toDateStr received invalid date", { extra: { date } });
     return "";
   }
   const year = date.getFullYear();
