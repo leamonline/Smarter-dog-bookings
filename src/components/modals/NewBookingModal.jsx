@@ -6,6 +6,7 @@ import { toDateStr } from "../../supabase/transforms";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
 import { DogSearchSection } from "./new-booking/DogSearchSection.jsx";
 import { BookingFormFields } from "./new-booking/BookingFormFields.jsx";
+import { BookingActions } from "./new-booking/BookingActions.jsx";
 import { NotifyRecipientsDialog } from "./new-booking/NotifyRecipientsDialog.jsx";
 import { ConfirmationMethodDialog } from "./new-booking/ConfirmationMethodDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -666,7 +667,7 @@ export function NewBookingModal({
             type="button"
             onClick={onClose}
             aria-label="Close new booking"
-            className="tap-target bg-white/20 border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="tap-target bg-white/20 hover:bg-white/30 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             style={{ color: primaryTheme.headerText }}
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
@@ -705,10 +706,9 @@ export function NewBookingModal({
           setError={setError}
         />
 
-        {/* ─── Date, time, recurring, actions ─── */}
+        {/* ─── Date, time, recurring (scrolling body) ─── */}
         <BookingFormFields
           hasDogs={hasDogs}
-          dogEntries={dogEntries}
           bookingsByDate={bookingsByDate}
           dayOpenState={dayOpenState}
           daySettings={daySettings}
@@ -719,9 +719,18 @@ export function NewBookingModal({
           recurringWeeks={recurringWeeks}
           setRecurringWeeks={setRecurringWeeks}
           primaryTheme={primaryTheme}
-          error={error}
           onSelectDate={handleSelectDate}
           onSelectSlot={handleSelectSlot}
+        />
+
+        {/* ─── Pinned footer: error + Confirm / Cancel ─── */}
+        <BookingActions
+          hasDogs={hasDogs}
+          dogEntries={dogEntries}
+          selectedDateStr={selectedDateStr}
+          selectedSlot={selectedSlot}
+          primaryTheme={primaryTheme}
+          error={error}
           onConfirm={handleConfirm}
           onClose={onClose}
         />
