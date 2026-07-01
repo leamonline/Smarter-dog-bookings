@@ -26,7 +26,7 @@ export function DogSearchSection({
   onAddonsChange,
   onClearAll,
   onOpenAddDog,
-  onOpenAddHuman,
+  onOpenNewClient,
   onSearchDogs,
   isSearchingDogs,
   setError,
@@ -224,7 +224,17 @@ export function DogSearchSection({
         </div>
       ) : (
         <div>
-          <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Search Dog</label>
+          {/* Search an existing dog/owner, or jump straight into the guided
+              New Client wizard for a brand-new customer. The wizard button is
+              always visible here so staff never have to fail a search first. */}
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide">Search Dog</label>
+            <button
+              type="button"
+              onClick={() => onOpenNewClient?.()}
+              className="shrink-0 py-1 px-2.5 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-teal/5"
+            >New customer</button>
+          </div>
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
               <IconSearch size={15} colour="#6B7280" />
@@ -336,17 +346,13 @@ export function DogSearchSection({
                 <div className="text-[13px] text-slate-500 mb-2.5">
                   Can't find anyone with "{dogQuery}" — try another name
                 </div>
-                {/* Lead with the new-dog path: it creates the owner inline, so
-                    it's the one-step route for a brand-new customer. Keeping it
-                    primary + full-width (and saying so) stops staff reaching for
-                    "New Human" first and then having to come back for the dog. */}
+                {/* Two create paths: "+ New Dog" is the quick single-dog add
+                    (owner created inline, resumes this booking); "New customer"
+                    hands off to the guided New Client wizard for a brand-new
+                    client. */}
                 <button type="button" onClick={() => onOpenAddDog?.()} className="w-full py-[10px] px-3 rounded-lg border-none bg-brand-cyan text-white text-sm font-bold cursor-pointer font-inherit">+ New Dog</button>
-                <p className="mt-1.5 text-[11px] text-slate-500 text-center leading-snug">
-                  New customer? Add their dog here — you can create the owner in the same step.
-                </p>
-                {/* Secondary: register a person with no dog yet (rare mid-booking). */}
                 <div className="mt-2 pt-2 border-t border-slate-100 text-center">
-                  <button type="button" onClick={() => onOpenAddHuman?.()} className="bg-transparent border-none text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:underline">+ New Human</button>
+                  <button type="button" onClick={() => onOpenNewClient?.()} className="bg-transparent border-none text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:underline">New customer</button>
                 </div>
               </div>
             )}
@@ -367,9 +373,9 @@ export function DogSearchSection({
                 >+ New Dog</button>
                 <button
                   type="button"
-                  onClick={() => onOpenAddHuman?.()}
+                  onClick={() => onOpenNewClient?.()}
                   className="py-1 px-2 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-teal/5"
-                >+ New Human</button>
+                >New customer</button>
               </div>
             </div>
           )}

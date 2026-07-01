@@ -46,7 +46,7 @@ function renderModal(overrides = {}) {
     dayOpenState: { [OPEN_DATE]: true },
     daySettings: {},
     onOpenAddDog: vi.fn(),
-    onOpenAddHuman: vi.fn(),
+    onOpenNewClient: vi.fn(),
     initialDateStr: OPEN_DATE,
     initialSlot: "09:00",
     onSearchDogs: vi.fn(),
@@ -94,6 +94,18 @@ describe("NewBookingModal — cold-start continuity (Fix A)", () => {
     expect(
       screen.queryByPlaceholderText(/start typing a dog's name/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("forwards to the New Client wizard when 'New customer' is clicked", () => {
+    const props = renderModal();
+    // "New customer" appears by the search field (and again in the no-results
+    // panel); each hands off to the wizard. Clicking one is enough.
+    const buttons = screen.getAllByRole("button", { name: "New customer" });
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(buttons[0]);
+    expect(props.onOpenNewClient).toHaveBeenCalledTimes(1);
+    // The parent owns closing the booking modal, not this component.
+    expect(props.onClose).not.toHaveBeenCalled();
   });
 
   it("hands the in-progress draft (date + slot) up when '+ New Dog' is clicked", () => {

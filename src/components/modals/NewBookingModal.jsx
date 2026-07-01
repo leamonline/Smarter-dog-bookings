@@ -29,7 +29,10 @@ export function NewBookingModal({
   dayOpenState,
   daySettings,
   onOpenAddDog,
-  onOpenAddHuman,
+  // Brand-new customer: opens the guided New Client wizard. No draft is
+  // captured — the wizard replaces the whole booking flow, so there's
+  // nothing to park and resume (unlike the "+ New Dog" path).
+  onOpenNewClient,
   initialDateStr,
   initialSlot,
   initialHumanId,
@@ -274,7 +277,6 @@ export function NewBookingModal({
     };
   };
   const handleOpenAddDog = () => onOpenAddDog?.(captureDraft());
-  const handleOpenAddHuman = () => onOpenAddHuman?.(captureDraft());
 
   const handleAddAnotherDog = (dog) => {
     setDogEntries(prev => [...prev, { dog, humanKey: selectedHumanKey, service: "full-groom", addons: [] }]);
@@ -697,7 +699,7 @@ export function NewBookingModal({
           onAddonsChange={handleAddonsChange}
           onClearAll={handleClearAll}
           onOpenAddDog={handleOpenAddDog}
-          onOpenAddHuman={handleOpenAddHuman}
+          onOpenNewClient={onOpenNewClient}
           onSearchDogs={onSearchDogs}
           isSearchingDogs={isSearchingDogs}
           setError={setError}

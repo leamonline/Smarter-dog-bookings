@@ -1136,7 +1136,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     })
                   }
                   onOpenAddDog={(draft) => parkBooking(draft, "dog")}
-                  onOpenAddHuman={(draft) => parkBooking(draft, "human")}
+                  onOpenNewClient={() => {
+                    // Brand-new customer: hand off to the guided New Client
+                    // wizard. The search step only shows before a dog is picked,
+                    // so nothing in-progress is lost by closing the booking modal.
+                    setShowNewBooking(null);
+                    dogsClearSearch();
+                    setShowNewClient(true);
+                  }}
                   initialDateStr={showNewBooking.dateStr}
                   initialSlot={showNewBooking.slot}
                   initialHumanId={showNewBooking.initialHumanId}

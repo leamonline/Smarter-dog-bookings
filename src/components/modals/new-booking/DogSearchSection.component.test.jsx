@@ -49,7 +49,7 @@ function renderSection(overrides = {}) {
     onClearAll: vi.fn(),
     onClose: vi.fn(),
     onOpenAddDog: vi.fn(),
-    onOpenAddHuman: vi.fn(),
+    onOpenNewClient: vi.fn(),
     onSearchDogs: vi.fn(),
     isSearchingDogs: false,
     setError: vi.fn(),
@@ -153,37 +153,56 @@ describe("DogSearchSection — typed search (UX #1)", () => {
     expect(screen.queryByText("Looking for matches…")).not.toBeInTheDocument();
     expect(screen.getByText(/can't find anyone with "zzz"/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
+    // The new-customer path is the guided wizard (formerly "+ New Human").
+    expect(
+      screen.getAllByRole("button", { name: "New customer" }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   // Cold-start continuity (audit Fix A): the create CTAs used to call onClose()
   // before opening the add modal, which unmounted the wizard and discarded the
-  // in-progress booking. They must now only REQUEST the add modal (the parent
-  // parks the booking) and never tear it down here.
-  it("the create CTAs request the add modal without closing the booking", () => {
+  // in-progress booking. They must never tear the booking down here — "+ New Dog"
+  // parks the booking (parent), and "New customer" hands off to the New Client
+  // wizard (parent closes the booking modal itself, not this component).
+  it("the create CTAs hand off without closing the booking themselves", () => {
     const props = renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
     fireEvent.click(screen.getByRole("button", { name: "+ New Dog" }));
     expect(props.onOpenAddDog).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "+ New Human" }));
-    expect(props.onOpenAddHuman).toHaveBeenCalledTimes(1);
+    // "New customer" shows both by the search field and in the no-results panel;
+    // both request the wizard.
+    const newCustomerButtons = screen.getAllByRole("button", { name: "New customer" });
+    expect(newCustomerButtons.length).toBeGreaterThanOrEqual(1);
+    newCustomerButtons.forEach((btn) => fireEvent.click(btn));
+    expect(props.onOpenNewClient).toHaveBeenCalledTimes(newCustomerButtons.length);
     expect(props.onClose).not.toHaveBeenCalled();
   });
 });
 
-// Guided cold-start (audit friction C-3): the no-results panel used to offer
-// "+ New Dog" and "+ New Human" as two equal CTAs, which nudged staff to create
-// the person first and then come back for the dog. "+ New Dog" already creates
-// the owner inline, so it's the one-step path for a brand-new customer — the
-// panel now leads with it and explains that, while keeping "+ New Human" for the
-// rare person-only case.
-describe("DogSearchSection — guided cold-start (C-3)", () => {
-  it("explains that the new-dog path also creates the owner in one step", () => {
+// New-customer route: the no-results panel now offers "+ New Dog" (quick
+// single-dog add, owner created inline) and "New customer" (the guided New
+// Client wizard). The old "+ New Human" person-only link and the "create the
+// owner in the same step" framing were removed — the wizard is the brand-new-
+// customer path now.
+describe("DogSearchSection — new-customer route", () => {
+  it("offers the wizard route and drops the old owner-inline framing", () => {
     renderTypedSearch({ dogQuery: "zzz", isSearchingDogs: false });
     expect(
-      screen.getByText(/create the owner in the same step/i),
-    ).toBeInTheDocument();
-    // Both create paths stay available — the change is emphasis, not removal.
+      screen.queryByText(/create the owner in the same step/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ New Human" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ New Dog" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ New Human" })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "New customer" }).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("always shows a New customer button even before a search fails", () => {
+    // Persistent entry point: with a short/empty query (no no-results panel),
+    // the wizard is still reachable from the button by the search field.
+    const props = renderTypedSearch({ dogQuery: "", isSearchingDogs: false });
+    const buttons = screen.getAllByRole("button", { name: "New customer" });
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(buttons[0]);
+    expect(props.onOpenNewClient).toHaveBeenCalledTimes(1);
   });
 });
