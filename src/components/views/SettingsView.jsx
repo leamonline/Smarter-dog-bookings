@@ -145,7 +145,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
         {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} onDirtyChange={setDirty} />}
         {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
-        {activeTab === "capacity" && <CapacitySettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "capacity" && <CapacitySettings />}
         {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "calendar" && <CalendarSettings />}
