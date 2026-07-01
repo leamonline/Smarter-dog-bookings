@@ -547,10 +547,17 @@ serve(async (req) => {
 
   const rawBody = new Uint8Array(await req.arrayBuffer());
 
-  // Verify the signature when present (defence-in-depth on top of the
-  // encryption). If Meta omits the header, the RSA envelope + the
-  // flow_token session lookup remain the auth.
+  // Verify the signature (defence-in-depth on top of the encryption).
+  // Meta always sends X-Hub-Signature-256, so when the app secret is
+  // configured a missing header is rejected too — otherwise omitting the
+  // header would skip the HMAC check entirely (AUDIT-4). Only when the
+  // secret is unset do the RSA envelope + flow_token session lookup
+  // remain the sole auth.
   const sigHeader = req.headers.get("x-hub-signature-256");
+  if (META_APP_SECRET && !sigHeader) {
+    console.warn("whatsapp-flow-endpoint: missing X-Hub-Signature-256");
+    return new Response("missing signature", { status: 401 });
+  }
   if (sigHeader && META_APP_SECRET && !verifyFlowSignature(rawBody, sigHeader, META_APP_SECRET)) {
     console.warn("whatsapp-flow-endpoint: invalid X-Hub-Signature-256");
     return new Response("invalid signature", { status: 401 });
