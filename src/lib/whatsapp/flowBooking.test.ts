@@ -23,8 +23,10 @@ import {
   type InsertResult,
   listPetOptions,
   petOptions,
+  sanitizeDayOverrides,
   serviceOptions,
 } from "../../../supabase/functions/_shared/flowBooking.ts";
+import type { SlotOverrides } from "../../../supabase/functions/_shared/capacity.ts";
 
 const HUMAN: HumanRow = { id: "h1", name: "Sam", surname: "Lee", phone: "+447700900123" };
 
@@ -47,6 +49,8 @@ interface FakeOpts {
   // Multi-dog path: existing occupancy per date, and the group-insert result.
   bookingsByDate?: Record<string, ExistingBooking[]>;
   groupInsert?: (items: GroupBookingItem[], dateStr: string, humanId: string) => GroupInsertResult;
+  // Staff seat blocks per date (already-sanitised day_settings.overrides).
+  overridesByDate?: Record<string, Record<string, SlotOverrides>>;
 }
 
 function makeDb(opts: FakeOpts = {}): {
@@ -69,6 +73,7 @@ function makeDb(opts: FakeOpts = {}): {
       return opts.insert ? opts.insert(row) : { id: "booking-uuid-1" };
     },
     getBookingsForDate: async (dateStr) => opts.bookingsByDate?.[dateStr] ?? [],
+    getDayOverrides: async (dateStr) => opts.overridesByDate?.[dateStr] ?? {},
     insertBookingGroup: async (items, dateStr, humanId) => {
       groupInserts.push({ items, dateStr, humanId });
       return opts.groupInsert
@@ -261,6 +266,68 @@ describe("groupSlotOptions", () => {
     expect(ids).toContain("09:00");
     // Ordered by the canonical grid (08:30 before 09:00 before 13:00).
     expect(ids).toEqual([...ids].sort((a, b) => a.localeCompare(b)));
+  });
+});
+
+describe("staff seat blocks in the Flow slot picker", () => {
+  it("drops a slot when the blocked seat plus an existing booking fill it", async () => {
+    // Booking occupies seat index 0, staff blocked the remaining seat (index
+    // 1) — the slot has no free seat, so it must not be offered. Before the
+    // fix the Flow ignored overrides and offered it anyway.
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [{ slot: "09:00", size: "small" }] },
+      overridesByDate: { "2026-06-02": { "09:00": { 1: "blocked" } } },
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], "2026-06-02");
+    expect(slots.map((s) => s.id)).not.toContain("09:00");
+  });
+
+  it("drops a slot entirely when both seats are blocked", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      overridesByDate: { "2026-06-02": { "09:00": { 0: "blocked", 1: "blocked" } } },
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], "2026-06-02");
+    expect(slots.map((s) => s.id)).not.toContain("09:00");
+  });
+
+  it("still offers a slot with one blocked seat to a single dog", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      overridesByDate: { "2026-06-02": { "09:00": { 0: "blocked" } } },
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], "2026-06-02");
+    expect(slots.map((s) => s.id)).toContain("09:00");
+  });
+});
+
+describe("sanitizeDayOverrides", () => {
+  it("keeps well-formed per-seat overrides", () => {
+    expect(sanitizeDayOverrides({ "09:00": { "0": "blocked", "1": "open" } })).toEqual({
+      "09:00": { 0: "blocked", 1: "open" },
+    });
+  });
+
+  it("drops malformed legacy shapes (date keys, numeric values) and junk", () => {
+    // Real prod drift: a date-keyed row with numeric seat values.
+    expect(sanitizeDayOverrides({ "2026-04-06": { "09:00": 0 } })).toEqual({});
+    expect(sanitizeDayOverrides({ "09:00": { "0": 1 } })).toEqual({});
+    expect(sanitizeDayOverrides({ "09:00": { seat: "blocked" } })).toEqual({});
+    expect(sanitizeDayOverrides(null)).toEqual({});
+    expect(sanitizeDayOverrides("nope")).toEqual({});
+    expect(sanitizeDayOverrides([{ "09:00": { "0": "blocked" } }])).toEqual({});
+  });
+
+  it("keeps the good slots while dropping the bad", () => {
+    expect(
+      sanitizeDayOverrides({
+        "09:00": { "0": "blocked" },
+        "2026-04-06": { "09:00": 0 },
+      }),
+    ).toEqual({ "09:00": { 0: "blocked" } });
   });
 });
 

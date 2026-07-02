@@ -33,6 +33,7 @@ import {
   type Booking as CapacityBooking,
   findGroupedSlots,
   type SlotAllocation,
+  type SlotOverrides,
 } from "./capacity.ts";
 
 // ── Row shapes (the subset of columns we read/write) ───────────
@@ -115,6 +116,10 @@ export interface FlowDb {
   // feed the 2-2-1 group allocator; the group insert goes through the
   // create_whatsapp_booking_group RPC (atomic, shared group_id).
   getBookingsForDate(dateStr: string): Promise<ExistingBooking[]>;
+  // Staff seat blocks for the date (day_settings.overrides, run through
+  // sanitizeDayOverrides) so the allocator sees the same reduced capacity as
+  // the portal's slot picker. {} when the day has no row.
+  getDayOverrides(dateStr: string): Promise<Record<string, SlotOverrides>>;
   insertBookingGroup(
     items: GroupBookingItem[],
     dateStr: string,
@@ -320,14 +325,41 @@ export async function availableGroupDateOptions(
   return availableDateOptions(db, groupDaySize(dogs.map((d) => d.size)), today, windowDays);
 }
 
-/** All group allocations (drop-off + per-dog slots) for a date. */
+/**
+ * day_settings.overrides straight off the row → the per-slot seat map the
+ * capacity engine expects. Prod has known malformed legacy rows (date-keyed
+ * slots, numeric seat values) — mirror the get_blocked_seats SQL guards:
+ * slot keys HH:MM, seat keys numeric, values "blocked" | "open"; drop the rest.
+ */
+export function sanitizeDayOverrides(raw: unknown): Record<string, SlotOverrides> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean: Record<string, SlotOverrides> = {};
+  for (const [slot, seats] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{2}:\d{2}$/.test(slot)) continue;
+    if (!seats || typeof seats !== "object" || Array.isArray(seats)) continue;
+    const seatMap: SlotOverrides = {};
+    for (const [seatKey, action] of Object.entries(seats as Record<string, unknown>)) {
+      if (!/^\d+$/.test(seatKey)) continue;
+      if (action !== "blocked" && action !== "open") continue;
+      seatMap[Number(seatKey)] = action;
+    }
+    if (Object.keys(seatMap).length > 0) clean[slot] = seatMap;
+  }
+  return clean;
+}
+
+/** All group allocations (drop-off + per-dog slots) for a date, honouring
+ *  staff seat blocks exactly like the portal's slot picker. */
 export async function groupAllocations(
   db: FlowDb,
   dogs: Array<{ id: string; size: DogSize }>,
   dateStr: string,
 ): Promise<SlotAllocation[]> {
-  const existing = await db.getBookingsForDate(dateStr);
-  return findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS]);
+  const [existing, overrides] = await Promise.all([
+    db.getBookingsForDate(dateStr),
+    db.getDayOverrides(dateStr),
+  ]);
+  return findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS], undefined, overrides);
 }
 
 /** Bookable drop-off times for a group on a date (one option per drop-off). */
