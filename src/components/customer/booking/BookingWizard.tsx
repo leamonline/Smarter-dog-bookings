@@ -8,11 +8,14 @@ import {
   listIdsInGroup,
   listOnDateForCapacity,
   listBlockedSeats,
+  listImmediateSlots,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { SALON_SLOTS, DAILY_DOG_CAP } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
+import { allocationIsImmediate } from "../../../engine/immediateBooking";
+import { toDateStr } from "../../../supabase/transforms";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
 import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
@@ -260,23 +263,33 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     try {
       if (!supabase) throw new Error("Not connected");
 
-      const [{ bookings, error: rereadError }, { byDate: blockedByDate }] =
+      const [{ bookings, error: rereadError }, { byDate: blockedByDate }, immediate] =
         await Promise.all([
           listOnDateForCapacity(supabase, selectedDate),
           listBlockedSeats(supabase, selectedDate, selectedDate),
+          listImmediateSlots(supabase),
         ]);
       if (rereadError) throw rereadError;
 
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
       // Re-check against the same blocked-seat overrides the slot picker used,
       // so a seat blocked after the customer picked it is caught here too.
-      const stillAvailable = findGroupedSlots(
+      let stillAvailable = findGroupedSlots(
         dogsForSlots,
         bookings,
         SALON_SLOTS,
         DAILY_DOG_CAP,
         blockedByDate[selectedDate] || {},
       );
+      // Same-day rule, mirroring SlotSelection: a today booking must sit
+      // wholly on staff-flagged last-minute slots (the RPC re-applies the
+      // 30-minute cutoff, so a flag that lapsed while the customer dawdled
+      // is caught here and bounces them back to the time step). Fails
+      // closed on a device-local today when the RPC errored.
+      if (selectedDate === immediate.date || selectedDate === toDateStr(new Date())) {
+        const flagged = new Set(selectedDate === immediate.date ? immediate.slots : []);
+        stillAvailable = stillAvailable.filter((a) => allocationIsImmediate(a, flagged));
+      }
       const match = stillAvailable.find((a) => a.dropOffTime === slotAllocation.dropOffTime);
 
       if (!match) {

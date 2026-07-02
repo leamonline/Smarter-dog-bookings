@@ -262,6 +262,15 @@ export function getBlockedSeats(
   });
 }
 
+// Today's staff-flagged "last minute" slots a customer could still book.
+// The RPC applies every rule server-side (Europe/London today, 30-minute
+// cutoff, day open, slot not fully blocked) and returns (setting_date, slot)
+// — setting_date is the SERVER's today, so clients never trust the device
+// clock. No parameters, minimal disclosure. Authenticated only.
+export function getImmediateSlots(client: SupabaseClient) {
+  return client.rpc("get_immediate_slots");
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status
