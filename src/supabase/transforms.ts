@@ -76,10 +76,15 @@ interface DbBookingRow {
   staff_capacity_override_at?: string | null;
   reminder_confirmed_at?: string | null;
   completed_at?: string | null;
+  checked_in_at?: string | null;
+  ready_at?: string | null;
   created_at?: string | null;
   created_by_id?: string | null;
   created_by_role?: string | null;
   created_by_name?: string | null;
+  notes?: string | null;
+  cancel_reason?: string | null;
+  source?: string | null;
   notification_log?: Array<{
     trigger_type: string;
     status: string;
@@ -379,6 +384,17 @@ export function dbBookingsToArray(
       staffCapacityOverrideAt: row.staff_capacity_override_at ?? null,
       reminderConfirmedAt: row.reminder_confirmed_at ?? null,
       completedAt: row.completed_at ?? null,
+      // Arrival + ready marks (Today view). Stamped by the lifecycle trigger
+      // (migration 20260702180000); null on rows created before it was applied.
+      checkedInAt: row.checked_in_at ?? null,
+      readyAt: row.ready_at ?? null,
+      // Free-text booking notes / handover notes (surfaced on the Today view).
+      // The DB column exists but was previously never read into the app object.
+      notes: row.notes ?? "",
+      // Why a booking was cancelled ('No-show', etc.) + how it originated
+      // (portal, whatsapp_flow, staff). Both were written but never mapped.
+      cancelReason: row.cancel_reason ?? null,
+      source: row.source ?? null,
       // Who created this booking + when, denormalised from resolve_event_actor.
       createdAt: row.created_at ?? null,
       createdById: row.created_by_id ?? null,

@@ -104,6 +104,18 @@ export interface Booking {
   // When the booking was marked Completed (cleared if moved back out). Only the
   // DB read path populates it; optional for the many Booking constructors.
   completedAt?: string | null;
+  // Arrival + ready marks powering the Today view queues (waiting/overdue copy).
+  // Set once on the transition into Checked-in / Ready by the lifecycle trigger;
+  // null on rows created before migration 20260702180000 and offline.
+  checkedInAt?: string | null;
+  readyAt?: string | null;
+  // Free-text booking / handover notes (Today view). Optional: only the DB read
+  // path populates it and it may be undefined offline.
+  notes?: string | null;
+  // Cancellation reason ('No-show', etc.) and origin (portal, whatsapp_flow,
+  // staff). Populated by the DB read path; used by the reports.
+  cancelReason?: string | null;
+  source?: string | null;
   // Who created the booking + when (denormalised from resolve_event_actor on
   // insert). Optional: only the DB read path populates them; null for legacy
   // rows created before attribution existed.
