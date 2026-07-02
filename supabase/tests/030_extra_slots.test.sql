@@ -12,6 +12,15 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(8);
 
+-- Unlike the gate tests (010), several assertions here let an insert SUCCEED
+-- — which fires the AFTER-INSERT notify triggers. Those call
+-- get_supabase_url(), which RAISES unless the 'supabase_url' Vault secret
+-- exists (provisioned out-of-band on prod, absent on the CI baseline stack).
+-- Provision throwaway secrets inside this rolled-back transaction so the
+-- notify calls enqueue harmlessly into pg_net's queue (also rolled back).
+select vault.create_secret('http://localhost:54321', 'supabase_url');
+select vault.create_secret('pgtap-test-secret', 'webhook_secret');
+
 -- Fixtures: one owner and six non-pregnant dogs.
 insert into public.humans (id, name)
   values ('aaaaaaaa-0000-4000-8000-000000000002', 'pgTAP Extra Owner');
