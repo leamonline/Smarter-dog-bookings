@@ -505,6 +505,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     loading: bl,
     error: be,
     addBooking: sbAddBooking,
+    addBookingGroup: sbAddBookingGroup,
     removeBooking: sbRemoveBooking,
     updateBooking: sbUpdateBooking,
     fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
@@ -578,14 +579,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
 
   const {
     dogs, humans, bookingsByDate, salonConfig, daySettings,
-    handleAdd, handleAddToDate, handleRemove, handleUpdate,
+    handleAdd, handleAddToDate, handleAddGroupToDate, handleRemove, handleUpdate,
     toggleDayOpen, handleOverride, handleAddSlot, handleRemoveSlot,
     updateDog, updateHuman, updateConfig, addHuman, addDog,
   } = useBookingActions({
     isOnline,
     currentDateStr,
     supabase: {
-      sbAddBooking, sbRemoveBooking, sbUpdateBooking,
+      sbAddBooking, sbAddBookingGroup, sbRemoveBooking, sbUpdateBooking,
       sbToggleDayOpen, sbSetOverride, sbAddExtraSlot, sbRemoveExtraSlot,
       sbUpdateDog, sbUpdateHuman, sbUpdateConfig, sbAddHuman, sbAddDog,
     },
@@ -595,6 +596,42 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       config: sbConfig, daySettings: sbDaySettings,
     },
   });
+
+  // Truthful save shared by the New Booking modal and the New Client wizard:
+  // await the real insert(s) and resolve { ok, error } so the modal only
+  // toasts success once the DB accepts. The list is grouped by target date;
+  // a date's dogs save ATOMICALLY via create_staff_booking_group (AUDIT-3 —
+  // a mid-group rejection no longer leaves a partial booking), while dates
+  // stay independent of each other so a recurring series keeps its existing
+  // skip-the-full-week semantics. Single-dog dates keep the plain insert.
+  const commitBookingList = useCallback(
+    async (bookingOrArray, dateStr) => {
+      bookingInsertErrorRef.current = null;
+      const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
+      const byDate = new Map();
+      for (const b of list) {
+        const key = b._bookingDate || dateStr;
+        if (!byDate.has(key)) byDate.set(key, []);
+        byDate.get(key).push(b);
+      }
+      const results = await Promise.all(
+        [...byDate.entries()].map(([dateKey, group]) =>
+          group.length === 1
+            ? handleAddToDate(group[0], dateKey)
+            : handleAddGroupToDate(group, dateKey),
+        ),
+      );
+      const ok = results.every((r) => r !== null && r !== false);
+      return {
+        ok,
+        error: ok
+          ? null
+          : bookingInsertErrorRef.current ||
+            "Couldn't save the booking — please try again.",
+      };
+    },
+    [handleAddToDate, handleAddGroupToDate],
+  );
 
   const isLoading = isOnline && (hl || dl || cl || dsl);
   const bookingsLoading = bl;
@@ -1089,27 +1126,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     setShowNewBooking(null);
                     dogsClearSearch();
                   }}
-                  onAdd={async (bookingOrArray, dateStr) => {
-                    // Truthful save: await the real insert(s) and report the
-                    // outcome so the modal only toasts success once the DB
-                    // accepts the booking. handleAddToDate resolves to the saved
-                    // booking (online), null on a DB rejection — e.g. a
-                    // capacity/duplicate race after the client preflight — or
-                    // undefined (offline optimistic add, always fine).
-                    bookingInsertErrorRef.current = null;
-                    const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-                    const results = await Promise.all(
-                      list.map((b) => handleAddToDate(b, b._bookingDate || dateStr)),
-                    );
-                    const ok = results.every((r) => r !== null && r !== false);
-                    return {
-                      ok,
-                      error: ok
-                        ? null
-                        : bookingInsertErrorRef.current ||
-                          "Couldn't save the booking — please try again.",
-                    };
-                  }}
+                  onAdd={commitBookingList}
                   dogs={dogs}
                   humans={humans}
                   dogsByHumanId={dogsByHumanId}
@@ -1216,23 +1233,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onClose={() => setShowNewClient(false)}
                   addHuman={addHuman}
                   addDog={addDog}
-                  onAddBookings={async (bookingOrArray, dateStr) => {
-                    // Same truthful-save wrapper NewBookingModal uses: await the
-                    // real insert(s) and report { ok, error } (friendly P0001).
-                    bookingInsertErrorRef.current = null;
-                    const list = Array.isArray(bookingOrArray) ? bookingOrArray : [bookingOrArray];
-                    const results = await Promise.all(
-                      list.map((b) => handleAddToDate(b, b._bookingDate || dateStr)),
-                    );
-                    const ok = results.every((r) => r !== null && r !== false);
-                    return {
-                      ok,
-                      error: ok
-                        ? null
-                        : bookingInsertErrorRef.current ||
-                          "Couldn't save the booking — please try again.",
-                    };
-                  }}
+                  onAddBookings={commitBookingList}
                   findHumanByFullName={sbFindHumanByFullName}
                   onBookAnother={(ownerId) =>
                     setShowNewBooking({ dateStr: currentDateStr, slot: "", initialHumanId: ownerId })

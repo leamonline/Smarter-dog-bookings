@@ -67,6 +67,7 @@ function makeSupabaseStub({
   deferSelect,
   deferUpdate,
   deferDelete,
+  rpcImpl,
 } = {}) {
   const channel = makeChannel();
   const fromCalls = [];
@@ -156,6 +157,14 @@ function makeSupabaseStub({
     }),
     channel: vi.fn(() => channel),
     removeChannel: vi.fn(),
+    // The atomic group path (addBookingGroup → create_staff_booking_group).
+    // Default: succeed by echoing the sent rows back, which mirrors the real
+    // RPC's contract of returning the inserted rows under the client ids.
+    rpc: vi.fn((fnName, args) =>
+      rpcImpl
+        ? rpcImpl(fnName, args)
+        : Promise.resolve({ data: args?.p_bookings ?? [], error: null }),
+    ),
   };
   // Number of week-range select fetches issued (one per fetchBookings).
   stub.getFetchCount = () => fetchCount;
@@ -1102,6 +1111,78 @@ describe("useBookings", () => {
     await expect(
       result.current.fetchBookingHistoryForDog("dog-1"),
     ).resolves.toEqual([]);
+  });
+
+  it("addBookingGroup sends the whole group to the RPC and lands every row", async () => {
+    const twoDogs = {
+      ...dogsById,
+      "dog-2": { id: "dog-2", name: "Max", breed: "Labrador", human_id: "human-1" },
+    };
+    const stub = makeSupabaseStub({});
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, twoDogs, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.addBookingGroup("2026-05-18", [
+        { _dogId: "dog-1", slot: "09:00", size: "small", service: "full-groom" },
+        { _dogId: "dog-2", slot: "09:00", size: "large", service: "bath-and-brush" },
+      ]);
+    });
+
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "create_staff_booking_group",
+      expect.objectContaining({
+        p_booking_date: "2026-05-18",
+        p_bookings: expect.arrayContaining([
+          expect.objectContaining({ dog_id: "dog-1", slot: "09:00" }),
+          expect.objectContaining({ dog_id: "dog-2", slot: "09:00" }),
+        ]),
+      }),
+    );
+    expect(saved).toHaveLength(2);
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(2);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("addBookingGroup rolls back EVERY optimistic row when the RPC rejects", async () => {
+    // The bug class this path exists to close (AUDIT-3): with independent
+    // inserts, dog 2's capacity rejection left dog 1 booked. Atomic path:
+    // one rejection → zero rows, and one friendly error.
+    const twoDogs = {
+      ...dogsById,
+      "dog-2": { id: "dog-2", name: "Max", breed: "Labrador", human_id: "human-1" },
+    };
+    const stub = makeSupabaseStub({
+      rpcImpl: () =>
+        Promise.resolve({
+          data: null,
+          error: { code: "P0001", message: "Slot is full" },
+        }),
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, twoDogs, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.addBookingGroup("2026-05-18", [
+        { _dogId: "dog-1", slot: "09:00", size: "small", service: "full-groom" },
+        { _dogId: "dog-2", slot: "09:00", size: "large", service: "bath-and-brush" },
+      ]);
+    });
+
+    expect(saved).toBeNull();
+    // No partial group: both optimistic rows are gone.
+    expect(result.current.bookingsByDate["2026-05-18"] ?? []).toHaveLength(0);
+    expect(result.current.error).toBeTruthy();
   });
 
   it("refetch issues a fresh week query and treats null data as empty", async () => {
