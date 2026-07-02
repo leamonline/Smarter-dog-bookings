@@ -348,6 +348,17 @@ export function sanitizeDayOverrides(raw: unknown): Record<string, SlotOverrides
   return clean;
 }
 
+/** True when EVERY per-dog assignment lands on a flagged last-minute slot —
+ *  the calendar trigger validates each inserted row's own slot, so a group
+ *  that spills into an unflagged neighbour would be rejected. MIRRORS
+ *  src/engine/immediateBooking.ts. */
+export function allocationIsImmediate(
+  allocation: Pick<SlotAllocation, "assignments">,
+  immediateSlots: ReadonlySet<string>,
+): boolean {
+  return allocation.assignments.every((a) => immediateSlots.has(a.slot));
+}
+
 /** All group allocations (drop-off + per-dog slots) for a date, honouring
  *  staff seat blocks exactly like the portal's slot picker. */
 export async function groupAllocations(

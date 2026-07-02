@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 // the mirror can't silently drift from the source of truth.
 import { findGroupedSlots as findEngine } from "../../engine/capacity";
 import { findGroupedSlots as findShared } from "../../../supabase/functions/_shared/capacity.ts";
-import { SALON_SLOTS, DAILY_DOG_CAP } from "../../constants/salon";
+import { SALON_SLOTS, DAILY_DOG_CAP, IMMEDIATE_CUTOFF_MINUTES } from "../../constants/salon";
+import { IMMEDIATE_CUTOFF_MINUTES as SHARED_IMMEDIATE_CUTOFF } from "../../../supabase/functions/_shared/salonConstants.ts";
 
 type MiniDog = { id: string; size: "small" | "medium" | "large" };
 type MiniBooking = { slot: string; size: "small" | "medium" | "large" };
@@ -28,6 +29,12 @@ function bothAgree(dogs: MiniDog[], bookings: MiniBooking[], overrides: MiniOver
   const shared = findShared(dogs as never, bookings as never, [...SALON_SLOTS], DAILY_DOG_CAP, overrides as never);
   return { engine: norm(engine), shared: norm(shared) };
 }
+
+describe("mirrored constants parity", () => {
+  it("IMMEDIATE_CUTOFF_MINUTES agrees between src and the Deno mirror", () => {
+    expect(SHARED_IMMEDIATE_CUTOFF).toBe(IMMEDIATE_CUTOFF_MINUTES);
+  });
+});
 
 describe("capacity engine mirror parity (findGroupedSlots)", () => {
   it("two small dogs on an empty day", () => {

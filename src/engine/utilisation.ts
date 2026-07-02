@@ -81,7 +81,7 @@ export function capacityRatio(count: number, isOpen: boolean): CapacityRatio {
 
 const SLOT_MINUTES = 30;
 
-function slotToMinutes(slot: string): number {
+export function slotToMinutes(slot: string): number {
   const [h, m] = slot.split(":").map(Number);
   return h * 60 + m;
 }
