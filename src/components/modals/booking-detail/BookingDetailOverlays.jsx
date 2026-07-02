@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { SALON_SLOTS } from "../../../constants/index";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 import { canBookSlot } from "../../../engine/capacity";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { toDateStr } from "../../../supabase/transforms";
@@ -83,7 +83,7 @@ export function BookingDetailOverlays({
       overrides: {},
       extraSlots: [],
     };
-    const newActiveSlots = [...SALON_SLOTS, ...(newSettings.extraSlots || [])];
+    const newActiveSlots = buildSlotGrid(newSettings.extraSlots || []);
     const dayBookings = bookingsByDate[newDateStr] || [];
     const filteredBookings = dayBookings.filter((b) => b.id !== booking.id);
 

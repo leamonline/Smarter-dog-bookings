@@ -3,6 +3,7 @@ import { customerSupabase as supabase } from "../../../supabase/customerClient.j
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { listOnDateForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
 import { toDateStr } from "../../../supabase/transforms";
@@ -87,10 +88,14 @@ export function SlotSelection({
         // DAY_CAPACITY mirrors the authoritative DB cap (salon_config.daily_dog_cap,
         // default 14): a full day shows "Fully booked" rather than offering a slot
         // the create_customer_booking_group trigger would reject.
+        // Same-day runs on the extended grid (canonical + flagged extra
+        // slots) so a staff-opened 14:00 can be offered; future dates stay
+        // canonical — extra slots reach customers only as same-day openings.
+        const isImmediateDay = selectedDate === immediateRes.date;
         let results = findGroupedSlots(
           dogs,
           bookings,
-          SALON_SLOTS,
+          isImmediateDay ? buildSlotGrid(immediateRes.slots) : SALON_SLOTS,
           DAY_CAPACITY,
           blockedByDate[selectedDate] || {},
         );
@@ -100,8 +105,8 @@ export function SlotSelection({
         // list as its cutoff passes). The device-local today check makes the
         // filter fail CLOSED — if the RPC errored, today shows no times
         // rather than times the trigger would reject.
-        if (selectedDate === immediateRes.date || selectedDate === toDateStr(new Date())) {
-          const flagged = new Set(selectedDate === immediateRes.date ? immediateRes.slots : []);
+        if (isImmediateDay || selectedDate === toDateStr(new Date())) {
+          const flagged = new Set(isImmediateDay ? immediateRes.slots : []);
           results = results.filter((a) => allocationIsImmediate(a, flagged));
         }
         if (!cancelled) setAvailableSlots(results);

@@ -113,6 +113,39 @@ describe("capacity trigger: daily dog cap", () => {
   });
 });
 
+describe("capacity trigger: per-date slot grid (extra slots)", () => {
+  it("the calendar gate and capacity trigger both use active_slots_for", () => {
+    // Regression for the display-only extra-slots era: the gates validated
+    // against the fixed active_slots() grid, so every booking into a staff-
+    // added extra slot failed with 'Invalid slot'. The effective definitions
+    // must build their grid per-date.
+    const capacity = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+validate_booking_capacity\(\)/i,
+    );
+    expect(capacity, "capacity trigger must use the per-date grid").toMatch(
+      /active_slots_for\(new\.booking_date\)/i,
+    );
+
+    const calendar = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+public\.validate_booking_calendar\(/i,
+    );
+    expect(calendar, "calendar gate must use the per-date grid").toMatch(
+      /active_slots_for\(p_booking_date\)/i,
+    );
+  });
+
+  it("active_slots_for sanitises extra_slots to strict HH:MM", () => {
+    const fn = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+public\.active_slots_for\(/i,
+    );
+    // The staff UI could historically generate '24:00'+ values; the grid
+    // builder must reject anything that isn't a real zero-padded time.
+    expect(fn, "must shape-check slot values").toMatch(
+      /\^\(\[01\]\[0-9\]\|2\[0-3\]\):\[0-5\]\[0-9\]\$/,
+    );
+  });
+});
+
 describe("capacity trigger: staff-blocked seats", () => {
   it("subtracts day_settings blocked seats from the target slot's max", () => {
     // Regression for the single-seat-block hole: blocks were client-enforced

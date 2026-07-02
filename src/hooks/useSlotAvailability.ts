@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { canBookSlot } from "../engine/capacity";
-import { SALON_SLOTS } from "../constants/index";
+import { buildSlotGrid } from "../engine/slotGrid";
 import type { Booking, DogSize, SlotOverrides } from "../types/index";
 
 interface EditSettings {
@@ -31,7 +31,7 @@ export function useSlotAvailability({
   bookingDogId,
 }: UseSlotAvailabilityInput): UseSlotAvailabilityReturn {
   const editActiveSlots = useMemo(
-    () => [...SALON_SLOTS, ...(editSettings.extraSlots || [])],
+    () => buildSlotGrid(editSettings.extraSlots || []),
     [editSettings.extraSlots],
   );
 

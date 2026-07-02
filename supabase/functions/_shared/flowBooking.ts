@@ -18,6 +18,7 @@
 // ============================================================
 
 import {
+  buildSlotGrid,
   type DogSize,
   isServiceAllowedForSize,
   LARGE_DOG_CANDIDATE_SLOTS,
@@ -26,6 +27,7 @@ import {
   type PricingMap,
   SALON_SLOTS,
   SERVICES,
+  SLOT_SHAPE,
   slotLabel,
 } from "./salonConstants.ts";
 import { ADDONS } from "./salonConstants.ts";
@@ -186,13 +188,14 @@ export function serviceName(serviceId: string): string {
   return SERVICES.find((s) => s.id === serviceId)?.name ?? serviceId;
 }
 
-/** Order a set of slot strings by the canonical grid and label them. */
+/** Order a set of slot strings chronologically and label them. Not limited
+ *  to the canonical grid — a flagged extra slot (e.g. "14:00") must survive
+ *  into the Flow's time screen. Zero-padded HH:MM sorts chronologically. */
 export function slotOptions(slots: string[]): FlowOption[] {
-  const present = new Set(slots);
-  return SALON_SLOTS.filter((s) => present.has(s)).map((s) => ({
-    id: s,
-    title: slotLabel(s),
-  }));
+  return [...new Set(slots)]
+    .filter((s) => SLOT_SHAPE.test(s))
+    .sort()
+    .map((s) => ({ id: s, title: slotLabel(s) }));
 }
 
 export function bookingSummary(args: {
@@ -386,24 +389,28 @@ async function immediateSlotSet(db: FlowDb, dateStr: string): Promise<Set<string
 }
 
 /** All group allocations (drop-off + per-dog slots) for a date, honouring
- *  staff seat blocks exactly like the portal's slot picker. Same-day
- *  allocations are additionally filtered to staff-flagged last-minute slots
- *  — and because confirmGroupBooking re-runs this at CONFIRM, a flag whose
- *  cutoff lapsed while the customer dawdled self-heals into the existing
- *  "slot taken" retry. */
+ *  staff seat blocks exactly like the portal's slot picker. Same-day runs
+ *  on the extended grid (canonical + flagged extra slots) and is filtered
+ *  to staff-flagged last-minute slots; future dates stay on the canonical
+ *  grid — extra slots reach customers only as same-day openings. Because
+ *  confirmGroupBooking re-runs this at CONFIRM, a flag whose cutoff lapsed
+ *  while the customer dawdled self-heals into the existing "slot taken"
+ *  retry. */
 export async function groupAllocations(
   db: FlowDb,
   dogs: Array<{ id: string; size: DogSize }>,
   dateStr: string,
   now: Date = new Date(),
 ): Promise<SlotAllocation[]> {
-  const [existing, overrides] = await Promise.all([
+  const isToday = dateStr === toDateStr(now);
+  const [existing, overrides, flagged] = await Promise.all([
     db.getBookingsForDate(dateStr),
     db.getDayOverrides(dateStr),
+    isToday ? immediateSlotSet(db, dateStr) : Promise.resolve(null),
   ]);
-  let allocations = findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS], undefined, overrides);
-  if (dateStr === toDateStr(now)) {
-    const flagged = await immediateSlotSet(db, dateStr);
+  const grid = flagged ? buildSlotGrid([...flagged]) : [...SALON_SLOTS];
+  let allocations = findGroupedSlots(dogs, existing as CapacityBooking[], grid, undefined, overrides);
+  if (flagged) {
     allocations = allocations.filter((a) => allocationIsImmediate(a, flagged));
   }
   return allocations;

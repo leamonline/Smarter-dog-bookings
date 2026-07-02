@@ -135,6 +135,27 @@ describe("capacity engine mirror parity (findGroupedSlots)", () => {
     expect(shared.length).toBeGreaterThan(0);
   });
 
+  it("an extended grid (extra slot after 13:00) agrees across both engines", () => {
+    // 12:30 and 13:00 hold 2 dogs each; 13:30 is a staff-added extra slot.
+    // The 2-2-1 window must span the canonical/extra boundary identically in
+    // both engines: 13:30 is the third consecutive double, so it caps at 1.
+    const grid = [...SALON_SLOTS, "13:30"];
+    const dogs = [{ id: "a", size: "small" as const }, { id: "b", size: "small" as const }];
+    const bookings = [
+      { slot: "12:30", size: "small" }, { slot: "12:30", size: "small" },
+      { slot: "13:00", size: "small" }, { slot: "13:00", size: "small" },
+    ] as MiniBooking[];
+    const engine = norm(findEngine(dogs as never, bookings as never, grid as never, DAILY_DOG_CAP, {} as never));
+    const shared = norm(findShared(dogs as never, bookings as never, [...grid], DAILY_DOG_CAP, {} as never));
+    expect(shared).toEqual(engine);
+    // A 2-dog group can't fit in the capped 13:30 alone; no allocation may
+    // place BOTH dogs there.
+    for (const a of shared) {
+      const at1330 = a.sig.split("|").filter((s) => s.endsWith(":13:30")).length;
+      expect(at1330).toBeLessThanOrEqual(1);
+    }
+  });
+
   it("blocking both seats of a slot removes only that slot — neighbours unaffected", () => {
     const { engine, shared } = bothAgree(
       [{ id: "x", size: "small" }],

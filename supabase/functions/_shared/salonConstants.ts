@@ -32,6 +32,19 @@ export const DAILY_DOG_CAP = 14;
 // RPCs) is the authority. The capacityParity test guards the TS pair.
 export const IMMEDIATE_CUTOFF_MINUTES = 30;
 
+// Strict HH:MM (00-23 hours) — MIRRORS SLOT_SHAPE in src/engine/slotGrid.ts
+// and the DB sanitiser in active_slots_for().
+export const SLOT_SHAPE = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+
+/** Canonical slots plus sanitised extras, deduped and sorted
+ *  chronologically — MIRRORS buildSlotGrid in src/engine/slotGrid.ts and
+ *  active_slots_for() in the DB. */
+export function buildSlotGrid(extraSlots: readonly string[] = []): string[] {
+  return [
+    ...new Set([...SALON_SLOTS, ...extraSlots.filter((s) => SLOT_SHAPE.test(s))]),
+  ].sort();
+}
+
 // Large dogs can only ever occupy these drop-off times (mirrors
 // LARGE_DOG_SLOTS in src/constants/salon.ts). Per-slot eligibility is
 // still enforced by the DB capacity trigger; this is the candidate set.

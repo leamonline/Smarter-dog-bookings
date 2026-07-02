@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { SALON_SLOTS, SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
+import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
+import { buildSlotGrid } from "../../engine/slotGrid";
 import { AccessibleModal } from "../shared/AccessibleModal.tsx";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { toDateStr } from "../../supabase/transforms";
@@ -468,7 +469,7 @@ export function NewBookingModal({
 
       const dayBookings = bookingsByDate?.[targetDateStr] || [];
       const settings = daySettings?.[targetDateStr];
-      const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
+      const activeSlots = buildSlotGrid(settings?.extraSlots || []);
       let simulated = [...dayBookings];
 
       let allFit = true;

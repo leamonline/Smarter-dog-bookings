@@ -150,6 +150,13 @@ describe("availability", () => {
     expect(dates.map((d) => d.id)).toEqual(["2026-06-02"]);
   });
 
+  it("keeps non-canonical slots in slot options, ordered chronologically", async () => {
+    const { slotOptions } = await import("../../../supabase/functions/_shared/flowBooking.ts");
+    const options = slotOptions(["14:00", "09:00", "13:30", "junk"]);
+    expect(options.map((o) => o.id)).toEqual(["09:00", "13:30", "14:00"]);
+    expect(options[1].title).toBe("1:30 pm");
+  });
+
   it("orders small/medium slots by the grid", async () => {
     const { db } = makeDb({
       smallMed: [
@@ -350,6 +357,18 @@ describe("same-day (last minute) slots in the Flow", () => {
     const dates = await availableDateOptions(db, "small", NOW);
     expect(dates[0]).toEqual({ id: TODAY, title: "Today — last minute" });
     expect(dates[1].title).toBe("Wednesday 3 June");
+  });
+
+  it("offers a flagged EXTRA slot for today — and nothing unflagged", async () => {
+    // Staff added an ad-hoc 14:00 and opened it for immediate booking: the
+    // grid extends beyond the canonical 13:00 ceiling for today only.
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { [TODAY]: [] },
+      immediateRows: [{ setting_date: TODAY, slot: "14:00" }],
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], TODAY, NOW);
+    expect(slots).toEqual([{ id: "14:00", title: "2:00 pm" }]);
   });
 
   it("intersects large-dog candidates with today's flags", async () => {

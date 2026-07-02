@@ -229,6 +229,9 @@ export function useDaySettings(weekStart) {
           h += 1;
           m -= 60;
         }
+        // Past 23:30 the next slot would be 24:00 — not a real time, and
+        // the DB grid sanitiser would reject it. Stop adding.
+        if (h > 23) return {};
         const newSlot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
         return { extraSlots: [...existing, newSlot] };
       }),

@@ -5,6 +5,7 @@ import { listRangeForCapacity, listBlockedSeats, listImmediateSlots } from "../.
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { SALON_SLOTS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
@@ -167,7 +168,9 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
       const dayBookings = occupancyByDate[immediate.date] ?? [];
       const dayOverrides = blockedByDate[immediate.date] || {};
       const flagged = new Set(immediate.slots);
-      return findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY, dayOverrides)
+      // Extended grid so flagged extra slots (e.g. a staff-opened 14:00)
+      // count toward "today has a bookable time".
+      return findGroupedSlots(dogsForEngine, dayBookings, buildSlotGrid(immediate.slots), DAY_CAPACITY, dayOverrides)
         .some((a) => allocationIsImmediate(a, flagged));
     }
     return true;

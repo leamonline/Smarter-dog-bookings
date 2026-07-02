@@ -170,6 +170,31 @@ friendlier first-line error for a fully closed slot. A static-SQL invariant
 test (`src/engine/capacityTrigger.test.ts`) fails if a future migration
 re-issues either function without the blocked-seat logic.
 
+## Extra slots — the per-date grid
+
+Staff can add ad-hoc slots after 13:00 (`day_settings.extra_slots`). Until
+migration `20260702170000` these were display-only — the gates validated
+against the fixed `active_slots()` grid, so every booking into one failed
+with "Invalid slot" (prod had zero non-canonical bookings, ever). Now the
+bookable grid is per-date:
+
+- `active_slots_for(p_date)` = `active_slots()` ∪ that date's sanitised
+  (strict `HH:MM`, sorted) `extra_slots`. Used by the calendar gate, the
+  capacity trigger (so the 2-2-1 window runs across the 13:00 → extras
+  boundary — `get_max_seats_for_slot` is array-length agnostic) and
+  `get_immediate_slots`. TS mirror: `buildSlotGrid`
+  (`src/engine/slotGrid.ts` + `_shared/salonConstants.ts`).
+- **Customer scoping:** extra slots reach customers **only** as same-day
+  "last minute" openings (flag the slot on today's calendar). Future-date
+  customer surfaces (portal grid, Flow availability) stay canonical.
+- Large dogs are never extra-slot eligible (`is_large_dog_slot` keeps the
+  fixed five; the trigger requires staff approval elsewhere).
+- pgTAP coverage: `supabase/tests/030_extra_slots.test.sql` (invalid until
+  configured, 2-seat capacity, malformed-value sanitising, large-dog
+  refusal, 2-2-1 across the boundary). Static invariants:
+  `src/engine/capacityTrigger.test.ts`.
+- Known gap: the reports slot-usage chart still only shows canonical slots.
+
 ## Immediate ("last minute") slots — the same-day rule
 
 Customers can only book **today** on slots staff explicitly opened ("Open for
