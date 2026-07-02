@@ -126,11 +126,22 @@ export function getSeatStatesForSlot(
 
   const slotBookings = bookings.filter((b) => b.slot === slot);
 
+  // Staff-blocked seat indexes (the two physical seats only — junk indexes
+  // in legacy data are ignored). A blocked seat always removes one usable
+  // seat from THIS slot: bookings claim the remaining indexes rather than
+  // landing on a blocked one and silently displacing the block. Mirrors the
+  // blocked-seat subtraction in validate_booking_capacity (DB).
+  const blockedIdx = new Set<number>();
+  for (const key of [0, 1]) {
+    if (overrides?.[key] === "blocked" && key !== selectedSeatIndex) blockedIdx.add(key);
+  }
+
   // Total seats rendered = the normal 2-seat capacity, but expanded when
-  // staff overbooks so every booking has its own seat to render in. A
-  // 3-dog overbook produces 3 seats; the extra ones are "booking" type
-  // and don't get the available/blocked treatment below.
-  const totalSeats = Math.max(2, slotBookings.length);
+  // staff overbooks (or a block coexists with a full slot) so every booking
+  // AND every block has its own seat to render in. A 3-dog overbook
+  // produces 3 seats; the extra ones are "booking" type and don't get the
+  // available/blocked treatment below.
+  const totalSeats = Math.max(2, slotBookings.length + blockedIdx.size);
 
   const states: SeatState[] = [];
   for (let i = 0; i < totalSeats; i++) {
@@ -140,20 +151,25 @@ export function getSeatStatesForSlot(
   let cursor = 0;
   for (const booking of slotBookings) {
     const seatsNeeded = getSeatsNeeded(booking.size, slot);
-    while (cursor < totalSeats && states[cursor].type === "booking") cursor += 1;
+    while (
+      cursor < totalSeats &&
+      (states[cursor].type === "booking" ||
+        states[cursor].type === "reserved" ||
+        blockedIdx.has(cursor))
+    ) {
+      cursor += 1;
+    }
     if (cursor >= totalSeats) break;
 
     states[cursor] = { type: "booking", seatIndex: cursor, booking };
 
-    for (let used = 1; used < seatsNeeded && cursor + used < totalSeats; used++) {
-      states[cursor + used] = {
-        type: "reserved",
-        seatIndex: cursor + used,
-        booking,
-      };
+    for (let used = 1, j = cursor + 1; used < seatsNeeded && j < totalSeats; j++) {
+      if (blockedIdx.has(j)) continue;
+      states[j] = { type: "reserved", seatIndex: j, booking };
+      used += 1;
     }
 
-    cursor += seatsNeeded;
+    cursor += 1;
   }
 
   for (let i = 0; i < totalSeats; i++) {

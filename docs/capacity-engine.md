@@ -147,6 +147,29 @@ insert by the separate `enforce_dog_not_pregnant()` `BEFORE INSERT` trigger
 bypass it (clinical judgement). The booking wizard greys out a pregnant dog as
 a preflight only — the trigger is the authority.
 
+## Staff-blocked seats (single-seat blocks)
+
+Staff can block individual seats (`day_settings.overrides[slot][seatIndex] =
+'blocked'`). A blocked seat removes one usable seat from **its own slot only**
+— it never cascades into the 2-2-1 windowing of neighbouring slots or the
+daily dog cap. Enforced in all three implementations (migration
+`20260702150000_enforce_single_seat_blocks.sql`):
+
+- `validate_booking_capacity()` subtracts the target slot's blocked-seat
+  count from its max seats (inside the per-slot advisory lock;
+  `staff_capacity_override` bypasses it like the other seat rules), and
+  `get_small_medium_availability()` uses `slot_cap = 2 − blocked`.
+- Both TS engines make bookings claim **non-blocked** seat indexes, so a
+  booking can no longer land on a blocked index and silently displace the
+  block (the old quirk that re-opened the second seat).
+- SQL reading `overrides` guards the malformed legacy rows with
+  `seat.k ~ '^[0-9]+$'` / `seat.v = 'blocked'` (same as `get_blocked_seats`).
+
+`validate_booking_calendar`'s both-seats-blocked check remains as the
+friendlier first-line error for a fully closed slot. A static-SQL invariant
+test (`src/engine/capacityTrigger.test.ts`) fails if a future migration
+re-issues either function without the blocked-seat logic.
+
 ## Immediate ("last minute") slots — the same-day rule
 
 Customers can only book **today** on slots staff explicitly opened ("Open for

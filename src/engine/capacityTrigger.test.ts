@@ -112,3 +112,45 @@ describe("capacity trigger: daily dog cap", () => {
     expect(fn, "audit logger must persist v_daily_cap").toMatch(/v_daily_cap/i);
   });
 });
+
+describe("capacity trigger: staff-blocked seats", () => {
+  it("subtracts day_settings blocked seats from the target slot's max", () => {
+    // Regression for the single-seat-block hole: blocks were client-enforced
+    // only, so a direct API caller could book into a slot where staff blocked
+    // one seat and the other was taken. The effective definition must read
+    // the target slot's overrides and reduce v_max_seats by the block count.
+    const fn = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+validate_booking_capacity\(\)/i,
+    );
+
+    expect(fn, "must read the target slot's day_settings overrides").toMatch(
+      /ds\.overrides\s*->\s*new\.slot/i,
+    );
+
+    // Malformed legacy rows (date-keyed slots, numeric values) must be
+    // guarded with the same key/value shape checks as get_blocked_seats.
+    expect(fn, "must guard malformed seat keys").toMatch(/\^\[0-9\]\+\$/);
+    expect(fn, "must count only 'blocked' values").toMatch(
+      /seat\.v\s*=\s*'blocked'/i,
+    );
+
+    // The reduction must clamp at zero and actually feed the seat maths.
+    expect(fn, "must clamp the reduced max at zero").toMatch(
+      /greatest\(\s*v_max_seats\s*-\s*v_blocked_seats\s*,\s*0\s*\)/i,
+    );
+  });
+
+  it("the small/medium availability RPC applies the same per-slot reduction", () => {
+    // Keep the Flow/agent's offered availability in step with the trigger:
+    // slot_cap = 2 - blocked_count (clamped), not the old both-blocked-only
+    // rule, so a slot the trigger would reject is never offered.
+    const fn = lastDefinitionOf(
+      /create\s+or\s+replace\s+function\s+get_small_medium_availability\(/i,
+    );
+
+    expect(fn, "slot_cap must subtract blocked seats").toMatch(
+      /greatest\(\s*\n?\s*2\s*-\s*\(/i,
+    );
+    expect(fn, "must guard malformed seat keys").toMatch(/\^\[0-9\]\+\$/);
+  });
+});
