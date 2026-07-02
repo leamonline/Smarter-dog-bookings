@@ -33,6 +33,7 @@ import {
   type Booking as CapacityBooking,
   findGroupedSlots,
   type SlotAllocation,
+  type SlotOverrides,
 } from "./capacity.ts";
 
 // ── Row shapes (the subset of columns we read/write) ───────────
@@ -115,6 +116,14 @@ export interface FlowDb {
   // feed the 2-2-1 group allocator; the group insert goes through the
   // create_whatsapp_booking_group RPC (atomic, shared group_id).
   getBookingsForDate(dateStr: string): Promise<ExistingBooking[]>;
+  // Staff seat blocks for the date (day_settings.overrides, run through
+  // sanitizeDayOverrides) so the allocator sees the same reduced capacity as
+  // the portal's slot picker. {} when the day has no row.
+  getDayOverrides(dateStr: string): Promise<Record<string, SlotOverrides>>;
+  // Today's staff-flagged "last minute" slots (get_immediate_slots RPC). The
+  // server applies the London today + 30-minute cutoff on every call, so a
+  // slot drops off this list the moment its cutoff passes.
+  getImmediateSlots(): Promise<Array<{ setting_date: string; slot: string }>>;
   insertBookingGroup(
     items: GroupBookingItem[],
     dateStr: string,
@@ -267,9 +276,16 @@ export async function availableDateOptions(
     dates = [...new Set(rows.map((r) => r.booking_date))];
   }
 
+  // Today only ever appears when staff flagged a last-minute slot (the
+  // availability RPCs enforce that server-side) — label it so the customer
+  // knows it's a grab-it-now opening. Meta caps data-source titles ~30 chars.
+  const todayStr = toDateStr(today);
   return [...new Set(dates)]
     .sort()
-    .map((d) => ({ id: d, title: formatDateLong(d) }));
+    .map((d) => ({
+      id: d,
+      title: d === todayStr ? "Today — last minute" : formatDateLong(d),
+    }));
 }
 
 /**
@@ -283,9 +299,17 @@ export async function availableSlotOptions(
   db: FlowDb,
   size: DogSize,
   dateStr: string,
+  now: Date = new Date(),
 ): Promise<FlowOption[]> {
   if (size === "large") {
-    return slotOptions([...LARGE_DOG_CANDIDATE_SLOTS]);
+    // Same-day: only staff-flagged last-minute slots qualify (the
+    // small/medium branch below inherits this from the availability RPC).
+    let candidates = [...LARGE_DOG_CANDIDATE_SLOTS];
+    if (dateStr === toDateStr(now)) {
+      const flagged = await immediateSlotSet(db, dateStr);
+      candidates = candidates.filter((s) => flagged.has(s));
+    }
+    return slotOptions(candidates);
   }
   const rows = await db.getSmallMediumAvailability(dateStr, dateStr);
   return slotOptions(rows.filter((r) => r.booking_date === dateStr).map((r) => r.slot));
@@ -320,14 +344,69 @@ export async function availableGroupDateOptions(
   return availableDateOptions(db, groupDaySize(dogs.map((d) => d.size)), today, windowDays);
 }
 
-/** All group allocations (drop-off + per-dog slots) for a date. */
+/**
+ * day_settings.overrides straight off the row → the per-slot seat map the
+ * capacity engine expects. Prod has known malformed legacy rows (date-keyed
+ * slots, numeric seat values) — mirror the get_blocked_seats SQL guards:
+ * slot keys HH:MM, seat keys numeric, values "blocked" | "open"; drop the rest.
+ */
+export function sanitizeDayOverrides(raw: unknown): Record<string, SlotOverrides> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean: Record<string, SlotOverrides> = {};
+  for (const [slot, seats] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{2}:\d{2}$/.test(slot)) continue;
+    if (!seats || typeof seats !== "object" || Array.isArray(seats)) continue;
+    const seatMap: SlotOverrides = {};
+    for (const [seatKey, action] of Object.entries(seats as Record<string, unknown>)) {
+      if (!/^\d+$/.test(seatKey)) continue;
+      if (action !== "blocked" && action !== "open") continue;
+      seatMap[Number(seatKey)] = action;
+    }
+    if (Object.keys(seatMap).length > 0) clean[slot] = seatMap;
+  }
+  return clean;
+}
+
+/** True when EVERY per-dog assignment lands on a flagged last-minute slot —
+ *  the calendar trigger validates each inserted row's own slot, so a group
+ *  that spills into an unflagged neighbour would be rejected. MIRRORS
+ *  src/engine/immediateBooking.ts. */
+export function allocationIsImmediate(
+  allocation: Pick<SlotAllocation, "assignments">,
+  immediateSlots: ReadonlySet<string>,
+): boolean {
+  return allocation.assignments.every((a) => immediateSlots.has(a.slot));
+}
+
+/** The flagged last-minute slots for `dateStr`, as a Set. The date filter
+ *  guards a London midnight rollover between the RPC call and its use. */
+async function immediateSlotSet(db: FlowDb, dateStr: string): Promise<Set<string>> {
+  const rows = await db.getImmediateSlots();
+  return new Set(rows.filter((r) => r.setting_date === dateStr).map((r) => r.slot));
+}
+
+/** All group allocations (drop-off + per-dog slots) for a date, honouring
+ *  staff seat blocks exactly like the portal's slot picker. Same-day
+ *  allocations are additionally filtered to staff-flagged last-minute slots
+ *  — and because confirmGroupBooking re-runs this at CONFIRM, a flag whose
+ *  cutoff lapsed while the customer dawdled self-heals into the existing
+ *  "slot taken" retry. */
 export async function groupAllocations(
   db: FlowDb,
   dogs: Array<{ id: string; size: DogSize }>,
   dateStr: string,
+  now: Date = new Date(),
 ): Promise<SlotAllocation[]> {
-  const existing = await db.getBookingsForDate(dateStr);
-  return findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS]);
+  const [existing, overrides] = await Promise.all([
+    db.getBookingsForDate(dateStr),
+    db.getDayOverrides(dateStr),
+  ]);
+  let allocations = findGroupedSlots(dogs, existing as CapacityBooking[], [...SALON_SLOTS], undefined, overrides);
+  if (dateStr === toDateStr(now)) {
+    const flagged = await immediateSlotSet(db, dateStr);
+    allocations = allocations.filter((a) => allocationIsImmediate(a, flagged));
+  }
+  return allocations;
 }
 
 /** Bookable drop-off times for a group on a date (one option per drop-off). */
@@ -335,8 +414,9 @@ export async function groupSlotOptions(
   db: FlowDb,
   dogs: Array<{ id: string; size: DogSize }>,
   dateStr: string,
+  now: Date = new Date(),
 ): Promise<FlowOption[]> {
-  const allocations = await groupAllocations(db, dogs, dateStr);
+  const allocations = await groupAllocations(db, dogs, dateStr, now);
   return slotOptions(allocations.map((a) => a.dropOffTime));
 }
 
@@ -366,6 +446,7 @@ export type GroupConfirmResult =
 export async function confirmGroupBooking(
   db: FlowDb,
   input: GroupConfirmInput,
+  now: Date = new Date(),
 ): Promise<GroupConfirmResult> {
   if (!input.dogs.length || input.dogs.length > 4) {
     return { ok: false, kind: "error", message: "Pick between 1 and 4 dogs." };
@@ -386,8 +467,9 @@ export async function confirmGroupBooking(
   const resolvedDogs = input.dogs.map((d) => ({ id: d.dogId, size: sizeByDog.get(d.dogId)! }));
 
   // Find the allocation for the chosen drop-off. If it's gone (someone took a
-  // seat since the time screen), bounce to a retry.
-  const allocations = await groupAllocations(db, resolvedDogs, input.dateStr);
+  // seat since the time screen, or a same-day slot's last-minute flag /
+  // cutoff lapsed), bounce to a retry.
+  const allocations = await groupAllocations(db, resolvedDogs, input.dateStr, now);
   const allocation = allocations.find((a) => a.dropOffTime === input.dropOff);
   if (!allocation) {
     return {

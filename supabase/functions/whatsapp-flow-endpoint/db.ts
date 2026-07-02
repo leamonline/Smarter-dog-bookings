@@ -9,18 +9,20 @@
 // ============================================================
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import type {
-  AvailabilitySlot,
-  BookingInsert,
-  DogRow,
-  ExistingBooking,
-  FlowDb,
-  GroupBookingItem,
-  GroupInsertResult,
-  HumanRow,
-  InsertResult,
-  LargeDogDay,
+import {
+  type AvailabilitySlot,
+  type BookingInsert,
+  type DogRow,
+  type ExistingBooking,
+  type FlowDb,
+  type GroupBookingItem,
+  type GroupInsertResult,
+  type HumanRow,
+  type InsertResult,
+  type LargeDogDay,
+  sanitizeDayOverrides,
 } from "../_shared/flowBooking.ts";
+import type { SlotOverrides } from "../_shared/capacity.ts";
 import type { DogSize, PricingMap } from "../_shared/salonConstants.ts";
 
 /** Pinned (server-resolved) per-dog identity for the booking group. */
@@ -170,6 +172,33 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         return [];
       }
       return (data as ExistingBooking[]) ?? [];
+    },
+
+    async getDayOverrides(dateStr: string): Promise<Record<string, SlotOverrides>> {
+      // day_settings is staff-only under RLS; the service role reads it
+      // directly. Degrade to {} on any error — a read blip must never stop
+      // the customer booking (the capacity trigger stays the hard guard).
+      const { data, error } = await supabase
+        .from("day_settings")
+        .select("overrides")
+        .eq("setting_date", dateStr)
+        .maybeSingle();
+      if (error) {
+        console.error("getDayOverrides failed:", error.message);
+        return {};
+      }
+      return sanitizeDayOverrides((data as { overrides?: unknown } | null)?.overrides);
+    },
+
+    async getImmediateSlots(): Promise<Array<{ setting_date: string; slot: string }>> {
+      const { data, error } = await supabase.rpc("get_immediate_slots");
+      if (error) {
+        // Fail closed: no rows means no same-day slots are offered, which is
+        // the safe direction (the calendar trigger would reject them anyway).
+        console.error("get_immediate_slots failed:", error.message);
+        return [];
+      }
+      return (data as Array<{ setting_date: string; slot: string }>) ?? [];
     },
 
     async insertBookingGroup(

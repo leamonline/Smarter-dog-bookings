@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon";
 import type { Booking, SlotOverrides } from "../../types/index";
-import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange, getBlockedSeats } from "../rpc";
+import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange, getBlockedSeats, getImmediateSlots } from "../rpc";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -125,6 +125,22 @@ export async function listBlockedSeats(
     slot[row.seat_index] = "blocked";
   }
   return { byDate };
+}
+
+// Today's last-minute ("immediate") slots, from get_immediate_slots. The RPC
+// is the authority — it applies the London "today", the 30-minute cutoff, the
+// open-day check and the fully-blocked check server-side; this just reshapes
+// the rows to { date, slots }. Degrades to { date: null, slots: [] } on any
+// error — including the RPC not yet existing where the migration hasn't been
+// applied — so the wizard simply shows no Today option.
+export async function listImmediateSlots(
+  client: SupabaseClient,
+): Promise<{ date: string | null; slots: string[] }> {
+  const { data, error } = await getImmediateSlots(client);
+  if (error) return { date: null, slots: [] };
+  const rows = (data ?? []) as Array<{ setting_date: string; slot: string }>;
+  if (rows.length === 0) return { date: null, slots: [] };
+  return { date: rows[0].setting_date, slots: rows.map((r) => r.slot) };
 }
 
 // Resolve a "cancel one or cancel the whole group" intent to an array

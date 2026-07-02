@@ -220,6 +220,8 @@ export interface DaySettings {
   isOpen: boolean;
   overrides: Record<string, SlotOverrides>;
   extraSlots: string[];
+  /** Slots staff opened for same-day ("last minute") customer booking. */
+  immediateSlots: string[];
 }
 
 export interface LargeDogSlotRule {

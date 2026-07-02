@@ -67,6 +67,7 @@ export function WeekCalendarView({
   currentSettings,
   handleUpdate,
   handleOverride,
+  toggleImmediateSlot,
   handleAddSlot,
   handleRemoveSlot,
   toggleDayOpen,
@@ -299,6 +300,7 @@ export function WeekCalendarView({
               isOpen={isOpen}
               activeSlots={activeSlots}
               overrides={currentSettings.overrides || {}}
+              immediateSlots={currentSettings.immediateSlots || []}
               onNavigateDay={(delta) => {
                 const target = new Date(currentDateObj);
                 target.setDate(target.getDate() + delta);
@@ -317,6 +319,7 @@ export function WeekCalendarView({
                   : undefined
               }
               onOverride={handleOverride}
+              onToggleImmediate={toggleImmediateSlot}
               onOpenWaitlist={() => setShowWaitlist(true)}
               reminderCount={pendingReminderCount}
               waitlistCount={waitlist.length}

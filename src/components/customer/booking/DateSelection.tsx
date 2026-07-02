@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { getOpenDays } from "../../../supabase/rpc";
-import { listRangeForCapacity, listBlockedSeats } from "../../../supabase/repositories/bookingsRepo";
+import { listRangeForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
 import { getDefaultOpenForDate } from "../../../engine/utils";
 import { findGroupedSlots } from "../../../engine/capacity";
+import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { SALON_SLOTS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
 import type { Booking, WizardDog, SlotOverrides } from "../../../types/index";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
+import { WizardTick } from "./WizardTick";
 
 interface DateSelectionProps {
   selectedDogs?: WizardDog[];
@@ -53,6 +55,10 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
   // only because of blocks is dimmed consistently with the slot step. Defaults
   // to {} (listBlockedSeats degrades gracefully on error).
   const [blockedByDate, setBlockedByDate] = useState<Record<string, Record<string, SlotOverrides>>>({});
+  // Today's staff-flagged "last minute" slots (get_immediate_slots). date is
+  // the SERVER's London today; { date: null, slots: [] } when there's nothing
+  // (or the RPC errored) — the Today option simply doesn't render.
+  const [immediate, setImmediate] = useState<{ date: string | null; slots: string[] }>({ date: null, slots: [] });
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -67,7 +73,10 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
     days.push(d);
   }
 
-  const rangeStart = toDateStr(days[0]);
+  // Occupancy + blocked seats start from TODAY (not the grid's tomorrow) so
+  // the "Today — last minute" option can run the same engine check as the
+  // grid days. Still well inside get_blocked_seats' 92-day range cap.
+  const rangeStart = toDateStr(today);
   const rangeEnd = toDateStr(days[days.length - 1]);
 
   useEffect(() => {
@@ -80,14 +89,16 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
         // RLS, so go through get_open_days → (setting_date, is_open)), and the
         // non-cancelled occupancy per day (get_occupancy_range) so a full day
         // can be dimmed instead of dead-ending the customer at "Confirm".
-        const [openRes, occRes, blockedRes] = await Promise.all([
+        const [openRes, occRes, blockedRes, immediateRes] = await Promise.all([
           getOpenDays(supabase, { startDate: rangeStart, endDate: rangeEnd }),
           listRangeForCapacity(supabase, rangeStart, rangeEnd),
           listBlockedSeats(supabase, rangeStart, rangeEnd),
+          listImmediateSlots(supabase),
         ]);
         if (cancelled) return;
 
         setBlockedByDate(blockedRes.byDate);
+        setImmediate(immediateRes);
 
         if (openRes.error) {
           logger.error("Failed to fetch day closures", openRes.error, {
@@ -145,6 +156,23 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
     return "open";
   };
 
+  // "Today — last minute": offered only when the server flagged slots for
+  // today AND (once occupancy has loaded) the selected dogs actually fit
+  // wholly on flagged slots — the same engine check dayStateFor runs, plus
+  // the every-assignment-flagged rule. Degrades open like dayStateFor when
+  // occupancy hasn't loaded; the slot step + DB trigger backstop.
+  const todayAvailable = (() => {
+    if (!immediate.date || immediate.slots.length === 0) return false;
+    if (occupancyByDate && dogsForEngine.length > 0) {
+      const dayBookings = occupancyByDate[immediate.date] ?? [];
+      const dayOverrides = blockedByDate[immediate.date] || {};
+      const flagged = new Set(immediate.slots);
+      return findGroupedSlots(dogsForEngine, dayBookings, SALON_SLOTS, DAY_CAPACITY, dayOverrides)
+        .some((a) => allocationIsImmediate(a, flagged));
+    }
+    return true;
+  })();
+
   const firstDay = days[0];
   const jsDay = firstDay.getDay();
   const offset = jsDay === 0 ? 6 : jsDay - 1;
@@ -161,6 +189,28 @@ export function DateSelection({ selectedDogs = [], selectedDate, onSelect, onNex
       <p className="wizard-helper">
         Pick a date for your visit (next 28 days).
       </p>
+
+      {!loading && todayAvailable && immediate.date && (
+        <button
+          type="button"
+          aria-pressed={selectedDate === immediate.date}
+          onClick={() => onSelect(immediate.date as string)}
+          className="wizard-option"
+        >
+          <span className="inline-flex flex-col items-start gap-0.5 min-w-0">
+            <span className="inline-flex items-center gap-2">
+              <Zap size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+              <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
+                Today — last minute
+              </span>
+            </span>
+            <span className="text-[12px] text-[var(--sd-ink-light)]">
+              A time has come free today — book up to 30 minutes before
+            </span>
+          </span>
+          <WizardTick selected={selectedDate === immediate.date} />
+        </button>
+      )}
 
       <div className="wizard-calendar">
         <h2 className="wizard-calendar-month">{monthLabelFor(days)}</h2>

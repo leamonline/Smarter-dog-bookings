@@ -26,6 +26,12 @@ export const SALON_SLOTS: readonly string[] = [
 // agree on a near-full day.
 export const DAILY_DOG_CAP = 14;
 
+// How close to a slot's start a customer can still make a same-day ("last
+// minute") booking, in minutes — MIRRORS IMMEDIATE_CUTOFF_MINUTES in
+// src/constants/salon.ts; the DB (validate_booking_calendar + availability
+// RPCs) is the authority. The capacityParity test guards the TS pair.
+export const IMMEDIATE_CUTOFF_MINUTES = 30;
+
 // Large dogs can only ever occupy these drop-off times (mirrors
 // LARGE_DOG_SLOTS in src/constants/salon.ts). Per-slot eligibility is
 // still enforced by the DB capacity trigger; this is the candidate set.

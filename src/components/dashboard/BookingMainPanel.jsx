@@ -15,12 +15,14 @@ export function BookingMainPanel({
   isOpen,
   activeSlots,
   overrides,
+  immediateSlots,
   onNavigateDay,
   onOpenCalendar,
   onOpenOverview,
   onOpenNewBooking,
   onMoveBooking,
   onOverride,
+  onToggleImmediate,
   onOpenWaitlist,
   onCloseDay,
   onOpenDay,
@@ -102,6 +104,8 @@ export function BookingMainPanel({
                 currentDateStr={currentDateStr}
                 overrides={overrides}
                 onOverride={onOverride}
+                immediateSlots={immediateSlots}
+                onToggleImmediate={onToggleImmediate}
                 searchQuery={searchQuery}
               />
             </div>

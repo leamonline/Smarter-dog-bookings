@@ -12,6 +12,14 @@ export const MAX_DOGS_PER_SLOT = 5;
  *  three together — the capacityParity test guards the TS pair. */
 export const DAILY_DOG_CAP = 14;
 
+/** How close to a slot's start a customer can still make a same-day
+ *  ("last minute") booking, in minutes. Mirrored in
+ *  supabase/functions/_shared/salonConstants.ts (Deno) and hard-enforced in
+ *  the DB (validate_booking_calendar + the availability RPCs, migration
+ *  20260702130000) — this constant only gates the staff-calendar toggle.
+ *  Change all three together; the capacityParity test guards the TS pair. */
+export const IMMEDIATE_CUTOFF_MINUTES = 30;
+
 export const SERVICES = [
   { id: "full-groom", name: "Full Groom" },
   { id: "bath-and-brush", name: "Bath & Brush" },

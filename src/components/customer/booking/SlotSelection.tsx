@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
+import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
-import { listOnDateForCapacity, listBlockedSeats } from "../../../supabase/repositories/bookingsRepo";
+import { listOnDateForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
+import { toDateStr } from "../../../supabase/transforms";
 import type { WizardDog, SlotAllocation } from "../../../types/index";
 import { Clock, ArrowRight, PawPrint } from "lucide-react";
 import { WizardTick } from "./WizardTick";
@@ -62,9 +64,10 @@ export function SlotSelection({
         // seats (staff overrides) come from get_blocked_seats: day_settings is
         // staff-only, so without this the engine can't see a blocked seat and
         // would offer it. listBlockedSeats degrades to {} on error.
-        const [{ bookings, error }, { byDate: blockedByDate }] = await Promise.all([
+        const [{ bookings, error }, { byDate: blockedByDate }, immediateRes] = await Promise.all([
           listOnDateForCapacity(supabase, selectedDate),
           listBlockedSeats(supabase, selectedDate, selectedDate),
+          listImmediateSlots(supabase),
         ]);
 
         if (cancelled) return;
@@ -84,13 +87,23 @@ export function SlotSelection({
         // DAY_CAPACITY mirrors the authoritative DB cap (salon_config.daily_dog_cap,
         // default 14): a full day shows "Fully booked" rather than offering a slot
         // the create_customer_booking_group trigger would reject.
-        const results = findGroupedSlots(
+        let results = findGroupedSlots(
           dogs,
           bookings,
           SALON_SLOTS,
           DAY_CAPACITY,
           blockedByDate[selectedDate] || {},
         );
+        // Same-day ("last minute") rule: today's times must sit WHOLLY on
+        // staff-flagged slots (get_immediate_slots re-applies the 30-minute
+        // cutoff server-side on every call, so a slot silently drops off this
+        // list as its cutoff passes). The device-local today check makes the
+        // filter fail CLOSED — if the RPC errored, today shows no times
+        // rather than times the trigger would reject.
+        if (selectedDate === immediateRes.date || selectedDate === toDateStr(new Date())) {
+          const flagged = new Set(selectedDate === immediateRes.date ? immediateRes.slots : []);
+          results = results.filter((a) => allocationIsImmediate(a, flagged));
+        }
         if (!cancelled) setAvailableSlots(results);
       } finally {
         if (!cancelled) setLoading(false);
@@ -101,6 +114,7 @@ export function SlotSelection({
   }, [selectedDate, selectedDogs]);
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
+  const isToday = selectedDate === toDateStr(new Date());
 
   const morning = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) < 12);
   const afternoon = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) >= 12);
@@ -134,7 +148,9 @@ export function SlotSelection({
   return (
     <>
       <p className="wizard-helper">
-        Choose a drop-off time.
+        {isToday
+          ? "Today's last-minute times — bookable up to 30 minutes before."
+          : "Choose a drop-off time."}
       </p>
 
       <div className="wizard-card">
@@ -163,12 +179,16 @@ export function SlotSelection({
                 </div>
               </div>
               <h3 className="portal-empty-title" style={{ fontSize: 16, marginTop: 4 }}>
-                Fully booked on {formatDateLabel(selectedDate)}
+                {isToday
+                  ? "Today's last-minute times have gone"
+                  : `Fully booked on ${formatDateLabel(selectedDate)}`}
               </h3>
               <p className="portal-empty-body">
-                Try a different day, or pop on the waitlist and we&apos;ll text you if a slot opens up.
+                {isToday
+                  ? "They do get snapped up fast — pick another day and we'll see you then."
+                  : "Try a different day, or pop on the waitlist and we'll text you if a slot opens up."}
               </p>
-              {onJoinWaitlist && (
+              {!isToday && onJoinWaitlist && (
                 <button
                   type="button"
                   onClick={onJoinWaitlist}

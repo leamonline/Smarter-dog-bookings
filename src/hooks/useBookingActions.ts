@@ -45,6 +45,12 @@ interface SupabaseFns {
     seatIndex: number,
     action: string,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
+  // Whole-slot "open for immediate booking" toggle (useDaySettings) — same
+  // upsertSetting outcome union as the rest of the day-settings family.
+  sbToggleImmediateSlot: (
+    dateStr: string,
+    slot: string,
+  ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
   sbAddExtraSlot: (
     dateStr: string,
   ) => Promise<{ ok: true; value: DaySettings } | { ok: false; error: string }>;
@@ -101,6 +107,9 @@ interface OfflineFns {
   // of the old declared union belonged to the ONLINE setOverride, which is
   // now typed truthfully above).
   handleOverride: (slot: string, seatIndex: number, action: string) => { ok: true };
+  // Offline mirror of the immediate-slot toggle — synchronous + infallible
+  // like handleOverride.
+  toggleImmediateSlot: (slot: string) => { ok: true };
   handleAddSlot: () => void;
   handleRemoveSlot: () => void;
   // (idOrName, updates) like the online hooks; updateDog resolves to the
@@ -164,6 +173,7 @@ export function useBookingActions({
     sbRemoveBooking,
     sbToggleDayOpen,
     sbSetOverride,
+    sbToggleImmediateSlot,
     sbAddExtraSlot,
     sbRemoveExtraSlot,
   } = sb;
@@ -204,6 +214,10 @@ export function useBookingActions({
       sbSetOverride(currentDateStr, slot, seatIndex, action),
     [sbSetOverride, currentDateStr],
   );
+  const onlineToggleImmediateSlot = useCallback(
+    (slot: string) => sbToggleImmediateSlot(currentDateStr, slot),
+    [sbToggleImmediateSlot, currentDateStr],
+  );
   const onlineHandleAddSlot = useCallback(
     () => sbAddExtraSlot(currentDateStr),
     [sbAddExtraSlot, currentDateStr],
@@ -229,6 +243,9 @@ export function useBookingActions({
     handleUpdate: isOnline ? sb.sbUpdateBooking : offline.handleUpdate,
     toggleDayOpen: isOnline ? onlineToggleDayOpen : offline.toggleDayOpen,
     handleOverride: isOnline ? onlineHandleOverride : offline.handleOverride,
+    toggleImmediateSlot: isOnline
+      ? onlineToggleImmediateSlot
+      : offline.toggleImmediateSlot,
     handleAddSlot: isOnline ? onlineHandleAddSlot : offline.handleAddSlot,
     handleRemoveSlot: isOnline ? onlineHandleRemoveSlot : offline.handleRemoveSlot,
     updateDog: isOnline ? sb.sbUpdateDog : offline.updateDog,
