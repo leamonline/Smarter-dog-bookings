@@ -292,6 +292,44 @@ export function createCustomerBookingGroup(
   });
 }
 
+// Staff booking creation ------------------------------------------------
+
+// One row per dog in a same-date staff booking group. Unlike the customer
+// RPC, size is staff-authoritative (staff may override a dog's stored size
+// per booking) and `id` is the client-generated uuid so the optimistic row,
+// the returned row and the realtime echo all match. No group_id — the staff
+// flow has never grouped rows and changing that would alter cancel semantics.
+export interface StaffBookingGroupRow {
+  id?: string;
+  dog_id: string;
+  slot: string;
+  service: string;
+  size?: string | null;
+  status?: string;
+  confirmed?: boolean;
+  addons?: string[];
+  payment?: string;
+  pickup_by_id?: string | null;
+  staff_capacity_override?: boolean;
+  notify_human_ids?: string[];
+  confirmation_channel?: string;
+}
+
+// Atomic staff write path for a multi-dog booking (AUDIT-3): all rows insert
+// in one transaction, so a capacity/duplicate rejection on any dog rolls the
+// whole group back instead of leaving a partial booking. SECURITY INVOKER —
+// runs as the calling staff user under the same RLS policy and BEFORE-INSERT
+// gates as the direct single insert it complements.
+export function createStaffBookingGroup(
+  client: SupabaseClient,
+  params: { bookingDate: string; bookings: StaffBookingGroupRow[] },
+) {
+  return client.rpc("create_staff_booking_group", {
+    p_booking_date: params.bookingDate,
+    p_bookings: params.bookings,
+  });
+}
+
 // Staff WhatsApp inbox -------------------------------------------------
 
 // Apply a pending booking proposal that the AI agent attached to a

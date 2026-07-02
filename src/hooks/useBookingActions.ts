@@ -17,6 +17,13 @@ import type { Booking, Dog, Human, SalonConfig, DaySettings, BookingsByDate } fr
 //     (useDogs.ts / useHumans.ts).
 interface SupabaseFns {
   sbAddBooking: (dateStr: string, booking: Booking) => Promise<unknown>;
+  // Atomic same-date multi-dog save (AUDIT-3): resolves to the saved
+  // bookings array, or null when the DB rejected the group (all rows
+  // rolled back together).
+  sbAddBookingGroup: (
+    dateStr: string,
+    bookings: Booking[],
+  ) => Promise<unknown>;
   sbRemoveBooking: (dateStr: string, bookingId: string) => Promise<unknown>;
   sbUpdateBooking: (
     booking: Booking & { staff_capacity_override?: boolean },
@@ -153,12 +160,14 @@ export function useBookingActions({
   // `sb` object as a dep.
   const {
     sbAddBooking,
+    sbAddBookingGroup,
     sbRemoveBooking,
     sbToggleDayOpen,
     sbSetOverride,
     sbAddExtraSlot,
     sbRemoveExtraSlot,
   } = sb;
+  const { handleAddToDate: offlineHandleAddToDate } = offline;
 
   const onlineHandleAdd = useCallback(
     (booking: Booking, targetDateStr: string = currentDateStr) =>
@@ -168,6 +177,19 @@ export function useBookingActions({
   const onlineHandleAddToDate = useCallback(
     (booking: Booking, dateStr: string) => sbAddBooking(dateStr, booking),
     [sbAddBooking],
+  );
+  const onlineHandleAddGroupToDate = useCallback(
+    (bookings: Booking[], dateStr: string) => sbAddBookingGroup(dateStr, bookings),
+    [sbAddBookingGroup],
+  );
+  // Offline has no transaction to speak of — the optimistic adds are local
+  // and infallible, so "atomic" degrades gracefully to a per-dog loop.
+  const offlineHandleAddGroupToDate = useCallback(
+    async (bookings: Booking[], dateStr: string) => {
+      for (const b of bookings) offlineHandleAddToDate(b, dateStr);
+      return bookings;
+    },
+    [offlineHandleAddToDate],
   );
   const onlineHandleRemove = useCallback(
     (bookingId: string) => sbRemoveBooking(currentDateStr, bookingId),
@@ -200,6 +222,9 @@ export function useBookingActions({
     daySettings: isOnline ? onlineData.daySettings : offline.daySettings,
     handleAdd: isOnline ? onlineHandleAdd : offline.handleAdd,
     handleAddToDate: isOnline ? onlineHandleAddToDate : offline.handleAddToDate,
+    handleAddGroupToDate: isOnline
+      ? onlineHandleAddGroupToDate
+      : offlineHandleAddGroupToDate,
     handleRemove: isOnline ? onlineHandleRemove : offline.handleRemove,
     handleUpdate: isOnline ? sb.sbUpdateBooking : offline.handleUpdate,
     toggleDayOpen: isOnline ? onlineToggleDayOpen : offline.toggleDayOpen,

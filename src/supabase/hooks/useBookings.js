@@ -5,6 +5,7 @@ import { takeBootPrefetch } from "../bootPrefetch.js";
 import { fetchBookingsWeek } from "../queries/bootQueries.js";
 import { registerResume } from "../refreshOnResume.js";
 import { dbBookingsToArray, toDateStr } from "../transforms";
+import { createStaffBookingGroup } from "../rpc";
 import { BOOKING_STATUS } from "../../constants/salon";
 import { isCapacityRejection } from "../../engine/capacity";
 import { logger } from "../../lib/logger";
@@ -26,6 +27,39 @@ function friendlyBookingError(err) {
     return "That slot just filled up — please pick another time.";
   }
   return raw || "Couldn't save the booking — please try again.";
+}
+
+// Map a modal-built booking to the bookings INSERT column shape. Shared by
+// the single insert (addBooking) and the atomic group path (addBookingGroup)
+// so the two can't drift.
+function toInsertPayload(dateStr, booking, dogId, pickupHumanId) {
+  return {
+    booking_date: dateStr,
+    slot: booking.slot,
+    dog_id: dogId,
+    size: booking.size,
+    service: booking.service,
+    status: booking.status || BOOKING_STATUS.BOOKED,
+    addons: booking.addons || [],
+    pickup_by_id: pickupHumanId || null,
+    payment: booking.payment || "Due at Pick-up",
+    confirmed: booking.confirmed ?? false,
+    ...(booking.group_id ? { group_id: booking.group_id } : {}),
+    ...(booking.staff_capacity_override ? { staff_capacity_override: true } : {}),
+    // Explicit notification recipients (owner + chosen trusted humans).
+    // Omitted when only the owner is selected — the notify functions then
+    // fall back to the dog owner (the default for every other booking).
+    ...(booking.notify_human_ids?.length
+      ? { notify_human_ids: booking.notify_human_ids }
+      : {}),
+    // Staff confirmation choice from the New Booking dialog
+    // ('auto' | 'whatsapp' | 'sms' | 'email' | 'none'). Omitted when unset
+    // so the column DEFAULT 'auto' applies — the behaviour every other
+    // insert path (customer RPC, AI agent) keeps.
+    ...(booking.confirmation_channel
+      ? { confirmation_channel: booking.confirmation_channel }
+      : {}),
+  };
 }
 
 function groupBookingsByDate(rows, dogsById, humansById) {
@@ -224,33 +258,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
             )?.id
           : null);
 
-      const insertPayload = {
-        booking_date: dateStr,
-        slot: booking.slot,
-        dog_id: dogId,
-        size: booking.size,
-        service: booking.service,
-        status: booking.status || BOOKING_STATUS.BOOKED,
-        addons: booking.addons || [],
-        pickup_by_id: pickupHumanId || null,
-        payment: booking.payment || "Due at Pick-up",
-        confirmed: booking.confirmed ?? false,
-        ...(booking.group_id ? { group_id: booking.group_id } : {}),
-        ...(booking.staff_capacity_override ? { staff_capacity_override: true } : {}),
-        // Explicit notification recipients (owner + chosen trusted humans).
-        // Omitted when only the owner is selected — the notify functions then
-        // fall back to the dog owner (the default for every other booking).
-        ...(booking.notify_human_ids?.length
-          ? { notify_human_ids: booking.notify_human_ids }
-          : {}),
-        // Staff confirmation choice from the New Booking dialog
-        // ('auto' | 'whatsapp' | 'sms' | 'email' | 'none'). Omitted when unset
-        // so the column DEFAULT 'auto' applies — the behaviour every other
-        // insert path (customer RPC, AI agent) keeps.
-        ...(booking.confirmation_channel
-          ? { confirmation_channel: booking.confirmation_channel }
-          : {}),
-      };
+      const insertPayload = toInsertPayload(dateStr, booking, dogId, pickupHumanId);
 
       // Optimistic: insert a RAW row keyed by a client-generated id that we
       // ALSO send to the DB, so the row's id stays stable across the
@@ -284,6 +292,82 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       setRows((prev) => (prev || []).map((r) => (r.id === newId ? data : r)));
 
       return dbBookingsToArray([data], dogsById, humansById)[0];
+    },
+    [dogsById, humansById],
+  );
+
+  // Atomic multi-dog save for one date (AUDIT-3). The single-insert path
+  // above saves each dog independently, so a mid-group rejection (capacity
+  // race, duplicate) used to leave a partial booking behind. This path sends
+  // the whole group to create_staff_booking_group — all rows insert in one
+  // transaction, so a rejection on any dog rolls back every dog and the
+  // caller gets one clear error. Same contract as addBooking: resolves to
+  // the saved bookings, or null on a DB rejection.
+  const addBookingGroup = useCallback(
+    async (dateStr, bookings) => {
+      if (!supabase) return bookings;
+
+      setError(null);
+
+      const payloads = [];
+      for (const booking of bookings) {
+        const dogId =
+          booking._dogId ||
+          Object.values(dogsById || {}).find((d) => d.name === booking.dogName)
+            ?.id;
+
+        if (!dogId) {
+          const message = `Dog not found for booking: ${booking.dogName}`;
+          logger.error(message, undefined, {
+            tags: { hook: "useBookings", op: "addBookingGroup" },
+            extra: { dogName: booking.dogName },
+          });
+          setError(message);
+          onErrorRef.current?.(message);
+          return null;
+        }
+
+        const pickupHumanId =
+          booking._pickupById ||
+          (booking.pickupBy
+            ? Object.values(humansById || {}).find(
+                (h) => h.fullName === booking.pickupBy,
+              )?.id
+            : null);
+
+        // Fresh client id per row (same reasoning as addBooking): the RPC
+        // inserts with these ids, so the optimistic rows, the returned rows
+        // AND the realtime INSERT echoes all match in place.
+        payloads.push({
+          id: crypto.randomUUID(),
+          ...toInsertPayload(dateStr, booking, dogId, pickupHumanId),
+        });
+      }
+
+      // Optimistic: the whole group appears at once.
+      setRows((prev) => [...(prev || []), ...payloads]);
+
+      const { data, error: err } = await createStaffBookingGroup(supabase, {
+        bookingDate: dateStr,
+        bookings: payloads,
+      });
+
+      if (err) {
+        const ids = new Set(payloads.map((p) => p.id));
+        setRows((prev) => (prev || []).filter((r) => !ids.has(r.id)));
+        logger.error("Failed to add booking group", err, {
+          tags: { hook: "useBookings", op: "addBookingGroup" },
+        });
+        const friendly = friendlyBookingError(err);
+        setError(friendly);
+        onErrorRef.current?.(friendly);
+        return null;
+      }
+
+      const byId = new Map((data || []).map((r) => [r.id, r]));
+      setRows((prev) => (prev || []).map((r) => byId.get(r.id) || r));
+
+      return dbBookingsToArray(data || [], dogsById, humansById);
     },
     [dogsById, humansById],
   );
@@ -452,6 +536,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     loading,
     error,
     addBooking,
+    addBookingGroup,
     removeBooking,
     updateBooking,
     fetchBookingHistoryForDog,
