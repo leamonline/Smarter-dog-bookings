@@ -1,4 +1,5 @@
-import { SALON_SLOTS, DAILY_DOG_CAP } from "../constants/index";
+import { DAILY_DOG_CAP } from "../constants/index";
+import { buildSlotGrid } from "./slotGrid";
 import { canBookSlot } from "./capacity";
 import { isDateOpen } from "./utils";
 import { toDateStr } from "../supabase/transforms";
@@ -182,7 +183,7 @@ export function findNextAvailable({
     const settings = daySettings?.[dateStr];
     const extraSlots = settings?.extraSlots ?? [];
     const overridesForSlot = settings?.overrides ?? {};
-    const slots = [...SALON_SLOTS, ...extraSlots];
+    const slots = buildSlotGrid(extraSlots);
     const dayBookings: Booking[] = bookingsByDate?.[dateStr] || [];
     for (const slot of slots) {
       const overrides = overridesForSlot[slot] || {};

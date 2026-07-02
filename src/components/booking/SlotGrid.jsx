@@ -12,8 +12,8 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop";
 import { currentSlotIndex } from "../../engine/utilisation";
 import { isBeforeImmediateCutoff } from "../../engine/immediateBooking";
+import { SLOT_SHAPE } from "../../engine/slotGrid";
 import { toDateStr } from "../../supabase/transforms";
-import { SALON_SLOTS } from "../../constants/index.ts";
 
 export function SlotGrid({
   bookings,
@@ -160,15 +160,15 @@ export function SlotGrid({
 
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
-    // Immediate ("last minute") booking: offer the toggle only on today's
-    // canonical slots (customers can never book extra_slots — active_slots()
-    // rejects them) while the 30-min cutoff hasn't passed. An already-flagged
-    // slot can always be un-flagged, even after its cutoff.
+    // Immediate ("last minute") booking: offer the toggle on today's slots
+    // — canonical AND well-formed extra slots (the DB grid accepts a date's
+    // sanitised extra_slots) — while the 30-min cutoff hasn't passed. An
+    // already-flagged slot can always be un-flagged, even after its cutoff.
     const isImmediate = isToday && (immediateSlots || []).includes(slot);
     const canToggleImmediate =
       isToday &&
       !!onToggleImmediate &&
-      SALON_SLOTS.includes(slot) &&
+      SLOT_SHAPE.test(slot) &&
       (isImmediate || isBeforeImmediateCutoff(slot, new Date()));
 
     // Subtle alternating row tint to give the eye an anchor as it

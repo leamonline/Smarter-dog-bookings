@@ -78,10 +78,14 @@ These are the rules most easily broken by a careless change. The capacity rules 
 **frontend engine** *and* an **authoritative Postgres trigger** (the DB is the source of truth). Deep
 dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 
-- **Bookable slots:** `08:30`–`13:00`, **30-minute** intervals (10 slots). `SALON_SLOTS`
-  [salon.ts:1](src/constants/salon.ts:1); `SLOT_MINUTES = 30` [utilisation.ts:82](src/engine/utilisation.ts:82).
-  ⚠️ **Code diverges from the stated "08:30–15:00":** only **08:30–13:00 is bookable** (13:00 = last
-  drop-off, matching the stated 13:00 last-booking); the salon's 15:00 close is not modelled.
+- **Bookable slots:** the canonical grid is `08:30`–`13:00`, **30-minute** intervals (10 slots) —
+  `SALON_SLOTS` [salon.ts:1](src/constants/salon.ts:1); `SLOT_MINUTES = 30` [utilisation.ts:82](src/engine/utilisation.ts:82).
+  Staff can add per-date **extra slots** after 13:00 (`day_settings.extra_slots`); the bookable grid
+  for a date is `active_slots_for(date)` = canonical ∪ sanitised extras
+  ([migration 20260702170000](supabase/migrations/20260702170000_extra_slots_bookable.sql); TS mirror
+  `buildSlotGrid` in [slotGrid.ts](src/engine/slotGrid.ts) + `_shared/salonConstants.ts`). Extra slots
+  reach **customers only as same-day "last minute" openings** (see below); staff book them any day.
+  Large dogs are never extra-slot eligible.
 - **Open days:** Mon–Wed. `ALL_DAYS` defaults `mon/tue/wed` open [salon.ts:16](src/constants/salon.ts:16);
   at runtime the authoritative open/closed days live in the DB (`day_settings`, read by
   `validate_booking_calendar()`). ⚠️ A second, conflicting default exists — `DEFAULT_BUSINESS_HOURS`

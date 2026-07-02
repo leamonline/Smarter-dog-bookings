@@ -1,10 +1,10 @@
-import { SALON_SLOTS } from "../../../constants/index";
 import { computeSlotCapacities, canBookSlot } from "../../../engine/capacity";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 
 export function TimeSlotPicker({ dateStr, bookingsByDate, daySettings, selectedDogs, onSelectSlot, selectedSlot, sizeTheme }) {
   const dayBookings = bookingsByDate?.[dateStr] || [];
   const settings = daySettings?.[dateStr];
-  const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
+  const activeSlots = buildSlotGrid(settings?.extraSlots || []);
   const capacities = computeSlotCapacities(dayBookings, activeSlots);
 
   // Compute every slot's state up front. Slots are NEVER filtered out

@@ -15,6 +15,7 @@ import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
 import { SALON_SLOTS, DAILY_DOG_CAP } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
@@ -274,10 +275,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const dogsForSlots = selectedDogs.map((d) => ({ id: d.dogId, size: d.size }));
       // Re-check against the same blocked-seat overrides the slot picker used,
       // so a seat blocked after the customer picked it is caught here too.
+      // Same-day re-checks run on the extended grid (canonical + flagged
+      // extras), mirroring SlotSelection.
       let stillAvailable = findGroupedSlots(
         dogsForSlots,
         bookings,
-        SALON_SLOTS,
+        selectedDate === immediate.date ? buildSlotGrid(immediate.slots) : SALON_SLOTS,
         DAILY_DOG_CAP,
         blockedByDate[selectedDate] || {},
       );

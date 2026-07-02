@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { SALON_SLOTS } from "../../../constants/index";
+import { buildSlotGrid } from "../../../engine/slotGrid";
 import { computeSlotCapacities } from "../../../engine/capacity";
 import { isDateOpen } from "../../../engine/utils";
 import { toDateStr } from "../../../supabase/transforms";
@@ -49,7 +49,7 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
     // Check if there's any availability (at least one slot not full)
     const dayBookings = bookingsByDate?.[dateStr] || [];
     const settings = daySettings?.[dateStr];
-    const activeSlots = [...SALON_SLOTS, ...(settings?.extraSlots || [])];
+    const activeSlots = buildSlotGrid(settings?.extraSlots || []);
     const capacities = computeSlotCapacities(dayBookings, activeSlots);
     const hasAvailability = Object.values(capacities).some(c => c.available > 0);
 

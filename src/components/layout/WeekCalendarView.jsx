@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { SALON_SLOTS } from "../../constants/index.ts";
+import { buildSlotGrid } from "../../engine/slotGrid";
 import { excludeCancelled } from "../../engine/occupancy";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
 import { PullToRefresh } from "../shared/PullToRefresh.jsx";
@@ -136,7 +136,7 @@ export function WeekCalendarView({
   };
 
   const activeSlots = useMemo(() => {
-    return [...SALON_SLOTS, ...(currentSettings.extraSlots || [])];
+    return buildSlotGrid(currentSettings.extraSlots || []);
   }, [currentSettings.extraSlots]);
 
   const openNewBooking = (dateStr, slot, options = {}) =>

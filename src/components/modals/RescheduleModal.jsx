@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
-import { SALON_SLOTS, SIZE_FALLBACK } from "../../constants/index";
+import { SIZE_FALLBACK } from "../../constants/index";
+import { buildSlotGrid } from "../../engine/slotGrid";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { getDefaultOpenForDate } from "../../engine/utils";
 import { DAY_CAPACITY } from "../../engine/utilisation";
@@ -97,7 +98,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
   const slotStates = useMemo(() => {
     if (!selectedDateStr) return [];
     const settings = monthDaySettings[selectedDateStr] || { overrides: {}, extraSlots: [] };
-    const activeSlots = [...SALON_SLOTS, ...(settings.extraSlots || [])];
+    const activeSlots = buildSlotGrid(settings.extraSlots || []);
     const out = [];
     for (const slot of activeSlots) {
       const result = canBookSlot(dayBookings, slot, booking.size, activeSlots, {

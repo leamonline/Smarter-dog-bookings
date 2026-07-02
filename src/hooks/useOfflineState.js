@@ -310,6 +310,8 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
         h += 1;
         m -= 60;
       }
+      // Mirror useDaySettings.addExtraSlot: never generate a 24:00+ slot.
+      if (h > 23) return prev;
       const newSlot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
       return {
         ...prev,
