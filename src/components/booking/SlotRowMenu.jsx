@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, Clock, CalendarPlus, AlertTriangle } from "lucide-react";
+import { Ban, Clock, CalendarPlus, AlertTriangle, Zap } from "lucide-react";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 function formatSlot(slot) {
@@ -22,6 +22,10 @@ function formatSlot(slot) {
  *  - "Override & book" when the slot is fully booked → confirm dialog,
  *    then `onOverbook()` opens NewBookingModal with the override armed.
  *  - "Block …" items for free seats → `onBlockSeat(index)`.
+ *  - "Open for immediate booking" / "Remove immediate booking" →
+ *    `onToggleImmediate()`. The parent (SlotGrid) only passes the callback
+ *    on today's slots before the 30-minute cutoff — the menu itself stays
+ *    date-agnostic, like the rest of its options.
  *
  * The menu is portalled to document.body so it escapes the parent
  * row's opacity:0.7 (on empty rows).
@@ -34,6 +38,8 @@ export function SlotRowMenu({
   hasBooking,
   onOpenBooking,
   onOverbook,
+  isImmediate,
+  onToggleImmediate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
@@ -73,7 +79,10 @@ export function SlotRowMenu({
   const canBook = !disabled && hasFreeSeat && !!onOpenBooking;
   const canOverbook = !disabled && isFullyBooked && !!onOverbook;
   const canBlock = !disabled && !!onBlockSeat && availableSeats.length > 0;
-  const hasActions = canBook || canOverbook || canBlock;
+  // Opening needs a free seat to be worth anything; un-flagging is always
+  // offered while the flag is set, even once the slot has filled.
+  const canImmediate = !disabled && !!onToggleImmediate && (hasFreeSeat || isImmediate);
+  const hasActions = canBook || canOverbook || canBlock || canImmediate;
 
   const openMenu = () => {
     if (!hasActions) return;
@@ -231,6 +240,16 @@ export function SlotRowMenu({
                 />
               ))
             )
+          )}
+          {canImmediate && (
+            <MenuItem
+              icon={Zap}
+              label={isImmediate ? "Remove immediate booking" : "Open for immediate booking"}
+              onClick={() => {
+                setMenuOpen(false);
+                onToggleImmediate();
+              }}
+            />
           )}
         </div>,
         document.body,

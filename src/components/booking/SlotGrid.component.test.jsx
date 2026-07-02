@@ -7,7 +7,7 @@ import { SlotGrid } from "./SlotGrid.jsx";
 
 const SLOTS = ["08:30", "09:00", "09:30"];
 
-function renderGrid(currentDateStr, bookings = []) {
+function renderGrid(currentDateStr, bookings = [], gridProps = {}) {
   return render(
     <ToastProvider>
       <SalonProvider
@@ -33,6 +33,7 @@ function renderGrid(currentDateStr, bookings = []) {
           onOpenNewBooking={vi.fn()}
           currentDateStr={currentDateStr}
           overrides={{}}
+          {...gridProps}
         />
       </SalonProvider>
     </ToastProvider>,
@@ -79,6 +80,32 @@ describe("SlotGrid — today-only Now indicator", () => {
     vi.setSystemTime(new Date(2026, 5, 2, 7, 0)); // before the first slot
     renderGrid("2026-06-02");
     expect(screen.queryByText("Now")).toBeNull();
+  });
+});
+
+describe("SlotGrid — last-minute (immediate) slots", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows the Last minute chip on a flagged slot when viewing today", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 5, 2, 8, 0)); // Tue 2 Jun 2026, 08:00 local
+    renderGrid("2026-06-02", [], {
+      immediateSlots: ["09:00"],
+      onToggleImmediate: vi.fn(),
+    });
+    expect(screen.getByText("Last minute")).toBeInTheDocument();
+  });
+
+  it("shows no chip for the same flags when viewing another date", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 5, 2, 8, 0));
+    renderGrid("2026-06-03", [], {
+      immediateSlots: ["09:00"],
+      onToggleImmediate: vi.fn(),
+    });
+    expect(screen.queryByText("Last minute")).toBeNull();
   });
 });
 

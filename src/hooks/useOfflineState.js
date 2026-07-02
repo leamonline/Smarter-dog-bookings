@@ -46,6 +46,7 @@ function buildDefaultDaySettings(weekStart) {
       isOpen: day.defaultOpen,
       overrides: {},
       extraSlots: [],
+      immediateSlots: [],
     };
   });
   return settings;
@@ -236,6 +237,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
           isOpen: getDefaultOpenForDate(currentDateObj),
           overrides: {},
           extraSlots: [],
+          immediateSlots: [],
         }),
         isOpen: !(
           prev[currentDateStr]?.isOpen ?? getDefaultOpenForDate(currentDateObj)
@@ -251,6 +253,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
           isOpen: getDefaultOpenForDate(currentDateObj),
           overrides: {},
           extraSlots: [],
+          immediateSlots: [],
         };
         const overrides = { ...current.overrides };
         const slotOv = { ...(overrides[slot] || {}) };
@@ -265,12 +268,36 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     [currentDateStr, currentDateObj],
   );
 
+  // Offline mirror of useDaySettings.toggleImmediateSlot — powers the E2E
+  // suite and the offline preview. Synchronous + infallible like
+  // offlineHandleOverride.
+  const offlineToggleImmediateSlot = useCallback(
+    (slot) => {
+      setOfflineDaySettings((prev) => {
+        const current = prev[currentDateStr] || {
+          isOpen: getDefaultOpenForDate(currentDateObj),
+          overrides: {},
+          extraSlots: [],
+          immediateSlots: [],
+        };
+        const existing = current.immediateSlots || [];
+        const immediateSlots = existing.includes(slot)
+          ? existing.filter((s) => s !== slot)
+          : [...existing, slot];
+        return { ...prev, [currentDateStr]: { ...current, immediateSlots } };
+      });
+      return { ok: true };
+    },
+    [currentDateStr, currentDateObj],
+  );
+
   const offlineHandleAddSlot = useCallback(() => {
     setOfflineDaySettings((prev) => {
       const current = prev[currentDateStr] || {
         isOpen: getDefaultOpenForDate(currentDateObj),
         overrides: {},
         extraSlots: [],
+        immediateSlots: [],
       };
       const existing = current.extraSlots || [];
       const lastSlot =
@@ -297,6 +324,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
         isOpen: getDefaultOpenForDate(currentDateObj),
         overrides: {},
         extraSlots: [],
+        immediateSlots: [],
       };
       const existing = current.extraSlots || [];
       if (existing.length === 0) return prev;
@@ -324,6 +352,7 @@ export function useOfflineState(weekStart, currentDateStr, currentDateObj) {
     handleUpdate: offlineHandleUpdate,
     toggleDayOpen: offlineToggleDayOpen,
     handleOverride: offlineHandleOverride,
+    toggleImmediateSlot: offlineToggleImmediateSlot,
     handleAddSlot: offlineHandleAddSlot,
     handleRemoveSlot: offlineHandleRemoveSlot,
   };

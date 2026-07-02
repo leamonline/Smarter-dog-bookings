@@ -528,6 +528,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     loading: dsl,
     toggleDayOpen: sbToggleDayOpen,
     setOverride: sbSetOverride,
+    toggleImmediateSlot: sbToggleImmediateSlot,
     addExtraSlot: sbAddExtraSlot,
     removeExtraSlot: sbRemoveExtraSlot,
   } = useDaySettings(weekStart);
@@ -580,14 +581,14 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const {
     dogs, humans, bookingsByDate, salonConfig, daySettings,
     handleAdd, handleAddToDate, handleAddGroupToDate, handleRemove, handleUpdate,
-    toggleDayOpen, handleOverride, handleAddSlot, handleRemoveSlot,
+    toggleDayOpen, handleOverride, toggleImmediateSlot, handleAddSlot, handleRemoveSlot,
     updateDog, updateHuman, updateConfig, addHuman, addDog,
   } = useBookingActions({
     isOnline,
     currentDateStr,
     supabase: {
       sbAddBooking, sbAddBookingGroup, sbRemoveBooking, sbUpdateBooking,
-      sbToggleDayOpen, sbSetOverride, sbAddExtraSlot, sbRemoveExtraSlot,
+      sbToggleDayOpen, sbSetOverride, sbToggleImmediateSlot, sbAddExtraSlot, sbRemoveExtraSlot,
       sbUpdateDog, sbUpdateHuman, sbUpdateConfig, sbAddHuman, sbAddDog,
     },
     offline,
@@ -1003,6 +1004,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       handleRemove={handleRemove}
                       handleUpdate={handleUpdate}
                       handleOverride={handleOverride}
+                      toggleImmediateSlot={toggleImmediateSlot}
                       handleAddSlot={handleAddSlot}
                       handleRemoveSlot={handleRemoveSlot}
                       toggleDayOpen={toggleDayOpen}

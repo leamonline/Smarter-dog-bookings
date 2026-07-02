@@ -7,10 +7,13 @@ import { GhostSeat } from "./GhostSeat.jsx";
 import { BlockedSeatCell } from "./BlockedSeatCell.jsx";
 import { SkeletonCard } from "../shared/SkeletonCard.jsx";
 import { SlotRowMenu } from "./SlotRowMenu.jsx";
+import { Zap } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useSlotDragAndDrop } from "../../hooks/useSlotDragAndDrop";
 import { currentSlotIndex } from "../../engine/utilisation";
+import { isBeforeImmediateCutoff } from "../../engine/immediateBooking";
 import { toDateStr } from "../../supabase/transforms";
+import { SALON_SLOTS } from "../../constants/index.ts";
 
 export function SlotGrid({
   bookings,
@@ -21,6 +24,8 @@ export function SlotGrid({
   currentDateStr,
   overrides,
   onOverride,
+  immediateSlots,
+  onToggleImmediate,
   searchQuery,
 }) {
   const toast = useToast();
@@ -97,6 +102,21 @@ export function SlotGrid({
     }
   }, [onOverride, toast]);
 
+  // Whole-slot "open for immediate booking" toggle — same optimistic
+  // toast-with-undo shape as block/unblock above.
+  const toggleImmediate = useCallback(async (slot, wasImmediate) => {
+    if (!onToggleImmediate) return;
+    const message = wasImmediate
+      ? "Last-minute booking closed"
+      : `Open for last-minute booking — customers can grab ${slot} online`;
+    const toastId = toast.show(message, "info", () => onToggleImmediate(slot));
+    const result = await onToggleImmediate(slot);
+    if (result?.ok === false) {
+      toast.dismiss?.(toastId);
+      toast.show(result.error || "Couldn't update last-minute booking — give it another go?", "error");
+    }
+  }, [onToggleImmediate, toast]);
+
   const searchActive = searchQuery && searchQuery.trim().length > 0;
   const searchLower = searchActive ? searchQuery.toLowerCase().trim() : "";
 
@@ -106,6 +126,11 @@ export function SlotGrid({
     if (currentDateStr !== toDateStr(new Date())) return -1;
     return currentSlotIndex(activeSlots, new Date());
   }, [currentDateStr, activeSlots]);
+
+  // "Open for immediate booking" only exists on today's view — the flag
+  // means "customers may book this slot TODAY", so it has nothing to say
+  // on any other date.
+  const isToday = currentDateStr === toDateStr(new Date());
 
   // Opening today's schedule mid-shift lands you on the slot in progress
   // rather than 8:30. Once per mount — navigating between days and back
@@ -135,6 +160,17 @@ export function SlotGrid({
 
     const hasBooking = seatStates.some((s) => s.type === "booking");
 
+    // Immediate ("last minute") booking: offer the toggle only on today's
+    // canonical slots (customers can never book extra_slots — active_slots()
+    // rejects them) while the 30-min cutoff hasn't passed. An already-flagged
+    // slot can always be un-flagged, even after its cutoff.
+    const isImmediate = isToday && (immediateSlots || []).includes(slot);
+    const canToggleImmediate =
+      isToday &&
+      !!onToggleImmediate &&
+      SALON_SLOTS.includes(slot) &&
+      (isImmediate || isBeforeImmediateCutoff(slot, new Date()));
+
     // Subtle alternating row tint to give the eye an anchor as it
     // scans down the day. Even-index rows (08:30, 09:30, 10:30…)
     // pick up a hint of blue; odd-index rows stay clean white.
@@ -160,6 +196,12 @@ export function SlotGrid({
           onOverbook={
             onOpenNewBooking
               ? () => onOpenNewBooking(currentDateStr, slot, { capacityOverride: true })
+              : undefined
+          }
+          isImmediate={isImmediate}
+          onToggleImmediate={
+            canToggleImmediate
+              ? () => toggleImmediate(slot, isImmediate)
               : undefined
           }
         />
@@ -239,6 +281,15 @@ export function SlotGrid({
           </>
         )}
 
+        {/* "Last minute" chip on flagged rows — top-right ("Now" owns
+            top-left) so the two can share a row without colliding. */}
+        {isImmediate && (
+          <span className="pointer-events-none absolute top-0 right-0 z-10 inline-flex items-center gap-1 rounded-bl-lg bg-brand-yellow px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-brand-purple shadow-sm">
+            <Zap size={9} strokeWidth={2.6} aria-hidden="true" />
+            Last minute
+          </span>
+        )}
+
         {loading ? (
           <div className={rowGrid}>
             {timeBox}
@@ -273,7 +324,7 @@ export function SlotGrid({
         )}
       </div>
     );
-  }, [block, unblock, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
+  }, [block, unblock, toggleImmediate, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, immediateSlots, onToggleImmediate, isToday, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
 
   return (
     <div>

@@ -23,6 +23,7 @@ function buildWeekDefaults(weekStart) {
       isOpen: getDefaultOpen(d),
       overrides: {},
       extraSlots: [],
+      immediateSlots: [],
     };
   }
   return defaults;
@@ -33,6 +34,7 @@ function mergeSetting(current = {}, updates = {}) {
     isOpen: updates.isOpen ?? current.isOpen ?? false,
     overrides: updates.overrides ?? current.overrides ?? {},
     extraSlots: updates.extraSlots ?? current.extraSlots ?? [],
+    immediateSlots: updates.immediateSlots ?? current.immediateSlots ?? [],
   };
 }
 
@@ -91,6 +93,7 @@ export function useDaySettings(weekStart) {
           isOpen: row.is_open,
           overrides: row.overrides || {},
           extraSlots: row.extra_slots || [],
+          immediateSlots: row.immediate_slots || [],
         };
       }
 
@@ -115,6 +118,7 @@ export function useDaySettings(weekStart) {
               isOpen: row.is_open,
               overrides: row.overrides || {},
               extraSlots: row.extra_slots || [],
+              immediateSlots: row.immediate_slots || [],
             },
           }));
         },
@@ -136,6 +140,7 @@ export function useDaySettings(weekStart) {
         isOpen: false,
         overrides: {},
         extraSlots: [],
+        immediateSlots: [],
       };
       prevSetting = current;
       const updates =
@@ -155,6 +160,7 @@ export function useDaySettings(weekStart) {
         is_open: nextSetting.isOpen,
         overrides: nextSetting.overrides,
         extra_slots: nextSetting.extraSlots,
+        immediate_slots: nextSetting.immediateSlots,
       },
       { onConflict: "setting_date" },
     );
@@ -195,6 +201,22 @@ export function useDaySettings(weekStart) {
     [upsertSetting],
   );
 
+  // Whole-slot "open for immediate booking" toggle: customers may book the
+  // slot same-day until 30 minutes before it starts (the DB enforces the
+  // rule; this just flips the flag). Add/remove semantics like setOverride.
+  const toggleImmediateSlot = useCallback(
+    (dateStr, slot) =>
+      upsertSetting(dateStr, (current) => {
+        const existing = current.immediateSlots || [];
+        return {
+          immediateSlots: existing.includes(slot)
+            ? existing.filter((s) => s !== slot)
+            : [...existing, slot],
+        };
+      }),
+    [upsertSetting],
+  );
+
   const addExtraSlot = useCallback(
     (dateStr) =>
       upsertSetting(dateStr, (current) => {
@@ -228,6 +250,7 @@ export function useDaySettings(weekStart) {
     loading,
     toggleDayOpen,
     setOverride,
+    toggleImmediateSlot,
     addExtraSlot,
     removeExtraSlot,
   };
