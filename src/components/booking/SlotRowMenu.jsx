@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Ban, Clock, CalendarPlus, AlertTriangle, Zap } from "lucide-react";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
@@ -8,6 +8,51 @@ function formatSlot(slot) {
   const hour = parseInt(h, 10);
   // 24-hour, no leading zero: "9:00", "9:30", "13:00"
   return `${hour}:${m}`;
+}
+
+// Menu geometry. Width is fixed; only the height is dynamic (2–6 items), so
+// only the height is measured before placing.
+const GAP = 8; // gap between the trigger box and the menu
+const MARGIN = 8; // min distance the menu keeps from any viewport edge
+const MENU_W = 220; // menu width (left-aligned rows + icon gutter)
+
+/**
+ * Pure placement maths — given the trigger's viewport rect and the MEASURED
+ * menu height, return where the menu should sit so it's never clipped.
+ *
+ * Preference order (matches the whitespace in each calendar row):
+ *   1. right of the trigger, top-aligned then clamped fully on-screen
+ *   2. left of the trigger (same clamp)
+ *   3. narrow screens — below, else above, centred + horizontally clamped
+ *   4. last resort — below with a vertical clamp so it's still on-screen
+ *
+ * `clampTop` is the fix for the original bug: it slides the menu up as needed
+ * so its whole height stays inside the viewport instead of running off the fold.
+ */
+export function computePlacement(rect, menuH, menuW = MENU_W) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const clampTop = (t) => Math.max(MARGIN, Math.min(t, vh - menuH - MARGIN));
+  const roomRight = vw - rect.right - GAP;
+  const roomLeft = rect.left - GAP;
+
+  if (roomRight >= menuW + MARGIN) {
+    return { placement: "right", top: clampTop(rect.top), left: rect.right + GAP };
+  }
+  if (roomLeft >= menuW + MARGIN) {
+    return { placement: "left", top: clampTop(rect.top), left: rect.left - GAP - menuW };
+  }
+  let left = rect.left + rect.width / 2 - menuW / 2;
+  left = Math.max(MARGIN, Math.min(left, vw - menuW - MARGIN));
+  const below = rect.bottom + GAP;
+  if (below + menuH <= vh - MARGIN) {
+    return { placement: "below", top: below, left };
+  }
+  const above = rect.top - GAP - menuH;
+  if (above >= MARGIN) {
+    return { placement: "above", top: above, left };
+  }
+  return { placement: "below", top: clampTop(below), left };
 }
 
 /**
@@ -42,10 +87,13 @@ export function SlotRowMenu({
   onToggleImmediate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [anchorRect, setAnchorRect] = useState(null);
+  const [anchorRect, setAnchorRect] = useState(null); // trigger rect (viewport coords)
+  const [pos, setPos] = useState(null); // {top,left,placement} — null until measured
   const [pendingOverbook, setPendingOverbook] = useState(false);
   const boxRef = useRef(null);
   const popRef = useRef(null);
+
+  const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -54,17 +102,45 @@ export function SlotRowMenu({
         !popRef.current?.contains(e.target) &&
         !boxRef.current?.contains(e.target)
       ) {
-        setMenuOpen(false);
+        closeMenu();
       }
     };
     const onKey = (e) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") closeMenu();
     };
     document.addEventListener("mousedown", handle);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", handle);
       document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  // Measure the rendered menu height, then place it — synchronously before
+  // paint so the unplaced frame is never visible (menu stays visibility:hidden
+  // until `pos` is set). Re-runs when it opens or the trigger rect moves.
+  useLayoutEffect(() => {
+    if (!menuOpen || !anchorRect) return;
+    const el = popRef.current;
+    if (!el) return;
+    const menuH = el.offsetHeight || 0;
+    setPos(computePlacement(anchorRect, menuH));
+  }, [menuOpen, anchorRect]);
+
+  // Keep the menu glued to its trigger if the page scrolls or resizes while
+  // open. Capture phase catches scrolls on inner scroll containers too.
+  // Re-reading the rect into `anchorRect` re-runs the placement effect above.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const sync = () => {
+      const r = boxRef.current?.getBoundingClientRect();
+      if (r) setAnchorRect(r);
+    };
+    window.addEventListener("scroll", sync, true);
+    window.addEventListener("resize", sync);
+    return () => {
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
     };
   }, [menuOpen]);
 
@@ -86,30 +162,21 @@ export function SlotRowMenu({
 
   const openMenu = () => {
     if (!hasActions) return;
+    if (menuOpen) {
+      closeMenu();
+      return;
+    }
     const r = boxRef.current?.getBoundingClientRect();
-    if (r) setAnchorRect(r);
-    setMenuOpen((o) => !o);
+    if (!r) return;
+    setAnchorRect(r);
+    setPos(null); // hide until measured this open cycle
+    setMenuOpen(true);
   };
 
   const handleConfirmOverbook = () => {
     setPendingOverbook(false);
     onOverbook?.();
   };
-
-  // Compute popover position in viewport coords. Clamped so it
-  // never sits half off-screen on the right edge.
-  let popLeft = 0;
-  let popTop = 0;
-  if (anchorRect) {
-    const POPUP_WIDTH = 200;
-    const margin = 8;
-    popTop = anchorRect.bottom + 6;
-    popLeft = anchorRect.left;
-    if (popLeft + POPUP_WIDTH > window.innerWidth - margin) {
-      popLeft = window.innerWidth - margin - POPUP_WIDTH;
-    }
-    if (popLeft < margin) popLeft = margin;
-  }
 
   const boxAriaLabel = !hasActions
     ? slotLabel
@@ -165,65 +232,75 @@ export function SlotRowMenu({
         <div
           ref={popRef}
           role="menu"
+          aria-label={`Slot actions for ${slotLabel}`}
           style={{
             position: "fixed",
-            top: popTop,
-            left: popLeft,
-            width: 200,
+            top: pos?.top ?? 0,
+            left: pos?.left ?? 0,
+            width: MENU_W,
             backgroundColor: "var(--color-brand-purple)",
+            visibility: pos ? "visible" : "hidden",
             zIndex: 1100,
           }}
-          className="rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-[0_12px_28px_rgba(45,0,75,0.45),0_4px_10px_rgba(45,0,75,0.3)] animate-[fadeIn_0.12s_ease-out]"
+          className="rounded-2xl p-1.5 flex flex-col shadow-[0_12px_28px_rgba(45,0,75,0.45),0_4px_10px_rgba(45,0,75,0.3)] animate-[fadeIn_0.12s_ease-out]"
         >
-          <div className="px-1 pb-1 text-[10px] font-bold text-brand-yellow uppercase tracking-wider">
+          <div className="px-2.5 pt-1.5 pb-2 text-[10px] font-bold text-brand-yellow uppercase tracking-wider">
             {slotLabel}
           </div>
           {canBook && (
             <MenuItem
+              variant="primary"
               icon={CalendarPlus}
               label="Book this time"
               onClick={() => {
-                setMenuOpen(false);
+                closeMenu();
                 onOpenBooking();
               }}
             />
           )}
           {canOverbook && (
             <MenuItem
+              variant="primary"
               icon={AlertTriangle}
               label="Override & book"
               onClick={() => {
-                setMenuOpen(false);
+                closeMenu();
                 setPendingOverbook(true);
               }}
             />
+          )}
+          {(canBook || canOverbook) && canBlock && (
+            <div role="separator" className="my-1 h-px bg-white/10" />
           )}
           {canBlock && (
             availableSeats.length === 2 ? (
               <>
                 <MenuItem
+                  variant="destructive"
                   icon={Ban}
                   label="Block this timeslot"
                   onClick={() => {
                     onBlockSeat(0);
                     onBlockSeat(1);
-                    setMenuOpen(false);
+                    closeMenu();
                   }}
                 />
                 <MenuItem
+                  variant="destructive"
                   icon={Ban}
                   label="Block seat 1 only"
                   onClick={() => {
                     onBlockSeat(0);
-                    setMenuOpen(false);
+                    closeMenu();
                   }}
                 />
                 <MenuItem
+                  variant="destructive"
                   icon={Ban}
                   label="Block seat 2 only"
                   onClick={() => {
                     onBlockSeat(1);
-                    setMenuOpen(false);
+                    closeMenu();
                   }}
                 />
               </>
@@ -231,22 +308,27 @@ export function SlotRowMenu({
               availableSeats.map(({ index }) => (
                 <MenuItem
                   key={index}
+                  variant="destructive"
                   icon={Ban}
                   label={`Block seat ${index + 1}`}
                   onClick={() => {
                     onBlockSeat(index);
-                    setMenuOpen(false);
+                    closeMenu();
                   }}
                 />
               ))
             )
           )}
+          {canImmediate && (canBook || canOverbook || canBlock) && (
+            <div role="separator" className="my-1 h-px bg-white/10" />
+          )}
           {canImmediate && (
             <MenuItem
+              variant="toggle"
               icon={Zap}
               label={isImmediate ? "Remove immediate booking" : "Open for immediate booking"}
               onClick={() => {
-                setMenuOpen(false);
+                closeMenu();
                 onToggleImmediate();
               }}
             />
@@ -258,16 +340,32 @@ export function SlotRowMenu({
   );
 }
 
-function MenuItem({ label, onClick, icon: Icon }) {
+const MENU_ITEM_VARIANTS = {
+  // Solid mustard CTA — the one action that should pop.
+  primary: "bg-brand-yellow text-brand-purple hover:bg-brand-yellow-dark",
+  // Muted by default, coral on hover — clearly "danger", not primary.
+  destructive:
+    "bg-transparent text-brand-coral-light hover:bg-brand-coral hover:text-white",
+  // Echoes the yellow "LAST MINUTE" badge without competing with the CTA.
+  toggle: "bg-brand-yellow/10 text-brand-yellow hover:bg-brand-yellow/20",
+  // Future-proof neutral row.
+  neutral: "bg-transparent text-white/90 hover:bg-white/10",
+};
+
+function MenuItem({ label, onClick, icon: Icon, variant = "neutral" }) {
+  const base =
+    "w-full inline-flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[12px] font-bold text-left cursor-pointer border-none font-[inherit] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/70 focus-visible:ring-inset";
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-colors border-none font-[inherit] hover:bg-brand-yellow-dark"
+      className={`${base} ${MENU_ITEM_VARIANTS[variant] ?? MENU_ITEM_VARIANTS.neutral}`}
     >
-      <Icon size={12} strokeWidth={2.4} aria-hidden="true" />
-      {label}
+      <span className="shrink-0 inline-flex w-4 justify-center">
+        <Icon size={13} strokeWidth={2.4} aria-hidden="true" />
+      </span>
+      <span className="min-w-0">{label}</span>
     </button>
   );
 }
