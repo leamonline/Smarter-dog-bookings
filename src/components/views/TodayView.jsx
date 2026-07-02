@@ -2,6 +2,12 @@
 // queue answering "what needs attention right now?" built on the pure Today
 // engine selectors (src/engine/today.ts) so all logic stays testable and the
 // component just wires data + actions to the section views.
+//
+// Section order is the operational priority order, and a section with nothing
+// in it renders as a one-line reassurance row (or nothing) instead of an empty
+// card — a good day should read calm, not padded:
+//   1 needs attention → 2 next up → 3 in salon → 4 ready for collection
+//   → 5 payments → 6 capacity → 7 earlier today → day totals.
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
@@ -13,6 +19,8 @@ import {
   buildDaySummary,
   buildImmediateAttention,
   buildArrivalsBySlot,
+  splitArrivalGroups,
+  buildInSalonList,
   buildCollectionQueue,
   buildPaymentsList,
   buildSlotOpportunities,
@@ -20,17 +28,19 @@ import {
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
-import { ImmediateAttention } from "./today/ImmediateAttention.jsx";
-import { NextArrivals } from "./today/NextArrivals.jsx";
-import { ChasingList } from "./today/ChasingList.jsx";
+import { TodayHeader } from "./today/TodayHeader.jsx";
+import { AttentionPanel } from "./today/AttentionPanel.jsx";
+import { NextUp, EarlierToday } from "./today/NextUp.jsx";
+import { InSalonNow } from "./today/InSalonNow.jsx";
 import { CollectionQueue } from "./today/CollectionQueue.jsx";
 import { PaymentsList } from "./today/PaymentsList.jsx";
-import { CapacityOpportunities } from "./today/CapacityOpportunities.jsx";
+import { CapacitySummary } from "./today/CapacitySummary.jsx";
+import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
+import { CompactZeroState } from "./today/parts.jsx";
 
 function SectionSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 motion-safe:animate-pulse">
       <div className="h-4 w-40 bg-slate-100 rounded mb-3" />
       <div className="h-14 bg-slate-50 rounded mb-2" />
       <div className="h-14 bg-slate-50 rounded" />
@@ -74,6 +84,8 @@ export function TodayView({
   const summary = useMemo(() => buildDaySummary(todayBookings, dogs), [todayBookings, dogs]);
   const attention = useMemo(() => buildImmediateAttention(todayBookings, now), [todayBookings, now]);
   const arrivals = useMemo(() => buildArrivalsBySlot(todayBookings, activeSlots, now), [todayBookings, activeSlots, now]);
+  const nextUp = useMemo(() => splitArrivalGroups(arrivals), [arrivals]);
+  const inSalon = useMemo(() => buildInSalonList(todayBookings, now), [todayBookings, now]);
   const collection = useMemo(() => buildCollectionQueue(todayBookings, now), [todayBookings, now]);
   const payments = useMemo(() => buildPaymentsList(todayBookings), [todayBookings]);
   const opportunities = useMemo(
@@ -92,7 +104,8 @@ export function TodayView({
     [now, bookingsByDate, dayOpenState, daySettings],
   );
 
-  // ---- Per-day dismissals (local UI only; never mutates booking data) ----
+  // ---- Per-day hides (local UI only; never mutates booking data). Only
+  // unconfirmed rows offer this, as "Hide until tomorrow" — money never hides.
   const dismissKey = `sd-today-dismissed-${todayStr}`;
   const [dismissed, setDismissed] = useState(() => {
     try {
@@ -104,8 +117,11 @@ export function TodayView({
   useEffect(() => {
     safeSet("local", dismissKey, JSON.stringify([...dismissed]));
   }, [dismissed, dismissKey]);
-  const onDismiss = useCallback((id) => setDismissed((prev) => new Set(prev).add(id)), []);
-  const visibleAttention = useMemo(() => attention.filter((i) => !dismissed.has(i.booking.id)), [attention, dismissed]);
+  const onHideUntilTomorrow = useCallback((id) => setDismissed((prev) => new Set(prev).add(id)), []);
+  const visibleAttention = useMemo(
+    () => attention.filter((i) => i.primary !== "unconfirmed" || !dismissed.has(i.booking.id)),
+    [attention, dismissed],
+  );
 
   // ---- Display + welfare + payment resolvers ----
   const resolve = useCallback((b) => resolveBookingDisplay(b, dogs, humans), [dogs, humans]);
@@ -126,6 +142,7 @@ export function TodayView({
   }, [onUpdateBooking, toast]);
 
   const onMarkArrived = useCallback((b) => patch(b, { status: BOOKING_STATUS.CHECKED_IN }, `${b.dogName} checked in`), [patch]);
+  const onMarkReady = useCallback((b) => patch(b, { status: BOOKING_STATUS.READY_FOR_PICKUP }, `${b.dogName} is ready to go home`), [patch]);
   const onMarkCollected = useCallback((b) => patch(b, { status: BOOKING_STATUS.COMPLETED }, `${b.dogName} collected — lovely`), [patch]);
   const onMarkPaid = useCallback((b) => patch(b, { payment: "Paid in Full" }, `${b.dogName} — payment recorded`), [patch]);
   const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
@@ -140,23 +157,34 @@ export function TodayView({
   const isDayOpen = dayOpenState?.[todayStr] !== false;
   const isEmptyDay = todayBookings.length === 0;
 
+  // Shared handler bundles for the arrival components.
+  const arrivalHandlers = {
+    resolve,
+    getWelfare,
+    paymentOf,
+    onMarkArrived,
+    onUpdateBooking,
+    onOpenBooking,
+    onMessageOwner,
+    onMarkPaid,
+  };
+
+  const hasNextUp = nextUp.next !== null || nextUp.upcoming.length > 0;
+  const allArrivedForToday = !hasNextUp && nextUp.earlier.length > 0;
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-3 sm:px-4 py-4 flex flex-col gap-4">
-      <header className="flex items-end justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-[22px] font-extrabold text-slate-800 leading-tight">Today</h1>
-          <p className="text-[13px] text-slate-500">{dateLabel}{!isDayOpen && " · salon closed"}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => navigate("/")} className="inline-flex items-center min-h-[38px] px-3 rounded-lg bg-brand-yellow text-brand-purple text-[13px] font-bold hover:brightness-95 transition">Open calendar</button>
-          <button type="button" onClick={() => onNewBooking({ dateStr: todayStr, slot: "" })} className="inline-flex items-center min-h-[38px] px-3 rounded-lg bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark transition">New booking</button>
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-3xl px-3 sm:px-4 pt-3 pb-6 flex flex-col gap-3">
+      <TodayHeader
+        dateLabel={dateLabel}
+        dogsBooked={summary.dogsBooked}
+        actionCount={visibleAttention.length}
+        isDayOpen={isDayOpen}
+      />
 
       {bookingsError && (
         <div className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark flex items-center justify-between gap-3">
           <span>Couldn&apos;t load today&apos;s bookings.</span>
-          {onRefresh && <button type="button" onClick={onRefresh} className="font-bold underline">Retry</button>}
+          {onRefresh && <button type="button" onClick={onRefresh} className="min-h-[44px] font-bold underline">Retry</button>}
         </div>
       )}
 
@@ -169,58 +197,64 @@ export function TodayView({
         <>
           <div className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center">
             <p className="text-[16px] font-bold text-slate-700">No dogs booked in today.</p>
-            <p className="text-[13px] text-slate-500 mt-1">
+            <p className="text-[13px] text-slate-600 mt-1">
               {isDayOpen ? "A quiet one — a good chance to catch up or fill a slot." : "The salon is closed today."}
             </p>
           </div>
           {isDayOpen && (
-            <CapacityOpportunities
+            <CapacitySummary
               opportunities={opportunities}
               immediateSet={immediateSet}
               nextAvailable={nextAvailable}
+              dogsBooked={summary.dogsBooked}
               onToggleImmediate={onToggleImmediate}
               onNewBooking={onNewBookingSlot}
             />
           )}
-          <TodaySummaryStrip summary={summary} />
         </>
       ) : (
         <>
-          <ImmediateAttention
-            items={visibleAttention}
-            resolve={resolve}
-            getWelfare={getWelfare}
-            paymentOf={paymentOf}
-            onMarkArrived={onMarkArrived}
-            onMarkCollected={onMarkCollected}
-            onSendCollection={onSendCollection}
-            onMessageOwner={onMessageOwner}
-            onMarkPaid={onMarkPaid}
-            onDidntShow={onDidntShow}
-            onOpenBooking={onOpenBooking}
-            onDismiss={onDismiss}
-          />
-
-          <NextArrivals
-            groups={arrivals}
-            resolve={resolve}
-            getWelfare={getWelfare}
-            paymentOf={paymentOf}
-            onUpdateBooking={onUpdateBooking}
-            onOpenBooking={onOpenBooking}
-            onMessageOwner={onMessageOwner}
-            onMarkPaid={onMarkPaid}
-          />
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ChasingList
+          {/* 1 — Needs attention now (or one calm line when there's nothing) */}
+          {visibleAttention.length > 0 ? (
+            <AttentionPanel
               items={visibleAttention}
               resolve={resolve}
-              onMessageOwner={onMessageOwner}
+              getWelfare={getWelfare}
+              paymentOf={paymentOf}
               onMarkArrived={onMarkArrived}
+              onMarkCollected={onMarkCollected}
+              onSendCollection={onSendCollection}
+              onMessageOwner={onMessageOwner}
+              onMarkPaid={onMarkPaid}
               onDidntShow={onDidntShow}
-              onDismiss={onDismiss}
+              onOpenBooking={onOpenBooking}
+              onHideUntilTomorrow={onHideUntilTomorrow}
             />
+          ) : (
+            <CompactZeroState>Nothing needs attention right now — the day is on track.</CompactZeroState>
+          )}
+
+          {/* 2 — Next up */}
+          {hasNextUp && (
+            <NextUp next={nextUp.next} upcoming={nextUp.upcoming} now={now} {...arrivalHandlers} />
+          )}
+          {allArrivedForToday && (
+            <CompactZeroState>Everyone booked in today has arrived.</CompactZeroState>
+          )}
+
+          {/* 3 — In salon now */}
+          {inSalon.length > 0 && (
+            <InSalonNow
+              entries={inSalon}
+              resolve={resolve}
+              getWelfare={getWelfare}
+              onMarkReady={onMarkReady}
+              onOpenBooking={onOpenBooking}
+            />
+          )}
+
+          {/* 4 — Ready for collection */}
+          {collection.length > 0 && (
             <CollectionQueue
               entries={collection}
               resolve={resolve}
@@ -229,6 +263,10 @@ export function TodayView({
               onMarkCollected={onMarkCollected}
               onOpenBooking={onOpenBooking}
             />
+          )}
+
+          {/* 5 — Payments */}
+          {payments.length > 0 ? (
             <PaymentsList
               entries={payments}
               resolve={resolve}
@@ -236,19 +274,30 @@ export function TodayView({
               onMarkPaid={onMarkPaid}
               onOpenBooking={onOpenBooking}
             />
-            <CapacityOpportunities
+          ) : (
+            <CompactZeroState>Everyone&apos;s settled up — no payments to chase.</CompactZeroState>
+          )}
+
+          {/* 6 — Capacity */}
+          {isDayOpen && (
+            <CapacitySummary
               opportunities={opportunities}
               immediateSet={immediateSet}
               nextAvailable={nextAvailable}
+              dogsBooked={summary.dogsBooked}
               onToggleImmediate={onToggleImmediate}
               onNewBooking={onNewBookingSlot}
             />
-          </div>
+          )}
 
+          {/* 7 — Earlier today + day totals */}
+          {nextUp.earlier.length > 0 && (
+            <EarlierToday groups={nextUp.earlier} now={now} {...arrivalHandlers} />
+          )}
           <TodaySummaryStrip summary={summary} />
 
           {!isOnline && (
-            <p className="text-center text-[12px] text-slate-400">Offline preview — showing sample data.</p>
+            <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>
           )}
         </>
       )}

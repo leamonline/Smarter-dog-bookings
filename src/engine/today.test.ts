@@ -17,6 +17,10 @@ import {
   buildArrivalsBySlot,
   buildCollectionQueue,
   buildPaymentsList,
+  minutesUntilSlot,
+  splitArrivalGroups,
+  isGroupSettled,
+  buildInSalonList,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking } from "../types/index";
@@ -275,6 +279,20 @@ describe("buildImmediateAttention", () => {
     const ready = items.find((i) => i.primary === "ready")!;
     expect(ready.kinds).toContain("payment");
   });
+
+  it("keeps a freshly-Ready dog out of attention until it has waited a while", () => {
+    const justReady = bk({
+      _bookingDate: TODAY,
+      slot: "09:00",
+      status: "Ready for pick-up",
+      payment: "Paid in Full",
+      readyAt: new Date(NOW_SUMMER.getTime() - 5 * 60000).toISOString(),
+    });
+    expect(buildImmediateAttention([justReady], NOW_SUMMER)).toEqual([]);
+    // …but a missing ready_at stamp surfaces rather than hides.
+    const unstamped = bk({ _bookingDate: TODAY, slot: "09:00", status: "Ready for pick-up", payment: "Paid in Full", readyAt: null });
+    expect(buildImmediateAttention([unstamped], NOW_SUMMER).map((i) => i.primary)).toEqual(["ready"]);
+  });
 });
 
 describe("buildArrivalsBySlot", () => {
@@ -297,6 +315,68 @@ describe("buildArrivalsBySlot", () => {
   it("flags past and current slots", () => {
     expect(groups[0].isPast).toBe(true); // 09:00
     expect(groups[1].isCurrent).toBe(true); // 10:00
+  });
+});
+
+describe("minutesUntilSlot", () => {
+  it("counts down to a future slot and goes negative once started", () => {
+    // NOW_SUMMER is 10:15 London.
+    expect(minutesUntilSlot("10:30", NOW_SUMMER)).toBe(15);
+    expect(minutesUntilSlot("10:00", NOW_SUMMER)).toBe(-15);
+  });
+});
+
+describe("splitArrivalGroups", () => {
+  const groups = buildArrivalsBySlot(
+    [
+      bk({ slot: "09:00", status: "Checked in" }), // past, settled
+      bk({ slot: "09:30", status: "Booked" }), // past but unarrived → earlier (late list owns it)
+      bk({ slot: "10:30", status: "Booked", dogName: "next" }),
+      bk({ slot: "11:00", status: "Checked in" }), // future, fully arrived → settled
+      bk({ slot: "12:00", status: "Booked", dogName: "later" }),
+    ],
+    SALON_SLOTS,
+    NOW_SUMMER,
+  );
+
+  it("puts the soonest still-expected group first and settles the rest", () => {
+    const split = splitArrivalGroups(groups);
+    expect(split.next?.slot).toBe("10:30");
+    expect(split.upcoming.map((g) => g.slot)).toEqual(["12:00"]);
+    expect(split.earlier.map((g) => g.slot)).toEqual(["09:00", "09:30", "11:00"]);
+  });
+
+  it("isGroupSettled needs every dog at least arrived", () => {
+    const mixed = buildArrivalsBySlot(
+      [bk({ slot: "12:30", status: "Checked in" }), bk({ slot: "12:30", status: "Booked" })],
+      SALON_SLOTS,
+      NOW_SUMMER,
+    );
+    expect(isGroupSettled(mixed[0])).toBe(false);
+    expect(splitArrivalGroups(mixed).next?.slot).toBe("12:30");
+  });
+
+  it("handles an empty day", () => {
+    expect(splitArrivalGroups([])).toEqual({ next: null, upcoming: [], earlier: [] });
+  });
+});
+
+describe("buildInSalonList", () => {
+  it("lists Checked in / In bath dogs, longest in first, and skips the rest", () => {
+    const list = buildInSalonList(
+      [
+        bk({ status: "Checked in", checkedInAt: new Date(NOW_SUMMER.getTime() - 50 * 60000).toISOString(), dogName: "longest" }),
+        bk({ status: "In bath", checkedInAt: new Date(NOW_SUMMER.getTime() - 20 * 60000).toISOString(), dogName: "bathing" }),
+        bk({ status: "Checked in", checkedInAt: null, dogName: "unstamped" }),
+        bk({ status: "Ready for pick-up", dogName: "ready" }), // its own queue
+        bk({ status: "Booked" }),
+        bk({ status: "Cancelled" }),
+      ],
+      NOW_SUMMER,
+    );
+    expect(list.map((e) => e.booking.dogName)).toEqual(["longest", "bathing", "unstamped"]);
+    expect(list[0].inSalonMinutes).toBe(50);
+    expect(list[2].inSalonMinutes).toBeNull();
   });
 });
 

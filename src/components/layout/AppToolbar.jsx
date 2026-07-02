@@ -240,21 +240,26 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         </div>
       </div>
 
-      {/* ── Mobile/tablet top bar (below lg) — logo, New client, menu ── */}
-      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] flex items-center gap-2 bg-brand-purple text-white">
+      {/* ── Mobile/tablet top bar (below lg) — logo, New booking, menu ── */}
+      <div className="lg:hidden -mx-4 sm:-mx-6 px-3 sm:px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] flex items-center gap-2 bg-brand-purple text-white">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <img src="/logo-horizontal-white.png" alt="Smarter Dog Grooming Salon" className="h-7 w-auto" />
         </NavLink>
         <div className="flex-1" />
-        {onNewClient && (
+        {/* The one persistent booking entry point on mobile — every screen,
+            same spot. New client lives in the menu sheet below. */}
+        {onNewBooking && (
           <button
             type="button"
-            onClick={onNewClient}
-            aria-label="New client"
-            title="New client"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
+            onClick={onNewBooking}
+            aria-label="New booking"
+            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-bold bg-brand-yellow text-brand-purple cursor-pointer transition-all hover:bg-brand-yellow-dark shadow-cta-yellow shrink-0 focus-visible:outline-2 focus-visible:outline-brand-yellow focus-visible:outline-offset-2"
           >
-            <UserPlus size={18} strokeWidth={2.2} aria-hidden="true" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New booking
           </button>
         )}
         <div ref={mobileMenuRef} className="relative shrink-0">
@@ -271,6 +276,15 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           </button>
           {openMenu === "mobile" && (
             <div role="menu" className="absolute top-12 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-elevated min-w-[210px] overflow-hidden animate-[fadeIn_0.12s_ease-out]">
+              {onNewClient && (
+                <button
+                  onClick={() => { onNewClient(); setOpenMenu(null); }}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 border-none cursor-pointer text-sm font-semibold text-brand-purple bg-transparent hover:bg-slate-50 transition-colors text-left font-[inherit]"
+                >
+                  <UserPlus size={16} strokeWidth={2.2} className="shrink-0 text-slate-500" aria-hidden="true" />
+                  New client
+                </button>
+              )}
               {onOpenOverview && (
                 <button
                   onClick={() => { onOpenOverview(); setOpenMenu(null); }}

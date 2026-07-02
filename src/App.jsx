@@ -805,7 +805,9 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // big spinner.
   return (
     <ToastProvider>
-      <AppFrame className="text-slate-800 max-lg:pt-0 pb-5">
+      {/* Bottom padding clears the iOS home indicator + Safari's collapsed
+          toolbar so the last card is never trapped behind browser chrome. */}
+      <AppFrame className="text-slate-800 max-lg:pt-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-sky-600 focus:font-medium"

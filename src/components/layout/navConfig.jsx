@@ -11,7 +11,8 @@ export const PRIMARY_NAV = [
   {
     to: "/today",
     label: "Today",
-    activeBg: "bg-brand-purple text-white shadow-[0_2px_8px_rgba(45,0,75,0.45)]",
+    // White pill — brand-purple would vanish against the purple header/strip.
+    activeBg: "bg-white text-brand-purple shadow-[0_2px_8px_rgba(255,255,255,0.35)]",
     activeText: "text-brand-purple",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
