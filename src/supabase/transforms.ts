@@ -85,6 +85,7 @@ interface DbBookingRow {
   notes?: string | null;
   cancel_reason?: string | null;
   source?: string | null;
+  confirmation_channel?: string | null;
   notification_log?: Array<{
     trigger_type: string;
     status: string;
@@ -354,6 +355,12 @@ export function dbBookingsToArray(
       reminderLog
         .filter((n) => n.trigger_type === "reminder" && n.status === "sent")
         .sort((a, b) => (b.sent_at ?? "").localeCompare(a.sent_at ?? ""))[0] ?? null;
+    // Latest successfully-sent "ready for collection" message, for the Today
+    // collection queue's "message sent" state. Absent offline (no log) → null.
+    const sentReady =
+      reminderLog
+        .filter((n) => n.trigger_type === "ready" && n.status === "sent")
+        .sort((a, b) => (b.sent_at ?? "").localeCompare(a.sent_at ?? ""))[0] ?? null;
     const reminderState = row.reminder_confirmed_at
       ? "confirmed"
       : sentReminder
@@ -395,6 +402,8 @@ export function dbBookingsToArray(
       // (portal, whatsapp_flow, staff). Both were written but never mapped.
       cancelReason: row.cancel_reason ?? null,
       source: row.source ?? null,
+      confirmationChannel: row.confirmation_channel ?? null,
+      collectionSentAt: sentReady?.sent_at ?? null,
       // Who created this booking + when, denormalised from resolve_event_actor.
       createdAt: row.created_at ?? null,
       createdById: row.created_by_id ?? null,

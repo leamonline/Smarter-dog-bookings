@@ -9,6 +9,18 @@ import { DogSilhouette } from "../decor/index.jsx";
 // Settings lives in the tools menu (SETTINGS_ITEM), not the primary nav.
 export const PRIMARY_NAV = [
   {
+    to: "/today",
+    label: "Today",
+    activeBg: "bg-brand-purple text-white shadow-[0_2px_8px_rgba(45,0,75,0.45)]",
+    activeText: "text-brand-purple",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    ),
+  },
+  {
     to: "/",
     label: "Bookings",
     activeBg: "bg-brand-yellow text-brand-purple shadow-[0_2px_8px_rgba(254,204,19,0.5)]",
@@ -88,6 +100,7 @@ export const MOBILE_NAV = PRIMARY_NAV;
 // Resolve the section title for the context row from the current path.
 // Handles profile sub-routes (/dogs/:id, /humans/:id) too.
 export function sectionTitleFor(pathname) {
+  if (pathname.startsWith("/today")) return "Today";
   if (pathname === "/" || pathname === "") return "Bookings";
   if (pathname.startsWith("/dogs")) return "Dogs";
   if (pathname.startsWith("/humans")) return "Humans";

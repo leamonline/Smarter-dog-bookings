@@ -13,6 +13,8 @@ import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";
+import { londonDateStr } from "./engine/today";
+import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
 import { useDogs } from "./supabase/hooks/useDogs";
@@ -106,6 +108,11 @@ const DogsView = lazy(() =>
     default: module.DogsView,
   })),
 );
+const TodayView = lazy(() =>
+  import("./components/views/TodayView.jsx").then((module) => ({
+    default: module.TodayView,
+  })),
+);
 const WeekCalendarView = lazy(() =>
   import("./components/layout/WeekCalendarView.jsx").then((module) => ({
     default: module.WeekCalendarView,
@@ -165,6 +172,7 @@ const appLoadingShell = (
 // Vite resolves them to the same chunks. Most-specific prefixes first;
 // "/" is the catch-all (the week calendar).
 const ROUTE_CHUNK_IMPORTS = [
+  ["/today", () => import("./components/views/TodayView.jsx")],
   ["/inbox", () => import("./components/views/inbox/InboxView.jsx")],
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
@@ -429,6 +437,26 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       [currentDateStr, setShowNewBooking],
     ),
   });
+
+  // Land on the Today command centre once per tab session (post-login / first
+  // open). `/` stays the calendar and is reachable via the nav + "Open
+  // calendar" — only the initial default entry redirects, so a staff member
+  // who then clicks through to the calendar is never bounced back.
+  useEffect(() => {
+    if (safeGet("session", "sd-today-landed") === "1") return;
+    safeSet("session", "sd-today-landed", "1");
+    if (location.pathname === "/") navigate("/today", { replace: true });
+    // Runs once on mount by design (the post-auth entry point).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // While on /today, keep the week nav pinned to the real (London) today so the
+  // Today view's rows are in the fetched window and same-day slot toggles
+  // (which target the calendar's current day) act on today.
+  useEffect(() => {
+    if (location.pathname !== "/today") return;
+    if (currentDateStr !== londonDateStr()) rawDatePick(new Date());
+  }, [location.pathname, currentDateStr, rawDatePick]);
 
   // Boot-path deferral for the two 50-row directory page-0 fetches: hold
   // them back until a directory route / the new-booking modal needs them,
@@ -981,6 +1009,24 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     />
                   } />
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
+                  <Route path="/today" element={
+                    <TodayView
+                      bookingsByDate={bookingsByDate}
+                      bookingsLoading={bookingsLoading}
+                      bookingsError={be}
+                      dogs={dogs}
+                      humans={humans}
+                      daySettings={daySettings}
+                      dayOpenState={dayOpenState}
+                      isOnline={isOnline}
+                      onUpdateBooking={handleUpdate}
+                      onOpenBooking={handleOpenBooking}
+                      onNewBooking={setShowNewBooking}
+                      onSendCollection={setCollectionNotice}
+                      toggleImmediateSlot={toggleImmediateSlot}
+                      onRefresh={refetchBookings}
+                    />
+                  } />
                   <Route path="/" element={
                     <WeekCalendarView
                       selectedDay={selectedDay}
@@ -1034,7 +1080,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       element={<NewClientPreview />}
                     />
                   )}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/today" replace />} />
                 </Routes>
               </main>
             </Suspense>

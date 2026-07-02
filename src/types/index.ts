@@ -116,6 +116,14 @@ export interface Booking {
   // staff). Populated by the DB read path; used by the reports.
   cancelReason?: string | null;
   source?: string | null;
+  // How confirmation was handled ('auto'|'whatsapp'|'sms'|'email'|'none').
+  // 'none' means the booking was never asked to confirm — the Today view must
+  // not flag it as awaiting confirmation. Populated by the DB read path.
+  confirmationChannel?: string | null;
+  // When the "ready for collection" message was last sent (notification_log
+  // type 'ready', status 'sent'). Drives the collection queue's sent state;
+  // null when unsent or offline.
+  collectionSentAt?: string | null;
   // Who created the booking + when (denormalised from resolve_event_actor on
   // insert). Optional: only the DB read path populates them; null for legacy
   // rows created before attribution existed.
