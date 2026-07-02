@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { LARGE_DOG_SLOTS } from "../src/constants/salon";
 
 // Regression guard for UX-AUDIT-REPORT Top 5 #2: the Settings page used to
 // render blank below the first two sections (long-scroll layout painting
@@ -7,17 +8,17 @@ import { test, expect } from "@playwright/test";
 // panel can never quietly ship again.
 //
 // The e2e harness runs with VITE_FORCE_OFFLINE=1 (sample data, no Supabase),
-// where settings are editable (canEdit = isOwner || !isOnline). Calendar
-// Sync is the one tab whose interactive controls need a live Supabase
-// feed-token RPC — offline it legitimately sits in its loading state, so we
-// assert visible content rather than controls there.
+// where settings are editable (canEdit = isOwner || !isOnline). Two tabs are
+// asserted on visible content rather than controls: Calendar Sync, whose
+// interactive controls need a live Supabase feed-token RPC so offline it
+// legitimately sits in its loading state, and Capacity Engine, which is
+// read-only by design (AUDIT-1) — see its dedicated test below.
 const TABS_WITH_CONTROLS = [
   "Your Business",
   "Hours & Closures",
   "Your Account",
   "Services & Pricing",
   "Booking Rules",
-  "Capacity Engine",
   "Customer Portal",
   "Notifications",
 ] as const;
@@ -39,6 +40,28 @@ test.describe("Settings tabs", () => {
       await expect(panel.locator(INTERACTIVE).first()).toBeVisible();
     });
   }
+
+  // Capacity Engine is deliberately a zero-control card (AUDIT-1): the 2-2-1
+  // rules are hardcoded in the engine, so the panel renders them straight off
+  // LARGE_DOG_SLOTS instead of offering placebo toggles. Assert the content
+  // paints and pin the read-only contract, so re-adding controls here forces
+  // the tab back into TABS_WITH_CONTROLS.
+  test(`"Capacity Engine" tab paints its read-only content`, async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    const tab = page.getByRole("tab", { name: "Capacity Engine" });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+
+    const panel = page.locator("#settings-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("What the 2-2-1 rule means")).toBeVisible();
+    for (const time of Object.keys(LARGE_DOG_SLOTS)) {
+      await expect(panel.getByText(time, { exact: true })).toBeVisible();
+    }
+    await expect(panel.locator(INTERACTIVE)).toHaveCount(0);
+  });
 
   test(`"Calendar Sync" tab paints its content offline`, async ({ page }) => {
     await page.goto("/settings");
