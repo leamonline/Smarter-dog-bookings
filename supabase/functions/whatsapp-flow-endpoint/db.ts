@@ -190,6 +190,17 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
       return sanitizeDayOverrides((data as { overrides?: unknown } | null)?.overrides);
     },
 
+    async getImmediateSlots(): Promise<Array<{ setting_date: string; slot: string }>> {
+      const { data, error } = await supabase.rpc("get_immediate_slots");
+      if (error) {
+        // Fail closed: no rows means no same-day slots are offered, which is
+        // the safe direction (the calendar trigger would reject them anyway).
+        console.error("get_immediate_slots failed:", error.message);
+        return [];
+      }
+      return (data as Array<{ setting_date: string; slot: string }>) ?? [];
+    },
+
     async insertBookingGroup(
       items: GroupBookingItem[],
       dateStr: string,

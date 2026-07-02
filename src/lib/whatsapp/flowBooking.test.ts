@@ -51,6 +51,8 @@ interface FakeOpts {
   groupInsert?: (items: GroupBookingItem[], dateStr: string, humanId: string) => GroupInsertResult;
   // Staff seat blocks per date (already-sanitised day_settings.overrides).
   overridesByDate?: Record<string, Record<string, SlotOverrides>>;
+  // Today's flagged last-minute slots (get_immediate_slots rows).
+  immediateRows?: Array<{ setting_date: string; slot: string }>;
 }
 
 function makeDb(opts: FakeOpts = {}): {
@@ -74,6 +76,7 @@ function makeDb(opts: FakeOpts = {}): {
     },
     getBookingsForDate: async (dateStr) => opts.bookingsByDate?.[dateStr] ?? [],
     getDayOverrides: async (dateStr) => opts.overridesByDate?.[dateStr] ?? {},
+    getImmediateSlots: async () => opts.immediateRows ?? [],
     insertBookingGroup: async (items, dateStr, humanId) => {
       groupInserts.push({ items, dateStr, humanId });
       return opts.groupInsert
@@ -301,6 +304,83 @@ describe("staff seat blocks in the Flow slot picker", () => {
     });
     const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], "2026-06-02");
     expect(slots.map((s) => s.id)).toContain("09:00");
+  });
+});
+
+describe("same-day (last minute) slots in the Flow", () => {
+  // groupAllocations keys "today" off toDateStr(now) — pin `now` so the
+  // fixture dates below are today/not-today deterministically. 12:00 UTC is
+  // the same calendar day in London year-round.
+  const NOW = new Date("2026-06-02T12:00:00Z");
+  const TODAY = "2026-06-02";
+
+  it("offers only flagged slots for today", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { [TODAY]: [] },
+      immediateRows: [{ setting_date: TODAY, slot: "10:00" }],
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], TODAY, NOW);
+    expect(slots.map((s) => s.id)).toEqual(["10:00"]);
+  });
+
+  it("offers nothing for today when no slot is flagged", async () => {
+    const { db } = makeDb({ dogs: TWO_SMALL, bookingsByDate: { [TODAY]: [] } });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], TODAY, NOW);
+    expect(slots).toEqual([]);
+  });
+
+  it("leaves future dates unfiltered", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-03": [] },
+      immediateRows: [{ setting_date: TODAY, slot: "10:00" }],
+    });
+    const slots = await groupSlotOptions(db, [{ id: "s1", size: "small" }], "2026-06-03", NOW);
+    expect(slots.length).toBeGreaterThan(1);
+  });
+
+  it("labels today's date option Today — last minute", async () => {
+    const { db } = makeDb({
+      smallMed: [
+        { booking_date: TODAY, slot: "10:00" },
+        { booking_date: "2026-06-03", slot: "09:00" },
+      ],
+    });
+    const dates = await availableDateOptions(db, "small", NOW);
+    expect(dates[0]).toEqual({ id: TODAY, title: "Today — last minute" });
+    expect(dates[1].title).toBe("Wednesday 3 June");
+  });
+
+  it("intersects large-dog candidates with today's flags", async () => {
+    const { db } = makeDb({
+      immediateRows: [{ setting_date: TODAY, slot: "12:00" }],
+    });
+    const slots = await availableSlotOptions(db, "large", TODAY, NOW);
+    expect(slots.map((s) => s.id)).toEqual(["12:00"]);
+  });
+
+  it("bounces a today CONFIRM on an unflagged slot to the slot_taken retry", async () => {
+    // The customer picked 09:00 while it was flagged; the flag lapsed before
+    // CONFIRM. groupAllocations re-filters, so no insert is attempted.
+    const { db, groupInserts } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { [TODAY]: [] },
+      immediateRows: [],
+    });
+    const res = await confirmGroupBooking(
+      db,
+      {
+        humanId: "h1",
+        dateStr: TODAY,
+        dropOff: "09:00",
+        dogs: [{ dogId: "s1", serviceId: "full-groom", addons: [] }],
+      },
+      NOW,
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.kind).toBe("slot_taken");
+    expect(groupInserts).toHaveLength(0);
   });
 });
 
