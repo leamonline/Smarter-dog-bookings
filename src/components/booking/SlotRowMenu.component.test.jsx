@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { SlotRowMenu } from "./SlotRowMenu.jsx";
 
 const FREE_SEATS = [
@@ -74,5 +74,58 @@ describe("SlotRowMenu — Open for immediate booking", () => {
     expect(screen.getByText("Block this timeslot")).toBeInTheDocument();
     expect(screen.getByText("Block seat 1 only")).toBeInTheDocument();
     expect(screen.getByText("Block seat 2 only")).toBeInTheDocument();
+  });
+});
+
+// jsdom can't measure real layout (getBoundingClientRect/offsetHeight are 0),
+// so these assert the placement WIRING + on-screen invariant, not pixels.
+describe("SlotRowMenu — placement stays on-screen", () => {
+  const MARGIN = 8;
+  const rectAt = (top) => ({
+    top,
+    bottom: top + 20,
+    left: 20,
+    right: 84,
+    width: 64,
+    height: 20,
+    x: 20,
+    y: top,
+    toJSON: () => {},
+  });
+
+  it("clamps a bottom-of-viewport slot so the menu isn't cut off", () => {
+    const nearBottom = window.innerHeight - 8; // trigger almost at the fold
+    const spy = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue(rectAt(nearBottom));
+    try {
+      openMenu({ isImmediate: false, onToggleImmediate: vi.fn() });
+      const top = parseFloat(screen.getByRole("menu").style.top);
+      expect(Number.isFinite(top)).toBe(true);
+      expect(top).toBeGreaterThanOrEqual(MARGIN);
+      expect(top).toBeLessThanOrEqual(window.innerHeight - MARGIN);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("recomputes placement when the page scrolls while open", () => {
+    let rect = rectAt(100);
+    const spy = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(() => rect);
+    try {
+      openMenu({ isImmediate: false, onToggleImmediate: vi.fn() });
+      const menu = screen.getByRole("menu");
+      const before = menu.style.top;
+      // Trigger moves down the page → the glued menu should follow.
+      rect = rectAt(300);
+      act(() => {
+        window.dispatchEvent(new Event("scroll"));
+      });
+      expect(menu.style.top).not.toBe(before);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
