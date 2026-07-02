@@ -24,9 +24,11 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
     { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: BOOKING_STATUS.CHECKED_IN, addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid" },
     { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
-    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson" },
-    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker" },
-    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown" },
+    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_PICKUP, payment: "Paid in Full" },
+    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.IN_BATH, payment: "Deposit Paid" },
+    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full" },
+    // Deliberately bare (no status/payment) — exercises the Today view + report
+    // defaulting a missing status to Booked and a missing payment to "".
     { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor" },
     { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson" },
   ],

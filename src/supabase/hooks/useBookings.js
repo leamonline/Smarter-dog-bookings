@@ -432,6 +432,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         payment: updatedBooking.payment || "Due at Pick-up",
         deposit_amount: updatedBooking.depositAmount ?? null,
         status: updatedBooking.status || BOOKING_STATUS.BOOKED,
+        // Round-trips the cancellation reason so the Today view's "Didn't show"
+        // action can persist cancel_reason='No-show' through this same path.
+        // Normal edits write back the booking's current value (usually null).
+        cancel_reason: updatedBooking.cancelReason ?? null,
         confirmed: updatedBooking.confirmed ?? false,
         // Reschedule / Edit flows that override capacity flip
         // this flag on the in-memory booking before calling onUpdate.

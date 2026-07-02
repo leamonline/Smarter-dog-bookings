@@ -20,6 +20,11 @@ export const DAILY_DOG_CAP = 14;
  *  Change all three together; the capacityParity test guards the TS pair. */
 export const IMMEDIATE_CUTOFF_MINUTES = 30;
 
+/** Grace period (in minutes) after a slot's start before a still-"Booked" dog
+ *  is surfaced as a late arrival on the Today view. Operational nudge only —
+ *  the booking data is never mutated. One-line configurable. */
+export const LATE_ARRIVAL_GRACE_MINUTES = 5;
+
 export const SERVICES = [
   { id: "full-groom", name: "Full Groom" },
   { id: "bath-and-brush", name: "Bath & Brush" },
