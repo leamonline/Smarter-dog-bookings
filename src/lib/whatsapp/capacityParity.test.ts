@@ -108,6 +108,19 @@ describe("capacity engine mirror parity (findGroupedSlots)", () => {
     expect(shared.length).toBe(0);
   });
 
+  it("a block at index 0 with a booking present still removes the slot — both engines agree", () => {
+    // Regression for the displacement quirk: the booking used to claim seat
+    // index 0, swallowing the block and re-opening the second seat.
+    const { engine, shared } = bothAgree(
+      [{ id: "x", size: "small" }],
+      [{ slot: "10:30", size: "small" }],
+      { "10:30": { 0: "blocked" } },
+    );
+    expect(shared).toEqual(engine);
+    expect(shared.some((a) => a.dropOffTime === "10:30")).toBe(false);
+    expect(shared.length).toBeGreaterThan(0);
+  });
+
   it("a staff-blocked seat removes that slot — both engines agree", () => {
     // 10:30 holds one small dog; staff blocked its second seat. A new small dog
     // can't take 10:30 even though 2-2-1 alone would allow it.

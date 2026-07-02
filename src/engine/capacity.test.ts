@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // seatIndex -> "blocked"). These tests pin the behaviour the booking wizards
 // rely on: a blocked seat removes a free seat from its OWN slot only, without
 // counting toward the daily cap or cascading through the 2-2-1 windowing.
-import { canBookSlot, findGroupedSlots } from "./capacity";
+import { canBookSlot, findGroupedSlots, getSeatStatesForSlot } from "./capacity";
 import { SALON_SLOTS, DAILY_DOG_CAP } from "../constants/salon";
 
 type Bk = { slot: string; size: "small" | "medium" | "large"; _dogId?: string };
@@ -46,6 +46,64 @@ describe("canBookSlot — staff-blocked seats", () => {
       { overrides: { 1: "blocked" }, staffOverride: { approval: true, capacity: true } },
     );
     expect(result.allowed).toBe(true);
+  });
+});
+
+describe("blocked seats are never displaced by bookings", () => {
+  // Regression: a block at seat index 0 with a booking present used to be
+  // silently swallowed — the booking claimed index 0, the block applied to
+  // nothing, and the slot's second seat came back on sale. A blocked seat
+  // must always subtract one usable seat from its own slot, whichever index
+  // the booking renders in (mirrors validate_booking_capacity in the DB).
+  it("rejects a dog when the block sits at index 0 and a booking holds the slot", () => {
+    const result = canBookSlot(
+      bookings({ slot: "10:30", size: "small", _dogId: "other" }),
+      "10:30",
+      "small",
+      SALON_SLOTS as never,
+      { overrides: { 0: "blocked" } },
+    );
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("Slot is full");
+  });
+
+  it("renders the block at its own index and the booking beside it", () => {
+    const states = getSeatStatesForSlot(
+      bookings({ slot: "10:30", size: "small", _dogId: "other" }),
+      "10:30",
+      SALON_SLOTS as never,
+      { 0: "blocked" },
+    );
+    expect(states).toHaveLength(2);
+    expect(states[0]).toMatchObject({ type: "blocked", staffBlocked: true, seatIndex: 0 });
+    expect(states[1].type).toBe("booking");
+    expect(states.filter((s) => s.type === "available")).toHaveLength(0);
+  });
+
+  it("expands the row so a block and a full slot can render together", () => {
+    // Historical overbook: two bookings + one block must all stay visible.
+    const states = getSeatStatesForSlot(
+      bookings(
+        { slot: "10:30", size: "small", _dogId: "a" },
+        { slot: "10:30", size: "small", _dogId: "b" },
+      ),
+      "10:30",
+      SALON_SLOTS as never,
+      { 0: "blocked" },
+    );
+    expect(states).toHaveLength(3);
+    expect(states[0]).toMatchObject({ type: "blocked", staffBlocked: true });
+    expect(states.filter((s) => s.type === "booking")).toHaveLength(2);
+  });
+
+  it("an empty slot with one blocked seat still offers the other", () => {
+    const states = getSeatStatesForSlot(
+      bookings(),
+      "10:30",
+      SALON_SLOTS as never,
+      { 0: "blocked" },
+    );
+    expect(states.filter((s) => s.type === "available")).toHaveLength(1);
   });
 });
 
