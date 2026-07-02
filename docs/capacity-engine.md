@@ -146,3 +146,33 @@ insert by the separate `enforce_dog_not_pregnant()` `BEFORE INSERT` trigger
 (migration `20260623130000_dog_pregnancy_gate.sql`), which raises P0001. Staff
 bypass it (clinical judgement). The booking wizard greys out a pregnant dog as
 a preflight only — the trigger is the authority.
+
+## Immediate ("last minute") slots — the same-day rule
+
+Customers can only book **today** on slots staff explicitly opened ("Open for
+immediate booking" in today's staff calendar → `day_settings.immediate_slots`
+text[]), and only until **30 minutes before** the slot starts, judged on the
+salon wall clock (Europe/London). Future dates are unchanged. Staff bypass via
+`is_staff()` as usual.
+
+Three SQL touchpoints, all in migration
+`20260702130000_last_minute_immediate_slots.sql`:
+
+- `validate_booking_calendar()` — the authority. Rejects any non-staff
+  same-day write on an unflagged slot or past the cutoff (P0001; fires on
+  INSERT **and** UPDATE, so reschedules onto today are gated too).
+- `get_small_medium_availability()` / `get_large_dog_day_availability()` —
+  apply the same predicate so the WhatsApp Flow and agent never offer a
+  today-slot the trigger would reject.
+- `get_immediate_slots()` — the customer-safe read (portal "Today — last
+  minute" entry + Flow), returning today's still-bookable flagged slots.
+
+Client-side, `IMMEDIATE_CUTOFF_MINUTES` (30) is mirrored in
+`src/constants/salon.ts` + `_shared/salonConstants.ts` (parity-tested), with
+helpers in `src/engine/immediateBooking.ts` (mirrored in
+`_shared/flowBooking.ts`). One subtlety: the calendar trigger validates each
+inserted row's own slot, so a **multi-dog group needs EVERY assigned slot
+flagged** — a 2-dog visit that spills into the next slot requires both
+consecutive slots opened. Consequences to know: a last-minute booking is
+immediately inside the 24 h manage cutoff (no customer self-cancel/
+reschedule) and gets no day-before reminder.

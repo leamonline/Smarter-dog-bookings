@@ -80,6 +80,7 @@ describe("useDaySettings boot prefetch", () => {
       isOpen: true,
       overrides: { "09:00": { 0: "block" } },
       extraSlots: ["13:30"],
+      immediateSlots: [],
     });
     // …the other six days still get defaults…
     expect(Object.keys(result.current.daySettings)).toHaveLength(7);

@@ -103,6 +103,14 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **Double-booking prevention:** same dog can't book the same slot twice (`canBookSlot` +
   unique constraint on `(dog_id, booking_date, slot)` for non-cancelled rows). Concurrent inserts are
   serialised by per-slot + per-date advisory locks in the capacity trigger. Cancelled rows free capacity.
+- **Same-day ("last minute") booking:** customers can book **today** only when staff flag the slot
+  ("Open for immediate booking" on today's staff calendar → `day_settings.immediate_slots`), and only
+  until **30 minutes before** the slot (Europe/London). Authority: `validate_booking_calendar()` +
+  the availability RPCs + `get_immediate_slots()`
+  ([migration 20260702130000](supabase/migrations/20260702130000_last_minute_immediate_slots.sql));
+  `IMMEDIATE_CUTOFF_MINUTES` is mirrored in `salon.ts`/`salonConstants.ts` for UI gating only. A
+  multi-dog group needs **every** assigned slot flagged. Future dates unchanged (portal: tomorrow+28;
+  the WhatsApp Flow shows "Today — last minute" when flagged).
 - **Services:** only 4 are bookable — Full Groom, Bath & Brush, Bath & De-shed, Puppy Groom
   ([salon.ts:9](src/constants/salon.ts:9); Puppy Groom is N/A for large). Add-ons: Flea Bath (£10),
   Sensitive Shampoo, Anal Glands.
