@@ -4,6 +4,14 @@ import { SERVICES, SALON_SLOTS, BOOKING_STATUS, DOG_SIZE, ALL_DAYS } from "../co
 import { getDefaultOpenForDate } from "../engine/utils";
 import { computeBookingPricing, isCountableBooking } from "../engine/bookingRules";
 import { computeFillRate } from "../engine/utilisation";
+import {
+  computeSlotFill,
+  computeSlotLevers,
+  computeServiceValue,
+  computeOutcomes,
+  computeSourceMix,
+  type AnalyticsEvent,
+} from "../engine/reportsAnalytics";
 import { fetchDaySettingsWeek } from "../supabase/queries/bootQueries.js";
 import { logger } from "../lib/logger";
 import type { Booking, Dog, Human } from "../types/index";
@@ -55,7 +63,16 @@ interface ReportBookingRow {
   dog_id: string;
   addons: string[];
   deposit_amount: number | null;
+  // Extra columns the decision reports need (2C outcomes, 2E source). Optional
+  // so offline/legacy rows without them degrade to null.
+  cancel_reason?: string | null;
+  created_by_role?: string | null;
+  source?: string | null;
+  reminder_confirmed_at?: string | null;
 }
+
+/** Per-date extra/immediate slot levers, for the 2A uptake report. */
+type DaySettingsLevers = Record<string, { extra_slots: string[]; immediate_slots: string[] }>;
 
 interface ReportSourceData {
   bookings: ReportBookingRow[];
@@ -217,6 +234,10 @@ export function buildReportSourceFromSalon(
         dog_id: dogId,
         addons: booking.addons || [],
         deposit_amount: booking.depositAmount ?? null,
+        cancel_reason: booking.cancelReason ?? null,
+        created_by_role: booking.createdByRole ?? null,
+        source: booking.source ?? null,
+        reminder_confirmed_at: booking.reminderConfirmedAt ?? null,
       });
     });
   });
@@ -543,6 +564,8 @@ export function useReportsData(days: number, source?: SalonReportSource) {
   const [dayOpenByDate, setDayOpenByDate] = useState<Record<string, boolean>>(
     {},
   );
+  const [daySettingsLevers, setDaySettingsLevers] = useState<DaySettingsLevers>({});
+  const [bookingEvents, setBookingEvents] = useState<AnalyticsEvent[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -552,8 +575,11 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const offlineSource = buildReportSourceFromSalon(source);
         if (!controller.signal.aborted) {
           setReportSource(offlineSource);
-          // Offline has no historical per-date settings — default (Mon–Wed).
+          // Offline has no historical per-date settings — default (Mon–Wed) —
+          // and no events/levers, so the outcomes + uptake reports degrade.
           setDayOpenByDate({});
+          setDaySettingsLevers({});
+          setBookingEvents([]);
           setLoading(false);
         }
         return;
@@ -564,12 +590,13 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const since = new Date();
         since.setDate(since.getDate() - days * 2);
         const sinceStr = toLocal(since);
+        const sinceIso = since.toISOString();
         const todayStr = toLocal(new Date());
 
-        const [bk, dg, hm, ds] = await Promise.all([
+        const [bk, dg, hm, ds, ev] = await Promise.all([
           supabase
             .from("bookings")
-            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at")
             .gte("booking_date", sinceStr)
             .order("booking_date")
             .abortSignal(controller.signal),
@@ -577,6 +604,12 @@ export function useReportsData(days: number, source?: SalonReportSource) {
           supabase.from("humans").select("id, name, surname").abortSignal(controller.signal),
           // Same source/shape useDaySettings uses, over the analytics window.
           fetchDaySettingsWeek(supabase, sinceStr, todayStr, controller.signal),
+          // Lifecycle events (reschedule/cancel) for the outcomes report (2C).
+          supabase
+            .from("booking_events")
+            .select("event_type, occurred_at, booking_date, slot, service, cancel_reason, previous_booking_date, previous_slot")
+            .gte("occurred_at", sinceIso)
+            .abortSignal(controller.signal),
         ]);
 
         if (controller.signal.aborted) return;
@@ -603,15 +636,30 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         });
 
         // Day settings degrade gracefully: on error we keep an empty map and
-        // every date falls back to the weekday default.
+        // every date falls back to the weekday default. The same rows also
+        // carry the extra/immediate levers for the 2A uptake report.
         const dayOpen: Record<string, boolean> = {};
+        const levers: DaySettingsLevers = {};
         if (!ds.error) {
           (
-            (ds.data || []) as Array<{ setting_date: string; is_open: boolean }>
+            (ds.data || []) as Array<{
+              setting_date: string;
+              is_open: boolean;
+              extra_slots?: string[] | null;
+              immediate_slots?: string[] | null;
+            }>
           ).forEach((row) => {
             dayOpen[row.setting_date] = row.is_open;
+            levers[row.setting_date] = {
+              extra_slots: row.extra_slots || [],
+              immediate_slots: row.immediate_slots || [],
+            };
           });
         }
+
+        // Events degrade gracefully too — an empty feed just means the outcomes
+        // report shows its "collecting from …" caveat rather than erroring.
+        const events: AnalyticsEvent[] = !ev.error ? ((ev.data || []) as AnalyticsEvent[]) : [];
 
         setReportSource({
           bookings: (bk.data || []) as ReportBookingRow[],
@@ -619,6 +667,8 @@ export function useReportsData(days: number, source?: SalonReportSource) {
           humanMap,
         });
         setDayOpenByDate(dayOpen);
+        setDaySettingsLevers(levers);
+        setBookingEvents(events);
       } catch (err) {
         if (!controller.signal.aborted) {
           logger.error("ReportsView: failed to load data", err);
@@ -658,5 +708,19 @@ export function useReportsData(days: number, source?: SalonReportSource) {
   );
   const insights = useMemo(() => buildReportInsights(stats), [stats]);
 
-  return { loading, stats, chartLabels, insights };
+  // Decision-report analytics (2A/2B/2C/2E) computed from the same window.
+  const analytics = useMemo(() => {
+    const today = new Date();
+    return {
+      slotFill: computeSlotFill(reportSource.bookings, days, today, isOpen),
+      slotLevers: computeSlotLevers(daySettingsLevers, reportSource.bookings, days, today),
+      serviceValue: computeServiceValue(reportSource.bookings, reportSource.dogMap, days, today, isOpen),
+      outcomes: computeOutcomes(reportSource.bookings, bookingEvents, days, today, isOpen),
+      sourceMix: computeSourceMix(reportSource.bookings, reportSource.dogMap, days, today, isOpen),
+    };
+  }, [reportSource, bookingEvents, daySettingsLevers, days, isOpen]);
+
+  return { loading, stats, chartLabels, insights, analytics };
 }
+
+export type ReportsAnalytics = ReturnType<typeof useReportsData>["analytics"];

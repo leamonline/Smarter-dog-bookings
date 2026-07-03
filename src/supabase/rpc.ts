@@ -271,6 +271,14 @@ export function getImmediateSlots(client: SupabaseClient) {
   return client.rpc("get_immediate_slots");
 }
 
+// Per-dog grooming cadence for the retention report (2D): (dog_id, visit_count,
+// median_interval_days, last_groomed_date, first_groomed_date, last_service).
+// The heavy median is computed server-side over completed bookings. Staff-locked
+// (is_staff() guard), SECURITY INVOKER so RLS applies.
+export function getDogGroomingIntervals(client: SupabaseClient) {
+  return client.rpc("get_dog_grooming_intervals");
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status
