@@ -103,6 +103,29 @@ export function londonDateStr(now: Date = new Date()): string {
   return londonNowParts(now).dateStr;
 }
 
+/** Europe/London offset from UTC (ms) at a given instant: 0 in GMT, +1h in BST. */
+function londonOffsetMs(instant: Date): number {
+  const p = londonNowParts(instant);
+  const wallAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+  const instMinute = Math.floor(instant.getTime() / 60000) * 60000;
+  return wallAsUtc - instMinute;
+}
+
+/**
+ * Convert a Europe/London wall-clock date + time ("YYYY-MM-DD", "HH:MM") to a
+ * UTC epoch (ms). Booking dates/slots are stored as London wall-clock, so any
+ * comparison against a real UTC instant (e.g. a booking_events timestamptz)
+ * must go through this rather than naively appending "Z" — which would be an
+ * hour out for the ~7 months of British Summer Time.
+ */
+export function londonWallClockToUtcMs(dateStr: string, timeHHMM: string): number {
+  const naiveUtc = Date.parse(`${dateStr}T${timeHHMM}:00Z`);
+  if (Number.isNaN(naiveUtc)) return NaN;
+  // Slots are mid-morning, never at the 01:00–02:00 DST fold, so the offset at
+  // the naive instant equals the offset at the true instant.
+  return naiveUtc - londonOffsetMs(new Date(naiveUtc));
+}
+
 // ---- Status ranking ----------------------------------------------------------
 
 /** Position of a status along the linear progression; Cancelled/unknown = -1. */

@@ -21,6 +21,7 @@ import {
   BOOKING_STATUS,
 } from "../constants/index";
 import { computeBookingPricing, isCountableBooking } from "./bookingRules";
+import { londonWallClockToUtcMs } from "./today";
 
 /** Event history only starts accruing from this date (booking_events backfill
  *  seeded created/cancelled; reschedules/completions accrue forward). Reports
@@ -312,7 +313,10 @@ export function computeOutcomes(
   const noShowConfirmedCount = cancels.filter((e) => (e.cancel_reason || "").toLowerCase() === "no-show").length;
   const lateCancelCount = cancels.filter((e) => {
     if (!e.booking_date || !e.slot || !e.occurred_at) return false;
-    const slotTs = Date.parse(`${e.booking_date}T${e.slot}:00Z`);
+    // The slot is a Europe/London wall-clock time; occurred_at is a real UTC
+    // instant. Resolve the slot to a true instant so the 24h window is correct
+    // year-round (BST included), not an hour out.
+    const slotTs = londonWallClockToUtcMs(e.booking_date, e.slot);
     const occ = Date.parse(e.occurred_at);
     if (Number.isNaN(slotTs) || Number.isNaN(occ)) return false;
     return occ <= slotTs && slotTs - occ <= LATE_CANCEL_HOURS * 3600 * 1000;
@@ -426,6 +430,7 @@ export interface RetentionMark {
   dog_id: string;
   kind: "snoozed" | "excluded";
   until?: string | null;
+  createdAt?: string | null;
 }
 export type RetentionStatus = "overdue" | "due-soon" | "not-due";
 
@@ -459,8 +464,15 @@ export function computeRetentionCandidates(args: {
 }): { candidates: RetentionCandidate[]; excludedCount: number; overdueCount: number } {
   const { intervals, dogs, humans, marks, recentContactByDog = {}, today, defaultBandDays = 70 } = args;
   const todayStr = ymd(today);
+  // Most-recent mark per dog wins, independent of the fetch order (a dog can
+  // legitimately accumulate marks — e.g. snooze then later exclude).
   const markByDog: Record<string, RetentionMark> = {};
-  (marks || []).forEach((m) => (markByDog[m.dog_id] = m));
+  (marks || []).forEach((m) => {
+    const current = markByDog[m.dog_id];
+    if (!current || (m.createdAt || "") >= (current.createdAt || "")) {
+      markByDog[m.dog_id] = m;
+    }
+  });
 
   let excludedCount = 0;
   const candidates: RetentionCandidate[] = [];

@@ -125,6 +125,9 @@ describe("computeOutcomes (2C)", () => {
     { event_type: "rescheduled", occurred_at: "2026-06-01T10:00:00Z", booking_date: "2026-06-08", slot: "09:00", service: "full-groom", cancel_reason: null, previous_booking_date: "2026-06-01", previous_slot: "09:00" },
     { event_type: "cancelled", occurred_at: "2026-06-02T13:00:00Z", booking_date: "2026-06-02", slot: "12:00", service: "full-groom", cancel_reason: "No-show", previous_booking_date: null, previous_slot: null }, // recorded after the missed slot => not a "late notice" cancel
     { event_type: "cancelled", occurred_at: "2026-06-03T08:00:00Z", booking_date: "2026-06-03", slot: "09:00", service: "bath-and-brush", cancel_reason: "Ill", previous_booking_date: null, previous_slot: null },
+    // 23.5h before a 09:00 BST slot (= 08:00Z) => a genuine <24h late cancel,
+    // but ONLY when the slot is read as Europe/London (not naive UTC).
+    { event_type: "cancelled", occurred_at: "2026-06-09T08:30:00Z", booking_date: "2026-06-10", slot: "09:00", service: "full-groom", cancel_reason: "Holiday", previous_booking_date: null, previous_slot: null },
     { event_type: "created", occurred_at: "2026-06-04T10:00:00Z", booking_date: "2026-06-04", slot: "09:00", service: "full-groom", cancel_reason: null, previous_booking_date: null, previous_slot: null },
   ];
   const bookings = [
@@ -137,12 +140,14 @@ describe("computeOutcomes (2C)", () => {
 
   it("counts reschedules and cancellations from events in the window", () => {
     expect(out.rescheduleCount).toBe(1);
-    expect(out.cancelCount).toBe(2);
+    expect(out.cancelCount).toBe(3);
   });
 
-  it("counts confirmed no-shows and late cancellations", () => {
+  it("counts confirmed no-shows and late cancellations (slot read as London time)", () => {
     expect(out.noShowConfirmedCount).toBe(1); // cancel_reason 'No-show'
-    expect(out.lateCancelCount).toBe(1); // 06-03 cancelled 1h before the 09:00 slot
+    // 06-03 (at the slot) + 06-10 (23.5h before the BST slot); the No-show at
+    // 06-02 was recorded after its slot, so it isn't a late-notice cancel.
+    expect(out.lateCancelCount).toBe(2);
   });
 
   it("compares cancel rate for reminder-confirmed vs unconfirmed bookings", () => {
@@ -227,5 +232,22 @@ describe("computeRetentionCandidates (2D)", () => {
     const bDog = res.candidates.find((c) => c.dogId === "B")!;
     expect(bDog.typicalIntervalDays).toBe(70); // default band (1 visit)
     expect(bDog.status).toBe("not-due");
+  });
+
+  it("uses the most recently created mark when a dog has several (order-independent)", () => {
+    const iv = { F: { visitCount: 3, medianIntervalDays: 50, lastGroomedDate: "2026-04-10", lastService: "full-groom" } };
+    const dogsF = { F: { id: "F", name: "Fen", size: "small", humanId: "hF", archivedAt: null } };
+    const humansF = { hF: { id: "hF", name: "Fay", archivedAt: null, smsOptedOut: false, whatsappOptedOut: false, emailOptedOut: false } };
+    // Old (expired) snooze, then a newer exclude — the exclude must win.
+    const twoMarks = [
+      { dog_id: "F", kind: "snoozed" as const, until: "2020-01-01", createdAt: "2026-06-01T00:00:00Z" },
+      { dog_id: "F", kind: "excluded" as const, until: null, createdAt: "2026-06-20T00:00:00Z" },
+    ];
+    const base = { intervals: iv, dogs: dogsF, humans: humansF, today: TODAY, defaultBandDays: 70 };
+    const forward = computeRetentionCandidates({ ...base, marks: twoMarks });
+    const reversed = computeRetentionCandidates({ ...base, marks: [...twoMarks].reverse() });
+    expect(forward.candidates.length).toBe(0); // excluded (newer) wins
+    expect(reversed.candidates.length).toBe(0); // same regardless of row order
+    expect(forward.excludedCount).toBe(1);
   });
 });

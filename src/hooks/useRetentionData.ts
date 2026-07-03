@@ -58,7 +58,7 @@ export function useRetentionData(): UseRetentionData {
             .from("humans")
             .select("id, name, archived_at, sms_opted_out, whatsapp_opted_out, email_opted_out")
             .abortSignal(controller.signal),
-          supabase.from("retention_marks").select("dog_id, kind, until").abortSignal(controller.signal),
+          supabase.from("retention_marks").select("dog_id, kind, until, created_at").order("created_at", { ascending: true }).abortSignal(controller.signal),
           supabase
             .from("notification_log")
             .select("human_id, sent_at")
@@ -103,10 +103,11 @@ export function useRetentionData(): UseRetentionData {
           };
         });
 
-        const marks: RetentionMark[] = ((mk.data || []) as Array<{ dog_id: string; kind: "snoozed" | "excluded"; until: string | null }>).map((m) => ({
+        const marks: RetentionMark[] = ((mk.data || []) as Array<{ dog_id: string; kind: "snoozed" | "excluded"; until: string | null; created_at: string | null }>).map((m) => ({
           dog_id: m.dog_id,
           kind: m.kind,
           until: m.until,
+          createdAt: m.created_at,
         }));
 
         // Recent contact is by owner (notification_log has no dog_id). Map the
