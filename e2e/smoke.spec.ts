@@ -8,12 +8,25 @@ test.describe("Smoke", () => {
     // straight away (see routeGuards.getStaffAuthRouteState: !isOnline → allow).
     await page.goto("/");
     await expect(page).toHaveURL(/\/(?:\?|$)/);
-    // The "New client" toolbar action is the most stable landmark for the
-    // calendar shell — it's the one header CTA present on every viewport.
-    // (Post the staff-bookings redesign #446, "New booking" is a desktop-only
-    // CTA; mobile/tablet lead with "New client" + per-slot booking.)
+    // The "New booking" toolbar action is the most stable landmark for the
+    // app shell — since the Today mobile redesign it's the one persistent
+    // header CTA on every viewport (mobile moved "New client" into the menu).
     await expect(
-      page.getByRole("button", { name: /new client/i }).first(),
+      page.getByRole("button", { name: /new booking/i }).first(),
+    ).toBeVisible();
+  });
+
+  test("today command centre renders its heading and live subline", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await expect(page).toHaveURL(/\/today/);
+    // Exactly one page heading — the shell's context row stands down here.
+    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+    await expect(page.getByText(/dogs? booked/i).first()).toBeVisible();
+    // The primary nav is labelled, not icon-only.
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Today" }).first(),
     ).toBeVisible();
   });
 
