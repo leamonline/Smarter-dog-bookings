@@ -37,6 +37,11 @@ export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
   const { unread } = useWhatsAppUnread();
   const { sentCount, totalCount, loading: remindersLoading } = useTomorrowReminders();
 
+  // The Today command centre owns its heading (with live counts), so the
+  // context row stands down there — one "Today" on screen, not three.
+  // (After the hooks: they must run unconditionally on every render.)
+  if (sectionTitle === "Today") return null;
+
   // Live status chips for the Bookings day. Same semantics as the
   // workflow sidebar's calm chips, just phrased warmly.
   const inboxChip =

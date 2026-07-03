@@ -330,6 +330,13 @@ export interface AttentionItem {
 }
 
 /**
+ * A freshly-Ready dog lives in the collection queue; it only escalates into
+ * the attention queue once it has been waiting this long (or has no ready_at
+ * stamp to judge by — legacy rows surface rather than hide).
+ */
+export const READY_ESCALATION_MINUTES = 15;
+
+/**
  * Everything needing action right now, as ranked rows. Late arrivals first
  * (most overdue first), then dogs waiting to be collected (longest wait first),
  * then not-yet-arrived bookings still awaiting confirmation, then dogs in/past
@@ -339,16 +346,20 @@ export interface AttentionItem {
 export function buildImmediateAttention(
   bookings: Booking[],
   now: Date,
-  opts: { graceMinutes?: number } = {},
+  opts: { graceMinutes?: number; readyEscalationMinutes?: number } = {},
 ): AttentionItem[] {
   const grace = opts.graceMinutes ?? LATE_ARRIVAL_GRACE_MINUTES;
+  const readyEscalation = opts.readyEscalationMinutes ?? READY_ESCALATION_MINUTES;
   const items: AttentionItem[] = [];
   for (const b of bookings) {
     if (!isCountableBooking(b)) continue;
     const rank = statusRank(b.status);
     const kinds: AttentionKind[] = [];
     if (isLateArrival(b, now, grace)) kinds.push("late");
-    if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) kinds.push("ready");
+    if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) {
+      const wait = collectionWaitMinutes(b, now);
+      if (wait == null || wait >= readyEscalation) kinds.push("ready");
+    }
     if (rank === 0 && needsConfirmation(b)) kinds.push("unconfirmed");
     if (rank >= 1 && isPaymentOutstanding(b)) kinds.push("payment");
     if (kinds.length === 0) continue;
@@ -398,6 +409,63 @@ export function buildArrivalsBySlot(bookings: Booking[], activeSlots: string[], 
       return { slot, slotMinutes, isPast, isCurrent, bookings: bySlot.get(slot) as Booking[] };
     })
     .sort((a, b) => a.slotMinutes - b.slotMinutes);
+}
+
+/** Signed minutes until the slot starts on the London clock (negative = started). */
+export function minutesUntilSlot(slot: string, now: Date): number {
+  return slotToMinutes(slot) - londonNowParts(now).minutesOfDay;
+}
+
+/** Every booking in an arrival group has at least arrived (nothing left to greet). */
+export function isGroupSettled(group: ArrivalGroup): boolean {
+  return group.bookings.every((b) => statusRank(b.status) >= 1);
+}
+
+export interface NextUpSplit {
+  /** The soonest group still expecting a dog — the "who's next" card. */
+  next: ArrivalGroup | null;
+  /** Later groups still expecting at least one dog, chronological. */
+  upcoming: ArrivalGroup[];
+  /**
+   * Groups with nothing left to greet: fully arrived, or past their slot
+   * (a past group's still-Booked dogs are already surfaced as late arrivals).
+   */
+  earlier: ArrivalGroup[];
+}
+
+/**
+ * Split the chronological slot groups into the "Next up" queue and the
+ * collapsed "Earlier today" tail, so completed arrivals never compete with
+ * live ones.
+ */
+export function splitArrivalGroups(groups: ArrivalGroup[]): NextUpSplit {
+  const live: ArrivalGroup[] = [];
+  const earlier: ArrivalGroup[] = [];
+  for (const g of groups) {
+    if (g.isPast || isGroupSettled(g)) earlier.push(g);
+    else live.push(g);
+  }
+  return { next: live[0] ?? null, upcoming: live.slice(1), earlier };
+}
+
+export interface InSalonEntry {
+  booking: Booking;
+  /** Minutes since check-in (null when checked_in_at wasn't stamped). */
+  inSalonMinutes: number | null;
+}
+
+/**
+ * Dogs physically in the salon and still being worked on (Checked in /
+ * In bath) — the Ready queue is its own list. Longest in first.
+ */
+export function buildInSalonList(bookings: Booking[], now: Date): InSalonEntry[] {
+  return bookings
+    .filter((b) => {
+      const rank = statusRank(b.status);
+      return isCountableBooking(b) && (rank === 1 || rank === 2);
+    })
+    .map((b) => ({ booking: b, inSalonMinutes: timeInSalonMinutes(b, now) }))
+    .sort((a, b) => (b.inSalonMinutes ?? -1) - (a.inSalonMinutes ?? -1));
 }
 
 export interface CollectionEntry {

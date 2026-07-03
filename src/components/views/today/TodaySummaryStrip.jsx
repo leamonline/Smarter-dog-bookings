@@ -6,8 +6,8 @@ function Stat({ label, value, hint }) {
   return (
     <div className="flex flex-col items-center justify-center px-3 py-2 min-w-[76px]">
       <span className="text-[20px] font-extrabold text-slate-800 leading-none tabular-nums">{value}</span>
-      <span className="text-[11px] text-slate-500 mt-1 text-center leading-tight">{label}</span>
-      {hint && <span className="text-[10px] text-slate-400 mt-0.5">{hint}</span>}
+      <span className="text-[11px] text-slate-600 mt-1 text-center leading-tight">{label}</span>
+      {hint && <span className="text-[10px] text-slate-500 mt-0.5">{hint}</span>}
     </div>
   );
 }

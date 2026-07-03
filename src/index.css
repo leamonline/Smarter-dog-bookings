@@ -96,6 +96,8 @@
   /* WhatsApp brand green — Inbox nav accent + unread badges. Lifts the two
      inline bg-[#25D366]/text-[#25D366] copies into a token. */
   --color-brand-whatsapp: #25D366;
+  /* AA-readable WhatsApp green for text links on white (#25D366 is ~1.9:1). */
+  --color-brand-whatsapp-dark: #128C50;
   --color-brand-orange: #FF6B00;
   --color-brand-red: #DC2626;
   /* Mustard family — waitlist tab/tag palette. Lifted out of WaitlistNote
