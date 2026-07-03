@@ -433,6 +433,7 @@ export interface RetentionCandidate {
   dogId: string;
   dogName: string;
   owner: string;
+  ownerId: string;
   size?: string;
   lastGroomedDate: string;
   lastService: string | null;
@@ -489,6 +490,7 @@ export function computeRetentionCandidates(args: {
       dogId,
       dogName: dog.name,
       owner: human?.name || "",
+      ownerId: dog.humanId,
       size: dog.size,
       lastGroomedDate: iv.lastGroomedDate,
       lastService: iv.lastService,

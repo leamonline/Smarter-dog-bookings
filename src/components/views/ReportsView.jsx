@@ -11,6 +11,11 @@ import { KeyInsights } from "./reports/KeyInsights.jsx";
 import { CustomerRanking } from "./reports/CustomerRanking.jsx";
 import { BookingHealth } from "./reports/BookingHealth.jsx";
 import { WeeklyCashUp } from "./reports/WeeklyCashUp.jsx";
+import { SlotFillReport } from "./reports/SlotFillReport.jsx";
+import { ServiceValueReport } from "./reports/ServiceValueReport.jsx";
+import { OutcomesReport } from "./reports/OutcomesReport.jsx";
+import { SourceMixReport } from "./reports/SourceMixReport.jsx";
+import { RetentionReport } from "./reports/RetentionReport.jsx";
 import { useSalon } from "../../contexts/SalonContext";
 
 const ALLOWED_PERIODS = [7, 30, 90];
@@ -46,7 +51,7 @@ export function ReportsView({ loadError = null }) {
     }),
     [bookingsByDate, dogs, humans],
   );
-  const { loading, stats, chartLabels, insights } = useReportsData(days, reportSource);
+  const { loading, stats, chartLabels, insights, analytics } = useReportsData(days, reportSource);
 
   const activePeriod = PERIODS.find((p) => p.v === days) ?? PERIODS[1];
   // Below this threshold, period-over-period deltas read like noise —
@@ -227,6 +232,21 @@ export function ReportsView({ loadError = null }) {
               insight={insights.health}
             />
           </div>
+
+          {/* Band 7 — Hardest to fill + Value per hour by service */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <SlotFillReport slotFill={analytics.slotFill} slotLevers={analytics.slotLevers} />
+            <ServiceValueReport serviceValue={analytics.serviceValue} />
+          </div>
+
+          {/* Band 8 — Outcomes + Booking source */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <OutcomesReport outcomes={analytics.outcomes} />
+            <SourceMixReport sourceMix={analytics.sourceMix} />
+          </div>
+
+          {/* Band 9 — Retention (self-fetching, spans all booking history) */}
+          <RetentionReport />
         </>
       )}
     </div>
