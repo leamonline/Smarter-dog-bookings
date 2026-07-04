@@ -10,6 +10,7 @@ import {
   computeServiceValue,
   computeOutcomes,
   computeSourceMix,
+  computeCollectedByMethod,
   type AnalyticsEvent,
 } from "../engine/reportsAnalytics";
 import { fetchDaySettingsWeek } from "../supabase/queries/bootQueries.js";
@@ -71,6 +72,8 @@ interface ReportBookingRow {
   reminder_confirmed_at?: string | null;
   checked_in_at?: string | null;
   ready_at?: string | null;
+  payment_method?: string | null;
+  paid_amount?: number | null;
 }
 
 /** Per-date extra/immediate slot levers, for the 2A uptake report. */
@@ -242,6 +245,8 @@ export function buildReportSourceFromSalon(
         reminder_confirmed_at: booking.reminderConfirmedAt ?? null,
         checked_in_at: booking.checkedInAt ?? null,
         ready_at: booking.readyAt ?? null,
+        payment_method: booking.paymentMethod ?? null,
+        paid_amount: booking.paidAmount ?? null,
       });
     });
   });
@@ -600,7 +605,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const [bk, dg, hm, ds, ev] = await Promise.all([
           supabase
             .from("bookings")
-            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at, checked_in_at, ready_at")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at, checked_in_at, ready_at, payment_method, paid_amount")
             .gte("booking_date", sinceStr)
             .order("booking_date")
             .abortSignal(controller.signal),
@@ -721,6 +726,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
       serviceValue: computeServiceValue(reportSource.bookings, reportSource.dogMap, days, today, isOpen),
       outcomes: computeOutcomes(reportSource.bookings, bookingEvents, days, today, isOpen),
       sourceMix: computeSourceMix(reportSource.bookings, reportSource.dogMap, days, today, isOpen),
+      collectedByMethod: computeCollectedByMethod(reportSource.bookings, reportSource.dogMap, days, today, isOpen),
     };
   }, [reportSource, bookingEvents, daySettingsLevers, days, isOpen]);
 
