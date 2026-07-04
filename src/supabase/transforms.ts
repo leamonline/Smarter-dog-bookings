@@ -61,6 +61,9 @@ interface DbBookingRow {
   addons: string[] | null;
   payment: string | null;
   deposit_amount?: number | null;
+  payment_method?: string | null;
+  paid_at?: string | null;
+  paid_amount?: number | null;
   confirmed: boolean | null;
   dog_id: string;
   pickup_by_id: string | null;
@@ -380,6 +383,10 @@ export function dbBookingsToArray(
       pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || ownerSnapshot || "",
       payment: row.payment || "Due at Pick-up",
       depositAmount: row.deposit_amount ?? null,
+      // Minimal payment ledger (improvement #3): how + when a booking was settled.
+      paymentMethod: row.payment_method ?? null,
+      paidAt: row.paid_at ?? null,
+      paidAmount: row.paid_amount ?? null,
       confirmed: row.confirmed === true,
       dogNameSnapshot,
       breedSnapshot,

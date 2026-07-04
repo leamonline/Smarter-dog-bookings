@@ -87,6 +87,11 @@ export interface Booking {
   pickupBy: string;
   payment: string;
   depositAmount?: number | null;
+  // Minimal payment ledger (improvement #3): how + when settled. Populated by
+  // the DB read path; paidAt is trigger-stamped, method/amount are staff-set.
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+  paidAmount?: number | null;
   confirmed: boolean;
   dogNameSnapshot: string | null;
   breedSnapshot: string | null;

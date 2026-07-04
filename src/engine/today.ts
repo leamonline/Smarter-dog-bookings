@@ -25,6 +25,7 @@ import {
   DOG_SIZE,
   IMMEDIATE_CUTOFF_MINUTES,
   LATE_ARRIVAL_GRACE_MINUTES,
+  paymentMethodLabel,
 } from "../constants/salon";
 import type { Booking, Dog, SlotOverrides } from "../types/index";
 
@@ -44,6 +45,8 @@ export interface TodayBooking {
   payment?: string | null;
   addons?: string[] | null;
   depositAmount?: number | null;
+  paymentMethod?: string | null;
+  paidAmount?: number | null;
   reminderState?: string;
   confirmationChannel?: string | null;
   readyAt?: string | null;
@@ -519,4 +522,51 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
     .filter(isPaymentOutstanding)
     .map((b) => ({ booking: b, payment: paymentState(b) }))
     .sort((a, b) => (b.payment.amountDue ?? 0) - (a.payment.amountDue ?? 0));
+}
+
+// ---- Takings by method (improvement #3 — till view) --------------------------
+
+export interface TakingsByMethod {
+  /** Total recorded-as-paid amount across the given bookings. */
+  total: number;
+  /** Number of Paid-in-Full bookings counted. */
+  count: number;
+  byMethod: Array<{ method: string; label: string; amount: number; count: number }>;
+}
+
+/**
+ * Sum today's recorded takings, grouped by payment method. Uses the recorded
+ * paid_amount where present, else the computed appointment total (legacy paid
+ * bookings have no recorded amount). Bookings with no recorded method fall into
+ * an "unrecorded" bucket. Cancelled bookings are excluded.
+ */
+export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod {
+  const paid = bookings.filter((b) => (b.payment || "") === "Paid in Full" && isCountableBooking(b));
+  const acc: Record<string, { amount: number; count: number }> = {};
+  let total = 0;
+  for (const b of paid) {
+    const amount =
+      b.paidAmount != null
+        ? b.paidAmount
+        : computeBookingPricing({
+            service: b.service ?? "",
+            size: b.size ?? DOG_SIZE.SMALL,
+            addons: b.addons ?? null,
+            payment: b.payment ?? null,
+          }).subtotal;
+    const method = b.paymentMethod || "unrecorded";
+    (acc[method] ||= { amount: 0, count: 0 });
+    acc[method].amount += amount;
+    acc[method].count++;
+    total += amount;
+  }
+  const byMethod = Object.entries(acc)
+    .map(([method, v]) => ({
+      method,
+      label: method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method),
+      amount: v.amount,
+      count: v.count,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  return { total, count: paid.length, byMethod };
 }

@@ -23,6 +23,7 @@ import {
   buildInSalonList,
   buildCollectionQueue,
   buildPaymentsList,
+  buildTakingsByMethod,
   buildSlotOpportunities,
 } from "../../engine/today";
 import { BOOKING_STATUS } from "../../constants/index";
@@ -83,6 +84,7 @@ export function TodayView({
 
   // ---- Engine selectors ----
   const summary = useMemo(() => buildDaySummary(todayBookings, dogs), [todayBookings, dogs]);
+  const takings = useMemo(() => buildTakingsByMethod(todayBookings), [todayBookings]);
   const attention = useMemo(() => buildImmediateAttention(todayBookings, now), [todayBookings, now]);
   const arrivals = useMemo(() => buildArrivalsBySlot(todayBookings, activeSlots, now), [todayBookings, activeSlots, now]);
   const nextUp = useMemo(() => splitArrivalGroups(arrivals), [arrivals]);
@@ -149,7 +151,15 @@ export function TodayView({
   const onMarkArrived = useCallback((b) => patch(b, { status: BOOKING_STATUS.CHECKED_IN }, `${b.dogName} checked in`), [patch]);
   const onMarkReady = useCallback((b) => patch(b, { status: BOOKING_STATUS.READY_FOR_PICKUP }, `${b.dogName} is ready to go home`), [patch]);
   const onMarkCollected = useCallback((b) => patch(b, { status: BOOKING_STATUS.COMPLETED }, `${b.dogName} collected — lovely`), [patch]);
-  const onMarkPaid = useCallback((b) => patch(b, { payment: "Paid in Full" }, `${b.dogName} — payment recorded`), [patch]);
+  const onMarkPaid = useCallback(
+    (b, method) =>
+      patch(
+        b,
+        { payment: "Paid in Full", paymentMethod: method ?? null, paidAmount: paymentOf(b).subtotal },
+        `${b.dogName} — payment recorded`,
+      ),
+    [patch, paymentOf],
+  );
   const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
@@ -300,7 +310,7 @@ export function TodayView({
           {nextUp.earlier.length > 0 && (
             <EarlierToday groups={nextUp.earlier} now={now} {...arrivalHandlers} />
           )}
-          <TodaySummaryStrip summary={summary} />
+          <TodaySummaryStrip summary={summary} takings={takings} />
 
           {!isOnline && (
             <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>

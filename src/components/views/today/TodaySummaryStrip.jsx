@@ -12,10 +12,10 @@ function Stat({ label, value, hint }) {
   );
 }
 
-export function TodaySummaryStrip({ summary }) {
+export function TodaySummaryStrip({ summary, takings }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] overflow-x-auto">
-      <div className="flex items-stretch divide-x divide-slate-100 min-w-max">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
+      <div className="flex items-stretch divide-x divide-slate-100 min-w-max overflow-x-auto">
         <Stat label="Booked in" value={summary.total} hint={`${summary.capacityUsedPct}% of ${DAY_CAPACITY}`} />
         <Stat label="Arrived" value={summary.arrived} />
         <Stat label="Still expected" value={summary.expected} />
@@ -25,6 +25,16 @@ export function TodaySummaryStrip({ summary }) {
         <Stat label="Expected" value={formatMoney(summary.expectedRevenue)} hint="appointment value" />
         <Stat label="Recorded paid" value={formatMoney(summary.collectedRevenue)} hint="status, not a till" />
       </div>
+      {takings && takings.total > 0 && (
+        <div className="border-t border-slate-100 px-3 py-2 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px]">
+          <span className="font-bold text-slate-700">Taken today {formatMoney(takings.total)}</span>
+          {takings.byMethod.map((m) => (
+            <span key={m.method} className="text-slate-600">
+              {m.label} <span className="font-semibold text-slate-800">{formatMoney(m.amount)}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

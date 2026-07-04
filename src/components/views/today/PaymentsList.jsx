@@ -1,12 +1,15 @@
 // Payments to take — today's bookings that still owe money, with the
 // deposit/balance split. An operational nudge, not an invoice: rows leave
 // this list by being recorded paid, never by being hidden.
+import { useState } from "react";
+import { PAYMENT_METHODS } from "../../../constants/salon";
 import { SectionCard, StatusPill, PrimaryButton, SecondaryButton, formatMoney } from "./parts.jsx";
 
 function PaymentRow({ entry, resolve, paymentOf, onMarkPaid, onOpenBooking }) {
   const b = entry.booking;
   const d = resolve(b);
   const pay = paymentOf(b); // recomputed with the dog's custom price
+  const [choosing, setChoosing] = useState(false);
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="flex items-center gap-2 flex-wrap">
@@ -25,8 +28,20 @@ function PaymentRow({ entry, resolve, paymentOf, onMarkPaid, onOpenBooking }) {
         {b.notes && b.notes.trim() && <span className="italic"> · “{b.notes.trim()}”</span>}
       </div>
       <div className="flex items-center gap-2 flex-wrap mt-2">
-        <PrimaryButton onClick={() => onMarkPaid(b)}>Mark paid</PrimaryButton>
-        <SecondaryButton onClick={() => onOpenBooking(b.id)}>Open booking</SecondaryButton>
+        {choosing ? (
+          <>
+            <span className="text-[13px] font-semibold text-slate-600 self-center">Paid by:</span>
+            {PAYMENT_METHODS.map((m) => (
+              <SecondaryButton key={m.id} onClick={() => { onMarkPaid(b, m.id); setChoosing(false); }}>{m.label}</SecondaryButton>
+            ))}
+            <button type="button" onClick={() => setChoosing(false)} className="text-[13px] text-slate-500 underline min-h-[44px] px-1 bg-transparent border-none cursor-pointer">Cancel</button>
+          </>
+        ) : (
+          <>
+            <PrimaryButton onClick={() => setChoosing(true)}>Mark paid</PrimaryButton>
+            <SecondaryButton onClick={() => onOpenBooking(b.id)}>Open booking</SecondaryButton>
+          </>
+        )}
       </div>
     </li>
   );

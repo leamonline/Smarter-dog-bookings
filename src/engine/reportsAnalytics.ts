@@ -20,6 +20,7 @@ import {
   DAILY_DOG_CAP,
   BOOKING_STATUS,
 } from "../constants/index";
+import { paymentMethodLabel } from "../constants/salon";
 import { computeBookingPricing, isCountableBooking } from "./bookingRules";
 import { londonWallClockToUtcMs } from "./today";
 
@@ -54,6 +55,8 @@ export interface AnalyticsBooking {
   reminder_confirmed_at?: string | null;
   checked_in_at?: string | null;
   ready_at?: string | null;
+  payment_method?: string | null;
+  paid_amount?: number | null;
 }
 
 /** Longest a single groom could plausibly take; a gap beyond this is bad data
@@ -556,4 +559,44 @@ export function computeRetentionCandidates(args: {
 
   candidates.sort((a, b) => b.overdueDays - a.overdueDays);
   return { candidates, excludedCount, overdueCount: candidates.filter((c) => c.status === "overdue").length };
+}
+
+// -- Collected by method over the period (improvement #3 — till over time) -----
+
+export interface CollectedByMethod {
+  total: number;
+  count: number;
+  byMethod: Array<{ method: string; label: string; amount: number; count: number }>;
+}
+
+export function computeCollectedByMethod(
+  bookings: AnalyticsBooking[],
+  dogMap: DogCustomPriceMap,
+  days: number,
+  today: Date,
+  isOpen: IsOpenDate,
+): CollectedByMethod {
+  const { todayStr, cutoffStr } = windowBounds(days, today);
+  const paid = bookings.filter(
+    (b) => inCurrentWindow(b, cutoffStr, todayStr) && isOpen(b.booking_date) && b.payment === "Paid in Full",
+  );
+  const acc: Record<string, { amount: number; count: number }> = {};
+  let total = 0;
+  for (const b of paid) {
+    const amount = b.paid_amount != null ? b.paid_amount : priceOf(b, dogMap);
+    const method = b.payment_method || "unrecorded";
+    (acc[method] ||= { amount: 0, count: 0 });
+    acc[method].amount += amount;
+    acc[method].count++;
+    total += amount;
+  }
+  const byMethod = Object.entries(acc)
+    .map(([method, v]) => ({
+      method,
+      label: method === "unrecorded" ? "Not recorded" : paymentMethodLabel(method),
+      amount: v.amount,
+      count: v.count,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  return { total, count: paid.length, byMethod };
 }

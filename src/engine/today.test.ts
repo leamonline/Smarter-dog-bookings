@@ -21,6 +21,7 @@ import {
   splitArrivalGroups,
   isGroupSettled,
   buildInSalonList,
+  buildTakingsByMethod,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking } from "../types/index";
@@ -407,5 +408,29 @@ describe("buildPaymentsList", () => {
     ]);
     expect(list.map((e) => e.payment.kind)).toEqual(["due", "deposit"]);
     expect(list[0].payment.amountDue).toBe(42);
+  });
+});
+
+describe("buildTakingsByMethod (improvement #3 — till view)", () => {
+  it("sums recorded takings by method, falling back to the total when amount is unrecorded", () => {
+    const t = buildTakingsByMethod([
+      bk({ payment: "Paid in Full", paymentMethod: "card", paidAmount: 42, service: "full-groom", size: "small", status: "Completed" }),
+      bk({ payment: "Paid in Full", paymentMethod: "cash", paidAmount: 38, service: "bath-and-brush", size: "small", status: "Completed" }),
+      bk({ payment: "Paid in Full", paymentMethod: "card", paidAmount: null, service: "full-groom", size: "small", status: "Completed" }), // fallback £42
+      bk({ payment: "Paid in Full", paymentMethod: null, paidAmount: 60, service: "full-groom", size: "large", status: "Completed" }), // method not recorded
+      bk({ payment: "Due at Pick-up", service: "full-groom", size: "small", status: "Checked in" }), // not paid — excluded
+    ]);
+    expect(t.count).toBe(4); // paid bookings
+    expect(t.total).toBe(182); // 42 + 38 + 42 + 60
+    expect(t.byMethod.find((m) => m.method === "card")).toMatchObject({ amount: 84, count: 2 });
+    expect(t.byMethod.find((m) => m.method === "cash")).toMatchObject({ amount: 38, count: 1 });
+    expect(t.byMethod.find((m) => m.method === "unrecorded")).toMatchObject({ amount: 60, count: 1 });
+  });
+
+  it("is empty and safe when nothing is paid", () => {
+    const t = buildTakingsByMethod([bk({ payment: "Due at Pick-up", status: "Booked" })]);
+    expect(t.total).toBe(0);
+    expect(t.count).toBe(0);
+    expect(t.byMethod).toEqual([]);
   });
 });
