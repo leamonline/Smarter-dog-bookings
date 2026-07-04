@@ -46,6 +46,7 @@ import { BookingCreatedCard } from "./thread/BookingCreatedCard.jsx";
 import { DraftPanel } from "./thread/DraftPanel.jsx";
 import { BookingActionPanel } from "./thread/BookingActionPanel.jsx";
 import { ComposePanel } from "./thread/ComposePanel.jsx";
+import { WindowClosedBanner } from "./thread/WindowClosedBanner.jsx";
 import { CustomerContextPanel } from "./customer-context/CustomerContextPanel.jsx";
 import { SlideOverPanel } from "./customer-context/SlideOverPanel.jsx";
 import { useCustomerContext } from "./hooks/useCustomerContext.js";
@@ -748,8 +749,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {selectedConversation?.closed_at && (
+                      // Plain-text status, not a pill — so it reads as the
+                      // conversation's state, not a tappable filter chip like
+                      // the ones in the toolbar above.
                       <span
-                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[12px] font-semibold"
+                        className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-500"
                         title={`Closed ${new Date(selectedConversation.closed_at).toLocaleString("en-GB")}${
                           selectedConversation.closure_reason && selectedConversation.closure_reason !== "manual"
                             ? ` · auto-reason: ${selectedConversation.closure_reason}`
@@ -786,6 +790,13 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   </div>
                 </div>
               </div>
+
+              {/* 24-hour reply-window notice — pinned directly under the
+                  header, before the thread, so staff see *why* free-form
+                  replies are unavailable before scrolling to the template
+                  picker below (which drops its own copy of this notice via
+                  hideTemplateBanner). */}
+              <WindowClosedBanner conversation={selectedConversation} />
 
               {/* Thread — kept visible above any draft / booking / template
                   panels via min-h, so staff can always read history while
@@ -915,6 +926,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 hasPendingDraft={!!draft}
                 hasInbound={messages.some((m) => m.direction === "inbound")}
                 onGenerateReply={handleGenerateReply}
+                hideTemplateBanner
               />
             </>
           )}

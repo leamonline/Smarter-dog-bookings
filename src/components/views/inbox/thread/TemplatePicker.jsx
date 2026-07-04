@@ -15,7 +15,7 @@ import { WHATSAPP_PICKER_TEMPLATES } from "../../../../constants/whatsappTemplat
 // reopen flow) OR a customerFirstName + contextKey directly (outbound
 // compose-new flow, where there isn't a conversation row yet). Both
 // paths render the same form; only the auto-fill source differs.
-export function TemplatePicker({ conversation, dogNames, onSend, customerFirstName, contextKey }) {
+export function TemplatePicker({ conversation, dogNames, onSend, customerFirstName, contextKey, hideBanner = false }) {
   // Start with NOTHING selected so the picker stays collapsed until staff
   // choose a template.
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
@@ -91,12 +91,21 @@ export function TemplatePicker({ conversation, dogNames, onSend, customerFirstNa
   }
 
   return (
-    <div className="flex flex-col gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-      <p className="text-[11px] leading-snug text-amber-900">
-        <span aria-hidden="true">⏱ </span>
-        <span className="font-bold">24-hour reply window closed.</span>{" "}
-        <span className="text-amber-800">Send a template to reopen the chat.</span>
-      </p>
+    <div
+      className={`flex flex-col gap-2 p-2.5 rounded-lg border ${
+        // When the notice has been hoisted above the thread (inbox), keep
+        // the control surface neutral so there's a single amber alert, not
+        // two. Standalone (compose-new) it stays amber and self-explains.
+        hideBanner ? "bg-white border-slate-200" : "bg-amber-50 border-amber-200"
+      }`}
+    >
+      {!hideBanner && (
+        <p className="text-[11px] leading-snug text-amber-900">
+          <span aria-hidden="true">⏱ </span>
+          <span className="font-bold">24-hour reply window closed.</span>{" "}
+          <span className="text-amber-800">Send a template to reopen the chat.</span>
+        </p>
+      )}
 
       <div className="flex items-center gap-2">
         <select
