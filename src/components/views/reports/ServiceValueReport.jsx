@@ -4,10 +4,12 @@ import { Section } from "./ReportWidgets.jsx";
 // value/hour = completed revenue ÷ booked half-hours. Durations are the
 // scheduled 30-min slots (an estimate until arrival→ready timings accrue).
 const MIN_N_FOR_RATE = 3; // below this, per-service rates are noise
+const MIN_N_FOR_TIMING = 3; // below this, real-duration averages are noise
 
 export function ServiceValueReport({ serviceValue }) {
   const active = serviceValue.filter((s) => s.completedN > 0);
   const maxVph = Math.max(...active.map((s) => s.valuePerHour), 1);
+  const anyTimed = active.some((s) => s.timedN >= MIN_N_FOR_TIMING);
 
   const top = active.slice().sort((a, b) => b.valuePerHour - a.valuePerHour)[0];
   const insight = top
@@ -17,7 +19,8 @@ export function ServiceValueReport({ serviceValue }) {
   return (
     <Section title="Value per hour by service" accent="var(--color-brand-teal)" insight={insight}>
       <p className="text-caption text-ink-muted font-medium m-0 mb-3">
-        Based on scheduled 30-minute slots — an estimate until real groom durations build up.
+        Headline is the scheduled 30-minute slot — an estimate.{" "}
+        {anyTimed ? "“Actual” shows the real check-in→ready time where enough grooms have been timed." : "Real groom times appear here as they build up."}
       </p>
       {active.length === 0 ? (
         <div className="text-caption text-ink-muted font-medium">No completed grooms in this period.</div>
@@ -45,6 +48,11 @@ export function ServiceValueReport({ serviceValue }) {
                   <span className="italic">rates need {MIN_N_FOR_RATE}+ grooms</span>
                 )}
               </div>
+              {s.timedN >= MIN_N_FOR_TIMING && s.avgActualMinutes != null && s.actualValuePerHour != null && (
+                <div className="text-micro font-semibold text-brand-teal-text mt-0.5">
+                  Actual: ~{Math.round(s.avgActualMinutes)} min · £{s.actualValuePerHour.toFixed(0)}/h (from {s.timedN} timed groom{s.timedN !== 1 ? "s" : ""})
+                </div>
+              )}
             </div>
           ))}
         </div>

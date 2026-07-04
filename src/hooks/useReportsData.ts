@@ -69,6 +69,8 @@ interface ReportBookingRow {
   created_by_role?: string | null;
   source?: string | null;
   reminder_confirmed_at?: string | null;
+  checked_in_at?: string | null;
+  ready_at?: string | null;
 }
 
 /** Per-date extra/immediate slot levers, for the 2A uptake report. */
@@ -238,6 +240,8 @@ export function buildReportSourceFromSalon(
         created_by_role: booking.createdByRole ?? null,
         source: booking.source ?? null,
         reminder_confirmed_at: booking.reminderConfirmedAt ?? null,
+        checked_in_at: booking.checkedInAt ?? null,
+        ready_at: booking.readyAt ?? null,
       });
     });
   });
@@ -596,7 +600,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const [bk, dg, hm, ds, ev] = await Promise.all([
           supabase
             .from("bookings")
-            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at, checked_in_at, ready_at")
             .gte("booking_date", sinceStr)
             .order("booking_date")
             .abortSignal(controller.signal),

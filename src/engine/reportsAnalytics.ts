@@ -52,6 +52,27 @@ export interface AnalyticsBooking {
   created_by_role?: string | null;
   source?: string | null;
   reminder_confirmed_at?: string | null;
+  checked_in_at?: string | null;
+  ready_at?: string | null;
+}
+
+/** Longest a single groom could plausibly take; a gap beyond this is bad data
+ *  (e.g. a dog left "checked in" overnight), not a real duration. */
+const MAX_GROOM_MINUTES = 12 * 60;
+
+/**
+ * Actual groom time in minutes = ready_at − checked_in_at, when both stamps
+ * exist and the gap is sane. Null otherwise (no timing / bad data). Timings
+ * only accrue from 2026-07-02, so most historical grooms return null.
+ */
+export function actualGroomMinutes(b: { checked_in_at?: string | null; ready_at?: string | null }): number | null {
+  if (!b.checked_in_at || !b.ready_at) return null;
+  const start = Date.parse(b.checked_in_at);
+  const end = Date.parse(b.ready_at);
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  const mins = (end - start) / 60000;
+  if (mins <= 0 || mins > MAX_GROOM_MINUTES) return null;
+  return mins;
 }
 
 export interface AnalyticsEvent {
@@ -243,6 +264,12 @@ export interface ServiceValueRow {
   valuePerHour: number;
   rebookRatePct: number;
   cancelRatePct: number;
+  /** Completed grooms of this service that have a real check-in→ready timing. */
+  timedN: number;
+  /** Mean actual groom time (minutes) across the timed grooms; null if none. */
+  avgActualMinutes: number | null;
+  /** Value per hour from real durations only; null until timings accrue. */
+  actualValuePerHour: number | null;
 }
 
 export function computeServiceValue(
@@ -273,11 +300,20 @@ export function computeServiceValue(
     const completedN = completed.length;
     const hours = completedN * SLOT_HOURS;
     let rebooked = 0;
+    let timedN = 0;
+    let timedMinutes = 0;
+    let timedRevenue = 0;
     completed.forEach((b) => {
       const later = (completedByDog[b.dog_id] || []).some(
         (d) => d > b.booking_date && daysBetween(b.booking_date, d) <= REBOOK_WINDOW_DAYS,
       );
       if (later) rebooked++;
+      const mins = actualGroomMinutes(b);
+      if (mins != null) {
+        timedN++;
+        timedMinutes += mins;
+        timedRevenue += priceOf(b, dogMap);
+      }
     });
     return {
       id: s.id,
@@ -288,6 +324,9 @@ export function computeServiceValue(
       valuePerHour: hours > 0 ? revenue / hours : 0,
       rebookRatePct: completedN > 0 ? (rebooked / completedN) * 100 : 0,
       cancelRatePct: svcWindow.length > 0 ? (cancelled.length / svcWindow.length) * 100 : 0,
+      timedN,
+      avgActualMinutes: timedN > 0 ? timedMinutes / timedN : null,
+      actualValuePerHour: timedN > 0 && timedMinutes > 0 ? timedRevenue / (timedMinutes / 60) : null,
     };
   }).sort((a, b) => b.revenue - a.revenue);
 }
