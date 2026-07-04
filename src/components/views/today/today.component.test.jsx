@@ -219,6 +219,21 @@ describe("CollectionQueue", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm collected" }));
     expect(onMarkCollected).toHaveBeenCalledTimes(1);
   });
+
+  it("shows an 'on the way' chip when the owner signalled they're coming", () => {
+    render(
+      <CollectionQueue
+        entries={[{ booking: { id: "c3", dogName: "Rex", status: "Ready for pick-up", collectionSentAt: "2026-07-02T09:00:00Z", whatsappConversationId: "conv-1" }, waitMinutes: 15 }]}
+        resolve={resolve}
+        paymentOf={() => ({ kind: "paid", amountDue: 0, depositPaid: 0, subtotal: 42, label: "Paid" })}
+        onSendCollection={noop}
+        onMarkCollected={noop}
+        onOpenBooking={noop}
+        onTheWaySignals={{ "conv-1": { at: "2026-07-02T09:50:00Z", text: "on my way", minutesAgo: 10 } }}
+      />,
+    );
+    expect(screen.getByText(/On the way · 10 min ago/)).toBeInTheDocument();
+  });
 });
 
 describe("PaymentsList", () => {
