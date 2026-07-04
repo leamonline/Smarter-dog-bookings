@@ -17,7 +17,7 @@ import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
-import { logBookingDenial, type BookingDenialInput } from "../../../supabase/rpc";
+import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
 import { mapDenialReason } from "../../../engine/denials";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
@@ -300,6 +300,39 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     },
     [selectedDogs, services, fireDenialLog],
   );
+
+  // Booking-wizard funnel telemetry (improvement #4) — best-effort, deduped per
+  // step, one session_id per run. Wrapped/swallowed exactly like fireDenialLog
+  // so a telemetry failure can never affect the wizard.
+  const funnelSessionId = useRef<string>(crypto.randomUUID());
+  const loggedFunnelSteps = useRef<Set<string>>(new Set());
+  const fireFunnel = useCallback(
+    (funnelStep: string) => {
+      try {
+        if (!supabase || loggedFunnelSteps.current.has(funnelStep)) return;
+        loggedFunnelSteps.current.add(funnelStep);
+        logFunnelEvent(supabase, {
+          sessionId: funnelSessionId.current,
+          step: funnelStep,
+          humanId: humanRecord.id,
+          dogCount: selectedDogs.length || null,
+        }).then(undefined, () => {});
+      } catch {
+        /* telemetry must never surface into the wizard */
+      }
+    },
+    [humanRecord.id, selectedDogs.length],
+  );
+  useEffect(() => {
+    fireFunnel("started");
+  }, [fireFunnel]);
+  useEffect(() => {
+    const name = { 1: "select_dogs", 2: "select_service", 3: "select_date", 4: "select_slot", 5: "confirm" }[step];
+    if (name) fireFunnel(name);
+  }, [step, fireFunnel]);
+  useEffect(() => {
+    if (booked) fireFunnel("booked");
+  }, [booked, fireFunnel]);
 
   const handleConfirm = async () => {
     if (!slotAllocation || !selectedDate) return;

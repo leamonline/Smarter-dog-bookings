@@ -313,6 +313,21 @@ export function logBookingDenial(client: SupabaseClient, input: BookingDenialInp
   });
 }
 
+// Best-effort booking-wizard step telemetry (improvement #4). SECURITY DEFINER
+// RPC granted to authenticated; never raises on ordinary input. ALWAYS call
+// fire-and-forget — a failure must never surface to, or block, the wizard.
+export function logFunnelEvent(
+  client: SupabaseClient,
+  input: { sessionId: string; step: string; humanId?: string | null; dogCount?: number | null },
+) {
+  return client.rpc("log_funnel_event", {
+    p_session_id: input.sessionId,
+    p_step: input.step,
+    p_human_id: input.humanId ?? null,
+    p_dog_count: input.dogCount ?? null,
+  });
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status

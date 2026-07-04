@@ -17,6 +17,7 @@ import { OutcomesReport } from "./reports/OutcomesReport.jsx";
 import { SourceMixReport } from "./reports/SourceMixReport.jsx";
 import { RetentionReport } from "./reports/RetentionReport.jsx";
 import { CapacityPreventedReport } from "./reports/CapacityPreventedReport.jsx";
+import { FunnelReport } from "./reports/FunnelReport.jsx";
 import { useSalon } from "../../contexts/SalonContext";
 
 const ALLOWED_PERIODS = [7, 30, 90];
@@ -251,6 +252,9 @@ export function ReportsView({ loadError = null }) {
 
           {/* Band 10 — Capacity-prevented demand (self-fetching booking_denials) */}
           <CapacityPreventedReport days={days} />
+
+          {/* Band 11 — Booking funnel drop-off (self-fetching booking_funnel_events) */}
+          <FunnelReport days={days} />
         </>
       )}
     </div>
