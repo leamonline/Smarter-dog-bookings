@@ -23,6 +23,11 @@ export function ComposePanel({
   hasPendingDraft,
   hasInbound,
   onGenerateReply,
+  // When true, the "24-hour reply window closed" notice is shown elsewhere
+  // (the inbox hoists it above the thread), so the picker drops its own
+  // copy to avoid a duplicate banner. Defaults to false so standalone use
+  // still explains itself.
+  hideTemplateBanner = false,
 }) {
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
@@ -97,6 +102,7 @@ export function ComposePanel({
           conversation={conversation}
           dogNames={dogNames ?? []}
           onSend={onSendTemplate}
+          hideBanner={hideTemplateBanner}
         />
       </div>
     );
