@@ -279,6 +279,40 @@ export function getDogGroomingIntervals(client: SupabaseClient) {
   return client.rpc("get_dog_grooming_intervals");
 }
 
+export interface BookingDenialInput {
+  reasonCode: string;
+  source?: string;
+  requestedDate?: string | null;
+  slot?: string | null;
+  size?: string | null;
+  service?: string | null;
+  dogCount?: number | null;
+  reasonDetail?: string | null;
+  alternativeShown?: boolean;
+  alternativeTaken?: boolean;
+  humanId?: string | null;
+}
+
+// Best-effort capacity-denial log into booking_denials (report 2F). The RPC is
+// SECURITY DEFINER, granted to authenticated + service_role, and never raises on
+// ordinary input. ALWAYS call this fire-and-forget (e.g. `.then(undefined, () => {})`)
+// — a logging failure must never surface to, or block, a booking.
+export function logBookingDenial(client: SupabaseClient, input: BookingDenialInput) {
+  return client.rpc("log_booking_denial", {
+    p_reason_code: input.reasonCode,
+    p_source: input.source ?? "portal",
+    p_requested_date: input.requestedDate ?? null,
+    p_slot: input.slot ?? null,
+    p_size: input.size ?? null,
+    p_service: input.service ?? null,
+    p_dog_count: input.dogCount ?? null,
+    p_reason_detail: input.reasonDetail ?? null,
+    p_alternative_shown: input.alternativeShown ?? false,
+    p_alternative_taken: input.alternativeTaken ?? false,
+    p_human_id: input.humanId ?? null,
+  });
+}
+
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status

@@ -314,6 +314,57 @@ async function validateRescheduleOld(
   return { ok: true };
 }
 
+// Best-effort categorisation of a gate rejection message (Deno copy of the
+// frontend engine/denials.ts mapper — the customer portal is the source of
+// truth; keep the two in sync).
+function flowDenialReason(message: string | undefined): string {
+  const m = (message || "").toLowerCase();
+  if (!m) return "unknown";
+  if (m.includes("pregnant")) return "pregnant";
+  if (m.includes("2-2-1")) return "capacity_2_2_1";
+  if (m.includes("fully booked") && m.includes("per day")) return "daily_cap";
+  if (m.includes("slot is full")) return "slot_full";
+  if (/large dog|large dogs|back-to-back|small\/medium dog can share|early close/.test(m)) return "large_dog_ineligible";
+  if (m.includes("same-day")) return "past_cutoff";
+  if (m.includes("in the past")) return "past_date";
+  if (m.includes("blocked")) return "seat_blocked";
+  if (m.includes("closed")) return "calendar_closed";
+  if (m.includes("twice") || m.includes("already booked")) return "double_booked";
+  if (m.includes("invalid slot")) return "unavailable";
+  return "unknown";
+}
+
+// Log a capacity-prevented booking into booking_denials (report 2F). Awaited so
+// the write lands before the edge function returns, but fully swallowed — a
+// logging failure must NEVER change the flow's response to the customer.
+async function logFlowDenial(
+  supabase: SupabaseClient,
+  session: FlowSessionRow,
+  state: FlowState,
+  message: string | undefined,
+  alternativeShown: boolean,
+): Promise<void> {
+  try {
+    const dogIds = state.dog_ids ?? [];
+    const firstId = dogIds[0];
+    await supabase.rpc("log_booking_denial", {
+      p_reason_code: flowDenialReason(message),
+      p_source: "whatsapp_flow",
+      p_requested_date: state.date ?? null,
+      p_slot: state.drop_off ?? null,
+      p_size: firstId ? state.dog_meta?.[firstId]?.size ?? null : null,
+      p_service: firstId ? state.services?.[firstId] ?? null : null,
+      p_dog_count: dogIds.length || null,
+      p_reason_detail: message ?? null,
+      p_alternative_shown: alternativeShown,
+      p_alternative_taken: false,
+      p_human_id: session.human_id,
+    });
+  } catch (err) {
+    console.error("log_booking_denial (whatsapp_flow) failed:", err);
+  }
+}
+
 async function handleConfirm(
   session: FlowSessionRow,
   state: FlowState,
@@ -390,6 +441,8 @@ async function handleConfirm(
   }
 
   if (res.kind === "slot_taken" && allowRetry) {
+    // Capacity-prevented, but we're offering other times on the same day.
+    await logFlowDenial(supabase, session, state, res.message, true);
     const slots = await groupSlotOptions(db, dogsFromState(state), state.date);
     await saveSession(supabase, session.flow_token, { screen: "SELECT_TIME_RETRY", state });
     return screenResponse("SELECT_TIME_RETRY", {
@@ -400,6 +453,8 @@ async function handleConfirm(
     });
   }
 
+  // Hard rejection (no retry offered) — capacity-prevented demand, logged best-effort.
+  await logFlowDenial(supabase, session, state, res.message, false);
   await failSession(supabase, session.flow_token);
   return screenResponse("BOOKING_FAILED", { message: res.message });
 }
