@@ -431,6 +431,11 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         pickup_by_id: pickupHumanId || null,
         payment: updatedBooking.payment || "Due at Pick-up",
         deposit_amount: updatedBooking.depositAmount ?? null,
+        // Payment ledger (improvement #3): round-trip method + amount; paid_at is
+        // trigger-stamped/cleared on the payment transition. Mark-paid sets these
+        // on the in-memory booking; normal edits write back the current values.
+        payment_method: updatedBooking.paymentMethod ?? null,
+        paid_amount: updatedBooking.paidAmount ?? null,
         status: updatedBooking.status || BOOKING_STATUS.BOOKED,
         // Round-trips the cancellation reason so the Today view's "Didn't show"
         // action can persist cancel_reason='No-show' through this same path.

@@ -76,6 +76,18 @@ export const DOG_SIZE = {
   LARGE: "large",
 } as const satisfies Record<string, DogSize>;
 
+/** Recorded payment methods for a settled (Paid in Full) booking — the picker
+ *  staff choose from at mark-paid (improvement #3). */
+export const PAYMENT_METHODS = [
+  { id: "cash", label: "Cash" },
+  { id: "card", label: "Card" },
+  { id: "bank_transfer", label: "Bank transfer" },
+] as const;
+
+export function paymentMethodLabel(id: string | null | undefined): string {
+  return PAYMENT_METHODS.find((m) => m.id === id)?.label || "";
+}
+
 export const AVAILABLE_ADDONS = ["Flea Bath", "Sensitive Shampoo", "Anal Glands"] as const;
 
 export const ADDON_PRICES: Record<string, number> = {

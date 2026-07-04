@@ -7,6 +7,7 @@ import {
   computeSourceMix,
   computeRetentionCandidates,
   actualGroomMinutes,
+  computeCollectedByMethod,
   OUTCOME_HISTORY_START,
   type AnalyticsBooking,
   type AnalyticsEvent,
@@ -152,6 +153,23 @@ describe("actualGroomMinutes + computeServiceValue real durations (improvement #
     expect(fg.timedN).toBe(0);
     expect(fg.avgActualMinutes).toBeNull();
     expect(fg.actualValuePerHour).toBeNull();
+  });
+});
+
+describe("computeCollectedByMethod (improvement #3)", () => {
+  it("sums Paid-in-Full bookings by method over the window, falling back to the total", () => {
+    const rows = [
+      b({ booking_date: "2026-06-01", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "card", paid_amount: 42 }),
+      b({ booking_date: "2026-06-02", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "cash", paid_amount: 40 }),
+      b({ booking_date: "2026-06-03", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "card", paid_amount: null }), // fallback £42
+      b({ booking_date: "2026-06-08", service: "full-groom", size: "small", status: "Checked in", payment: "Due at Pick-up" }), // not paid
+      b({ booking_date: "2026-05-01", service: "full-groom", size: "small", status: "Completed", payment: "Paid in Full", payment_method: "cash", paid_amount: 99 }), // out of window
+    ];
+    const r = computeCollectedByMethod(rows, {}, 90, TODAY, isOpen);
+    expect(r.count).toBe(3);
+    expect(r.total).toBe(124); // 42 + 40 + 42
+    expect(r.byMethod.find((m) => m.method === "card")).toMatchObject({ amount: 84, count: 2 });
+    expect(r.byMethod.find((m) => m.method === "cash")).toMatchObject({ amount: 40, count: 1 });
   });
 });
 

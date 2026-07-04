@@ -222,7 +222,7 @@ describe("CollectionQueue", () => {
 });
 
 describe("PaymentsList", () => {
-  it("lists a balance due and fires Mark paid", () => {
+  it("lists a balance due and records payment with a chosen method", () => {
     const onMarkPaid = vi.fn();
     render(
       <PaymentsList
@@ -235,8 +235,10 @@ describe("PaymentsList", () => {
     );
     expect(screen.getByText("Max")).toBeInTheDocument();
     expect(screen.getByText(/£42 due at pick-up/)).toBeInTheDocument();
+    // "Mark paid" now reveals a method chooser; picking a method records it.
     fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
-    expect(onMarkPaid).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Card" }));
+    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), "card");
   });
 });
 
