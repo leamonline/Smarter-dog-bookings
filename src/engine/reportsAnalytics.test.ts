@@ -6,6 +6,7 @@ import {
   computeOutcomes,
   computeSourceMix,
   computeRetentionCandidates,
+  actualGroomMinutes,
   OUTCOME_HISTORY_START,
   type AnalyticsBooking,
   type AnalyticsEvent,
@@ -117,6 +118,40 @@ describe("computeServiceValue (2B)", () => {
 
   it("computes cancellation rate over all bookings for the service", () => {
     expect(fg.cancelRatePct).toBe(25); // 1 cancelled of 4
+  });
+});
+
+describe("actualGroomMinutes + computeServiceValue real durations (improvement #1)", () => {
+  it("measures a completed groom from checked_in_at to ready_at", () => {
+    expect(actualGroomMinutes({ checked_in_at: "2026-06-01T09:00:00Z", ready_at: "2026-06-01T09:45:00Z" })).toBe(45);
+  });
+
+  it("returns null without both stamps or for nonsense durations", () => {
+    expect(actualGroomMinutes({ checked_in_at: "2026-06-01T09:00:00Z", ready_at: null })).toBeNull();
+    expect(actualGroomMinutes({})).toBeNull();
+    expect(actualGroomMinutes({ checked_in_at: "2026-06-01T10:00:00Z", ready_at: "2026-06-01T09:00:00Z" })).toBeNull(); // ready before check-in
+    expect(actualGroomMinutes({ checked_in_at: "2026-06-01T09:00:00Z", ready_at: "2026-06-02T09:00:00Z" })).toBeNull(); // absurdly long
+  });
+
+  it("reports actual avg duration + value/hour from the real timings only", () => {
+    const rows = [
+      b({ dog_id: "A", booking_date: "2026-06-01", service: "full-groom", status: "Completed", checked_in_at: "2026-06-01T09:00:00Z", ready_at: "2026-06-01T09:45:00Z" }), // 45 min
+      b({ dog_id: "B", booking_date: "2026-06-02", service: "full-groom", status: "Completed", checked_in_at: "2026-06-02T10:00:00Z", ready_at: "2026-06-02T11:15:00Z" }), // 75 min
+      b({ dog_id: "C", booking_date: "2026-06-03", service: "full-groom", status: "Completed" }), // untimed
+    ];
+    const fg = computeServiceValue(rows, {}, 90, TODAY, isOpen).find((s) => s.id === "full-groom")!;
+    expect(fg.completedN).toBe(3);
+    expect(fg.timedN).toBe(2);
+    expect(fg.avgActualMinutes).toBe(60); // (45 + 75) / 2
+    expect(fg.actualValuePerHour).toBeCloseTo(42, 0); // (£42 + £42) / ((45+75)/60 h)
+  });
+
+  it("has null actual fields when no completed groom is timed", () => {
+    const rows = [b({ dog_id: "A", booking_date: "2026-06-01", service: "full-groom", status: "Completed" })];
+    const fg = computeServiceValue(rows, {}, 90, TODAY, isOpen).find((s) => s.id === "full-groom")!;
+    expect(fg.timedN).toBe(0);
+    expect(fg.avgActualMinutes).toBeNull();
+    expect(fg.actualValuePerHour).toBeNull();
   });
 });
 
