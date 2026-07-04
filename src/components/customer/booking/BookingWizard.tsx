@@ -17,6 +17,8 @@ import { findGroupedSlots } from "../../../engine/capacity";
 import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
+import { logBookingDenial, type BookingDenialInput } from "../../../supabase/rpc";
+import { mapDenialReason } from "../../../engine/denials";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
 import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
@@ -257,6 +259,48 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     setDogs((prev) => [...prev, dog]);
   };
 
+  // Best-effort capacity-denial logging (report 2F). Strictly fire-and-forget:
+  // it never awaits into the booking flow and swallows every error, so a
+  // logging failure can't change what the customer sees. Dedupes the "date had
+  // no availability" signal per date + dog-set so browsing doesn't spam it.
+  const loggedEmptyDates = useRef<Set<string>>(new Set());
+  const fireDenialLog = useCallback(
+    (input: Omit<BookingDenialInput, "source" | "humanId">) => {
+      // Belt-and-braces: this is called from inside the booking flow's own
+      // try/catch, so it must not throw synchronously OR reject — either could
+      // change what the customer sees. Swallow both.
+      try {
+        if (!supabase) return;
+        logBookingDenial(supabase, { ...input, source: "portal", humanId: humanRecord.id }).then(
+          undefined,
+          () => {},
+        );
+      } catch {
+        /* never surface a logging failure into the booking flow */
+      }
+    },
+    [humanRecord.id],
+  );
+  const handleNoAvailability = useCallback(
+    (info: { date: string; isToday: boolean }) => {
+      const key = `${info.date}|${selectedDogs.map((d) => d.dogId).sort().join(",")}`;
+      if (loggedEmptyDates.current.has(key)) return;
+      loggedEmptyDates.current.add(key);
+      fireDenialLog({
+        reasonCode: "unavailable",
+        requestedDate: info.date,
+        size: selectedDogs[0]?.size ?? null,
+        service: selectedDogs[0] ? services[selectedDogs[0].dogId] : null,
+        dogCount: selectedDogs.length,
+        reasonDetail: info.isToday
+          ? "No last-minute slots for these dogs today"
+          : "No availability for these dogs on this date",
+        alternativeShown: true,
+      });
+    },
+    [selectedDogs, services, fireDenialLog],
+  );
+
   const handleConfirm = async () => {
     if (!slotAllocation || !selectedDate) return;
     setSubmitting(true);
@@ -296,6 +340,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const match = stillAvailable.find((a) => a.dropOffTime === slotAllocation.dropOffTime);
 
       if (!match) {
+        fireDenialLog({
+          reasonCode: "slot_full",
+          requestedDate: selectedDate,
+          slot: slotAllocation.dropOffTime,
+          size: selectedDogs[0]?.size ?? null,
+          service: selectedDogs[0] ? services[selectedDogs[0].dogId] : null,
+          dogCount: selectedDogs.length,
+          reasonDetail: "Chosen slot no longer available at final confirm (client re-check).",
+          alternativeShown: true,
+        });
         setError("Sorry, that time slot is no longer available — please choose another.");
         setSlotAllocation(null);
         setStep(4);
@@ -360,6 +414,20 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       const isTriggerError =
         cause?.code === "P0001" ||                          // raise_exception
         /Slot is full|2-2-1|Large dog|Capped at 1|early close|Back-to-back/i.test(msg);
+      // A gate rejection is capacity-prevented demand — log it best-effort. The
+      // setError line below is unchanged; the customer's UX is identical.
+      if (isTriggerError) {
+        fireDenialLog({
+          reasonCode: mapDenialReason(msg),
+          requestedDate: selectedDate,
+          slot: slotAllocation?.dropOffTime ?? null,
+          size: selectedDogs[0]?.size ?? null,
+          service: selectedDogs[0] ? services[selectedDogs[0].dogId] : null,
+          dogCount: selectedDogs.length,
+          reasonDetail: msg,
+          alternativeShown: false,
+        });
+      }
       setError(isTriggerError ? msg : "Sorry, we couldn't create that booking. Please try again, or message us if it keeps happening.");
     } finally {
       setSubmitting(false);
@@ -598,6 +666,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onNext={() => setStep(5)}
             onBack={() => setStep(3)}
             onJoinWaitlist={handleJoinWaitlist}
+            onNoAvailability={handleNoAvailability}
           />
         )}
 

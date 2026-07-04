@@ -19,6 +19,9 @@ interface SlotSelectionProps {
   onNext: () => void;
   onBack: () => void;
   onJoinWaitlist?: () => void;
+  /** Fired once when a genuinely open date returns no bookable slots for the
+   *  selected dogs (not on a fetch error) — drives best-effort denial logging. */
+  onNoAvailability?: (info: { date: string; isToday: boolean }) => void;
 }
 
 function formatSlot(slot: string): string {
@@ -42,6 +45,7 @@ export function SlotSelection({
   onNext,
   onBack,
   onJoinWaitlist,
+  onNoAvailability,
 }: SlotSelectionProps) {
   const [availableSlots, setAvailableSlots] = useState<SlotAllocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,14 +113,23 @@ export function SlotSelection({
           const flagged = new Set(isImmediateDay ? immediateRes.slots : []);
           results = results.filter((a) => allocationIsImmediate(a, flagged));
         }
-        if (!cancelled) setAvailableSlots(results);
+        if (!cancelled) {
+          setAvailableSlots(results);
+          // A genuinely open date with nothing bookable for these dogs is
+          // capacity-prevented demand — signal it once (the parent dedupes +
+          // logs best-effort). Errors already returned above, so this is a real
+          // "fully booked", not a fetch blip.
+          if (results.length === 0) {
+            onNoAvailability?.({ date: selectedDate, isToday: selectedDate === toDateStr(new Date()) });
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [selectedDate, selectedDogs]);
+  }, [selectedDate, selectedDogs, onNoAvailability]);
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
   const isToday = selectedDate === toDateStr(new Date());
