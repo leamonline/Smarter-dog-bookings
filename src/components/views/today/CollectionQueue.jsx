@@ -5,11 +5,12 @@
 import { useState } from "react";
 import { SectionCard, PrimaryButton, SecondaryButton, TertiaryLink, formatMinutes, formatMoney } from "./parts.jsx";
 
-function CollectRow({ entry, resolve, paymentOf, onSendCollection, onMarkCollected, onOpenBooking }) {
+function CollectRow({ entry, resolve, paymentOf, onSendCollection, onMarkCollected, onOpenBooking, onTheWaySignals }) {
   const b = entry.booking;
   const d = resolve(b);
   const pay = paymentOf(b);
   const [confirming, setConfirming] = useState(false);
+  const otw = b.whatsappConversationId ? onTheWaySignals?.[b.whatsappConversationId] : null;
 
   const sentTime = b.collectionSentAt
     ? new Date(b.collectionSentAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })
@@ -22,6 +23,14 @@ function CollectRow({ entry, resolve, paymentOf, onSendCollection, onMarkCollect
         <span className="text-[13px] text-slate-600">{d.owner}</span>
         {entry.waitMinutes != null && (
           <span className="text-[12px] font-bold text-emerald-700">waiting {formatMinutes(entry.waitMinutes)}</span>
+        )}
+        {otw && (
+          <span
+            className="text-[12px] font-bold text-brand-teal-text bg-brand-teal/15 rounded-full px-2 py-0.5"
+            title={`“${otw.text}”`}
+          >
+            🚗 On the way{otw.minutesAgo > 1 ? ` · ${otw.minutesAgo} min ago` : ""}
+          </span>
         )}
       </div>
       <div className="text-[13px] text-slate-600 mt-0.5 flex items-center gap-2 flex-wrap">

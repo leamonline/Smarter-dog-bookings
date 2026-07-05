@@ -29,6 +29,7 @@ import {
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { TodayHeader } from "./today/TodayHeader.jsx";
 import { AttentionPanel } from "./today/AttentionPanel.jsx";
 import { NextUp, EarlierToday } from "./today/NextUp.jsx";
@@ -89,6 +90,10 @@ export function TodayView({
   const nextUp = useMemo(() => splitArrivalGroups(arrivals), [arrivals]);
   const inSalon = useMemo(() => buildInSalonList(todayBookings, now), [todayBookings, now]);
   const collection = useMemo(() => buildCollectionQueue(todayBookings, now), [todayBookings, now]);
+  // "Owner on the way" chips (improvement #2) — read-only WhatsApp signal for
+  // the dogs currently waiting to be collected.
+  const collectionBookings = useMemo(() => collection.map((e) => e.booking), [collection]);
+  const onTheWaySignals = useOnTheWaySignals(collectionBookings);
   const payments = useMemo(() => buildPaymentsList(todayBookings), [todayBookings]);
   const opportunities = useMemo(
     () => buildSlotOpportunities({
@@ -272,6 +277,7 @@ export function TodayView({
               onSendCollection={onSendCollection}
               onMarkCollected={onMarkCollected}
               onOpenBooking={onOpenBooking}
+              onTheWaySignals={onTheWaySignals}
             />
           )}
 
