@@ -158,6 +158,69 @@ export default [
     },
   },
   {
+    // Debt #12 — components must not import the Supabase client directly and
+    // hand-build .from()/.rpc()/auth queries in JSX; that creates a shadow data
+    // layer whose RLS behaviour no test can reach. Route through the
+    // src/supabase/hooks or src/supabase/repositories layer instead (a component
+    // needing offline state should read `isOnline` from props/context, not the
+    // client). The `ignores` list is the frozen burn-down baseline of existing
+    // offenders — it only SHRINKS as files are migrated to the data layer;
+    // never add to it.
+    files: ["src/components/**/*.{js,jsx,ts,tsx}"],
+    ignores: [
+      "**/*.test.{js,jsx,ts,tsx}",
+      "**/*.spec.{js,jsx,ts,tsx}",
+      "src/components/auth/LoginPage.jsx",
+      "src/components/auth/ResetPasswordPage.jsx",
+      "src/components/customer/AddToCalendarButton.tsx",
+      "src/components/customer/BookingCard.jsx",
+      "src/components/customer/CalendarSubscribeModal.tsx",
+      "src/components/customer/CustomerDashboard.jsx",
+      "src/components/customer/DogsSection.jsx",
+      "src/components/customer/TrustedHumansSection.jsx",
+      "src/components/customer/booking/AddDogInline.tsx",
+      "src/components/customer/booking/BookingWizard.tsx",
+      "src/components/customer/booking/DateSelection.tsx",
+      "src/components/customer/booking/SlotSelection.tsx",
+      "src/components/customer/onboarding/AddressPicker.jsx",
+      "src/components/customer/onboarding/JoinThePackOnboarding.jsx",
+      "src/components/customer/onboarding/ProfileGate.jsx",
+      "src/components/customer/onboarding/SetPasswordGate.jsx",
+      "src/components/dashboard/TomorrowRemindersCard.jsx",
+      "src/components/modals/RescheduleModal.jsx",
+      "src/components/modals/booking-detail/DeliveryFailureCard.jsx",
+      "src/components/modals/collection-notice/CollectionNoticeModal.jsx",
+      "src/components/modals/day-closure/BroadcastMessageModal.jsx",
+      "src/components/modals/send-reminder/SendReminderModal.jsx",
+      "src/components/views/inbox/compose-new/ComposeNewModal.jsx",
+      "src/components/views/inbox/hooks/useCustomerContext.js",
+      "src/components/views/inbox/hooks/useInboxMessageSearch.js",
+      "src/components/views/inbox/hooks/useSlotCapacityPreview.js",
+      "src/components/views/reports/useWeeklyCashUp.js",
+      "src/components/views/settings/AccountSettings.jsx",
+      "src/components/views/settings/CalendarSettings.jsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/supabase/client",
+                "**/supabase/client.js",
+                "**/supabase/customerClient",
+                "**/supabase/customerClient.js",
+              ],
+              message:
+                "Components must go through src/supabase/hooks or src/supabase/repositories, not the Supabase client directly (Debt #12). Add a repo/hook method; read `isOnline` from props/context for offline checks.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.test.{js,jsx,ts,tsx}", "**/*.spec.{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {

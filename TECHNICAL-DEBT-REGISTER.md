@@ -62,6 +62,8 @@ sustained workstream (week+).
 
 > **Debt 12 — Status (June 2026):** PARTIALLY CLOSED — `src/supabase/repositories/` (`bookingsRepo.ts`, `dogsRepo.ts`, `humansRepo.ts`, created pre-run) now backs `BookingWizard`, customer `BookingCard` and `SlotSelection`, but 24 non-test component files still import the Supabase client directly and there is no `no-restricted-imports` guard.
 >
+> **Debt 12 — Update (July 2026):** FROZEN + baselined — `eslint.config.js` now bans importing `supabase/client` / `supabase/customerClient` from `src/components/**` (`no-restricted-imports`), so no NEW component can hand-build a query in JSX; the 29 current offenders are an explicit `ignores` allowlist that may only SHRINK as files migrate to the hooks/repositories layer. The count is a burn-down list, not a ceiling — remove a file from the allowlist as you route it through a repo.
+>
 > **Debt 13 — Status (June 2026):** PARTIALLY CLOSED — `BookingWizard.tsx` no longer contains snake_case column literals (routed through the repos), but `CustomerDashboard.jsx` still runs inline snake_case queries (`human_id`/`dog_id`/`booking_date`) and `customer/BookingCard.jsx` reads `booking_date` directly.
 >
 > **Debt 14 — Status (June 2026):** CLOSED in #247 (`76adfd4`) — `dogsById` is the single source of truth; the name-keyed map is derived via `useMemo` (`useDogs.ts:124-126`) and the dual-write sites are gone.
