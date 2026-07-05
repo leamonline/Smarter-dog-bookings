@@ -197,7 +197,6 @@ export default [
       "src/components/views/inbox/hooks/useInboxMessageSearch.js",
       "src/components/views/inbox/hooks/useSlotCapacityPreview.js",
       "src/components/views/reports/useWeeklyCashUp.js",
-      "src/components/views/settings/AccountSettings.jsx",
       "src/components/views/settings/CalendarSettings.jsx",
     ],
     rules: {
