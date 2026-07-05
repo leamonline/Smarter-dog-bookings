@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../../supabase/client.js";
+import { isAccountBackendAvailable, updateStaffProfile, updateAccountEmail, sendPasswordReset } from "../../../supabase/repositories/accountRepo";
 import { Card, CardHead, CardBody, SaveButton, LABEL_CLS, INPUT_CLS, isValidEmail } from "./shared.jsx";
 import { DeviceNotifications } from "./DeviceNotifications.jsx";
 
@@ -28,7 +28,7 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   }, [dirty, onDirtyChange]);
 
   const handleSave = useCallback(async () => {
-    if (!supabase || !staffProfile?.id) return;
+    if (!isAccountBackendAvailable() || !staffProfile?.id) return;
     if (account.email.trim() && !isValidEmail(account.email)) {
       setError("That email doesn't look right — please check and try again");
       return;
@@ -39,14 +39,14 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
     setEmailPending(false);
 
     try {
-      const { error: profileErr } = await supabase
-        .from("staff_profiles")
-        .update({ display_name: account.displayName, phone: account.phone })
-        .eq("id", staffProfile.id);
+      const { error: profileErr } = await updateStaffProfile(staffProfile.id, {
+        displayName: account.displayName,
+        phone: account.phone,
+      });
       if (profileErr) throw profileErr;
 
       if (account.email.trim() && account.email.trim() !== user?.email) {
-        const { error: emailErr } = await supabase.auth.updateUser({ email: account.email.trim() });
+        const { error: emailErr } = await updateAccountEmail(account.email.trim());
         if (emailErr) throw emailErr;
         setEmailPending(true);
       }
@@ -62,11 +62,9 @@ export function AccountSettings({ user, staffProfile, onDirtyChange }) {
   }, [account, staffProfile, user]);
 
   const handlePasswordReset = async () => {
-    if (!supabase || !user?.email) return;
+    if (!isAccountBackendAvailable() || !user?.email) return;
     setPwSending(true);
-    await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    await sendPasswordReset(user.email, `${window.location.origin}/reset-password`);
     setPwSending(false);
     setPwSent(true);
     setTimeout(() => setPwSent(false), 5000);
