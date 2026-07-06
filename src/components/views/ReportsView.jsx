@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useReportsData } from "../../hooks/useReportsData.ts";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { SkeletonKpiRow, SkeletonChart, EmptyState, Card } from "../ui/index.js";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
-import { Kpi, PERIODS } from "./reports/ReportWidgets.jsx";
+import { Kpi, PERIODS, ReportsExpandAllContext } from "./reports/ReportWidgets.jsx";
 import { RevenueTrend } from "./reports/RevenueTrend.jsx";
 import { ServiceMix } from "./reports/ServiceMix.jsx";
 import { DemandPattern } from "./reports/DemandPattern.jsx";
@@ -62,6 +63,11 @@ export function ReportsView({ loadError = null }) {
   // them across the page and tell the user why.
   const LOW_N_THRESHOLD = 5;
   const isLowN = stats.curN > 0 && stats.curN < LOW_N_THRESHOLD;
+
+  // Reports collapse to titles on phones (below md). This drives the
+  // "expand all / collapse all" control, which is only shown there.
+  const compact = useMediaQuery("(max-width: 767px)");
+  const [allExpanded, setAllExpanded] = useState(false);
 
   return (
     <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
@@ -151,7 +157,7 @@ export function ReportsView({ loadError = null }) {
           />
         </Card>
       ) : (
-        <>
+        <ReportsExpandAllContext.Provider value={compact ? allExpanded : null}>
           {/* Band 3 — KPI row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi
@@ -192,6 +198,20 @@ export function ReportsView({ loadError = null }) {
               color="var(--color-brand-coral)"
             />
           </div>
+
+          {/* Expand/collapse all — only useful where the reports collapse (phones) */}
+          {compact && (
+            <div className="flex justify-end -mt-1 -mb-1">
+              <button
+                type="button"
+                onClick={() => setAllExpanded((v) => !v)}
+                aria-expanded={allExpanded}
+                className="inline-flex items-center gap-1 min-h-[36px] px-2 bg-transparent border-none cursor-pointer text-xs font-bold text-brand-purple hover:text-brand-purple/70 font-[inherit]"
+              >
+                {allExpanded ? "Collapse all" : "Expand all"}
+              </button>
+            </div>
+          )}
 
           {/* Band 4 — Trend + Key Insights */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -259,7 +279,7 @@ export function ReportsView({ loadError = null }) {
 
           {/* Band 12 — Collected by method (recorded takings, improvement #3) */}
           <CollectedByMethodReport collectedByMethod={analytics.collectedByMethod} />
-        </>
+        </ReportsExpandAllContext.Provider>
       )}
     </div>
   );
