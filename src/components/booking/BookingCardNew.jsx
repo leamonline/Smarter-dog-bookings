@@ -499,7 +499,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               aria-haspopup="listbox"
               aria-expanded={statusOpen}
               aria-label={`Change status, currently ${statusObj.label}`}
-              className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-1 font-[inherit]"
+              className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] min-h-[36px] md:min-h-0 px-1.5 rounded-md text-center truncate cursor-pointer transition-all hover:brightness-95 flex items-center justify-center gap-1 font-[inherit]"
               style={{ background: statusObj.bg, color: statusObj.color, border: `1px solid ${statusObj.border}` }}
             >
               {(() => { const Icon = STATUS_ICONS[booking.status] || Calendar; return <Icon size={12} strokeWidth={2.5} aria-hidden="true" />; })()}
