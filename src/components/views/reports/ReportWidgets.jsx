@@ -1,7 +1,10 @@
 // Shared presentational widgets used by all report sub-components.
 
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { formatDelta } from "../../../utils/intl.js";
 import { SectionLabel } from "../../ui/index.js";
+import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { BOOKING_STATUS } from "../../../constants/salon";
 
 export function Trend({ cur, prev, invert }) {
@@ -39,20 +42,56 @@ export function Kpi({ label, value, sub, cur, prev, color = "var(--color-brand-t
   );
 }
 
-export function Section({ title, accent = "var(--color-brand-teal)", children, insight }) {
+export function Section({ title, accent = "var(--color-brand-teal)", children, insight, defaultOpen = false }) {
+  // The reports page is a long single-column scroll on a phone. Below `md`
+  // (where the layout is one column) each report collapses to just its title
+  // so the page becomes a short, scannable list; tap a title to expand. At
+  // `md`+ the multi-column grid is unchanged — always expanded, no toggle.
+  const collapsible = useMediaQuery("(max-width: 767px)");
+  const [open, setOpen] = useState(defaultOpen);
+  const showBody = !collapsible || open;
+
+  const body = (
+    <>
+      {children}
+      {insight && (
+        <div className="mt-4 pt-3 border-t border-slate-100 text-xs font-medium leading-relaxed">
+          <span className="text-brand-teal-text font-bold">Insight: </span>
+          <span className="text-ink-muted">{insight}</span>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-card-resting overflow-hidden">
       <div className="h-[3px]" style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 53%, transparent))` }} />
-      <div className="p-5">
-        <SectionLabel as="h3" className="mb-4">{title}</SectionLabel>
-        {children}
-        {insight && (
-          <div className="mt-4 pt-3 border-t border-slate-100 text-xs font-medium leading-relaxed">
-            <span className="text-brand-teal-text font-bold">Insight: </span>
-            <span className="text-ink-muted">{insight}</span>
-          </div>
-        )}
-      </div>
+      {collapsible ? (
+        <>
+          <h3 className="m-0">
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              className="w-full flex items-center justify-between gap-2 px-5 py-4 min-h-[52px] bg-transparent border-none cursor-pointer text-left font-[inherit]"
+            >
+              <span className="text-label text-ink-muted">{title}</span>
+              <ChevronDown
+                size={18}
+                strokeWidth={2.5}
+                aria-hidden="true"
+                className={`text-ink-muted shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+              />
+            </button>
+          </h3>
+          {showBody && <div className="px-5 pb-5">{body}</div>}
+        </>
+      ) : (
+        <div className="p-5">
+          <SectionLabel as="h3" className="mb-4">{title}</SectionLabel>
+          {body}
+        </div>
+      )}
     </div>
   );
 }
