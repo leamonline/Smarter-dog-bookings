@@ -97,12 +97,12 @@ export const CUSTOMER_PORTAL_URL = "https://smarterdog.vercel.app/customer/login
 // whose Meta definition carries one (see TEMPLATES_WITH_LOCATION_HEADER).
 // WhatsApp location headers have NO static option — the pin (lat/long/name/
 // address) MUST be supplied at SEND time, or Meta rejects the message with a
-// missing-header-parameter error. Coordinates are the OL6 8HD postcode centroid
-// (postcodes.io); swap in an exact pin if a tighter spot is wanted. Mirrors the
-// salon facts (183 Kings Road, Ashton-under-Lyne, OL6 8HD).
+// missing-header-parameter error. Coordinates are the salon's exact Google
+// Maps place pin. Mirrors the salon facts (183 Kings Road, Ashton-under-Lyne,
+// OL6 8HD).
 export const SALON_LOCATION = {
-  latitude: 53.500431,
-  longitude: -2.079437,
+  latitude: 53.5004583,
+  longitude: -2.0793345,
   name: "Smarter Dog Grooming Salon",
   address: "183 Kings Road, Ashton-under-Lyne, OL6 8HD",
 } as const;
