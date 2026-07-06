@@ -68,7 +68,7 @@ describe("buildWhatsAppReminderParams", () => {
         slot: "09:00",
       }),
     ).toBe(
-      "Hi Sarah, just a friendly reminder that Bella is booked in with us at Smarter Dog Grooming Salon for Monday 25 May at 9:00am. Reply here if you need to change anything — see you soon..",
+      "Hi Sarah, Just a quick reminder that Bella is booked in with us at Smarter Dog Grooming Salon for Monday 25 May at 9:00am, see you soon.",
     );
   });
 });

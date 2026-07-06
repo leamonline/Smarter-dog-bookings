@@ -48,6 +48,12 @@ const PLACEHOLDER = {
 
 export const WHATSAPP_TEMPLATES = [
   {
+    // Meta structure: LOCATION header (sent per-message by whatsapp-send with
+    // the salon's pin — see SALON_LOCATION in functions/_shared/salonConstants.ts),
+    // 3 body params, an emoji footer (🎓🐶❤️, static), and two quick-reply
+    // buttons ("I will be there!" / "I need to cancel/reschedule.", no send
+    // params). Only the 3 body params are supplied here; the preview shows the
+    // body text customers read.
     name: "appointment_reminder_v1",
     label: "Appointment Reminder",
     description: "Remind a customer about an upcoming appointment",
@@ -59,7 +65,7 @@ export const WHATSAPP_TEMPLATES = [
       { key: "appointment_when", label: "When (e.g. Monday 25 May at 9:00am)", autoFill: null },
     ],
     preview: (values) =>
-      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, just a friendly reminder that ${values.dog_name || PLACEHOLDER.dog_name} is booked in with us at Smarter Dog Grooming Salon for ${values.appointment_when || PLACEHOLDER.when}. Reply here if you need to change anything — see you soon..`,
+      `Hi ${values.customer_first_name || PLACEHOLDER.customer_first_name}, Just a quick reminder that ${values.dog_name || PLACEHOLDER.dog_name} is booked in with us at Smarter Dog Grooming Salon for ${values.appointment_when || PLACEHOLDER.when}, see you soon.`,
   },
   {
     name: "booking_confirmed_v1",

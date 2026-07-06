@@ -71,6 +71,7 @@ import {
   runConfirmButtons,
 } from "../_shared/confirmButtons.ts";
 import { buildFlowMetaBody, validateFlowMessageParams } from "../_shared/flowMessage.ts";
+import { SALON_LOCATION, TEMPLATES_WITH_LOCATION_HEADER } from "../_shared/salonConstants.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -512,14 +513,17 @@ async function handleTemplateMode(
   const lang = body.language ?? "en_GB";
   const params = body.params ?? [];
 
-  const components = params.length
-    ? [
-      {
-        type: "body",
-        parameters: params.map((text) => ({ type: "text", text })),
-      },
-    ]
-    : undefined;
+  // Templates with a LOCATION header must carry the pin at send time — Meta has
+  // no static-location header — so attach the salon's location for those. Other
+  // templates get a body-only component (or none). Header goes first.
+  const bodyComponent = params.length
+    ? [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }]
+    : [];
+  const headerComponent = TEMPLATES_WITH_LOCATION_HEADER.has(body.template_name)
+    ? [{ type: "header", parameters: [{ type: "location", location: SALON_LOCATION }] }]
+    : [];
+  const componentList = [...headerComponent, ...bodyComponent];
+  const components = componentList.length ? componentList : undefined;
 
   let metaRes: MetaSendSuccess;
   try {
