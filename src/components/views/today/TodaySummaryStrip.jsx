@@ -15,15 +15,20 @@ function Stat({ label, value, hint }) {
 export function TodaySummaryStrip({ summary, takings }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
-      <div className="flex items-stretch divide-x divide-slate-100 min-w-max overflow-x-auto">
-        <Stat label="Booked in" value={summary.total} hint={`${summary.capacityUsedPct}% of ${DAY_CAPACITY}`} />
-        <Stat label="Arrived" value={summary.arrived} />
-        <Stat label="Still expected" value={summary.expected} />
-        <Stat label="Ready" value={summary.ready} />
-        <Stat label="Collected" value={summary.collected} />
-        <Stat label="Unpaid" value={summary.unpaidCount} />
-        <Stat label="Expected" value={formatMoney(summary.expectedRevenue)} hint="appointment value" />
-        <Stat label="Recorded paid" value={formatMoney(summary.collectedRevenue)} hint="status, not a till" />
+      {/* overflow-x-auto must live on this outer wrapper: putting it on the
+          same element as min-w-max lets the strip grow past the viewport and
+          drag the whole page wide on phones instead of scrolling in place. */}
+      <div className="overflow-x-auto">
+        <div className="flex items-stretch divide-x divide-slate-100 min-w-max">
+          <Stat label="Booked in" value={summary.total} hint={`${summary.capacityUsedPct}% of ${DAY_CAPACITY}`} />
+          <Stat label="Arrived" value={summary.arrived} />
+          <Stat label="Still expected" value={summary.expected} />
+          <Stat label="Ready" value={summary.ready} />
+          <Stat label="Collected" value={summary.collected} />
+          <Stat label="Unpaid" value={summary.unpaidCount} />
+          <Stat label="Expected" value={formatMoney(summary.expectedRevenue)} hint="appointment value" />
+          <Stat label="Recorded paid" value={formatMoney(summary.collectedRevenue)} hint="status, not a till" />
+        </div>
       </div>
       {takings && takings.total > 0 && (
         <div className="border-t border-slate-100 px-3 py-2 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px]">
