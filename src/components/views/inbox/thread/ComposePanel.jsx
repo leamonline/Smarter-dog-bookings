@@ -131,7 +131,7 @@ export function ComposePanel({
   return (
     <div className="compose-fields p-3 bg-white border-t border-slate-200">
       {error && (
-        <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
+        <div role="alert" className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
           {error}
         </div>
       )}
@@ -145,6 +145,7 @@ export function ComposePanel({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          aria-label="Write a reply"
           placeholder="Write a reply…"
           disabled={inFlight}
           rows={2}
