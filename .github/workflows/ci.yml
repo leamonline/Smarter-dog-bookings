@@ -41,7 +41,25 @@ jobs:
       # _shared/), so a newly-added Deno test can't be silently skipped by
       # forgetting to list it. Non-test files (e.g. webpush.proof.ts) don't
       # match Deno's test glob and are ignored.
-      - run: deno test --node-modules-dir=none --allow-env supabase/functions/
+      # The Edge Functions import @supabase/supabase-js live from esm.sh, so a
+      # transient CDN hiccup (e.g. HTTP 522) makes the import — not a test —
+      # fail and red-X main. Retry the whole run a few times: Deno caches
+      # successful remote fetches within a run, so a genuine test failure still
+      # fails on every attempt, but a one-off CDN blip clears on a retry.
+      - name: Run Edge Function (Deno) tests
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::deno test (attempt $attempt/3)"
+            if deno test --node-modules-dir=none --allow-env supabase/functions/; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "deno test attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && { echo "retrying in $((attempt * 10))s…"; sleep $((attempt * 10)); }
+          done
+          echo "::error::deno test failed after 3 attempts"
+          exit 1
 
   e2e:
     # Playwright is by far the heaviest CI consumer (npm ci + browser
