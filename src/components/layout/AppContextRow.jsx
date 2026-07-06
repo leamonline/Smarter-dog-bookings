@@ -37,11 +37,12 @@ export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
   const { unread } = useWhatsAppUnread();
   const { sentCount, totalCount, loading: remindersLoading } = useTomorrowReminders();
 
-  // The Today command centre and the Inbox both own their heading (each
-  // with its own live counts), so the context row stands down on those
-  // screens — one "Today"/"Inbox" on screen, not two.
+  // Every view except Bookings owns its heading (Today and Inbox carry live
+  // counts; the directories, Reports, and Settings each render their own
+  // title), so the context row stands down everywhere but Bookings — one
+  // heading per screen, not two, and one less row of chrome on a phone.
   // (After the hooks: they must run unconditionally on every render.)
-  if (sectionTitle === "Today" || sectionTitle === "Inbox") return null;
+  if (!isBookings) return null;
 
   // Live status chips for the Bookings day. Same semantics as the
   // workflow sidebar's calm chips, just phrased warmly.
@@ -63,9 +64,9 @@ export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
       {/* Desktop (lg+) — a calm strip attached under the header. */}
       <div className="hidden lg:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 -mx-4 sm:-mx-6 mb-4 px-4 sm:px-6 py-3 bg-white/90 border border-slate-200 border-t-0 rounded-b-2xl shadow-card-resting">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-display text-xl font-extrabold text-brand-purple whitespace-nowrap">
+          <h1 className="font-display text-xl font-extrabold text-brand-purple whitespace-nowrap m-0">
             {sectionTitle}
-          </span>
+          </h1>
           {isBookings && (
             <>
               <span className="text-sm font-semibold text-brand-purple-light truncate">
@@ -92,9 +93,9 @@ export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
           colour carries the day status (open / full / closed). */}
       <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 bg-white border-b border-slate-200">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h2 className="font-display text-xl font-extrabold text-brand-purple leading-tight">
+          <h1 className="font-display text-xl font-extrabold text-brand-purple leading-tight m-0">
             {sectionTitle}
-          </h2>
+          </h1>
           {isBookings && (
             <span
               className={`inline-flex items-center h-7 px-3 rounded-full text-xs font-bold whitespace-nowrap ${TONE[dayTone] || TONE.open}`}
