@@ -113,11 +113,11 @@ export function RecurringBookingModal({
         </p>
 
         {loading ? (
-          <div className="py-8 text-center text-sm text-slate-400 font-semibold">
+          <div className="py-8 text-center text-sm text-slate-500 font-semibold" role="status">
             Loading the bookings…
           </div>
         ) : chainBookings.length === 0 ? (
-          <div className="py-8 text-center text-sm text-slate-400 font-semibold">
+          <div className="py-8 text-center text-sm text-slate-500 font-semibold">
             Nothing in this series
           </div>
         ) : (

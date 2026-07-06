@@ -126,7 +126,7 @@ export function WaitlistModal({
         <InlineError message={error} />
 
         {loading && (waitlist || []).length === 0 ? (
-          <div className="text-center text-xs italic text-slate-500 py-6">
+          <div className="text-center text-xs italic text-slate-500 py-6" role="status">
             Loading the waitlist…
           </div>
         ) : (waitlist || []).length > 0 ? (

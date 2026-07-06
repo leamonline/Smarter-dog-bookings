@@ -263,7 +263,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           )}
 
           {loading ? (
-            <div className="text-[12px] text-slate-500 py-4 text-center">Loading contacts…</div>
+            <div className="text-[12px] text-slate-500 py-4 text-center" role="status">Loading contacts…</div>
           ) : recipients.length === 0 ? (
             <div className="text-[12px] text-slate-500 py-2">
               This booking isn’t linked to a customer record, so there’s no contact to notify.
