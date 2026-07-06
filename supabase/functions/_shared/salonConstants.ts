@@ -93,6 +93,27 @@ export const BOOKING_STATUS = {
 // override per-environment via `Deno.env.get("CUSTOMER_PORTAL_URL")`.
 export const CUSTOMER_PORTAL_URL = "https://smarterdog.vercel.app/customer/login";
 
+// The salon's physical location, sent as the LOCATION header of any template
+// whose Meta definition carries one (see TEMPLATES_WITH_LOCATION_HEADER).
+// WhatsApp location headers have NO static option — the pin (lat/long/name/
+// address) MUST be supplied at SEND time, or Meta rejects the message with a
+// missing-header-parameter error. Coordinates are the salon's exact Google
+// Maps place pin. Mirrors the salon facts (183 Kings Road, Ashton-under-Lyne,
+// OL6 8HD).
+export const SALON_LOCATION = {
+  latitude: 53.5004583,
+  longitude: -2.0793345,
+  name: "Smarter Dog Grooming Salon",
+  address: "183 Kings Road, Ashton-under-Lyne, OL6 8HD",
+} as const;
+
+// Approved templates whose Meta definition includes a LOCATION header. The send
+// path attaches a header component with SALON_LOCATION for these; other
+// templates are unaffected.
+export const TEMPLATES_WITH_LOCATION_HEADER: ReadonlySet<string> = new Set([
+  "appointment_reminder_v1",
+]);
+
 export interface ServiceDef {
   id: string;
   name: string;

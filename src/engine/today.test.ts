@@ -22,6 +22,8 @@ import {
   isGroupSettled,
   buildInSalonList,
   buildTakingsByMethod,
+  buildTodayFeed,
+  buildAvailabilityView,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking } from "../types/index";
@@ -223,6 +225,43 @@ describe("buildSlotOpportunities", () => {
   });
 });
 
+describe("buildAvailabilityView", () => {
+  const opps = buildSlotOpportunities({
+    bookings: [],
+    activeSlots: SALON_SLOTS,
+    immediateSlots: ["10:30", "11:00"],
+    now: NOW_SUMMER, // 10:15 London
+    todayStr: TODAY,
+  });
+  const view = buildAvailabilityView(opps, ["10:30", "11:00"]);
+
+  it("lists only unbooked, non-past slots, chronological", () => {
+    // 08:30 / 09:00 / 09:30 have passed by 10:15; 10:00 is current but not past.
+    expect(view.rows[0].slot).toBe("10:00");
+    expect(view.rows.every((r) => r.seatsFree > 0)).toBe(true);
+    expect(view.rows.some((r) => r.slot === "08:30")).toBe(false);
+  });
+
+  it("derives every count from the rows it shows", () => {
+    expect(view.unbookedSlots).toBe(view.rows.length);
+    expect(view.onlineCount).toBe(view.rows.filter((r) => r.isOnline).length);
+    expect(view.onlineCount).toBe(2); // 10:30 + 11:00 flagged
+  });
+
+  it("next online slot is the earliest reachable online slot (before the cutoff)", () => {
+    // 10:30 is flagged but only 15 min away (< 30-min cutoff) → not reachable.
+    // 11:00 is flagged and 45 min away → reachable.
+    expect(view.nextOnlineSlot).toBe("11:00");
+  });
+
+  it("reports size fit from the capacity engine (large only where eligible)", () => {
+    const at11 = view.rows.find((r) => r.slot === "11:00")!;
+    expect(at11.sizes).toEqual({ small: true, medium: true, large: false });
+    const at1230 = view.rows.find((r) => r.slot === "12:30")!;
+    expect(at1230.sizes.large).toBe(true); // 12:30 is a large-dog slot
+  });
+});
+
 describe("buildDaySummary", () => {
   const bookings = [
     bk({ status: "Booked", payment: "Due at Pick-up", service: "full-groom", size: "small" }),
@@ -408,6 +447,50 @@ describe("buildPaymentsList", () => {
     ]);
     expect(list.map((e) => e.payment.kind)).toEqual(["due", "deposit"]);
     expect(list[0].payment.amountDue).toBe(42);
+  });
+});
+
+describe("buildTodayFeed", () => {
+  const feed = buildTodayFeed(
+    [
+      bk({ id: "z", _bookingDate: TODAY, slot: "13:00", status: "Booked", dogName: "Zed" }), // upcoming (future slot)
+      bk({ id: "a", _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "Amber" }), // late (75 over)
+      bk({ id: "e", _bookingDate: TODAY, slot: "09:30", status: "Checked in", payment: "Due at Pick-up", service: "full-groom", size: "small", dogName: "Ember" }), // in salon + owes
+      bk({ id: "g", _bookingDate: TODAY, slot: "08:30", status: "Cancelled", dogName: "Ghost" }), // excluded
+      bk({ id: "n", _bookingDate: TODAY, slot: "11:00", status: "Booked", dogName: "Nova" }), // next (future, not late)
+    ],
+    NOW_SUMMER,
+  );
+
+  it("drops cancelled rows and orders every booking by appointment time", () => {
+    expect(feed.map((e) => e.booking.id)).toEqual(["a", "e", "n", "z"]);
+  });
+
+  it("flags the soonest not-yet-arrived, not-late booking as Next (not a late one)", () => {
+    const next = feed.filter((e) => e.isNext);
+    expect(next).toHaveLength(1);
+    expect(next[0].booking.id).toBe("n"); // Amber (09:00) is late, so Nova (11:00) is Next
+  });
+
+  it("folds each booking's reasons onto its one entry", () => {
+    const late = feed.find((e) => e.booking.id === "a")!;
+    expect(late.isLate).toBe(true);
+    expect(late.needsAction).toBe(true);
+    const inSalon = feed.find((e) => e.booking.id === "e")!;
+    expect(inSalon.stage).toBe("inSalon");
+    expect(inSalon.owes).toBe(true);
+    expect(inSalon.needsAction).toBe(true); // arrived + owes
+  });
+
+  it("needsAction membership matches buildImmediateAttention exactly", () => {
+    const sample = [
+      bk({ id: "1", _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "late" }),
+      bk({ id: "2", _bookingDate: TODAY, slot: "11:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp", dogName: "unconf" }),
+      bk({ id: "3", _bookingDate: TODAY, slot: "13:00", status: "Booked", dogName: "calm" }),
+    ];
+    const attn = new Set(buildImmediateAttention(sample, NOW_SUMMER).map((i) => i.booking.id));
+    const flagged = new Set(buildTodayFeed(sample, NOW_SUMMER).filter((e) => e.needsAction).map((e) => e.booking.id));
+    expect(flagged).toEqual(attn);
   });
 });
 

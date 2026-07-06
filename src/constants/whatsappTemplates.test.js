@@ -59,7 +59,7 @@ describe("buildTemplateParams", () => {
       appointment_when: "Monday 25 May at 9:00am",
     };
     expect(template.preview(values)).toBe(
-      "Hi Sarah, just a friendly reminder that Bella is booked in with us at Smarter Dog Grooming Salon for Monday 25 May at 9:00am. Reply here if you need to change anything — see you soon..",
+      "Hi Sarah, Just a quick reminder that Bella is booked in with us at Smarter Dog Grooming Salon for Monday 25 May at 9:00am, see you soon.",
     );
   });
 
@@ -79,7 +79,7 @@ describe("buildTemplateParams", () => {
   it("preview falls back to friendly placeholders for missing values", () => {
     const template = WHATSAPP_TEMPLATES.find((t) => t.name === "appointment_reminder_v1");
     expect(template.preview({})).toBe(
-      "Hi [their name], just a friendly reminder that [dog's name] is booked in with us at Smarter Dog Grooming Salon for [date and time]. Reply here if you need to change anything — see you soon..",
+      "Hi [their name], Just a quick reminder that [dog's name] is booked in with us at Smarter Dog Grooming Salon for [date and time], see you soon.",
     );
   });
 

@@ -49,6 +49,7 @@ export function BookingDetailModal({
   onAdd,
   onRemove,
   onOpenHuman,
+  onMessageOwner,
   onOpenDog,
   onUpdate,
   currentDateStr,
@@ -288,6 +289,7 @@ export function BookingDetailModal({
           onOpenDog={onOpenDog}
           primaryHuman={primaryHuman}
           onOpenHuman={onOpenHuman}
+          onMessageOwner={onMessageOwner}
           titleId="booking-detail-title"
           alerts={dogData?.alerts || []}
           allergyText={hasAllergy && allergyInput ? allergyInput : ""}

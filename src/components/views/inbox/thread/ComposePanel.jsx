@@ -28,6 +28,11 @@ export function ComposePanel({
   // copy to avoid a duplicate banner. Defaults to false so standalone use
   // still explains itself.
   hideTemplateBanner = false,
+  // A changing value focuses the reply box — used when staff arrive from a
+  // "Message owner" deep-link so they can start typing straight away. Only
+  // meaningful inside the open window (there's no textarea to focus when the
+  // template picker is shown).
+  autoFocusSignal = null,
 }) {
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
@@ -48,6 +53,21 @@ export function ComposePanel({
     const interval = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, [lastInboundAt]);
+
+  // Focus the reply box when arriving from a "Message owner" deep-link. A
+  // rAF lets the textarea mount first; if the window is closed the ref is
+  // null (TemplatePicker is shown instead), so this safely no-ops.
+  useEffect(() => {
+    if (!autoFocusSignal) return;
+    const raf = requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [autoFocusSignal]);
 
   const windowOpen = isWindowOpen(lastInboundAt, nowMs);
   const countdown = windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;

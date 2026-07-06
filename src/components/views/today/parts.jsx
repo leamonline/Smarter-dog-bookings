@@ -2,7 +2,7 @@
 // All status/urgency is carried by text + hierarchy + an accent bar — never
 // colour alone — matching the app's accessibility bar. Every tap target is at
 // least 44px tall (wet hands, one thumb, a wriggling dog under the other arm).
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
 import { PAYMENT_METHODS } from "../../../constants/salon";
 
@@ -215,13 +215,14 @@ export function BookingStatusLine({ booking, waitMinutes = null, pay = null, sho
 }
 
 /** The one strong action on a card — teal, filled, unmissable. */
-export function PrimaryButton({ onClick, children, disabled }) {
+export function PrimaryButton({ onClick, children, disabled, ...rest }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      {...rest}
     >
       {children}
     </button>
@@ -229,15 +230,86 @@ export function PrimaryButton({ onClick, children, disabled }) {
 }
 
 /** The quieter companion action — filled but subtle, never competing. */
-export function SecondaryButton({ onClick, children }) {
+export function SecondaryButton({ onClick, children, ...rest }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className="inline-flex items-center justify-center min-h-[44px] px-3.5 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+      {...rest}
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * The card-level "More" menu — one quiet button that reveals the lower-priority
+ * actions, so a card never shows five equal-weight buttons. Keyboard + outside
+ * click close it; items are proper menuitems. `items` = [{ label, onClick,
+ * disabled }]; renders nothing when empty.
+ */
+export function MoreMenu({ items, label = "More", menuLabel }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => {
+      if (!wrapRef.current?.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
+
+  const visible = (items || []).filter(Boolean);
+  if (visible.length === 0) return null;
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={menuLabel}
+        className="inline-flex items-center gap-1 min-h-[44px] px-3 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+      >
+        {label}
+        <Chevron open={open} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-1 z-20 min-w-[200px] bg-white rounded-lg border border-slate-200 shadow-[0_8px_20px_rgba(45,0,75,0.12)] py-1"
+        >
+          {visible.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.onClick?.();
+              }}
+              disabled={item.disabled}
+              className="w-full text-left px-3 py-2 text-[13px] font-semibold font-inherit text-slate-700 bg-transparent border-none cursor-pointer transition-colors hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

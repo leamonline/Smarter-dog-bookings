@@ -1,282 +1,286 @@
-// Component tests for the Today command-centre queue sections. The queue LOGIC
-// lives in src/engine/today.ts (unit-tested there); these assert each section
-// renders the right rows, action hierarchy, and fires its actions.
-import { render, screen, fireEvent } from "@testing-library/react";
+// Component tests for the redesigned Today command centre: the compact header,
+// the single time-ordered booking feed (one card per booking, adaptive
+// actions), and the Manage-availability modal. The feed/availability LOGIC is
+// unit-tested in src/engine/today.ts; these assert the UI renders the right
+// rows, chips, action hierarchy and fires its actions.
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 import { TodayHeader } from "./TodayHeader.jsx";
-import { AttentionPanel } from "./AttentionPanel.jsx";
-import { NextUp } from "./NextUp.jsx";
-import { InSalonNow } from "./InSalonNow.jsx";
-import { CollectionQueue } from "./CollectionQueue.jsx";
-import { PaymentsList } from "./PaymentsList.jsx";
-import { CapacitySummary } from "./CapacitySummary.jsx";
+import { BookingFeed, BookingFeedCard } from "./BookingFeed.jsx";
+import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./TodaySummaryStrip.jsx";
 import { CompactZeroState } from "./parts.jsx";
 
 const resolve = (b) => ({ dogName: b.dogName, breed: b.breed || "", owner: b.owner || "Owner" });
 const getWelfare = () => ({ alerts: [], pregnant: false, notes: "" });
+const paidOf = () => ({ kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, subtotal: 42 });
 const dueOf = () => ({ kind: "due", label: "Balance due", amountDue: 42, depositPaid: 0, subtotal: 42 });
 const noop = () => {};
 
-// 10:15 London (BST) — matches the engine tests' fixed instant.
-const NOW = new Date("2026-07-02T09:15:00Z");
+const baseHandlers = {
+  resolve,
+  getWelfare,
+  paymentOf: paidOf,
+  onMarkArrived: noop,
+  onMarkReady: noop,
+  onMarkCollected: noop,
+  onSendCollection: noop,
+  onMessageOwner: noop,
+  onMarkPaid: noop,
+  onDidntShow: noop,
+  onOpenBooking: noop,
+  onHideUntilTomorrow: noop,
+  onTheWaySignals: {},
+};
+
+/** Build a TodayFeedEntry with sensible defaults. */
+function entry(booking, overrides = {}) {
+  return {
+    booking,
+    slotMinutes: 0,
+    stage: "booked",
+    isNext: false,
+    isLate: false,
+    isUnconfirmed: false,
+    owes: false,
+    needsAction: false,
+    overdueMinutes: 0,
+    waitMinutes: null,
+    ...overrides,
+  };
+}
 
 describe("TodayHeader", () => {
-  it("shows the date, booking count and live action count", () => {
-    render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={5} actionCount={1} isDayOpen />);
-    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
-    expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
-    expect(screen.getByText(/5 dogs booked/)).toBeInTheDocument();
-    expect(screen.getByText(/1 action needed/)).toBeInTheDocument();
-  });
-
-  it("reads calm when nothing needs action", () => {
-    render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen />);
-    expect(screen.getByText(/1 dog booked/)).toBeInTheDocument();
-    expect(screen.getByText(/all calm/)).toBeInTheDocument();
-  });
-});
-
-describe("AttentionPanel", () => {
-  const baseHandlers = {
-    resolve,
-    getWelfare,
-    paymentOf: dueOf,
-    onMarkArrived: noop,
-    onMarkCollected: noop,
-    onSendCollection: noop,
-    onMessageOwner: noop,
-    onMarkPaid: noop,
-    onDidntShow: noop,
-    onOpenBooking: noop,
-    onHideUntilTomorrow: noop,
-  };
-
-  it("renders a late row with the overdue time and a Mark arrived action", () => {
-    const onMarkArrived = vi.fn();
-    const lateItem = {
-      booking: { id: "b1", dogName: "Rex", slot: "09:00", status: "Booked" },
-      kinds: ["late"],
-      primary: "late",
-      overdueMinutes: 20,
-      waitMinutes: null,
-    };
-    render(<AttentionPanel {...baseHandlers} items={[lateItem]} onMarkArrived={onMarkArrived} />);
-    expect(screen.getByText("Rex")).toBeInTheDocument();
-    expect(screen.getByText("Late arrival")).toBeInTheDocument();
-    expect(screen.getByText(/20 min overdue/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
-    expect(onMarkArrived).toHaveBeenCalledWith(lateItem.booking);
-  });
-
-  it("gives a payment row Mark paid + Open booking and no hide option", () => {
-    const paymentItem = {
-      booking: { id: "b2", dogName: "Max", slot: "10:00", status: "Checked in" },
-      kinds: ["payment"],
-      primary: "payment",
-      overdueMinutes: 0,
-      waitMinutes: null,
-    };
-    render(<AttentionPanel {...baseHandlers} items={[paymentItem]} />);
-    expect(screen.getByText("Payment outstanding")).toBeInTheDocument();
-    expect(screen.getByText(/£42 due/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark paid" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open booking" })).toBeInTheDocument();
-    expect(screen.queryByText(/Hide until tomorrow/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Dismiss/)).not.toBeInTheDocument();
-  });
-
-  it("lets an unconfirmed row be hidden until tomorrow", () => {
-    const onHide = vi.fn();
-    const unconfirmedItem = {
-      booking: { id: "b3", dogName: "Luna", slot: "11:00", status: "Booked", reminderSentAt: null },
-      kinds: ["unconfirmed"],
-      primary: "unconfirmed",
-      overdueMinutes: 0,
-      waitMinutes: null,
-    };
-    render(<AttentionPanel {...baseHandlers} items={[unconfirmedItem]} onHideUntilTomorrow={onHide} />);
-    expect(screen.getByText("Not yet confirmed")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Hide until tomorrow" }));
-    expect(onHide).toHaveBeenCalledWith("b3");
-  });
-});
-
-describe("NextUp", () => {
-  const handlers = {
-    resolve,
-    getWelfare,
-    paymentOf: () => ({ kind: "paid", label: "Paid", amountDue: 0, depositPaid: 0, subtotal: 42 }),
-    onMarkArrived: noop,
-    onUpdateBooking: noop,
-    onOpenBooking: noop,
-    onMessageOwner: noop,
-    onMarkPaid: noop,
-  };
-
-  it("shows the next arrival with a countdown and per-dog Mark arrived", () => {
-    const onMarkArrived = vi.fn();
-    const next = {
-      slot: "10:30",
-      slotMinutes: 630,
-      isPast: false,
-      isCurrent: false,
-      bookings: [
-        { id: "n1", dogName: "Bella", status: "Booked", service: "Full Groom" },
-        { id: "n2", dogName: "Coco", status: "Checked in", service: "Full Groom" },
-      ],
-    };
-    render(<NextUp {...handlers} next={next} upcoming={[]} now={NOW} onMarkArrived={onMarkArrived} />);
-    expect(screen.getByText("Next arrival")).toBeInTheDocument();
-    expect(screen.getByText("10:30")).toBeInTheDocument();
-    expect(screen.getByText(/due in 15 min/)).toBeInTheDocument();
-    expect(screen.getByText("2 dogs")).toBeInTheDocument();
-    // Only the still-Booked dog gets a Mark arrived button.
-    const buttons = screen.getAllByRole("button", { name: "Mark arrived" });
-    expect(buttons).toHaveLength(1);
-    fireEvent.click(buttons[0]);
-    expect(onMarkArrived).toHaveBeenCalledWith(next.bookings[0]);
-  });
-
-  it("summarises an upcoming group on its collapsed, whole-row toggle", () => {
-    const upcoming = {
-      slot: "12:00",
-      slotMinutes: 720,
-      isPast: false,
-      isCurrent: false,
-      bookings: [{ id: "u1", dogName: "Alfie", status: "Booked", service: "Puppy Groom" }],
-    };
-    // Expanding renders BookingStatusBar, which needs the toast context.
+  it("shows the title, date, compact stats and Next online slot", () => {
     render(
-      <ToastProvider>
-        <NextUp {...handlers} next={null} upcoming={[upcoming]} now={NOW} />
-      </ToastProvider>,
-    );
-    const row = screen.getByRole("button", { expanded: false });
-    expect(row).toHaveTextContent("12:00");
-    expect(row).toHaveTextContent("1 dog · due in 1 hr 45 min");
-    expect(row).toHaveTextContent("Alfie");
-    fireEvent.click(row);
-    expect(row).toHaveAttribute("aria-expanded", "true");
-  });
-});
-
-describe("InSalonNow", () => {
-  it("lists dogs being groomed with time in and a Mark ready action", () => {
-    const onMarkReady = vi.fn();
-    render(
-      <InSalonNow
-        entries={[{ booking: { id: "s1", dogName: "Poppy", status: "In bath" }, inSalonMinutes: 35 }]}
-        resolve={resolve}
-        getWelfare={getWelfare}
-        onMarkReady={onMarkReady}
-        onOpenBooking={noop}
+      <TodayHeader
+        dateLabel="Thursday 2 July"
+        dogsBooked={11}
+        actionCount={6}
+        unpaidTotal={478}
+        nextOnlineSlot="09:00"
+        isDayOpen
+        onManageAvailability={noop}
       />,
     );
-    expect(screen.getByText("Poppy")).toBeInTheDocument();
-    expect(screen.getByText(/in 35 min/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
+    expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
+    expect(screen.getByText(/11 dogs booked/)).toBeInTheDocument();
+    expect(screen.getByText(/6 need action/)).toBeInTheDocument();
+    expect(screen.getByText(/£478 unpaid/)).toBeInTheDocument();
+    expect(screen.getByText("09:00")).toBeInTheDocument();
+  });
+
+  it("reads calm and opens the availability modal", () => {
+    const onManage = vi.fn();
+    render(
+      <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen onManageAvailability={onManage} />,
+    );
+    expect(screen.getByText(/1 dog booked/)).toBeInTheDocument();
+    expect(screen.getByText(/all calm/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
+    expect(onManage).toHaveBeenCalled();
+  });
+
+  it("hides the availability control when the salon is closed", () => {
+    render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={0} actionCount={0} isDayOpen={false} onManageAvailability={noop} />);
+    expect(screen.getByText(/salon closed/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Manage availability/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingFeed — one card per booking", () => {
+  it("renders exactly one card per feed entry, in the order given", () => {
+    render(
+      <BookingFeed
+        {...baseHandlers}
+        entries={[
+          entry({ id: "a", dogName: "Amber", slot: "09:00", status: "Booked" }, { isLate: true, needsAction: true, overdueMinutes: 20 }),
+          entry({ id: "n", dogName: "Nova", slot: "11:00", status: "Booked" }, { isNext: true }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("Amber")).toBeInTheDocument();
+    expect(screen.getByText("Nova")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+});
+
+describe("BookingFeedCard — adaptive actions + chips", () => {
+  it("a late card leads with Mark arrived and offers Didn't show under More", () => {
+    const onMarkArrived = vi.fn();
+    const onDidntShow = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        onMarkArrived={onMarkArrived}
+        onDidntShow={onDidntShow}
+        entry={entry({ id: "a", dogName: "Rex", slot: "09:00", status: "Booked" }, { isLate: true, needsAction: true, overdueMinutes: 20 })}
+      />,
+    );
+    expect(screen.getByText("Late")).toBeInTheDocument();
+    expect(screen.getByText(/20 min overdue/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
+    expect(onMarkArrived).toHaveBeenCalled();
+    // "Didn't show" is a lower-priority action tucked into the More menu.
+    expect(screen.queryByRole("button", { name: "Didn't show" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /More actions for Rex/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
+    expect(onDidntShow).toHaveBeenCalled();
+  });
+
+  it("highlights the next booking with a Next chip", () => {
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        entry={entry({ id: "n", dogName: "Bella", slot: "11:00", status: "Booked" }, { isNext: true })}
+      />,
+    );
+    expect(screen.getByText("Next")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
+  });
+
+  it("an in-salon card leads with Mark ready", () => {
+    const onMarkReady = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        onMarkReady={onMarkReady}
+        entry={entry({ id: "s", dogName: "Poppy", slot: "09:30", status: "Checked in" }, { stage: "inSalon" })}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
     expect(onMarkReady).toHaveBeenCalled();
   });
-});
 
-describe("CollectionQueue", () => {
-  it("leads with the collection message when the owner hasn't been told", () => {
+  it("a ready card runs the collection workflow with a two-step confirm", () => {
     const onSendCollection = vi.fn();
+    const onMarkCollected = vi.fn();
     render(
-      <CollectionQueue
-        entries={[{ booking: { id: "c1", dogName: "Bella", status: "Ready for pick-up", collectionSentAt: null }, waitMinutes: 25 }]}
-        resolve={resolve}
-        paymentOf={() => ({ kind: "paid", amountDue: 0, depositPaid: 0, subtotal: 42, label: "Paid" })}
+      <BookingFeedCard
+        {...baseHandlers}
         onSendCollection={onSendCollection}
-        onMarkCollected={noop}
-        onOpenBooking={noop}
+        onMarkCollected={onMarkCollected}
+        entry={entry({ id: "r", dogName: "Teddy", slot: "10:00", status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", waitMinutes: 25, needsAction: true })}
       />,
     );
-    expect(screen.getByText("Bella")).toBeInTheDocument();
     expect(screen.getByText(/waiting 25 min/)).toBeInTheDocument();
     expect(screen.getByText(/Owner not messaged yet/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send collection message" }));
     expect(onSendCollection).toHaveBeenCalled();
-  });
-
-  it("requires a confirm before marking collected", () => {
-    const onMarkCollected = vi.fn();
-    render(
-      <CollectionQueue
-        entries={[{ booking: { id: "c2", dogName: "Teddy", status: "Ready for pick-up", collectionSentAt: "2026-07-02T09:00:00Z" }, waitMinutes: 10 }]}
-        resolve={resolve}
-        paymentOf={() => ({ kind: "paid", amountDue: 0, depositPaid: 0, subtotal: 42, label: "Paid" })}
-        onSendCollection={noop}
-        onMarkCollected={onMarkCollected}
-        onOpenBooking={noop}
-      />,
-    );
-    // First click arms the confirm; only the second commits.
+    // Mark collected requires a confirm.
     fireEvent.click(screen.getByRole("button", { name: "Mark collected" }));
     expect(onMarkCollected).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Confirm collected" }));
     expect(onMarkCollected).toHaveBeenCalledTimes(1);
   });
 
-  it("shows an 'on the way' chip when the owner signalled they're coming", () => {
-    render(
-      <CollectionQueue
-        entries={[{ booking: { id: "c3", dogName: "Rex", status: "Ready for pick-up", collectionSentAt: "2026-07-02T09:00:00Z", whatsappConversationId: "conv-1" }, waitMinutes: 15 }]}
-        resolve={resolve}
-        paymentOf={() => ({ kind: "paid", amountDue: 0, depositPaid: 0, subtotal: 42, label: "Paid" })}
-        onSendCollection={noop}
-        onMarkCollected={noop}
-        onOpenBooking={noop}
-        onTheWaySignals={{ "conv-1": { at: "2026-07-02T09:50:00Z", text: "on my way", minutesAgo: 10 } }}
-      />,
-    );
-    expect(screen.getByText(/On the way · 10 min ago/)).toBeInTheDocument();
-  });
-});
-
-describe("PaymentsList", () => {
-  it("lists a balance due and records payment with a chosen method", () => {
+  it("a ready dog that owes keeps the collection workflow, a Payment due chip and Mark paid (with method)", () => {
     const onMarkPaid = vi.fn();
     render(
-      <PaymentsList
-        entries={[{ booking: { id: "p1", dogName: "Max", status: "Checked in" }, payment: dueOf() }]}
-        resolve={resolve}
+      <BookingFeedCard
+        {...baseHandlers}
         paymentOf={dueOf}
         onMarkPaid={onMarkPaid}
-        onOpenBooking={noop}
+        entry={entry({ id: "r2", dogName: "Luna", slot: "09:00", status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", owes: true, waitMinutes: 20, needsAction: true })}
       />,
     );
-    expect(screen.getByText("Max")).toBeInTheDocument();
-    expect(screen.getByText(/£42 due at pick-up/)).toBeInTheDocument();
-    // "Mark paid" now reveals a method chooser; picking a method records it.
+    expect(screen.getByText("Payment due")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send collection message" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
     fireEvent.click(screen.getByRole("button", { name: "Card" }));
-    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), "card");
+    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "card");
+  });
+
+  it("an unconfirmed card chases confirmation and can be hidden until tomorrow", () => {
+    const onHide = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        onHideUntilTomorrow={onHide}
+        entry={entry({ id: "u", dogName: "Milo", slot: "11:00", status: "Booked", reminderSentAt: null }, { isUnconfirmed: true, needsAction: true })}
+      />,
+    );
+    expect(screen.getByText("Not confirmed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Message owner" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /More actions for Milo/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Hide until tomorrow" }));
+    expect(onHide).toHaveBeenCalledWith("u");
+  });
+
+  it("surfaces care notes on the card", () => {
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        getWelfare={() => ({ alerts: ["Nervous", "Bites/nips"], pregnant: false, notes: "" })}
+        entry={entry({ id: "c", dogName: "Scout", slot: "10:30", status: "Booked" })}
+      />,
+    );
+    expect(screen.getByText("Nervous")).toBeInTheDocument();
+    expect(screen.getByText("Bites/nips")).toBeInTheDocument();
   });
 });
 
-describe("CapacitySummary", () => {
-  it("headlines the places booked and surfaces a customer-reachable slot", () => {
-    const onToggleImmediate = vi.fn();
+describe("AvailabilityModal", () => {
+  const view = {
+    rows: [
+      { slot: "09:00", slotMinutes: 540, seatsFree: 2, isOnline: true, customerReachable: true, sizes: { small: true, medium: true, large: false } },
+      { slot: "09:30", slotMinutes: 570, seatsFree: 1, isOnline: false, customerReachable: false, sizes: { small: true, medium: true, large: false } },
+      { slot: "12:30", slotMinutes: 750, seatsFree: 2, isOnline: true, customerReachable: true, sizes: { small: true, medium: true, large: true } },
+    ],
+    unbookedSlots: 3,
+    onlineCount: 2,
+    nextOnlineSlot: "09:00",
+  };
+
+  it("renders an accessible dialog with a title and derived counts", () => {
+    render(<AvailabilityModal onClose={noop} view={view} dogsBooked={11} onToggleImmediate={noop} />);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Manage availability" })).toBeInTheDocument();
+    const summary = screen.getByText(
+      (_, node) => node?.tagName === "P" && /11\s*dogs booked/.test(node.textContent) && /3\s*unbooked slots/.test(node.textContent) && /2\s*online/.test(node.textContent),
+    );
+    expect(summary).toBeInTheDocument();
+  });
+
+  it("labels each toggle by its slot and time and fires onToggleImmediate", () => {
+    const onToggle = vi.fn();
+    render(<AvailabilityModal onClose={noop} view={view} dogsBooked={11} onToggleImmediate={onToggle} />);
+    // Online slot → "Take offline"; hidden slot → "Put online".
+    expect(screen.getByRole("button", { name: "Take 09:00 offline" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Put 09:30 online" }));
+    expect(onToggle).toHaveBeenCalledWith("09:30");
+  });
+
+  it("shows Online/Hidden state and the sizes that fit (large only where eligible)", () => {
+    render(<AvailabilityModal onClose={noop} view={view} dogsBooked={11} onToggleImmediate={noop} />);
+    expect(screen.getAllByText("Online")).toHaveLength(2);
+    expect(screen.getByText("Hidden")).toBeInTheDocument();
+    // The 12:30 row is the only one that fits Large.
+    const largeRow = screen.getByRole("button", { name: "Take 12:30 offline" }).closest("li");
+    expect(within(largeRow).getByText("Large")).toBeInTheDocument();
+    const nineRow = screen.getByRole("button", { name: "Take 09:00 offline" }).closest("li");
+    expect(within(nineRow).queryByText("Large")).not.toBeInTheDocument();
+  });
+
+  it("closes from the header", () => {
+    const onClose = vi.fn();
+    render(<AvailabilityModal onClose={onClose} view={view} dogsBooked={11} onToggleImmediate={noop} />);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("handles an empty day", () => {
     render(
-      <CapacitySummary
-        opportunities={[{ slot: "11:00", slotMinutes: 660, isPast: false, isCurrent: false, seatsFree: 2, largeDogEligible: false, customerReachable: true, isBlocked: false }]}
-        immediateSet={new Set(["11:00"])}
-        nextAvailable={null}
-        dogsBooked={11}
-        onToggleImmediate={onToggleImmediate}
-        onNewBooking={noop}
+      <AvailabilityModal
+        onClose={noop}
+        view={{ rows: [], unbookedSlots: 0, onlineCount: 0, nextOnlineSlot: null }}
+        dogsBooked={0}
+        onToggleImmediate={noop}
       />,
     );
-    expect(screen.getByText("11 of 14 places booked")).toBeInTheDocument();
-    expect(screen.getByText("2 spaces left today")).toBeInTheDocument();
-    // "11:00" appears in the headline ("next free at 11:00") and the slot row.
-    expect(screen.getAllByText("11:00").length).toBeGreaterThan(0);
-    expect(screen.getByText(/customers can book now/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close last-minute" }));
-    expect(onToggleImmediate).toHaveBeenCalledWith("11:00");
+    expect(screen.getByText(/No free slots left today/)).toBeInTheDocument();
+    expect(screen.getByText(/none open/)).toBeInTheDocument();
   });
 });
 
