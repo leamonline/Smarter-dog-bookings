@@ -18,7 +18,7 @@ import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
-import { mapDenialReason } from "../../../engine/denials";
+import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { PRICING } from "../../../constants/index";
 import { getSizeForBreed } from "../../../constants/breeds";
 import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
@@ -439,16 +439,19 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setBookedIds(insertedIds);
       setBooked(true);
     } catch (err) {
-      // The server-side capacity trigger raises useful messages like
-      // "Slot is full", "Capped at 1 (2-2-1 rule)", "Back-to-back large dogs only allowed at 12:30 + 13:00".
-      // Surface those directly so the customer knows why we couldn't book.
+      // The server-side capacity/calendar triggers raise engineer-facing
+      // messages like "Slot is full", "Capped at 1 (2-2-1 rule)",
+      // "Back-to-back large dogs only allowed at 12:30 + 13:00". We LOG those
+      // verbatim (reasonDetail) but never show them to a customer — friendlyDenialMessage
+      // turns them into reassuring, actionable copy. Both go through the same
+      // mapDenialReason categoriser so the on-screen text and the logged reason
+      // can never drift.
       const cause = err as RepoErrorShape | null;
       const msg: string = cause?.message || "";
       const isTriggerError =
         cause?.code === "P0001" ||                          // raise_exception
         /Slot is full|2-2-1|Large dog|Capped at 1|early close|Back-to-back/i.test(msg);
-      // A gate rejection is capacity-prevented demand — log it best-effort. The
-      // setError line below is unchanged; the customer's UX is identical.
+      // A gate rejection is capacity-prevented demand — log it best-effort.
       if (isTriggerError) {
         fireDenialLog({
           reasonCode: mapDenialReason(msg),
@@ -461,7 +464,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           alternativeShown: false,
         });
       }
-      setError(isTriggerError ? msg : "Sorry, we couldn't create that booking. Please try again, or message us if it keeps happening.");
+      setError(isTriggerError ? friendlyDenialMessage(msg) : "Sorry, we couldn’t create that booking. Please try again, or message us if it keeps happening.");
     } finally {
       setSubmitting(false);
     }
@@ -479,8 +482,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       });
       if (waitErr) throw waitErr;
       setWaitlistJoined(true);
-    } catch (err) {
-      setError((err as RepoErrorShape).message || "Could not join waitlist");
+    } catch {
+      // Don't surface the raw error — a warm, retryable message is friendlier
+      // and the failure here is almost always transient (network/RLS).
+      setError("Sorry, we couldn’t add you to the waitlist just now. Please try again in a moment.");
     } finally {
       setSubmitting(false);
     }
