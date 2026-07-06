@@ -100,13 +100,14 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
             </span>
           )}
         </div>
-        <span className="text-[11px] text-slate-400">{draft.model}</span>
+        <span className="text-[11px] text-slate-500">{draft.model}</span>
       </div>
 
       {editing ? (
         <textarea
           value={editedText}
           onChange={(e) => setEditedText(e.target.value)}
+          aria-label="Edit the suggested reply"
           className="w-full text-[14px] p-2 bg-white border border-amber-300 rounded-lg font-[inherit] resize-y"
           rows={4}
         />
