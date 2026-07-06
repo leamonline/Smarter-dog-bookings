@@ -259,7 +259,9 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            New booking
+            {/* On the very narrowest phones the label would push the bar past
+                the viewport edge — the aria-label keeps the name for AT. */}
+            <span className="max-[359px]:hidden">New booking</span>
           </button>
         )}
         <div ref={mobileMenuRef} className="relative shrink-0">

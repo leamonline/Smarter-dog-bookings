@@ -466,7 +466,7 @@ export function HumansView({
         <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-2xl md:text-display font-black text-white font-display">Humans Directory</div>
+            <h1 className="text-2xl md:text-display font-black text-white font-display m-0">Humans Directory</h1>
             <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
               {isInitialLoading && displayList.length === 0 ? (
                 <SkeletonBlock className="h-4 w-32 bg-white/20" />
@@ -478,7 +478,7 @@ export function HumansView({
           <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
             <div className="relative flex-1">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="rgba(255,255,255,0.85)" />
+                <IconSearch size={16} colour="#64748b" />
               </div>
               <input
                 type="text"
@@ -486,7 +486,7 @@ export function HumansView({
                 placeholder="Search rolodex..."
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white/25 text-sm font-inherit outline-none text-white placeholder:text-white/85 transition-colors focus:bg-white/35 focus:border-white/60"
+                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white text-sm font-inherit outline-none text-slate-800 placeholder:text-slate-500 transition-colors focus:border-white shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
               />
             </div>
             {onNewClient && (

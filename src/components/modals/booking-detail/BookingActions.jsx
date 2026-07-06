@@ -93,11 +93,14 @@ export function BookingActions({
           <span>Cancel</span>
         </button>
       </div>
-      <div className="mt-2">
+      {/* Delete destroys the record; Cancel (above) is the everyday action.
+          Kept deliberately quiet and separated so a hurried tap aimed at
+          Cancel can't land here — the confirm dialog is the second net. */}
+      <div className="mt-3 pt-2 border-t border-slate-100 flex justify-center">
         <button
           onClick={() => setShowDeleteConfirm(true)}
           aria-label="Delete booking permanently"
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border-[1.5px] border-rose-300 text-[13px] font-bold text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border-none bg-transparent text-[12px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 active:bg-rose-100 cursor-pointer font-inherit transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />

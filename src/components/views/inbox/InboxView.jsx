@@ -518,9 +518,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               </svg>
             </span>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
+              <h1 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
                 Inbox
-              </h2>
+              </h1>
               <div className="text-[11px] text-slate-600 mt-0.5">
                 {isSearching
                   ? searchingMessages
@@ -727,7 +727,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
         >
           {!selectedId ? (
             <div className="flex-1 flex items-center justify-center text-slate-500 text-[14px] px-6 text-center">
-              Select a conversation on the left to see the thread.
+              {conversations.length === 0
+                ? "Nothing here yet — when a customer messages your WhatsApp number, the thread will open here."
+                : "Pick a conversation to see the thread."}
             </div>
           ) : (
             <>

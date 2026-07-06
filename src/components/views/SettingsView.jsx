@@ -86,7 +86,7 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
     <div className="animate-[fadeIn_0.2s_ease-in]">
       {/* Page header */}
       <div className="mb-5">
-        <h2 className="text-2xl font-extrabold m-0 text-slate-800 font-display">Salon Settings</h2>
+        <h1 className="text-2xl font-extrabold m-0 text-slate-800 font-display">Salon Settings</h1>
         <div className="text-body text-slate-500 mt-1">
           Manage your business, pricing, booking rules, and more.
         </div>
