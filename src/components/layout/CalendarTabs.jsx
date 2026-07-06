@@ -9,6 +9,9 @@ export function CalendarTabs({
   bookingsByDate,
   dayOpenState,
   calendarMode,
+  // When embedded inside a parent card (mobile: pills + view-switcher share one
+  // card), drop the pills' own card chrome so they don't read as a second card.
+  bare = false,
 }) {
   const tablistRef = useRef(null);
   // Set when a key press moves selection so the effect below knows to also
@@ -51,7 +54,11 @@ export function CalendarTabs({
       role="tablist"
       aria-label="Day navigation"
       onKeyDown={handleKeyDown}
-      className="grid grid-cols-7 items-center gap-x-0.5 px-2 py-3 bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2"
+      className={`grid grid-cols-7 items-center gap-x-0.5 px-2 overflow-x-auto snap-x snap-proximity scrollbar-none scroll-px-2 ${
+        bare
+          ? "py-2"
+          : "py-3 bg-white rounded-2xl border border-gray-100 shadow-card-resting"
+      }`}
     >
       {dates.map((d, i) => {
         const isOpen = isDateOpen(d.dateStr, dayOpenState);
