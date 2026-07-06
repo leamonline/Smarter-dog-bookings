@@ -95,7 +95,7 @@ export function TodoModal({ onClose }) {
         <InlineError message={error} />
 
         {loading ? (
-          <div className="text-center text-xs text-slate-500 py-3">Loading...</div>
+          <div className="text-center text-xs text-slate-500 py-3" role="status">Loading...</div>
         ) : todos.length === 0 && !error ? (
           <div className="text-center text-xs text-slate-500 py-3">Nothing yet — add one to get started</div>
         ) : (

@@ -105,7 +105,7 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
   return (
     <PanelShell eyebrow="Grooming history" icon={Scissors} accent="amber" className="mb-3">
       {loading && (
-        <div className="text-xs text-slate-500 py-1">
+        <div className="text-xs text-slate-500 py-1" role="status">
           Loading...
         </div>
       )}

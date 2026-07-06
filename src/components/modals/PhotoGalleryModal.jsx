@@ -130,7 +130,7 @@ export function PhotoGalleryModal({
         <div className="px-4 py-4">
           {/* Loading */}
           {loading && (
-            <div className="text-xs text-slate-400 py-4 text-center">
+            <div className="text-xs text-slate-500 py-4 text-center" role="status">
               Loading photos...
             </div>
           )}
@@ -150,10 +150,10 @@ export function PhotoGalleryModal({
           {!loading && !error && photos.length === 0 && (
             <div className="text-center py-8">
               <IconGallery size={36} colour="#CBD5E1" />
-              <p className="text-sm text-slate-400 mt-2 mb-0">
+              <p className="text-sm text-slate-500 mt-2 mb-0">
                 No photos yet
               </p>
-              <p className="text-xs text-slate-400 mt-1 mb-0">
+              <p className="text-xs text-slate-500 mt-1 mb-0">
                 Use the camera button on a booking to add one.
               </p>
             </div>

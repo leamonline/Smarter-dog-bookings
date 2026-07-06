@@ -56,7 +56,7 @@ export function BookingHistoryCard({ limit = 10 } = {}) {
         )}
 
         {loading && events.length === 0 && (
-          <p className="text-[12px] text-slate-500 italic">Loading…</p>
+          <p className="text-[12px] text-slate-500 italic" role="status">Loading…</p>
         )}
 
         {!loading && events.length === 0 && !error && (

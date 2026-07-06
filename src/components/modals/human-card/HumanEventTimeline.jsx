@@ -49,9 +49,9 @@ export function HumanEventTimeline({ human, dogs, dogsByHumanId }) {
             Couldn&apos;t load the activity history — give it another go.
           </p>
         ) : loading && events.length === 0 ? (
-          <p className="text-[12px] text-slate-400 italic py-1">Loading…</p>
+          <p className="text-[12px] text-slate-500 italic py-1" role="status">Loading…</p>
         ) : events.length === 0 ? (
-          <p className="text-[12px] text-slate-400 italic py-1">
+          <p className="text-[12px] text-slate-500 italic py-1">
             No booking changes yet.
           </p>
         ) : (

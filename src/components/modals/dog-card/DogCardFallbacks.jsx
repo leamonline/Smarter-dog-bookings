@@ -14,8 +14,7 @@ export function DogCardLoading({ onClose }) {
         id="dog-card-title"
         className="px-6 py-16 flex flex-col items-center justify-center gap-3"
       >
-        <LoadingSpinner />
-        <div className="text-sm text-slate-500">Loading dog profile…</div>
+        <LoadingSpinner label="Loading dog profile…" />
       </div>
     </ModalShell>
   );

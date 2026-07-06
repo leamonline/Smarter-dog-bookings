@@ -236,7 +236,7 @@ export function SendReminderModal({ row, targetDate, onClose, onSent }) {
               .
             </div>
           ) : loading ? (
-            <div className="text-[12px] text-slate-500 py-4 text-center">Loading customer…</div>
+            <div className="text-[12px] text-slate-500 py-4 text-center" role="status">Loading customer…</div>
           ) : (
             <>
               <div className="flex items-center gap-2">
