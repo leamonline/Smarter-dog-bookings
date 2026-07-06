@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapDenialReason, computeDenialStats, DENIAL_REASON_LABELS, type DenialRow } from "./denials";
+import { mapDenialReason, friendlyDenialMessage, computeDenialStats, DENIAL_REASON_LABELS, type DenialRow } from "./denials";
 
 describe("mapDenialReason", () => {
   it("maps the real gate messages to reason codes", () => {
@@ -32,6 +32,56 @@ describe("mapDenialReason", () => {
     ["capacity_2_2_1", "daily_cap", "slot_full", "pregnant", "large_dog_ineligible", "calendar_closed", "past_date", "past_cutoff", "double_booked", "unavailable", "unknown"].forEach((code) => {
       expect(DENIAL_REASON_LABELS[code]).toBeTruthy();
     });
+  });
+});
+
+describe("friendlyDenialMessage", () => {
+  // Every raw message the capacity/calendar/large-dog/pregnancy triggers can
+  // raise on the customer insert path. None of these engineer-facing strings
+  // may reach a customer verbatim.
+  const REAL_TRIGGER_MESSAGES = [
+    "Slot is full",
+    "Not enough capacity (2-2-1 rule)",
+    "Capped at 1 (2-2-1 rule)",
+    "Back-to-back large dogs only allowed at 12:30 + 13:00",
+    "Only a small/medium dog can share this slot with a large dog",
+    "Large dog fills this slot — already has bookings",
+    "Large dogs need approval for this slot (12:30)",
+    "09:00 large dog conditional: 08:30 must be empty",
+    "12:00 large dog requires 13:00 to be empty (early close)",
+    "13:00 is closed — large dog at 12:00 triggered early close",
+    "Day is fully booked: 04 Jul 2026 already has 14 dog(s) (maximum 14 per day)",
+    "Cannot book a date in the past",
+    "The salon is closed on that date",
+    "That time slot is closed on this date",
+    "Invalid slot: 14:00",
+  ];
+
+  it("never leaks trigger jargon to the customer", () => {
+    const jargon = /2-2-1|capped at|back-to-back|early close|conditional|seats used|maximum \d+ per day|invalid slot|P0001|trigger/i;
+    for (const raw of REAL_TRIGGER_MESSAGES) {
+      const friendly = friendlyDenialMessage(raw);
+      expect(friendly.length).toBeGreaterThan(0);
+      expect(friendly, `leaked jargon for: ${raw}`).not.toMatch(jargon);
+    }
+  });
+
+  it("gives each denial category its own actionable copy", () => {
+    expect(friendlyDenialMessage("Slot is full")).toMatch(/another slot/i);
+    expect(friendlyDenialMessage("Capped at 1 (2-2-1 rule)")).toMatch(/another slot/i);
+    expect(friendlyDenialMessage("Day is fully booked: 04 Jul 2026 already has 14 dog(s) (maximum 14 per day)")).toMatch(/waitlist|another day/i);
+    expect(friendlyDenialMessage("Back-to-back large dogs only allowed at 12:30 + 13:00")).toMatch(/larger dog/i);
+    expect(friendlyDenialMessage("The salon is closed on that date")).toMatch(/closed/i);
+    expect(friendlyDenialMessage("Cannot book a date in the past")).toMatch(/passed|upcoming/i);
+    expect(friendlyDenialMessage("Same-day booking isn't available for that time")).toMatch(/notice|later time/i);
+    expect(friendlyDenialMessage("We can't book a pregnant dog online — please call the salon.")).toMatch(/call the salon/i);
+  });
+
+  it("falls back to a safe generic for unknown / empty messages", () => {
+    for (const m of ["", null, "network request failed", "boom"]) {
+      const friendly = friendlyDenialMessage(m);
+      expect(friendly).toMatch(/another time|try again/i);
+    }
   });
 });
 

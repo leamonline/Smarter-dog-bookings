@@ -45,6 +45,50 @@ export function mapDenialReason(message?: string | null): string {
   return "unknown";
 }
 
+/**
+ * Warm, customer-facing copy for a booking-gate rejection.
+ *
+ * The capacity/calendar/large-dog triggers raise engineer-facing messages
+ * ("Capped at 1 (2-2-1 rule)", "Back-to-back large dogs only allowed at
+ * 12:30 + 13:00", "13:00 is closed — large dog at 12:00 triggered early
+ * close"). Those are perfect for the denial log and staff, but a customer
+ * whose booking just failed should never see them. We route the raw message
+ * through the SAME `mapDenialReason` categoriser used for logging — so the
+ * message a customer reads and the reason we record can never drift — then
+ * hand back reassuring, actionable copy (Reassure → Inform → Close warmly).
+ *
+ * The raw message is still logged verbatim elsewhere (reason_detail); only the
+ * on-screen text changes here. `unknown` falls back to a safe generic rather
+ * than leaking whatever string arrived.
+ */
+export function friendlyDenialMessage(message?: string | null): string {
+  switch (mapDenialReason(message)) {
+    case "pregnant":
+      // Kept close to the trigger's own wording — this one is a clinical/policy
+      // message, not capacity jargon, so we don't soften its meaning.
+      return "We can’t book a pregnant dog online — please call the salon so we can look after her properly.";
+    case "daily_cap":
+      return "That day’s now fully booked. Try another day, or join the waitlist and we’ll text you the moment a space opens up.";
+    case "past_cutoff":
+      return "That slot’s a bit too close to its start time to book online now — we need a little notice. Please pick a later time or another day.";
+    case "past_date":
+      return "That date has already passed. Please choose an upcoming day.";
+    case "calendar_closed":
+      return "Sorry, the salon’s closed at that time. Please choose another day or slot.";
+    case "large_dog_ineligible":
+      return "That time isn’t available for a larger dog. Please pick another slot, or give us a call and we’ll find one that works.";
+    case "double_booked":
+      return "That dog’s already booked in for that time. Check “My appointments”, or pick a different slot.";
+    case "capacity_2_2_1":
+    case "slot_full":
+    case "seat_blocked":
+    case "unavailable":
+      return "That time’s just been taken. Please choose another slot — there’s usually one free close by.";
+    default:
+      return "Sorry, that slot isn’t available anymore. Please choose another time, or message us if it keeps happening.";
+  }
+}
+
 export interface DenialRow {
   requested_date?: string | null;
   slot?: string | null;
