@@ -25,6 +25,7 @@ import {
   buildPaymentsList,
   buildTakingsByMethod,
   buildSlotOpportunities,
+  dedupeConcernSections,
 } from "../../engine/today";
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
@@ -128,6 +129,16 @@ export function TodayView({
   const visibleAttention = useMemo(
     () => attention.filter((i) => i.primary !== "unconfirmed" || !dismissed.has(i.booking.id)),
     [attention, dismissed],
+  );
+
+  // ---- One card per booking. The engine lists a booking under every concern
+  // it matches (attention, collection, payments); on screen it renders once,
+  // in its highest-priority section only — the lower sections' facts fold into
+  // that card's status line. This also keeps the header's "N actions needed"
+  // (one per booking in the attention queue) equal to the cards shown.
+  const { collection: collectionToShow, payments: paymentsToShow } = useMemo(
+    () => dedupeConcernSections(visibleAttention, collection, payments),
+    [visibleAttention, collection, payments],
   );
 
   // ---- Display + welfare + payment resolvers ----
@@ -236,6 +247,7 @@ export function TodayView({
               resolve={resolve}
               getWelfare={getWelfare}
               paymentOf={paymentOf}
+              onTheWaySignals={onTheWaySignals}
               onMarkArrived={onMarkArrived}
               onMarkCollected={onMarkCollected}
               onSendCollection={onSendCollection}
@@ -268,10 +280,10 @@ export function TodayView({
             />
           )}
 
-          {/* 4 — Ready for collection */}
-          {collection.length > 0 && (
+          {/* 4 — Ready for collection (only dogs not already in the attention queue) */}
+          {collectionToShow.length > 0 && (
             <CollectionQueue
-              entries={collection}
+              entries={collectionToShow}
               resolve={resolve}
               paymentOf={paymentOf}
               onSendCollection={onSendCollection}
@@ -281,18 +293,20 @@ export function TodayView({
             />
           )}
 
-          {/* 5 — Payments */}
-          {payments.length > 0 ? (
+          {/* 5 — Payments. The calm zero state only when nobody owes anything;
+              a section merely emptied by dedup hides (the money is still shown
+              on each dog's one card, so "settled up" would be a lie). */}
+          {payments.length === 0 ? (
+            <CompactZeroState>Everyone&apos;s settled up — no payments to chase.</CompactZeroState>
+          ) : paymentsToShow.length > 0 ? (
             <PaymentsList
-              entries={payments}
+              entries={paymentsToShow}
               resolve={resolve}
               paymentOf={paymentOf}
               onMarkPaid={onMarkPaid}
               onOpenBooking={onOpenBooking}
             />
-          ) : (
-            <CompactZeroState>Everyone&apos;s settled up — no payments to chase.</CompactZeroState>
-          )}
+          ) : null}
 
           {/* 6 — Capacity */}
           {isDayOpen && (
