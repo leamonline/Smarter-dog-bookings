@@ -7,6 +7,7 @@ import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
+import { friendlySaveError } from "../../../utils/friendlyError";
 import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index";
 import { BREED_LIST } from "../../../constants/breeds";
 import { REFERRAL_SOURCES, REFERRAL_SOURCE_OTHER } from "../../../constants/referralSources.ts";
@@ -209,7 +210,8 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
     const { error: err } = await submitCustomerSignup(supabase, { owner, dogs: dogPayload });
     setSaving(false);
     if (err) {
-      setError(err.message || "We couldn't save your details. Please try again.");
+      // Never surface the raw signup RPC / DB error to the customer.
+      setError(friendlySaveError(err, "We couldn't save your details just now. Please try again, or message us if it keeps happening."));
       return;
     }
     clearDraft();
