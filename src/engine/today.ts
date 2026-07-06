@@ -512,6 +512,32 @@ export interface PaymentEntry {
   payment: PaymentInfo;
 }
 
+/** The collection/payments queues with higher-priority duplicates removed. */
+export interface ConcernSections {
+  collection: CollectionEntry[];
+  payments: PaymentEntry[];
+}
+
+/**
+ * One card per booking across the concern sections. A booking already shown
+ * in "Needs attention now" (highest priority) drops out of the collection
+ * queue, and anything shown in either drops out of payments — the facts a
+ * dropped row carried fold into the surviving card's status line instead.
+ */
+export function dedupeConcernSections(
+  attention: AttentionItem[],
+  collection: CollectionEntry[],
+  payments: PaymentEntry[],
+): ConcernSections {
+  const shown = new Set(attention.map((i) => i.booking.id));
+  const dedupedCollection = collection.filter((e) => !shown.has(e.booking.id));
+  for (const e of dedupedCollection) shown.add(e.booking.id);
+  return {
+    collection: dedupedCollection,
+    payments: payments.filter((e) => !shown.has(e.booking.id)),
+  };
+}
+
 /**
  * Non-cancelled bookings that still owe money, biggest balance first. The
  * amount uses default pricing for ordering; the UI recomputes with the dog's

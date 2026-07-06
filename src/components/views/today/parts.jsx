@@ -2,7 +2,9 @@
 // All status/urgency is carried by text + hierarchy + an accent bar — never
 // colour alone — matching the app's accessibility bar. Every tap target is at
 // least 44px tall (wet hands, one thumb, a wriggling dog under the other arm).
-import { getStatusDisplay } from "../../../constants/index";
+import { useState } from "react";
+import { BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
+import { PAYMENT_METHODS } from "../../../constants/salon";
 
 /** "25 min", "1 hr 5 min", "just now". */
 export function formatMinutes(mins) {
@@ -18,6 +20,46 @@ export function formatMinutes(mins) {
 export function formatMoney(amount) {
   if (amount == null) return "";
   return `£${Math.round(amount)}`;
+}
+
+/** "11:05" on the salon (Europe/London) clock; null for missing/invalid ISO. */
+export function formatLondonTime(iso) {
+  if (!iso) return null;
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return null;
+  return t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+}
+
+// ---- Honest wait-time colour --------------------------------------------------
+// A collection wait takes its colour from these thresholds alone — never from
+// the section the card sits in, and never green. Tune them here.
+export const WAIT_AMBER_MINUTES = 60;
+export const WAIT_RED_MINUTES = 120;
+
+/** Threshold tone for a wait: neutral < 60 min ≤ amber < 120 min ≤ red. */
+export function waitTone(mins) {
+  if (mins == null) return "neutral";
+  if (mins >= WAIT_RED_MINUTES) return "red";
+  if (mins >= WAIT_AMBER_MINUTES) return "amber";
+  return "neutral";
+}
+
+// Text tokens ≥ 4.5:1 (WCAG AA) on white and on the pale amber tint.
+const WAIT_TONE_CLASS = {
+  neutral: "text-slate-700",
+  amber: "text-amber-800",
+  red: "text-brand-coral-text",
+};
+
+/** Threshold-toned wait duration — "waiting 25 min", or the bare duration. */
+export function WaitBadge({ minutes, withWord = true }) {
+  if (minutes == null) return null;
+  const duration = formatMinutes(minutes);
+  return (
+    <span className={`font-bold tabular-nums ${WAIT_TONE_CLASS[waitTone(minutes)]}`}>
+      {withWord ? `waiting ${duration}` : duration}
+    </span>
+  );
 }
 
 export function SectionCard({ title, subtitle, count, accent, action, children }) {
@@ -66,15 +108,51 @@ export function CompactZeroState({ children }) {
   );
 }
 
+/**
+ * The one status-chip pattern for this page: pale tint + AA text + a leading
+ * dot or glyph, so no status ever leans on colour alone. Colours come in via
+ * className (token utilities) or style (the status palette tokens).
+ */
+export function Chip({ className = "", style, dot = false, icon = null, title, children }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${className}`}
+      style={style}
+      title={title}
+    >
+      {dot && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />}
+      {icon && <span aria-hidden>{icon}</span>}
+      {children}
+    </span>
+  );
+}
+
 export function StatusPill({ status }) {
   const d = getStatusDisplay(status);
   return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
-      style={{ background: d.bg, color: d.color }}
-    >
+    <Chip dot className="whitespace-nowrap" style={{ background: d.bg, color: d.color }}>
       {d.label}
-    </span>
+    </Chip>
+  );
+}
+
+/** Collection-message state — the same chip whichever card shows it. */
+export function MessageStateChip({ sentAt }) {
+  const time = formatLondonTime(sentAt);
+  return time ? (
+    <Chip icon="✓" className="bg-emerald-50 text-emerald-700 whitespace-nowrap">Message sent {time}</Chip>
+  ) : (
+    <Chip dot className="bg-amber-50 text-amber-800 whitespace-nowrap">Owner not messaged yet</Chip>
+  );
+}
+
+/** Read-only WhatsApp "on my way" signal for a dog waiting to be collected. */
+export function OnTheWayChip({ signal }) {
+  if (!signal) return null;
+  return (
+    <Chip icon="🚗" className="bg-brand-teal/15 text-brand-teal-text whitespace-nowrap" title={`“${signal.text}”`}>
+      On the way{signal.minutesAgo > 1 ? ` · ${signal.minutesAgo} min ago` : ""}
+    </Chip>
   );
 }
 
@@ -88,14 +166,50 @@ export function WelfareChips({ alerts = [], pregnant = false, notes = "" }) {
   return (
     <div className="flex flex-wrap gap-1 mt-1.5">
       {chips.map((c, i) => (
-        <span
-          key={i}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[11px] font-medium border border-amber-100"
-        >
-          <span aria-hidden>⚑</span>
+        <Chip key={i} icon="⚑" className="bg-amber-50 text-amber-800">
           {c}
-        </span>
+        </Chip>
       ))}
+    </div>
+  );
+}
+
+/** Payment fact for the status line — same wording on every card. */
+function PaymentFact({ pay }) {
+  if (!pay || pay.kind === "paid") return null;
+  if (pay.kind === "deposit") {
+    return (
+      <span>
+        Deposit {formatMoney(pay.depositPaid)} paid ·{" "}
+        <span className="font-bold text-slate-800">{formatMoney(pay.amountDue)} balance</span>
+      </span>
+    );
+  }
+  if (pay.kind === "due") {
+    return <span className="font-bold text-slate-800">{formatMoney(pay.amountDue)} due at pick-up</span>;
+  }
+  return <span>{pay.label}</span>;
+}
+
+/**
+ * The canonical status line — every booking card on the Today page shows the
+ * same facts in the same order: status + since-time, wait duration, message
+ * state, payment due. Card-specific extras (pick-up time, "on the way",
+ * notes) append via children. `showWaitWord={false}` drops the word
+ * "waiting" where the card's headline already says "Waiting for collection".
+ */
+export function BookingStatusLine({ booking, waitMinutes = null, pay = null, showWaitWord = true, children }) {
+  const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
+  const inSalon = booking.status === BOOKING_STATUS.CHECKED_IN || booking.status === BOOKING_STATUS.IN_BATH;
+  const since = formatLondonTime(isReady ? booking.readyAt : inSalon ? booking.checkedInAt : null);
+  return (
+    <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-[13px] text-slate-600">
+      <StatusPill status={booking.status} />
+      {since && <span>since {since}</span>}
+      {isReady && <WaitBadge minutes={waitMinutes} withWord={showWaitWord} />}
+      {isReady && <MessageStateChip sentAt={booking.collectionSentAt} />}
+      <PaymentFact pay={pay} />
+      {children}
     </div>
   );
 }
@@ -144,6 +258,28 @@ export function TertiaryLink({ onClick, tone = "muted", children }) {
       {children}
     </button>
   );
+}
+
+/**
+ * "Mark paid" with the payment-method chooser — the one way a payment is
+ * recorded from this page, wherever the dog's single card ends up, so the
+ * method fact is never silently dropped from the takings.
+ */
+export function MarkPaidAction({ booking, onMarkPaid, variant = "primary" }) {
+  const [choosing, setChoosing] = useState(false);
+  if (choosing) {
+    return (
+      <>
+        <span className="text-[13px] font-semibold text-slate-600 self-center">Paid by:</span>
+        {PAYMENT_METHODS.map((m) => (
+          <SecondaryButton key={m.id} onClick={() => { onMarkPaid(booking, m.id); setChoosing(false); }}>{m.label}</SecondaryButton>
+        ))}
+        <button type="button" onClick={() => setChoosing(false)} className="text-[13px] text-slate-500 underline min-h-[44px] px-1 bg-transparent border-none cursor-pointer">Cancel</button>
+      </>
+    );
+  }
+  const Trigger = variant === "primary" ? PrimaryButton : SecondaryButton;
+  return <Trigger onClick={() => setChoosing(true)}>Mark paid</Trigger>;
 }
 
 /** Rotating chevron for expandable rows — a supporting cue, not the only one. */

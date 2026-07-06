@@ -3,7 +3,7 @@
 // confirm (no heavy modal, no accidental taps), and the collection-message
 // state is spelled out so nobody wonders whether the owner was told.
 import { useState } from "react";
-import { SectionCard, PrimaryButton, SecondaryButton, TertiaryLink, formatMinutes, formatMoney } from "./parts.jsx";
+import { SectionCard, PrimaryButton, SecondaryButton, TertiaryLink, BookingStatusLine, OnTheWayChip } from "./parts.jsx";
 
 function CollectRow({ entry, resolve, paymentOf, onSendCollection, onMarkCollected, onOpenBooking, onTheWaySignals }) {
   const b = entry.booking;
@@ -11,49 +11,26 @@ function CollectRow({ entry, resolve, paymentOf, onSendCollection, onMarkCollect
   const pay = paymentOf(b);
   const [confirming, setConfirming] = useState(false);
   const otw = b.whatsappConversationId ? onTheWaySignals?.[b.whatsappConversationId] : null;
-
-  const sentTime = b.collectionSentAt
-    ? new Date(b.collectionSentAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })
-    : null;
+  const collectionSent = !!b.collectionSentAt;
 
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-bold text-slate-800 text-[15px]">{d.dogName}</span>
         <span className="text-[13px] text-slate-600">{d.owner}</span>
-        {entry.waitMinutes != null && (
-          <span className="text-[12px] font-bold text-emerald-700">waiting {formatMinutes(entry.waitMinutes)}</span>
-        )}
-        {otw && (
-          <span
-            className="text-[12px] font-bold text-brand-teal-text bg-brand-teal/15 rounded-full px-2 py-0.5"
-            title={`“${otw.text}”`}
-          >
-            🚗 On the way{otw.minutesAgo > 1 ? ` · ${otw.minutesAgo} min ago` : ""}
-          </span>
-        )}
       </div>
-      <div className="text-[13px] text-slate-600 mt-0.5 flex items-center gap-2 flex-wrap">
+      <BookingStatusLine booking={b} waitMinutes={entry.waitMinutes} pay={pay}>
         {b.pickupBy && <span>Pick-up: {b.pickupBy}</span>}
-        {pay.kind !== "paid" && pay.amountDue != null && (
-          <span className="font-bold text-slate-800">{formatMoney(pay.amountDue)} due</span>
-        )}
+        {otw && <OnTheWayChip signal={otw} />}
         {b.notes && b.notes.trim() && <span className="italic">“{b.notes.trim()}”</span>}
-      </div>
-      <div className="text-[12px] mt-1 font-semibold">
-        {sentTime ? (
-          <span className="text-emerald-700">✓ Collection message sent at {sentTime}</span>
-        ) : (
-          <span className="text-amber-700">Owner not messaged yet</span>
-        )}
-      </div>
+      </BookingStatusLine>
       <div className="flex items-center gap-2 flex-wrap mt-2">
         {confirming ? (
           <>
             <PrimaryButton onClick={() => { onMarkCollected(b); setConfirming(false); }}>Confirm collected</PrimaryButton>
             <TertiaryLink onClick={() => setConfirming(false)}>Cancel</TertiaryLink>
           </>
-        ) : sentTime ? (
+        ) : collectionSent ? (
           <>
             <PrimaryButton onClick={() => setConfirming(true)}>Mark collected</PrimaryButton>
             <SecondaryButton onClick={() => onSendCollection(b)}>Resend message</SecondaryButton>
