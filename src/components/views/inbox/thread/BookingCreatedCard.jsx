@@ -46,7 +46,7 @@ export function BookingCreatedCard({ action, dogNamesById }) {
           {slot ? ` ${slot}` : ""}
           {autoApplied ? " (auto-applied)" : ""}
         </span>
-        <span className="text-[10px] text-brand-green-700/70">
+        <span className="text-[10px] text-brand-green-700">
           · {formatWhen(action?.applied_at || action?.created_at)}
         </span>
       </Link>
