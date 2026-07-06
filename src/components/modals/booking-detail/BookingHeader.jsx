@@ -96,7 +96,7 @@ export function BookingHeader({
     <header className="flex items-start justify-between gap-3 px-5 max-[400px]:px-3 pt-5 pb-4 bg-[var(--color-brand-paper)]">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <span className="text-label text-ink-muted">
             Appointment
           </span>
           <span

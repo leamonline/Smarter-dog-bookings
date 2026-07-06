@@ -93,7 +93,7 @@ export function BookAppointmentModal({ conversation, dogs = [], onClose, onBook 
       header={
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-label text-ink-muted">
               New booking
             </span>
             <h2
@@ -240,7 +240,7 @@ function Field({ label, htmlFor, children }) {
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1"
+        className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1"
       >
         {label}
       </label>

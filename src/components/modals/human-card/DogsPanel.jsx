@@ -160,7 +160,7 @@ export function DogsPanel({
 
           {trustedDogs.length > 0 && (
             <div className={ownedDogs.length > 0 ? "mt-3 pt-3 border-t border-slate-100" : ""}>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-2">
+              <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider mb-1.5 px-2">
                 Trusted to drop off / pick up
               </div>
               <div className="flex flex-col gap-0.5">

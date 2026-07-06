@@ -97,7 +97,7 @@ export function AvailabilityModal({ onClose, view, dogsBooked, onToggleImmediate
       header={
         <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Availability</span>
+            <span className="text-label text-ink-muted">Availability</span>
             <h2
               id={titleId}
               className="text-xl md:text-2xl font-bold font-display text-brand-purple leading-tight mt-1"

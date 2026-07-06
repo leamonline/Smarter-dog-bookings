@@ -68,7 +68,7 @@ function CompareColumn({ human, dogs, dogsByHumanId, bookingsByDate, role }) {
       <dl className="mt-2 flex flex-col gap-1">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-2">
-            <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400 shrink-0">
+            <dt className="text-[10px] font-bold uppercase tracking-wide text-ink-muted shrink-0">
               {label}
             </dt>
             <dd className="text-xs text-slate-600 truncate text-right">{value}</dd>
@@ -166,7 +166,7 @@ export function MergeHumanDialog({
       >
         <header className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3">
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="text-label text-ink-muted">
               Merge duplicate
             </div>
             <h2
