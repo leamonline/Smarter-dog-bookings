@@ -1,11 +1,17 @@
 // Shared presentational widgets used by all report sub-components.
 
-import { useState } from "react";
+import { useState, useEffect, useContext, createContext } from "react";
 import { ChevronDown } from "lucide-react";
 import { formatDelta } from "../../../utils/intl.js";
 import { SectionLabel } from "../../ui/index.js";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { BOOKING_STATUS } from "../../../constants/salon";
+
+// Broadcasts an "expand all / collapse all" intent to every collapsible
+// Section on the mobile reports page. Value is `true` (open all), `false`
+// (close all), or `null` (no bulk action yet — sections keep their own state).
+// Absent provider (e.g. a Section used elsewhere) → sections are self-managed.
+export const ReportsExpandAllContext = createContext(null);
 
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's
@@ -49,6 +55,13 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
   // `md`+ the multi-column grid is unchanged — always expanded, no toggle.
   const collapsible = useMediaQuery("(max-width: 767px)");
   const [open, setOpen] = useState(defaultOpen);
+  // "Expand all / collapse all" broadcast: when it flips, every section snaps
+  // to it. Between presses, individual toggles above still work (the effect
+  // only fires on a *change* to the shared value).
+  const bulk = useContext(ReportsExpandAllContext);
+  useEffect(() => {
+    if (typeof bulk === "boolean") setOpen(bulk);
+  }, [bulk]);
   const showBody = !collapsible || open;
 
   const body = (
