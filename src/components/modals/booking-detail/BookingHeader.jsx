@@ -1,4 +1,4 @@
-import { Camera, Pencil, X } from "lucide-react";
+import { Camera, MessageCircle, Pencil, X } from "lucide-react";
 import { SERVICES, BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
 import {
   getNumericPrice,
@@ -31,6 +31,7 @@ export function BookingHeader({
   onOpenCamera,
   primaryHuman,
   onOpenHuman,
+  onMessageOwner,
   titleId,
   alerts = [],
   allergyText = "",
@@ -152,6 +153,20 @@ export function BookingHeader({
                   </button>
                 ) : (
                   titleCase(ownerName)
+                )}
+                {onMessageOwner && primaryHuman?.id && (
+                  <>
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => onMessageOwner(primaryHuman.id)}
+                      aria-label={`Message ${titleCase(ownerName)}`}
+                      className="inline-flex items-center gap-1 text-brand-whatsapp-dark font-semibold bg-transparent border-none p-0 cursor-pointer font-inherit text-[13px] hover:underline underline-offset-2"
+                    >
+                      <MessageCircle size={13} strokeWidth={2.4} aria-hidden="true" />
+                      Message
+                    </button>
+                  </>
                 )}
               </>
             )}

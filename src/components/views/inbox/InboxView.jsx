@@ -186,6 +186,11 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
   // button; after a successful send, close the modal and select the
   // freshly-upserted conversation so staff land straight in the thread.
   const [composeOpen, setComposeOpen] = useState(false);
+  // Pre-target the new-message composer at a specific customer (deep-link from
+  // "Message owner" when they have no existing thread).
+  const [composeInitialHumanId, setComposeInitialHumanId] = useState(null);
+  // Bumped to ask the reply box to focus after a deep-link opens a thread.
+  const [composeFocusSignal, setComposeFocusSignal] = useState(0);
   const handleComposeSent = useCallback(async (payload) => {
     const res = await sendOutboundTemplate(payload);
     if (res?.ok) {
@@ -434,18 +439,25 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     setSearchParams(next, { replace: true });
   }, [targetConversationId, loadingList, conversations, selectedId, selectConversation, searchParams, setSearchParams]);
 
-  // Deep-link by human: ?human=<id> opens that human's existing thread.
-  // Callers like the human profile's "Send message" only know the human
-  // id, not the conversation id, so resolve human_id → conversation here
-  // (mirrors the ?conversation= effect). If the human has no thread yet we
-  // just land on the inbox. Wait for the list so the lookup is reliable.
+  // Deep-link by human: ?human=<id> lands staff in that human's WhatsApp/SMS
+  // ready to type. Callers like "Message owner" only know the human id, so
+  // resolve human_id → conversation here (mirrors the ?conversation= effect).
+  // If a thread exists we open it AND focus the reply box; if not, we open the
+  // new-message composer pre-targeted at that customer so first contact works
+  // too. Wait for the list so the lookup is reliable.
   const targetHumanId = searchParams.get("human");
   useEffect(() => {
     if (!targetHumanId) return;
     if (loadingList) return;
     const conv = conversations.find((c) => c.human_id === targetHumanId);
-    if (conv && selectedId !== conv.id) {
-      selectConversation(conv.id);
+    if (conv) {
+      if (selectedId !== conv.id) selectConversation(conv.id);
+      // Focus the composer so staff can start typing straight away.
+      setComposeFocusSignal((n) => n + 1);
+    } else {
+      // No thread yet — open the new-message composer targeted at this human.
+      setComposeInitialHumanId(targetHumanId);
+      setComposeOpen(true);
     }
     const next = new URLSearchParams(searchParams);
     next.delete("human");
@@ -927,6 +939,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                 hasInbound={messages.some((m) => m.direction === "inbound")}
                 onGenerateReply={handleGenerateReply}
                 hideTemplateBanner
+                autoFocusSignal={composeFocusSignal}
               />
             </>
           )}
@@ -988,13 +1001,15 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
 
       {composeOpen && (
         <ComposeNewModal
-          onClose={() => setComposeOpen(false)}
+          onClose={() => { setComposeOpen(false); setComposeInitialHumanId(null); }}
           onSent={handleComposeSent}
           onSentSMS={handleComposeSMSSent}
           conversations={conversations}
+          initialHumanId={composeInitialHumanId}
           onOpenConversation={(id) => {
             selectConversation(id);
             setComposeOpen(false);
+            setComposeInitialHumanId(null);
           }}
         />
       )}

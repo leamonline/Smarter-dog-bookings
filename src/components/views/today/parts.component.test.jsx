@@ -1,15 +1,13 @@
-// Tests for the canonical status line, honest wait-time colours, and the
-// consolidated attention card. The wait tone must come from the named
-// thresholds alone — never from the section a card sits in, and never green —
-// and a booking's single card must carry every action its old duplicate rows
-// offered.
+// Tests for the shared Today primitives: the canonical status line, honest
+// wait-time colours (threshold-driven, never green, never from the section a
+// card sits in), and the card-level "More" menu.
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { AttentionPanel } from "./AttentionPanel.jsx";
 import {
   BookingStatusLine,
   WaitBadge,
   waitTone,
+  MoreMenu,
   WAIT_AMBER_MINUTES,
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
@@ -89,59 +87,28 @@ describe("BookingStatusLine", () => {
   });
 });
 
-describe("AttentionPanel consolidated cards", () => {
-  const resolve = (b) => ({ dogName: b.dogName, breed: "", owner: "Owner" });
-  const getWelfare = () => ({ alerts: [], pregnant: false, notes: "" });
-  const dueOf = () => ({ kind: "due", label: "Balance due", amountDue: 42, depositPaid: 0, subtotal: 42 });
-  const handlers = {
-    resolve,
-    getWelfare,
-    paymentOf: dueOf,
-    onMarkArrived: () => {},
-    onMarkCollected: () => {},
-    onSendCollection: () => {},
-    onMessageOwner: () => {},
-    onMarkPaid: () => {},
-    onDidntShow: () => {},
-    onOpenBooking: () => {},
-    onHideUntilTomorrow: () => {},
-  };
-
-  it("keeps Mark paid (with method) and Open on a waiting dog that owes", () => {
-    const onMarkPaid = vi.fn();
-    const item = {
-      booking: { id: "r1", dogName: "Luna", slot: "09:00", status: "Ready for pick-up", collectionSentAt: null },
-      kinds: ["ready", "payment"],
-      primary: "ready",
-      overdueMinutes: 0,
-      waitMinutes: 20,
-    };
-    render(<AttentionPanel {...handlers} items={[item]} onMarkPaid={onMarkPaid} />);
-    // Collection workflow leads; payment + open-booking survive consolidation.
-    expect(screen.getByRole("button", { name: "Send collection message" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open" })).toBeInTheDocument();
-    // Bare duration (headline already says "Waiting for collection").
-    expect(screen.getByText("20 min")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
-    fireEvent.click(screen.getByRole("button", { name: "Card" }));
-    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "r1" }), "card");
+describe("MoreMenu", () => {
+  it("hides its items until opened, then fires the chosen one", () => {
+    const onA = vi.fn();
+    render(
+      <MoreMenu
+        menuLabel="More actions for Rex"
+        items={[
+          { label: "Open booking", onClick: onA },
+          { label: "Didn't show", onClick: noop },
+        ]}
+      />,
+    );
+    expect(screen.queryByRole("menuitem", { name: "Open booking" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Rex" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open booking" }));
+    expect(onA).toHaveBeenCalled();
   });
 
-  it("keeps the collection workflow on a ready dog whose primary is payment", () => {
-    const onSendCollection = vi.fn();
-    const item = {
-      booking: { id: "r2", dogName: "Alfie", slot: "10:00", status: "Ready for pick-up", collectionSentAt: null },
-      kinds: ["payment"],
-      primary: "payment",
-      overdueMinutes: 0,
-      waitMinutes: 5,
-    };
-    render(<AttentionPanel {...handlers} items={[item]} onSendCollection={onSendCollection} />);
-    expect(screen.getByRole("button", { name: "Mark paid" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open booking" })).toBeInTheDocument();
-    // Labelled wait — this headline doesn't say "waiting", so the fact must.
-    expect(screen.getByText("waiting 5 min")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Send collection message" }));
-    expect(onSendCollection).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }));
+  it("renders nothing when there are no items", () => {
+    const { container } = render(<MoreMenu items={[]} />);
+    expect(container.firstChild).toBeNull();
   });
 });
+
+function noop() {}

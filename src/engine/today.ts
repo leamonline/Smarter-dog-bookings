@@ -290,6 +290,63 @@ export function buildSlotOpportunities(args: {
   });
 }
 
+// ---- Availability view (the "Manage availability" modal) ---------------------
+
+export interface AvailabilityRow {
+  slot: string;
+  slotMinutes: number;
+  /** Bookable seats left in this slot (size-agnostic). */
+  seatsFree: number;
+  /** Staff have opened this slot for same-day online booking. */
+  isOnline: boolean;
+  /** Online AND still 30+ minutes before the slot — a customer could book it now. */
+  customerReachable: boolean;
+  /** Sizes that physically fit this slot right now (small/medium indistinguishable). */
+  sizes: { small: boolean; medium: boolean; large: boolean };
+}
+
+export interface AvailabilityView {
+  /** Unbooked (seats free), non-past slots, chronological. */
+  rows: AvailabilityRow[];
+  /** Total unbooked slots shown (= rows.length). */
+  unbookedSlots: number;
+  /** How many of those slots are open for online booking. */
+  onlineCount: number;
+  /** Earliest slot a customer could book online right now (before the cutoff). */
+  nextOnlineSlot: string | null;
+}
+
+/**
+ * Turn the slot opportunities into the availability modal's rows + headline
+ * counts. Every count is derived from the same rows it shows, so they can never
+ * disagree. "Online" is the whole-slot same-day flag (`immediate_slots`); size
+ * fit comes from the capacity engine, never re-derived.
+ */
+export function buildAvailabilityView(
+  opportunities: SlotOpportunity[],
+  immediateSlots: string[] | Set<string>,
+): AvailabilityView {
+  const immediateSet = immediateSlots instanceof Set ? immediateSlots : new Set(immediateSlots);
+  const rows: AvailabilityRow[] = opportunities
+    .filter((o) => !o.isPast && o.seatsFree > 0)
+    .sort((a, b) => a.slotMinutes - b.slotMinutes)
+    .map((o) => ({
+      slot: o.slot,
+      slotMinutes: o.slotMinutes,
+      seatsFree: o.seatsFree,
+      isOnline: immediateSet.has(o.slot),
+      customerReachable: o.customerReachable,
+      sizes: { small: true, medium: true, large: o.largeDogEligible },
+    }));
+  const nextOnline = rows.find((r) => r.customerReachable);
+  return {
+    rows,
+    unbookedSlots: rows.length,
+    onlineCount: rows.filter((r) => r.isOnline).length,
+    nextOnlineSlot: nextOnline ? nextOnline.slot : null,
+  };
+}
+
 // ---- Day summary -------------------------------------------------------------
 
 export interface DaySummary {
@@ -548,6 +605,90 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
     .filter(isPaymentOutstanding)
     .map((b) => ({ booking: b, payment: paymentState(b) }))
     .sort((a, b) => (b.payment.amountDue ?? 0) - (a.payment.amountDue ?? 0));
+}
+
+// ---- Unified booking feed (one card per booking) -----------------------------
+
+/** A dog's lifecycle stage, collapsed from its status rank. */
+export type FeedStage = "booked" | "inSalon" | "ready" | "collected";
+
+const STAGE_BY_RANK: Record<number, FeedStage> = {
+  0: "booked",
+  1: "inSalon",
+  2: "inSalon",
+  3: "ready",
+  4: "collected",
+};
+
+/**
+ * One entry per today booking for the single time-ordered feed. Every reason a
+ * booking might need attention is folded onto its one card via these flags, so
+ * the same booking never appears in two lists. `needsAction` mirrors exactly
+ * the membership rule of `buildImmediateAttention` (late / escalated-ready /
+ * unconfirmed / owes-after-arrival), so the header's "N need action" count and
+ * the cards flagged in the feed always agree.
+ */
+export interface TodayFeedEntry {
+  booking: Booking;
+  /** Minutes-of-day of the slot (Infinity for a slot-less row → sorts last). */
+  slotMinutes: number;
+  stage: FeedStage;
+  /** The soonest still-to-arrive, not-late booking — highlighted as "Next". */
+  isNext: boolean;
+  isLate: boolean;
+  isUnconfirmed: boolean;
+  /** Still owes money (any non-paid, non-cancelled booking). */
+  owes: boolean;
+  /** On the act-now queue — drives the "Needs action" chip + header count. */
+  needsAction: boolean;
+  overdueMinutes: number;
+  /** Minutes waiting to be collected (only meaningful when stage === "ready"). */
+  waitMinutes: number | null;
+}
+
+/**
+ * Build the single, time-ordered booking feed. Cancelled bookings are dropped;
+ * everything else is sorted by appointment time (slot-less rows last) and the
+ * soonest not-yet-arrived, not-late booking is flagged `isNext`.
+ */
+export function buildTodayFeed(
+  bookings: Booking[],
+  now: Date,
+  opts: { graceMinutes?: number; readyEscalationMinutes?: number } = {},
+): TodayFeedEntry[] {
+  const grace = opts.graceMinutes ?? LATE_ARRIVAL_GRACE_MINUTES;
+  const readyEscalation = opts.readyEscalationMinutes ?? READY_ESCALATION_MINUTES;
+  const entries: TodayFeedEntry[] = [];
+  for (const b of bookings) {
+    if (!isCountableBooking(b)) continue;
+    const rank = statusRank(b.status);
+    const stage = STAGE_BY_RANK[rank] ?? "booked";
+    const isLate = isLateArrival(b, now, grace);
+    const isUnconfirmed = rank === 0 && needsConfirmation(b);
+    const owes = isPaymentOutstanding(b);
+    const waitMinutes = stage === "ready" ? collectionWaitMinutes(b, now) : null;
+    // A freshly-Ready dog is calm; it only "needs action" once it has waited
+    // (or has no ready_at stamp to judge by — legacy rows surface, not hide).
+    const readyNeedsAction = stage === "ready" && (waitMinutes == null || waitMinutes >= readyEscalation);
+    const needsAction = isLate || readyNeedsAction || isUnconfirmed || (rank >= 1 && owes);
+    entries.push({
+      booking: b,
+      slotMinutes: b.slot ? slotToMinutes(b.slot) : Number.POSITIVE_INFINITY,
+      stage,
+      isNext: false,
+      isLate,
+      isUnconfirmed,
+      owes,
+      needsAction,
+      overdueMinutes: minutesOverdue(b, now),
+      waitMinutes,
+    });
+  }
+  // Chronological; Array.sort is stable so same-slot rows keep input order.
+  entries.sort((a, c) => a.slotMinutes - c.slotMinutes);
+  const nextIdx = entries.findIndex((e) => e.stage === "booked" && !e.isLate);
+  if (nextIdx >= 0) entries[nextIdx].isNext = true;
+  return entries;
 }
 
 // ---- Takings by method (improvement #3 — till view) --------------------------

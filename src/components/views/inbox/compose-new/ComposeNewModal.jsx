@@ -27,7 +27,7 @@ import { ModalShell, HeaderIconButton } from "../../../modals/shell/index.js";
 import { TemplatePicker } from "../thread/TemplatePicker.jsx";
 import { findOpenWindowConversation, windowCountdown } from "../helpers.js";
 import { smsSegmentInfo } from "../../../../lib/sms/segments.js";
-import { searchHumansAndDogs } from "../../../../supabase/repositories/humansRepo";
+import { searchHumansAndDogs, getHumanById } from "../../../../supabase/repositories/humansRepo";
 import { listForHuman } from "../../../../supabase/repositories/dogsRepo";
 
 function SMSComposer({ customerFirstName, dogNames, value, onChange, onSend, sending }) {
@@ -133,12 +133,28 @@ export function ComposeNewModal({
   onSentSMS,
   conversations,
   onOpenConversation,
+  // When opened from "Message owner" (a booking/human with no existing
+  // thread), pre-target this customer so staff skip the search step.
+  initialHumanId = null,
 }) {
   const titleId = useId();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedHuman, setSelectedHuman] = useState(null);
+
+  // Pre-target a customer by id (deep-link from "Message owner"). Runs once —
+  // if staff hit "Back to customer picker" they can search freely from there.
+  const appliedInitialRef = useRef(false);
+  useEffect(() => {
+    if (!initialHumanId || appliedInitialRef.current) return;
+    appliedInitialRef.current = true;
+    let cancelled = false;
+    getHumanById(supabase, initialHumanId).then((human) => {
+      if (!cancelled && human) setSelectedHuman(human);
+    });
+    return () => { cancelled = true; };
+  }, [initialHumanId]);
   const [dogNames, setDogNames] = useState([]);
   const [channel, setChannel] = useState("whatsapp"); // 'whatsapp' | 'sms'
   const [smsText, setSmsText] = useState("");

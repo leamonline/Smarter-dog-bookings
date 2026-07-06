@@ -1227,6 +1227,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onAdd={handleAdd}
                   onRemove={handleRemove}
                   onOpenHuman={handleOpenHuman}
+                  onMessageOwner={(hid) => { setSelectedBooking(null); navigate(`/inbox?human=${hid}`); }}
                   onOpenDog={handleOpenDog}
                   onUpdate={handleUpdate}
                   currentDateStr={currentDateStr}

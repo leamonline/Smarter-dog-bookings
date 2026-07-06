@@ -35,6 +35,27 @@ export function mergeHumanSearchHits(...lists: (HumanSearchHit[] | null | undefi
 }
 
 /**
+ * Fetch a single human by id for the customer picker shape (id / name /
+ * surname / phone). Used to pre-target the "New message" composer when a
+ * caller only knows the human id (e.g. "Message owner" from a booking with no
+ * existing thread). Returns null if not found or on error — the caller falls
+ * back to the manual search.
+ */
+export async function getHumanById(
+  client: SupabaseClient,
+  id: string,
+): Promise<HumanSearchHit | null> {
+  if (!client || !id) return null;
+  const { data, error } = await client
+    .from("humans")
+    .select(SEARCH_COLS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as HumanSearchHit;
+}
+
+/**
  * Staff customer picker search: match humans by name / surname / phone, plus
  * the owners of any dog whose name matches. Returns a deduped, first-seen,
  * capped-at-20 list. Moved out of ComposeNewModal so the query + merge live in
