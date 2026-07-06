@@ -213,7 +213,7 @@ export function BookingActionPanel({ actions, onApply, onReject, inFlight }) {
 function FieldDate({ label, value, onChange }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-0.5">
         {label}
       </span>
       <input
@@ -229,7 +229,7 @@ function FieldDate({ label, value, onChange }) {
 function FieldSelect({ label, value, onChange, options, placeholder }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-0.5">
         {label}
       </span>
       <select

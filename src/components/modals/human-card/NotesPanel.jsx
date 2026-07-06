@@ -56,7 +56,7 @@ export function NotesPanel({
       {isEditing ? (
         <div className="flex flex-col gap-3">
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-label text-ink-muted block">
               General notes
             </span>
             <textarea
@@ -70,7 +70,7 @@ export function NotesPanel({
             />
           </label>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-label text-ink-muted block">
               History flag
             </span>
             <input

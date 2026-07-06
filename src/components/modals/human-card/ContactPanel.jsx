@@ -12,7 +12,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 function InlineRow({ caption, value, onCopy }) {
   return (
     <div className="group flex items-center gap-2 min-w-0">
-      <span className="text-xs uppercase tracking-wide font-semibold text-slate-400 shrink-0">
+      <span className="text-xs uppercase tracking-wide font-semibold text-ink-muted shrink-0">
         {caption}
       </span>
       <span
@@ -38,7 +38,7 @@ function InlineRow({ caption, value, onCopy }) {
 function FieldInput({ caption, value, onChange, type = "text", placeholder, inputRef }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+      <span className="text-label text-ink-muted block">
         {caption}
       </span>
       <input

@@ -164,7 +164,7 @@ export function NewClientWizard({
     <header className="px-5 pt-5 pb-3 bg-[var(--color-brand-paper)] border-b border-slate-100">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="text-label text-ink-muted">
             New client · Step {step} of 3
           </div>
           <h2 id={titleId} className="text-xl font-bold font-display text-brand-purple leading-tight mt-0.5 truncate">

@@ -34,7 +34,7 @@ function Pill({ label, icon, active, activeClass, onClick, ariaLabel, title, sav
 function HandleInput({ caption, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+      <span className="text-label text-ink-muted block">
         {caption}
       </span>
       <input

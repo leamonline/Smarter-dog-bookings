@@ -54,7 +54,7 @@ export function HumanHeader({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-label text-ink-muted">
               Human profile
             </span>
             {isPendingSignup && (

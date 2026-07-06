@@ -147,7 +147,7 @@ function ShellSpecimenHeader({ onClose }) {
           ST
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <span className="text-label text-ink-muted">
             Specimen profile
           </span>
           <h2

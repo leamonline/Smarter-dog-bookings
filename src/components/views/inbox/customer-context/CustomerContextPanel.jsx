@@ -96,7 +96,7 @@ export function CustomerContextPanel({
               Staff edit them on the full profile. */}
           {!loading && !error && displayHuman && displayHuman.notes && (
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Notes
               </div>
               <div className="text-[12px] text-slate-700 leading-snug whitespace-pre-wrap">
@@ -276,7 +276,7 @@ export function CustomerContextPanel({
 function Section({ title, children }) {
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
         {title}
       </div>
       {children}
@@ -288,7 +288,7 @@ function DetailLine({ label, value, href, multiline, accent }) {
   const valueClass = `text-[12px] text-brand-purple ${multiline ? "whitespace-pre-wrap leading-snug" : "truncate"} ${accent === "rose" ? "text-rose-700 font-semibold" : ""}`;
   return (
     <div className="mb-1.5 last:mb-0">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
         {label}
       </div>
       {href ? (

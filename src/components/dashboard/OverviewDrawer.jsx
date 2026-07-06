@@ -41,7 +41,7 @@ export function OverviewDrawer({
     >
       <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)] shrink-0">
         <div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="text-label text-ink-muted">
             Overview
           </div>
           <h2

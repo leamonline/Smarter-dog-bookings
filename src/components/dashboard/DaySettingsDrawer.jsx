@@ -43,7 +43,7 @@ export function DaySettingsDrawer({
     >
         <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-[var(--color-brand-paper)] shrink-0">
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="text-label text-ink-muted">
               Day settings
             </div>
             <h2
@@ -66,7 +66,7 @@ export function DaySettingsDrawer({
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 flex flex-col gap-5">
           {/* Open/close */}
           <section>
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <h3 className="text-label text-ink-muted mb-2">
               Status
             </h3>
             <button
@@ -100,7 +100,7 @@ export function DaySettingsDrawer({
 
           {/* Timeslots */}
           <section>
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <h3 className="text-label text-ink-muted mb-2">
               Timeslots
             </h3>
             <div className="flex flex-col gap-2">
@@ -140,7 +140,7 @@ export function DaySettingsDrawer({
 
           {/* Print */}
           <section>
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <h3 className="text-label text-ink-muted mb-2">
               Print
             </h3>
             <button

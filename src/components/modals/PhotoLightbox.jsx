@@ -76,7 +76,7 @@ export function PhotoLightbox({
         <div className="px-5 py-4">
           <h2
             id="photo-lightbox-title"
-            className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1"
+            className="text-xs font-bold text-ink-muted uppercase tracking-wide mb-1"
           >
             <span className="sr-only">Groom photo — </span>
             {formattedDate}

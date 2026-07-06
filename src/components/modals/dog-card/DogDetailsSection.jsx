@@ -6,7 +6,7 @@ import { CardRow } from "../booking-detail/shared.jsx";
 import { PanelShell } from "../shell/index.js";
 import { alertTint } from "../shell/alertTints.js";
 
-const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-slate-400";
+const SECTION_LABEL_CLS = "font-extrabold text-xs uppercase tracking-wide text-ink-muted";
 const INPUT_CLS = "w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border";
 
 // "YYYY-MM-DD" → "Mon 1 Jun 2026" (noon-anchored to dodge TZ rollover).
