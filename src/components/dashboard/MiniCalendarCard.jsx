@@ -7,7 +7,7 @@ import { useMonthDaySettings } from "../../supabase/hooks/useMonthDaySettings.js
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { dayCircleStyle, startOfDay } from "../layout/DayTab.jsx";
 
-export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
+export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false }) {
   const todayStr = toDateStr(new Date());
   const selectedStr = toDateStr(currentDateObj);
 
@@ -53,7 +53,11 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate }) {
   return (
     <section
       aria-label="Monthly calendar"
-      className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
+      className={
+        bare
+          ? "overflow-hidden"
+          : "bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden"
+      }
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
         <button

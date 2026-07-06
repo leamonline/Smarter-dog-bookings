@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import { excludeCancelled } from "../../engine/occupancy";
 import { LoadingSpinner } from "../ui/LoadingSpinner.jsx";
@@ -187,79 +187,70 @@ export function WeekCalendarView({
           day's prev/next arrows flank the month/week toggle on the row below. */}
       <div className="lg:hidden mb-3">
         {monthExpanded ? (
-          <MiniCalendarCard
-            currentDateObj={currentDateObj}
-            onSelectDate={(d) => {
-              handleDatePick(d);
-              setMonthExpanded(false);
-            }}
-          />
-        ) : (
-          <CalendarTabs
-            dates={dates}
-            selectedDay={selectedDay}
-            onSelectDay={(i) => setSelectedDay(i)}
-            bookingsByDate={bookingsByDate}
-            dayOpenState={dayOpenState}
-            calendarMode="day"
-          />
-        )}
-
-        {/* View switcher (Today / Week / Month) flanked by day arrows. */}
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <button
-            type="button"
-            onClick={() => navigateDay(-1)}
-            aria-label="Previous day"
-            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-          >
-            <ChevronLeft size={18} strokeWidth={2.5} />
-          </button>
-          <div className="grid grid-cols-3 gap-1 p-1 flex-1 max-w-sm bg-white rounded-full shadow-card-resting">
-          <button
-            type="button"
-            onClick={() => {
-              handleDatePick(new Date());
-              setMonthExpanded(false);
-            }}
-            className="h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors cursor-pointer font-[inherit]"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => setMonthExpanded(false)}
-            aria-pressed={!monthExpanded}
-            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
-              !monthExpanded
-                ? "bg-brand-purple text-white"
-                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
-            }`}
-          >
-            Week view
-          </button>
-          <button
-            type="button"
-            onClick={() => setMonthExpanded(true)}
-            aria-pressed={monthExpanded}
-            className={`h-9 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer font-[inherit] ${
-              monthExpanded
-                ? "bg-brand-purple text-white"
-                : "text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50"
-            }`}
-          >
-            Month view
-          </button>
+          /* Expanded month grid in its own card. Tapping a day collapses back
+             to the week; a slim footer button does the same explicitly. */
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden">
+            <MiniCalendarCard
+              bare
+              currentDateObj={currentDateObj}
+              onSelectDate={(d) => {
+                handleDatePick(d);
+                setMonthExpanded(false);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setMonthExpanded(false)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-slate-100 border-x-0 border-b-0 bg-transparent cursor-pointer text-[11px] font-bold uppercase tracking-tight text-brand-purple/70 hover:text-brand-purple hover:bg-slate-50 transition-colors font-[inherit]"
+            >
+              <ChevronLeft size={14} strokeWidth={2.5} aria-hidden="true" />
+              Back to week
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => navigateDay(1)}
-            aria-label="Next day"
-            className="sm:hidden w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer bg-white shadow-card-resting text-brand-purple/60 hover:text-brand-purple transition-colors shrink-0"
-          >
-            <ChevronRight size={18} strokeWidth={2.5} />
-          </button>
-        </div>
+        ) : (
+          /* Week strip on a single row: prev/next-day arrows flank the pills on
+             phones, and a calendar icon opens the month. "Today" = tap today's
+             pill. This drops the separate Today/Week/Month switcher row, so the
+             schedule sits ~a control-row higher on a phone. */
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card-resting flex items-center gap-0.5 px-1">
+            <button
+              type="button"
+              onClick={() => navigateDay(-1)}
+              aria-label="Previous day"
+              className="sm:hidden w-8 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+            >
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <CalendarTabs
+                bare
+                dates={dates}
+                selectedDay={selectedDay}
+                onSelectDay={(i) => setSelectedDay(i)}
+                bookingsByDate={bookingsByDate}
+                dayOpenState={dayOpenState}
+                calendarMode="day"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => navigateDay(1)}
+              aria-label="Next day"
+              className="sm:hidden w-8 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+            >
+              <ChevronRight size={18} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthExpanded(true)}
+              aria-label="Month view"
+              aria-pressed={false}
+              className="w-9 h-10 rounded-lg flex items-center justify-center border-none cursor-pointer bg-transparent text-brand-purple/60 hover:text-brand-purple hover:bg-brand-purple/5 transition-colors shrink-0"
+            >
+              <CalendarDays size={18} strokeWidth={2.25} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Delivery failures must never be missed — surface them above the
