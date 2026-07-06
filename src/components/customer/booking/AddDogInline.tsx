@@ -5,6 +5,7 @@ import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import type { DogSize } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { createForHuman } from "../../../supabase/repositories/dogsRepo";
+import { friendlySaveError } from "../../../utils/friendlyError";
 
 interface AddDogInlineProps {
   humanId: string;
@@ -44,7 +45,8 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
       if (err || !dog) throw err ?? new Error("Could not save dog");
       onDogAdded(dog);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save dog");
+      // Never surface the raw insert error to the customer.
+      setError(friendlySaveError(err, "Sorry, we couldn’t save your pup just now. Please try again."));
     } finally {
       setSaving(false);
     }

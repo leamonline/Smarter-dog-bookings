@@ -12,6 +12,7 @@ import { CalendarSubscribeModal } from "./CalendarSubscribeModal";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { logger } from "../../lib/logger";
+import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
 import {
@@ -144,7 +145,8 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
         logger.error("CustomerDashboard fetch failed", err, {
           tags: { component: "CustomerDashboard", op: "fetchData" },
         });
-        if (!cancelled) setLoadError(err?.message || "We couldn't load your details. Please refresh.");
+        // Don't surface the raw fetch/RLS error; a dropped connection gets its own line.
+        if (!cancelled) setLoadError(friendlySaveError(err, "We couldn't load your details. Please refresh, or message us if it keeps happening."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -174,11 +176,10 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (err) {
       // Inline saveError is the primary feedback channel — it persists
       // alongside the still-open form so the user can read and react.
-      // No error toast to avoid duplicating the same signal.
+      // No error toast to avoid duplicating the same signal. Never splice the
+      // raw DB/RLS message into the copy.
       setSaveError(
-        err?.message
-          ? `We couldn't save your changes: ${err.message}. Try again, or refresh if it keeps failing.`
-          : "We couldn't save your changes. Try again, or refresh if it keeps failing.",
+        friendlySaveError(err, "We couldn't save your changes. Try again, or refresh if it keeps failing."),
       );
       return;
     }

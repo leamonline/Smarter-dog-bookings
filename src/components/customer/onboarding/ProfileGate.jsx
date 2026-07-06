@@ -4,6 +4,7 @@ import { useToast } from "../../../contexts/ToastContext.jsx";
 import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
+import { friendlySaveError } from "../../../utils/friendlyError";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -75,7 +76,8 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
 
     setSaving(false);
     if (err) {
-      setError(`We couldn't save your details: ${err.message}. Please try again.`);
+      // Never splice the raw DB/RLS message into customer copy.
+      setError(friendlySaveError(err, "We couldn't save your details just now. Please try again, or message us if it keeps happening."));
       return;
     }
     toast.show("Thanks — you're all set", "success");
