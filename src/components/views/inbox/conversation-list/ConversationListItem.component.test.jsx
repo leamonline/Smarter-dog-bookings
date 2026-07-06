@@ -98,6 +98,22 @@ describe("ConversationListItem", () => {
     expect(readRow.className).not.toContain("brand-yellow");
   });
 
+  it("marks a closed conversation as done without striking through the name", () => {
+    render(
+      <ConversationListItem
+        conv={baseConversation({ closed_at: "2026-06-12T10:00:00Z" })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    // A screen-reader "Done:" cue is present…
+    expect(screen.getByText("Done:")).toBeInTheDocument();
+    // …and the name is muted, NOT struck through (strikethrough reads as deleted).
+    const name = screen.getByText("Sarah Jones");
+    expect(name.className).not.toContain("line-through");
+    expect(name.className).toContain("text-brand-purple/55");
+  });
+
   it("never shows a 'Handled by staff' badge for human-takeover threads", () => {
     render(
       <ConversationListItem

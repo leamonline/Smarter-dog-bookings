@@ -8,6 +8,7 @@
 // the "closed" subdued styling for the Done filter.
 // ============================================================
 
+import { Check } from "lucide-react";
 import {
   displayName,
   formatWhen,
@@ -114,12 +115,25 @@ export function ConversationListItem({
         />
         <div className="min-w-0 flex-1">
       <div className="flex justify-between items-start gap-2 mb-0.5">
-        <span
-          className={`text-[13px] truncate ${
-            unread ? "font-bold text-brand-purple" : "font-semibold text-brand-purple/90"
-          } ${isClosed ? "line-through decoration-slate-400 decoration-1" : ""}`}
-        >
-          {displayName(conv)}
+        {/* Closed conversations are shown "done", not struck through — a muted
+            name + a small check reads as "handled", where a line through a
+            person's name reads as deleted/cancelled. */}
+        <span className="flex items-center gap-1 min-w-0">
+          {isClosed && (
+            <Check size={13} strokeWidth={3} className="shrink-0 text-slate-400" aria-hidden="true" />
+          )}
+          {isClosed && <span className="sr-only">Done: </span>}
+          <span
+            className={`text-[13px] truncate ${
+              unread
+                ? "font-bold text-brand-purple"
+                : isClosed
+                  ? "font-semibold text-brand-purple/55"
+                  : "font-semibold text-brand-purple/90"
+            }`}
+          >
+            {displayName(conv)}
+          </span>
         </span>
         <span className="text-[10px] text-slate-500 shrink-0 tabular-nums">
           {formatWhen(isClosed ? conv.closed_at : lastAt)}

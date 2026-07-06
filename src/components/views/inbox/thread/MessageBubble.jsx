@@ -58,7 +58,7 @@ export function MessageBubble({ message }) {
             <div className="text-[14px] font-bold text-emerald-900 leading-snug">
               I&apos;ll be there, see you soon!
             </div>
-            <div className="text-[10px] text-emerald-700/80 font-semibold mt-0.5">
+            <div className="text-[10px] text-emerald-800 font-semibold mt-0.5">
               Confirmed · {formatWhen(message.sent_at)}
             </div>
           </div>
@@ -137,7 +137,7 @@ export function MessageBubble({ message }) {
         ) : (
           message.content ?? <span className="italic text-slate-500">(non-text message)</span>
         )}
-        <div className="mt-1 text-right text-[10px] text-slate-500">
+        <div className="mt-1 text-right text-[10px] text-slate-600">
           {metaParts}
           {!isInbound && message.status && message.status !== "sent" && (
             <span className={isFailed ? "font-bold text-rose-700" : ""}>

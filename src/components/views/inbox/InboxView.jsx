@@ -822,6 +822,9 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
               <div
                 ref={threadScrollRef}
                 onScroll={handleThreadScroll}
+                role="log"
+                aria-label="Conversation messages"
+                aria-live="polite"
                 className="flex-1 min-h-0 min-w-0 overflow-y-auto px-4 py-3 bg-brand-paper"
               >
                 {loadingDetail ? (
@@ -870,7 +873,7 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                         lastDayKey = dayKey;
                         rendered.push(
                           <div key={`day-${dayKey}`} className="flex justify-center my-3">
-                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
                               {formatDayToken(item.at)}
                             </span>
                           </div>,
