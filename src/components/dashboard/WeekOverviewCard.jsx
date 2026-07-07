@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "../layout/DayTab.jsx";
+import { excludeCancelled } from "../../engine/occupancy";
 
 export function WeekOverviewCard({
   dates,
@@ -35,7 +36,7 @@ export function WeekOverviewCard({
           // "0 dogs" — which looks identical to a confirmed empty day.
           const dogCount = loading
             ? null
-            : (bookingsByDate?.[d.dateStr] || []).length;
+            : excludeCancelled(bookingsByDate?.[d.dateStr] || []).length;
           const isActive = selectedDay === i;
           return (
             <div

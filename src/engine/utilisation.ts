@@ -1,6 +1,7 @@
 import { DAILY_DOG_CAP } from "../constants/index";
 import { buildSlotGrid } from "./slotGrid";
 import { canBookSlot } from "./capacity";
+import { excludeCancelled } from "./occupancy";
 import { isDateOpen } from "./utils";
 import { toDateStr } from "../supabase/transforms";
 import type {
@@ -130,7 +131,8 @@ export function computeWeekCapacity(
   let bookings = 0;
   let openDays = 0;
   (dates || []).forEach((d) => {
-    bookings += (bookingsByDate?.[d.dateStr] || []).length;
+    // Cancelled rows are soft-deletes that free their seat — never count them.
+    bookings += excludeCancelled(bookingsByDate?.[d.dateStr] || []).length;
     const isOpen = isDateOpen(d.dateStr, dayOpenState);
     if (isOpen) openDays += 1;
   });
@@ -184,7 +186,9 @@ export function findNextAvailable({
     const extraSlots = settings?.extraSlots ?? [];
     const overridesForSlot = settings?.overrides ?? {};
     const slots = buildSlotGrid(extraSlots);
-    const dayBookings: Booking[] = bookingsByDate?.[dateStr] || [];
+    // The capacity engine expects non-cancelled occupancy (occupancy.ts) —
+    // a seat held only by a cancelled booking is free to advertise.
+    const dayBookings: Booking[] = excludeCancelled(bookingsByDate?.[dateStr] || []);
     for (const slot of slots) {
       const overrides = overridesForSlot[slot] || {};
       const check = canBookSlot(dayBookings, slot, size, slots, { overrides });

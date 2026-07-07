@@ -8,6 +8,7 @@ import {
   utilisationColor,
   utilisationLabel,
 } from "../../engine/utilisation";
+import { excludeCancelled } from "../../engine/occupancy";
 import { getDefaultOpenForDate } from "../../engine/utils";
 
 function CapacityBar({ pct, isOpen, label, sub, statusLabel }) {
@@ -52,7 +53,8 @@ export function CapacityCard({
   const selectedStr = toDateStr(currentDateObj);
 
   const day = useMemo(() => {
-    const bookings = (bookingsByDate?.[selectedStr] || []).length;
+    // Cancelled rows free their seat — match the day view's live count.
+    const bookings = excludeCancelled(bookingsByDate?.[selectedStr] || []).length;
     const isOpen = dayOpenState?.[selectedStr] ?? getDefaultOpenForDate(currentDateObj);
     return { bookings, isOpen, ...computeDayCapacity(bookings, isOpen) };
   }, [bookingsByDate, dayOpenState, selectedStr, currentDateObj]);

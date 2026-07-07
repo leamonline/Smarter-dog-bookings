@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { findNextAvailable, capacityRatio, currentSlotIndex, computeFillRate, DAY_CAPACITY } from "./utilisation";
-import { DAILY_DOG_CAP } from "../constants/salon";
+import {
+  findNextAvailable,
+  capacityRatio,
+  currentSlotIndex,
+  computeFillRate,
+  computeWeekCapacity,
+  DAY_CAPACITY,
+} from "./utilisation";
+import { BOOKING_STATUS, DAILY_DOG_CAP } from "../constants/salon";
 
 it("DAY_CAPACITY is sourced from the single DAILY_DOG_CAP constant", () => {
   expect(DAY_CAPACITY).toBe(DAILY_DOG_CAP);
@@ -67,6 +74,35 @@ describe("findNextAvailable", () => {
     if (result) {
       expect(new Date(result.dateStr).getTime()).toBeGreaterThanOrEqual(future.getTime());
     }
+  });
+});
+
+// Cancelled bookings are soft-deletes that free their seat (see
+// engine/occupancy.ts) — none of the utilisation maths may count them.
+describe("cancelled bookings free their capacity", () => {
+  const MON = "2026-05-18"; // Monday — open by default
+  const live = (slot) => ({ slot, size: "small", status: BOOKING_STATUS.BOOKED });
+  const gone = (slot) => ({ slot, size: "small", status: BOOKING_STATUS.CANCELLED });
+
+  it("computeWeekCapacity does not count cancelled bookings", () => {
+    const result = computeWeekCapacity(
+      [{ dateStr: MON, dateObj: new Date("2026-05-18T00:00:00Z") }],
+      { [MON]: [live("08:30"), live("09:00"), gone("09:30")] },
+      { [MON]: true },
+    );
+    expect(result.bookings).toBe(2);
+  });
+
+  it("findNextAvailable treats seats held only by cancelled bookings as free", () => {
+    const result = findNextAvailable({
+      fromDate: new Date("2026-05-18T00:00:00Z"),
+      bookingsByDate: { [MON]: [gone("08:30"), gone("08:30")] },
+      dayOpenState: { [MON]: true },
+      daySettings: {},
+      now: TODAY,
+    });
+    expect(result?.dateStr).toBe(MON);
+    expect(result?.slot).toBe("08:30");
   });
 });
 

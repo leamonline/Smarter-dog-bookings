@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { DayTab } from "./DayTab.jsx";
+import { excludeCancelled } from "../../engine/occupancy";
 import { isDateOpen } from "../../engine/utils";
 
 export function CalendarTabs({
@@ -62,7 +63,8 @@ export function CalendarTabs({
     >
       {dates.map((d, i) => {
         const isOpen = isDateOpen(d.dateStr, dayOpenState);
-        const dogCount = (bookingsByDate[d.dateStr] || []).length;
+        // Cancelled rows free their seat — the pill must match the day view.
+        const dogCount = excludeCancelled(bookingsByDate[d.dateStr] || []).length;
         const isActive = calendarMode !== "month" && selectedDay === i;
 
         return (
