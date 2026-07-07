@@ -47,21 +47,21 @@ const linkButtonClass =
 function PortalShell({ children }) {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-3 sm:py-12 font-['Montserrat',sans-serif]"
+      className="min-h-dvh flex flex-col items-center justify-center px-4 py-3 sm:py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
       <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-6 py-4 sm:px-10 sm:py-12 border border-[rgba(45,0,75,0.06)] relative overflow-hidden">
-        <DogSilhouetteScatter />
+        <DogSilhouetteScatter mobileSparse />
         <div className="relative">
-          <div className="flex justify-center mb-3 sm:mb-4">
+          <div className="flex justify-center mb-2 sm:mb-4">
             <img
               src="/logo.png"
               alt="Smarter Dog Grooming Salon"
-              className="h-11 sm:h-[72px] w-auto select-none"
+              className="h-10 sm:h-[72px] w-auto select-none"
               draggable={false}
             />
           </div>
-          <p className={`${kickerClass} text-center mb-2 sm:mb-5`} style={{ letterSpacing: "0.12em" }}>
+          <p className={`${kickerClass} text-center mb-1 sm:mb-5`} style={{ letterSpacing: "0.12em" }}>
             Staff portal
           </p>
           {children}
@@ -149,7 +149,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   if (isOffline) {
     return (
       <PortalShell>
-        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
           <span className="relative inline-block">
             Offline mode
             <ScribbleUnderline />
@@ -169,7 +169,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
             <span className="relative inline-block">
               Hello again
               <ScribbleUnderline />
@@ -221,7 +221,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
             />
           </div>
 
-          <div className="rounded-xl border border-[rgba(45,0,75,0.08)] bg-[var(--sd-sky-tint)]/40 px-4 py-2 sm:py-4">
+          <div className="rounded-xl border border-transparent sm:border-[rgba(45,0,75,0.08)] bg-transparent sm:bg-[var(--sd-sky-tint)]/40 px-0 sm:px-4 py-0 sm:py-4">
             <p className={`${kickerClass} text-center mb-2 sm:mb-3 hidden sm:block`}>
               Quick security check
             </p>
@@ -273,7 +273,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 text-center text-[var(--sd-navy)]">
+          <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
             <span className="relative inline-block">
               Check your inbox
               <ScribbleUnderline />
@@ -299,7 +299,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   return (
     <PortalShell>
       <div aria-live="polite">
-        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-3 sm:mb-4 text-center text-[var(--sd-navy)]">
+        <h1 className="font-['Quicksand','Montserrat',sans-serif] font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--sd-navy)]">
           <span className="relative inline-block">
             Reset your password
             <ScribbleUnderline />
