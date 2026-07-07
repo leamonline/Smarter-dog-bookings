@@ -313,6 +313,26 @@
   }
 }
 
+/* ── Global: iOS focus-zoom fix (every field) ─────────────────────
+   The .bm-fields / .compose-fields rules above only cover two surfaces.
+   iOS Safari zooms the viewport on focus whenever ANY input/select/
+   textarea renders below 16px, so every other staff field using a
+   Tailwind text-sm/text-xs/text-[13px] utility still jolt-zoomed. Force
+   ≥16px on small screens AND on coarse pointers — this catches phones in
+   both orientations while leaving true desktop (wide viewport + fine
+   pointer) untouched, so its denser sizes are unchanged. Unlayered, so it
+   beats Tailwind's layered text-* utilities; the more specific
+   .bm-fields/.portal-input rules still win where they apply (same 16px on
+   touch; their own desktop density elsewhere). No viewport maximum-scale /
+   user-scalable change — that would break pinch-zoom / accessibility. */
+@media (width < 40rem), (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* ── Global focus ─────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-border-focus);
