@@ -131,14 +131,16 @@ describe("BookingFeedCard — adaptive actions + chips", () => {
     expect(onDidntShow).toHaveBeenCalled();
   });
 
-  it("highlights the next booking with a Next chip", () => {
-    render(
+  it("highlights the next booking visually, without a redundant Next chip", () => {
+    const { container } = render(
       <BookingFeedCard
         {...baseHandlers}
         entry={entry({ id: "n", dogName: "Bella", slot: "11:00", status: "Booked" }, { isNext: true })}
       />,
     );
-    expect(screen.getByText("Next")).toBeInTheDocument();
+    // The teal border/tint already signals "next" — no separate chip clutter.
+    expect(screen.queryByText("Next")).not.toBeInTheDocument();
+    expect(container.querySelector("li").className).toMatch(/border-brand-teal/);
     expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
   });
 

@@ -66,8 +66,9 @@ export function BookingFeedCard({
   const canHide = entry.stage === "booked" && !entry.owes;
 
   // The one urgency/status chip — engine-decided, calm states show nothing here
-  // (their StatusPill in the status line already says it).
-  const chipKinds = ["overdue", "paymentDue", "unconfirmed", "readyWaiting", "next"];
+  // (their StatusPill in the status line already says it). "Next" isn't
+  // chipped — the card's teal tint/border already carries that signal.
+  const chipKinds = ["overdue", "paymentDue", "unconfirmed", "readyWaiting"];
   const statusChip = chipKinds.includes(op.kind) ? <OpStatusChip opStatus={op} /> : null;
   // Secondary "owes" flag when payment isn't already the headline.
   const owesChip = owesNow && op.kind !== "paymentDue" && (
