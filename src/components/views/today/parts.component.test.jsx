@@ -53,7 +53,7 @@ describe("BookingStatusLine", () => {
     collectionSentAt: null,
   };
 
-  it("shows status + since-time, wait, message state and payment in order", () => {
+  it("shows status + since-time, wait and payment in order", () => {
     render(
       <BookingStatusLine
         booking={readyBooking}
@@ -64,16 +64,15 @@ describe("BookingStatusLine", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("since 11:00")).toBeInTheDocument();
     expect(screen.getByText("waiting 2 hr 15 min")).toBeInTheDocument();
-    expect(screen.getByText("Owner not messaged yet")).toBeInTheDocument();
     expect(screen.getByText(/£42/)).toBeInTheDocument();
   });
 
-  it("shows when the collection message went out", () => {
+  it("never restates whether the collection message went out — the primary action already carries that fact", () => {
     render(<BookingStatusLine booking={{ ...readyBooking, collectionSentAt: "2026-07-02T10:05:00Z" }} />);
-    expect(screen.getByText("Message sent 11:05")).toBeInTheDocument();
+    expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
   });
 
-  it("keeps collection facts off cards that aren't ready", () => {
+  it("shows the £ balance for a non-ready booking too", () => {
     render(
       <BookingStatusLine
         booking={{ status: "Booked" }}
@@ -81,7 +80,6 @@ describe("BookingStatusLine", () => {
         pay={{ kind: "due", label: "Balance due", amountDue: 55, depositPaid: 0, subtotal: 55 }}
       />,
     );
-    expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
     expect(screen.getByText(/£55 due at pick-up/)).toBeInTheDocument();
   });
 

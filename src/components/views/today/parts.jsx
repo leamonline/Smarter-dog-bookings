@@ -173,16 +173,6 @@ export function StatusPill({ status }) {
   );
 }
 
-/** Collection-message state — the same chip whichever card shows it. */
-export function MessageStateChip({ sentAt }) {
-  const time = formatLondonTime(sentAt);
-  return time ? (
-    <Chip icon="✓" className="bg-emerald-50 text-emerald-700 whitespace-nowrap">Message sent {time}</Chip>
-  ) : (
-    <Chip dot className="bg-amber-50 text-amber-800 whitespace-nowrap">Owner not messaged yet</Chip>
-  );
-}
-
 /** Read-only WhatsApp "on my way" signal for a dog waiting to be collected. */
 export function OnTheWayChip({ signal }) {
   if (!signal) return null;
@@ -230,10 +220,13 @@ function PaymentFact({ pay }) {
 
 /**
  * The canonical status line — every booking card on the Today page shows the
- * same facts in the same order: status + since-time, wait duration, message
- * state, payment due. Card-specific extras (pick-up time, "on the way",
- * notes) append via children. `showWaitWord={false}` drops the word
- * "waiting" where the card's headline already says "Waiting for collection".
+ * same facts in the same order: status + since-time, wait duration, payment
+ * due. Card-specific extras (pick-up time, "on the way", notes) append via
+ * children. `showWaitWord={false}` drops the word "waiting" where the card's
+ * headline already says "Waiting for collection". Whether the collection
+ * message has gone out is NOT restated here — the primary action already
+ * carries that fact ("Send collection message" vs "Mark collected"/"Resend
+ * message"), so a separate chip would just repeat it.
  */
 export function BookingStatusLine({ booking, waitMinutes = null, pay = null, showWaitWord = true, children }) {
   const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
@@ -250,7 +243,6 @@ export function BookingStatusLine({ booking, waitMinutes = null, pay = null, sho
       {!isBooked && <StatusPill status={booking.status} />}
       {since && <span>since {since}</span>}
       {isReady && <WaitBadge minutes={waitMinutes} withWord={showWaitWord} />}
-      {isReady && <MessageStateChip sentAt={booking.collectionSentAt} />}
       <PaymentFact pay={pay} />
       {children}
     </div>

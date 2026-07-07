@@ -188,7 +188,10 @@ describe("BookingFeedCard — adaptive actions + chips", () => {
       />,
     );
     expect(screen.getByText(/waiting 25 min/)).toBeInTheDocument();
-    expect(screen.getByText(/Owner not messaged yet/)).toBeInTheDocument();
+    // Neither the message-sent state nor the "Ready — chase collection"
+    // status chip is restated — the primary action already says both.
+    expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready — chase collection")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send collection message" }));
     expect(onSendCollection).toHaveBeenCalled();
     // Mark collected requires a confirm.
