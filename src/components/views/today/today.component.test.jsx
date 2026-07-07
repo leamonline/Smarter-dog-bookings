@@ -379,9 +379,9 @@ describe("TodayNowStrip", () => {
   // 10:15 London (BST) — matches the engine tests' fixed instant.
   const NOW = new Date("2026-07-02T09:15:00Z");
 
-  it("shows the NOW booking with its contextual action and live context", () => {
+  it("shows the NOW booking as dog · breed + arrival time, with its contextual action and live context", () => {
     const onMarkArrived = vi.fn();
-    const due = entry({ id: "d", dogName: "Charlie", slot: "10:30", status: "Booked" }, { slotMinutes: 630 });
+    const due = entry({ id: "d", dogName: "Charlie", breed: "Poodle", slot: "10:30", status: "Booked" }, { slotMinutes: 630 });
     render(
       <TodayNowStrip
         selection={{ now: due, nowReason: "dueSoon", next: null, readyCount: 0 }}
@@ -393,6 +393,8 @@ describe("TodayNowStrip", () => {
     );
     expect(screen.getByText("Now")).toBeInTheDocument();
     expect(screen.getByText("Charlie")).toBeInTheDocument();
+    expect(screen.getByText(/Poodle/)).toBeInTheDocument(); // dog · breed
+    expect(screen.getByText("10:30")).toBeInTheDocument(); // the appointment arrival time
     expect(screen.getByText(/due in 15 min/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
     expect(onMarkArrived).toHaveBeenCalled();

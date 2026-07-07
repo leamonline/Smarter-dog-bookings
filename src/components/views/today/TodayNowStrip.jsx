@@ -131,7 +131,12 @@ function NowAction({ entry, onMarkArrived, onStartGroom, onMarkReady, onMarkColl
   );
 }
 
-/** Tappable booking identity — scrolls to and highlights the matching card. */
+/**
+ * Tappable booking identity — scrolls to and highlights the matching card.
+ * Mirrors the booking card's header: dog · breed on the left, the
+ * appointment (arrival) time pinned to the right. The live context — "due
+ * in 12 min", "waiting to be collected" — sits underneath.
+ */
 function IdentityButton({ entry, resolve, onJumpTo, context }) {
   const b = entry.booking;
   const d = resolve(b);
@@ -142,9 +147,14 @@ function IdentityButton({ entry, resolve, onJumpTo, context }) {
       className="flex-1 min-w-[10rem] text-left min-h-[44px] py-1 rounded-lg hover:bg-slate-50 motion-safe:transition-colors"
       aria-label={`Show ${d.dogName}'s booking card`}
     >
-      <span className="block truncate">
-        <span className="font-bold text-[15px] text-slate-800">{d.dogName}</span>{" "}
-        <span className="text-[13px] font-bold text-slate-600 tabular-nums">{b.slot}</span>
+      <span className="flex items-baseline gap-x-2">
+        <span className="min-w-0 truncate">
+          <span className="font-bold text-[15px] text-slate-800">{d.dogName}</span>
+          {d.breed && <span className="text-[13px] text-slate-600"> · {d.breed}</span>}
+        </span>
+        {b.slot && (
+          <span className="ml-auto shrink-0 text-[13px] font-bold text-slate-600 tabular-nums">{b.slot}</span>
+        )}
       </span>
       {context && (
         <span className="block truncate text-[12px] text-slate-600 leading-tight">{context}</span>
