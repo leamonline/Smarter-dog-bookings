@@ -108,6 +108,43 @@ export function CompactZeroState({ children }) {
   );
 }
 
+// ---- Operational-priority tones -------------------------------------------------
+// The engine (entryOpStatus in engine/today.ts) decides WHICH tone a booking
+// gets; these maps decide what each tone LOOKS like. One rail + one chip class
+// per tone, so the accent bar, the status chip and the Now strip always match.
+
+/** Left accent rail fill per operational tone. */
+export const RAIL_TONE_CLASS = {
+  coral: "bg-brand-coral",
+  amber: "bg-amber-400",
+  emerald: "bg-emerald-500",
+  cyan: "bg-brand-cyan",
+  teal: "bg-brand-teal",
+  neutral: "bg-slate-200",
+  muted: "bg-slate-300",
+};
+
+/** Pale tint + AA text per operational tone (chip/label backgrounds). */
+export const CHIP_TONE_CLASS = {
+  coral: "bg-brand-coral/10 text-brand-coral-text",
+  amber: "bg-amber-50 text-amber-800",
+  emerald: "bg-emerald-50 text-emerald-700",
+  cyan: "bg-cyan-50 text-cyan-800",
+  teal: "bg-brand-teal/15 text-brand-teal-text",
+  neutral: "bg-slate-100 text-slate-600",
+  muted: "bg-slate-100 text-slate-500",
+};
+
+/** The single highest-priority status chip for a booking (engine-decided). */
+export function OpStatusChip({ opStatus }) {
+  if (!opStatus) return null;
+  return (
+    <Chip dot className={CHIP_TONE_CLASS[opStatus.tone] || CHIP_TONE_CLASS.neutral}>
+      {opStatus.label}
+    </Chip>
+  );
+}
+
 /**
  * The one status-chip pattern for this page: pale tint + AA text + a leading
  * dot or glyph, so no status ever leans on colour alone. Colours come in via

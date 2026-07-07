@@ -6,6 +6,7 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { TodayHeader } from "./TodayHeader.jsx";
+import { TodayNowStrip } from "./TodayNowStrip.jsx";
 import { BookingFeed, BookingFeedCard } from "./BookingFeed.jsx";
 import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./TodaySummaryStrip.jsx";
@@ -22,6 +23,7 @@ const baseHandlers = {
   getWelfare,
   paymentOf: paidOf,
   onMarkArrived: noop,
+  onStartGroom: noop,
   onMarkReady: noop,
   onMarkCollected: noop,
   onSendCollection: noop,
@@ -140,15 +142,34 @@ describe("BookingFeedCard — adaptive actions + chips", () => {
     expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
   });
 
-  it("an in-salon card leads with Mark ready", () => {
+  it("a checked-in card leads with Start groom, with Mark ready one tap behind", () => {
+    const onStartGroom = vi.fn();
+    const onMarkReady = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        onStartGroom={onStartGroom}
+        onMarkReady={onMarkReady}
+        entry={entry({ id: "s", dogName: "Poppy", slot: "09:30", status: "Checked in" }, { stage: "inSalon" })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Start groom" }));
+    expect(onStartGroom).toHaveBeenCalled();
+    // The skip path stays available for dogs that go straight to ready.
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+    expect(onMarkReady).toHaveBeenCalled();
+  });
+
+  it("an in-bath card leads with Mark ready", () => {
     const onMarkReady = vi.fn();
     render(
       <BookingFeedCard
         {...baseHandlers}
         onMarkReady={onMarkReady}
-        entry={entry({ id: "s", dogName: "Poppy", slot: "09:30", status: "Checked in" }, { stage: "inSalon" })}
+        entry={entry({ id: "s2", dogName: "Poppy", slot: "09:30", status: "In bath" }, { stage: "inSalon" })}
       />,
     );
+    expect(screen.queryByRole("button", { name: "Start groom" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
     expect(onMarkReady).toHaveBeenCalled();
   });
@@ -192,20 +213,57 @@ describe("BookingFeedCard — adaptive actions + chips", () => {
     expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "card");
   });
 
-  it("an unconfirmed card chases confirmation and can be hidden until tomorrow", () => {
+  it("an unconfirmed card leads with Chase confirmation and can be hidden until tomorrow", () => {
     const onHide = vi.fn();
+    const onMessageOwner = vi.fn();
     render(
       <BookingFeedCard
         {...baseHandlers}
+        onMessageOwner={onMessageOwner}
         onHideUntilTomorrow={onHide}
         entry={entry({ id: "u", dogName: "Milo", slot: "11:00", status: "Booked", reminderSentAt: null }, { isUnconfirmed: true, needsAction: true })}
       />,
     );
-    expect(screen.getByText("Not confirmed")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Message owner" })).toBeInTheDocument();
+    expect(screen.getByText("Needs confirmation")).toBeInTheDocument();
+    // Chasing happens in the owner's message thread.
+    fireEvent.click(screen.getByRole("button", { name: "Chase confirmation" }));
+    expect(onMessageOwner).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /More actions for Milo/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Hide until tomorrow" }));
     expect(onHide).toHaveBeenCalledWith("u");
+  });
+
+  it("a plain booked card keeps Message owner one tap away in More", () => {
+    const onMessageOwner = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        onMessageOwner={onMessageOwner}
+        entry={entry({ id: "p", dogName: "Alfie", slot: "12:00", status: "Booked" })}
+      />,
+    );
+    // One clear primary; messaging is demoted, not removed.
+    expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Message owner" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /More actions for Alfie/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Message owner" }));
+    expect(onMessageOwner).toHaveBeenCalled();
+  });
+
+  it("a collected dog that still owes leads with Mark paid", () => {
+    const onMarkPaid = vi.fn();
+    render(
+      <BookingFeedCard
+        {...baseHandlers}
+        paymentOf={dueOf}
+        onMarkPaid={onMarkPaid}
+        entry={entry({ id: "cw", dogName: "Rosie", slot: "08:30", status: "Completed" }, { stage: "collected", owes: true })}
+      />,
+    );
+    expect(screen.getByText("Payment due")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cash" }));
+    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "cw" }), "cash");
   });
 
   it("surfaces care notes on the card", () => {
@@ -285,15 +343,132 @@ describe("AvailabilityModal", () => {
 });
 
 describe("TodaySummaryStrip", () => {
-  it("renders the day totals and money split", () => {
+  const summary = { total: 4, arrived: 3, expected: 1, ready: 1, collected: 1, unpaidCount: 2, dogsBooked: 4, capacityUsedPct: 29, expectedRevenue: 168, collectedRevenue: 84 };
+
+  it("separates money from dog counts and shows the five status counters", () => {
+    render(<TodaySummaryStrip summary={summary} />);
+    expect(screen.getByText("Daily progress")).toBeInTheDocument();
+    expect(screen.getByText("1 of 4 collected")).toBeInTheDocument();
+    // Money lives on its own line, never inside a counter label.
+    expect(screen.getByText("£168")).toBeInTheDocument();
+    expect(screen.getByText(/expected revenue/)).toBeInTheDocument();
+    expect(screen.getByText("£84")).toBeInTheDocument();
+    for (const label of ["Booked", "Arrived", "Expected", "Ready", "Collected"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it("keeps the takings-by-method row", () => {
     render(
       <TodaySummaryStrip
-        summary={{ total: 4, arrived: 3, expected: 1, ready: 1, collected: 1, unpaidCount: 2, dogsBooked: 4, capacityUsedPct: 29, expectedRevenue: 168, collectedRevenue: 84 }}
+        summary={summary}
+        takings={{ total: 84, count: 2, byMethod: [{ method: "card", label: "Card", amount: 84, count: 2 }] }}
       />,
     );
-    expect(screen.getByText("Booked in")).toBeInTheDocument();
-    expect(screen.getByText("£168")).toBeInTheDocument();
-    expect(screen.getByText("£84")).toBeInTheDocument();
+    expect(screen.getByText(/Taken today £84/)).toBeInTheDocument();
+    expect(screen.getByText("Card")).toBeInTheDocument();
+  });
+});
+
+describe("TodayNowStrip", () => {
+  // 10:15 London (BST) — matches the engine tests' fixed instant.
+  const NOW = new Date("2026-07-02T09:15:00Z");
+
+  it("shows the NOW booking with its contextual action and live context", () => {
+    const onMarkArrived = vi.fn();
+    const due = entry({ id: "d", dogName: "Charlie", slot: "10:30", status: "Booked" }, { slotMinutes: 630 });
+    render(
+      <TodayNowStrip
+        selection={{ now: due, nowReason: "dueSoon", next: null, readyCount: 0 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+        {...{ onMarkArrived, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    expect(screen.getByText("Now")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
+    expect(screen.getByText(/due in 15 min/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
+    expect(onMarkArrived).toHaveBeenCalled();
+  });
+
+  it("tapping the identity jumps to the booking card", () => {
+    const onJumpTo = vi.fn();
+    const due = entry({ id: "d", dogName: "Charlie", slot: "10:30", status: "Booked" });
+    render(
+      <TodayNowStrip
+        selection={{ now: due, nowReason: "dueSoon", next: null, readyCount: 0 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={onJumpTo}
+        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show Charlie's booking card" }));
+    expect(onJumpTo).toHaveBeenCalledWith("d");
+  });
+
+  it("UP NEXT surfaces an unresolved issue as a labelled chip", () => {
+    const nowE = entry({ id: "n1", dogName: "Charlie", slot: "10:30", status: "Booked" });
+    const nextE = entry({ id: "n2", dogName: "Lucy", slot: "11:00", status: "Booked" }, { isUnconfirmed: true, needsAction: true });
+    render(
+      <TodayNowStrip
+        selection={{ now: nowE, nowReason: "dueSoon", next: nextE, readyCount: 0 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    expect(screen.getByText("Up next")).toBeInTheDocument();
+    expect(screen.getByText("Lucy")).toBeInTheDocument();
+    expect(screen.getByText("Needs confirmation")).toBeInTheDocument();
+  });
+
+  it("a ready NOW keeps the two-step collection confirm", () => {
+    const onMarkCollected = vi.fn();
+    const ready = entry(
+      { id: "r", dogName: "Teddy", slot: "09:00", status: "Ready for pick-up", collectionSentAt: "2026-07-02T09:00:00Z" },
+      { stage: "ready", waitMinutes: 10 },
+    );
+    render(
+      <TodayNowStrip
+        selection={{ now: ready, nowReason: "active", next: null, readyCount: 1 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark collected" }));
+    expect(onMarkCollected).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm collected" }));
+    expect(onMarkCollected).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads calm when nothing is left, and louder when dogs wait for collection", () => {
+    const empty = { now: null, nowReason: null, next: null, readyCount: 0 };
+    const { rerender } = render(
+      <TodayNowStrip
+        selection={empty}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    expect(screen.getByText("No more arrivals scheduled today.")).toBeInTheDocument();
+    rerender(
+      <TodayNowStrip
+        selection={{ ...empty, readyCount: 2 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
+      />,
+    );
+    expect(screen.getByText("2 dogs are ready for collection.")).toBeInTheDocument();
   });
 });
 

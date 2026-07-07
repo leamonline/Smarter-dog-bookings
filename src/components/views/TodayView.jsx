@@ -4,7 +4,7 @@
 // "Manage availability" modal for the day's unbooked slots. All logic lives in
 // the Today engine (src/engine/today.ts) so the component just wires data +
 // actions to the feed and modal.
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
@@ -16,12 +16,14 @@ import {
   buildSlotOpportunities,
   buildAvailabilityView,
   buildTodayFeed,
+  selectNowNext,
 } from "../../engine/today";
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { TodayHeader } from "./today/TodayHeader.jsx";
+import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
@@ -110,6 +112,23 @@ export function TodayView({
 
   const visibleFeed = useMemo(() => feed.filter((e) => !dismissed.has(e.booking.id)), [feed, dismissed]);
   const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
+  // The sticky strip reads the same visible feed the cards render from, so
+  // marking a dog arrived/ready/collected updates both in the same render.
+  const nowNext = useMemo(() => selectNowNext(visibleFeed, now), [visibleFeed, now]);
+
+  // ---- "Jump to card" from the sticky strip: scroll + a brief highlight ----
+  const [highlightId, setHighlightId] = useState(null);
+  const highlightTimer = useRef(null);
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
+  const onJumpTo = useCallback((id) => {
+    const el = document.getElementById(`today-card-${id}`);
+    if (!el) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    setHighlightId(id);
+    clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightId(null), 1600);
+  }, []);
 
   // ---- Display + welfare + payment resolvers ----
   const resolve = useCallback((b) => resolveBookingDisplay(b, dogs, humans), [dogs, humans]);
@@ -129,12 +148,16 @@ export function TodayView({
 
   // ---- Actions (reuse the exact update path the detail modal uses) ----
   const patch = useCallback(async (b, changes, message) => {
-    const result = await onUpdateBooking({ ...b, ...changes }, b._bookingDate, b._bookingDate);
+    // Everything on this page is today's booking; offline sample rows carry
+    // no _bookingDate, so fall back to today rather than silently no-opping.
+    const date = b._bookingDate || todayStr;
+    const result = await onUpdateBooking({ ...b, ...changes }, date, date);
     if (result !== null && message) toast.show(message, "success");
     return result;
-  }, [onUpdateBooking, toast]);
+  }, [onUpdateBooking, toast, todayStr]);
 
   const onMarkArrived = useCallback((b) => patch(b, { status: BOOKING_STATUS.CHECKED_IN }, `${b.dogName} checked in`), [patch]);
+  const onStartGroom = useCallback((b) => patch(b, { status: BOOKING_STATUS.IN_BATH }, `${b.dogName} — groom started`), [patch]);
   const onMarkReady = useCallback((b) => patch(b, { status: BOOKING_STATUS.READY_FOR_PICKUP }, `${b.dogName} is ready to go home`), [patch]);
   const onMarkCollected = useCallback((b) => patch(b, { status: BOOKING_STATUS.COMPLETED }, `${b.dogName} collected — lovely`), [patch]);
   const onMarkPaid = useCallback(
@@ -164,6 +187,7 @@ export function TodayView({
     paymentOf,
     onTheWaySignals,
     onMarkArrived,
+    onStartGroom,
     onMarkReady,
     onMarkCollected,
     onSendCollection,
@@ -209,7 +233,20 @@ export function TodayView({
         </div>
       ) : (
         <>
-          <BookingFeed entries={visibleFeed} {...feedHandlers} />
+          <TodayNowStrip
+            selection={nowNext}
+            now={now}
+            resolve={resolve}
+            onJumpTo={onJumpTo}
+            onMarkArrived={onMarkArrived}
+            onStartGroom={onStartGroom}
+            onMarkReady={onMarkReady}
+            onMarkCollected={onMarkCollected}
+            onSendCollection={onSendCollection}
+            onMessageOwner={onMessageOwner}
+            onMarkPaid={onMarkPaid}
+          />
+          <BookingFeed entries={visibleFeed} highlightId={highlightId} {...feedHandlers} />
           <TodaySummaryStrip summary={summary} takings={takings} />
           {!isOnline && (
             <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>

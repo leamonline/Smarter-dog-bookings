@@ -2,13 +2,18 @@
 // reason a booking might need attention (late, waiting to be collected, not
 // confirmed, owed payment, care notes) folds onto its single card, so a booking
 // never appears twice. The next upcoming booking is highlighted. Each card
-// leads with one primary action that adapts to the booking's state, one
-// secondary if useful, and a "More" menu for the rest — never five equal
-// buttons. Built on the shared parts.jsx primitives + the pure buildTodayFeed
-// selector, so the logic stays testable.
+// leads with ONE state-aware primary action (the same contextual-action system
+// the sticky Now strip uses), one secondary where genuinely useful, and a
+// "More" menu for the rest — never five equal buttons. Rail colour + status
+// label both come from the engine's entryOpStatus, so a card can never show a
+// rail that disagrees with its label or its action.
 import { useState } from "react";
+import { entryOpStatus } from "../../../engine/today";
+import { BOOKING_STATUS } from "../../../constants/index";
 import {
   Chip,
+  OpStatusChip,
+  RAIL_TONE_CLASS,
   WelfareChips,
   BookingStatusLine,
   OnTheWayChip,
@@ -19,17 +24,6 @@ import {
   formatMinutes,
 } from "./parts.jsx";
 
-/** Left accent bar colour — the most salient state wins, never colour alone. */
-function accentFor(entry) {
-  if (entry.isLate) return "bg-brand-coral";
-  if (entry.needsAction) return "bg-amber-400";
-  if (entry.isNext) return "bg-brand-teal";
-  if (entry.stage === "ready") return "bg-emerald-500";
-  if (entry.stage === "inSalon") return "bg-brand-cyan";
-  if (entry.stage === "collected") return "bg-slate-300";
-  return "bg-slate-200";
-}
-
 function lastContact(b) {
   if (!b.reminderSentAt) return "not contacted yet";
   const t = new Date(b.reminderSentAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -38,11 +32,13 @@ function lastContact(b) {
 
 export function BookingFeedCard({
   entry,
+  highlighted = false,
   resolve,
   getWelfare,
   paymentOf,
   onTheWaySignals,
   onMarkArrived,
+  onStartGroom,
   onMarkReady,
   onMarkCollected,
   onSendCollection,
@@ -56,27 +52,27 @@ export function BookingFeedCard({
   const d = resolve(b);
   const welfare = getWelfare(b);
   const pay = paymentOf(b);
+  const op = entryOpStatus(entry);
   const [confirming, setConfirming] = useState(false);
 
   const isReady = entry.stage === "ready";
-  const isInSalon = entry.stage === "inSalon";
   const isCollected = entry.stage === "collected";
   const collectionSent = !!b.collectionSentAt;
   const otw = isReady && b.whatsappConversationId ? onTheWaySignals?.[b.whatsappConversationId] : null;
   // Payment is only actionable once the dog has arrived — a not-yet-arrived dog
   // pays at pick-up, so we never nudge "Mark paid" on a still-Booked card.
-  const showMarkPaid = entry.owes && entry.stage !== "booked";
+  const owesNow = entry.owes && entry.stage !== "booked";
   // Money never hides; only a not-yet-arrived, not-owing booking can be tucked away.
   const canHide = entry.stage === "booked" && !entry.owes;
 
-  // ---- The one urgency chip (specific reason preferred over a generic one) ----
-  const urgencyChip = entry.isLate ? (
-    <Chip dot className="bg-brand-coral/10 text-brand-coral-text">Late</Chip>
-  ) : entry.isUnconfirmed ? (
-    <Chip dot className="bg-amber-50 text-amber-800">Not confirmed</Chip>
-  ) : entry.needsAction && !showMarkPaid ? (
-    <Chip dot className="bg-brand-coral/10 text-brand-coral-text">Needs action</Chip>
-  ) : null;
+  // The one urgency/status chip — engine-decided, calm states show nothing here
+  // (their StatusPill in the status line already says it).
+  const chipKinds = ["overdue", "paymentDue", "unconfirmed", "readyWaiting", "next"];
+  const statusChip = chipKinds.includes(op.kind) ? <OpStatusChip opStatus={op} /> : null;
+  // Secondary "owes" flag when payment isn't already the headline.
+  const owesChip = owesNow && op.kind !== "paymentDue" && (
+    <Chip dot className="bg-brand-yellow/25 text-slate-800">Payment due</Chip>
+  );
 
   // ---- Action set, adapted to the booking's state ----
   let primary = null;
@@ -102,33 +98,57 @@ export function BookingFeedCard({
       secondary = <SecondaryButton onClick={() => setConfirming(true)}>Mark collected</SecondaryButton>;
     }
     moreItems.push(messageOwner, openBooking);
-  } else if (isInSalon) {
-    primary = <PrimaryButton onClick={() => onMarkReady(b)}>Mark ready</PrimaryButton>;
-    if (!showMarkPaid) secondary = <SecondaryButton onClick={() => onMessageOwner(b)}>Message owner</SecondaryButton>;
-    moreItems.push(openBooking);
-    if (showMarkPaid) moreItems.push(messageOwner);
+  } else if (entry.stage === "inSalon") {
+    // Checked in → the groom is the next step; In bath → it's finishing.
+    if (b.status === BOOKING_STATUS.CHECKED_IN) {
+      primary = <PrimaryButton onClick={() => onStartGroom(b)}>Start groom</PrimaryButton>;
+      secondary = <SecondaryButton onClick={() => onMarkReady(b)}>Mark ready</SecondaryButton>;
+    } else {
+      primary = <PrimaryButton onClick={() => onMarkReady(b)}>Mark ready</PrimaryButton>;
+    }
+    moreItems.push(messageOwner, openBooking);
   } else if (isCollected) {
-    if (!showMarkPaid) secondary = <SecondaryButton onClick={() => onOpenBooking(b.id)}>Open booking</SecondaryButton>;
-    moreItems.push(messageOwner);
-    if (showMarkPaid) moreItems.push(openBooking);
+    if (owesNow) {
+      // Money at risk — recording the payment IS the primary action.
+      primary = <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="primary" />;
+      moreItems.push(messageOwner, openBooking);
+    } else {
+      secondary = <SecondaryButton onClick={() => onOpenBooking(b.id)}>Open booking</SecondaryButton>;
+      moreItems.push(messageOwner);
+    }
   } else if (entry.isUnconfirmed) {
-    primary = <PrimaryButton onClick={() => onMessageOwner(b)}>Message owner</PrimaryButton>;
+    // A reminder was sent and went unanswered — the job is to chase it, which
+    // happens in the owner's message thread.
+    primary = <PrimaryButton onClick={() => onMessageOwner(b)}>Chase confirmation</PrimaryButton>;
     secondary = <SecondaryButton onClick={() => onMarkArrived(b)}>Mark arrived</SecondaryButton>;
     moreItems.push(openBooking);
   } else {
     // Plain booked / next.
     primary = <PrimaryButton onClick={() => onMarkArrived(b)}>Mark arrived</PrimaryButton>;
-    secondary = <SecondaryButton onClick={() => onMessageOwner(b)}>Message owner</SecondaryButton>;
-    moreItems.push(openBooking);
+    moreItems.push(messageOwner, openBooking);
   }
 
   if (canHide) moreItems.push({ label: "Hide until tomorrow", onClick: () => onHideUntilTomorrow(b.id) });
 
-  const muted = isCollected;
+  // "Mark paid" stays reachable (not primary) for an arrived/ready dog that owes.
+  const showMarkPaidSecondary = owesNow && !isCollected;
+
+  const muted = isCollected && !owesNow;
 
   return (
-    <li className={`flex items-stretch gap-3 rounded-xl border p-3 ${entry.isNext ? "border-brand-teal/40 bg-brand-teal/[0.04]" : muted ? "border-slate-200 bg-slate-50/60" : "border-slate-200 bg-white"}`}>
-      <span aria-hidden className={`w-1.5 rounded-full shrink-0 ${accentFor(entry)}`} />
+    <li
+      id={`today-card-${b.id}`}
+      className={`flex items-stretch gap-3 rounded-xl border p-3 scroll-mt-32 motion-safe:transition-shadow ${
+        highlighted
+          ? "border-brand-teal ring-2 ring-brand-teal/50"
+          : entry.isNext
+            ? "border-brand-teal/40 bg-brand-teal/[0.04]"
+            : muted
+              ? "border-slate-200 bg-slate-50/60"
+              : "border-slate-200 bg-white"
+      }`}
+    >
+      <span aria-hidden className={`w-1.5 rounded-full shrink-0 ${RAIL_TONE_CLASS[op.tone] || RAIL_TONE_CLASS.neutral}`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`font-bold text-[15px] ${muted ? "text-slate-600" : "text-slate-800"}`}>{d.dogName}</span>
@@ -138,11 +158,12 @@ export function BookingFeedCard({
           <span className="ml-auto text-[13px] font-bold text-slate-700 tabular-nums">{b.slot}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-          {urgencyChip}
-          {entry.isNext && <Chip dot className="bg-brand-teal/15 text-brand-teal-text">Next</Chip>}
-          {showMarkPaid && <Chip dot className="bg-brand-yellow/25 text-slate-800">Payment due</Chip>}
-        </div>
+        {(statusChip || owesChip) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+            {statusChip}
+            {owesChip}
+          </div>
+        )}
 
         <BookingStatusLine booking={b} waitMinutes={entry.waitMinutes} pay={pay}>
           {entry.isLate && <span className="font-semibold text-brand-coral-text">{formatMinutes(entry.overdueMinutes)} overdue</span>}
@@ -157,7 +178,7 @@ export function BookingFeedCard({
         <div className="flex items-center gap-2 flex-wrap mt-2.5">
           {primary}
           {secondary}
-          {showMarkPaid && <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="secondary" />}
+          {showMarkPaidSecondary && <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="secondary" />}
           {moreItems.length > 0 && (
             <span className="ml-auto">
               <MoreMenu items={moreItems} menuLabel={`More actions for ${d.dogName}`} />
@@ -169,7 +190,7 @@ export function BookingFeedCard({
   );
 }
 
-export function BookingFeed({ entries, ...handlers }) {
+export function BookingFeed({ entries, highlightId = null, ...handlers }) {
   return (
     <section
       className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] overflow-hidden"
@@ -177,7 +198,12 @@ export function BookingFeed({ entries, ...handlers }) {
     >
       <ul className="flex flex-col gap-2 p-2 sm:p-3">
         {entries.map((entry) => (
-          <BookingFeedCard key={entry.booking.id} entry={entry} {...handlers} />
+          <BookingFeedCard
+            key={entry.booking.id}
+            entry={entry}
+            highlighted={highlightId === entry.booking.id}
+            {...handlers}
+          />
         ))}
       </ul>
     </section>
