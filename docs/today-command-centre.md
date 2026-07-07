@@ -36,6 +36,28 @@ correct year-round, BST included.
 
 ## The Today view (`src/components/views/TodayView.jsx` + `views/today/`)
 
+**Operational priority is centralised** in `entryOpStatus` (`engine/today.ts`):
+one ranked mapping (late → unpaid-collected → unconfirmed → ready-waiting →
+ready → in-salon → next → upcoming → collected) drives the card's accent rail,
+its status chip, its primary action AND the sticky strip, so they can never
+disagree. Tones map to classes in `views/today/parts.jsx`
+(`RAIL_TONE_CLASS`/`CHIP_TONE_CLASS`).
+
+**The sticky "Now / Up next" strip** (`TodayNowStrip.jsx`) pins beneath the
+header: `selectNowNext` picks NOW (most urgent actionable → next arrival due
+within `DUE_SOON_MINUTES` → live dog, ready first) and UP NEXT (earliest
+still-expected arrival, an unconfirmed one preferred). Its primary action is
+the same contextual mapping as the cards (collection keeps its two-step
+confirm, payment keeps the method chooser); tapping the identity scrolls to
+and briefly highlights the card.
+
+**Card primary actions by state:** late/booked → Mark arrived · unconfirmed →
+Chase confirmation (inbox thread — reminder-send is deliberately no-resend) ·
+Checked in → Start groom (sets In bath; Mark ready stays secondary) · In bath →
+Mark ready · Ready → collection flow · Collected + owing → Mark paid.
+"Message owner" is never removed — it demotes to the More menu where it isn't
+the contextual pairing.
+
 Sections, in priority order, each fed by `engine/today.ts` selectors:
 
 | Section | Shows | Source |
@@ -45,7 +67,7 @@ Sections, in priority order, each fed by `engine/today.ts` selectors:
 | In salon now / collection queue | checked-in and ready dogs with wait time | `buildCollectionQueue`, `collectionWaitMinutes` (from `ready_at`), `timeInSalonMinutes` (from `checked_in_at`) |
 | Payments & handover | today's non-cancelled unpaid bookings, deposit/balance split | `buildPaymentsList`, `paymentState` (G4 mapping via `computeBookingPricing`) |
 | Capacity & opportunities | remaining slots: seats free, large-dog eligibility, customer-reachable (immediate-flagged + before cutoff) | `buildSlotOpportunities` → `computeSlotCapacities` / `getBookableSeatCount` / `canBookSlot` (**never forks** the capacity engine) |
-| Summary strip | total · arrived · expected · ready · collected · unpaid · capacity used vs `DAY_CAPACITY` · expected vs recorded-as-paid revenue | `buildDaySummary`, `computeRevenue` |
+| Summary strip | "Daily progress": collected-of-total + revenue on its own line (expected vs recorded-as-paid), then the five status counters (Booked/Arrived/Expected/Ready/Collected) + takings by method | `buildDaySummary`, `buildTakingsByMethod`, `computeRevenue` |
 
 Actions reuse existing paths: status transitions (which fire `booking_events` +
 the collection-notice modal automatically), `handleOpenBooking`,

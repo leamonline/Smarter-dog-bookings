@@ -29,7 +29,7 @@ function StatusPill({ tone, children }) {
   );
 }
 
-export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
+export function AppContextRow({ dateLabel, isOpen }) {
   const location = useLocation();
   const sectionTitle = sectionTitleFor(location.pathname);
   const isBookings = sectionTitle === "Bookings";
@@ -88,23 +88,10 @@ export function AppContextRow({ dateLabel, isOpen, dayTone = "open" }) {
         )}
       </div>
 
-      {/* Mobile/tablet (below lg) — a white identity block between the
-          top bar and the nav strip. The day's date sits in a pill whose
-          colour carries the day status (open / full / closed). */}
-      <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 bg-white border-b border-slate-200">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <h1 className="font-display text-xl font-extrabold text-brand-purple leading-tight m-0">
-            {sectionTitle}
-          </h1>
-          {isBookings && (
-            <span
-              className={`inline-flex items-center h-7 px-3 rounded-full text-xs font-bold whitespace-nowrap ${TONE[dayTone] || TONE.open}`}
-            >
-              {dateLabel}
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Mobile/tablet (below lg): no identity block. The nav strip already
+          highlights the active section, and the calendar carries the day, so
+          a separate title+date row was one row of chrome too many on a phone.
+          The desktop strip above (with its live status chips) still stands. */}
     </>
   );
 }

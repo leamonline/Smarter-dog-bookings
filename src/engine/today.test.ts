@@ -24,6 +24,9 @@ import {
   buildTakingsByMethod,
   buildTodayFeed,
   buildAvailabilityView,
+  entryOpStatus,
+  selectNowNext,
+  DUE_SOON_MINUTES,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking } from "../types/index";
@@ -289,6 +292,13 @@ describe("buildDaySummary", () => {
   it("reports capacity used against the daily cap", () => {
     expect(s.capacityUsedPct).toBe(29); // round(4/14*100)
   });
+
+  it("counts a bare-status row as expected, matching the feed's Booked fallback", () => {
+    const bare = buildDaySummary([bk({ slot: "09:00" })], null);
+    expect(bare.total).toBe(1);
+    expect(bare.expected).toBe(1);
+    expect(bare.arrived).toBe(0);
+  });
 });
 
 describe("buildImmediateAttention", () => {
@@ -491,6 +501,194 @@ describe("buildTodayFeed", () => {
     const attn = new Set(buildImmediateAttention(sample, NOW_SUMMER).map((i) => i.booking.id));
     const flagged = new Set(buildTodayFeed(sample, NOW_SUMMER).filter((e) => e.needsAction).map((e) => e.booking.id));
     expect(flagged).toEqual(attn);
+  });
+});
+
+describe("entryOpStatus — one priority order for rails, labels and actions", () => {
+  /** Minimal TodayFeedEntry with sensible defaults. */
+  const fe = (over: Record<string, unknown>) => ({
+    booking: bk({ id: "x" }),
+    slotMinutes: 540,
+    stage: "booked",
+    isNext: false,
+    isLate: false,
+    isUnconfirmed: false,
+    owes: false,
+    needsAction: false,
+    overdueMinutes: 0,
+    waitMinutes: null,
+    ...over,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+
+  it("ranks late above everything, even a ready or owing dog", () => {
+    expect(entryOpStatus(fe({ isLate: true, isUnconfirmed: true, owes: true })).kind).toBe("overdue");
+    expect(entryOpStatus(fe({ isLate: true })).tone).toBe("coral");
+  });
+
+  it("a collected dog that still owes is a payment issue, not 'done'", () => {
+    const s = entryOpStatus(fe({ stage: "collected", owes: true }));
+    expect(s.kind).toBe("paymentDue");
+    expect(s.tone).toBe("coral");
+  });
+
+  it("a settled collected dog fades to muted", () => {
+    const s = entryOpStatus(fe({ stage: "collected", owes: false }));
+    expect(s.kind).toBe("collected");
+    expect(s.tone).toBe("muted");
+  });
+
+  it("unconfirmed beats ready/inSalon states but not late", () => {
+    expect(entryOpStatus(fe({ isUnconfirmed: true })).kind).toBe("unconfirmed");
+    expect(entryOpStatus(fe({ isUnconfirmed: true })).tone).toBe("amber");
+  });
+
+  it("splits calm-ready from ready-waiting via needsAction", () => {
+    expect(entryOpStatus(fe({ stage: "ready", needsAction: false })).kind).toBe("ready");
+    expect(entryOpStatus(fe({ stage: "ready", needsAction: true })).kind).toBe("readyWaiting");
+    expect(entryOpStatus(fe({ stage: "ready", needsAction: true })).tone).toBe("amber");
+  });
+
+  it("in-salon and next/upcoming map to calm tones", () => {
+    expect(entryOpStatus(fe({ stage: "inSalon" })).tone).toBe("cyan");
+    expect(entryOpStatus(fe({ isNext: true })).kind).toBe("next");
+    expect(entryOpStatus(fe({ isNext: true })).tone).toBe("teal");
+    expect(entryOpStatus(fe({})).kind).toBe("upcoming");
+  });
+
+  it("urgency strictly increases down the priority order", () => {
+    const order = [
+      fe({ isLate: true }),
+      fe({ stage: "collected", owes: true }),
+      fe({ isUnconfirmed: true }),
+      fe({ stage: "ready", needsAction: true }),
+      fe({ stage: "ready" }),
+      fe({ stage: "inSalon" }),
+      fe({ isNext: true }),
+      fe({}),
+      fe({ stage: "collected" }),
+    ].map((e) => entryOpStatus(e).urgency);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(new Set(order).size).toBe(order.length);
+  });
+});
+
+describe("selectNowNext — the sticky strip's brain", () => {
+  // NOW_SUMMER is 10:15 London. Feed built from real bookings so the flags
+  // come from buildTodayFeed, not hand-set.
+  const feedOf = (bookings: Booking[]) => buildTodayFeed(bookings, NOW_SUMMER);
+
+  it("picks the most urgent booking first (late beats unconfirmed)", () => {
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "late", _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "Amber" }),
+        bk({ id: "unconf", _bookingDate: TODAY, slot: "11:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp" }),
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("late");
+    expect(sel.nowReason).toBe("urgent");
+  });
+
+  it("breaks late ties by most overdue", () => {
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "l1", _bookingDate: TODAY, slot: "09:30", status: "Booked" }),
+        bk({ id: "l2", _bookingDate: TODAY, slot: "08:30", status: "Booked" }),
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("l2");
+  });
+
+  it("falls back to the next arrival once it's due within the window", () => {
+    // 10:15 now; 10:30 is 15 min away — due soon. 13:00 is not.
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "soon", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
+        bk({ id: "later", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("soon");
+    expect(sel.nowReason).toBe("dueSoon");
+    expect(sel.next?.booking.id).toBe("later");
+  });
+
+  it("does not treat a distant next arrival as NOW; shows the live dog instead", () => {
+    const mins = DUE_SOON_MINUTES + 30; // 13:00 slot vs 10:15 now = 165 min out
+    expect(mins).toBeGreaterThan(DUE_SOON_MINUTES);
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "far", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
+        bk({ id: "bath", _bookingDate: TODAY, slot: "09:30", status: "In bath" }),
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("bath");
+    expect(sel.nowReason).toBe("active");
+    expect(sel.next?.booking.id).toBe("far");
+  });
+
+  it("a calm ready dog outranks an in-progress one as the active NOW", () => {
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "bath", _bookingDate: TODAY, slot: "09:00", status: "In bath" }),
+        bk({ id: "rdy", _bookingDate: TODAY, slot: "09:30", status: "Ready for pick-up", readyAt: "2026-07-02T09:10:00Z" }), // 5 min wait — calm
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("rdy");
+    expect(sel.readyCount).toBe(1);
+  });
+
+  it("UP NEXT prefers an unconfirmed arrival over an earlier settled one", () => {
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "now", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
+        bk({ id: "plain", _bookingDate: TODAY, slot: "11:00", status: "Booked" }),
+        bk({ id: "chase", _bookingDate: TODAY, slot: "12:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp" }),
+      ]),
+      NOW_SUMMER,
+    );
+    // The unconfirmed booking is urgent, so it IS the NOW; next is the due-soon arrival.
+    expect(sel.now?.booking.id).toBe("chase");
+    expect(sel.next?.booking.id).toBe("now");
+  });
+
+  it("a collected-but-unpaid dog resurfaces as NOW; a settled one never does", () => {
+    const owing = selectNowNext(
+      feedOf([bk({ id: "c", _bookingDate: TODAY, slot: "08:30", status: "Completed", payment: "Due at Pick-up", service: "full-groom", size: "small" })]),
+      NOW_SUMMER,
+    );
+    expect(owing.now?.booking.id).toBe("c");
+    expect(owing.nowReason).toBe("urgent");
+
+    const settled = selectNowNext(
+      feedOf([bk({ id: "c", _bookingDate: TODAY, slot: "08:30", status: "Completed", payment: "Paid in Full" })]),
+      NOW_SUMMER,
+    );
+    expect(settled.now).toBeNull();
+    expect(settled.next).toBeNull();
+  });
+
+  it("with nothing live, the day's first still-expected arrival is NOW (never a false 'all done')", () => {
+    // 10:15 now; the only bookings are hours away — the first one is still NOW.
+    const sel = selectNowNext(
+      feedOf([
+        bk({ id: "b", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
+        bk({ id: "a", _bookingDate: TODAY, slot: "12:30", status: "Booked" }),
+      ]),
+      NOW_SUMMER,
+    );
+    expect(sel.now?.booking.id).toBe("a");
+    expect(sel.nowReason).toBe("upcoming");
+    expect(sel.next?.booking.id).toBe("b");
+  });
+
+  it("empty feed → nothing now, nothing next, zero ready", () => {
+    const sel = selectNowNext([], NOW_SUMMER);
+    expect(sel).toEqual({ now: null, nowReason: null, next: null, readyCount: 0 });
   });
 });
 

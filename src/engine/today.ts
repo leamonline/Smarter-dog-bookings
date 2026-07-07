@@ -374,7 +374,9 @@ export function buildDaySummary(
   let collected = 0;
   let unpaidCount = 0;
   for (const b of countable) {
-    const rank = statusRank(b.status);
+    // A countable row with a missing/unknown status renders as "Booked" in the
+    // feed (STAGE_BY_RANK fallback), so the summary must count it the same way.
+    const rank = Math.max(0, statusRank(b.status));
     if (rank === 0) expected++;
     if (rank >= 1) arrived++;
     if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) ready++;
@@ -689,6 +691,154 @@ export function buildTodayFeed(
   const nextIdx = entries.findIndex((e) => e.stage === "booked" && !e.isLate);
   if (nextIdx >= 0) entries[nextIdx].isNext = true;
   return entries;
+}
+
+// ---- Operational priority (one rule for rails, labels, actions, Now strip) ----
+
+/**
+ * A feed entry's single highest-priority operational state, most urgent first.
+ * This is THE priority order — the card's accent rail, its status label, its
+ * primary action and the sticky Now strip all read from it, so they can never
+ * disagree about what matters most on a booking.
+ */
+export type OpStatusKind =
+  | "overdue" // still Booked, slot passed + grace
+  | "paymentDue" // collected (or gone) but still owes — money at risk
+  | "unconfirmed" // reminder sent, no reply, not yet arrived
+  | "readyWaiting" // ready and waiting long enough to chase
+  | "ready" // freshly ready — calm
+  | "inSalon" // checked in / in bath
+  | "next" // the next expected arrival
+  | "upcoming" // booked, later today
+  | "collected"; // done — fades out
+
+/** Colour token, not a class: components map tones to the brand palette. */
+export type OpTone = "coral" | "amber" | "emerald" | "cyan" | "teal" | "neutral" | "muted";
+
+export interface OpStatus {
+  kind: OpStatusKind;
+  tone: OpTone;
+  /** Short human status, e.g. "Late" / "Needs confirmation" — never colour alone. */
+  label: string;
+  /** Lower = more urgent. Shared by the feed chips and the Now strip. */
+  urgency: number;
+}
+
+const OP_STATUS: Record<OpStatusKind, Omit<OpStatus, "kind">> = {
+  overdue: { tone: "coral", label: "Late", urgency: 0 },
+  paymentDue: { tone: "coral", label: "Payment due", urgency: 1 },
+  unconfirmed: { tone: "amber", label: "Needs confirmation", urgency: 2 },
+  readyWaiting: { tone: "amber", label: "Ready — chase collection", urgency: 3 },
+  ready: { tone: "emerald", label: "Ready to collect", urgency: 4 },
+  inSalon: { tone: "cyan", label: "In salon", urgency: 5 },
+  next: { tone: "teal", label: "Next", urgency: 6 },
+  upcoming: { tone: "neutral", label: "Booked", urgency: 7 },
+  collected: { tone: "muted", label: "Collected", urgency: 8 },
+};
+
+function opKindOf(entry: TodayFeedEntry): OpStatusKind {
+  if (entry.isLate) return "overdue";
+  if (entry.stage === "collected") return entry.owes ? "paymentDue" : "collected";
+  if (entry.isUnconfirmed) return "unconfirmed";
+  if (entry.stage === "ready") return entry.needsAction ? "readyWaiting" : "ready";
+  if (entry.stage === "inSalon") return "inSalon";
+  return entry.isNext ? "next" : "upcoming";
+}
+
+/** The one place a booking's operational priority is decided. */
+export function entryOpStatus(entry: TodayFeedEntry): OpStatus {
+  const kind = opKindOf(entry);
+  return { kind, ...OP_STATUS[kind] };
+}
+
+// ---- The sticky "Now / Up next" strip -----------------------------------------
+
+/** A booked dog counts as "due soon" this many minutes before its slot. */
+export const DUE_SOON_MINUTES = 45;
+
+export type NowReason = "urgent" | "dueSoon" | "active" | "upcoming" | null;
+
+export interface NowNextSelection {
+  /** The most operationally relevant booking right now (null = nothing live). */
+  now: TodayFeedEntry | null;
+  nowReason: NowReason;
+  /** The next expected arrival after `now` — an unconfirmed one wins. */
+  next: TodayFeedEntry | null;
+  /** Dogs currently waiting to be collected (drives the calm empty state). */
+  readyCount: number;
+}
+
+/**
+ * Pick the strip's NOW and UP NEXT bookings from the feed.
+ *
+ * NOW, in order: (1) the most urgent actionable entry (late → unpaid-collected
+ * → unconfirmed-due-soon → ready-waiting, ties broken by most overdue /
+ * longest wait); (2) the next arrival once it's due within DUE_SOON_MINUTES;
+ * (3) the calm live booking — a ready dog first, else the dog longest in the
+ * salon; (4) with nothing live at all, the day's first still-expected arrival
+ * (an empty NOW while arrivals are still scheduled would read as a finished
+ * day). Collected dogs never come back as NOW unless they still owe.
+ *
+ * UP NEXT: the earliest still-expected arrival after NOW; if any of those
+ * still needs confirmation the earliest unconfirmed one wins (it has an
+ * action worth taking).
+ */
+export function selectNowNext(entries: TodayFeedEntry[], now: Date): NowNextSelection {
+  const live = entries.filter((e) => entryOpStatus(e).kind !== "collected");
+  const readyCount = entries.filter((e) => e.stage === "ready").length;
+
+  // 1) Urgent: anything the attention queue would rank, most urgent first.
+  const urgentKinds: OpStatusKind[] = ["overdue", "paymentDue", "unconfirmed", "readyWaiting"];
+  const urgent = live
+    .filter((e) => urgentKinds.includes(entryOpStatus(e).kind))
+    .sort((a, b) => {
+      const ua = entryOpStatus(a).urgency;
+      const ub = entryOpStatus(b).urgency;
+      if (ua !== ub) return ua - ub;
+      if (a.isLate) return b.overdueMinutes - a.overdueMinutes;
+      if (a.stage === "ready") return (b.waitMinutes ?? -1) - (a.waitMinutes ?? -1);
+      return a.slotMinutes - b.slotMinutes;
+    });
+
+  const upcoming = live
+    .filter((e) => e.stage === "booked" && !e.isLate)
+    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+
+  let nowEntry: TodayFeedEntry | null = null;
+  let nowReason: NowReason = null;
+
+  if (urgent.length > 0) {
+    nowEntry = urgent[0];
+    nowReason = "urgent";
+  } else {
+    // 2) Due soon: the next arrival, once it's close enough to matter.
+    const nowMins = londonNowParts(now).minutesOfDay;
+    const dueSoon = upcoming.find((e) => e.slotMinutes - nowMins <= DUE_SOON_MINUTES);
+    if (dueSoon) {
+      nowEntry = dueSoon;
+      nowReason = "dueSoon";
+    } else {
+      // 3) Active: a ready dog beats an in-progress one (it has a next step).
+      const active =
+        live.find((e) => e.stage === "ready") ??
+        live
+          .filter((e) => e.stage === "inSalon")
+          .sort((a, b) => a.slotMinutes - b.slotMinutes)[0];
+      if (active) {
+        nowEntry = active;
+        nowReason = "active";
+      } else if (upcoming.length > 0) {
+        // 4) A quiet moment before the day starts — the first arrival IS "now".
+        nowEntry = upcoming[0];
+        nowReason = "upcoming";
+      }
+    }
+  }
+
+  const laterArrivals = upcoming.filter((e) => e !== nowEntry);
+  const nextEntry = laterArrivals.find((e) => e.isUnconfirmed) ?? laterArrivals[0] ?? null;
+
+  return { now: nowEntry, nowReason, next: nextEntry, readyCount };
 }
 
 // ---- Takings by method (improvement #3 — till view) --------------------------

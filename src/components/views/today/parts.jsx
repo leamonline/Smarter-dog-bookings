@@ -108,6 +108,43 @@ export function CompactZeroState({ children }) {
   );
 }
 
+// ---- Operational-priority tones -------------------------------------------------
+// The engine (entryOpStatus in engine/today.ts) decides WHICH tone a booking
+// gets; these maps decide what each tone LOOKS like. One rail + one chip class
+// per tone, so the accent bar, the status chip and the Now strip always match.
+
+/** Left accent rail fill per operational tone. */
+export const RAIL_TONE_CLASS = {
+  coral: "bg-brand-coral",
+  amber: "bg-amber-400",
+  emerald: "bg-emerald-500",
+  cyan: "bg-brand-cyan",
+  teal: "bg-brand-teal",
+  neutral: "bg-slate-200",
+  muted: "bg-slate-300",
+};
+
+/** Pale tint + AA text per operational tone (chip/label backgrounds). */
+export const CHIP_TONE_CLASS = {
+  coral: "bg-brand-coral/10 text-brand-coral-text",
+  amber: "bg-amber-50 text-amber-800",
+  emerald: "bg-emerald-50 text-emerald-700",
+  cyan: "bg-cyan-50 text-cyan-800",
+  teal: "bg-brand-teal/15 text-brand-teal-text",
+  neutral: "bg-slate-100 text-slate-600",
+  muted: "bg-slate-100 text-slate-500",
+};
+
+/** The single highest-priority status chip for a booking (engine-decided). */
+export function OpStatusChip({ opStatus }) {
+  if (!opStatus) return null;
+  return (
+    <Chip dot className={CHIP_TONE_CLASS[opStatus.tone] || CHIP_TONE_CLASS.neutral}>
+      {opStatus.label}
+    </Chip>
+  );
+}
+
 /**
  * The one status-chip pattern for this page: pale tint + AA text + a leading
  * dot or glyph, so no status ever leans on colour alone. Colours come in via
@@ -133,16 +170,6 @@ export function StatusPill({ status }) {
     <Chip dot className="whitespace-nowrap" style={{ background: d.bg, color: d.color }}>
       {d.label}
     </Chip>
-  );
-}
-
-/** Collection-message state — the same chip whichever card shows it. */
-export function MessageStateChip({ sentAt }) {
-  const time = formatLondonTime(sentAt);
-  return time ? (
-    <Chip icon="✓" className="bg-emerald-50 text-emerald-700 whitespace-nowrap">Message sent {time}</Chip>
-  ) : (
-    <Chip dot className="bg-amber-50 text-amber-800 whitespace-nowrap">Owner not messaged yet</Chip>
   );
 }
 
@@ -193,21 +220,29 @@ function PaymentFact({ pay }) {
 
 /**
  * The canonical status line — every booking card on the Today page shows the
- * same facts in the same order: status + since-time, wait duration, message
- * state, payment due. Card-specific extras (pick-up time, "on the way",
- * notes) append via children. `showWaitWord={false}` drops the word
- * "waiting" where the card's headline already says "Waiting for collection".
+ * same facts in the same order: status + since-time, wait duration, payment
+ * due. Card-specific extras (pick-up time, "on the way", notes) append via
+ * children. `showWaitWord={false}` drops the word "waiting" where the card's
+ * headline already says "Waiting for collection". Whether the collection
+ * message has gone out is NOT restated here — the primary action already
+ * carries that fact ("Send collection message" vs "Mark collected"/"Resend
+ * message"), so a separate chip would just repeat it.
  */
 export function BookingStatusLine({ booking, waitMinutes = null, pay = null, showWaitWord = true, children }) {
   const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
   const inSalon = booking.status === BOOKING_STATUS.CHECKED_IN || booking.status === BOOKING_STATUS.IN_BATH;
   const since = formatLondonTime(isReady ? booking.readyAt : inSalon ? booking.checkedInAt : null);
+  // "Booked" (incl. a missing/unknown status, which defaults to it) is the
+  // page's default resting state — every card is Booked until something
+  // happens, so the pill said nothing the position-in-the-list + rail
+  // colour didn't already. Checked in / In bath / Ready / Completed keep
+  // the pill: it's their only text label, and colour alone isn't enough.
+  const isBooked = !booking.status || booking.status === BOOKING_STATUS.BOOKED;
   return (
     <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-[13px] text-slate-600">
-      <StatusPill status={booking.status} />
+      {!isBooked && <StatusPill status={booking.status} />}
       {since && <span>since {since}</span>}
       {isReady && <WaitBadge minutes={waitMinutes} withWord={showWaitWord} />}
-      {isReady && <MessageStateChip sentAt={booking.collectionSentAt} />}
       <PaymentFact pay={pay} />
       {children}
     </div>
