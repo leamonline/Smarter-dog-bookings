@@ -3,10 +3,16 @@ import { supabase } from "../client.js";
 import { CHANNELS, uniqueChannelName } from "../realtimeChannels";
 import { toDateStr } from "../transforms";
 import { logger } from "../../lib/logger";
+import { BOOKING_STATUS } from "../../constants/salon";
 
-function groupByDate(rows) {
+const isCancelled = (row) => row?.status === BOOKING_STATUS.CANCELLED;
+
+// Exported for tests. Cancelled rows are soft-deletes that free their seat,
+// so they must not inflate the month grid's per-day counts.
+export function groupByDate(rows) {
   const grouped = {};
   for (const row of rows) {
+    if (isCancelled(row)) continue;
     const dateKey = row.booking_date;
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(row);
@@ -41,7 +47,7 @@ export function useMonthBookings(year, month) {
 
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, booking_date")
+        .select("id, booking_date, status")
         .gte("booking_date", startStr)
         .lte("booking_date", endStr)
         .abortSignal(controller.signal);
@@ -71,6 +77,7 @@ export function useMonthBookings(year, month) {
         (payload) => {
           const row = payload.new;
           if (row.booking_date < startStr || row.booking_date > endStr) return;
+          if (isCancelled(row)) return;
           setBookingsByDate((prev) => {
             const dateKey = row.booking_date;
             const existing = (prev[dateKey] || []).filter((b) => b.id !== row.id);
@@ -105,7 +112,11 @@ export function useMonthBookings(year, month) {
             }
             const dateKey = newRow.booking_date;
             const existing = (next[dateKey] || []).filter((b) => b.id !== newRow.id);
-            next[dateKey] = [...existing, { id: newRow.id, booking_date: newRow.booking_date }];
+            // A cancellation is an UPDATE to status — it frees the seat, so
+            // drop the row instead of re-adding it.
+            next[dateKey] = isCancelled(newRow)
+              ? existing
+              : [...existing, { id: newRow.id, booking_date: newRow.booking_date }];
             return next;
           });
         },
