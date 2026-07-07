@@ -81,9 +81,22 @@ describe("BookingStatusLine", () => {
         pay={{ kind: "due", label: "Balance due", amountDue: 55, depositPaid: 0, subtotal: 55 }}
       />,
     );
-    expect(screen.getByText("Booked")).toBeInTheDocument();
     expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
     expect(screen.getByText(/£55 due at pick-up/)).toBeInTheDocument();
+  });
+
+  it("suppresses the 'Booked' pill — the default resting state adds no information — but keeps it for every other status", () => {
+    const { rerender } = render(<BookingStatusLine booking={{ status: "Booked" }} />);
+    expect(screen.queryByText("Booked")).not.toBeInTheDocument();
+
+    rerender(<BookingStatusLine booking={{}} />);
+    expect(screen.queryByText("Booked")).not.toBeInTheDocument();
+
+    rerender(<BookingStatusLine booking={{ status: "Checked in" }} />);
+    expect(screen.getByText("Checked in")).toBeInTheDocument();
+
+    rerender(<BookingStatusLine booking={{ status: "Completed" }} />);
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 });
 

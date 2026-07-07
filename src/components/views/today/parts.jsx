@@ -239,9 +239,15 @@ export function BookingStatusLine({ booking, waitMinutes = null, pay = null, sho
   const isReady = booking.status === BOOKING_STATUS.READY_FOR_PICKUP;
   const inSalon = booking.status === BOOKING_STATUS.CHECKED_IN || booking.status === BOOKING_STATUS.IN_BATH;
   const since = formatLondonTime(isReady ? booking.readyAt : inSalon ? booking.checkedInAt : null);
+  // "Booked" (incl. a missing/unknown status, which defaults to it) is the
+  // page's default resting state — every card is Booked until something
+  // happens, so the pill said nothing the position-in-the-list + rail
+  // colour didn't already. Checked in / In bath / Ready / Completed keep
+  // the pill: it's their only text label, and colour alone isn't enough.
+  const isBooked = !booking.status || booking.status === BOOKING_STATUS.BOOKED;
   return (
     <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-1 text-[13px] text-slate-600">
-      <StatusPill status={booking.status} />
+      {!isBooked && <StatusPill status={booking.status} />}
       {since && <span>since {since}</span>}
       {isReady && <WaitBadge minutes={waitMinutes} withWord={showWaitWord} />}
       {isReady && <MessageStateChip sentAt={booking.collectionSentAt} />}
