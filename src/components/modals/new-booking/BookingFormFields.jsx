@@ -23,7 +23,7 @@ export function BookingFormFields({
 
       {/* ─── STEP 2: Date Selection ─── */}
       {hasDogs && (
-        <div>
+        <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
           <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Choose a Date</label>
           <AvailabilityCalendar
             bookingsByDate={bookingsByDate}
@@ -38,7 +38,7 @@ export function BookingFormFields({
 
       {/* ─── STEP 3: Time Slot Selection ─── */}
       {selectedDateStr && hasDogs && (
-        <div>
+        <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
           <label className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">
             Available Times — {selectedDateDisplay}
           </label>
@@ -62,7 +62,7 @@ export function BookingFormFields({
 
       {/* ─── STEP 4: Recurring (Optional) ─── */}
       {hasDogs && selectedDateStr && selectedSlot && (
-        <div className="mb-4">
+        <div>
           <label htmlFor="recurring-weeks-select" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Repeat Booking (Optional)</label>
           <select
             id="recurring-weeks-select"

@@ -105,8 +105,14 @@ export function DogSearchSection({
                     {titleCase(entry.dog.name)}
                     {entry.dog.alerts?.length > 0 && <span className="ml-1.5">⚠️</span>}
                   </div>
-                  <div className="text-[11px] text-slate-800">
-                    {titleCase(entry.dog.breed)} · {entry.dog.size || "small"} · {titleCase(entry.humanKey)}
+                  <div className="text-[11px] text-slate-800 flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-white/80"
+                      style={{ color: dogTheme.primary }}
+                    >
+                      {entry.dog.size || "small"}
+                    </span>
+                    <span>{titleCase(entry.dog.breed)} · {titleCase(entry.humanKey)}</span>
                   </div>
                   {entry.dog.alerts?.length > 0 && (
                     <div className="text-[10px] text-brand-coral font-semibold mt-px">
@@ -187,7 +193,7 @@ export function DogSearchSection({
 
           {/* Same-owner dog picker */}
           {addingAnotherDog && (
-            <div className="bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+            <div className="bg-white border border-brand-paper-line rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
               <div className="px-3 py-2 text-[11px] font-bold text-slate-500 border-b border-slate-200">
                 {titleCase(selectedHumanKey)}'s other dogs
               </div>
@@ -251,14 +257,14 @@ export function DogSearchSection({
 
             {/* Searching indicator — only when no local results */}
             {isSearchingDogs && dogQuery.trim().length > 0 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-3.5 py-3 text-[13px] text-slate-500 italic">
                 Looking for matches…
               </div>
             )}
 
             {/* Dropdown results — one card per dog, humans nested inside */}
             {filteredEntries.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] max-h-[320px] overflow-auto">
                 {filteredEntries.map((entry, idx) => {
                   const primaryHuman = entry.humans[0];
                   const selectPrimary = () =>
@@ -343,7 +349,7 @@ export function DogSearchSection({
 
             {/* No results + add buttons */}
             {!isSearchingDogs && dogQuery.trim().length >= 2 && filteredEntries.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border-[1.5px] border-slate-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
+              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-brand-paper-line rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-3.5">
                 <div className="text-[13px] text-slate-500 mb-2.5">
                   Can't find anyone with "{dogQuery}" — try another name
                 </div>

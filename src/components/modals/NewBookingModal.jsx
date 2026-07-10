@@ -739,7 +739,6 @@ export function NewBookingModal({
           dogEntries={dogEntries}
           selectedDateStr={selectedDateStr}
           selectedSlot={selectedSlot}
-          primaryTheme={primaryTheme}
           error={error}
           onConfirm={handleConfirm}
           onClose={onClose}

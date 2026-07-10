@@ -11,7 +11,6 @@ export function BookingActions({
   dogEntries,
   selectedDateStr,
   selectedSlot,
-  primaryTheme,
   error,
   onConfirm,
   onClose,
@@ -22,7 +21,7 @@ export function BookingActions({
     : "Confirm Booking";
 
   return (
-    <div className="shrink-0 px-6 pt-3 pb-5 border-t border-slate-100 bg-[var(--color-brand-paper)] max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+    <div className="shrink-0 px-6 pt-3 pb-5 border-t border-brand-paper-line bg-[var(--color-brand-paper)] max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
       {/* ─── Error — stays pinned by the action, never off-screen ─── */}
       {error && (
         <div role="status" aria-live="polite" className="text-[13px] text-brand-coral font-semibold bg-brand-coral-light px-3.5 py-2.5 rounded-control mb-3">
@@ -35,13 +34,7 @@ export function BookingActions({
         <button
           onClick={onConfirm}
           disabled={!ready}
-          className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
-          style={{
-            background: ready ? primaryTheme.gradient[0] : undefined,
-            color: ready ? primaryTheme.headerText : undefined,
-          }}
-          onMouseEnter={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.primary; }}
-          onMouseLeave={(e) => { if (ready) e.currentTarget.style.background = primaryTheme.gradient[0]; }}
+          className="flex-1 py-[13px] rounded-xl border-none font-bold text-sm cursor-pointer font-inherit transition-all active:scale-[0.98] motion-safe:transition-transform bg-brand-teal text-white hover:bg-brand-teal-dark disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed"
         >
           {label}
         </button>
