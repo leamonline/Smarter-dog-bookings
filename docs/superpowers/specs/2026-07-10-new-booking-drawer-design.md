@@ -82,7 +82,11 @@ All plumbing lives in `App.jsx`, which already owns both the day view and the
   `NewBookingModal` as a prop.
 - While `showNewBooking` is open, the day view's empty-seat / "+ Book" / time-click
   handlers are routed to `setDraftPick({...})` instead of `setShowNewBooking({...})`.
-  A day click in the week strip or mini calendar sets `draftPick` with `slot: ""`.
+  Day clicks in the week strip / mini calendar only navigate the calendar —
+  they do NOT move the draft. (Amended during planning: staff peeking at
+  another day to compare must not wipe an already-chosen date+slot. Only
+  explicit slot-level picks — "+ Book", a ghost seat, the slot menu — feed
+  the draft.)
 - Inside `NewBookingModal`, an effect applies incoming picks: set `selectedDateStr`; if the
   pick carries a slot, set `selectedSlot`, else clear it (matching the existing
   date-change-resets-slot behaviour). The `nonce` (monotonic counter) makes re-clicking the
