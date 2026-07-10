@@ -168,3 +168,21 @@ All plumbing lives in `App.jsx`, which already owns both the day view and the
   drawer) and race-free.
 - **Stacking:** the drawer must not swallow the follow-up dialogs; verified by z-index
   ordering and a manual pass through the save flow.
+
+## 6. Iteration 2 — quiet open + two avenues (2026-07-10, post-PR-521 feedback)
+
+Bleep's feedback on the built drawer: (a) the search must not show a pre-filled
+customer/dog list on open; (b) "New customer" must hold as much weight as the
+search bar — two clear avenues for returning vs new customers.
+
+- **Quiet open:** with an empty query the results dropdown renders nothing
+  (`filteredEntries` returns `[]`); the list appears only once staff type.
+- **Two stacked avenue cards** in the Who section: card 1 "Returning customer"
+  holds the search input (still auto-focused); card 2 is a card-weight button
+  "New customer" (subtitle: set them up & take their first booking) straight
+  into the New Client wizard. Chosen over an "or"-divider (frames new customer
+  as fallback) and over a pick-first fork (adds a click to the dominant
+  returning-customer path and loses auto-focus).
+- The small header "New customer" chip and the persistent "Can't find them?"
+  row are removed from the resting state; the no-results panel keeps its
+  "+ New Dog" and "New customer" escape hatches mid-search.

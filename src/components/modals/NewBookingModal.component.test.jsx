@@ -110,6 +110,11 @@ describe("NewBookingModal — cold-start continuity (Fix A)", () => {
 
   it("hands the in-progress draft (date + slot) up when '+ New Dog' is clicked", () => {
     const props = renderModal();
+    // "+ New Dog" lives in the no-results panel — the resting state is the
+    // two-avenue choice (search / New customer) — so run a failed search first.
+    fireEvent.change(screen.getByPlaceholderText(/start typing a dog's name/i), {
+      target: { value: "zzz" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "+ New Dog" }));
     expect(props.onOpenAddDog).toHaveBeenCalledTimes(1);
     expect(props.onOpenAddDog).toHaveBeenCalledWith(

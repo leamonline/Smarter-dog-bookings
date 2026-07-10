@@ -46,8 +46,10 @@ export function DogSearchSection({
   // One entry per dog; owner + trusted humans are nested inside `entry.humans`.
   const filteredEntries = useMemo(() => {
     if (hasDogs) return [];
+    // Quiet open: no pre-filled roster. Results appear only once staff
+    // actually type — the resting state is the two-avenue choice below.
+    if (!dogQuery.trim()) return [];
     const all = buildSearchEntries(dogs, humans);
-    if (!dogQuery.trim()) return all.slice(0, 8);
     const q = dogQuery.toLowerCase().trim();
     return all.filter(e =>
       e.dog.name?.toLowerCase().includes(q) ||
@@ -230,19 +232,14 @@ export function DogSearchSection({
           )}
         </div>
       ) : (
-        <div>
-          {/* Search an existing dog/owner, or jump straight into the guided
-              New Client wizard for a brand-new customer. The wizard button is
-              always visible here so staff never have to fail a search first. */}
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide">Search Dog</label>
-            <button
-              type="button"
-              onClick={() => onOpenNewClient?.()}
-              className="shrink-0 py-1 px-2.5 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-teal/5"
-            >New customer</button>
-          </div>
-          <div className="relative">
+        <div className="flex flex-col gap-2.5">
+          {/* Two equal avenues, card for card. Returning customers: the
+              search (auto-focused, results only once staff type). Brand-new
+              customers: straight into the guided New Client wizard. Neither
+              path reads as the afterthought. */}
+          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-[#E6F5F2] p-3 flex flex-col justify-center">
+            <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
+            <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
               <IconSearch size={15} colour="#6B7280" />
             </div>
@@ -363,29 +360,23 @@ export function DogSearchSection({
                 </div>
               </div>
             )}
+            </div>
           </div>
 
-          {/* Persistent "can't find them?" row so the create paths
-              never hide behind a failed search. The only state that
-              suppresses it is the bigger "no matches" panel that
-              already surfaces the same CTAs in expanded form. */}
-          {!(dogQuery.trim().length >= 2 && filteredEntries.length === 0 && !isSearchingDogs) && (
-            <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500">
-              <span>Can't find them?</span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onOpenAddDog?.()}
-                  className="py-1 px-2 rounded-md border border-brand-cyan/40 bg-white text-brand-cyan text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-cyan/5"
-                >+ New Dog</button>
-                <button
-                  type="button"
-                  onClick={() => onOpenNewClient?.()}
-                  className="py-1 px-2 rounded-md border border-brand-teal/40 bg-white text-brand-teal-text text-[11px] font-bold cursor-pointer font-inherit hover:bg-brand-teal/5"
-                >New customer</button>
-              </div>
-            </div>
-          )}
+          {/* The second avenue: a card-weight button into the guided New
+              Client wizard. aria-label pins the accessible name to "New
+              customer" (the subtitle is decoration, hidden from AT). */}
+          <button
+            type="button"
+            onClick={() => onOpenNewClient?.()}
+            aria-label="New customer"
+            className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
+          >
+            <span className="text-[11px] font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
+            <span aria-hidden="true" className="text-[13px] text-[#5C4600]/75 block">
+              Set them up & take their first booking
+            </span>
+          </button>
         </div>
       )}
     </div>
