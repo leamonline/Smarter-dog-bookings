@@ -30,7 +30,6 @@ import {
   groupFeedBySlot,
   buildFutureDayFeed,
   countDogsPerOwner,
-  type FeedSlotGroup,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
 import type { Booking, Dog } from "../types/index";
