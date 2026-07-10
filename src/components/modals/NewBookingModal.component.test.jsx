@@ -319,4 +319,18 @@ describe("live calendar link — draftPick", () => {
     await waitFor(() => expect(getSubtitle()?.textContent).toMatch(/12 Jan/));
     expect(getSubtitle()?.textContent).not.toMatch(/9:00am/);
   });
+
+  it("reports the draft's real target upward via onDraftTargetChange", async () => {
+    const onDraftTargetChange = vi.fn();
+    const props = { ...draftProps(), onDraftTargetChange };
+    render(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={null} />
+      </ToastProvider>,
+    );
+    // Prefilled open (initialDateStr + initialSlot) reports immediately.
+    await waitFor(() =>
+      expect(onDraftTargetChange).toHaveBeenCalledWith({ dateStr: OPEN_DATE, slot: "09:00" }),
+    );
+  });
 });

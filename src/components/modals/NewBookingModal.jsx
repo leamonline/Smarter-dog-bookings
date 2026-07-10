@@ -58,6 +58,7 @@ export function NewBookingModal({
   onSearchDogs,
   isSearchingDogs,
   draftPick,
+  onDraftTargetChange,
 }) {
   const toast = useToast();
 
@@ -214,6 +215,18 @@ export function NewBookingModal({
     setSelectedSlot(draftPick.slot || "");
     setError("");
   }, [draftPick]);
+
+  // Report the draft's true target up to App so the day view's "Booking
+  // here" chip tracks the drawer's REAL selection — including in-drawer
+  // picks and prefilled opens — not just calendar-originated picks.
+  useEffect(() => {
+    if (!onDraftTargetChange) return;
+    onDraftTargetChange(
+      selectedDateStr && selectedSlot
+        ? { dateStr: selectedDateStr, slot: selectedSlot }
+        : null,
+    );
+  }, [selectedDateStr, selectedSlot, onDraftTargetChange]);
 
   const hasDogs = dogEntries.length > 0;
   // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on

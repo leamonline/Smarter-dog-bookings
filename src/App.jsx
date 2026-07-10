@@ -329,6 +329,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // sessionKey remounts the drawer so its one-shot prefill refs run again
   // (they'd otherwise silently ignore the new prefill).
   const [draftPick, setDraftPick] = useState(null);
+  const [draftTarget, setDraftTarget] = useState(null);
   const draftNonceRef = useRef(0);
   const bookingSessionRef = useRef(0);
 
@@ -351,6 +352,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       }
       bookingSessionRef.current += 1;
       setDraftPick(null);
+      setDraftTarget(null);
       setShowNewBooking({ ...req, sessionKey: bookingSessionRef.current });
     },
     [showNewBooking, setShowNewBooking],
@@ -748,6 +750,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       setPendingBooking(draft || null);
       setShowNewBooking(null);
       setDraftPick(null);
+      setDraftTarget(null);
       dogsClearSearch();
       setShowAddDogModal(true);
     },
@@ -1096,7 +1099,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       setShowDatePicker={setShowDatePicker}
                       handleDatePick={handleDatePick}
                       setShowNewBooking={requestNewBooking}
-                      draftPick={showNewBooking ? draftPick : null}
+                      draftPick={showNewBooking ? draftTarget : null}
                       onOpenHuman={handleOpenHuman}
                       onRefresh={refetchBookings}
                     />
@@ -1211,9 +1214,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                 <NewBookingModal
                   key={showNewBooking.sessionKey}
                   draftPick={draftPick}
+                  onDraftTargetChange={setDraftTarget}
                   onClose={() => {
                     setShowNewBooking(null);
                     setDraftPick(null);
+                    setDraftTarget(null);
                     dogsClearSearch();
                   }}
                   onAdd={commitBookingList}
@@ -1238,6 +1243,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     // so nothing in-progress is lost by closing the booking modal.
                     setShowNewBooking(null);
                     setDraftPick(null);
+                    setDraftTarget(null);
                     dogsClearSearch();
                     setShowNewClient(true);
                   }}
