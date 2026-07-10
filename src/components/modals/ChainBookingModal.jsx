@@ -14,8 +14,7 @@ import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { toDateStr } from "../../supabase/transforms";
 import {
-  getNumericPrice,
-  getServicePriceLabel,
+  getServicePriceAmount,
   getAllowedServicesForSize,
 } from "../../engine/bookingRules";
 import { SectionCard } from "./booking-detail/shared.jsx";
@@ -59,8 +58,9 @@ export function ChainBookingModal({
     lastBooking?.service || "full-groom",
   );
   const defaultPrice =
-    dog?.customPrice ??
-    getNumericPrice(getServicePriceLabel(service, dogSize));
+    dog?.customPrice != null && Number(dog.customPrice) > 0
+      ? Number(dog.customPrice)
+      : getServicePriceAmount(service, dogSize);
   const [customPrice, setCustomPrice] = useState(defaultPrice);
 
   // ── Chain of booked appointments ──
@@ -341,10 +341,9 @@ export function ChainBookingModal({
               onChange={(e) => {
                 setService(e.target.value);
                 const newDefault =
-                  dog?.customPrice ??
-                  getNumericPrice(
-                    getServicePriceLabel(e.target.value, dogSize),
-                  );
+                  dog?.customPrice != null && Number(dog.customPrice) > 0
+                    ? Number(dog.customPrice)
+                    : getServicePriceAmount(e.target.value, dogSize);
                 setCustomPrice(newDefault);
               }}
               className={`${inputCls} flex-1 cursor-pointer`}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SERVICES, DOG_SIZES } from "../../../constants/index";
+import { parseGBPInput, penceToPounds, pricePenceFromTableValue } from "../../../utils/money";
 import { Card, CardHead, CardBody, SECTION_LABEL_CLS, useAutosaveStatus, SaveStatus } from "./shared.jsx";
 
 export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
@@ -10,13 +11,17 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
   const currentServices = config?.services || SERVICES;
   const currentPricing = config?.pricing || {};
 
-  const updatePricing = (serviceId, size, value) => {
+  const updatePricing = (serviceId, size, rawValue) => {
     if (!canEdit) return;
+    // Staff type pounds ("42" / "42.50"); the config stores INTEGER PENCE.
+    // Blank (or junk) stores null — the app falls back to the built-in
+    // guide price for that service+size.
+    const pence = parseGBPInput(rawValue);
     save((prev) => ({
       ...prev,
       pricing: {
         ...prev.pricing,
-        [serviceId]: { ...(prev.pricing?.[serviceId] || {}), [size]: value },
+        [serviceId]: { ...(prev.pricing?.[serviceId] || {}), [size]: pence },
       },
     }));
   };
@@ -39,7 +44,7 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
     save((prev) => ({
       ...prev,
       services: [...(prev.services || SERVICES), { id, name, icon: newServiceIcon || "\u2702\uFE0F" }],
-      pricing: { ...prev.pricing, [id]: { small: "", medium: "", large: "" } },
+      pricing: { ...prev.pricing, [id]: { small: null, medium: null, large: null } },
     }));
     setNewServiceName("");
     setNewServiceIcon("");
@@ -89,14 +94,19 @@ export function PricingSettings({ config, onUpdateConfig, canEdit = true }) {
               {s.name}
             </div>
             {DOG_SIZES.map((size) => {
-              const val = currentPricing[s.id]?.[size] || "";
+              // Values are integer pence (legacy "£42" strings tolerated
+              // until the pence migration runs); the input shows pounds.
+              const pence = pricePenceFromTableValue(currentPricing[s.id]?.[size]);
+              const val = pence != null ? String(penceToPounds(pence)) : "";
               return (
                 <div key={size} className="relative">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-semibold pointer-events-none">
-                    from
+                    from £
                   </span>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
+                    step="0.5"
                     disabled={!canEdit}
                     value={val}
                     onChange={(e) => updatePricing(s.id, size, e.target.value)}

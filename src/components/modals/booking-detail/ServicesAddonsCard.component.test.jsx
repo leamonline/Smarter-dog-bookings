@@ -1,24 +1,24 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { ServicesAddonsCard } from "./ServicesAddonsCard.jsx";
-import { getNumericPrice, getServicePriceLabel } from "../../../engine/bookingRules";
+import { getServicePriceAmount } from "../../../engine/bookingRules";
 
-// Derive the standard rate the same way the component does, so the test
+// Derive the guide rate the same way the component does, so the test
 // stays correct if the price table changes.
-const STANDARD = getNumericPrice(getServicePriceLabel("full-groom", "large"));
+const GUIDE = getServicePriceAmount("full-groom", "large");
 
-function renderCard(customPrice) {
+function renderCard({ price, customPrice, saveAsUsual = false } = {}) {
   return render(
     <ServicesAddonsCard
-      booking={{ size: "large", service: "full-groom" }}
+      booking={{ size: "large", service: "full-groom", dogName: "Alfie" }}
       isEditing
-      editData={{ service: "full-groom", customPrice, addons: [] }}
+      editData={{ service: "full-groom", price, saveAsUsual, addons: [] }}
       setEditData={vi.fn()}
       setSaveError={vi.fn()}
-      dogData={{}}
+      dogData={{ customPrice }}
       allowedServices={[{ id: "full-groom", name: "Full Groom" }]}
       sizeTheme={{ primary: "#000000" }}
-      pricing={{ basePrice: customPrice, amountDue: customPrice, subtotal: customPrice }}
+      pricing={{ basePrice: price, amountDue: price, subtotal: price }}
       activeAddons={[]}
       activePayment="Unpaid"
       activeDepositAmount={0}
@@ -26,33 +26,47 @@ function renderCard(customPrice) {
   );
 }
 
-describe("ServicesAddonsCard price hint (#307)", () => {
-  it("labels the price 'Standard price' when it matches the standard rate", () => {
-    renderCard(STANDARD);
+describe("ServicesAddonsCard price hint (#307) and one-off price tick", () => {
+  it("labels the price 'Standard price' when it matches the guide rate", () => {
+    renderCard({ price: GUIDE });
+    expect(screen.getByText("Standard price")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /usual price/i })).not.toBeInTheDocument();
+  });
+
+  it("flags a one-off price, shows the usual rate, and offers the save-as-usual tick (off)", () => {
+    renderCard({ price: GUIDE + 5 });
+    expect(
+      screen.getByText(`One-off price for this booking — usual is £${GUIDE}`),
+    ).toBeInTheDocument();
+    const tick = screen.getByRole("checkbox", { name: /save as alfie.s usual price/i });
+    expect(tick).not.toBeChecked();
+  });
+
+  it("labels the dog's saved usual price as usual (not one-off), noting the guide", () => {
+    renderCard({ price: GUIDE + 8, customPrice: GUIDE + 8 });
+    expect(
+      screen.getByText(`Alfie's usual price (guide is £${GUIDE})`),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /usual price/i })).not.toBeInTheDocument();
+  });
+
+  it("treats a zero customPrice as no usual price (guide is the anchor)", () => {
+    renderCard({ price: GUIDE, customPrice: 0 });
     expect(screen.getByText("Standard price")).toBeInTheDocument();
   });
 
-  it("flags a custom override and shows the standard rate for reference", () => {
-    renderCard(STANDARD + 5);
-    expect(
-      screen.getByText(`Custom price — standard is £${STANDARD}`),
-    ).toBeInTheDocument();
-  });
-
   it("falls back to dogData.size when booking.size is blank, so a standard price isn't mislabelled", () => {
-    // booking.size missing but the dog is large; the standard rate must be
-    // derived against "large" (matching how customPrice is seeded), not £0.
     render(
       <ServicesAddonsCard
-        booking={{ size: undefined, service: "full-groom" }}
+        booking={{ size: undefined, service: "full-groom", dogName: "Alfie" }}
         isEditing
-        editData={{ service: "full-groom", customPrice: STANDARD, addons: [] }}
+        editData={{ service: "full-groom", price: GUIDE, saveAsUsual: false, addons: [] }}
         setEditData={vi.fn()}
         setSaveError={vi.fn()}
         dogData={{ size: "large" }}
         allowedServices={[{ id: "full-groom", name: "Full Groom" }]}
         sizeTheme={{ primary: "#000000" }}
-        pricing={{ basePrice: STANDARD, amountDue: STANDARD, subtotal: STANDARD }}
+        pricing={{ basePrice: GUIDE, amountDue: GUIDE, subtotal: GUIDE }}
         activeAddons={[]}
         activePayment="Unpaid"
         activeDepositAmount={0}

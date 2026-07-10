@@ -1,4 +1,4 @@
-import { PRICING } from "../../../constants/index";
+import { getServicePriceLabel } from "../../../engine/bookingRules";
 import { getAllowedServicesForSize } from "../../../engine/bookingRules";
 import { SERVICE_ICON_NAMES } from "../dashboardConstants.js";
 import type { WizardDog, ServiceId } from "../../../types/index";
@@ -34,8 +34,7 @@ function ServiceIcon({ name, color }: { name: string; color: string }) {
 }
 
 function getPriceLabel(serviceId: string, size: string): string {
-  const pricing = PRICING as Record<string, Record<string, string>>;
-  return pricing?.[serviceId]?.[size] || "N/A";
+  return getServicePriceLabel(serviceId, size);
 }
 
 export function ServiceSelection({

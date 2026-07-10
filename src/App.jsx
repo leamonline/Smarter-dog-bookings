@@ -866,6 +866,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onUpdateHuman={updateHuman}
           onOpenHuman={handleOpenHuman}
           onOpenDog={handleOpenDog}
+          configPricing={salonConfig?.pricing}
         >
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>

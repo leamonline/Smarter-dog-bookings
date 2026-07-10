@@ -20,6 +20,7 @@ export function computeRevenue(
       service: b.service,
       size: b.size,
       addons: b.addons,
+      priceOverride: b.priceOverride,
       customPrice: dog?.customPrice,
     });
     total += subtotal;

@@ -436,6 +436,10 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         // on the in-memory booking; normal edits write back the current values.
         payment_method: updatedBooking.paymentMethod ?? null,
         paid_amount: updatedBooking.paidAmount ?? null,
+        // This booking's one-off agreed price. Explicitly null when the
+        // edited price matches the dog's usual/guide price, so clearing an
+        // old override round-trips.
+        price_override: updatedBooking.priceOverride ?? null,
         status: updatedBooking.status || BOOKING_STATUS.BOOKED,
         // Round-trips the cancellation reason so the Today view's "Didn't show"
         // action can persist cancel_reason='No-show' through this same path.

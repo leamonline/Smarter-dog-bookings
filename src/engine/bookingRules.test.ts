@@ -5,7 +5,8 @@ import {
   getAllowedServicesForSize,
   normalizeServiceForSize,
   getServicePriceLabel,
-  getNumericPrice,
+  getServicePriceAmount,
+  resolveServicePricePence,
   toLocalDateStr,
   getHumanByIdOrName,
   getDogByIdOrName,
@@ -86,24 +87,40 @@ describe("getServicePriceLabel", () => {
   });
 });
 
-// ── getNumericPrice ─────────────────────────────────────────────
+// ── resolveServicePricePence / getServicePriceAmount ────────────
 
-describe("getNumericPrice", () => {
-  it("extracts number from currency string", () => {
-    expect(getNumericPrice("\u00A342+")).toBe(42);
-    expect(getNumericPrice("\u00A360+")).toBe(60);
+describe("resolveServicePricePence", () => {
+  it("returns the constant guide price in pence", () => {
+    expect(resolveServicePricePence("full-groom", "small")).toBe(4200);
+    expect(resolveServicePricePence("full-groom", "large")).toBe(6000);
   });
 
-  it("returns number as-is", () => {
-    expect(getNumericPrice(55)).toBe(55);
+  it("prefers the Settings (config) price when present", () => {
+    const config = { "full-groom": { small: 4400 } };
+    expect(resolveServicePricePence("full-groom", "small", config)).toBe(4400);
   });
 
-  it("returns 0 for non-numeric string", () => {
-    expect(getNumericPrice("N/A")).toBe(0);
+  it("tolerates legacy £-string config values (pounds)", () => {
+    const config = { "full-groom": { small: "£45" } };
+    expect(resolveServicePricePence("full-groom", "small", config)).toBe(4500);
   });
 
-  it("returns 0 for empty string", () => {
-    expect(getNumericPrice("")).toBe(0);
+  it("falls back to the constant when the config has no value", () => {
+    const config = { "full-groom": { small: null } };
+    expect(resolveServicePricePence("full-groom", "small", config)).toBe(4200);
+    expect(resolveServicePricePence("full-groom", "medium", config)).toBe(4600);
+  });
+
+  it("returns null for unavailable combos", () => {
+    expect(resolveServicePricePence("puppy-groom", "large")).toBeNull();
+    expect(resolveServicePricePence("nonexistent", "small")).toBeNull();
+  });
+});
+
+describe("getServicePriceAmount", () => {
+  it("returns pounds and 0 for unavailable", () => {
+    expect(getServicePriceAmount("full-groom", "small")).toBe(42);
+    expect(getServicePriceAmount("puppy-groom", "large")).toBe(0);
   });
 });
 
@@ -202,6 +219,46 @@ describe("computeBookingPricing", () => {
     expect(result.basePrice).toBe(46);
   });
 
+  it("ignores a zero/legacy customPrice (falls back to the guide)", () => {
+    // custom_price = 0 was the accidental-free-groom bug; 0 now means
+    // "no usual price", never "£0 appointment".
+    const result = computeBookingPricing({ service: "full-groom", size: "small", customPrice: 0 });
+    expect(result.basePrice).toBe(42);
+  });
+
+  it("prefers the per-booking priceOverride over everything", () => {
+    const result = computeBookingPricing({
+      service: "full-groom",
+      size: "small",
+      priceOverride: 65,
+      customPrice: 55,
+      configPricing: { "full-groom": { small: 4400 } },
+    });
+    expect(result.basePrice).toBe(65);
+  });
+
+  it("applies the full precedence: override → custom → Settings → constant", () => {
+    const config = { "full-groom": { small: 4400 } };
+    // no override, no custom → Settings
+    expect(
+      computeBookingPricing({ service: "full-groom", size: "small", configPricing: config }).basePrice,
+    ).toBe(44);
+    // custom beats Settings
+    expect(
+      computeBookingPricing({ service: "full-groom", size: "small", customPrice: 55, configPricing: config }).basePrice,
+    ).toBe(55);
+    // no Settings entry → constant
+    expect(
+      computeBookingPricing({ service: "full-groom", size: "medium", configPricing: config }).basePrice,
+    ).toBe(46);
+  });
+
+  it("ignores a zero/negative priceOverride", () => {
+    expect(
+      computeBookingPricing({ service: "full-groom", size: "small", priceOverride: 0 }).basePrice,
+    ).toBe(42);
+  });
+
   it("adds addons to subtotal", () => {
     const result = computeBookingPricing({ service: "full-groom", size: "small", addons: ["Flea Bath"] });
     expect(result.addonsTotal).toBe(10);
@@ -277,6 +334,14 @@ describe("buildMarkPaidPatch", () => {
   it("lets an explicit override beat the computed amount", () => {
     const patch = buildMarkPaidPatch({ service: "full-groom", size: "small" }, "card", 40);
     expect(patch.paidAmount).toBe(40);
+  });
+
+  it("uses the per-booking priceOverride for the defaulted amount", () => {
+    const patch = buildMarkPaidPatch(
+      { service: "full-groom", size: "small", priceOverride: 65, customPrice: 55 },
+      "card",
+    );
+    expect(patch.paidAmount).toBe(65);
   });
 
   it("keeps a null method as null (still recorded as paid)", () => {

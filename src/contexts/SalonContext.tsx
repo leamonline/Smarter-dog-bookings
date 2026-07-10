@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { Booking, Dog, Human, DaySettings, BookingsByDate } from "../types/index";
+import type { PricingConfig } from "../engine/bookingRules";
 
 export interface SalonContextValue {
   dogs: Record<string, Dog>;
@@ -24,6 +25,9 @@ export interface SalonContextValue {
   onUpdateHuman: (humanKey: string, patch: Partial<Human>) => unknown;
   onOpenHuman: (name: string) => void;
   onOpenDog: (name: string) => void;
+  /** salon_config.pricing (Settings guide prices, integer pence). Feeds the
+   *  price precedence in computeBookingPricing; null until config loads. */
+  configPricing?: PricingConfig;
 }
 
 const SalonContext = createContext<SalonContextValue | null>(null);
@@ -48,6 +52,7 @@ export function SalonProvider({
   onUpdateHuman,
   onOpenHuman,
   onOpenDog,
+  configPricing,
 }: SalonProviderProps) {
   const value = useMemo<SalonContextValue>(
     () => ({
@@ -65,6 +70,7 @@ export function SalonProvider({
       onUpdateHuman,
       onOpenHuman,
       onOpenDog,
+      configPricing,
     }),
     [
       dogs,
@@ -81,6 +87,7 @@ export function SalonProvider({
       onUpdateHuman,
       onOpenHuman,
       onOpenDog,
+      configPricing,
     ],
   );
 
@@ -95,4 +102,10 @@ export function useSalon(): SalonContextValue {
     throw new Error("useSalon must be used within a <SalonProvider>");
   }
   return ctx;
+}
+
+/** Settings guide prices, or null when rendered outside the staff app's
+ *  SalonProvider (e.g. component tests) — callers fall back to constants. */
+export function useSalonPricing(): PricingConfig {
+  return useContext(SalonContext)?.configPricing ?? null;
 }

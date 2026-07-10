@@ -2,7 +2,8 @@ import {
   SERVICE_LABELS,
   formatDate,
 } from "./dashboardConstants.js";
-import { PRICING } from "../../constants/index";
+import { resolveServicePricePence } from "../../engine/bookingRules";
+import { formatGBP } from "../../utils/money";
 import { ClipboardList, ChevronDown } from "lucide-react";
 import { titleCase } from "../../utils/text";
 
@@ -20,12 +21,9 @@ import { titleCase } from "../../utils/text";
 
 function priceLabelFor(service, size) {
   if (!service || !size) return null;
-  const pricing = PRICING;
-  const label = pricing?.[service]?.[size];
-  if (!label) return null;
-  // PRICING strings look like "£42+" / "£60+". Strip the £ for cleaner inline display.
-  const m = label.match(/(\d+)/);
-  return m ? `£${m[1]}` : label;
+  // Bare guide amount ("£42", no "+" suffix) for cleaner inline display.
+  const pence = resolveServicePricePence(service, size);
+  return pence != null ? formatGBP(pence) : null;
 }
 
 export function AppointmentsSection({

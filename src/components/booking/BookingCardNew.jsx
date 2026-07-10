@@ -187,6 +187,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     onUpdateHuman,
     onOpenHuman,
     onOpenDog,
+    configPricing,
   } = useSalon();
 
   const [showDetail, setShowDetail] = useState(false);
@@ -250,7 +251,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     addons: booking.addons,
     payment: booking.payment,
     depositAmount: booking.depositAmount,
+    priceOverride: booking.priceOverride,
     customPrice: dogRecord?.customPrice,
+    configPricing,
   });
 
   // The dog is (or has gone) home but the money hasn't been taken — the point
@@ -272,7 +275,9 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             service: booking.service,
             size: booking.size,
             addons: booking.addons,
+            priceOverride: booking.priceOverride,
             customPrice: dogRecord?.customPrice,
+            configPricing,
           },
           methodId,
         ),

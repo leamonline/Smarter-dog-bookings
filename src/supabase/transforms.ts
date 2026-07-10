@@ -64,6 +64,7 @@ interface DbBookingRow {
   payment_method?: string | null;
   paid_at?: string | null;
   paid_amount?: number | null;
+  price_override?: number | null;
   confirmed: boolean | null;
   dog_id: string;
   pickup_by_id: string | null;
@@ -99,7 +100,9 @@ interface DbBookingRow {
 
 interface DbConfigRow {
   default_pickup_offset: number | null;
-  pricing: Record<string, Record<string, string>> | null;
+  // Integer pence going forward; legacy "£42" strings tolerated during the
+  // pence migration (readers normalise via pricePenceFromTableValue).
+  pricing: Record<string, Record<string, string | number | null>> | null;
   enforce_capacity: boolean | null;
   daily_dog_cap?: number | null;
   large_dog_slots: Record<string, unknown> | null;
@@ -108,7 +111,7 @@ interface DbConfigRow {
 
 interface DbConfigOut {
   default_pickup_offset: number;
-  pricing: Record<string, Record<string, string>>;
+  pricing: Record<string, Record<string, string | number | null>>;
   enforce_capacity: boolean;
   daily_dog_cap: number;
   large_dog_slots: Record<string, unknown>;
@@ -387,6 +390,7 @@ export function dbBookingsToArray(
       paymentMethod: row.payment_method ?? null,
       paidAt: row.paid_at ?? null,
       paidAmount: row.paid_amount ?? null,
+      priceOverride: row.price_override ?? null,
       confirmed: row.confirmed === true,
       dogNameSnapshot,
       breedSnapshot,

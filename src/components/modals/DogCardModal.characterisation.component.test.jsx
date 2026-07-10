@@ -213,7 +213,7 @@ describe("DogCardModal characterisation", () => {
       expect(onUpdateDog.mock.calls[0][1].alerts).toEqual(["Allergic to chicken"]);
     });
 
-    it("normalises cleared optional fields to null and a cleared price to undefined", async () => {
+    it("normalises cleared optional fields to null and a cleared price to null", async () => {
       const filledDog = {
         ...baseDog,
         sex: "female",
@@ -242,10 +242,11 @@ describe("DogCardModal characterisation", () => {
       expect(updates.colour).toBeNull();
       expect(updates.microchip).toBeNull();
       expect(updates.vet).toBeNull();
-      // A cleared price is sent as an explicit undefined key (the
-      // update layer interprets it), not dropped from the payload.
+      // A cleared price is sent as an explicit NULL so the DB custom_price
+      // actually clears (the old undefined was silently dropped by
+      // updateDog, making a custom price impossible to remove).
       expect(Object.hasOwn(updates, "customPrice")).toBe(true);
-      expect(updates.customPrice).toBeUndefined();
+      expect(updates.customPrice).toBeNull();
     });
 
     it("cancel discards edits without saving and resets the form", () => {

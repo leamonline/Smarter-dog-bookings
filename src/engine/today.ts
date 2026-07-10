@@ -45,6 +45,7 @@ export interface TodayBooking {
   payment?: string | null;
   addons?: string[] | null;
   depositAmount?: number | null;
+  priceOverride?: number | null;
   paymentMethod?: string | null;
   paidAmount?: number | null;
   reminderState?: string;
@@ -226,6 +227,7 @@ export function paymentState(b: TodayBooking, customPrice: number | null = null)
     addons: b.addons ?? null,
     payment: b.payment ?? null,
     depositAmount: b.depositAmount ?? null,
+    priceOverride: b.priceOverride ?? null,
     customPrice,
   });
   const raw = (b.payment || "Due at Pick-up").trim();
@@ -870,6 +872,7 @@ export function buildTakingsByMethod(bookings: TodayBooking[]): TakingsByMethod 
             size: b.size ?? DOG_SIZE.SMALL,
             addons: b.addons ?? null,
             payment: b.payment ?? null,
+            priceOverride: b.priceOverride ?? null,
           }).subtotal;
     const method = b.paymentMethod || "unrecorded";
     (acc[method] ||= { amount: 0, count: 0 });
