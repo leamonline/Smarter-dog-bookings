@@ -237,7 +237,7 @@ export function DogSearchSection({
               search (auto-focused, results only once staff type). Brand-new
               customers: straight into the guided New Client wizard. Neither
               path reads as the afterthought. */}
-          <div className="rounded-2xl border border-brand-paper-line bg-white p-3">
+          <div className="min-h-[104px] rounded-2xl border border-brand-teal/30 bg-[#E6F5F2] p-3 flex flex-col justify-center">
             <label htmlFor="dog-search-input" className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-1.5">Returning customer</label>
             <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex pointer-events-none z-[1]">
@@ -370,10 +370,10 @@ export function DogSearchSection({
             type="button"
             onClick={() => onOpenNewClient?.()}
             aria-label="New customer"
-            className="w-full text-left rounded-2xl border border-brand-paper-line bg-white p-3 cursor-pointer font-inherit transition-colors hover:border-brand-teal/60 hover:bg-brand-teal/5 focus-visible:ring-2 focus-visible:ring-brand-teal/40"
+            className="w-full min-h-[104px] text-left rounded-2xl border border-brand-yellow-dark/40 bg-[#FFF8E0] p-3 cursor-pointer font-inherit transition-colors hover:border-brand-yellow-dark hover:bg-[#FFF3C7] focus-visible:ring-2 focus-visible:ring-brand-yellow-dark/50 flex flex-col justify-center"
           >
-            <span className="text-[11px] font-extrabold text-brand-teal-text uppercase tracking-wide block mb-0.5">New customer</span>
-            <span aria-hidden="true" className="text-[13px] text-slate-500 block">
+            <span className="text-[11px] font-extrabold text-[#5C4600] uppercase tracking-wide block mb-0.5">New customer</span>
+            <span aria-hidden="true" className="text-[13px] text-[#5C4600]/75 block">
               Set them up & take their first booking
             </span>
           </button>
