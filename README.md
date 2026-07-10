@@ -205,7 +205,11 @@ These aren't expressible as migrations — set them once per project:
 
 - **Auth → URL Configuration**: set Site URL to your production URL. Add redirect URLs for local development and previews, e.g. `http://localhost:5173/**`, your production `https://.../**`, and any Vercel preview wildcard you use.
 - **Auth → Sign In / Providers**: enable Email for staff password login. Enable Phone for the customer portal OTP flow.
-- **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against HaveIBeenPwned, blocks compromised ones.
+- **Auth → Settings → "Leaked password protection"**: turn ON. Checks new passwords against
+  HaveIBeenPwned, blocks compromised ones. ⚠️ Requires the **Pro plan** — on Free this toggle
+  isn't available, so the security advisor will keep flagging it (known/accepted while the
+  project stays on Free; the in-app HIBP check at password-set time is the compensating control).
+  Revisit on upgrade.
 - **Database → Extensions → `pg_net`**: move out of the `public` schema (the linter flags `extensions` as the conventional location).
 
 ### Customer portal login with Twilio Verify
