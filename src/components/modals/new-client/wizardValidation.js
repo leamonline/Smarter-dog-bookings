@@ -2,12 +2,16 @@
 // so they're unit-testable in isolation and keep the step "Next"/"Confirm"
 // buttons honest.
 
-/** Step 1 → 2: customer needs a first name, surname and phone (presence only;
- *  phone *format* is checked via validateContactPhone at the call site). */
+import { isRealPersonName } from "../../../utils/text";
+
+/** Step 1 → 2: customer needs a real first name (not "?"/"n/a" — see
+ *  isRealPersonName; StepCustomer shows the inline hint), a surname and a
+ *  phone (presence only; phone *format* is checked via validateContactPhone
+ *  at the call site). */
 export function canAdvanceCustomer(human) {
   return Boolean(
     human &&
-      String(human.name ?? "").trim() &&
+      isRealPersonName(String(human.name ?? "")) &&
       String(human.surname ?? "").trim() &&
       String(human.phone ?? "").trim(),
   );

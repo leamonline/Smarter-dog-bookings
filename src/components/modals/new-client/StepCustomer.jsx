@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isRealPersonName } from "../../../utils/text";
 
 const INPUT =
   "w-full px-3 py-2.5 rounded-lg border border-slate-200 text-[14px] outline-none font-[inherit] text-slate-800 box-border focus:border-brand-teal";
@@ -15,6 +16,14 @@ export function StepCustomer({ human, onChange, duplicate, phoneError }) {
           <label className={LABEL} htmlFor="nc-name">First name *</label>
           <input id="nc-name" className={INPUT} value={human.name} placeholder="Amanda"
             onChange={(e) => onChange("name", e.target.value)} autoFocus />
+          {/* Explains the disabled Next button: canAdvanceCustomer rejects
+              placeholder names ("?", "-", "n/a"…) so no mystery customer can
+              be created — say why instead of leaving a dead button. */}
+          {human.name.trim() !== "" && !isRealPersonName(human.name) && (
+            <div role="alert" className="text-[12px] text-brand-coral font-semibold mt-1">
+              We need their real first name — {"“"}{human.name.trim()}{"”"} will be impossible to find later.
+            </div>
+          )}
         </div>
         <div>
           <label className={LABEL} htmlFor="nc-surname">Surname *</label>

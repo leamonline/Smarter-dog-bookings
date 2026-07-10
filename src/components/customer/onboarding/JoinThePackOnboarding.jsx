@@ -8,6 +8,7 @@ import { PawPrint, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import { AddressPicker } from "./AddressPicker.jsx";
 import { formatPhoneForDisplay } from "../../../utils/phone.js";
 import { friendlySaveError } from "../../../utils/friendlyError";
+import { isRealPersonName } from "../../../utils/text";
 import { getSizeForBreed, ALERT_OPTIONS } from "../../../constants/index";
 import { BREED_LIST } from "../../../constants/breeds";
 import { REFERRAL_SOURCES, REFERRAL_SOURCE_OTHER } from "../../../constants/referralSources.ts";
@@ -139,7 +140,9 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
   const [error, setError] = useState(null);
 
   const step1Valid =
-    name.trim() !== "" &&
+    // Real name, not just non-empty — "?" / "n/a" would create an
+    // unfindable customer record (same rule as the staff forms).
+    isRealPersonName(name) &&
     surname.trim() !== "" &&
     emailValid &&
     addr.ready &&

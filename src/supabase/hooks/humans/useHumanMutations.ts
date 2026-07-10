@@ -8,6 +8,7 @@ import { useCallback } from "react";
 import { supabase } from "../../client.js";
 import { findHumanByIdOrName } from "../../transforms";
 import { stripFormatChars } from "../../../utils/phone.js";
+import { isRealPersonName } from "../../../utils/text";
 import { logger } from "../../../lib/logger";
 import { buildHumanMapEntry } from "./helpers";
 import type { HumansMap, SetHumansMap, TrustedContact } from "./helpers";
@@ -210,7 +211,19 @@ export function useHumanMutations({
 
   const addHuman = useCallback(
     async (humanData: Record<string, any>) => {
-      const fullName = `${humanData.name} ${humanData.surname}`.trim();
+      // Backstop for EVERY human-creation path (Add Human, New client wizard,
+      // AddDogModal's inline new owner, trusted contacts): a record whose name
+      // is blank or a placeholder ("?", "-", "n/a"…) is unfindable later and
+      // blinds the owner/retention views. Forms validate inline first — this
+      // just guarantees no path around them.
+      const name = String(humanData.name ?? "").trim();
+      const surname = String(humanData.surname ?? "").trim();
+      if (!isRealPersonName(name)) {
+        setError("We need the customer's real first name — a blank or '?' makes them impossible to find later.");
+        return null;
+      }
+
+      const fullName = `${name} ${surname}`.trim();
       // Strip invisible Unicode format chars before they reach the DB — iOS
       // Contacts / WhatsApp wrap pasted numbers in bidi marks (see
       // stripFormatChars in utils/phone), which otherwise break number validation.
@@ -218,8 +231,8 @@ export function useHumanMutations({
 
       const optimisticHuman = {
         id: `temp-${Date.now()}`,
-        name: humanData.name,
-        surname: humanData.surname,
+        name,
+        surname,
         fullName,
         phone,
         sms: humanData.sms || false,
@@ -264,8 +277,8 @@ export function useHumanMutations({
         const { data, error: insertErr } = await supabase
           .from("humans")
           .insert({
-            name: humanData.name,
-            surname: humanData.surname,
+            name,
+            surname,
             phone,
             sms: humanData.sms || false,
             whatsapp: humanData.whatsapp || false,

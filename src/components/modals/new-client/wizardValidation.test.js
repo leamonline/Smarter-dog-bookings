@@ -9,6 +9,17 @@ describe("canAdvanceCustomer", () => {
     expect(canAdvanceCustomer({ name: "Amanda", surname: "Booth", phone: "  " })).toBe(false);
     expect(canAdvanceCustomer(null)).toBe(false);
   });
+
+  it("rejects placeholder first names that would create an unfindable customer", () => {
+    expect(canAdvanceCustomer({ name: "?", surname: "Booth", phone: "07985 630521" })).toBe(false);
+    expect(canAdvanceCustomer({ name: "-", surname: "Booth", phone: "07985 630521" })).toBe(false);
+    expect(canAdvanceCustomer({ name: "n/a", surname: "Booth", phone: "07985 630521" })).toBe(false);
+    expect(canAdvanceCustomer({ name: "unknown", surname: "Booth", phone: "07985 630521" })).toBe(false);
+  });
+
+  it("still accepts short real names", () => {
+    expect(canAdvanceCustomer({ name: "Xu", surname: "Booth", phone: "07985 630521" })).toBe(true);
+  });
 });
 
 describe("canAdvanceDogs", () => {
