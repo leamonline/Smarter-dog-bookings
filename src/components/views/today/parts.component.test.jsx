@@ -12,6 +12,9 @@ import {
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
 import { TodayKpiRow } from "./TodayKpiRow.jsx";
+import { TodayBriefNotes } from "./TodayBriefNotes.jsx";
+import * as unpaidHook from "../../../hooks/useUnpaidFortnight";
+import * as retentionHook from "../../../hooks/useRetentionData";
 
 describe("waitTone thresholds", () => {
   it("is neutral under the amber threshold, amber at 60+, red at 120+", () => {
@@ -139,6 +142,40 @@ describe("TodayKpiRow", () => {
     render(<TodayKpiRow dogsBooked={20} expectedRevenue={0} />);
     const bar = screen.getByRole("progressbar", { name: /capacity/i });
     expect(bar.querySelector("span").style.width).toBe("100%");
+  });
+});
+
+describe("TodayBriefNotes", () => {
+  const mockHooks = (unpaid, retention) => {
+    vi.spyOn(unpaidHook, "useUnpaidFortnight").mockReturnValue(unpaid);
+    vi.spyOn(retentionHook, "useRetentionData").mockReturnValue({
+      candidates: [], excludedCount: 0, refresh: noop, mark: noop, ...retention,
+    });
+  };
+
+  it("renders both warm notes when data is available and taps through to reports", () => {
+    mockHooks({ loading: false, available: true, count: 3 }, { loading: false, available: true, overdueCount: 5 });
+    const onOpenReports = vi.fn();
+    render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={onOpenReports} />);
+    expect(screen.getByText(/3 grooms in the last fortnight aren't marked paid/)).toBeInTheDocument();
+    expect(screen.getByText(/5 dogs are due back with no booking/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /marked paid/ }));
+    expect(onOpenReports).toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("renders nothing when neither source is available (offline)", () => {
+    mockHooks({ loading: false, available: false, count: 0 }, { loading: false, available: false, overdueCount: 0 });
+    const { container } = render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
+    expect(container).toBeEmptyDOMElement();
+    vi.restoreAllMocks();
+  });
+
+  it("hides a zero-count note rather than saying zero", () => {
+    mockHooks({ loading: false, available: true, count: 0 }, { loading: false, available: true, overdueCount: 0 });
+    const { container } = render(<TodayBriefNotes todayStr="2026-07-10" onOpenReports={noop} />);
+    expect(container).toBeEmptyDOMElement();
+    vi.restoreAllMocks();
   });
 });
 

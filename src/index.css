@@ -113,6 +113,7 @@
   --color-brand-yellow: #FECC13;
   --color-brand-yellow-dark: #D4A500;
   --color-brand-paper: #FAF9F6;
+  --color-brand-paper-line: #ECE7E0; /* warm card border on the paper surface */
   --color-brand-dark: #2A1810;
 
   /* Size dot colours */
