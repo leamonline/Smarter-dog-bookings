@@ -20,6 +20,27 @@ export function normaliseSurname(raw: unknown): string {
   return trimmed;
 }
 
+// Letter-only tokens that read as "didn't know the name" rather than a name.
+// Punctuation/digit-only inputs ("?", "-", "...", "123") are caught by the
+// no-letters check in isRealPersonName, so they don't need listing here.
+const PLACEHOLDER_NAME_RE = /^(n\/?a|none|null|undefined|unknown|tbc|tbd|x{1,3})$/i;
+
+/**
+ * True when a person-name input looks like a real name attempt: non-empty
+ * after trimming, contains at least one letter, and isn't a known
+ * placeholder token ("?", "-", "n/a", "unknown", …). Deliberately light —
+ * it blocks the junk that blinds owner/retention views, never unusual real
+ * names (O'Brien, Xu and Ng all pass).
+ */
+export function isRealPersonName(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (!/\p{L}/u.test(trimmed)) return false;
+  if (PLACEHOLDER_NAME_RE.test(trimmed)) return false;
+  return true;
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Format a YYYY-MM-DD date string to a readable UK format, e.g. "14 Apr 2026" */

@@ -6,7 +6,7 @@ import { BREED_LIST } from "../../constants/breeds";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { titleCase, normaliseSurname } from "../../utils/text";
+import { titleCase, normaliseSurname, isRealPersonName } from "../../utils/text";
 import { validateContactPhone } from "./dog-card/helpers.js";
 
 const SORTED_BREEDS = [
@@ -122,6 +122,9 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
       newOwnerPhoneE164 = ownerPhone.value;
       if (!newOwnerName.trim() || !newOwnerSurname.trim() || !newOwnerPhone.trim()) {
         errors.owner = "We need a first name, surname, and phone number for the new owner.";
+      } else if (!isRealPersonName(newOwnerName)) {
+        // "?" / "-" / "n/a" owners are unfindable later — insist on the real name.
+        errors.owner = "That owner name doesn't look like a name — we need their real first name.";
       } else if (ownerPhone.error) {
         errors.owner = ownerPhone.error;
       } else if (!onAddHuman) {

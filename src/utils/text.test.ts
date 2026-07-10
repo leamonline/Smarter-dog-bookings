@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { titleCase, normaliseSurname } from "./text";
+import { titleCase, normaliseSurname, isRealPersonName } from "./text";
 
 describe("titleCase", () => {
   it("capitalizes first letter of each word", () => {
@@ -60,5 +60,46 @@ describe("normaliseSurname", () => {
     expect(normaliseSurname("McDonald")).toBe("McDonald");
     expect(normaliseSurname("O'Brien")).toBe("O'Brien");
     expect(normaliseSurname("  Smith  ")).toBe("Smith");
+  });
+});
+
+describe("isRealPersonName", () => {
+  it("rejects empty, whitespace-only and non-string input", () => {
+    expect(isRealPersonName("")).toBe(false);
+    expect(isRealPersonName("   ")).toBe(false);
+    expect(isRealPersonName(null)).toBe(false);
+    expect(isRealPersonName(undefined)).toBe(false);
+    expect(isRealPersonName(42)).toBe(false);
+  });
+
+  it("rejects punctuation- and digit-only placeholders", () => {
+    expect(isRealPersonName("?")).toBe(false);
+    expect(isRealPersonName("??")).toBe(false);
+    expect(isRealPersonName("-")).toBe(false);
+    expect(isRealPersonName("...")).toBe(false);
+    expect(isRealPersonName("123")).toBe(false);
+    expect(isRealPersonName("!!")).toBe(false);
+  });
+
+  it("rejects known placeholder tokens regardless of case", () => {
+    expect(isRealPersonName("n/a")).toBe(false);
+    expect(isRealPersonName("NA")).toBe(false);
+    expect(isRealPersonName("none")).toBe(false);
+    expect(isRealPersonName("Null")).toBe(false);
+    expect(isRealPersonName("unknown")).toBe(false);
+    expect(isRealPersonName("TBC")).toBe(false);
+    expect(isRealPersonName("tbd")).toBe(false);
+    expect(isRealPersonName("x")).toBe(false);
+    expect(isRealPersonName("xxx")).toBe(false);
+  });
+
+  it("accepts real names, including short and non-Latin ones", () => {
+    expect(isRealPersonName("Amanda")).toBe(true);
+    expect(isRealPersonName("O'Brien")).toBe(true);
+    expect(isRealPersonName("Jean-Claude")).toBe(true);
+    expect(isRealPersonName("Xu")).toBe(true);
+    expect(isRealPersonName("Ng")).toBe(true);
+    expect(isRealPersonName("José")).toBe(true);
+    expect(isRealPersonName("  Amanda  ")).toBe(true);
   });
 });

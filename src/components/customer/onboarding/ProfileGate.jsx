@@ -5,6 +5,7 @@ import { CenteredScreen } from "../../ui/PageShell.jsx";
 import { PawPrint } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
 import { friendlySaveError } from "../../../utils/friendlyError";
+import { isRealPersonName } from "../../../utils/text";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -43,7 +44,8 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
   const [error, setError] = useState(null);
 
   const canSubmit =
-    name.trim() !== "" &&
+    // Real name, not just non-empty — same placeholder rule as signup.
+    isRealPersonName(name) &&
     surname.trim() !== "" &&
     addr.ready &&
     policiesAccepted &&

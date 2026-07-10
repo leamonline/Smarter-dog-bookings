@@ -4,7 +4,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { ModalShell, HeaderIconButton } from "./shell/index.js";
 import { IconSearch } from "../icons/index.jsx";
 import { InlineError } from "../ui/InlineError.jsx";
-import { titleCase } from "../../utils/text";
+import { titleCase, isRealPersonName } from "../../utils/text";
 import { getHumanByIdOrName } from "../../engine/bookingRules";
 import { validateContactPhone } from "./dog-card/helpers.js";
 import { formatPhoneForDisplay } from "../../utils/phone.js";
@@ -76,6 +76,12 @@ export function AddHumanModal({ onClose, onAdd, dogs, humans, onUpdateDog, findH
     e.preventDefault();
     if (!name.trim() || !surname.trim() || !phone.trim()) {
       setError("We need a first name, surname, and phone number.");
+      return;
+    }
+    // A placeholder ("?", "-", "n/a"…) is unfindable later — ask for the
+    // real name now rather than leaving a mystery customer in the books.
+    if (!isRealPersonName(name)) {
+      setError("That first name doesn't look like a name — we need their real one so we can find them again.");
       return;
     }
     // A UK mobile is normalised to E.164; a mobile-shaped number with the wrong
