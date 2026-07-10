@@ -2,7 +2,7 @@
  * useModalState — manages all modal open/close state for App.jsx.
  * Extracted from App.jsx to reduce its size and improve testability.
  */
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import type { Booking } from "../types/index";
 
 // A parked dog entry — a selected dog plus its booking choices — carried out of
@@ -56,9 +56,6 @@ interface UseModalStateReturn {
   setCollectionNotice: (booking: Booking | null) => void;
   selectedBooking: Booking | null;
   setSelectedBooking: (booking: Booking | null) => void;
-  // Callbacks
-  openNewBooking: (dateStr: string, slot: string) => void;
-  closeNewBooking: () => void;
 }
 
 export function useModalState(): UseModalStateReturn {
@@ -71,14 +68,6 @@ export function useModalState(): UseModalStateReturn {
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
   const [collectionNotice, setCollectionNotice] = useState<Booking | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-
-  const openNewBooking = useCallback((dateStr: string, slot: string) => {
-    setShowNewBooking({ dateStr, slot });
-  }, []);
-
-  const closeNewBooking = useCallback(() => {
-    setShowNewBooking(null);
-  }, []);
 
   return {
     selectedHumanId,
@@ -99,7 +88,5 @@ export function useModalState(): UseModalStateReturn {
     setCollectionNotice,
     selectedBooking,
     setSelectedBooking,
-    openNewBooking,
-    closeNewBooking,
   };
 }

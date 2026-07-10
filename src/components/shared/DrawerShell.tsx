@@ -27,6 +27,9 @@ interface DrawerShellProps {
 // portal-to-body, role/aria-modal/aria-labelledby, backdrop click — and
 // swaps only the centred-box layout for a full-height panel pinned to one
 // edge. The caller supplies its own header + scrolling body as children.
+// Trap/lock/backdrop apply in modal mode (the default); modal={false} opts
+// out of all three — Escape and the close button still dismiss, but the
+// page behind stays scrollable and clickable.
 //
 // This is the "drawer variant" of ModalShell: it brings the three side
 // panels (OverviewDrawer, DaySettingsDrawer, SlideOverPanel) onto one

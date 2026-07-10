@@ -218,9 +218,15 @@ export function NewBookingModal({
 
   // Report the draft's true target up to App so the day view's "Booking
   // here" chip tracks the drawer's REAL selection — including in-drawer
-  // picks and prefilled opens — not just calendar-originated picks.
+  // picks and prefilled opens — not just calendar-originated picks. The
+  // ref guard keeps this loop-proof even if a future caller passes an
+  // inline (unstable) callback.
+  const lastReportedTargetRef = useRef("");
   useEffect(() => {
     if (!onDraftTargetChange) return;
+    const key = selectedDateStr && selectedSlot ? `${selectedDateStr}|${selectedSlot}` : "";
+    if (key === lastReportedTargetRef.current) return;
+    lastReportedTargetRef.current = key;
     onDraftTargetChange(
       selectedDateStr && selectedSlot
         ? { dateStr: selectedDateStr, slot: selectedSlot }

@@ -19,7 +19,7 @@ export function BookingFormFields({
 }) {
   const selectedDayOpen = isDateOpen(selectedDateStr, dayOpenState);
   return (
-    <div className="px-6 py-4 pb-5 flex flex-col gap-4 overflow-y-auto flex-1">
+    <div className="px-6 py-4 pb-5 flex flex-col gap-4 overflow-y-auto flex-1 overscroll-contain">
 
       {/* ─── STEP 2: Date Selection ─── */}
       {hasDogs && (

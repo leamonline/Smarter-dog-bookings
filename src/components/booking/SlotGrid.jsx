@@ -278,7 +278,7 @@ export function SlotGrid({
         ].filter(Boolean).join(" ")}
       >
         {isDraftTarget && (
-          <span className="absolute -top-2 left-16 md:left-20 z-[1] inline-flex items-center rounded-full bg-brand-teal text-white text-[10px] font-bold px-2 py-0.5 shadow-sm pointer-events-none">
+          <span className={`absolute ${index === 0 ? "top-1" : "-top-2"} left-16 md:left-20 z-[1] inline-flex items-center rounded-full bg-brand-teal text-white text-[10px] font-bold px-2 py-0.5 shadow-sm pointer-events-none`}>
             Booking here
           </span>
         )}

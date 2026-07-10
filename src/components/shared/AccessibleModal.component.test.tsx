@@ -105,3 +105,31 @@ describe("AccessibleModal — non-modal mode (modal={false})", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("AccessibleModal — stacked dialogs", () => {
+  it("Escape only closes the topmost dialog, not the one underneath", () => {
+    const closeBottom = vi.fn();
+    const closeTop = vi.fn();
+    const bottom = render(
+      <AccessibleModal onClose={closeBottom} titleId="stack-bottom" modal={false}>
+        <h2 id="stack-bottom">Drawer</h2>
+      </AccessibleModal>,
+    );
+    const top = render(
+      <AccessibleModal onClose={closeTop} titleId="stack-top">
+        <h2 id="stack-top">Confirm</h2>
+      </AccessibleModal>,
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closeTop).toHaveBeenCalledTimes(1);
+    expect(closeBottom).not.toHaveBeenCalled();
+
+    // Once the top dialog unmounts, the drawer becomes topmost again.
+    top.unmount();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closeBottom).toHaveBeenCalledTimes(1);
+
+    bottom.unmount();
+  });
+});

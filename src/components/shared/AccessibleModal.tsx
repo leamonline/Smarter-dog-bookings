@@ -53,6 +53,13 @@ function unlockBodyScroll() {
   }
 }
 
+// Mounted-dialog stack (module-level, mirrors the scroll-lock refcount).
+// Escape must only dismiss the TOPMOST dialog: every instance registers on
+// mount, and the keydown handler bails unless it is last in the stack —
+// otherwise stacked dialogs (e.g. a ConfirmDialog over the non-modal
+// booking drawer) would all close on one Escape, discarding drafts.
+const dialogStack: symbol[] = [];
+
 export function AccessibleModal({
   children,
   onClose,
@@ -65,19 +72,32 @@ export function AccessibleModal({
   modal = true,
 }: AccessibleModalProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const stackIdRef = useRef<symbol | undefined>(undefined);
+  if (!stackIdRef.current) stackIdRef.current = Symbol("dialog");
   const { dialogProps } = useDialog(
     { role: "dialog", "aria-labelledby": titleId },
     ref,
   );
 
+  // Register in the dialog stack for the lifetime of the mount.
+  useEffect(() => {
+    const id = stackIdRef.current as symbol;
+    dialogStack.push(id);
+    return () => {
+      const i = dialogStack.indexOf(id);
+      if (i !== -1) dialogStack.splice(i, 1);
+    };
+  }, []);
+
   // Escape key
   useEffect(() => {
     if (!dismissOnEscape) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== "Escape") return;
+      // Only the topmost mounted dialog responds — see dialogStack above.
+      if (dialogStack[dialogStack.length - 1] !== stackIdRef.current) return;
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
