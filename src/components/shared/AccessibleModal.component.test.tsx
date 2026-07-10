@@ -71,3 +71,37 @@ describe("AccessibleModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe("AccessibleModal — non-modal mode (modal={false})", () => {
+  it("renders a dialog without aria-modal, scroll lock, or a blocking backdrop", () => {
+    render(
+      <AccessibleModal onClose={() => {}} titleId="nm" modal={false}>
+        <h2 id="nm">Panel</h2>
+      </AccessibleModal>,
+    );
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute("aria-modal")).toBeNull();
+    // Page behind must stay scrollable…
+    expect(document.body.style.overflow).toBe("");
+    // …and the full-screen wrapper must not swallow clicks.
+    const overlay = document.body.querySelector('[class*="inset-0"]') as HTMLElement;
+    expect(overlay.className).toContain("pointer-events-none");
+    // The panel itself re-enables pointer events.
+    expect(dialog.className).toContain("pointer-events-auto");
+  });
+
+  it("still closes on Escape, but not on an overlay click", () => {
+    const onClose = vi.fn();
+    render(
+      <AccessibleModal onClose={onClose} titleId="nm2" modal={false}>
+        <h2 id="nm2">Panel</h2>
+      </AccessibleModal>,
+    );
+    const overlay = document.body.querySelector('[class*="inset-0"]') as HTMLElement;
+    fireEvent.click(overlay);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

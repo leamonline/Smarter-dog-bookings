@@ -93,3 +93,23 @@ describe("DrawerShell", () => {
     expect(document.body.style.overflow).toBe("");
   });
 });
+
+describe("DrawerShell — non-modal mode (modal={false})", () => {
+  it("passes non-modal through: no scroll lock, click-through overlay, Escape still closes", () => {
+    const onClose = vi.fn();
+    render(
+      <DrawerShell onClose={onClose} titleId="nmd" modal={false}>
+        <h2 id="nmd">Live drawer</h2>
+      </DrawerShell>,
+    );
+    expect(document.body.style.overflow).toBe("");
+    const overlay = getOverlay();
+    expect(overlay.className).toContain("pointer-events-none");
+    fireEvent.click(overlay);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.getAttribute("aria-modal")).toBeNull();
+  });
+});

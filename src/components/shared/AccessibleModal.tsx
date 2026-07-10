@@ -22,6 +22,13 @@ interface AccessibleModalProps {
    * existing centred modals keep the default and are unaffected.
    */
   overlayClassName?: string;
+  /**
+   * Default true — a classic modal (backdrop, focus trap, scroll lock,
+   * aria-modal, backdrop-click close). Set false for a non-modal panel
+   * (the live booking drawer): the page behind stays scrollable and
+   * clickable, focus moves freely, Escape and the close button dismiss.
+   */
+  modal?: boolean;
 }
 
 // Reference-counted body scroll lock. Counting (rather than save/restore
@@ -55,6 +62,7 @@ export function AccessibleModal({
   zIndex = 1000,
   dismissOnEscape = true,
   overlayClassName = "flex items-center justify-center",
+  modal = true,
 }: AccessibleModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { dialogProps } = useDialog(
@@ -75,11 +83,13 @@ export function AccessibleModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose, dismissOnEscape]);
 
-  // Scroll lock (reference-counted — see above).
+  // Scroll lock (reference-counted — see above). Non-modal panels leave the
+  // page scrollable — that's the point of them.
   useEffect(() => {
+    if (!modal) return;
     lockBodyScroll();
     return () => unlockBodyScroll();
-  }, []);
+  }, [modal]);
 
   if (typeof document === "undefined") return null;
 
@@ -90,16 +100,16 @@ export function AccessibleModal({
   // that card instead of covering the screen.
   return createPortal(
     <div
-      className={`fixed inset-0 ${backdropClass} ${overlayClassName}`}
+      className={`fixed inset-0 ${modal ? backdropClass : "pointer-events-none"} ${overlayClassName}`}
       style={{ zIndex }}
-      onClick={onClose}
+      onClick={modal ? onClose : undefined}
     >
-      <FocusScope contain restoreFocus autoFocus>
+      <FocusScope contain={modal} restoreFocus autoFocus>
         <div
           {...dialogProps}
           ref={ref}
-          aria-modal="true"
-          className={className}
+          aria-modal={modal ? "true" : undefined}
+          className={`${modal ? "" : "pointer-events-auto"} ${className}`}
           onClick={(e) => e.stopPropagation()}
         >
           {children}
