@@ -695,6 +695,98 @@ export function buildTodayFeed(
   return entries;
 }
 
+// ---- Slot-grouped diary (morning-brief layout) --------------------------------
+
+/** One diary group: a slot's entries, or the trailing "Unscheduled" bucket. */
+export interface FeedSlotGroup {
+  /** The slot time, or null for the Unscheduled bucket. */
+  slot: string | null;
+  /** Display label — the slot time, or "Unscheduled". */
+  label: string;
+  /** Minutes-of-day for ordering (Infinity for Unscheduled). */
+  slotMinutes: number;
+  entries: TodayFeedEntry[];
+}
+
+/**
+ * Group an already-chronological feed by slot for the brief-style diary.
+ * A missing or unparseable slot must never hide a dog: those rows collect
+ * in a final "Unscheduled" group instead.
+ */
+export function groupFeedBySlot(entries: TodayFeedEntry[]): FeedSlotGroup[] {
+  const groups: FeedSlotGroup[] = [];
+  const index = new Map<string, FeedSlotGroup>();
+  const unscheduled: FeedSlotGroup = {
+    slot: null, label: "Unscheduled", slotMinutes: Number.POSITIVE_INFINITY, entries: [],
+  };
+  for (const e of entries) {
+    const slot = e.booking.slot;
+    if (!slot || !Number.isFinite(slotToMinutes(slot))) {
+      unscheduled.entries.push(e);
+      continue;
+    }
+    let g = index.get(slot);
+    if (!g) {
+      g = { slot, label: slot, slotMinutes: slotToMinutes(slot), entries: [] };
+      index.set(slot, g);
+      groups.push(g);
+    }
+    g.entries.push(e);
+  }
+  groups.sort((a, b) => a.slotMinutes - b.slotMinutes);
+  if (unscheduled.entries.length > 0) groups.push(unscheduled);
+  return groups;
+}
+
+/**
+ * Feed entries for a FUTURE day's read-only brief. Built without `now` on
+ * purpose: a future diary has no overdue, no waiting, no "next", no owed
+ * balance — none of that exists yet, so every time-relative flag is hard
+ * zero. (See the spec's "no time-relative state on future days".)
+ */
+export function buildFutureDayFeed(bookings: Booking[]): TodayFeedEntry[] {
+  const entries: TodayFeedEntry[] = [];
+  for (const b of bookings) {
+    if (!isCountableBooking(b)) continue;
+    entries.push({
+      booking: b,
+      slotMinutes: b.slot && Number.isFinite(slotToMinutes(b.slot))
+        ? slotToMinutes(b.slot)
+        : Number.POSITIVE_INFINITY,
+      stage: STAGE_BY_RANK[Math.max(0, statusRank(b.status))] ?? "booked",
+      isNext: false,
+      isLate: false,
+      isUnconfirmed: false,
+      owes: false,
+      needsAction: false,
+      overdueMinutes: 0,
+      waitMinutes: null,
+    });
+  }
+  entries.sort((a, c) => a.slotMinutes - c.slotMinutes);
+  return entries;
+}
+
+/**
+ * Dogs-per-owner across the displayed feed, keyed by the owner's stable
+ * human id (via the dogs map). Unresolvable dogs are skipped — the
+ * "two dogs, one owner" chip must never match on a display-name string.
+ */
+export function countDogsPerOwner(
+  entries: TodayFeedEntry[],
+  dogs: Record<string, Dog> | null,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  if (!dogs) return counts;
+  for (const e of entries) {
+    const dogId = e.booking._dogId;
+    const ownerId = dogId ? dogs[dogId]?._humanId : null;
+    if (!ownerId) continue;
+    counts[ownerId] = (counts[ownerId] ?? 0) + 1;
+  }
+  return counts;
+}
+
 // ---- Operational priority (one rule for rails, labels, actions, Now strip) ----
 
 /**
