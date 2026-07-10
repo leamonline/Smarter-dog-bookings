@@ -181,7 +181,7 @@ export function TodayNowStrip({
   const nextOp = nextEntry ? entryOpStatus(nextEntry) : null;
 
   return (
-    <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 pt-[env(safe-area-inset-top,0px)] -mt-[env(safe-area-inset-top,0px)] bg-slate-50 pb-1.5">
+    <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 pt-[env(safe-area-inset-top,0px)] -mt-[env(safe-area-inset-top,0px)] bg-brand-paper pb-1.5">
       <section
         aria-label="Happening now"
         className="rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.08)] divide-y divide-slate-100"

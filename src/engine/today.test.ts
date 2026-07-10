@@ -27,9 +27,12 @@ import {
   entryOpStatus,
   selectNowNext,
   DUE_SOON_MINUTES,
+  groupFeedBySlot,
+  buildFutureDayFeed,
+  countDogsPerOwner,
 } from "./today";
 import { SALON_SLOTS } from "../constants/salon";
-import type { Booking } from "../types/index";
+import type { Booking, Dog } from "../types/index";
 
 // A fixed instant that is 10:15 in London during British Summer Time.
 const NOW_SUMMER = new Date("2026-07-02T09:15:00Z"); // BST (+1) => 10:15 London
@@ -713,5 +716,81 @@ describe("buildTakingsByMethod (improvement #3 — till view)", () => {
     expect(t.total).toBe(0);
     expect(t.count).toBe(0);
     expect(t.byMethod).toEqual([]);
+  });
+});
+
+describe("groupFeedBySlot", () => {
+  const b = (slot?: string, id = slot ?? "x") =>
+    ({ id, slot, status: "Booked", dogName: "Rex" }) as unknown as Booking;
+  const entryFor = (booking: Booking, slotMinutes: number): ReturnType<typeof buildTodayFeed>[0] => ({
+    booking, slotMinutes, stage: "booked", isNext: false, isLate: false,
+    isUnconfirmed: false, owes: false, needsAction: false, overdueMinutes: 0, waitMinutes: null,
+  });
+
+  it("groups chronological entries by slot, preserving order", () => {
+    const groups = groupFeedBySlot([
+      entryFor(b("08:30", "a"), 510), entryFor(b("08:30", "b"), 510), entryFor(b("09:00", "c"), 540),
+    ]);
+    expect(groups.map((g) => g.label)).toEqual(["08:30", "09:00"]);
+    expect(groups[0].entries.map((e) => e.booking.id)).toEqual(["a", "b"]);
+  });
+
+  it("puts missing or unparseable slots in a final Unscheduled group", () => {
+    const bad = entryFor(b(undefined, "no-slot"), Number.POSITIVE_INFINITY);
+    const junk = entryFor(b("banana", "junk"), NaN);
+    const groups = groupFeedBySlot([entryFor(b("08:30", "a"), 510), bad, junk]);
+    expect(groups[groups.length - 1].label).toBe("Unscheduled");
+    expect(groups[groups.length - 1].entries.map((e) => e.booking.id)).toEqual(["no-slot", "junk"]);
+    expect(groups[groups.length - 1].slot).toBeNull();
+  });
+
+  it("returns [] for an empty feed", () => {
+    expect(groupFeedBySlot([])).toEqual([]);
+  });
+});
+
+describe("buildFutureDayFeed", () => {
+  it("drops cancelled, sorts by slot, and carries zero time-relative state", () => {
+    const feed = buildFutureDayFeed([
+      { id: "later", slot: "09:00", status: "Booked", payment: "Due at Pick-up" },
+      { id: "gone", slot: "08:30", status: "Cancelled" },
+      { id: "first", slot: "08:30", status: "Booked", payment: "Paid in Full" },
+    ] as unknown as Booking[]);
+    expect(feed.map((e) => e.booking.id)).toEqual(["first", "later"]);
+    for (const e of feed) {
+      expect(e.isLate).toBe(false);
+      expect(e.isNext).toBe(false);
+      expect(e.isUnconfirmed).toBe(false);
+      expect(e.owes).toBe(false);
+      expect(e.needsAction).toBe(false);
+      expect(e.overdueMinutes).toBe(0);
+      expect(e.waitMinutes).toBeNull();
+    }
+  });
+
+  it("keeps a slot-less booking (sorts last) rather than hiding it", () => {
+    const feed = buildFutureDayFeed([
+      { id: "b", status: "Booked" }, { id: "a", slot: "08:30", status: "Booked" },
+    ] as unknown as Booking[]);
+    expect(feed.map((e) => e.booking.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("countDogsPerOwner", () => {
+  const dogs = {
+    d1: { id: "d1", _humanId: "h1" }, d2: { id: "d2", _humanId: "h1" }, d3: { id: "d3", _humanId: "h2" },
+  } as unknown as Record<string, Dog>;
+  const e = (dogId: string | null, status = "Booked"): ReturnType<typeof buildTodayFeed>[0] => ({
+    booking: { id: dogId ?? "x", _dogId: dogId, status } as unknown as Booking,
+    slotMinutes: 0, stage: "booked", isNext: false, isLate: false, isUnconfirmed: false,
+    owes: false, needsAction: false, overdueMinutes: 0, waitMinutes: null,
+  });
+
+  it("counts by stable owner id across entries", () => {
+    expect(countDogsPerOwner([e("d1"), e("d2"), e("d3")], dogs)).toEqual({ h1: 2, h2: 1 });
+  });
+
+  it("ignores dogs it cannot resolve and never falls back to names", () => {
+    expect(countDogsPerOwner([e("d1"), e(null), e("missing")], dogs)).toEqual({ h1: 1 });
   });
 });

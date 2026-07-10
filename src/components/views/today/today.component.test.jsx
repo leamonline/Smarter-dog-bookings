@@ -7,9 +7,10 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { TodayHeader } from "./TodayHeader.jsx";
 import { TodayNowStrip } from "./TodayNowStrip.jsx";
-import { BookingFeed, BookingFeedCard } from "./BookingFeed.jsx";
+import { BookingFeed } from "./BookingFeed.jsx";
 import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./TodaySummaryStrip.jsx";
+import { ClosedDayBrief } from "../TodayView.jsx";
 import { CompactZeroState } from "./parts.jsx";
 
 const resolve = (b) => ({ dogName: b.dogName, breed: b.breed || "", owner: b.owner || "Owner" });
@@ -89,148 +90,168 @@ describe("TodayHeader", () => {
     expect(screen.getByText(/salon closed/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Manage availability/ })).not.toBeInTheDocument();
   });
-});
 
-describe("BookingFeed — one card per booking", () => {
-  it("renders exactly one card per feed entry, in the order given", () => {
-    render(
-      <BookingFeed
-        {...baseHandlers}
-        entries={[
-          entry({ id: "a", dogName: "Amber", slot: "09:00", status: "Booked" }, { isLate: true, needsAction: true, overdueMinutes: 20 }),
-          entry({ id: "n", dogName: "Nova", slot: "11:00", status: "Booked" }, { isNext: true }),
-        ]}
-      />,
-    );
-    expect(screen.getByText("Amber")).toBeInTheDocument();
-    expect(screen.getByText("Nova")).toBeInTheDocument();
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  it("briefMode suppresses today's stats — the closed-day KPIs carry the target day's figures", () => {
+    render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={11} actionCount={6} unpaidTotal={478} isDayOpen={false} briefMode onManageAvailability={noop} />);
+    expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
+    expect(screen.queryByText(/dogs booked/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/need action/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unpaid/)).not.toBeInTheDocument();
   });
 });
 
-describe("BookingFeedCard — adaptive actions + chips", () => {
-  it("a late card leads with Mark arrived and offers Didn't show under More", () => {
+const dogsMap = { d1: { id: "d1", _humanId: "h1", size: "large" } };
+
+function group(slot, entries) {
+  return { slot, label: slot ?? "Unscheduled", slotMinutes: 0, entries };
+}
+
+function renderFeed(groups, extra = {}) {
+  return render(
+    <BookingFeed
+      groups={groups}
+      dogs={dogsMap}
+      ownerCounts={{}}
+      expandedIds={new Set()}
+      onToggleExpand={noop}
+      {...baseHandlers}
+      {...extra}
+    />,
+  );
+}
+
+describe("BookingFeed — slot-grouped diary", () => {
+  const booking = { id: "b1", dogName: "Rex", breed: "Poodle", service: "Full Groom", slot: "08:30", status: "Booked", _dogId: "d1", size: "large" };
+
+  it("renders slot headings with the dogs beneath them", () => {
+    renderFeed([group("08:30", [entry(booking)]), group("09:00", [entry({ ...booking, id: "b2", dogName: "Bella" })])]);
+    expect(screen.getByText("08:30")).toBeInTheDocument();
+    expect(screen.getByText("09:00")).toBeInTheDocument();
+    expect(screen.getByText("Rex")).toBeInTheDocument();
+    expect(screen.getByText("Bella")).toBeInTheDocument();
+  });
+
+  it("collapsed row is a disclosure button; actions appear only when expanded", () => {
+    const { container, rerender } = renderFeed([group("08:30", [entry(booking)])]);
+    const toggle = container.querySelector("#today-card-b1-toggle");
+    expect(toggle.tagName).toBe("BUTTON");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls", "today-card-b1-detail");
+    expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();
+    rerender(
+      <BookingFeed groups={[group("08:30", [entry(booking)])]} dogs={dogsMap} ownerCounts={{}}
+        expandedIds={new Set(["b1"])} onToggleExpand={noop} {...baseHandlers} />,
+    );
+    expect(container.querySelector("#today-card-b1-toggle")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
+  });
+
+  it("no interactive control is nested inside the toggle button", () => {
+    const { container } = renderFeed([group("08:30", [entry(booking, { isLate: true, overdueMinutes: 25 })])], { expandedIds: new Set(["b1"]) });
+    const toggle = container.querySelector("#today-card-b1-toggle");
+    expect(toggle.querySelector("button, a, input, select")).toBeNull();
+  });
+
+  it("tapping the toggle calls onToggleExpand with the booking id", () => {
+    const onToggleExpand = vi.fn();
+    const { container } = renderFeed([group("08:30", [entry(booking)])], { onToggleExpand });
+    fireEvent.click(container.querySelector("#today-card-b1-toggle"));
+    expect(onToggleExpand).toHaveBeenCalledWith("b1");
+  });
+
+  it("chips: overdue shows, overflow collapses to +N, dog name never hidden", () => {
+    renderFeed([group("08:30", [entry(booking, { isLate: true, overdueMinutes: 25, owes: true, stage: "inSalon" })])], {
+      ownerCounts: { h1: 2 },
+    });
+    // Late + payment due + large dog + two-dogs-one-owner = 4 signals → 2 chips + "+2".
+    expect(screen.getByText("Rex")).toBeInTheDocument();
+    expect(screen.getByText(/25 min overdue/)).toBeInTheDocument();
+    expect(screen.getByText("+2")).toBeInTheDocument();
+  });
+
+  it("readOnly mode renders no buttons at all and no time-relative chips", () => {
+    renderFeed([group("08:30", [entry(booking)])], { readOnly: true });
+    expect(screen.queryAllByRole("button")).toEqual([]);
+    expect(screen.queryByText(/overdue/)).not.toBeInTheDocument();
+    expect(screen.getByText("Large dog")).toBeInTheDocument();
+  });
+
+  it("an Unscheduled group renders its dogs", () => {
+    renderFeed([group(null, [entry({ ...booking, id: "b9", slot: undefined })])]);
+    expect(screen.getByText("Unscheduled")).toBeInTheDocument();
+    expect(screen.getByText("Rex")).toBeInTheDocument();
+  });
+
+  it("highlights the next booking's row without a redundant Next chip", () => {
+    const { container } = renderFeed([group("11:00", [entry({ ...booking, id: "n", dogName: "Bella", slot: "11:00" }, { isNext: true })])]);
+    expect(screen.queryByText("Next")).not.toBeInTheDocument();
+    expect(container.querySelector("#today-card-n").className).toMatch(/brand-teal/);
+  });
+});
+
+describe("BookingFeed — expanded-row actions (same contextual set as before)", () => {
+  const base = { id: "x", dogName: "Rex", breed: "Poodle", service: "Full Groom", slot: "09:00", status: "Booked", _dogId: "d1" };
+  const open = (booking, entryOverrides = {}, extra = {}) =>
+    renderFeed([group(booking.slot ?? "09:00", [entry(booking, entryOverrides)])], {
+      expandedIds: new Set([booking.id]),
+      ...extra,
+    });
+
+  it("a late row leads with Mark arrived and offers Didn't show under More", () => {
     const onMarkArrived = vi.fn();
     const onDidntShow = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onMarkArrived={onMarkArrived}
-        onDidntShow={onDidntShow}
-        entry={entry({ id: "a", dogName: "Rex", slot: "09:00", status: "Booked" }, { isLate: true, needsAction: true, overdueMinutes: 20 })}
-      />,
-    );
-    expect(screen.getByText("Late")).toBeInTheDocument();
-    expect(screen.getByText(/20 min overdue/)).toBeInTheDocument();
+    open(base, { isLate: true, needsAction: true, overdueMinutes: 20 }, { onMarkArrived, onDidntShow });
     fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
     expect(onMarkArrived).toHaveBeenCalled();
-    // "Didn't show" is a lower-priority action tucked into the More menu.
     expect(screen.queryByRole("button", { name: "Didn't show" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /More actions for Rex/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
     expect(onDidntShow).toHaveBeenCalled();
   });
 
-  it("highlights the next booking visually, without a redundant Next chip", () => {
-    const { container } = render(
-      <BookingFeedCard
-        {...baseHandlers}
-        entry={entry({ id: "n", dogName: "Bella", slot: "11:00", status: "Booked" }, { isNext: true })}
-      />,
-    );
-    // The teal border/tint already signals "next" — no separate chip clutter.
-    expect(screen.queryByText("Next")).not.toBeInTheDocument();
-    expect(container.querySelector("li").className).toMatch(/border-brand-teal/);
-    expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
-  });
-
-  it("a checked-in card leads with Start groom, with Mark ready one tap behind", () => {
+  it("a checked-in row leads with Start groom, Mark ready one tap behind", () => {
     const onStartGroom = vi.fn();
     const onMarkReady = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onStartGroom={onStartGroom}
-        onMarkReady={onMarkReady}
-        entry={entry({ id: "s", dogName: "Poppy", slot: "09:30", status: "Checked in" }, { stage: "inSalon" })}
-      />,
-    );
+    open({ ...base, status: "Checked in" }, { stage: "inSalon" }, { onStartGroom, onMarkReady });
     fireEvent.click(screen.getByRole("button", { name: "Start groom" }));
     expect(onStartGroom).toHaveBeenCalled();
-    // The skip path stays available for dogs that go straight to ready.
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
     expect(onMarkReady).toHaveBeenCalled();
   });
 
-  it("an in-bath card leads with Mark ready", () => {
+  it("an in-bath row leads with Mark ready (no Start groom)", () => {
     const onMarkReady = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onMarkReady={onMarkReady}
-        entry={entry({ id: "s2", dogName: "Poppy", slot: "09:30", status: "In bath" }, { stage: "inSalon" })}
-      />,
-    );
+    open({ ...base, status: "In bath" }, { stage: "inSalon" }, { onMarkReady });
     expect(screen.queryByRole("button", { name: "Start groom" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
     expect(onMarkReady).toHaveBeenCalled();
   });
 
-  it("a ready card runs the collection workflow with a two-step confirm", () => {
+  it("a ready row runs the collection workflow with a two-step confirm", () => {
     const onSendCollection = vi.fn();
     const onMarkCollected = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onSendCollection={onSendCollection}
-        onMarkCollected={onMarkCollected}
-        entry={entry({ id: "r", dogName: "Teddy", slot: "10:00", status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", waitMinutes: 25, needsAction: true })}
-      />,
-    );
+    open({ ...base, status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", waitMinutes: 25, needsAction: true }, { onSendCollection, onMarkCollected });
     expect(screen.getByText(/waiting 25 min/)).toBeInTheDocument();
-    // Neither the message-sent state nor the "Ready — chase collection"
-    // status chip is restated — the primary action already says both.
-    expect(screen.queryByText(/messaged|Message sent/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Ready — chase collection")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send collection message" }));
     expect(onSendCollection).toHaveBeenCalled();
-    // Mark collected requires a confirm.
     fireEvent.click(screen.getByRole("button", { name: "Mark collected" }));
     expect(onMarkCollected).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Confirm collected" }));
     expect(onMarkCollected).toHaveBeenCalledTimes(1);
   });
 
-  it("a ready dog that owes keeps the collection workflow, a Payment due chip and Mark paid (with method)", () => {
+  it("a collected dog that still owes leads with Mark paid (with method)", () => {
     const onMarkPaid = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        paymentOf={dueOf}
-        onMarkPaid={onMarkPaid}
-        entry={entry({ id: "r2", dogName: "Luna", slot: "09:00", status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", owes: true, waitMinutes: 20, needsAction: true })}
-      />,
-    );
-    expect(screen.getByText("Payment due")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send collection message" })).toBeInTheDocument();
+    open({ ...base, id: "cw", status: "Completed" }, { stage: "collected", owes: true }, { paymentOf: dueOf, onMarkPaid });
     fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
-    fireEvent.click(screen.getByRole("button", { name: "Card" }));
-    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "r2" }), "card");
+    fireEvent.click(screen.getByRole("button", { name: "Cash" }));
+    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "cw" }), "cash");
   });
 
-  it("an unconfirmed card leads with Chase confirmation and can be hidden until tomorrow", () => {
+  it("an unconfirmed row leads with Chase confirmation and can be hidden until tomorrow", () => {
     const onHide = vi.fn();
     const onMessageOwner = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onMessageOwner={onMessageOwner}
-        onHideUntilTomorrow={onHide}
-        entry={entry({ id: "u", dogName: "Milo", slot: "11:00", status: "Booked", reminderSentAt: null }, { isUnconfirmed: true, needsAction: true })}
-      />,
-    );
-    expect(screen.getByText("Needs confirmation")).toBeInTheDocument();
-    // Chasing happens in the owner's message thread.
+    open({ ...base, id: "u", dogName: "Milo", reminderSentAt: null }, { isUnconfirmed: true, needsAction: true }, { onMessageOwner, onHideUntilTomorrow: onHide });
     fireEvent.click(screen.getByRole("button", { name: "Chase confirmation" }));
     expect(onMessageOwner).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /More actions for Milo/ }));
@@ -238,49 +259,20 @@ describe("BookingFeedCard — adaptive actions + chips", () => {
     expect(onHide).toHaveBeenCalledWith("u");
   });
 
-  it("a plain booked card keeps Message owner one tap away in More", () => {
+  it("a plain booked row keeps Message owner one tap away in More", () => {
     const onMessageOwner = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        onMessageOwner={onMessageOwner}
-        entry={entry({ id: "p", dogName: "Alfie", slot: "12:00", status: "Booked" })}
-      />,
-    );
-    // One clear primary; messaging is demoted, not removed.
+    open(base, {}, { onMessageOwner });
     expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Message owner" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /More actions for Alfie/ }));
+    fireEvent.click(screen.getByRole("button", { name: /More actions for Rex/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Message owner" }));
     expect(onMessageOwner).toHaveBeenCalled();
   });
 
-  it("a collected dog that still owes leads with Mark paid", () => {
-    const onMarkPaid = vi.fn();
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        paymentOf={dueOf}
-        onMarkPaid={onMarkPaid}
-        entry={entry({ id: "cw", dogName: "Rosie", slot: "08:30", status: "Completed" }, { stage: "collected", owes: true })}
-      />,
-    );
-    expect(screen.getByText("Payment due")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cash" }));
-    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "cw" }), "cash");
-  });
-
-  it("surfaces care notes on the card", () => {
-    render(
-      <BookingFeedCard
-        {...baseHandlers}
-        getWelfare={() => ({ alerts: ["Nervous", "Bites/nips"], pregnant: false, notes: "" })}
-        entry={entry({ id: "c", dogName: "Scout", slot: "10:30", status: "Booked" })}
-      />,
-    );
-    expect(screen.getByText("Nervous")).toBeInTheDocument();
-    expect(screen.getByText("Bites/nips")).toBeInTheDocument();
+  it("surfaces care notes on the expanded row", () => {
+    open(base, {}, { getWelfare: () => ({ alerts: ["Nervous", "Bites/nips"], pregnant: false, notes: "" }) });
+    expect(screen.getAllByText(/Nervous/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Bites\/nips/).length).toBeGreaterThan(0);
   });
 });
 
@@ -350,14 +342,11 @@ describe("AvailabilityModal", () => {
 describe("TodaySummaryStrip", () => {
   const summary = { total: 4, arrived: 3, expected: 1, ready: 1, collected: 1, unpaidCount: 2, dogsBooked: 4, capacityUsedPct: 29, expectedRevenue: 168, collectedRevenue: 84 };
 
-  it("separates money from dog counts and shows the five status counters", () => {
+  it("shows the five status counters without restating expected revenue (the KPI row owns it)", () => {
     render(<TodaySummaryStrip summary={summary} />);
     expect(screen.getByText("Daily progress")).toBeInTheDocument();
     expect(screen.getByText("1 of 4 collected")).toBeInTheDocument();
-    // Money lives on its own line, never inside a counter label.
-    expect(screen.getByText("£168")).toBeInTheDocument();
-    expect(screen.getByText(/expected revenue/)).toBeInTheDocument();
-    expect(screen.getByText("£84")).toBeInTheDocument();
+    expect(screen.queryByText(/expected revenue/)).not.toBeInTheDocument();
     for (const label of ["Booked", "Arrived", "Expected", "Ready", "Collected"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
@@ -483,5 +472,55 @@ describe("CompactZeroState", () => {
   it("renders a one-line reassurance row", () => {
     render(<CompactZeroState>Nothing needs attention right now.</CompactZeroState>);
     expect(screen.getByText(/Nothing needs attention/)).toBeInTheDocument();
+  });
+});
+
+describe("ClosedDayBrief", () => {
+  const dogs = { d1: { id: "d1", _humanId: "h1", size: "small" } };
+  const briefBookings = [
+    { id: "m1", slot: "08:30", service: "Full Groom", size: "small", status: "Booked", payment: "Due at Pick-up", addons: null, priceOverride: null, dogName: "Rex", breed: "Poodle", owner: "Sam", _dogId: "d1", _bookingDate: "2026-07-13" },
+  ];
+  const paymentOf = () => ({ kind: "due", label: "Balance due", amountDue: 42, depositPaid: 0, subtotal: 42 });
+
+  const base = {
+    brief: { loading: false, available: true, dateStr: "2026-07-13", bookings: briefBookings, noOpenDay: false, refresh: noop },
+    dogs, resolve, getWelfare, paymentOf,
+  };
+
+  it("shows the banner, the target-day KPIs and a read-only diary", () => {
+    render(<ClosedDayBrief {...base} />);
+    expect(screen.getByText(/Closed today/)).toBeInTheDocument();
+    expect(screen.getByText(/Monday 13 July/)).toBeInTheDocument();
+    // KPI count comes from the TARGET day's bookings (one dog), never today's.
+    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("Rex")).toBeInTheDocument();
+    // Read-only: no action buttons, no time-relative chips.
+    expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Late")).not.toBeInTheDocument();
+  });
+
+  it("offers the calendar from the banner", () => {
+    const onOpenCalendar = vi.fn();
+    render(<ClosedDayBrief {...base} onOpenCalendar={onOpenCalendar} />);
+    fireEvent.click(screen.getByRole("button", { name: /Open the calendar/ }));
+    expect(onOpenCalendar).toHaveBeenCalled();
+  });
+
+  it("says the diary could not be loaded (with retry) instead of asserting empty", () => {
+    const refresh = vi.fn();
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, available: false, dateStr: null, bookings: [], refresh }} />);
+    expect(screen.getByText(/Couldn't load the diary/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("states plainly when no open day exists in the lookahead", () => {
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, dateStr: null, bookings: [], noOpenDay: true }} />);
+    expect(screen.getByText(/No open days in the next ten days/)).toBeInTheDocument();
+  });
+
+  it("shows the calm empty state for a verified-empty open day", () => {
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, bookings: [] }} />);
+    expect(screen.getByText(/Nothing booked in yet/)).toBeInTheDocument();
   });
 });
