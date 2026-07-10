@@ -29,15 +29,7 @@ export function TodaySummaryStrip({ summary, takings }) {
           {summary.collected} of {summary.total} collected
         </span>
       </div>
-      <p className="px-3.5 py-2 text-[13px] text-slate-700 border-b border-slate-100">
-        <span className="font-bold text-slate-800 tabular-nums">{formatMoney(summary.expectedRevenue)}</span>{" "}
-        expected revenue
-        {summary.collectedRevenue > 0 && (
-          <span className="text-slate-600">
-            {" "}· <span className="font-semibold text-slate-800 tabular-nums">{formatMoney(summary.collectedRevenue)}</span> recorded paid
-          </span>
-        )}
-      </p>
+      {/* Expected revenue is NOT restated here — the KPI row owns it. */}
 
       {/* Status counters — one per lifecycle stage, always five across. */}
       <div className="grid grid-cols-5 divide-x divide-slate-100">

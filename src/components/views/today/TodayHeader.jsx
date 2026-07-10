@@ -11,6 +11,7 @@ export function TodayHeader({
   unpaidTotal = 0,
   nextOnlineSlot = null,
   isDayOpen,
+  briefMode = false,
   onManageAvailability,
 }) {
   const dogsLabel = `${dogsBooked} ${dogsBooked === 1 ? "dog" : "dogs"} booked`;
@@ -26,20 +27,26 @@ export function TodayHeader({
               <span className="font-bold text-brand-coral-text">salon closed</span>
             </>
           )}
-          <span aria-hidden>·</span>
-          <span>{dogsLabel}</span>
-          <span aria-hidden>·</span>
-          {actionCount > 0 ? (
-            <span className="font-bold text-brand-coral-text">
-              {actionCount} need action
-            </span>
-          ) : (
-            <span className="font-semibold text-brand-teal-text">all calm</span>
-          )}
-          {unpaidTotal > 0 && (
+          {/* briefMode = the closed-day brief: today's stats would sit next to
+              the NEXT open day's KPIs and read as that day's — so they hide. */}
+          {!briefMode && (
             <>
               <span aria-hidden>·</span>
-              <span className="font-bold text-slate-800">{formatMoney(unpaidTotal)} unpaid</span>
+              <span>{dogsLabel}</span>
+              <span aria-hidden>·</span>
+              {actionCount > 0 ? (
+                <span className="font-bold text-brand-coral-text">
+                  {actionCount} need action
+                </span>
+              ) : (
+                <span className="font-semibold text-brand-teal-text">all calm</span>
+              )}
+              {unpaidTotal > 0 && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="font-bold text-slate-800">{formatMoney(unpaidTotal)} unpaid</span>
+                </>
+              )}
             </>
           )}
         </p>

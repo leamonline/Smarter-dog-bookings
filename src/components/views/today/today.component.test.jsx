@@ -10,6 +10,7 @@ import { TodayNowStrip } from "./TodayNowStrip.jsx";
 import { BookingFeed } from "./BookingFeed.jsx";
 import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./TodaySummaryStrip.jsx";
+import { ClosedDayBrief } from "../TodayView.jsx";
 import { CompactZeroState } from "./parts.jsx";
 
 const resolve = (b) => ({ dogName: b.dogName, breed: b.breed || "", owner: b.owner || "Owner" });
@@ -88,6 +89,14 @@ describe("TodayHeader", () => {
     render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={0} actionCount={0} isDayOpen={false} onManageAvailability={noop} />);
     expect(screen.getByText(/salon closed/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Manage availability/ })).not.toBeInTheDocument();
+  });
+
+  it("briefMode suppresses today's stats — the closed-day KPIs carry the target day's figures", () => {
+    render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={11} actionCount={6} unpaidTotal={478} isDayOpen={false} briefMode onManageAvailability={noop} />);
+    expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
+    expect(screen.queryByText(/dogs booked/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/need action/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unpaid/)).not.toBeInTheDocument();
   });
 });
 
@@ -333,14 +342,11 @@ describe("AvailabilityModal", () => {
 describe("TodaySummaryStrip", () => {
   const summary = { total: 4, arrived: 3, expected: 1, ready: 1, collected: 1, unpaidCount: 2, dogsBooked: 4, capacityUsedPct: 29, expectedRevenue: 168, collectedRevenue: 84 };
 
-  it("separates money from dog counts and shows the five status counters", () => {
+  it("shows the five status counters without restating expected revenue (the KPI row owns it)", () => {
     render(<TodaySummaryStrip summary={summary} />);
     expect(screen.getByText("Daily progress")).toBeInTheDocument();
     expect(screen.getByText("1 of 4 collected")).toBeInTheDocument();
-    // Money lives on its own line, never inside a counter label.
-    expect(screen.getByText("£168")).toBeInTheDocument();
-    expect(screen.getByText(/expected revenue/)).toBeInTheDocument();
-    expect(screen.getByText("£84")).toBeInTheDocument();
+    expect(screen.queryByText(/expected revenue/)).not.toBeInTheDocument();
     for (const label of ["Booked", "Arrived", "Expected", "Ready", "Collected"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
@@ -466,5 +472,55 @@ describe("CompactZeroState", () => {
   it("renders a one-line reassurance row", () => {
     render(<CompactZeroState>Nothing needs attention right now.</CompactZeroState>);
     expect(screen.getByText(/Nothing needs attention/)).toBeInTheDocument();
+  });
+});
+
+describe("ClosedDayBrief", () => {
+  const dogs = { d1: { id: "d1", _humanId: "h1", size: "small" } };
+  const briefBookings = [
+    { id: "m1", slot: "08:30", service: "Full Groom", size: "small", status: "Booked", payment: "Due at Pick-up", addons: null, priceOverride: null, dogName: "Rex", breed: "Poodle", owner: "Sam", _dogId: "d1", _bookingDate: "2026-07-13" },
+  ];
+  const paymentOf = () => ({ kind: "due", label: "Balance due", amountDue: 42, depositPaid: 0, subtotal: 42 });
+
+  const base = {
+    brief: { loading: false, available: true, dateStr: "2026-07-13", bookings: briefBookings, noOpenDay: false, refresh: noop },
+    dogs, resolve, getWelfare, paymentOf,
+  };
+
+  it("shows the banner, the target-day KPIs and a read-only diary", () => {
+    render(<ClosedDayBrief {...base} />);
+    expect(screen.getByText(/Closed today/)).toBeInTheDocument();
+    expect(screen.getByText(/Monday 13 July/)).toBeInTheDocument();
+    // KPI count comes from the TARGET day's bookings (one dog), never today's.
+    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("Rex")).toBeInTheDocument();
+    // Read-only: no action buttons, no time-relative chips.
+    expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Late")).not.toBeInTheDocument();
+  });
+
+  it("offers the calendar from the banner", () => {
+    const onOpenCalendar = vi.fn();
+    render(<ClosedDayBrief {...base} onOpenCalendar={onOpenCalendar} />);
+    fireEvent.click(screen.getByRole("button", { name: /Open the calendar/ }));
+    expect(onOpenCalendar).toHaveBeenCalled();
+  });
+
+  it("says the diary could not be loaded (with retry) instead of asserting empty", () => {
+    const refresh = vi.fn();
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, available: false, dateStr: null, bookings: [], refresh }} />);
+    expect(screen.getByText(/Couldn't load the diary/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("states plainly when no open day exists in the lookahead", () => {
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, dateStr: null, bookings: [], noOpenDay: true }} />);
+    expect(screen.getByText(/No open days in the next ten days/)).toBeInTheDocument();
+  });
+
+  it("shows the calm empty state for a verified-empty open day", () => {
+    render(<ClosedDayBrief {...base} brief={{ ...base.brief, bookings: [] }} />);
+    expect(screen.getByText(/Nothing booked in yet/)).toBeInTheDocument();
   });
 });
