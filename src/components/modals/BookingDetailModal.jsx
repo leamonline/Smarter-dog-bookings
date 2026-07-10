@@ -245,6 +245,10 @@ export function BookingDetailModal({
         pickupBy: pickedPickup?.fullName || editData.pickupBy,
         _pickupById: pickedPickup?.id ?? null,
         payment: editData.payment,
+        // Mirror useBookingSave: the ledger fields travel with Paid in Full
+        // (the DB trigger clears them whenever payment moves off it).
+        paymentMethod: editData.payment === "Paid in Full" ? editData.paymentMethod : null,
+        paidAmount: editData.payment === "Paid in Full" ? editData.paidAmount : null,
         depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
         slot: editData.slot,
       },
@@ -392,6 +396,9 @@ export function BookingDetailModal({
             setEditData={setEditData}
             humans={humans}
             primaryHuman={primaryHuman}
+            pricing={pricing}
+            onUpdate={onUpdate}
+            currentDateStr={currentDateStr}
           />
 
           {/* ── Card 4: Reminder ── (between Payment & Pickup and the

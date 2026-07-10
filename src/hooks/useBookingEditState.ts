@@ -14,6 +14,8 @@ interface EditData {
   service: string;
   pickupBy: string;
   payment: string;
+  paymentMethod: string | null;
+  paidAmount: number | null;
   depositAmount: number;
   groomNotes: string;
   alerts: string[];
@@ -79,6 +81,11 @@ function buildEditState(
       booking.owner ||
       "",
     payment: booking.payment || "Due at Pick-up",
+    // Method defaults to card (the common case) so marking paid is a
+    // confirmation, not data entry; the amount stays null until "Paid in
+    // Full" is chosen, at which point the UI prefills the appointment total.
+    paymentMethod: booking.paymentMethod ?? "card",
+    paidAmount: booking.paidAmount ?? null,
     depositAmount: booking.depositAmount ?? 10,
     groomNotes: dogData?.groomNotes || "",
     alerts: [...(dogData?.alerts || [])],
