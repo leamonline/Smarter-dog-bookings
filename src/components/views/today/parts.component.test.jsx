@@ -11,6 +11,7 @@ import {
   WAIT_AMBER_MINUTES,
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
+import { TodayKpiRow } from "./TodayKpiRow.jsx";
 
 describe("waitTone thresholds", () => {
   it("is neutral under the amber threshold, amber at 60+, red at 120+", () => {
@@ -119,6 +120,25 @@ describe("MoreMenu", () => {
   it("renders nothing when there are no items", () => {
     const { container } = render(<MoreMenu items={[]} />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe("TodayKpiRow", () => {
+  it("shows dogs in, expected revenue and capacity from the same count", () => {
+    render(<TodayKpiRow dogsBooked={11} expectedRevenue={478.4} />);
+    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("11");
+    expect(screen.getByText("£478")).toBeInTheDocument();
+    expect(screen.getByText("if all paid")).toBeInTheDocument();
+    expect(screen.getByText(/\/ 14/)).toBeInTheDocument();
+    const bar = screen.getByRole("progressbar", { name: /capacity/i });
+    expect(bar).toHaveAttribute("aria-valuenow", "11");
+    expect(bar).toHaveAttribute("aria-valuemax", "14");
+  });
+
+  it("caps the bar at 100% when over capacity", () => {
+    render(<TodayKpiRow dogsBooked={20} expectedRevenue={0} />);
+    const bar = screen.getByRole("progressbar", { name: /capacity/i });
+    expect(bar.querySelector("span").style.width).toBe("100%");
   });
 });
 
