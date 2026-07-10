@@ -1096,6 +1096,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       setShowDatePicker={setShowDatePicker}
                       handleDatePick={handleDatePick}
                       setShowNewBooking={requestNewBooking}
+                      draftPick={showNewBooking ? draftPick : null}
                       onOpenHuman={handleOpenHuman}
                       onRefresh={refetchBookings}
                     />

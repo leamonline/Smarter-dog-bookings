@@ -130,3 +130,24 @@ describe("SlotGrid — cancelled bookings", () => {
     expect(screen.queryByText("Cancelled Pup")).toBeNull();
   });
 });
+
+describe("SlotGrid — live booking-draft marker", () => {
+  it("marks the slot row the open booking draft is targeting", () => {
+    renderGrid("2026-06-02", [], {
+      draftPick: { dateStr: "2026-06-02", slot: "09:00" },
+    });
+    expect(screen.getByText("Booking here")).toBeInTheDocument();
+  });
+
+  it("shows no marker when the draft targets a different date", () => {
+    renderGrid("2026-06-02", [], {
+      draftPick: { dateStr: "2026-06-03", slot: "09:00" },
+    });
+    expect(screen.queryByText("Booking here")).toBeNull();
+  });
+
+  it("shows no marker when there is no draft", () => {
+    renderGrid("2026-06-02");
+    expect(screen.queryByText("Booking here")).toBeNull();
+  });
+});

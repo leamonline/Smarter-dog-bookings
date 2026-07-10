@@ -16,6 +16,7 @@ export function BookingMainPanel({
   activeSlots,
   overrides,
   immediateSlots,
+  draftPick,
   onNavigateDay,
   onOpenCalendar,
   onOpenOverview,
@@ -100,6 +101,7 @@ export function BookingMainPanel({
                 loading={bookingsLoading && bookings.length === 0}
                 activeSlots={activeSlots}
                 onOpenNewBooking={onOpenNewBooking}
+                draftPick={draftPick}
                 onMoveBooking={onMoveBooking}
                 currentDateStr={currentDateStr}
                 overrides={overrides}

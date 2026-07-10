@@ -75,6 +75,7 @@ export function WeekCalendarView({
   setShowDatePicker,
   handleDatePick,
   setShowNewBooking,
+  draftPick,
   onOpenHuman,
   onRefresh,
 }) {
@@ -292,6 +293,7 @@ export function WeekCalendarView({
               activeSlots={activeSlots}
               overrides={currentSettings.overrides || {}}
               immediateSlots={currentSettings.immediateSlots || []}
+              draftPick={draftPick}
               onNavigateDay={(delta) => {
                 const target = new Date(currentDateObj);
                 target.setDate(target.getDate() + delta);

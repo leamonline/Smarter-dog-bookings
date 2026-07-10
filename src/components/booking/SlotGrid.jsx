@@ -20,6 +20,7 @@ export function SlotGrid({
   loading,
   activeSlots,
   onOpenNewBooking,
+  draftPick,
   onMoveBooking,
   currentDateStr,
   overrides,
@@ -177,6 +178,12 @@ export function SlotGrid({
     const rowBg = index % 2 === 0 ? "bg-sky-50/60" : "bg-white";
     const isNow = index === nowIdx;
 
+    // Live booking-draft marker: while the booking drawer targets this
+    // day+slot, pin a chip on the row so staff always see where the
+    // booking will land.
+    const isDraftTarget =
+      !!draftPick && draftPick.dateStr === currentDateStr && draftPick.slot === slot;
+
     // One boxed time button PER SLOT, spanning both seats: the clock + time
     // (like the old list view's arrival pill) sits beside the stacked seats
     // and opens the slot-actions menu (book / block / override).
@@ -267,8 +274,15 @@ export function SlotGrid({
           hasBooking ? "min-h-0" : "min-h-[48px] md:min-h-[56px]",
           isLast ? "" : "border-b border-[#F1F3F5]",
           rowBg,
+          isDraftTarget ? "ring-2 ring-inset ring-brand-teal" : "",
         ].filter(Boolean).join(" ")}
       >
+        {isDraftTarget && (
+          <span className="absolute -top-2 left-16 md:left-20 z-[1] inline-flex items-center rounded-full bg-brand-teal text-white text-[10px] font-bold px-2 py-0.5 shadow-sm pointer-events-none">
+            Booking here
+          </span>
+        )}
+
         {isNow && (
           <>
             <span
@@ -324,7 +338,7 @@ export function SlotGrid({
         )}
       </div>
     );
-  }, [block, unblock, toggleImmediate, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, immediateSlots, onToggleImmediate, isToday, activeSlots, onOverride, onMoveBooking, dnd, nowIdx]);
+  }, [block, unblock, toggleImmediate, onOpenNewBooking, currentDateStr, searchActive, searchLower, loading, activeBookings, overrides, immediateSlots, onToggleImmediate, isToday, activeSlots, onOverride, onMoveBooking, dnd, nowIdx, draftPick]);
 
   return (
     <div>
