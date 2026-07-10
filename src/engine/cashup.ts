@@ -115,6 +115,7 @@ export function buildWeeklyCashUp(
         addons: booking.addons,
         payment: booking.payment,
         depositAmount: booking.depositAmount,
+        priceOverride: booking.priceOverride,
         customPrice: dog?.customPrice,
       });
 

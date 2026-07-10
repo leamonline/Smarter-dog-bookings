@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import {
-  getNumericPrice,
-  getServicePriceLabel,
+  getServicePriceAmount,
   normalizeServiceForSize,
+  type PricingConfig,
 } from "../engine/bookingRules";
 import type { Booking, Dog } from "../types/index";
 
@@ -22,7 +22,12 @@ interface EditData {
   addons: string[];
   date: Date;
   slot: string;
-  customPrice: number;
+  /** This booking's effective base price (pounds). Saved as a per-booking
+   *  price_override when it differs from the dog's usual/guide price. */
+  price: number;
+  /** Explicit opt-in: also save the edited price as the dog's usual
+   *  custom_price. Off by default — one-off adjustments stay one-off. */
+  saveAsUsual: boolean;
 }
 
 interface AllergyState {
@@ -57,16 +62,24 @@ function buildEditState(
   booking: Booking,
   dogData: EditableDogData,
   currentDateObj: Date,
+  configPricing?: PricingConfig,
 ): EditData {
   const size = booking.size || dogData?.size || "small";
   const service = normalizeServiceForSize(
     booking.service || "full-groom",
     size,
   );
+  // Seed with the booking's effective price: its one-off override, else the
+  // dog's usual price (>0 only — 0/null means "no usual price"), else the
+  // Settings/constant guide price. Mirrors computeBookingPricing.
+  const override = booking.priceOverride;
+  const usual = dogData?.customPrice;
   const basePrice =
-    dogData?.customPrice !== undefined
-      ? dogData.customPrice
-      : getNumericPrice(getServicePriceLabel(service, size));
+    override != null && Number(override) > 0
+      ? Number(override)
+      : usual != null && Number(usual) > 0
+        ? Number(usual)
+        : getServicePriceAmount(service, size, configPricing);
 
   return {
     service,
@@ -92,7 +105,8 @@ function buildEditState(
     addons: [...(booking.addons || [])],
     date: currentDateObj,
     slot: booking.slot || "",
-    customPrice: basePrice,
+    price: basePrice,
+    saveAsUsual: false,
   };
 }
 
@@ -100,6 +114,7 @@ export function useBookingEditState(
   booking: Booking,
   dogData: EditableDogData,
   currentDateObj: Date,
+  configPricing?: PricingConfig,
 ): UseBookingEditStateReturn {
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -108,7 +123,7 @@ export function useBookingEditState(
   const [saving, setSaving] = useState(false);
 
   const [editData, setEditData] = useState<EditData>(() =>
-    buildEditState(booking, dogData, currentDateObj),
+    buildEditState(booking, dogData, currentDateObj, configPricing),
   );
 
   const allergyEntry = (dogData?.alerts || []).find(
@@ -120,7 +135,7 @@ export function useBookingEditState(
   const [hasAllergy, setHasAllergy] = useState<boolean>(!!allergyEntry);
 
   const resetEditState = useCallback(() => {
-    const fresh = buildEditState(booking, dogData, currentDateObj);
+    const fresh = buildEditState(booking, dogData, currentDateObj, configPricing);
     setEditData(fresh);
     setIsEditing(false);
     setSaveError("");
@@ -129,7 +144,7 @@ export function useBookingEditState(
     );
     setAllergyInput(entry ? entry.replace("Allergic to ", "") : "");
     setHasAllergy(!!entry);
-  }, [booking, dogData, currentDateObj]);
+  }, [booking, dogData, currentDateObj, configPricing]);
 
   return {
     editData,

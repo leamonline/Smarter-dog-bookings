@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect } from "react";
-import { SERVICES, PRICING, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index";
+import { SERVICES, SIZE_THEME, SIZE_FALLBACK } from "../../../constants/index";
+import { getServicePriceLabel } from "../../../engine/bookingRules";
 import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon";
 import { IconSearch } from "../../icons/index.jsx";
 import { SkeletonBlock } from "../../ui/Skeleton.jsx";
@@ -131,7 +132,7 @@ export function DogSearchSection({
               >
                 {SERVICES.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} — {PRICING[s.id]?.[entry.dog.size || "small"] || "N/A"}
+                    {s.name} — {getServicePriceLabel(s.id, entry.dog.size || "small")}
                   </option>
                 ))}
               </select>

@@ -19,7 +19,7 @@ import { buildSlotGrid } from "../../../engine/slotGrid";
 import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
-import { PRICING } from "../../../constants/index";
+import { resolveServicePricePence } from "../../../engine/bookingRules";
 import { getSizeForBreed } from "../../../constants/breeds";
 import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
@@ -627,14 +627,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         {step >= 2 && Object.keys(services).length > 0 && (() => {
           const prices = selectedDogs
             .filter((d) => services[d.dogId])
-            .map((d) => {
-              const svc = services[d.dogId] as keyof typeof PRICING;
-              const size = d.size as "small" | "medium" | "large";
-              return PRICING[svc]?.[size] ?? null;
-            })
-            .filter(Boolean) as string[];
+            .map((d) => resolveServicePricePence(services[d.dogId] as string, d.size))
+            .filter((p): p is number => p != null);
           if (prices.length === 0) return null;
-          const total = prices.reduce((sum, p) => sum + parseInt(p.replace(/[^0-9]/g, ""), 10), 0);
+          const total = prices.reduce((sum, p) => sum + p, 0) / 100;
           return (
             <div className="text-[13px] font-semibold text-[var(--sd-ink-light)]">
               Estimated total: from {"£"}{total} (final price confirmed at your appointment)

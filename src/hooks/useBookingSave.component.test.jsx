@@ -30,7 +30,8 @@ function makeParams(overrides = {}) {
       addons: [],
       date: new Date(2026, 3, 6),
       slot: "09:00",
-      customPrice: 0,
+      price: 42,
+      saveAsUsual: false,
     },
     setSaving: vi.fn(),
     setSaveError: vi.fn(),
@@ -38,6 +39,7 @@ function makeParams(overrides = {}) {
     hasAllergy: false,
     allergyInput: "",
     booking,
+    dogData: {},
     humans: {},
     currentDateObj: new Date(2026, 3, 6),
     currentDateStr: "2026-04-06",
@@ -52,6 +54,70 @@ function makeParams(overrides = {}) {
   };
 }
 
+describe("useBookingSave price semantics", () => {
+  it("saves a one-off price as a per-booking override, dog untouched", async () => {
+    const params = makeParams({ editData: { ...makeParams().editData, price: 65 } });
+    const { result } = renderHook(() => useBookingSave(params));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(params.onUpdateDog).toHaveBeenCalledWith("dog-1", {
+      alerts: [],
+      groomNotes: "Teddy cut",
+    });
+    expect(params.onUpdate.mock.calls[0][0].priceOverride).toBe(65);
+  });
+
+  it("clears the override when the price matches the guide rate", async () => {
+    const params = makeParams(); // price 42 = full-groom small guide
+    const { result } = renderHook(() => useBookingSave(params));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(params.onUpdate.mock.calls[0][0].priceOverride).toBeNull();
+  });
+
+  it("anchors 'usual' to the dog's saved custom price", async () => {
+    const params = makeParams({
+      dogData: { customPrice: 55 },
+      editData: { ...makeParams().editData, price: 55 },
+    });
+    const { result } = renderHook(() => useBookingSave(params));
+    await act(async () => {
+      await result.current.save();
+    });
+    // 55 IS this dog's usual price — no override needed.
+    expect(params.onUpdate.mock.calls[0][0].priceOverride).toBeNull();
+  });
+
+  it("writes the dog's custom price only when Save-as-usual is ticked", async () => {
+    const params = makeParams({
+      editData: { ...makeParams().editData, price: 65, saveAsUsual: true },
+    });
+    const { result } = renderHook(() => useBookingSave(params));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(params.onUpdateDog).toHaveBeenCalledWith("dog-1", {
+      alerts: [],
+      groomNotes: "Teddy cut",
+      customPrice: 65,
+    });
+    expect(params.onUpdate.mock.calls[0][0].priceOverride).toBeNull();
+  });
+
+  it("rejects a zero/blank price instead of saving", async () => {
+    const params = makeParams({ editData: { ...makeParams().editData, price: 0 } });
+    const { result } = renderHook(() => useBookingSave(params));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(params.setSaveError).toHaveBeenCalledWith("Enter a price above £0");
+    expect(params.onUpdateDog).not.toHaveBeenCalled();
+    expect(params.onUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe("useBookingSave result handling", () => {
   it("saves when both callbacks resolve to records", async () => {
     const params = makeParams();
@@ -61,10 +127,11 @@ describe("useBookingSave result handling", () => {
       await result.current.save();
     });
 
+    // The dog update must NOT carry a price — the edited price stays on the
+    // booking (as price_override when it differs from the usual/guide rate).
     expect(params.onUpdateDog).toHaveBeenCalledWith("dog-1", {
       alerts: [],
       groomNotes: "Teddy cut",
-      customPrice: 0,
     });
     expect(params.onUpdate).toHaveBeenCalledTimes(1);
     expect(params.setIsEditing).toHaveBeenCalledWith(false);

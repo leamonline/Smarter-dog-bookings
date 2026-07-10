@@ -74,6 +74,7 @@ interface ReportBookingRow {
   ready_at?: string | null;
   payment_method?: string | null;
   paid_amount?: number | null;
+  price_override?: number | null;
 }
 
 /** Per-date extra/immediate slot levers, for the 2A uptake report. */
@@ -297,8 +298,8 @@ export function computeReportStats(
   );
 
   // Single pricing source (computeBookingPricing) — same engine the cash-up and
-  // booking cards use, so add-ons, custom prices (incl. a deliberate £0) and the
-  // expected/still-to-collect split all agree across the page.
+  // booking cards use, so add-ons, per-booking one-off prices, usual custom
+  // prices and the expected/still-to-collect split all agree across the page.
   const pricingOf = (b: ReportBookingRow) =>
     computeBookingPricing({
       service: b.service,
@@ -306,6 +307,7 @@ export function computeReportStats(
       addons: b.addons,
       payment: b.payment,
       depositAmount: b.deposit_amount,
+      priceOverride: b.price_override,
       customPrice: dogMap[b.dog_id]?.customPrice,
     });
   const priceOf = (b: ReportBookingRow) => pricingOf(b).subtotal;
@@ -605,7 +607,7 @@ export function useReportsData(days: number, source?: SalonReportSource) {
         const [bk, dg, hm, ds, ev] = await Promise.all([
           supabase
             .from("bookings")
-            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, cancel_reason, created_by_role, source, reminder_confirmed_at, checked_in_at, ready_at, payment_method, paid_amount")
+            .select("id, booking_date, service, size, status, payment, slot, dog_id, addons, deposit_amount, price_override, cancel_reason, created_by_role, source, reminder_confirmed_at, checked_in_at, ready_at, payment_method, paid_amount")
             .gte("booking_date", sinceStr)
             .order("booking_date")
             .abortSignal(controller.signal),

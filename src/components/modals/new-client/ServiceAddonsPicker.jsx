@@ -1,4 +1,5 @@
-import { SERVICES, PRICING } from "../../../constants/index";
+import { SERVICES } from "../../../constants/index";
+import { getServicePriceLabel } from "../../../engine/bookingRules";
 import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon";
 
 // Service dropdown + add-on chips for one dog. Mirrors the block inside
@@ -19,7 +20,7 @@ export function ServiceAddonsPicker({ dogName, size, service, addons, onServiceC
       >
         {SERVICES.map((s) => (
           <option key={s.id} value={s.id}>
-            {s.name} — {PRICING[s.id]?.[sz] || "N/A"}
+            {s.name} — {getServicePriceLabel(s.id, sz)}
           </option>
         ))}
       </select>

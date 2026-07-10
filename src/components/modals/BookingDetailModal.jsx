@@ -34,6 +34,7 @@ import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
 import { DeliveryFailureCard } from "./booking-detail/DeliveryFailureCard.jsx";
 import { useAutosave } from "../../hooks/useAutosave.js";
+import { useSalonPricing } from "../../contexts/SalonContext";
 import { bookingToReminderRow } from "./send-reminder/bookingToReminderRow.js";
 
 // Lazy so the channel composers don't load until staff first send from here.
@@ -62,6 +63,7 @@ export function BookingDetailModal({
   onUpdateHuman,
   daySettings = {},
 }) {
+  const configPricing = useSalonPricing();
   const dogData = useMemo(
     () => getDogByIdOrName(dogs, booking._dogId || booking.dogName) || {},
     [dogs, booking._dogId, booking.dogName],
@@ -84,7 +86,7 @@ export function BookingDetailModal({
       setShowExitConfirm,
     },
     resetEditState,
-  } = useBookingEditState(booking, dogData, currentDateObj);
+  } = useBookingEditState(booking, dogData, currentDateObj, configPricing);
 
   const primaryHuman = useMemo(
     () => getHumanByIdOrName(humans, booking._ownerId || booking.owner) || null,
@@ -180,7 +182,11 @@ export function BookingDetailModal({
     addons: activeAddons,
     payment: activePayment,
     depositAmount: activeDepositAmount,
-    customPrice: isEditing ? editData.customPrice : dogData?.customPrice,
+    // While editing, the typed price IS this booking's price (it becomes a
+    // per-booking override on save unless "Save as usual" is ticked).
+    priceOverride: isEditing ? editData.price : booking.priceOverride,
+    customPrice: dogData?.customPrice,
+    configPricing,
   });
 
   const handleCloseAttempt = useCallback(() => {
@@ -217,6 +223,7 @@ export function BookingDetailModal({
     hasAllergy,
     allergyInput,
     booking,
+    dogData,
     humans,
     currentDateObj,
     currentDateStr,
@@ -225,6 +232,7 @@ export function BookingDetailModal({
     editActiveSlots,
     otherBookings,
     allowedServices,
+    configPricing,
     onUpdate,
     onUpdateDog,
   });

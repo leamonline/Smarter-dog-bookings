@@ -1,8 +1,7 @@
 import { Camera, MessageCircle, Pencil, X } from "lucide-react";
 import { SERVICES, BOOKING_STATUS, getStatusDisplay } from "../../../constants/index";
 import {
-  getNumericPrice,
-  getServicePriceLabel,
+  getServicePriceAmount,
   resolveBookingDisplay,
 } from "../../../engine/bookingRules";
 import { titleCase } from "../../../utils/text";
@@ -181,12 +180,12 @@ export function BookingHeader({
               setEditData((prev) => ({
                 ...prev,
                 service: e.target.value,
-                customPrice:
-                  dogData?.customPrice !== undefined
-                    ? dogData.customPrice
-                    : getNumericPrice(
-                        getServicePriceLabel(e.target.value, sizeForPricing),
-                      ),
+                // Reseed with the dog's usual price (>0 only), else the
+                // guide rate for the newly chosen service.
+                price:
+                  dogData?.customPrice != null && Number(dogData.customPrice) > 0
+                    ? Number(dogData.customPrice)
+                    : getServicePriceAmount(e.target.value, sizeForPricing),
               }));
               setSaveError("");
             }}

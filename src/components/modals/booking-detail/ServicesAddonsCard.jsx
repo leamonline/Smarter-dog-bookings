@@ -1,9 +1,7 @@
 import { SERVICES } from "../../../constants/index";
 import { AVAILABLE_ADDONS, getAddonPrice } from "../../../constants/salon";
-import {
-  getNumericPrice,
-  getServicePriceLabel,
-} from "../../../engine/bookingRules";
+import { getServicePriceAmount } from "../../../engine/bookingRules";
+import { useSalonPricing } from "../../../contexts/SalonContext";
 import {
   DetailRow,
   LogisticsLabel,
@@ -35,23 +33,27 @@ export function ServicesAddonsCard({
   activePayment,
   activeDepositAmount,
 }) {
+  const configPricing = useSalonPricing();
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const activePrice = pricing.basePrice;
   const amountDue = pricing.amountDue;
-  // Mirror the size fallback used when customPrice is seeded
+  // Mirror the size fallback used when the edit price is seeded
   // (useBookingEditState) so the standard-rate comparison and any
   // service-change reseed can't disagree if booking.size is missing.
   const sizeForPricing = booking.size || dogData?.size || "small";
 
   if (isEditing) {
-    // Signal whether the shown base price is the standard rate for this
-    // service/size or a custom override carried on the dog, so staff don't
-    // mistake an overridden price for the salon's standard rate (#307).
-    const standardPrice = getNumericPrice(
-      getServicePriceLabel(editData.service, sizeForPricing),
-    );
-    const isCustomPrice = Number(editData.customPrice) !== Number(standardPrice);
+    // The dog's usual price: its deliberately saved custom_price (>0), else
+    // the Settings/constant guide rate for this service+size. Signals whether
+    // the shown price is a one-off for this booking (#307), and gates the
+    // "Save as usual price" tick.
+    const guidePrice = getServicePriceAmount(editData.service, sizeForPricing, configPricing);
+    const usualPrice =
+      dogData?.customPrice != null && Number(dogData.customPrice) > 0
+        ? Number(dogData.customPrice)
+        : guidePrice;
+    const isOneOffPrice = Number(editData.price) !== usualPrice;
 
     return (
       <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
@@ -59,7 +61,7 @@ export function ServicesAddonsCard({
           label={<LogisticsLabel text="Service" />}
           value={serviceObj?.name || currentService}
           editNode={
-            <select value={editData.service} onChange={(e) => { setEditData((prev) => ({ ...prev, service: e.target.value, customPrice: dogData?.customPrice !== undefined ? dogData.customPrice : getNumericPrice(getServicePriceLabel(e.target.value, sizeForPricing)) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
+            <select value={editData.service} onChange={(e) => { const svc = e.target.value; setEditData((prev) => ({ ...prev, service: svc, price: dogData?.customPrice != null && Number(dogData.customPrice) > 0 ? Number(dogData.customPrice) : getServicePriceAmount(svc, sizeForPricing, configPricing) })); setSaveError(""); }} className={MODAL_INPUT_CLS}>
               {allowedServices.map((service) => (<option key={service.id} value={service.id}>{service.name}</option>))}
             </select>
           }
@@ -81,13 +83,28 @@ export function ServicesAddonsCard({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-semibold">{"£"}</span>
-                <input type="number" value={editData.customPrice} onChange={(e) => setEditData((prev) => ({ ...prev, customPrice: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
+                <input type="number" min="0" value={editData.price} onChange={(e) => setEditData((prev) => ({ ...prev, price: Number(e.target.value) }))} className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border" />
               </div>
-              <p className={`mt-1 text-[11px] font-semibold ${isCustomPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
-                {isCustomPrice
-                  ? `Custom price — standard is £${standardPrice}`
-                  : "Standard price"}
+              <p className={`mt-1 text-[11px] font-semibold ${isOneOffPrice ? "text-brand-teal-text" : "text-slate-400"}`}>
+                {isOneOffPrice
+                  ? `One-off price for this booking — usual is £${usualPrice}`
+                  : usualPrice !== guidePrice
+                    ? `${booking.dogName || "This dog"}'s usual price (guide is £${guidePrice})`
+                    : "Standard price"}
               </p>
+              {/* One-off by default: a matting surcharge today must not
+                  silently become the dog's price forever. Staff opt in. */}
+              {isOneOffPrice && (
+                <label className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-slate-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-[16px] h-[16px] cursor-pointer"
+                    checked={editData.saveAsUsual}
+                    onChange={(e) => setEditData((prev) => ({ ...prev, saveAsUsual: e.target.checked }))}
+                  />
+                  Save as {booking.dogName || "this dog"}&rsquo;s usual price
+                </label>
+              )}
             </div>
           }
           isEditing={isEditing}

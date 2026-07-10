@@ -126,7 +126,11 @@ export const SERVICES: readonly ServiceDef[] = [
   { id: "puppy-groom", name: "Puppy Groom" },
 ];
 
-export type PricingMap = Record<string, Record<string, string>>;
+// Values from salon_config.pricing are INTEGER PENCE going forward (the
+// 2026-07 pence migration); legacy "£42"-style strings are tolerated during
+// the transition. DEFAULT_PRICING keeps display strings — it is only the
+// last-resort fallback when the DB row is missing.
+export type PricingMap = Record<string, Record<string, string | number>>;
 
 export const DEFAULT_PRICING: PricingMap = {
   "full-groom": { small: "£42+", medium: "£46+", large: "£60+" },
@@ -147,15 +151,23 @@ export const ADDONS: readonly AddonDef[] = [
   { id: "Anal Glands", price: 0 },
 ];
 
-/** Look up the display price string for a service+size, DB pricing first. */
+/** Look up the display price string for a service+size, DB pricing first.
+ *  DB values are integer pence (formatted here as "£42" / "£42.50");
+ *  legacy string values pass through unchanged. */
 export function priceString(
   serviceId: string,
   size: DogSize,
   pricing?: PricingMap | null,
 ): string {
   const fromDb = pricing?.[serviceId]?.[size];
+  if (typeof fromDb === "number" && isFinite(fromDb) && fromDb > 0) {
+    const pounds = Math.trunc(fromDb / 100);
+    const rem = Math.abs(fromDb % 100);
+    return rem === 0 ? `£${pounds}` : `£${pounds}.${String(rem).padStart(2, "0")}`;
+  }
   if (typeof fromDb === "string" && fromDb.length > 0) return fromDb;
-  return DEFAULT_PRICING[serviceId]?.[size] ?? "";
+  const fallback = DEFAULT_PRICING[serviceId]?.[size];
+  return typeof fallback === "string" ? fallback : "";
 }
 
 /** True when a service is offered for the given dog size (price ≠ "N/A"). */

@@ -92,6 +92,9 @@ export interface Booking {
   paymentMethod?: string | null;
   paidAt?: string | null;
   paidAmount?: number | null;
+  // This booking's one-off agreed price (pounds) — beats the dog's usual
+  // custom_price and the guide price for THIS visit only. Null = no override.
+  priceOverride?: number | null;
   confirmed: boolean;
   dogNameSnapshot: string | null;
   breedSnapshot: string | null;
@@ -234,7 +237,9 @@ export interface SalonSettings {
 
 export interface SalonConfig extends SalonSettings {
   defaultPickupOffset: number;
-  pricing: Record<string, Record<string, string>>;
+  /** Guide prices in integer pence (null = size not offered). Legacy "£42"
+   *  strings tolerated until the pence migration has run everywhere. */
+  pricing: Record<string, Record<string, string | number | null>>;
   enforceCapacity: boolean;
   /** Maximum total dogs that can be booked in a single day (across all slots). */
   dailyDogCap: number;

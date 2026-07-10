@@ -1,4 +1,5 @@
-import { SERVICES, PRICING } from "../../../constants/index";
+import { SERVICES } from "../../../constants/index";
+import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/bookingRules";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { PawPrint } from "lucide-react";
@@ -32,14 +33,12 @@ function getServiceLabel(serviceId: ServiceId): string {
 }
 
 function getPriceLabel(serviceId: string, size: string): string {
-  const pricing = PRICING as Record<string, Record<string, string>>;
-  return pricing?.[serviceId]?.[size] || "";
+  const label = getServicePriceLabel(serviceId, size);
+  return label === "N/A" ? "" : label;
 }
 
 function priceNumber(serviceId: string, size: string): number {
-  const label = getPriceLabel(serviceId, size);
-  const m = label.match(/\d+/);
-  return m ? parseInt(m[0], 10) : 0;
+  return getServicePriceAmount(serviceId, size);
 }
 
 export function BookingConfirmation({

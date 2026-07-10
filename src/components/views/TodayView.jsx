@@ -21,6 +21,7 @@ import {
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useSalonPricing } from "../../contexts/SalonContext";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { TodayHeader } from "./today/TodayHeader.jsx";
 import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
@@ -56,6 +57,7 @@ export function TodayView({
 }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const configPricing = useSalonPricing();
 
   // Re-tick every minute so "15 min overdue" / "waiting 25 min" stay live.
   const [now, setNow] = useState(() => new Date());
@@ -166,13 +168,20 @@ export function TodayView({
       return patch(
         b,
         buildMarkPaidPatch(
-          { service: b.service, size: b.size, addons: b.addons, customPrice: dog?.customPrice ?? null },
+          {
+            service: b.service,
+            size: b.size,
+            addons: b.addons,
+            priceOverride: b.priceOverride ?? null,
+            customPrice: dog?.customPrice ?? null,
+            configPricing,
+          },
           method ?? null,
         ),
         `${b.dogName} — payment recorded`,
       );
     },
-    [patch, dogs],
+    [patch, dogs, configPricing],
   );
   const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
   const onMessageOwner = useCallback((b) => {

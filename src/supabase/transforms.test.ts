@@ -617,7 +617,7 @@ describe("dbConfigToApp", () => {
 
     expect(config).not.toBeNull();
     expect(config!.defaultPickupOffset).toBe(120);
-    expect(config!.pricing["full-groom"]).toEqual({ small: "£42+", medium: "£46+", large: "£60+" });
+    expect(config!.pricing["full-groom"]).toEqual({ small: 4200, medium: 4600, large: 6000 });
     expect(config!.enforceCapacity).toBe(true); // null !== false => true
     expect(config!.largeDogSlots["08:30"]).toEqual({ seats: 1, canShare: true, needsApproval: false });
     expect(config!.businessName).toBe("Smarter Dog Grooming");

@@ -2,11 +2,13 @@ import { useCallback, useState } from "react";
 import { canBookSlot, isCapacityRejection } from "../engine/capacity";
 import {
   getHumanByIdOrName,
+  getServicePriceAmount,
   normalizeServiceForSize,
+  type PricingConfig,
 } from "../engine/bookingRules";
 import { formatFullDate } from "../engine/utils";
 import { toDateStr } from "../supabase/transforms";
-import type { SlotOverrides, Human, Booking } from "../types/index";
+import type { SlotOverrides, Human, Booking, Dog } from "../types/index";
 
 interface EditData {
   service: string;
@@ -20,7 +22,8 @@ interface EditData {
   addons: string[];
   date: Date;
   slot: string;
-  customPrice: number;
+  price: number;
+  saveAsUsual: boolean;
 }
 
 interface EditSettings {
@@ -54,6 +57,9 @@ interface UseBookingSaveParams {
   hasAllergy: boolean;
   allergyInput: string;
   booking: Booking;
+  /** The booking's dog ({} when unresolved) — its customPrice anchors the
+   *  "does the edited price differ from usual?" decision. */
+  dogData: Partial<Dog> | null | undefined;
   humans: Record<string, Human>;
   currentDateObj: Date;
   currentDateStr: string;
@@ -62,12 +68,13 @@ interface UseBookingSaveParams {
   editActiveSlots: string[];
   otherBookings: Booking[];
   allowedServices: AllowedService[];
+  configPricing?: PricingConfig;
   // Both callbacks resolve to the saved record on success and null on
   // failure — runSave only inspects truthiness, so `unknown` is enough.
   onUpdate: (booking: BookingUpdate, fromDateStr: string, toDateStr: string) => Promise<unknown>;
   onUpdateDog: (
     dogIdOrName: string,
-    updates: { alerts: string[]; groomNotes: string; customPrice: number },
+    updates: { alerts: string[]; groomNotes: string; customPrice?: number | null },
   ) => Promise<unknown>;
 }
 
@@ -79,6 +86,7 @@ export function useBookingSave({
   hasAllergy,
   allergyInput,
   booking,
+  dogData,
   humans,
   currentDateObj,
   currentDateStr,
@@ -87,6 +95,7 @@ export function useBookingSave({
   editActiveSlots,
   otherBookings,
   allowedServices,
+  configPricing,
   onUpdate,
   onUpdateDog,
 }: UseBookingSaveParams) {
@@ -165,13 +174,34 @@ export function useBookingSave({
         finalAlerts.push(`Allergic to ${allergyInput.trim()}`);
       }
 
+      // ── Price semantics (owner-confirmed, 2026-07-10) ──
+      // The edited price is THIS BOOKING's agreed price. It only becomes the
+      // dog's usual price when staff explicitly tick "Save as usual price";
+      // otherwise a difference from the usual/guide price persists as a
+      // per-booking price_override — a matting surcharge today must not
+      // silently reprice every future visit (the old behaviour).
+      const editedPrice = Number(editData.price);
+      if (!(editedPrice > 0)) {
+        setSaving(false);
+        setSaveError("Enter a price above £0");
+        return;
+      }
+      const usualPrice =
+        dogData?.customPrice != null && Number(dogData.customPrice) > 0
+          ? Number(dogData.customPrice)
+          : getServicePriceAmount(normalizedService, booking.size, configPricing);
+      const priceOverride =
+        !editData.saveAsUsual && editedPrice !== usualPrice ? editedPrice : null;
+
+      const dogUpdates: { alerts: string[]; groomNotes: string; customPrice?: number } = {
+        alerts: finalAlerts,
+        groomNotes: finalNotes,
+      };
+      if (editData.saveAsUsual) dogUpdates.customPrice = editedPrice;
+
       const dogUpdateResult = await onUpdateDog(
         booking._dogId || booking.dogName,
-        {
-          alerts: finalAlerts,
-          groomNotes: finalNotes,
-          customPrice: Number(editData.customPrice || 0),
-        },
+        dogUpdates,
       );
 
       // Loose equality on purpose: useDogs.updateDog resolves to undefined
@@ -204,6 +234,7 @@ export function useBookingSave({
           paymentMethod: editData.payment === "Paid in Full" ? editData.paymentMethod : null,
           paidAmount: editData.payment === "Paid in Full" ? editData.paidAmount : null,
           depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
+          priceOverride,
           slot: editData.slot,
           ...(capacityOverride ? { staff_capacity_override: true } : {}),
         },
@@ -228,6 +259,7 @@ export function useBookingSave({
       hasAllergy,
       allergyInput,
       booking,
+      dogData,
       humans,
       currentDateObj,
       currentDateStr,
@@ -236,6 +268,7 @@ export function useBookingSave({
       editActiveSlots,
       otherBookings,
       allowedServices,
+      configPricing,
       onUpdate,
       onUpdateDog,
     ],

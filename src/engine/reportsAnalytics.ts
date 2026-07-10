@@ -48,6 +48,7 @@ export interface AnalyticsBooking {
   payment: string;
   addons: string[];
   deposit_amount: number | null;
+  price_override?: number | null;
   dog_id: string;
   cancel_reason?: string | null;
   created_by_role?: string | null;
@@ -147,6 +148,7 @@ function priceOf(b: AnalyticsBooking, dogMap: DogCustomPriceMap): number {
     addons: b.addons,
     payment: b.payment,
     depositAmount: b.deposit_amount,
+    priceOverride: b.price_override,
     customPrice: dogMap[b.dog_id]?.customPrice,
   }).subtotal;
 }

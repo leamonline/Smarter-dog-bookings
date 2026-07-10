@@ -1,6 +1,12 @@
 import { PRICING, SERVICES, BOOKING_STATUS } from "../constants/index";
-import { getAddonsTotal } from "../constants/salon";
+import { getAddonsTotal, FROM_PRICED_SERVICES } from "../constants/salon";
+import { formatGBP, penceToPounds, pricePenceFromTableValue } from "../utils/money";
 import type { Service, Human, Dog, Booking } from "../types/index";
+
+/** salon_config.pricing shape: service → size → price. Values are integer
+ *  pence going forward; legacy "£42" strings are tolerated during the
+ *  transition (pricePenceFromTableValue normalises both). */
+export type PricingConfig = Record<string, Record<string, number | string | null>> | null | undefined;
 
 /**
  * The single "does this booking count?" rule, shared by the cash-up engine and
@@ -42,7 +48,15 @@ export interface BookingPricingInput {
   addons?: string[] | null;
   payment?: string | null;
   depositAmount?: number | null;
+  /** This booking's one-off agreed price (pounds) — bookings.price_override.
+   *  Highest precedence; never touches the dog's usual price. */
+  priceOverride?: number | null;
+  /** The dog's deliberately saved usual price (pounds) — dogs.custom_price.
+   *  Only a value > 0 counts (0/null = "no usual price", use the guide). */
   customPrice?: number | null;
+  /** salon_config.pricing (Settings guide prices). Optional — callers
+   *  without salon config (customer portal) fall back to the constant. */
+  configPricing?: PricingConfig;
 }
 
 export interface BookingPricing {
@@ -56,13 +70,24 @@ export interface BookingPricing {
 }
 
 export function computeBookingPricing(input: BookingPricingInput): BookingPricing {
+  // Price precedence (confirmed with the owner, 2026-07-10):
+  //   1. this booking's one-off agreed price (price_override)
+  //   2. the dog's deliberately saved usual price (custom_price, > 0 only)
+  //   3. the Settings guide price (salon_config.pricing)
+  //   4. the hard-coded constant as final fallback
+  // The previous paid_amount is NEVER reused — it may include one-off
+  // charges (matting, extra work) that don't carry to the next visit.
   let basePrice: number;
+  const override = input.priceOverride;
   const customPrice = input.customPrice;
-  if (customPrice != null && !isNaN(Number(customPrice))) {
+  if (override != null && Number(override) > 0) {
+    basePrice = Number(override);
+  } else if (customPrice != null && Number(customPrice) > 0) {
     basePrice = Number(customPrice);
   } else {
     const normalizedService = normalizeServiceForSize(input.service, input.size);
-    basePrice = getNumericPrice(getServicePriceLabel(normalizedService, input.size));
+    const pence = resolveServicePricePence(normalizedService, input.size, input.configPricing);
+    basePrice = pence != null ? penceToPounds(pence) : 0;
   }
 
   const addonsTotal = getAddonsTotal(input.addons ?? null);
@@ -120,10 +145,25 @@ export function buildMarkPaidPatch(
   };
 }
 
+/**
+ * Guide price for a service+size in integer pence: the Settings price
+ * (salon_config.pricing) when present, else the hard-coded constant.
+ * Returns null when the service isn't offered for that size.
+ * Tolerant of legacy "£42" string values during the pence migration.
+ */
+export function resolveServicePricePence(
+  serviceId: string,
+  size: string,
+  configPricing?: PricingConfig,
+): number | null {
+  const fromConfig = pricePenceFromTableValue(configPricing?.[serviceId]?.[size]);
+  if (fromConfig != null) return fromConfig;
+  const constant = (PRICING as Record<string, Record<string, number | null>>)?.[serviceId]?.[size];
+  return pricePenceFromTableValue(constant);
+}
+
 export function isServiceSupportedForSize(serviceId: string, size: string): boolean {
-  const pricing = PRICING as Record<string, Record<string, string>>;
-  const value = pricing?.[serviceId]?.[size];
-  return typeof value === "string" && value !== "N/A";
+  return resolveServicePricePence(serviceId, size) != null;
 }
 
 export function getAllowedServicesForSize(size: string): Service[] {
@@ -136,16 +176,30 @@ export function normalizeServiceForSize(serviceId: string, size: string): string
   return getAllowedServicesForSize(size)[0]?.id || services[0]?.id || "";
 }
 
-export function getServicePriceLabel(serviceId: string, size: string): string {
-  const pricing = PRICING as Record<string, Record<string, string>>;
-  return pricing?.[serviceId]?.[size] || "N/A";
+/**
+ * Display label for a service+size guide price: "£42+" for from-priced
+ * services, "£38" for fixed ones, "N/A" when not offered. Renders exactly
+ * what the old string constants held, now derived from pence.
+ */
+export function getServicePriceLabel(
+  serviceId: string,
+  size: string,
+  configPricing?: PricingConfig,
+): string {
+  const pence = resolveServicePricePence(serviceId, size, configPricing);
+  if (pence == null) return "N/A";
+  const suffix = FROM_PRICED_SERVICES.has(serviceId) ? "+" : "";
+  return `${formatGBP(pence)}${suffix}`;
 }
 
-export function getNumericPrice(value: string | number): number {
-  if (typeof value === "number") return value;
-  if (typeof value !== "string") return 0;
-  const digits = value.replace(/\D/g, "");
-  return digits ? parseInt(digits, 10) : 0;
+/** Guide price in pounds (numeric) for a service+size, 0 when not offered. */
+export function getServicePriceAmount(
+  serviceId: string,
+  size: string,
+  configPricing?: PricingConfig,
+): number {
+  const pence = resolveServicePricePence(serviceId, size, configPricing);
+  return pence != null ? penceToPounds(pence) : 0;
 }
 
 export function toLocalDateStr(date: Date | string): string {

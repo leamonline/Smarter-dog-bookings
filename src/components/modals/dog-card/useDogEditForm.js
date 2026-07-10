@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { parseGBPInput, penceToPounds } from "../../../utils/money";
 import { getSizeForBreed } from "../../../constants/index";
 import { getHumanByIdOrName } from "../../../engine/bookingRules";
 import { useToast } from "../../../contexts/ToastContext.jsx";
@@ -141,8 +142,13 @@ export function useDogEditForm({ resolvedDog, ownerOpenValue, humans, onUpdateDo
       updates.age = calcAge(composedDob) || "";
     }
     if (editOwnerId !== ownerOpenValue) updates.humanId = editOwnerId;
-    const priceNum = editPrice.trim() ? Number(editPrice) : undefined;
-    if (priceNum !== resolvedDog.customPrice) updates.customPrice = priceNum;
+    // Blank, £0 or junk all mean "no usual price" and save as NULL — the dog
+    // falls back to the guide price. (0 used to persist and silently price
+    // grooms at £0; null also lets staff genuinely CLEAR an old custom price,
+    // which the previous undefined-drop made impossible.)
+    const parsedPence = parseGBPInput(editPrice);
+    const priceNum = parsedPence != null ? penceToPounds(parsedPence) : null;
+    if (priceNum !== (resolvedDog.customPrice ?? null)) updates.customPrice = priceNum;
     if (editSize && editSize !== (resolvedDog.size || "")) updates.size = editSize;
     // Optional profile fields — normalise to the DB shape (text → null when
     // blank, neutered → boolean | null) and only send what actually changed.

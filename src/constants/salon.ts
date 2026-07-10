@@ -55,12 +55,25 @@ export const LARGE_DOG_SLOTS = {
   "13:00": { seats: 2, canShare: false, needsApproval: false },
 };
 
+// Fallback guide prices in INTEGER PENCE (null = service not offered for
+// that size). This is the LAST resort in the price precedence \u2014 a booking's
+// price_override, then the dog's custom_price, then salon_config.pricing
+// (Settings) all beat it. See resolveServicePricePence in engine/bookingRules.
+// Display via getServicePriceLabel / formatGBP \u2014 never build "\u00A3\u2026" by hand.
 export const PRICING = {
-  "full-groom": { small: "\u00A342+", medium: "\u00A346+", large: "\u00A360+" },
-  "bath-and-brush": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  "bath-and-deshed": { small: "\u00A338+", medium: "\u00A342+", large: "\u00A355+" },
-  "puppy-groom": { small: "\u00A338", medium: "\u00A338", large: "N/A" },
-};
+  "full-groom": { small: 4200, medium: 4600, large: 6000 },
+  "bath-and-brush": { small: 3800, medium: 4200, large: 5500 },
+  "bath-and-deshed": { small: 3800, medium: 4200, large: 5500 },
+  "puppy-groom": { small: 3800, medium: 3800, large: null },
+} as const;
+
+// Services quoted as "from \u00A3X" (rendered with a trailing "+"): the final
+// price depends on coat condition. Puppy groom is a fixed price.
+export const FROM_PRICED_SERVICES = new Set([
+  "full-groom",
+  "bath-and-brush",
+  "bath-and-deshed",
+]);
 
 // Canonical dog-size identifiers. The DogSize type in types/index.ts is
 // derived from this tuple so the runtime set and the compile-time set
