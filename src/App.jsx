@@ -322,6 +322,42 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     selectedBooking, setSelectedBooking,
   } = useModalState();
 
+  // Live calendar link: while the booking drawer is open, plain calendar
+  // picks (a dateStr/slot with no identity prefills) update the open draft
+  // instead of re-opening the wizard. Anything carrying identity — book
+  // again, WhatsApp, parked-draft resume — starts a FRESH session: the
+  // sessionKey remounts the drawer so its one-shot prefill refs run again
+  // (they'd otherwise silently ignore the new prefill).
+  const [draftPick, setDraftPick] = useState(null);
+  const [draftTarget, setDraftTarget] = useState(null);
+  const draftNonceRef = useRef(0);
+  const bookingSessionRef = useRef(0);
+
+  const requestNewBooking = useCallback(
+    (req) => {
+      const isCalendarPick =
+        !!req?.dateStr &&
+        !req.initialHumanId &&
+        !req.initialDogId &&
+        !req.initialEntries &&
+        !req.sourceMessageText;
+      if (showNewBooking && isCalendarPick) {
+        draftNonceRef.current += 1;
+        setDraftPick({
+          dateStr: req.dateStr,
+          slot: req.slot || "",
+          nonce: draftNonceRef.current,
+        });
+        return;
+      }
+      bookingSessionRef.current += 1;
+      setDraftPick(null);
+      setDraftTarget(null);
+      setShowNewBooking({ ...req, sessionKey: bookingSessionRef.current });
+    },
+    [showNewBooking, setShowNewBooking],
+  );
+
   // A booking-in-progress that staff parked to create a new dog/human mid-flow
   // (see parkBooking/resumeParkedBooking below). Mirrored in a ref so resume can
   // read the latest value synchronously even when called twice in one tick
@@ -433,8 +469,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     goToNextWeek,
     jumpToToday: useCallback(() => rawDatePick(new Date()), [rawDatePick]),
     openNewBooking: useCallback(
-      () => setShowNewBooking({ dateStr: currentDateStr, slot: "" }),
-      [currentDateStr, setShowNewBooking],
+      () => requestNewBooking({ dateStr: currentDateStr, slot: "" }),
+      [currentDateStr, requestNewBooking],
     ),
   });
 
@@ -713,6 +749,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
       pendingBookingRef.current = draft || null;
       setPendingBooking(draft || null);
       setShowNewBooking(null);
+      setDraftPick(null);
+      setDraftTarget(null);
       dogsClearSearch();
       setShowAddDogModal(true);
     },
@@ -748,7 +786,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
         });
       }
       const hasEntries = entries.length > 0;
-      setShowNewBooking({
+      requestNewBooking({
         dateStr: draft.dateStr || currentDateStr,
         slot: draft.slot || "",
         initialEntries: hasEntries ? entries : undefined,
@@ -761,7 +799,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     [
       setPendingBooking,
       setShowAddDogModal,
-      setShowNewBooking,
+      requestNewBooking,
       currentDateStr,
     ],
   );
@@ -824,7 +862,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onSignOut={signOut}
           isOnline={isOnline}
           user={user}
-          onNewBooking={() => setShowNewBooking({ dateStr: currentDateStr, slot: "" })}
+          onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
           onNewClient={() => setShowNewClient(true)}
           onOpenOverview={() => {
             if (typeof window !== "undefined") {
@@ -1024,7 +1062,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       isOnline={isOnline}
                       onUpdateBooking={handleUpdate}
                       onOpenBooking={handleOpenBooking}
-                      onNewBooking={setShowNewBooking}
+                      onNewBooking={requestNewBooking}
                       onSendCollection={setCollectionNotice}
                       toggleImmediateSlot={toggleImmediateSlot}
                       onRefresh={refetchBookings}
@@ -1060,7 +1098,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       showDatePicker={showDatePicker}
                       setShowDatePicker={setShowDatePicker}
                       handleDatePick={handleDatePick}
-                      setShowNewBooking={setShowNewBooking}
+                      setShowNewBooking={requestNewBooking}
+                      draftPick={showNewBooking ? draftTarget : null}
                       onOpenHuman={handleOpenHuman}
                       onRefresh={refetchBookings}
                     />
@@ -1111,7 +1150,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   searchHumansByTerm={sbSearchHumansByTerm}
                   onNewBookingForHuman={(hid) => {
                     handleCloseHumanProfile();
-                    setShowNewBooking({
+                    requestNewBooking({
                       dateStr: currentDateStr,
                       slot: "",
                       initialHumanId: hid,
@@ -1124,7 +1163,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onOpenBooking={handleOpenBooking}
                   onBookAgain={(booking) => {
                     handleCloseHumanProfile();
-                    setShowNewBooking({
+                    requestNewBooking({
                       dateStr: currentDateStr,
                       slot: "",
                       initialHumanId: booking._ownerId || selectedHumanId,
@@ -1173,8 +1212,13 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <NewBookingModal
+                  key={showNewBooking.sessionKey}
+                  draftPick={draftPick}
+                  onDraftTargetChange={setDraftTarget}
                   onClose={() => {
                     setShowNewBooking(null);
+                    setDraftPick(null);
+                    setDraftTarget(null);
                     dogsClearSearch();
                   }}
                   onAdd={commitBookingList}
@@ -1186,7 +1230,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dayOpenState={dayOpenState}
                   daySettings={daySettings}
                   onBookAnother={(ownerId) =>
-                    setShowNewBooking({
+                    requestNewBooking({
                       dateStr: currentDateStr,
                       slot: "",
                       initialHumanId: ownerId,
@@ -1198,6 +1242,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     // wizard. The search step only shows before a dog is picked,
                     // so nothing in-progress is lost by closing the booking modal.
                     setShowNewBooking(null);
+                    setDraftPick(null);
+                    setDraftTarget(null);
                     dogsClearSearch();
                     setShowNewClient(true);
                   }}
@@ -1288,7 +1334,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onAddBookings={commitBookingList}
                   findHumanByFullName={sbFindHumanByFullName}
                   onBookAnother={(ownerId) =>
-                    setShowNewBooking({ dateStr: currentDateStr, slot: "", initialHumanId: ownerId })
+                    requestNewBooking({ dateStr: currentDateStr, slot: "", initialHumanId: ownerId })
                   }
                   bookingsByDate={bookingsByDate}
                   dayOpenState={dayOpenState}

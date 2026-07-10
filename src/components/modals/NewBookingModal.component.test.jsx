@@ -252,3 +252,85 @@ describe("NewBookingModal — confirmation method", () => {
     expect(onAdd.mock.calls[0][0][0].confirmation_channel).toBe("none");
   });
 });
+
+describe("live calendar link — draftPick", () => {
+  const OPEN_DATE_2 = "2099-01-12";
+
+  // The header subtitle is the one live-region that echoes the draft's
+  // dog · slot · date. Assert on IT, not on bare text — the TimeSlotPicker
+  // renders "9:00am"/"10:30am" as slot buttons too, which would false-pass.
+  const getSubtitle = () =>
+    Array.from(document.querySelectorAll('[aria-live="polite"]')).find((el) =>
+      el.textContent.includes("Luna"),
+    );
+
+  const draftProps = () => ({
+    onClose: vi.fn(),
+    onAdd: vi.fn().mockResolvedValue({ ok: true }),
+    dogs: {},
+    humans: {},
+    dogsByHumanId: {},
+    ensureDogsForHumans: vi.fn(),
+    bookingsByDate: {},
+    dayOpenState: { [OPEN_DATE]: true, [OPEN_DATE_2]: true },
+    daySettings: {},
+    onOpenAddDog: vi.fn(),
+    onOpenNewClient: vi.fn(),
+    initialDateStr: OPEN_DATE,
+    initialSlot: "09:00",
+    initialEntries: [{ dog: luna, humanKey: "Emma Wilson", service: "full-groom", addons: [] }],
+    onSearchDogs: vi.fn(),
+    isSearchingDogs: false,
+  });
+
+  it("applies an incoming draftPick (date + slot) to the in-progress booking", async () => {
+    const props = draftProps();
+    const view = render(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={null} />
+      </ToastProvider>,
+    );
+    // Seeded state shows in the live header subtitle once entries hydrate.
+    await waitFor(() => expect(getSubtitle()?.textContent).toMatch(/9:00am/));
+
+    view.rerender(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={{ dateStr: OPEN_DATE_2, slot: "10:30", nonce: 1 }} />
+      </ToastProvider>,
+    );
+    // New slot + new date land in the subtitle (Mon 12 Jan for 2099-01-12).
+    await waitFor(() => expect(getSubtitle()?.textContent).toMatch(/10:30am/));
+    expect(getSubtitle()?.textContent).toMatch(/12 Jan/);
+  });
+
+  it("a date-only pick clears the chosen slot", async () => {
+    const props = draftProps();
+    const view = render(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={null} />
+      </ToastProvider>,
+    );
+    await waitFor(() => expect(getSubtitle()?.textContent).toMatch(/9:00am/));
+    view.rerender(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={{ dateStr: OPEN_DATE_2, slot: "", nonce: 2 }} />
+      </ToastProvider>,
+    );
+    await waitFor(() => expect(getSubtitle()?.textContent).toMatch(/12 Jan/));
+    expect(getSubtitle()?.textContent).not.toMatch(/9:00am/);
+  });
+
+  it("reports the draft's real target upward via onDraftTargetChange", async () => {
+    const onDraftTargetChange = vi.fn();
+    const props = { ...draftProps(), onDraftTargetChange };
+    render(
+      <ToastProvider>
+        <NewBookingModal {...props} draftPick={null} />
+      </ToastProvider>,
+    );
+    // Prefilled open (initialDateStr + initialSlot) reports immediately.
+    await waitFor(() =>
+      expect(onDraftTargetChange).toHaveBeenCalledWith({ dateStr: OPEN_DATE, slot: "09:00" }),
+    );
+  });
+});

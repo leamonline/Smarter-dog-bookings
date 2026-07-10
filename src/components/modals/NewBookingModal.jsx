@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { buildSlotGrid } from "../../engine/slotGrid";
-import { AccessibleModal } from "../shared/AccessibleModal.tsx";
+import { DrawerShell } from "../shared/DrawerShell";
 import { canBookSlot, isCapacityRejection } from "../../engine/capacity";
 import { toDateStr } from "../../supabase/transforms";
 import { titleCase, isDateOpen } from "./new-booking/helpers.js";
@@ -57,6 +57,8 @@ export function NewBookingModal({
   ownerName,
   onSearchDogs,
   isSearchingDogs,
+  draftPick,
+  onDraftTargetChange,
 }) {
   const toast = useToast();
 
@@ -202,6 +204,35 @@ export function NewBookingModal({
     setDogQuery(hydrated[hydrated.length - 1].dog.name);
     prefilledEntriesRef.current = true;
   }, [initialEntries, dogEntries.length]);
+
+  // Live calendar link. While the drawer is open, App relays day-view slot
+  // picks as { dateStr, slot, nonce }. Apply them exactly like an in-drawer
+  // pick — date-only picks clear the slot (same as handleSelectDate). The
+  // nonce makes re-clicking the same slot after manual changes re-apply.
+  useEffect(() => {
+    if (!draftPick?.dateStr) return;
+    setSelectedDateStr(draftPick.dateStr);
+    setSelectedSlot(draftPick.slot || "");
+    setError("");
+  }, [draftPick]);
+
+  // Report the draft's true target up to App so the day view's "Booking
+  // here" chip tracks the drawer's REAL selection — including in-drawer
+  // picks and prefilled opens — not just calendar-originated picks. The
+  // ref guard keeps this loop-proof even if a future caller passes an
+  // inline (unstable) callback.
+  const lastReportedTargetRef = useRef("");
+  useEffect(() => {
+    if (!onDraftTargetChange) return;
+    const key = selectedDateStr && selectedSlot ? `${selectedDateStr}|${selectedSlot}` : "";
+    if (key === lastReportedTargetRef.current) return;
+    lastReportedTargetRef.current = key;
+    onDraftTargetChange(
+      selectedDateStr && selectedSlot
+        ? { dateStr: selectedDateStr, slot: selectedSlot }
+        : null,
+    );
+  }, [selectedDateStr, selectedSlot, onDraftTargetChange]);
 
   const hasDogs = dogEntries.length > 0;
   // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on
@@ -641,22 +672,20 @@ export function NewBookingModal({
   // ─── render ─────────────────────────────────────────────────────────────
 
   return (
-    <AccessibleModal
+    <DrawerShell
       onClose={onClose}
       titleId="new-booking-title"
-      className="bg-[var(--color-brand-paper)] rounded-[20px] w-[min(440px,95vw)] max-h-[92vh] flex flex-col animate-shell-in shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none"
-      backdropClass="bg-[rgba(45,0,75,0.45)] animate-overlay-fade"
+      modal={false}
+      zIndex={900}
+      widthClass="sm:max-w-[500px]"
     >
-        {/* Header */}
-        <div
-          className="px-6 py-[18px] rounded-t-[20px] max-sm:rounded-t-none flex justify-between items-center shrink-0"
-          style={{ background: `linear-gradient(135deg, ${primaryTheme.gradient[0]}, ${primaryTheme.gradient[1]})` }}
-        >
+        {/* Header \u2014 paper, matching /today. The size cue now lives on each
+            selected dog's row (Task 6), not the shell. */}
+        <div className="px-6 py-[18px] border-b border-brand-paper-line bg-white flex justify-between items-center shrink-0">
           <div>
-            <div id="new-booking-title" className="text-lg font-extrabold" style={{ color: primaryTheme.headerText }}>New Booking</div>
+            <div id="new-booking-title" className="font-display text-lg font-extrabold text-brand-purple">New booking</div>
             <div
-              className="text-xs mt-0.5"
-              style={{ color: primaryTheme.headerTextSub }}
+              className="text-xs mt-0.5 text-slate-600"
               role="status"
               aria-live="polite"
               aria-atomic="true"
@@ -668,14 +697,13 @@ export function NewBookingModal({
             type="button"
             onClick={onClose}
             aria-label="Close new booking"
-            className="tap-target bg-white/20 hover:bg-white/30 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-            style={{ color: primaryTheme.headerText }}
+            className="tap-target bg-transparent hover:bg-slate-100 transition-colors border-none rounded-lg w-8 h-8 flex items-center justify-center cursor-pointer text-base font-bold text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40"
           ><span aria-hidden="true">{"\u00D7"}</span></button>
         </div>
 
         {/* ─── WhatsApp context banner ─── */}
         {sourceMessageText && (
-          <div className="mx-6 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          <div className="mx-6 mt-4 rounded-xl border border-l-4 border-brand-paper-line border-l-brand-teal bg-white px-3.5 py-2.5 text-[13px] text-slate-700">
             <span className="font-bold">From WhatsApp:</span> "{sourceMessageText.slice(0, 140)}"
           </div>
         )}
@@ -730,7 +758,6 @@ export function NewBookingModal({
           dogEntries={dogEntries}
           selectedDateStr={selectedDateStr}
           selectedSlot={selectedSlot}
-          primaryTheme={primaryTheme}
           error={error}
           onConfirm={handleConfirm}
           onClose={onClose}
@@ -775,7 +802,7 @@ export function NewBookingModal({
             onCancel={() => setPendingConfirmMethod(false)}
           />
         )}
-    </AccessibleModal>
+    </DrawerShell>
   );
 }
 

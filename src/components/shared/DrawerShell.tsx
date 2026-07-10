@@ -18,6 +18,8 @@ interface DrawerShellProps {
   zIndex?: number;
   /** Set false to disable Escape-to-close. */
   dismissOnEscape?: boolean;
+  /** Default true. False = non-modal live panel — see AccessibleModal. */
+  modal?: boolean;
 }
 
 // Side-anchored drawer / slide-over. Reuses AccessibleModal for ALL
@@ -25,6 +27,9 @@ interface DrawerShellProps {
 // portal-to-body, role/aria-modal/aria-labelledby, backdrop click — and
 // swaps only the centred-box layout for a full-height panel pinned to one
 // edge. The caller supplies its own header + scrolling body as children.
+// Trap/lock/backdrop apply in modal mode (the default); modal={false} opts
+// out of all three — Escape and the close button still dismiss, but the
+// page behind stays scrollable and clickable.
 //
 // This is the "drawer variant" of ModalShell: it brings the three side
 // panels (OverviewDrawer, DaySettingsDrawer, SlideOverPanel) onto one
@@ -41,6 +46,7 @@ export function DrawerShell({
   backdropClass = "bg-[rgba(45,0,75,0.45)] animate-overlay-fade",
   zIndex = 1000,
   dismissOnEscape = true,
+  modal = true,
 }: DrawerShellProps) {
   return (
     <AccessibleModal
@@ -51,6 +57,7 @@ export function DrawerShell({
       backdropClass={backdropClass}
       overlayClassName={side === "left" ? "flex justify-start" : "flex justify-end"}
       className={`relative h-full w-full ${widthClass} max-sm:max-w-none bg-[var(--color-brand-paper)] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] flex flex-col overflow-hidden animate-[fadeInUp_220ms_cubic-bezier(0.16,1,0.3,1)] ${panelClassName}`}
+      modal={modal}
     >
       {children}
     </AccessibleModal>

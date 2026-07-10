@@ -22,6 +22,13 @@ interface AccessibleModalProps {
    * existing centred modals keep the default and are unaffected.
    */
   overlayClassName?: string;
+  /**
+   * Default true — a classic modal (backdrop, focus trap, scroll lock,
+   * aria-modal, backdrop-click close). Set false for a non-modal panel
+   * (the live booking drawer): the page behind stays scrollable and
+   * clickable, focus moves freely, Escape and the close button dismiss.
+   */
+  modal?: boolean;
 }
 
 // Reference-counted body scroll lock. Counting (rather than save/restore
@@ -46,6 +53,13 @@ function unlockBodyScroll() {
   }
 }
 
+// Mounted-dialog stack (module-level, mirrors the scroll-lock refcount).
+// Escape must only dismiss the TOPMOST dialog: every instance registers on
+// mount, and the keydown handler bails unless it is last in the stack —
+// otherwise stacked dialogs (e.g. a ConfirmDialog over the non-modal
+// booking drawer) would all close on one Escape, discarding drafts.
+const dialogStack: symbol[] = [];
+
 export function AccessibleModal({
   children,
   onClose,
@@ -55,31 +69,47 @@ export function AccessibleModal({
   zIndex = 1000,
   dismissOnEscape = true,
   overlayClassName = "flex items-center justify-center",
+  modal = true,
 }: AccessibleModalProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const stackIdRef = useRef<symbol | undefined>(undefined);
+  if (!stackIdRef.current) stackIdRef.current = Symbol("dialog");
   const { dialogProps } = useDialog(
     { role: "dialog", "aria-labelledby": titleId },
     ref,
   );
 
+  // Register in the dialog stack for the lifetime of the mount.
+  useEffect(() => {
+    const id = stackIdRef.current as symbol;
+    dialogStack.push(id);
+    return () => {
+      const i = dialogStack.indexOf(id);
+      if (i !== -1) dialogStack.splice(i, 1);
+    };
+  }, []);
+
   // Escape key
   useEffect(() => {
     if (!dismissOnEscape) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== "Escape") return;
+      // Only the topmost mounted dialog responds — see dialogStack above.
+      if (dialogStack[dialogStack.length - 1] !== stackIdRef.current) return;
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose, dismissOnEscape]);
 
-  // Scroll lock (reference-counted — see above).
+  // Scroll lock (reference-counted — see above). Non-modal panels leave the
+  // page scrollable — that's the point of them.
   useEffect(() => {
+    if (!modal) return;
     lockBodyScroll();
     return () => unlockBodyScroll();
-  }, []);
+  }, [modal]);
 
   if (typeof document === "undefined") return null;
 
@@ -90,16 +120,16 @@ export function AccessibleModal({
   // that card instead of covering the screen.
   return createPortal(
     <div
-      className={`fixed inset-0 ${backdropClass} ${overlayClassName}`}
+      className={`fixed inset-0 ${modal ? backdropClass : "pointer-events-none"} ${overlayClassName}`}
       style={{ zIndex }}
-      onClick={onClose}
+      onClick={modal ? onClose : undefined}
     >
-      <FocusScope contain restoreFocus autoFocus>
+      <FocusScope contain={modal} restoreFocus autoFocus>
         <div
           {...dialogProps}
           ref={ref}
-          aria-modal="true"
-          className={className}
+          aria-modal={modal ? "true" : undefined}
+          className={`${modal ? "" : "pointer-events-auto"} ${className}`}
           onClick={(e) => e.stopPropagation()}
         >
           {children}
