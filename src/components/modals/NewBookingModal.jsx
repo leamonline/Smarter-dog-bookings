@@ -57,6 +57,7 @@ export function NewBookingModal({
   ownerName,
   onSearchDogs,
   isSearchingDogs,
+  draftPick,
 }) {
   const toast = useToast();
 
@@ -202,6 +203,17 @@ export function NewBookingModal({
     setDogQuery(hydrated[hydrated.length - 1].dog.name);
     prefilledEntriesRef.current = true;
   }, [initialEntries, dogEntries.length]);
+
+  // Live calendar link. While the drawer is open, App relays day-view slot
+  // picks as { dateStr, slot, nonce }. Apply them exactly like an in-drawer
+  // pick — date-only picks clear the slot (same as handleSelectDate). The
+  // nonce makes re-clicking the same slot after manual changes re-apply.
+  useEffect(() => {
+    if (!draftPick?.dateStr) return;
+    setSelectedDateStr(draftPick.dateStr);
+    setSelectedSlot(draftPick.slot || "");
+    setError("");
+  }, [draftPick]);
 
   const hasDogs = dogEntries.length > 0;
   // Owner UUID of the booking's dogs. `_humanId` is the stable owner FK on
