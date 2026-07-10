@@ -10,6 +10,7 @@ import {
   getHumanByIdOrName,
   getDogByIdOrName,
   computeBookingPricing,
+  buildMarkPaidPatch,
   resolveBookingDisplay,
   looksLikeUuid,
 } from "./bookingRules";
@@ -236,6 +237,52 @@ describe("computeBookingPricing", () => {
   it("normalizes invalid service+size combo via PRICING fallback", () => {
     const result = computeBookingPricing({ service: "puppy-groom", size: "large" });
     expect(result.basePrice).toBeGreaterThan(0);
+  });
+});
+
+// ── buildMarkPaidPatch ─────────────────────────────────────────
+
+describe("buildMarkPaidPatch", () => {
+  it("defaults the amount from the pricing table", () => {
+    const patch = buildMarkPaidPatch({ service: "full-groom", size: "small" }, "card");
+    expect(patch).toEqual({ payment: "Paid in Full", paymentMethod: "card", paidAmount: 42 });
+  });
+
+  it("prefers the dog's customPrice over the pricing lookup", () => {
+    const patch = buildMarkPaidPatch(
+      { service: "full-groom", size: "small", customPrice: 55 },
+      "cash",
+    );
+    expect(patch.paidAmount).toBe(55);
+    expect(patch.paymentMethod).toBe("cash");
+  });
+
+  it("includes add-ons in the defaulted amount", () => {
+    const patch = buildMarkPaidPatch(
+      { service: "full-groom", size: "small", addons: ["Flea Bath"] },
+      "card",
+    );
+    expect(patch.paidAmount).toBe(52);
+  });
+
+  it("records the full subtotal even when a deposit was paid", () => {
+    // The deposit stays in deposit_amount; paid_amount is the appointment total.
+    const patch = buildMarkPaidPatch(
+      { service: "full-groom", size: "small", payment: "Deposit Paid", depositAmount: 10 },
+      "card",
+    );
+    expect(patch.paidAmount).toBe(42);
+  });
+
+  it("lets an explicit override beat the computed amount", () => {
+    const patch = buildMarkPaidPatch({ service: "full-groom", size: "small" }, "card", 40);
+    expect(patch.paidAmount).toBe(40);
+  });
+
+  it("keeps a null method as null (still recorded as paid)", () => {
+    const patch = buildMarkPaidPatch({ service: "full-groom", size: "small" }, null);
+    expect(patch.paymentMethod).toBeNull();
+    expect(patch.payment).toBe("Paid in Full");
   });
 });
 

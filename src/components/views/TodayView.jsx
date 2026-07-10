@@ -6,7 +6,7 @@
 // actions to the feed and modal.
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
+import { resolveBookingDisplay, getDogByIdOrName, buildMarkPaidPatch } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import {
   londonDateStr,
@@ -161,13 +161,18 @@ export function TodayView({
   const onMarkReady = useCallback((b) => patch(b, { status: BOOKING_STATUS.READY_FOR_PICKUP }, `${b.dogName} is ready to go home`), [patch]);
   const onMarkCollected = useCallback((b) => patch(b, { status: BOOKING_STATUS.COMPLETED }, `${b.dogName} collected — lovely`), [patch]);
   const onMarkPaid = useCallback(
-    (b, method) =>
-      patch(
+    (b, method) => {
+      const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
+      return patch(
         b,
-        { payment: "Paid in Full", paymentMethod: method ?? null, paidAmount: paymentOf(b).subtotal },
+        buildMarkPaidPatch(
+          { service: b.service, size: b.size, addons: b.addons, customPrice: dog?.customPrice ?? null },
+          method ?? null,
+        ),
         `${b.dogName} — payment recorded`,
-      ),
-    [patch, paymentOf],
+      );
+    },
+    [patch, dogs],
   );
   const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
   const onMessageOwner = useCallback((b) => {

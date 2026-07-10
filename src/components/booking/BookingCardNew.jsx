@@ -9,8 +9,10 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import {
   getDogByIdOrName,
   computeBookingPricing,
+  buildMarkPaidPatch,
   resolveBookingDisplay,
 } from "../../engine/bookingRules";
+import { PAYMENT_METHODS } from "../../constants/salon";
 import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
@@ -189,6 +191,7 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
 
   const [showDetail, setShowDetail] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [payChooserOpen, setPayChooserOpen] = useState(false);
   const [alertsAnchor, setAlertsAnchor] = useState(null);
   // pendingSkipStatus tracks a "skip ≥2 steps" status change waiting for
   // staff to confirm via ConfirmDialog (replaces the old window.confirm).
@@ -249,6 +252,37 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
     depositAmount: booking.depositAmount,
     customPrice: dogRecord?.customPrice,
   });
+
+  // The dog is (or has gone) home but the money hasn't been taken — the point
+  // where a missed payment becomes a permanently blind ledger row. Drives the
+  // amber "£X due" chip and the one-tap mark-paid row below the status pill.
+  const needsPayment =
+    (booking.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+      booking.status === BOOKING_STATUS.COMPLETED) &&
+    !pricing.isPaidInFull &&
+    pricing.amountDue > 0;
+
+  const markPaid = (methodId) => {
+    if (!onUpdate) return;
+    onUpdate(
+      {
+        ...booking,
+        ...buildMarkPaidPatch(
+          {
+            service: booking.service,
+            size: booking.size,
+            addons: booking.addons,
+            customPrice: dogRecord?.customPrice,
+          },
+          methodId,
+        ),
+      },
+      currentDateStr,
+      currentDateStr,
+    );
+    setPayChooserOpen(false);
+    toast.show(`${displayDogName} — payment recorded`, "success");
+  };
 
   // resolveBookingDisplay returns sentinel strings ("Unknown" / "Unknown owner")
   // when the joined dog/human row can't be resolved. Use the missing flags to
@@ -416,6 +450,13 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
                 >
                   {"\u00A3"}{pricing.amountDue} due
                 </span>
+              ) : needsPayment ? (
+                <span
+                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded leading-none"
+                  title={`\u00A3${pricing.amountDue} still to take`}
+                >
+                  {"\u00A3"}{pricing.amountDue} due
+                </span>
               ) : null}
             </span>
           )}
@@ -508,6 +549,50 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
             </button>
           )}
         </div>
+
+        {/* Row 4 (only while money is owed at/after pick-up): one-tap payment
+            capture so the ledger row doesn't go blind the moment the dog goes
+            home. Optional by design \u2014 staff can leave it owed on purpose. */}
+        {needsPayment && (
+          <div
+            className="flex items-center flex-wrap gap-1 md:gap-[5px] pl-4 md:pl-5 mt-1"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+            }}
+          >
+            {payChooserOpen ? (
+              <>
+                <span className="text-[10px] md:text-[11px] font-bold text-slate-500 self-center">Paid by:</span>
+                {PAYMENT_METHODS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => markPaid(m.id)}
+                    className="text-[11px] md:text-[12px] font-bold py-1 px-2 min-h-[36px] md:min-h-0 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer transition-all hover:brightness-95 font-[inherit]"
+                  >
+                    {m.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPayChooserOpen(false)}
+                  className="text-[11px] md:text-[12px] text-slate-500 underline py-1 px-1 min-h-[36px] md:min-h-0 bg-transparent border-none cursor-pointer font-[inherit]"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPayChooserOpen(true)}
+                className="flex-1 min-w-0 text-[11px] md:text-[12px] font-bold py-1 md:py-[5px] min-h-[36px] md:min-h-0 px-1.5 rounded-md text-center border border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer transition-all hover:brightness-95 font-[inherit]"
+              >
+                Mark paid {"\u00B7"} {"\u00A3"}{pricing.amountDue}
+              </button>
+            )}
+          </div>
+        )}
         </div>
       </div>
 

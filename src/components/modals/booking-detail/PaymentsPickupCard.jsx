@@ -1,5 +1,7 @@
-import { useMemo } from "react";
-import { getHumanByIdOrName } from "../../../engine/bookingRules";
+import { useMemo, useState } from "react";
+import { getHumanByIdOrName, buildMarkPaidPatch } from "../../../engine/bookingRules";
+import { PAYMENT_METHODS, paymentMethodLabel } from "../../../constants/salon";
+import { useToast } from "../../../contexts/ToastContext.jsx";
 import { titleCase } from "../../../utils/text";
 import {
   DetailRow,
@@ -13,10 +15,13 @@ import { PanelShell } from "../shell/index.js";
 
 /**
  * Card 3 of the booking detail surface: payments and pick-up. Edit mode
- * exposes the payment status, deposit amount and pick-up human select
- * (limited to the owner plus their trusted contacts); read mode shows the
- * chosen pick-up human. Pick-up messaging now lives in the ReminderCard so
- * "told them it's ready" stays distinct from the reminder status.
+ * exposes the payment status (plus method + amount once "Paid in Full" is
+ * chosen — a confirmation with defaults, not data entry), the deposit amount
+ * and the pick-up human select (limited to the owner plus their trusted
+ * contacts); read mode shows the settled state or a one-tap "Mark paid"
+ * (Cash/Card/Bank transfer) while money is still owed. Pick-up messaging
+ * lives in the ReminderCard so "told them it's ready" stays distinct from
+ * the reminder status.
  */
 export function PaymentsPickupCard({
   booking,
@@ -25,7 +30,33 @@ export function PaymentsPickupCard({
   setEditData,
   humans,
   primaryHuman,
+  pricing,
+  onUpdate,
+  currentDateStr,
 }) {
+  const toast = useToast();
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  const markPaid = async (methodId) => {
+    if (!onUpdate || savingPayment) return;
+    setSavingPayment(true);
+    // pricing.subtotal already resolved the dog's customPrice upstream in
+    // BookingDetailModal, so pass it as the explicit amount.
+    const result = await onUpdate(
+      {
+        ...booking,
+        ...buildMarkPaidPatch(
+          { service: booking.service, size: booking.size, addons: booking.addons },
+          methodId,
+          pricing?.subtotal,
+        ),
+      },
+      currentDateStr,
+      currentDateStr,
+    );
+    setSavingPayment(false);
+    if (result !== null) toast.show("Payment recorded", "success");
+  };
   const trustedHumans = useMemo(() => {
     const trusted = primaryHuman?.trustedIds || [];
     const ownerId = primaryHuman?.id || booking._ownerId || null;
@@ -85,7 +116,24 @@ export function PaymentsPickupCard({
           label={<FinanceLabel text="Payment Status" />}
           value={editData.payment}
           editNode={
-            <select value={editData.payment} onChange={(e) => setEditData((prev) => ({ ...prev, payment: e.target.value }))} className={MODAL_INPUT_CLS}>
+            <select
+              value={editData.payment}
+              onChange={(e) => {
+                const payment = e.target.value;
+                // Switching into Paid in Full prefills the amount with the
+                // appointment total (custom price + add-ons) so recording a
+                // payment is confirm-and-save, not typing.
+                setEditData((prev) => ({
+                  ...prev,
+                  payment,
+                  paidAmount:
+                    payment === "Paid in Full"
+                      ? prev.paidAmount ?? pricing?.subtotal ?? null
+                      : prev.paidAmount,
+                }));
+              }}
+              className={MODAL_INPUT_CLS}
+            >
               <option value="Due at Pick-up">Due at Pick-up</option>
               <option value="Deposit Paid">Deposit Paid</option>
               <option value="Paid in Full">Paid in Full</option>
@@ -93,6 +141,48 @@ export function PaymentsPickupCard({
           }
           isEditing={isEditing}
         />
+        {editData.payment === "Paid in Full" && (
+          <>
+            <DetailRow
+              label={<FinanceLabel text="Paid By" />}
+              value={paymentMethodLabel(editData.paymentMethod) || "—"}
+              editNode={
+                <select
+                  value={editData.paymentMethod || "card"}
+                  onChange={(e) => setEditData((prev) => ({ ...prev, paymentMethod: e.target.value }))}
+                  className={MODAL_INPUT_CLS}
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+              }
+              isEditing={isEditing}
+            />
+            <DetailRow
+              label={<FinanceLabel text="Amount Taken" />}
+              value={`£${editData.paidAmount ?? ""}`}
+              editNode={
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold">{"£"}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editData.paidAmount ?? ""}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        paidAmount: e.target.value === "" ? null : Number(e.target.value),
+                      }))
+                    }
+                    className="w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border"
+                  />
+                </div>
+              }
+              isEditing={isEditing}
+            />
+          </>
+        )}
         {editData.payment === "Deposit Paid" && (
           <DetailRow
             label={<FinanceLabel text="Deposit Amount" />}
@@ -120,8 +210,44 @@ export function PaymentsPickupCard({
     );
   }
 
+  const isPaid = (booking.payment || "Due at Pick-up") === "Paid in Full";
+  const amountDue = pricing?.amountDue ?? null;
+
   return (
     <PanelShell eyebrow="Payment & pickup" icon={CreditCard} accent="amber" className="mb-3">
+      {isPaid ? (
+        <Row
+          label="Payment"
+          value={[
+            booking.paidAmount != null ? `£${booking.paidAmount}` : "Paid in full",
+            paymentMethodLabel(booking.paymentMethod),
+          ]
+            .filter(Boolean)
+            .join(" — ")}
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-2 flex-wrap py-1.5 border-b border-slate-100 mb-1.5">
+          <span className="text-[13px] font-bold text-amber-800">
+            {amountDue != null ? `£${amountDue} due` : booking.payment || "Due at Pick-up"}
+          </span>
+          {onUpdate && (
+            <span className="inline-flex items-center gap-1.5 flex-wrap">
+              <span className="text-[12px] font-semibold text-slate-500">Mark paid:</span>
+              {PAYMENT_METHODS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={savingPayment}
+                  onClick={() => markPaid(m.id)}
+                  className="text-[12px] font-bold py-1 px-2 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer transition-all hover:brightness-95 disabled:opacity-50 font-[inherit]"
+                >
+                  {m.label}
+                </button>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
       <Row
         label="Pick-up Human"
         value={titleCase(booking.pickupBy || booking.owner)}

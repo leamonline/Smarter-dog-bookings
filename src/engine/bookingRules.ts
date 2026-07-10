@@ -90,6 +90,36 @@ export function computeBookingPricing(input: BookingPricingInput): BookingPricin
   };
 }
 
+export interface MarkPaidPatch {
+  payment: "Paid in Full";
+  paymentMethod: string | null;
+  paidAmount: number;
+}
+
+/**
+ * The one shape every "Mark paid" surface (Today feed, calendar card, booking
+ * detail modal) writes: payment flips to Paid in Full, the method is recorded,
+ * and the amount defaults to the appointment's full value — where the dog's
+ * customPrice beats the pricing table (computeBookingPricing). paid_at is
+ * stamped by the DB trigger, never client-set. An explicit amountOverride
+ * (staff correcting the figure) wins over the computed subtotal.
+ */
+export function buildMarkPaidPatch(
+  input: BookingPricingInput,
+  method: string | null,
+  amountOverride?: number | null,
+): MarkPaidPatch {
+  const amount =
+    amountOverride != null && !isNaN(Number(amountOverride))
+      ? Number(amountOverride)
+      : computeBookingPricing(input).subtotal;
+  return {
+    payment: "Paid in Full",
+    paymentMethod: method ?? null,
+    paidAmount: amount,
+  };
+}
+
 export function isServiceSupportedForSize(serviceId: string, size: string): boolean {
   const pricing = PRICING as Record<string, Record<string, string>>;
   const value = pricing?.[serviceId]?.[size];

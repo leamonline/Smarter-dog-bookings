@@ -12,6 +12,8 @@ interface EditData {
   service: string;
   pickupBy: string;
   payment: string;
+  paymentMethod: string | null;
+  paidAmount: number | null;
   depositAmount: number;
   groomNotes: string;
   alerts: string[];
@@ -196,6 +198,11 @@ export function useBookingSave({
           pickupBy: pickedPickup?.fullName || editData.pickupBy,
           _pickupById: pickedPickup?.id ?? null,
           payment: editData.payment,
+          // Method + amount travel WITH the Paid-in-Full status or they're
+          // silently lost (the ~70%-of-completed-bookings-unpaid problem).
+          // Off Paid in Full the DB trigger clears all three ledger fields.
+          paymentMethod: editData.payment === "Paid in Full" ? editData.paymentMethod : null,
+          paidAmount: editData.payment === "Paid in Full" ? editData.paidAmount : null,
           depositAmount: editData.payment === "Deposit Paid" ? editData.depositAmount : null,
           slot: editData.slot,
           ...(capacityOverride ? { staff_capacity_override: true } : {}),
