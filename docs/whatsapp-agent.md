@@ -28,6 +28,22 @@ Set with `supabase secrets set NAME=value`. **Never** put these in
 | `AI_AUTO_SEND_LOW_RISK` | `false` | Global gate for auto-send. Even when `true`, all the per-draft gates below must also pass. |
 | `WHATSAPP_SEND_URL` | `${SUPABASE_URL}/functions/v1/whatsapp-send` | Where the agent posts approved-for-auto-send drafts. Override only if you've moved the function. |
 | `SEND_INTERNAL_SECRET` | _required for auto-send_ | Used by the agent to authenticate against `whatsapp-send` for auto-dispatch. Same value `whatsapp-send` already expects. |
+| `META_ACCESS_TOKEN` | _optional for media_ | Also read by the agent (and `whatsapp-media`) to download inbound photos/stickers from the Graph API at ingest. When unset, media messages still ingest — the inbox just shows the "📷 Photo" chip instead of the picture. |
+
+## Inbound photos & stickers
+
+Meta's webhook delivers only a *media id* for an attachment; the bytes stay on
+the Graph API for ~30 days. At ingest the agent downloads images and stickers
+(`_shared/whatsappMedia.ts`) into the private `whatsapp-media` Storage bucket
+and stamps `whatsapp_messages.media_path` / `media_mime`; the staff thread
+then renders the photo inline via a staff-only signed URL, with any caption as
+the message text. The download is strictly best-effort — a failure never
+blocks ingestion or drafting. To backfill or retry (e.g. a message that
+predates this pipeline, while its media id is still alive on Meta), POST
+`{ "message_id": "<uuid>" }` to the `whatsapp-media` function authenticated
+with the webhook Bearer secret (`get_webhook_secret()` from SQL) or
+`x-internal-secret`. Video, voice notes and documents are not downloaded
+(chip only) — extend `extractInboundMedia` if that changes.
 
 ## Intent vocabulary
 

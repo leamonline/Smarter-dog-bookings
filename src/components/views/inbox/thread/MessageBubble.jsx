@@ -22,6 +22,7 @@
 import { formatWhen, formatDayToken, formatTime } from "../helpers.js";
 import { parseMessageContent, presentTemplate, isReminderConfirm } from "./messageContent";
 import { ReactionLine } from "./ReactionLine.jsx";
+import { InboundMediaImage } from "./InboundMediaImage.jsx";
 
 const CHANNEL_LABEL = {
   whatsapp: "WhatsApp",
@@ -71,6 +72,14 @@ export function MessageBubble({ message }) {
     ? "bg-sky-100 text-slate-800 rounded-br-sm"
     : "bg-green-100 text-slate-800 rounded-br-sm";
   const failedColor = "bg-rose-50 border border-rose-200 text-rose-950 rounded-br-sm";
+
+  // A stored customer photo (downloaded from Meta into the whatsapp-media
+  // bucket at ingest). When present it replaces the "📷 Photo" chip; any
+  // caption the customer typed is the message content and renders below.
+  const storedImage =
+    isInbound && message.media_path && (message.media_mime ?? "").startsWith("image/")
+      ? { path: message.media_path, mediaType: parsed.kind === "media" ? parsed.mediaType : "image" }
+      : null;
 
   const template =
     parsed.kind === "template"
@@ -128,6 +137,11 @@ export function MessageBubble({ message }) {
               </span>
             </div>
             {system.body}
+          </>
+        ) : storedImage ? (
+          <>
+            <InboundMediaImage path={storedImage.path} mediaType={storedImage.mediaType} />
+            {parsed.kind === "text" && parsed.text ? parsed.text : null}
           </>
         ) : parsed.kind === "media" ? (
           <span className="inline-flex items-center gap-1.5 text-slate-600 italic">

@@ -70,6 +70,8 @@ verify_jwt = false
 [functions.whatsapp-admin]
 [functions.whatsapp-generate-reply]
 verify_jwt = false
+[functions.whatsapp-media]
+verify_jwt = false
 [functions.notify-booking-confirmed]
 verify_jwt = false
 [functions.notify-booking-cancelled]

@@ -2,6 +2,22 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { MessageBubble } from "./MessageBubble.jsx";
 
+vi.mock("../../../../supabase/client.js", () => ({
+  supabase: {
+    storage: {
+      from: () => ({
+        createSignedUrl: (path) =>
+          path.includes("broken")
+            ? Promise.resolve({ data: null, error: { message: "object not found" } })
+            : Promise.resolve({
+                data: { signedUrl: `https://signed.example/${path}` },
+                error: null,
+              }),
+      }),
+    },
+  },
+}));
+
 const base = {
   id: "x",
   channel: "whatsapp",
@@ -177,6 +193,57 @@ describe("MessageBubble — special message rendering", () => {
     expect(container.textContent).toContain("📷");
     expect(container.textContent).not.toContain("no text content");
     expect(container.textContent).not.toContain("[image");
+  });
+
+  it("renders the actual photo inline when the media has been stored", async () => {
+    render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "inbound",
+          content: "[image message — no text content]",
+          media_path: "conv-1/msg-1.jpg",
+          media_mime: "image/jpeg",
+        }}
+      />,
+    );
+    const img = await screen.findByRole("img", { name: /photo from customer/i });
+    expect(img).toHaveAttribute("src", "https://signed.example/conv-1/msg-1.jpg");
+    // The placeholder chip is replaced by the real photo.
+    expect(screen.queryByText("Photo")).not.toBeInTheDocument();
+  });
+
+  it("shows the caption under the photo when the customer typed one", async () => {
+    render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "inbound",
+          content: "Bella after her groom",
+          media_path: "conv-1/msg-2.jpg",
+          media_mime: "image/jpeg",
+        }}
+      />,
+    );
+    await screen.findByRole("img", { name: /photo from customer/i });
+    expect(screen.getByText("Bella after her groom")).toBeInTheDocument();
+  });
+
+  it("falls back to the friendly chip when the stored photo can't be signed", async () => {
+    const { container } = render(
+      <MessageBubble
+        message={{
+          ...base,
+          direction: "inbound",
+          content: "[image message — no text content]",
+          media_path: "conv-1/broken.jpg",
+          media_mime: "image/jpeg",
+        }}
+      />,
+    );
+    expect(await screen.findByText("Photo")).toBeInTheDocument();
+    expect(container.textContent).toContain("📷");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("makes failed outbound sends prominent and names the failure reason", () => {
