@@ -86,10 +86,12 @@ import {
 } from "../_shared/agentRisk.ts";
 import { isPositiveConfirm } from "../_shared/agentHelpers.ts";
 import {
+  extractInboundMedia,
   extractMessageText,
   reactionFields,
   type MetaInboundMessage,
 } from "../_shared/inboundMessage.ts";
+import { fetchAndStoreInboundMedia } from "../_shared/whatsappMedia.ts";
 import { CUSTOMER_PORTAL_URL as PORTAL_URL_DEFAULT, type DogSize } from "../_shared/salonConstants.ts";
 import {
   buildRescheduleInitialState,
@@ -130,6 +132,9 @@ const AI_BOOKING_DAILY_CAP = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
 })();
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
+// For downloading inbound media (photos) from the Graph API at ingest.
+// Optional: when unset, media messages still ingest with their chip.
+const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") ?? "";
 const WHATSAPP_SEND_URL =
   Deno.env.get("WHATSAPP_SEND_URL") ?? `${SUPABASE_URL}/functions/v1/whatsapp-send`;
 
@@ -567,9 +572,9 @@ async function insertInboundMessage(
   text: string | null,
   raw: MetaMessage,
   sentAt: string,
-): Promise<{ duplicate: boolean }> {
+): Promise<{ duplicate: boolean; id: string | null }> {
   const { reaction_emoji, in_reply_to_meta_id } = reactionFields(raw);
-  const { error } = await supabase.from("whatsapp_messages").insert({
+  const { data, error } = await supabase.from("whatsapp_messages").insert({
     conversation_id: conversationId,
     event_id: eventId,
     direction: "inbound",
@@ -581,7 +586,7 @@ async function insertInboundMessage(
     in_reply_to_meta_id,
     status: "delivered", // inbound from Meta is by definition already delivered to us
     sent_at: sentAt,
-  });
+  }).select("id").single();
   if (error) {
     // 23505 = unique_violation on idx_whatsapp_messages_meta_msg: the inbound
     // row already exists — Meta redelivered the message, or a concurrent
@@ -589,13 +594,13 @@ async function insertInboundMessage(
     // failure, so signal it instead of throwing; the caller stops here so we
     // don't draft/auto-send a second reply.
     if (error.code === "23505" || error.message?.includes("idx_whatsapp_messages_meta_msg")) {
-      return { duplicate: true };
+      return { duplicate: true, id: null };
     }
     throw new Error(`insertInboundMessage failed: ${error.message}`);
   }
   // The AFTER INSERT trigger whatsapp_messages_bump_unread (migration
   // 029) increments whatsapp_conversations.unread_count for us.
-  return { duplicate: false };
+  return { duplicate: false, id: data?.id ?? null };
 }
 
 // ── Availability block ───────────────────────────────────────
@@ -2561,7 +2566,7 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
           // there its duplicate-key throw still usefully guards against Meta
           // redelivering a message and triggering a second draft/auto-send.
           if (!forceDraft) {
-            const { duplicate } = await insertInboundMessage(
+            const { duplicate, id: insertedId } = await insertInboundMessage(
               supabase,
               conversation.id,
               event.id,
@@ -2570,6 +2575,24 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
               msg,
               sentAt,
             );
+            // Photo/sticker attachments: pull the bytes from Meta into
+            // Storage so the inbox can show the actual picture. Strictly
+            // best-effort — a download hiccup must never fail ingestion or
+            // block the draft; the whatsapp-media function can retry later
+            // (the media id stays valid on Meta for ~30 days).
+            if (!duplicate && insertedId && META_ACCESS_TOKEN && extractInboundMedia(msg)) {
+              try {
+                await fetchAndStoreInboundMedia(
+                  supabase,
+                  META_ACCESS_TOKEN,
+                  conversation.id,
+                  insertedId,
+                  msg,
+                );
+              } catch (mediaErr) {
+                console.error("inbound media fetch failed (message kept):", mediaErr);
+              }
+            }
             if (duplicate) {
               // The inbound row already exists (Meta redelivery, or a
               // concurrent invocation of this same event won the insert race).

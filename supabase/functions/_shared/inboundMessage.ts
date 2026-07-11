@@ -43,6 +43,14 @@ export interface MetaInboundMessage {
   reaction?: { message_id?: string; emoji?: string };
   // Quoted text replies carry the quoted message's wamid in context.id.
   context?: { id?: string; from?: string };
+  // Media messages carry a Graph media id (downloadable for ~30 days
+  // via GET /{media_id}) plus mime type; image/video/document may also
+  // carry a customer-typed caption.
+  image?: { id?: string; mime_type?: string; caption?: string };
+  sticker?: { id?: string; mime_type?: string };
+  video?: { id?: string; mime_type?: string; caption?: string };
+  audio?: { id?: string; mime_type?: string };
+  document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
 }
 
 /**
@@ -60,8 +68,57 @@ export function extractMessageText(msg: MetaInboundMessage): string | null {
     const emoji = msg.reaction?.emoji?.trim();
     return emoji ? `Reacted ${emoji}` : "Reacted";
   }
+  // A captioned photo/video/document reads as its caption — the photo
+  // itself is surfaced separately (media_path → inline image in the
+  // thread), so the caption is the message's real text.
+  const caption =
+    msg.image?.caption?.trim() || msg.video?.caption?.trim() || msg.document?.caption?.trim();
+  if (caption) return caption;
   if (msg.type) return `[${msg.type} message — no text content]`;
   return null;
+}
+
+/** Structured pointer to an inbound media attachment we download and store. */
+export interface InboundMediaInfo {
+  /** Meta message type — "image" or "sticker" (the types we fetch today). */
+  mediaType: string;
+  /** Graph media id, exchangeable for a short-lived download URL. */
+  mediaId: string;
+  mimeType: string | null;
+  caption: string | null;
+}
+
+// The image mimes Meta actually delivers for inbound photos/stickers.
+// Anything else is stored as .bin — the mime column, not the extension,
+// is what the UI trusts.
+const MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** File extension for a stored media object, from its mime type. */
+export function mediaFileExtension(mimeType: string | null | undefined): string {
+  const bare = (mimeType ?? "").split(";")[0].trim().toLowerCase();
+  return MIME_EXTENSIONS[bare] ?? "bin";
+}
+
+/**
+ * Pull the downloadable-attachment pointer from an inbound message.
+ * Only images and stickers (webp images) are fetched today; video,
+ * audio and documents keep their placeholder-chip treatment, so this
+ * returns null for them — and for anything with no media id at all.
+ */
+export function extractInboundMedia(msg: MetaInboundMessage): InboundMediaInfo | null {
+  const media =
+    msg.type === "image" ? msg.image : msg.type === "sticker" ? msg.sticker : null;
+  if (!media?.id) return null;
+  return {
+    mediaType: msg.type as string,
+    mediaId: media.id,
+    mimeType: media.mime_type ?? null,
+    caption: (msg.type === "image" && msg.image?.caption) || null,
+  };
 }
 
 export interface ReactionFields {

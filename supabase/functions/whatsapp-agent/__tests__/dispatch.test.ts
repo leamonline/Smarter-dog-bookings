@@ -281,7 +281,7 @@ Deno.test("persists a known customer's inbound but draws no AI draft without for
         : undefined,
     (call) =>
       call.method === "POST" && call.path === "/rest/v1/whatsapp_messages"
-        ? new Response(null, { status: 201 })
+        ? json({ id: "msg-1" }, 201)
         : undefined,
   );
 
@@ -403,7 +403,7 @@ Deno.test("runs the Claude path for an unknown customer and saves a pending draf
     (call) =>
       call.path === "/rest/v1/whatsapp_messages"
         ? call.method === "POST"
-          ? new Response(null, { status: 201 })
+          ? json({ id: "msg-1" }, 201)
           : json([{ id: "msg-1" }])
         : undefined,
     (call) =>

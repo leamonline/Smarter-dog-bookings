@@ -191,7 +191,7 @@ async function fetchConversationDetail(conversationId, signal) {
   const [messagesRes, draftRes, bookingActionsRes] = await Promise.all([
     withSignal(supabase
       .from("whatsapp_messages")
-      .select("id, direction, content, sent_at, status, error_message, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id")
+      .select("id, direction, content, sent_at, status, error_message, meta_message_id, channel, reaction_emoji, in_reply_to_meta_id, media_path, media_mime")
       .eq("conversation_id", conversationId)
       .order("sent_at", { ascending: false })
       .limit(200)),
