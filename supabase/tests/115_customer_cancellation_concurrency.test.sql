@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
-select plan(11);
+select plan(12);
 
 create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
@@ -29,6 +29,9 @@ select extensions.dblink_exec('setup', $setup$
   begin;
   set local session_replication_role = replica;
 
+  delete from smarter_dog_private.customer_cancellation_receipts
+   where customer_user_id = '47000000-0000-4000-8000-000000000002'
+      or target_booking_id = '47200000-0000-4000-8000-000000000101';
   delete from public.notification_log
    where booking_id in (
      '47200000-0000-4000-8000-000000000101',
@@ -387,6 +390,45 @@ select is(
 
 select extensions.dblink_exec('writer', 'rollback');
 
+-- A fresh transaction must recover the same receipt if the original HTTP
+-- response was lost after commit. This proves the receipt is durable rather
+-- than merely reusable inside the first database transaction.
+select extensions.dblink_connect(
+  'retry',
+  (select connstr from _dblink_config)
+);
+select extensions.dblink_exec(
+  'retry',
+  'begin isolation level read committed'
+);
+select extensions.dblink_exec(
+  'retry',
+  'set local statement_timeout = ''10s'''
+);
+select extensions.dblink_exec(
+  'retry',
+  'set local "request.jwt.claims" = ''{"sub":"47000000-0000-4000-8000-000000000002","role":"authenticated"}'''
+);
+select extensions.dblink_exec('retry', 'set local role authenticated');
+
+create temp table _retry_receipt (payload jsonb not null);
+insert into _retry_receipt (payload)
+select receipt_text::jsonb
+from extensions.dblink('retry', $retry$
+  select to_jsonb(receipt)::text
+  from public.cancel_customer_booking(
+    '47200000-0000-4000-8000-000000000101',
+    'Concurrency test'
+  ) receipt
+$retry$) as replayed(receipt_text text);
+
+select is(
+  (select payload from _retry_receipt),
+  (select payload from _receipt),
+  'a fresh transaction replays the exact durable receipt after response loss'
+);
+select extensions.dblink_exec('retry', 'commit');
+
 select is(
   (
     select count(*)
@@ -430,6 +472,9 @@ select is(
 select extensions.dblink_exec('setup', $cleanup$
   begin;
   set local session_replication_role = replica;
+  delete from smarter_dog_private.customer_cancellation_receipts
+   where customer_user_id = '47000000-0000-4000-8000-000000000002'
+      or target_booking_id = '47200000-0000-4000-8000-000000000101';
   delete from public.notification_log
    where booking_id in (
      '47200000-0000-4000-8000-000000000101',
@@ -478,6 +523,7 @@ $cleanup$);
 
 do $disconnect$
 begin
+  perform extensions.dblink_disconnect('retry');
   perform extensions.dblink_disconnect('writer');
   perform extensions.dblink_disconnect('canceller');
   perform extensions.dblink_disconnect('setup');

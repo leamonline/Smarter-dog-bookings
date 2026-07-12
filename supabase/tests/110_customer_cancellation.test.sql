@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(29);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -403,6 +403,21 @@ select ok(
   'the receipt identifies the requested booking, stored group and timestamp'
 );
 
+create temp table _retry_receipt as
+select * from public.cancel_customer_booking(
+  '43000000-0000-4000-8000-000000000001', 'Changed plans'
+);
+
+select results_eq(
+  $$ select target_booking_id, booking_group_id, cancelled_booking_ids,
+            cancelled_count, cancelled_at
+       from _retry_receipt $$,
+  $$ select target_booking_id, booking_group_id, cancelled_booking_ids,
+            cancelled_count, cancelled_at
+       from _success_receipt $$,
+  'an immediate identical retry returns the same durable receipt without another cancellation'
+);
+
 select ok(
   (select count(*) = 2
           and bool_and(status = 'Cancelled')
@@ -430,6 +445,27 @@ select results_eq(
      order by id $$,
   $$ select id, snapshot from _before_success order by id $$,
   'cancellation preserves every non-cancellation field including trigger-managed audit data'
+);
+
+reset role;
+update public.bookings
+   set group_id = '44000000-0000-4000-8000-000000000099'
+ where id = '43000000-0000-4000-8000-000000000002';
+set local role authenticated;
+
+create temp table _regrouped_retry_receipt as
+select * from public.cancel_customer_booking(
+  '43000000-0000-4000-8000-000000000001', 'Changed plans'
+);
+
+select results_eq(
+  $$ select target_booking_id, booking_group_id, cancelled_booking_ids,
+            cancelled_count, cancelled_at
+       from _regrouped_retry_receipt $$,
+  $$ select target_booking_id, booking_group_id, cancelled_booking_ids,
+            cancelled_count, cancelled_at
+       from _success_receipt $$,
+  'a retry keeps the original complete receipt after a non-target member is regrouped'
 );
 
 select throws_ok(
@@ -468,6 +504,34 @@ select ok(
   'a rejected mixed-ownership group remains unchanged'
 );
 
+set local role authenticated;
+
+create temp table _singleton_receipt as
+select * from public.cancel_customer_booking(
+  '43000000-0000-4000-8000-000000000050', 'Changed plans'
+);
+
+reset role;
+update public.bookings
+   set status = 'Booked', cancel_reason = null
+ where id = '43000000-0000-4000-8000-000000000050';
+update public.bookings
+   set status = 'Cancelled', cancel_reason = 'Changed plans'
+ where id = '43000000-0000-4000-8000-000000000050';
+set local role authenticated;
+
+select throws_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000050', 'Changed plans'
+     ) $$,
+  'SDC03', null,
+  'an old receipt is not replayed after reactivation and same-reason recancellation'
+);
+
+reset role;
+update public.bookings
+   set status = 'Booked', cancel_reason = null
+ where id = '43000000-0000-4000-8000-000000000050';
 set local role authenticated;
 
 with changed as (

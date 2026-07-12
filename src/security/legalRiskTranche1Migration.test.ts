@@ -535,6 +535,46 @@ describe("Tranche 1 customer cancellation boundary", () => {
     );
   });
 
+  it("replays the durable receipt for an identical committed cancellation", () => {
+    const cancellation = extractFunction(
+      latestMigration,
+      "cancel_customer_booking",
+    );
+    const replayStart = cancellation.search(
+      /-- BEGIN: durable cancellation receipt replay/i,
+    );
+    const targetResolve = cancellation.search(
+      /-- Resolve only an owned target/i,
+    );
+
+    expect(latestMigration).toMatch(
+      /create\s+table\s+if\s+not\s+exists\s+smarter_dog_private\.customer_cancellation_receipts/i,
+    );
+    expect(latestMigration).toMatch(
+      /cancelled_count\s+integer[\s\S]*?check\s*\(\s*cancelled_count\s*=\s*cardinality\(cancelled_booking_ids\)/i,
+    );
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+table\s+smarter_dog_private\.customer_cancellation_receipts\s+from\s+public,\s*anon,\s*authenticated,\s*service_role/i,
+    );
+    expect(replayStart).toBeGreaterThanOrEqual(0);
+    expect(targetResolve).toBeGreaterThan(replayStart);
+    expect(cancellation).toMatch(
+      /from\s+smarter_dog_private\.customer_cancellation_receipts\s+r[\s\S]*?r\.customer_user_id\s*=\s*v_uid[\s\S]*?r\.target_booking_id\s*=\s*p_booking_id[\s\S]*?r\.cancel_reason\s*=\s*v_reason/i,
+    );
+    expect(cancellation).toMatch(
+      /r\.cancelled_at\s*=\s*\(\s*select\s+max\(cancellation_event\.occurred_at\)[\s\S]*?from\s+public\.booking_events\s+cancellation_event[\s\S]*?cancellation_event\.booking_id\s*=\s*p_booking_id[\s\S]*?cancellation_event\.event_type\s*=\s*'cancelled'/i,
+    );
+    expect(cancellation).toMatch(
+      /select\s+count\(\*\)[\s\S]*?from\s+public\.booking_events\s+same_event[\s\S]*?same_event\.occurred_at\s*=\s*r\.cancelled_at[\s\S]*?=\s*1/i,
+    );
+    expect(cancellation).toMatch(
+      /insert\s+into\s+smarter_dog_private\.customer_cancellation_receipts[\s\S]*?customer_user_id[\s\S]*?target_booking_id[\s\S]*?cancelled_booking_ids[\s\S]*?cancelled_count[\s\S]*?cancelled_at/i,
+    );
+    expect(cancellation).toMatch(
+      /target_booking_id\s*:=\s*p_booking_id[\s\S]*?return\s+next;[\s\S]*?return;/i,
+    );
+  });
+
   it("preserves an existing staff override before non-staff sanitisation", () => {
     const capacity = extractFunction(
       latestMigration,

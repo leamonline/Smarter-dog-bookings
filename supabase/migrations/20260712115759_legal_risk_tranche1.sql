@@ -1241,6 +1241,39 @@ create policy "staff_delete_bookings" on public.bookings
   for delete to authenticated
   using ((select public.is_staff()));
 
+-- Persist the exact customer-visible receipt outside the exposed API schemas.
+-- It intentionally has no foreign keys: a later regroup, merge or booking
+-- deletion must not erase the proof of what the cancellation committed.
+create schema if not exists smarter_dog_private;
+revoke all on schema smarter_dog_private
+  from public, anon, authenticated, service_role;
+
+create table if not exists smarter_dog_private.customer_cancellation_receipts (
+  id uuid primary key default gen_random_uuid(),
+  customer_user_id uuid not null,
+  target_booking_id uuid not null,
+  booking_group_id uuid,
+  cancel_reason text not null,
+  cancelled_booking_ids uuid[] not null,
+  cancelled_count integer not null,
+  cancelled_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  check (cancelled_count = cardinality(cancelled_booking_ids)),
+  check (cancelled_count > 0),
+  check (target_booking_id = any(cancelled_booking_ids))
+);
+
+create index if not exists customer_cancellation_receipts_lookup_idx
+  on smarter_dog_private.customer_cancellation_receipts (
+    customer_user_id,
+    target_booking_id,
+    cancel_reason,
+    cancelled_at desc
+  );
+
+revoke all on table smarter_dog_private.customer_cancellation_receipts
+  from public, anon, authenticated, service_role;
+
 create or replace function public.cancel_customer_booking(
   p_booking_id uuid,
   p_reason text
@@ -1299,6 +1332,63 @@ begin
   if v_human_id is null then
     raise exception 'no_linked_human' using errcode = '28000';
   end if;
+
+  -- BEGIN: durable cancellation receipt replay
+  -- A committed receipt belongs to the authenticated customer, exact target
+  -- and normalised reason. Return it before reconstructing current group
+  -- membership so later regrouping or deletion cannot shrink the original ID
+  -- set. A currently reactivated or differently cancelled target suppresses
+  -- replay so a new lifecycle cannot be mistaken for the old cancellation.
+  select
+    r.booking_group_id,
+    r.cancelled_booking_ids,
+    r.cancelled_count,
+    r.cancelled_at
+  into
+    booking_group_id,
+    cancelled_booking_ids,
+    cancelled_count,
+    cancelled_at
+  from smarter_dog_private.customer_cancellation_receipts r
+  where r.customer_user_id = v_uid
+    and r.target_booking_id = p_booking_id
+    and r.cancel_reason = v_reason
+    and (
+      not exists (
+        select 1
+        from public.bookings current_target
+        where current_target.id = p_booking_id
+      )
+      or exists (
+        select 1
+        from public.bookings current_target
+        where current_target.id = p_booking_id
+          and current_target.status = 'Cancelled'
+          and current_target.cancel_reason = v_reason
+          and r.cancelled_at = (
+            select max(cancellation_event.occurred_at)
+            from public.booking_events cancellation_event
+            where cancellation_event.booking_id = p_booking_id
+              and cancellation_event.event_type = 'cancelled'
+          )
+          and (
+            select count(*)
+            from public.booking_events same_event
+            where same_event.booking_id = p_booking_id
+              and same_event.event_type = 'cancelled'
+              and same_event.occurred_at = r.cancelled_at
+          ) = 1
+      )
+    )
+  order by r.cancelled_at desc, r.id desc
+  limit 1;
+
+  if found then
+    target_booking_id := p_booking_id;
+    return next;
+    return;
+  end if;
+  -- END: durable cancellation receipt replay
 
   -- Resolve only an owned target. A missing target and another customer's
   -- target deliberately produce the same non-disclosing outcome.
@@ -1381,8 +1471,64 @@ begin
   if v_scope_count < 1
      or not v_target_scope_matches
      or v_owned_count <> v_scope_count
-     or v_booked_count <> v_scope_count
      or v_earliest_start is null then
+    raise exception 'booking_not_cancellable' using errcode = 'SDC03';
+  end if;
+
+  if v_booked_count <> v_scope_count then
+    -- A duplicate request can begin before the first transaction commits and
+    -- therefore miss the early replay lookup. The shared visit lock above
+    -- makes the committed receipt visible here before returning failure.
+    select
+      r.booking_group_id,
+      r.cancelled_booking_ids,
+      r.cancelled_count,
+      r.cancelled_at
+    into
+      booking_group_id,
+      cancelled_booking_ids,
+      cancelled_count,
+      cancelled_at
+    from smarter_dog_private.customer_cancellation_receipts r
+    where r.customer_user_id = v_uid
+      and r.target_booking_id = p_booking_id
+      and r.cancel_reason = v_reason
+      and (
+        not exists (
+          select 1
+          from public.bookings current_target
+          where current_target.id = p_booking_id
+        )
+        or exists (
+          select 1
+          from public.bookings current_target
+          where current_target.id = p_booking_id
+            and current_target.status = 'Cancelled'
+            and current_target.cancel_reason = v_reason
+            and r.cancelled_at = (
+              select max(cancellation_event.occurred_at)
+              from public.booking_events cancellation_event
+              where cancellation_event.booking_id = p_booking_id
+                and cancellation_event.event_type = 'cancelled'
+            )
+            and (
+              select count(*)
+              from public.booking_events same_event
+              where same_event.booking_id = p_booking_id
+                and same_event.event_type = 'cancelled'
+                and same_event.occurred_at = r.cancelled_at
+            ) = 1
+        )
+      )
+    order by r.cancelled_at desc, r.id desc
+    limit 1;
+
+    if found then
+      target_booking_id := p_booking_id;
+      return next;
+      return;
+    end if;
+
     raise exception 'booking_not_cancellable' using errcode = 'SDC03';
   end if;
 
@@ -1452,6 +1598,24 @@ begin
   if v_cancelled_count <> v_scope_count then
     raise exception 'booking_not_cancellable' using errcode = 'SDC03';
   end if;
+
+  insert into smarter_dog_private.customer_cancellation_receipts (
+    customer_user_id,
+    target_booking_id,
+    booking_group_id,
+    cancel_reason,
+    cancelled_booking_ids,
+    cancelled_count,
+    cancelled_at
+  ) values (
+    v_uid,
+    p_booking_id,
+    v_group_id,
+    v_reason,
+    v_booking_ids,
+    v_cancelled_count,
+    v_cancelled_at
+  );
 
   target_booking_id := p_booking_id;
   booking_group_id := v_group_id;
