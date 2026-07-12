@@ -7,17 +7,19 @@ name: DB Tests (pgTAP)
 # does NOT rebuild from scratch — it has drift (timestamps that map to different
 # migrations than prod) and by-design prod-environment prerequisites (e.g. a
 # migration that RAISES unless a Vault secret was provisioned out-of-band). So
-# instead of replaying migrations, we dump prod's CURRENT public schema
-# (schema-only — `supabase db dump` carries NO data and NO custom roles unless
+# instead of replaying migrations, we dump prod's CURRENT application schemas:
+# `public` plus the non-API `smarter_dog_private` receipt schema. The dump is
+# schema-only — `supabase db dump` carries NO data and NO custom roles unless
 # you pass --data-only/--role-only, and excludes the managed auth/storage
-# schemas) and use that as the single baseline the local stack boots from. The
+# schemas. We use it as the single baseline the local stack boots from. The
 # tests then run against a faithful copy of the real schema. On pull requests,
 # migrations added relative to the base branch are applied after that baseline
 # so the candidate schema is tested without replaying the drifted history.
 #
 # `supabase start` supplies the base Supabase environment (the auth schema +
 # auth.uid(), the anon/authenticated/service_role roles, extensions) that the
-# dumped public objects reference. `supabase test db` runs supabase/tests/*.sql
+# dumped application objects reference. `supabase test db` runs
+# supabase/tests/*.sql
 # under pgTAP; each test is wrapped in a transaction that is rolled back.
 #
 # Requires repo secrets: SUPABASE_ACCESS_TOKEN (already set for edge deploys)
@@ -104,9 +106,9 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          version: 2.109.1
 
-      - name: Dump prod public schema (schema-only — no customer data) as the baseline
+      - name: Dump prod application schemas (schema-only — no customer data) as the baseline
         if: steps.gate.outputs.run == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -114,8 +116,13 @@ jobs:
         run: |
           set -euo pipefail
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          # Schema-only by default; --schema public scopes it to our objects.
-          supabase db dump --linked --schema public -f /tmp/baseline.sql
+          # Schema-only by default. The private schema contains durable receipt
+          # structure but no rows are copied. Before its production migration
+          # exists, pg_dump simply matches public and the PR candidate creates
+          # smarter_dog_private in the disposable stack.
+          supabase db dump --linked \
+            --schema public,smarter_dog_private \
+            -f /tmp/baseline.sql
           echo "baseline: $(wc -l < /tmp/baseline.sql) lines"
           # Replace the (non-rebuildable) migration history with the prod schema
           # as a single baseline migration, so `supabase start` boots a faithful
