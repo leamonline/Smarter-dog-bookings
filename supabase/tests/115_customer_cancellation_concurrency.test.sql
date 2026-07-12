@@ -389,6 +389,15 @@ select is(
   'the waiting regroup revalidates and rejects the cancelled destination'
 );
 
+-- dblink async mode requires one final empty result read before the connection
+-- is reusable, even after the query's row has already been consumed above.
+do $drain_writer$
+begin
+  perform result_code
+  from extensions.dblink_get_result('writer') as result(result_code text);
+end;
+$drain_writer$;
+
 select extensions.dblink_exec('writer', 'rollback');
 
 -- A fresh transaction must recover the same receipt if the original HTTP
