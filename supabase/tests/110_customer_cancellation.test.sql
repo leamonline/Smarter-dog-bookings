@@ -14,6 +14,11 @@ select vault.create_secret('pgtap-test-secret', 'webhook_secret');
 
 set local session_replication_role = replica;
 
+insert into auth.users (id) values
+  ('41000000-0000-4000-8000-000000000002'),
+  ('41000000-0000-4000-8000-000000000011'),
+  ('45000000-0000-4000-8000-000000000001');
+
 insert into public.humans (id, name, surname, customer_user_id) values
   (
     '41000000-0000-4000-8000-000000000001',

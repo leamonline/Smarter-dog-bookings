@@ -8,6 +8,13 @@ select plan(31);
 
 set local session_replication_role = replica;
 
+insert into auth.users (id) values
+  ('10000000-0000-4000-8000-000000000002'),
+  ('10000000-0000-4000-8000-000000000011'),
+  ('10000000-0000-4000-8000-000000000021'),
+  ('10000000-0000-4000-8000-000000000031'),
+  ('10000000-0000-4000-8000-000000000041');
+
 insert into public.humans (
   id, name, surname, address, postcode, email, whatsapp, fb, insta, tiktok,
   customer_user_id, source, approved_at, approved_by, signup_submitted_at,
