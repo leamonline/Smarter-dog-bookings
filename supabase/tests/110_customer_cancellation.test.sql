@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(22);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -104,12 +104,54 @@ insert into public.bookings (
   ),
   -- Missing and malformed setting values must use documented defaults.
   (
-    '43000000-0000-4000-8000-000000000023', current_date + 30, '10:30',
+    '43000000-0000-4000-8000-000000000023',
+    ((now() at time zone 'Europe/London') + interval '24 hours')::date,
+    to_char(
+      (now() at time zone 'Europe/London') + interval '24 hours',
+      'HH24:MI:SS.US'
+    ),
     '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
   (
-    '43000000-0000-4000-8000-000000000024', current_date + 30, '11:00',
+    '43000000-0000-4000-8000-000000000024',
+    (
+      (now() at time zone 'Europe/London')
+      + interval '24 hours'
+      - interval '1 microsecond'
+    )::date,
+    to_char(
+      (now() at time zone 'Europe/London')
+      + interval '24 hours'
+      - interval '1 microsecond',
+      'HH24:MI:SS.US'
+    ),
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  (
+    '43000000-0000-4000-8000-000000000025',
+    ((now() at time zone 'Europe/London') + interval '24 hours')::date,
+    to_char(
+      (now() at time zone 'Europe/London') + interval '24 hours',
+      'HH24:MI:SS.US'
+    ),
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  (
+    '43000000-0000-4000-8000-000000000026',
+    (
+      (now() at time zone 'Europe/London')
+      + interval '24 hours'
+      - interval '1 microsecond'
+    )::date,
+    to_char(
+      (now() at time zone 'Europe/London')
+      + interval '24 hours'
+      - interval '1 microsecond',
+      'HH24:MI:SS.US'
+    ),
     '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
@@ -259,7 +301,15 @@ select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000023', 'Changed plans'
      ) $$,
-  'missing cancellation settings use the documented enabled and 24-hour defaults'
+  'missing cancellation settings allow the exact default 24-hour deadline'
+);
+
+select throws_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000024', 'Changed plans'
+     ) $$,
+  'SDC02', null,
+  'missing cancellation settings reject one microsecond inside the default 24-hour deadline'
 );
 
 reset role;
@@ -269,9 +319,17 @@ set local role authenticated;
 
 select lives_ok(
   $$ select * from public.cancel_customer_booking(
-       '43000000-0000-4000-8000-000000000024', 'Changed plans'
+       '43000000-0000-4000-8000-000000000025', 'Changed plans'
      ) $$,
-  'malformed cancellation settings use defaults without leaking a JSON cast error'
+  'malformed cancellation settings allow the exact default 24-hour deadline without a cast error'
+);
+
+select throws_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000026', 'Changed plans'
+     ) $$,
+  'SDC02', null,
+  'malformed cancellation settings reject one microsecond inside the default 24-hour deadline'
 );
 
 reset role;
