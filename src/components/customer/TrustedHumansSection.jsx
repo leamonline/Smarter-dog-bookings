@@ -1,26 +1,5 @@
-import { useState, useCallback, useId } from "react";
-import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { addCustomerTrustedHuman } from "../../supabase/rpc";
-import { AccessibleModal } from "../shared/AccessibleModal";
 import { cardAnim } from "./dashboardConstants.js";
-import { useToast } from "../../contexts/ToastContext.jsx";
-import { Users, Plus, X } from "lucide-react";
-
-const ERR_LABEL = {
-  not_authenticated: "You need to be signed in to add a trusted human.",
-  no_linked_human: "We couldn't find your account record. Refresh and try again.",
-  name_required: "First name is required.",
-  phone_required: "A UK mobile number is required.",
-  phone_invalid: "Please enter a UK mobile number, e.g. 07700 900123.",
-  cannot_trust_self: "You can't add yourself as a trusted human.",
-};
-
-function errorFromRpc(err) {
-  if (!err) return null;
-  const msg = err?.message || "";
-  const key = Object.keys(ERR_LABEL).find(k => msg.includes(k));
-  return key ? ERR_LABEL[key] : "Something went wrong. Please try again.";
-}
+import { Users } from "lucide-react";
 
 const AVATAR_PALETTE = ["sky", "buttercup", "mint", "coral"];
 function avatarTintFor(id) {
@@ -30,45 +9,7 @@ function avatarTintFor(id) {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAdded }) {
-  const toast = useToast();
-  const titleId = useId();
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", surname: "", phone: "", relationship: "" });
-  const [error, setError] = useState(null);
-
-  const reset = useCallback(() => {
-    setForm({ name: "", surname: "", phone: "", relationship: "" });
-    setError(null);
-    setAdding(false);
-  }, []);
-
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!supabase) return;
-    setSaving(true);
-    setError(null);
-    const { data, error: rpcErr } = await addCustomerTrustedHuman(supabase, {
-      name: form.name,
-      surname: form.surname,
-      phone: form.phone,
-      relationship: form.relationship,
-    });
-    setSaving(false);
-    if (rpcErr) {
-      setError(errorFromRpc(rpcErr));
-      return;
-    }
-    const row = Array.isArray(data) ? data[0] : data;
-    if (row && onAdded) onAdded(row);
-    const trustedName = `${form.name || ""} ${form.surname || ""}`.trim();
-    reset();
-    toast.show(trustedName ? `${trustedName} added as a trusted human` : "Trusted human added", "success");
-  }, [form, onAdded, reset, toast]);
-
-  const isEmpty = trustedHumans.length === 0;
-
+export function TrustedHumansSection({ trustedHumans }) {
   return (
     <div className="portal-card portal-card--buttercup" style={cardAnim(0.15)}>
       <div className="portal-card-header">
@@ -79,12 +20,6 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
       </div>
 
       <div className="flex-1">
-        {isEmpty && (
-          <p className="portal-empty-body" style={{ marginTop: 0, textAlign: "left", maxWidth: "none" }}>
-            Add someone who&apos;s allowed to drop {dogName} off or pick {dogName === "your pup" ? "them" : "them"} up — a partner, family member, or friend.
-          </p>
-        )}
-
         {trustedHumans.map(th => {
           const initial = (th.name || "?").trim().charAt(0).toUpperCase();
           const tint = avatarTintFor(th.id);
@@ -113,99 +48,13 @@ export function TrustedHumansSection({ trustedHumans, dogName = "your pup", onAd
           );
         })}
 
-      </div>
-
-      <div className="portal-card-bottom-action">
-        <button
-          type="button"
-          className="portal-btn portal-btn--secondary w-full"
-          onClick={() => setAdding(true)}
+        <p
+          className="portal-text-help"
+          style={{ margin: trustedHumans.length > 0 ? "12px 0 0" : 0 }}
         >
-          <Plus size={14} aria-hidden="true" />
-          Add a trusted human
-        </button>
+          Adding a trusted human online is temporarily unavailable.
+        </p>
       </div>
-
-      {/* The form lives in a modal — kept off the dashboard surface so its
-          submit button can't be confused with the sticky "Book a groom"
-          CTA pinned to the bottom of the screen on mobile. */}
-      {adding && (
-        <AccessibleModal
-          onClose={reset}
-          titleId={titleId}
-          className="bg-white rounded-2xl shadow-xl max-w-md w-[90vw] p-6"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h2
-              id={titleId}
-              className="font-['Quicksand','Montserrat',sans-serif] text-lg font-bold text-[var(--sd-navy)] m-0"
-            >
-              Add a trusted human
-            </h2>
-            <button
-              type="button"
-              onClick={reset}
-              aria-label="Close"
-              className="tap-target inline-flex items-center justify-center bg-transparent border-none text-[var(--sd-ink-light)] text-xl cursor-pointer p-1 hover:text-[var(--sd-navy)]"
-            >
-              <span aria-hidden="true">{"✕"}</span>
-            </button>
-          </div>
-
-          <p className="portal-text-help mb-4">
-            Someone who&apos;s allowed to drop {dogName} off or pick {dogName === "your pup" ? "them" : "them"} up — a partner, family member, or friend.
-          </p>
-
-          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
-            <div className="portal-inline-form-row">
-              <input
-                required
-                aria-label="First name"
-                placeholder="First name"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="portal-input"
-              />
-              <input
-                aria-label="Surname"
-                placeholder="Surname"
-                value={form.surname}
-                onChange={e => setForm(f => ({ ...f, surname: e.target.value }))}
-                className="portal-input"
-              />
-            </div>
-            <input
-              required
-              type="tel"
-              inputMode="tel"
-              aria-label="Mobile number"
-              placeholder="07700 900123"
-              value={form.phone}
-              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              className="portal-input"
-            />
-            <input
-              aria-label="Relationship"
-              placeholder="Relationship (e.g. partner, mum)"
-              value={form.relationship}
-              onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
-              className="portal-input"
-            />
-            {error && (
-              <div role="alert" className="portal-inline-error">{error}</div>
-            )}
-            <div className="portal-inline-form-actions">
-              <button type="submit" className="portal-btn portal-btn--primary" disabled={saving}>
-                {saving ? "Adding…" : "Add trusted human"}
-              </button>
-              <button type="button" className="portal-btn portal-btn--ghost" onClick={reset}>
-                <X size={14} aria-hidden="true" />
-                Cancel
-              </button>
-            </div>
-          </form>
-        </AccessibleModal>
-      )}
     </div>
   );
 }

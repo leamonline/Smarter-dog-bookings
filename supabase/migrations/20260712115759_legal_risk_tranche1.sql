@@ -645,3 +645,5 @@ revoke all on function public.create_customer_booking_group(jsonb, date) from pu
 revoke all on function public.create_customer_booking_group(jsonb, date) from anon;
 revoke all on function public.create_customer_booking_group(jsonb, date) from authenticated;
 grant execute on function public.create_customer_booking_group(jsonb, date) to authenticated;
+
+drop function if exists public.add_customer_trusted_human(text, text, text, text);

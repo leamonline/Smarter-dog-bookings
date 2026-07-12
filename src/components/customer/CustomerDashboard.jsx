@@ -392,15 +392,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               }
             />
 
-            <TrustedHumansSection
-              dogName={dogs[0]?.name || "your pup"}
-              trustedHumans={trustedHumans}
-              onAdded={(row) =>
-                setTrustedHumans(prev =>
-                  prev.some(t => t.id === row.id) ? prev : [...prev, row]
-                )
-              }
-            />
+            <TrustedHumansSection trustedHumans={trustedHumans} />
           </div>
 
           {/* Past appointments — collapsed by default. */}

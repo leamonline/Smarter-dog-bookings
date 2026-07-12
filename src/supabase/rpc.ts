@@ -19,14 +19,6 @@ export interface CustomerDogRow {
   dob: string | null;
 }
 
-export interface CustomerTrustedHumanRow {
-  id: string;
-  name: string | null;
-  surname: string | null;
-  phone: string | null;
-  relationship: string | null;
-}
-
 export interface CustomerHumanRow {
   id: string;
   name: string | null;
@@ -106,25 +98,6 @@ export function replaceTrustedContacts(
       trusted_id: c.trustedId,
       relationship: c.relationship,
     })),
-  });
-}
-
-// Customer trusted-human linking --------------------------------------
-
-export function addCustomerTrustedHuman(
-  client: SupabaseClient,
-  params: {
-    name: string;
-    surname: string;
-    phone: string;
-    relationship: string;
-  },
-) {
-  return client.rpc("add_customer_trusted_human", {
-    p_name: params.name,
-    p_surname: params.surname,
-    p_phone: params.phone,
-    p_relationship: params.relationship,
   });
 }
 

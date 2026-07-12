@@ -186,3 +186,27 @@ describe("Tranche 1 dog size authority boundary", () => {
     );
   });
 });
+
+describe("Tranche 1 trusted-contact creation boundary", () => {
+  it("drops the customer trusted-human creation function", () => {
+    expect(latestMigration).toContain(
+      "drop function if exists public.add_customer_trusted_human(text, text, text, text);",
+    );
+  });
+
+  it("removes the customer trusted-human RPC wrapper", () => {
+    const rpc = readProjectFile("src/supabase/rpc.ts");
+
+    expect(rpc).not.toContain("addCustomerTrustedHuman");
+    expect(rpc).not.toContain("add_customer_trusted_human");
+  });
+
+  it("removes trusted-human mutation wiring from the customer component", () => {
+    const component = readProjectFile(
+      "src/components/customer/TrustedHumansSection.jsx",
+    );
+
+    expect(component).not.toContain("addCustomerTrustedHuman");
+    expect(component).not.toContain("add_customer_trusted_human");
+  });
+});
