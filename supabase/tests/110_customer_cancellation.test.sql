@@ -146,7 +146,7 @@ insert into public.bookings (
       (now() at time zone 'Europe/London') + interval '24 hours',
       'HH24:MI:SS.US'
     ),
-    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    '42000000-0000-4000-8000-000000000002', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
   (
@@ -162,7 +162,7 @@ insert into public.bookings (
       - interval '1 microsecond',
       'HH24:MI:SS.US'
     ),
-    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    '42000000-0000-4000-8000-000000000002', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
   (
@@ -198,7 +198,7 @@ insert into public.bookings (
   ),
   -- Direct-update probe.
   (
-    '43000000-0000-4000-8000-000000000050', current_date + 30, '09:00',
+    '43000000-0000-4000-8000-000000000050', current_date + 31, '09:00',
     '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   );
@@ -465,16 +465,17 @@ select ok(
 
 set local role authenticated;
 
+with changed as (
+  update public.bookings
+     set status = 'Cancelled',
+         cancel_reason = 'Forged',
+         service = 'other',
+         payment = 'Free'
+   where id = '43000000-0000-4000-8000-000000000050'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.bookings
-       set status = 'Cancelled',
-           cancel_reason = 'Forged',
-           service = 'other',
-           payment = 'Free'
-     where id = '43000000-0000-4000-8000-000000000050'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a raw customer multi-column cancellation update affects zero rows'
 );

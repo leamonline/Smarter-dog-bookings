@@ -73,53 +73,58 @@ select set_config(
 );
 set local role authenticated;
 
+with changed as (
+  update public.humans set approved_at = now()
+  where id = '10000000-0000-4000-8000-000000000001'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.humans set approved_at = now()
-    where id = '10000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a pending customer cannot forge approved_at directly'
 );
 
+with changed as (
+  update public.humans
+  set approved_by = '10000000-0000-4000-8000-000000000099'
+  where id = '10000000-0000-4000-8000-000000000001'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.humans
-    set approved_by = '10000000-0000-4000-8000-000000000099'
-    where id = '10000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a pending customer cannot forge approved_by directly'
 );
 
+with changed as (
+  update public.humans set source = 'forged'
+  where id = '10000000-0000-4000-8000-000000000001'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.humans set source = 'forged'
-    where id = '10000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a pending customer cannot rewrite source directly'
 );
 
+with changed as (
+  update public.humans set signup_submitted_at = now()
+  where id = '10000000-0000-4000-8000-000000000001'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.humans set signup_submitted_at = now()
-    where id = '10000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a pending customer cannot forge signup_submitted_at directly'
 );
 
+with changed as (
+  update public.humans set archived_at = now()
+  where id = '10000000-0000-4000-8000-000000000001'
+  returning id
+)
 select is(
-  (with changed as (
-    update public.humans set archived_at = now()
-    where id = '10000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*) from changed),
+  (select count(*) from changed),
   0::bigint,
   'a pending customer cannot archive their record directly'
 );

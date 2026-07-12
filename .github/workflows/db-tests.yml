@@ -11,7 +11,9 @@ name: DB Tests (pgTAP)
 # (schema-only — `supabase db dump` carries NO data and NO custom roles unless
 # you pass --data-only/--role-only, and excludes the managed auth/storage
 # schemas) and use that as the single baseline the local stack boots from. The
-# tests then run against a faithful copy of the real schema.
+# tests then run against a faithful copy of the real schema. On pull requests,
+# migrations added relative to the base branch are applied after that baseline
+# so the candidate schema is tested without replaying the drifted history.
 #
 # `supabase start` supplies the base Supabase environment (the auth schema +
 # auth.uid(), the anon/authenticated/service_role roles, extensions) that the
@@ -64,6 +66,39 @@ jobs:
       - name: Check out repo
         if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v7
+        with:
+          # PR runs need the base history to identify candidate migrations.
+          fetch-depth: 0
+
+      - name: Preserve PR-added candidate migrations
+        if: steps.gate.outputs.run == 'true' && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF"
+
+          candidate_root="$(mktemp -d)"
+          echo "CANDIDATE_MIGRATIONS_DIR=$candidate_root" >> "$GITHUB_ENV"
+
+          git diff --name-only --diff-filter=A -z \
+            "origin/${BASE_REF}...HEAD" -- supabase/migrations/ \
+            > "$candidate_root/added-migrations"
+
+          count=0
+          while IFS= read -r -d '' migration; do
+            case "$migration" in
+              *.sql) ;;
+              *) continue ;;
+            esac
+            destination="$candidate_root/$migration"
+            mkdir -p "$(dirname "$destination")"
+            cp -- "$migration" "$destination"
+            count=$((count + 1))
+          done < "$candidate_root/added-migrations"
+
+          echo "Candidate migrations preserved: $count"
 
       - name: Set up Supabase CLI
         if: steps.gate.outputs.run == 'true'
@@ -89,7 +124,18 @@ jobs:
           mkdir -p supabase/migrations
           cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
 
-      - name: Start local stack (applies the baseline schema)
+      - name: Restore PR-added candidate migrations
+        if: steps.gate.outputs.run == 'true' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_source="$CANDIDATE_MIGRATIONS_DIR/supabase/migrations"
+          if [ -d "$candidate_source" ]; then
+            # Original timestamped names keep candidates after the baseline.
+            cp -R -- "$candidate_source/." supabase/migrations/
+          fi
+
+      - name: Start local stack (applies baseline then candidate migrations)
         if: steps.gate.outputs.run == 'true'
         run: supabase start
 
