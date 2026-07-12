@@ -240,6 +240,27 @@ describe("Tranche 1 dog size authority boundary", () => {
     );
   });
 
+  it("reissues human merging with the shared deterministic lock order", () => {
+    const mergeHumans = extractFunction(latestMigration, "merge_humans");
+    const humanLocks = mergeHumans.search(
+      /from public\.humans h[\s\S]*?order by h\.id[\s\S]*?for update/i,
+    );
+    const bookingLocks = mergeHumans.search(
+      /from public\.bookings b[\s\S]*?order by b\.id[\s\S]*?for update of b/i,
+    );
+    const dogLocks = mergeHumans.search(
+      /from public\.dogs d[\s\S]*?order by d\.id[\s\S]*?for update of d/i,
+    );
+    const firstMutation = mergeHumans.search(
+      /update public\.(?:bookings|dogs)/i,
+    );
+
+    expect(humanLocks).toBeGreaterThanOrEqual(0);
+    expect(bookingLocks).toBeGreaterThan(humanLocks);
+    expect(dogLocks).toBeGreaterThan(bookingLocks);
+    expect(firstMutation).toBeGreaterThan(dogLocks);
+  });
+
   it("normalises edited reported size into the customer model", () => {
     const dogsSection = readProjectFile(
       "src/components/customer/DogsSection.jsx",

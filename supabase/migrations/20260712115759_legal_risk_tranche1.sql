@@ -496,6 +496,144 @@ revoke all on function public.approve_customer_signup(uuid) from anon;
 revoke all on function public.approve_customer_signup(uuid) from authenticated;
 grant execute on function public.approve_customer_signup(uuid) to authenticated;
 
+-- Customer dog writes and cancellation now hold human/dog/booking rows. Keep
+-- the staff merge command on the same deterministic humans -> bookings -> dogs
+-- order so it cannot deadlock those paths or delete a dog inserted while the
+-- loser human is being merged.
+create or replace function public.merge_humans(p_winner uuid, p_loser uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  l public.humans%rowtype;
+begin
+  if not public.is_staff() then
+    raise exception 'merge_humans: staff only';
+  end if;
+  if p_winner is null or p_loser is null then
+    raise exception 'merge_humans: winner and loser are required';
+  end if;
+  if p_winner = p_loser then
+    raise exception 'merge_humans: winner and loser must differ';
+  end if;
+
+  -- Lock both people first, in UUID order. Customer dog creation/editing and
+  -- signup approval take the same owner-row lock before touching dogs.
+  perform h.id
+  from public.humans h
+  where h.id = any(array[p_winner, p_loser])
+  order by h.id
+  for update;
+
+  select * into l
+  from public.humans
+  where id = p_loser;
+  if not found then
+    raise exception 'merge_humans: loser % not found', p_loser;
+  end if;
+  if not exists (select 1 from public.humans where id = p_winner) then
+    raise exception 'merge_humans: winner % not found', p_winner;
+  end if;
+
+  -- Cancellation takes booking rows before their dog rows. Lock every booking
+  -- that either belongs to a loser-owned dog or directly names the loser as
+  -- collector, then lock the loser-owned dogs in UUID order.
+  perform b.id
+  from public.bookings b
+  left join public.dogs d on d.id = b.dog_id
+  where b.pickup_by_id = p_loser
+     or d.human_id = p_loser
+  order by b.id
+  for update of b;
+
+  perform d.id
+  from public.dogs d
+  where d.human_id = p_loser
+  order by d.id
+  for update of d;
+
+  -- Reassign references from loser -> winner before deleting the loser. The
+  -- booking and dog mutations follow the same order as the locks above.
+  update public.bookings
+  set pickup_by_id = p_winner
+  where pickup_by_id = p_loser;
+
+  update public.dogs
+  set human_id = p_winner
+  where human_id = p_loser;
+
+  update public.waitlist_entries
+  set human_id = p_winner
+  where human_id = p_loser;
+
+  update public.whatsapp_conversations
+  set human_id = p_winner
+  where human_id = p_loser;
+
+  update public.notification_log
+  set human_id = p_winner
+  where human_id = p_loser;
+
+  update public.human_trusted_contacts t
+  set human_id = p_winner
+  where t.human_id = p_loser
+    and t.trusted_id <> p_winner
+    and not exists (
+      select 1
+      from public.human_trusted_contacts e
+      where e.human_id = p_winner
+        and e.trusted_id = t.trusted_id
+    );
+
+  update public.human_trusted_contacts t
+  set trusted_id = p_winner
+  where t.trusted_id = p_loser
+    and t.human_id <> p_winner
+    and not exists (
+      select 1
+      from public.human_trusted_contacts e
+      where e.human_id = t.human_id
+        and e.trusted_id = p_winner
+    );
+
+  -- Deletion frees the unique phone and intentionally removes the loser's
+  -- private calendar tokens plus any remaining duplicate trusted links.
+  delete from public.humans where id = p_loser;
+
+  update public.humans w
+  set phone = coalesce(nullif(w.phone, ''), l.phone),
+      email = coalesce(nullif(w.email, ''), l.email),
+      address = case
+        when coalesce(w.address, '') = '' then l.address else w.address
+      end,
+      fb = case when coalesce(w.fb, '') = '' then l.fb else w.fb end,
+      insta = case when coalesce(w.insta, '') = '' then l.insta else w.insta end,
+      tiktok = case when coalesce(w.tiktok, '') = '' then l.tiktok else w.tiktok end,
+      history_flag = case
+        when coalesce(w.history_flag, '') = '' then l.history_flag
+        else w.history_flag
+      end,
+      notes = case
+        when coalesce(l.notes, '') = '' then w.notes
+        when coalesce(w.notes, '') = '' then l.notes
+        else w.notes || E'\n\n' || l.notes
+      end,
+      sms = w.sms or l.sms,
+      whatsapp = w.whatsapp or l.whatsapp
+  where w.id = p_winner;
+end;
+$$;
+
+comment on function public.merge_humans(uuid, uuid) is
+  'Staff-only. Reassigns every reference from the loser human to the winner using deterministic human, booking and dog locks, backfills blank contact fields, then deletes the loser.';
+
+revoke all on function public.merge_humans(uuid, uuid) from public;
+revoke all on function public.merge_humans(uuid, uuid) from anon;
+revoke all on function public.merge_humans(uuid, uuid) from authenticated;
+grant execute on function public.merge_humans(uuid, uuid) to authenticated;
+
 create or replace function public.create_customer_booking_group(
   p_bookings jsonb,
   p_booking_date date
