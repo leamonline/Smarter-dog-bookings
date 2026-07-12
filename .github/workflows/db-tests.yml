@@ -143,6 +143,41 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: supabase test db
 
+      # Temporary candidate-schema evidence; remove after the artefact is captured.
+      - name: Capture local security adviser evidence
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          supabase db advisors --local --type security --level info --fail-on none \
+            2>&1 | tee /tmp/security-advisors.txt
+
+      - name: Capture local performance adviser evidence
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          supabase db advisors --local --type performance --level info --fail-on none \
+            2>&1 | tee /tmp/performance-advisors.txt
+
+      - name: Generate migrated public schema types
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          supabase gen types --local --lang typescript --schema public \
+            > /tmp/database.types.ts
+          test -s /tmp/database.types.ts
+          grep -Fq 'export type Database' /tmp/database.types.ts
+
+      - name: Upload candidate-schema evidence
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: legal-risk-tranche1-schema-evidence
+          path: |
+            /tmp/security-advisors.txt
+            /tmp/performance-advisors.txt
+            /tmp/database.types.ts
+          retention-days: 1
+
       - name: Dump diagnostics on failure
         if: failure() && steps.gate.outputs.run == 'true'
         run: supabase status || true
