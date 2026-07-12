@@ -12,7 +12,8 @@ create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
 values (
   format(
-    'host=127.0.0.1 port=%s dbname=%I user=postgres password=postgres',
+    'hostaddr=%s port=%s dbname=%I user=postgres password=postgres',
+    host(inet_server_addr()),
     current_setting('port'),
     current_database()
   )
