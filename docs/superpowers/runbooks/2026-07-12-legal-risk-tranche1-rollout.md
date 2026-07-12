@@ -91,15 +91,18 @@ they did not dump or inspect customer data.
 - Run `29202899252` found no security-adviser issues. The performance adviser
   reported 73 unused-index `INFO` notices expected on the fresh disposable
   stack; none was an error or warning.
+- Exact-head run `29211218338` passed 14 pgTAP files / 148 tests at
+  `f29565e`, including the two-session membership race, post-commit receipt
+  replay and stale-lifecycle rejection.
 - The generated `src/supabase/database.types.ts` body has SHA-256
   `25febe3c7a58ae83a9e7c873c0fbce004e041868a93dcf4ee4e31d0bcf72d8f3`.
 - A paid Supabase preview branch was unavailable on the Free plan. No preview
   branch was created and no cost was incurred.
 
-The new two-session cancellation-membership regression in
-`115_customer_cancellation_concurrency.test.sql` was added after those runs.
-Its current-head disposable CI result is still required and is not claimed as
-passing here.
+The two-session cancellation-membership regression in
+`115_customer_cancellation_concurrency.test.sql` is therefore recorded as
+passing against the disposable schema-only target baseline plus candidate
+migration. No production migration was applied.
 
 ## Synthetic database smoke checks
 
@@ -337,9 +340,9 @@ Keep the migration's tightened database boundary in place during rollback.
   complete reschedule one transaction.
 - Existing trusted-contact links are retained. A verified invitation and
   acceptance lifecycle belongs to a later tranche.
-- The current-head two-session database regression and the count-only
-  historical review remain outstanding. Authorised schema-derived type
-  generation is complete and recorded above.
+- The current-head two-session database regression and authorised
+  schema-derived type generation are complete and recorded above. The
+  count-only historical review remains outstanding.
 - Production migration, legal wording, supplier configuration, incident
   assessment and any identifiable-record review remain outside this handoff.
 
