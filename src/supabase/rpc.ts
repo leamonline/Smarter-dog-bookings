@@ -127,6 +127,60 @@ export function addCustomerTrustedHuman(
   });
 }
 
+// Customer profile editing --------------------------------------------
+
+export interface CustomerContactDetailsInput {
+  name: string;
+  surname: string;
+  address: string;
+  postcode?: string | null;
+  email?: string | null;
+  whatsapp?: boolean;
+  fb?: string | null;
+  insta?: string | null;
+  tiktok?: string | null;
+}
+
+// The database derives the target human from auth.uid(); callers provide no
+// row identifier and can submit only the profile fields exposed here.
+export function updateCustomerContactDetails(
+  client: SupabaseClient,
+  input: CustomerContactDetailsInput,
+) {
+  return client.rpc("update_customer_contact_details", {
+    p_name: input.name,
+    p_surname: input.surname,
+    p_address: input.address,
+    p_postcode: input.postcode ?? null,
+    p_email: input.email ?? null,
+    p_whatsapp: input.whatsapp ?? false,
+    p_fb: input.fb ?? null,
+    p_insta: input.insta ?? null,
+    p_tiktok: input.tiktok ?? null,
+  });
+}
+
+export interface CompleteCustomerProfileInput {
+  name: string;
+  surname: string;
+  address: string;
+  postcode?: string | null;
+  policiesVersion: string;
+}
+
+export function completeCustomerProfile(
+  client: SupabaseClient,
+  input: CompleteCustomerProfileInput,
+) {
+  return client.rpc("complete_customer_profile", {
+    p_name: input.name,
+    p_surname: input.surname,
+    p_address: input.address,
+    p_postcode: input.postcode ?? null,
+    p_policies_version: input.policiesVersion,
+  });
+}
+
 // Customer ↔ human linking on first login -----------------------------
 
 // Shape of each row returned by link_customer_to_human(). `has_password`

@@ -6,6 +6,7 @@ import { PawPrint } from "lucide-react";
 import { AddressPicker } from "./AddressPicker.jsx";
 import { friendlySaveError } from "../../../utils/friendlyError";
 import { isRealPersonName } from "../../../utils/text";
+import { completeCustomerProfile } from "../../../supabase/rpc";
 import {
   SALON_TERMS_URL,
   SALON_MATTED_COAT_POLICY_URL,
@@ -57,24 +58,15 @@ export function ProfileGate({ humanRecord, onComplete, onSignOut }) {
     setSaving(true);
     setError(null);
 
-    // NB: never include `phone` here — humans.phone has a normalisation
-    // trigger that rejects non-E.164 service edits.
-    const payload = {
+    const { error: err } = await completeCustomerProfile(supabase, {
       name: name.trim(),
       surname: surname.trim(),
-      policies_accepted_at: new Date().toISOString(),
-      policies_version: POLICIES_VERSION,
-    };
-
-    if (!addr.keepingExisting) {
-      payload.address = addr.address;
-      if (addr.postcode) payload.postcode = addr.postcode;
-    }
-
-    const { error: err } = await supabase
-      .from("humans")
-      .update(payload)
-      .eq("id", humanRecord.id);
+      address: addr.address || existingAddress,
+      postcode: addr.keepingExisting
+        ? (humanRecord?.postcode ?? null)
+        : addr.postcode,
+      policiesVersion: POLICIES_VERSION,
+    });
 
     setSaving(false);
     if (err) {

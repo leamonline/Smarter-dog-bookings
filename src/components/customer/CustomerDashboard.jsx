@@ -15,6 +15,7 @@ import { logger } from "../../lib/logger";
 import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
+import { updateCustomerContactDetails } from "../../supabase/rpc";
 import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
@@ -159,19 +160,17 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     if (!supabase || !humanRecord?.id) return;
     setSaving(true);
     setSaveError(null);
-    const { error: err } = await supabase
-      .from("humans")
-      .update({
-        name: details.name,
-        surname: details.surname,
-        address: details.address,
-        email: details.email,
-        whatsapp: details.whatsapp,
-        fb: details.fb,
-        insta: details.insta,
-        tiktok: details.tiktok,
-      })
-      .eq("id", humanRecord.id);
+    const { error: err } = await updateCustomerContactDetails(supabase, {
+      name: details.name,
+      surname: details.surname,
+      address: details.address,
+      postcode: humanRecord?.postcode ?? null,
+      email: details.email,
+      whatsapp: details.whatsapp,
+      fb: details.fb,
+      insta: details.insta,
+      tiktok: details.tiktok,
+    });
     setSaving(false);
     if (err) {
       // Inline saveError is the primary feedback channel — it persists
