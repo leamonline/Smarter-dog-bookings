@@ -104,7 +104,8 @@ The canonical executable checks are:
 
 ### H-02 — trusted-contact creation lock
 
-- `add_customer_trusted_human(text,text)` is absent and not executable.
+- `add_customer_trusted_human(text,text,text,text)` is absent and not
+  executable.
 - A customer cannot insert a relationship directly into
   `human_trusted_contacts`.
 - An existing synthetic trusted link remains readable by its owner.
