@@ -15,7 +15,10 @@ import { logger } from "../../lib/logger";
 import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
-import { updateCustomerContactDetails } from "../../supabase/rpc";
+import {
+  listCustomerTrustedHumans,
+  updateCustomerContactDetails,
+} from "../../supabase/rpc";
 import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
@@ -129,19 +132,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           if (!cancelled) setHasMorePast((count || 0) > 0);
         }
 
-        const { data: trustedLinks, error: trustedErr } = await supabase
-          .from("human_trusted_contacts")
-          .select("trusted_id, relationship, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
-          .eq("human_id", humanRecord.id);
+        const { data: trustedLinks, error: trustedErr } =
+          await listCustomerTrustedHumans(supabase);
         if (trustedErr) throw trustedErr;
 
-        if (!cancelled && trustedLinks) {
-          setTrustedHumans(
-            trustedLinks
-              .map(link => link.humans ? { ...link.humans, relationship: link.relationship || "" } : null)
-              .filter(Boolean)
-          );
-        }
+        if (!cancelled) setTrustedHumans(trustedLinks || []);
       } catch (err) {
         logger.error("CustomerDashboard fetch failed", err, {
           tags: { component: "CustomerDashboard", op: "fetchData" },

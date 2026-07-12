@@ -209,4 +209,56 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
     expect(component).not.toContain("addCustomerTrustedHuman");
     expect(component).not.toContain("add_customer_trusted_human");
   });
+
+  it("exposes existing trusted contacts through a narrow customer read RPC", () => {
+    const listTrusted = extractFunction(
+      latestMigration,
+      "list_customer_trusted_humans",
+    );
+
+    expect(listTrusted).toMatch(
+      /returns\s+table\s*\(\s*id\s+uuid,\s*name\s+text,\s*surname\s+text,\s*phone\s+text,\s*relationship\s+text\s*\)/i,
+    );
+    expect(listTrusted).toMatch(/security\s+definer/i);
+    expect(listTrusted).toMatch(/set\s+search_path\s*=\s*public,\s*pg_temp/i);
+    expect(listTrusted).toMatch(/auth\.uid\(\)/i);
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.list_customer_trusted_humans\(\)\s+from\s+public;/i,
+    );
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.list_customer_trusted_humans\(\)\s+from\s+anon;/i,
+    );
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.list_customer_trusted_humans\(\)\s+from\s+authenticated;/i,
+    );
+    expect(latestMigration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.list_customer_trusted_humans\(\)\s+to\s+authenticated;/i,
+    );
+  });
+
+  it("routes the dashboard through the typed trusted-contact read wrapper", () => {
+    const rpc = readProjectFile("src/supabase/rpc.ts");
+    const dashboard = readProjectFile(
+      "src/components/customer/CustomerDashboard.jsx",
+    );
+
+    expect(rpc).toContain("export interface CustomerTrustedHumanRow");
+    expect(rpc).toContain("listCustomerTrustedHumans");
+    expect(rpc).toContain("list_customer_trusted_humans");
+    expect(rpc).toMatch(
+      /listCustomerTrustedHumans[\s\S]{0,300}overrideTypes<CustomerTrustedHumanRow\[\],\s*\{\s*merge:\s*false\s*\}>/,
+    );
+    expect(dashboard).toContain("listCustomerTrustedHumans");
+    expect(dashboard).not.toContain('.from("human_trusted_contacts")');
+  });
+
+  it("does not pass a mutation callback to the read-only section", () => {
+    const dashboard = readProjectFile(
+      "src/components/customer/CustomerDashboard.jsx",
+    );
+
+    expect(dashboard).not.toMatch(
+      /<TrustedHumansSection\b[^>]*\bonAdded\s*=/,
+    );
+  });
 });

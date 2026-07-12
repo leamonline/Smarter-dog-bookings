@@ -19,6 +19,14 @@ export interface CustomerDogRow {
   dob: string | null;
 }
 
+export interface CustomerTrustedHumanRow {
+  id: string;
+  name: string | null;
+  surname: string | null;
+  phone: string | null;
+  relationship: string | null;
+}
+
 export interface CustomerHumanRow {
   id: string;
   name: string | null;
@@ -99,6 +107,16 @@ export function replaceTrustedContacts(
       relationship: c.relationship,
     })),
   });
+}
+
+// Customer trusted-contact reading -----------------------------------
+
+// Returns only the customer-safe fields for contacts linked to the caller.
+// The database derives the owner from auth.uid(); callers provide no row ID.
+export function listCustomerTrustedHumans(client: SupabaseClient) {
+  return client
+    .rpc("list_customer_trusted_humans")
+    .overrideTypes<CustomerTrustedHumanRow[], { merge: false }>();
 }
 
 // Customer profile editing --------------------------------------------

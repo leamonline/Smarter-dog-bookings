@@ -647,3 +647,37 @@ revoke all on function public.create_customer_booking_group(jsonb, date) from au
 grant execute on function public.create_customer_booking_group(jsonb, date) to authenticated;
 
 drop function if exists public.add_customer_trusted_human(text, text, text, text);
+
+create or replace function public.list_customer_trusted_humans()
+returns table (
+  id uuid,
+  name text,
+  surname text,
+  phone text,
+  relationship text
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    trusted.id,
+    trusted.name,
+    trusted.surname,
+    trusted.phone,
+    link.relationship
+  from public.human_trusted_contacts link
+  join public.humans owner on owner.id = link.human_id
+  join public.humans trusted on trusted.id = link.trusted_id
+  where owner.customer_user_id = (select auth.uid())
+  order by
+    lower(coalesce(trusted.name, '')),
+    lower(coalesce(trusted.surname, '')),
+    trusted.id;
+$$;
+
+revoke all on function public.list_customer_trusted_humans() from public;
+revoke all on function public.list_customer_trusted_humans() from anon;
+revoke all on function public.list_customer_trusted_humans() from authenticated;
+grant execute on function public.list_customer_trusted_humans() to authenticated;
