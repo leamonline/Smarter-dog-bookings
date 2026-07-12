@@ -255,6 +255,7 @@ select throws_ok(
   'mixed ownership inside a stored group fails closed'
 );
 
+reset role;
 select ok(
   (select count(*) = 2
           and bool_and(status = 'Booked')
@@ -263,6 +264,8 @@ select ok(
    where group_id = '44000000-0000-4000-8000-000000000040'),
   'a rejected mixed-ownership group remains unchanged'
 );
+
+set local role authenticated;
 
 select is(
   (with changed as (
