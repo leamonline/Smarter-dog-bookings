@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(16);
 
 insert into public.humans (
   id, name, surname, address, postcode, email, whatsapp, fb, insta, tiktok,
@@ -98,10 +98,10 @@ select throws_ok(
 
 select lives_ok(
   $$ select * from public.update_customer_contact_details(
-       '  Contact  ', '  Updated  ', '  2 Contact Road  ', 'bb2 2bb',
+       '  Contact  ', '  Updated  ', '  2 Contact Road  ', null,
        'contact@example.test', true, 'facebook', 'instagram', 'tiktok'
      ) $$,
-  'the contact-details RPC accepts customer-owned profile fields'
+  'the contact-details RPC accepts a null postcode'
 );
 
 select ok(
@@ -109,7 +109,7 @@ select ok(
      name = 'Contact'
      and surname = 'Updated'
      and address = '2 Contact Road'
-     and postcode = 'BB2 2BB'
+     and postcode = 'AA1 1AA'
      and email = 'contact@example.test'
      and whatsapp
      and fb = 'facebook'
@@ -126,11 +126,26 @@ select ok(
 );
 
 select lives_ok(
+  $$ select * from public.update_customer_contact_details(
+       'Contact', 'Updated', '2 Contact Road', 'bb2 2bb',
+       'contact@example.test', true, 'facebook', 'instagram', 'tiktok'
+     ) $$,
+  'the contact-details RPC accepts an explicit postcode'
+);
+
+select is(
+  (select postcode from public.humans
+   where id = '10000000-0000-4000-8000-000000000001'),
+  'BB2 2BB'::text,
+  'the contact-details RPC applies an explicitly supplied postcode'
+);
+
+select lives_ok(
   $$ select * from public.complete_customer_profile(
        '  Complete  ', '  Customer  ', '  3 Complete Lane  ',
-       'cc3 3cc', '2026-07-test'
+       null, '2026-07-test'
      ) $$,
-  'the profile-completion RPC records the completed profile'
+  'the profile-completion RPC accepts a null postcode'
 );
 
 select ok(
@@ -138,7 +153,7 @@ select ok(
      name = 'Complete'
      and surname = 'Customer'
      and address = '3 Complete Lane'
-     and postcode = 'CC3 3CC'
+     and postcode = 'BB2 2BB'
      and policies_accepted_at is not null
      and policies_version = '2026-07-test'
      and approved_at is null
@@ -149,6 +164,21 @@ select ok(
    from public.humans
    where id = '10000000-0000-4000-8000-000000000001'),
   'the profile-completion RPC changes permitted fields only'
+);
+
+select lives_ok(
+  $$ select * from public.complete_customer_profile(
+       'Complete', 'Customer', '3 Complete Lane',
+       'cc3 3cc', '2026-07-test'
+     ) $$,
+  'the profile-completion RPC accepts an explicit postcode'
+);
+
+select is(
+  (select postcode from public.humans
+   where id = '10000000-0000-4000-8000-000000000001'),
+  'CC3 3CC'::text,
+  'the profile-completion RPC applies an explicitly supplied postcode'
 );
 
 reset role;

@@ -54,7 +54,7 @@ begin
      set name = trim(p_name),
          surname = trim(p_surname),
          address = trim(p_address),
-         postcode = nullif(upper(trim(coalesce(p_postcode, ''))), ''),
+         postcode = coalesce(nullif(upper(trim(coalesce(p_postcode, ''))), ''), h.postcode),
          email = nullif(trim(coalesce(p_email, '')), ''),
          whatsapp = coalesce(p_whatsapp, false),
          fb = nullif(trim(coalesce(p_fb, '')), ''),
@@ -123,7 +123,7 @@ begin
      set name = trim(p_name),
          surname = trim(p_surname),
          address = trim(p_address),
-         postcode = nullif(upper(trim(coalesce(p_postcode, ''))), ''),
+         postcode = coalesce(nullif(upper(trim(coalesce(p_postcode, ''))), ''), h.postcode),
          policies_accepted_at = coalesce(h.policies_accepted_at, now()),
          policies_version = coalesce(h.policies_version, v_version)
    where h.customer_user_id = v_uid

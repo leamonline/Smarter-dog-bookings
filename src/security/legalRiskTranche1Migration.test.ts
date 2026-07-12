@@ -95,6 +95,22 @@ describe("Tranche 1 human write boundary", () => {
     );
   });
 
+  it("preserves stored postcodes when a profile RPC receives no postcode", () => {
+    const contact = extractFunction(
+      latestMigration,
+      "update_customer_contact_details",
+    ).replace(/\s+/g, " ");
+    const completion = extractFunction(
+      latestMigration,
+      "complete_customer_profile",
+    ).replace(/\s+/g, " ");
+    const preservingAssignment =
+      "postcode = coalesce(nullif(upper(trim(coalesce(p_postcode, ''))), ''), h.postcode)";
+
+    expect(contact).toContain(preservingAssignment);
+    expect(completion).toContain(preservingAssignment);
+  });
+
   it("routes both customer components through the narrow wrappers", () => {
     const profileGate = readProjectFile(
       "src/components/customer/onboarding/ProfileGate.jsx",
