@@ -209,10 +209,15 @@ const UUID_RE =
 
 function isValidCancellationRow(
   value: unknown,
+  expectedBookingId: string,
 ): value is CustomerCancellationRpcRow {
   if (!value || typeof value !== "object") return false;
   const row = value as Partial<CustomerCancellationRpcRow>;
-  if (typeof row.target_booking_id !== "string" || !UUID_RE.test(row.target_booking_id)) {
+  if (
+    typeof row.target_booking_id !== "string" ||
+    !UUID_RE.test(row.target_booking_id) ||
+    row.target_booking_id !== expectedBookingId
+  ) {
     return false;
   }
   if (
@@ -272,7 +277,11 @@ export async function cancelCustomerBooking(
       };
     }
 
-    if (!Array.isArray(data) || data.length !== 1 || !isValidCancellationRow(data[0])) {
+    if (
+      !Array.isArray(data) ||
+      data.length !== 1 ||
+      !isValidCancellationRow(data[0], input.bookingId)
+    ) {
       return { receipt: null, error: invalidCancellationReceipt() };
     }
 

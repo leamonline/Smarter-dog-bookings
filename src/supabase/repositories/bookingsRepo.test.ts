@@ -5,6 +5,7 @@ import { cancelCustomerBooking } from "./bookingsRepo";
 const TARGET = "40000000-0000-4000-8000-000000000001";
 const GROUP = "40000000-0000-4000-8000-000000000010";
 const SIBLING = "40000000-0000-4000-8000-000000000002";
+const OTHER_TARGET = "40000000-0000-4000-8000-000000000099";
 
 const validRow = {
   target_booking_id: TARGET,
@@ -107,6 +108,25 @@ describe("cancelCustomerBooking", () => {
         cancelledAt: "2026-07-12T14:30:00.000Z",
       },
       error: null,
+    });
+  });
+
+  it("rejects a well-formed receipt for a different requested booking", async () => {
+    const otherReceipt = {
+      ...validRow,
+      target_booking_id: OTHER_TARGET,
+      cancelled_booking_ids: [OTHER_TARGET, SIBLING],
+    };
+    const { client } = fakeClient({ data: [otherReceipt], error: null });
+
+    const result = await cancelCustomerBooking(client, {
+      bookingId: TARGET,
+      reason: "Changed plans",
+    });
+
+    expect(result.receipt).toBeNull();
+    expect(result.error).toMatchObject({
+      code: "INVALID_CANCELLATION_RECEIPT",
     });
   });
 
