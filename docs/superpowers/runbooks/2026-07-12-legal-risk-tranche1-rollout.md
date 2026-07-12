@@ -1,9 +1,13 @@
 # Legal-risk Tranche 1 — non-production rollout runbook
 
-**Status:** Non-production handoff; production application is not authorised  
-**Findings:** B-01, H-01, H-02 and H-06  
-**Approved design:** [2026-07-12-legal-risk-remediation-design.md](../specs/2026-07-12-legal-risk-remediation-design.md)  
-**Implementation plan:** [2026-07-12-legal-risk-tranche1.md](../plans/2026-07-12-legal-risk-tranche1.md)  
+**Status:** Non-production handoff; production application is not authorised
+
+**Findings:** B-01, H-01, H-02 and H-06
+
+**Approved design:** [2026-07-12-legal-risk-remediation-design.md](../specs/2026-07-12-legal-risk-remediation-design.md)
+
+**Implementation plan:** [2026-07-12-legal-risk-tranche1.md](../plans/2026-07-12-legal-risk-tranche1.md)
+
 **Single migration:** `supabase/migrations/20260712115759_legal_risk_tranche1.sql`
 
 ## Hard stop and scope
