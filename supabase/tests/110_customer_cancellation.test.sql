@@ -3,7 +3,11 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(20);
+
+-- Prove the command uses the salon's London wall clock rather than inheriting
+-- the database session timezone.
+set local timezone = 'Pacific/Auckland';
 
 select vault.create_secret('http://localhost:54321', 'supabase_url');
 select vault.create_secret('pgtap-test-secret', 'webhook_secret');
@@ -73,7 +77,39 @@ insert into public.bookings (
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
   (
-    '43000000-0000-4000-8000-000000000021', current_date + 1, '00:00',
+    '43000000-0000-4000-8000-000000000021',
+    ((now() at time zone 'Europe/London') + interval '48 hours')::date,
+    to_char(
+      (now() at time zone 'Europe/London') + interval '48 hours',
+      'HH24:MI:SS.US'
+    ),
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  (
+    '43000000-0000-4000-8000-000000000022',
+    (
+      (now() at time zone 'Europe/London')
+      + interval '48 hours'
+      - interval '1 microsecond'
+    )::date,
+    to_char(
+      (now() at time zone 'Europe/London')
+      + interval '48 hours'
+      - interval '1 microsecond',
+      'HH24:MI:SS.US'
+    ),
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  -- Missing and malformed setting values must use documented defaults.
+  (
+    '43000000-0000-4000-8000-000000000023', current_date + 30, '10:30',
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  (
+    '43000000-0000-4000-8000-000000000024', current_date + 30, '11:00',
     '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
@@ -110,6 +146,33 @@ insert into public.bookings (
     'Booked', false, 'Due at Pick-up', null, false, null, null
   );
 
+-- Exercise fields managed by unrelated booking triggers. Cancellation may
+-- change only status, cancel_reason and the standard updated_at timestamp.
+update public.bookings
+set addons = array['nails'],
+    pickup_by_id = '41000000-0000-4000-8000-000000000001',
+    payment = 'Paid in Full',
+    deposit_amount = 10,
+    source = 'customer_portal',
+    notes = 'Preserve this cancellation sentinel',
+    breed_snapshot = 'Poodle snapshot',
+    dog_name_snapshot = 'Owned One snapshot',
+    owner_name_snapshot = 'Cancellation Customer snapshot',
+    reminder_confirmed_at = '2026-07-01 08:00:00+00',
+    notify_human_ids = array['41000000-0000-4000-8000-000000000001'::uuid],
+    confirmation_channel = 'email',
+    completed_at = '2026-07-01 09:00:00+00',
+    checked_in_at = '2026-07-01 08:30:00+00',
+    ready_at = '2026-07-01 08:50:00+00',
+    payment_method = 'card',
+    paid_at = '2026-07-01 09:05:00+00',
+    paid_amount = 55,
+    price_override = 55,
+    created_by_id = '41000000-0000-4000-8000-000000000002',
+    created_by_role = 'customer',
+    created_by_name = 'Cancellation Customer'
+where id = '43000000-0000-4000-8000-000000000001';
+
 insert into public.salon_config (settings)
 select '{"minCancellationHours":24,"customerPortal":{"allowCancellations":true}}'::jsonb
 where not exists (select 1 from public.salon_config);
@@ -117,10 +180,10 @@ where not exists (select 1 from public.salon_config);
 set local session_replication_role = default;
 
 create temp table _before_success as
-select id, booking_date, slot, dog_id, size, service, confirmed, payment,
-       group_id, staff_capacity_override, staff_capacity_override_by,
-       staff_capacity_override_at
-from public.bookings
+select id,
+       to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+         as snapshot
+from public.bookings b
 where group_id = '44000000-0000-4000-8000-000000000001';
 grant select on _before_success to authenticated;
 
@@ -173,13 +236,48 @@ update public.salon_config
 set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
 set local role authenticated;
 
-select throws_ok(
+select lives_ok(
   $$ select * from public.cancel_customer_booking(
        '43000000-0000-4000-8000-000000000021', 'Changed plans'
      ) $$,
-  'SDC02', null,
-  'the London cancellation notice deadline is enforced'
+  'a request exactly on the London cancellation deadline is allowed'
 );
+
+select throws_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000022', 'Changed plans'
+     ) $$,
+  'SDC02', null,
+  'a request one microsecond after the London deadline is rejected'
+);
+
+reset role;
+update public.salon_config set settings = '{}'::jsonb;
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000023', 'Changed plans'
+     ) $$,
+  'missing cancellation settings use the documented enabled and 24-hour defaults'
+);
+
+reset role;
+update public.salon_config
+set settings = '{"minCancellationHours":"invalid","customerPortal":{"allowCancellations":"invalid"}}'::jsonb;
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000024', 'Changed plans'
+     ) $$,
+  'malformed cancellation settings use defaults without leaking a JSON cast error'
+);
+
+reset role;
+update public.salon_config
+set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
+set local role authenticated;
 
 create temp table _success_receipt as
 select * from public.cancel_customer_booking(
@@ -219,14 +317,14 @@ select ok(
 );
 
 select results_eq(
-  $$ select id, booking_date, slot, dog_id, size, service, confirmed, payment,
-            group_id, staff_capacity_override, staff_capacity_override_by,
-            staff_capacity_override_at
-     from public.bookings
+  $$ select id,
+            to_jsonb(b) - array['status', 'cancel_reason', 'updated_at']::text[]
+              as snapshot
+     from public.bookings b
      where group_id = '44000000-0000-4000-8000-000000000001'
      order by id $$,
-  $$ select * from _before_success order by id $$,
-  'cancellation preserves non-cancellation fields including override audit data'
+  $$ select id, snapshot from _before_success order by id $$,
+  'cancellation preserves every non-cancellation field including trigger-managed audit data'
 );
 
 select throws_ok(
