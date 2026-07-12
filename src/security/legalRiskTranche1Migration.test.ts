@@ -61,16 +61,7 @@ const latestMigration = readProjectFile(
 );
 
 function extractFunction(sql: string, name: string): string {
-  const start = sql.search(
-    new RegExp(
-      `create\\s+or\\s+replace\\s+function\\s+public\\.${name}\\s*\\(`,
-      "i",
-    ),
-  );
-  expect(start, `expected ${name} definition`).toBeGreaterThanOrEqual(0);
-  const end = sql.indexOf("$$;", start);
-  expect(end, `expected ${name} closing delimiter`).toBeGreaterThan(start);
-  return sql.slice(start, end + 3);
+  return extractDollarQuotedFunction(sql, name);
 }
 
 function extractDollarQuotedFunction(sql: string, name: string): string {
@@ -190,6 +181,62 @@ describe("Tranche 1 dog size authority boundary", () => {
 
     expect(createBooking).not.toMatch(
       /coalesce\([^;]*v_dog_size[^;]*v_in_size/i,
+    );
+  });
+
+  it("serialises customer dog writes with approval and revalidates ownership", () => {
+    const createDog = extractFunction(latestMigration, "create_customer_dog");
+    const updateDog = extractFunction(latestMigration, "update_customer_dog");
+    const approveSignup = extractFunction(
+      latestMigration,
+      "approve_customer_signup",
+    );
+
+    expect(createDog).toMatch(
+      /from public\.humans h[\s\S]*?where h\.customer_user_id = v_uid[\s\S]*?for update/i,
+    );
+    expect(updateDog).toMatch(
+      /from public\.humans h[\s\S]*?where h\.customer_user_id = v_uid[\s\S]*?for update/i,
+    );
+    expect(updateDog).toMatch(
+      /update public\.dogs d[\s\S]*?where d\.id = p_dog_id\s+and d\.human_id = v_my_id/i,
+    );
+
+    const approvalLock = approveSignup.search(
+      /from public\.humans h[\s\S]*?where h\.id = p_human_id[\s\S]*?for update/i,
+    );
+    const unconfirmedDogCheck = approveSignup.search(/from public\.dogs d/i);
+    expect(approvalLock).toBeGreaterThanOrEqual(0);
+    expect(unconfirmedDogCheck).toBeGreaterThan(approvalLock);
+  });
+
+  it("locks every owned dog before validating and inserting a booking group", () => {
+    const createBooking = extractFunction(
+      latestMigration,
+      "create_customer_booking_group",
+    );
+    const dogLock = createBooking.search(
+      /from public\.dogs d[\s\S]*?order by d\.id[\s\S]*?for update of d/i,
+    );
+    const insertLoop = createBooking.search(
+      /for v_elem in select \* from jsonb_array_elements\(p_bookings\) loop/i,
+    );
+
+    expect(dogLock).toBeGreaterThanOrEqual(0);
+    expect(insertLoop).toBeGreaterThan(dogLock);
+  });
+
+  it("normalises dog UUIDs before duplicate booking detection", () => {
+    const createBooking = extractFunction(
+      latestMigration,
+      "create_customer_booking_group",
+    );
+
+    expect(createBooking).toMatch(
+      /count\s*\(\s*distinct\s+nullif\s*\(\s*e->>'dog_id'\s*,\s*''\s*\)::uuid\s*\)/i,
+    );
+    expect(createBooking).toMatch(
+      /when invalid_text_representation[\s\S]*?dog_id must be a valid UUID[\s\S]*?errcode\s*=\s*'22023'/i,
     );
   });
 
@@ -325,6 +372,55 @@ describe("Tranche 1 customer cancellation boundary", () => {
     );
     expect(latestMigration).toMatch(
       /grant\s+execute\s+on\s+function\s+public\.cancel_customer_booking\(uuid,\s*text\)\s+to\s+authenticated;/i,
+    );
+  });
+
+  it("scopes a grouped cancellation to one stored visit date", () => {
+    const cancellation = extractFunction(
+      latestMigration,
+      "cancel_customer_booking",
+    );
+    const datedScopes = cancellation.match(
+      /b\.group_id\s*=\s*v_group_id\s+and\s+b\.booking_date\s*=\s*v_booking_date/gi,
+    );
+
+    expect(datedScopes?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(cancellation).toMatch(
+      /b\.id\s*=\s*p_booking_id[\s\S]*?b\.group_id\s+is\s+not\s+distinct\s+from\s+v_group_id[\s\S]*?b\.booking_date\s+is\s+not\s+distinct\s+from\s+v_booking_date/i,
+    );
+  });
+
+  it("locks the scoped dogs before cancellation ownership validation", () => {
+    const cancellation = extractFunction(
+      latestMigration,
+      "cancel_customer_booking",
+    );
+    const bookingLock = cancellation.search(
+      /from public\.bookings b[\s\S]*?order by b\.id[\s\S]*?for update/i,
+    );
+    const dogLock = cancellation.search(
+      /from public\.dogs d\s+join public\.bookings b on b\.dog_id = d\.id[\s\S]*?order by d\.id[\s\S]*?for update of d/i,
+    );
+    const ownershipCheck = cancellation.search(
+      /count\(\*\) filter \(where d\.human_id = v_human_id\)/i,
+    );
+
+    expect(bookingLock).toBeGreaterThanOrEqual(0);
+    expect(dogLock).toBeGreaterThan(bookingLock);
+    expect(ownershipCheck).toBeGreaterThan(dogLock);
+  });
+
+  it("fails closed when cancellation settings are not a singleton", () => {
+    const cancellation = extractFunction(
+      latestMigration,
+      "cancel_customer_booking",
+    );
+
+    expect(cancellation).toMatch(
+      /select\s+count\(\*\)::integer,\s+coalesce\(\s*\(array_agg\(sc\.settings order by sc\.id\)\)\[1\],\s*'\{\}'::jsonb\s*\)\s+into\s+v_settings_count,\s*v_settings\s+from public\.salon_config sc/i,
+    );
+    expect(cancellation).toMatch(
+      /if v_settings_count > 1 then[\s\S]*?errcode\s*=\s*'SDC01'/i,
     );
   });
 

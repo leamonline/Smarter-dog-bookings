@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(24);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -14,15 +14,17 @@ select vault.create_secret('pgtap-test-secret', 'webhook_secret');
 
 set local session_replication_role = replica;
 
-insert into public.humans (id, name, customer_user_id) values
+insert into public.humans (id, name, surname, customer_user_id) values
   (
     '41000000-0000-4000-8000-000000000001',
     'Cancellation Customer',
+    'Owner',
     '41000000-0000-4000-8000-000000000002'
   ),
   (
     '41000000-0000-4000-8000-000000000010',
     'Other Customer',
+    'Owner',
     '41000000-0000-4000-8000-000000000011'
   );
 
@@ -61,6 +63,14 @@ insert into public.bookings (
   (
     '43000000-0000-4000-8000-000000000002', current_date + 30, '10:00',
     '42000000-0000-4000-8000-000000000002', 'medium', 'full-groom',
+    'Booked', false, 'Due at Pick-up',
+    '44000000-0000-4000-8000-000000000001', false, null, null
+  ),
+  -- Staff recurring bookings reuse group_id across dates. This later visit
+  -- must not be pulled into the target date's atomic cancellation.
+  (
+    '43000000-0000-4000-8000-000000000003', current_date + 37, '09:00',
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up',
     '44000000-0000-4000-8000-000000000001', false, null, null
   ),
@@ -152,6 +162,11 @@ insert into public.bookings (
       - interval '1 microsecond',
       'HH24:MI:SS.US'
     ),
+    '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
+    'Booked', false, 'Due at Pick-up', null, false, null, null
+  ),
+  (
+    '43000000-0000-4000-8000-000000000027', current_date + 30, '11:30',
     '42000000-0000-4000-8000-000000000001', 'small', 'full-groom',
     'Booked', false, 'Due at Pick-up', null, false, null, null
   ),
@@ -335,6 +350,24 @@ select throws_ok(
 reset role;
 update public.salon_config
 set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
+
+insert into public.salon_config (id, settings) values (
+  '46000000-0000-4000-8000-000000000001',
+  '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ select * from public.cancel_customer_booking(
+       '43000000-0000-4000-8000-000000000027', 'Changed plans'
+     ) $$,
+  'SDC01', null,
+  'duplicate cancellation configuration fails closed'
+);
+
+reset role;
+delete from public.salon_config
+where id = '46000000-0000-4000-8000-000000000001';
 set local role authenticated;
 
 create temp table _success_receipt as
@@ -370,8 +403,17 @@ select ok(
           and bool_and(status = 'Cancelled')
           and bool_and(cancel_reason = 'Changed plans')
    from public.bookings
-   where group_id = '44000000-0000-4000-8000-000000000001'),
+   where group_id = '44000000-0000-4000-8000-000000000001'
+     and booking_date = current_date + 30),
   'the whole group is cancelled with one reason'
+);
+
+select is(
+  (select status
+   from public.bookings
+   where id = '43000000-0000-4000-8000-000000000003'),
+  'Booked'::text,
+  'a later recurring appointment sharing group_id remains booked'
 );
 
 select results_eq(

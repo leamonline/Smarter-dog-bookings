@@ -34,21 +34,36 @@ new RPCs is served.
 
 1. Record the release owner, target environment, approved commit and rollback
    owner.
-2. Apply only `20260712115759_legal_risk_tranche1.sql` to an authorised
+2. Before changing the database, establish one separately reviewed release
+   lock:
+   - put the customer portal into an enforced maintenance/read-only state that
+     prevents affected writes from both new and already-open/PWA sessions; or
+   - first deploy a backwards-compatible, pre-migration frontend that works
+     against the old schema and keeps cancellation visibly failed whenever its
+     write returns an error.
+3. Verify that no reachable legacy cancellation UI can ignore a failed write
+   and close as if it succeeded. A cosmetic banner or client-only flag is not a
+   sufficient maintenance control for an already-open PWA.
+4. Apply only `20260712115759_legal_risk_tranche1.sql` to the authorised
    non-production database.
-3. Run the static security suite, all three Tranche 1 pgTAP files and the
+5. Run the static security suite, all three Tranche 1 pgTAP files and the
    synthetic smoke checks below.
-4. Regenerate `src/supabase/database.types.ts` from the applied schema using the
+6. Regenerate `src/supabase/database.types.ts` from the applied schema using the
    project's authorised Supabase type-generation workflow. Never hand-edit it.
-5. Rerun lint, type-checking, migration validation, Vitest and the production
+7. Rerun lint, type-checking, migration validation, Vitest and the production
    build against that generated type surface.
-6. Deploy the dependent frontend code to the same non-production environment.
-7. Repeat the synthetic application journeys below.
-8. Stop. Production application requires a separate decision and authority.
+8. Deploy the dependent Tranche 1 frontend to the same non-production
+   environment.
+9. Repeat the synthetic application journeys below.
+10. Remove the release lock only after the new database and frontend have both
+    passed smoke checks.
+11. Stop. Production application requires a separate decision and authority.
 
-Applying the frontend first would expose calls to RPCs that do not yet exist.
-Applying only part of the migration would leave the old permission model in an
-unknown state. The migration is one atomic path and must not be split.
+The database must still precede the frontend that depends on its new columns
+and RPCs. The release lock closes the dangerous migration-to-frontend interval:
+without it, the old cancellation UI would ignore tightened-RLS failures and
+report false success. Applying only part of the migration would leave the old
+permission model in an unknown state; the migration must not be split.
 
 ## Local verification evidence
 
@@ -56,7 +71,7 @@ Evidence recorded on branch `fix/legal-risk-remediation` on 12 July 2026:
 
 | Gate | Result |
 |---|---|
-| `fnm exec --using=22 npm run lint` | Passed: 0 errors; 122 existing warnings |
+| `fnm exec --using=22 npm run lint` | Passed: 0 errors; 122 warnings |
 | `fnm exec --using=22 npm run typecheck` | Passed |
 | `fnm exec --using=22 npm run check:migrations` | Passed: 174 migration files |
 | `fnm exec --using=22 npm test` | Passed: 187 files, 1,831 tests |
@@ -124,6 +139,10 @@ The canonical executable checks are:
   24-hour default without leaking a JSON cast error.
 - A valid group cancellation changes every scoped row atomically, preserves all
   unrelated fields and returns the complete deterministic receipt.
+- A same-date multi-dog visit cancels together, while later recurring
+  appointments that share its `group_id` stay Booked.
+- Scoped dog ownership remains locked and revalidated through the cancellation
+  write.
 - `anon` cannot execute `cancel_customer_booking(uuid,text)`.
 
 ## Synthetic application journeys

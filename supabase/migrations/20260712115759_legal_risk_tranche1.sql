@@ -203,7 +203,8 @@ begin
   select h.id into v_my_id
   from public.humans h
   where h.customer_user_id = v_uid
-  limit 1;
+  limit 1
+  for update;
 
   if v_my_id is null then
     raise exception 'no_linked_human' using errcode = '28000';
@@ -273,7 +274,8 @@ begin
   select h.id into v_my_id
   from public.humans h
   where h.customer_user_id = v_uid
-  limit 1;
+  limit 1
+  for update;
 
   if v_my_id is null then
     raise exception 'no_linked_human' using errcode = '28000';
@@ -282,7 +284,8 @@ begin
   select * into v_dog
   from public.dogs d
   where d.id = p_dog_id and d.human_id = v_my_id
-  limit 1;
+  limit 1
+  for update;
 
   if v_dog.id is null then
     raise exception 'dog_not_found' using errcode = '42704';
@@ -308,7 +311,12 @@ begin
       reported_size = v_size,
       dob = v_dob
   where d.id = p_dog_id
+    and d.human_id = v_my_id
   returning d.* into v_dog;
+
+  if not found then
+    raise exception 'dog_not_found' using errcode = '42704';
+  end if;
 
   return query
     select v_dog.id, v_dog.name, v_dog.breed, v_dog.size,
@@ -440,6 +448,19 @@ begin
     raise exception 'Staff only' using errcode = '42501';
   end if;
 
+  -- Share one owner-row lock with submit_customer_signup and the customer dog
+  -- RPCs. Approval therefore cannot race past a newly inserted or edited dog
+  -- whose authoritative size still needs staff confirmation.
+  perform h.id
+  from public.humans h
+  where h.id = p_human_id
+    and h.approved_at is null
+  for update;
+
+  if not found then
+    return;
+  end if;
+
   if exists (
     select 1
     from public.dogs d
@@ -551,12 +572,17 @@ begin
     raise exception 'booking_date is required' using errcode = '22023';
   end if;
 
-  if (
-    select count(*) <> count(distinct (e->>'dog_id'))
-    from jsonb_array_elements(p_bookings) e
-  ) then
-    raise exception 'The same dog is listed more than once' using errcode = '22023';
-  end if;
+  begin
+    if (
+      select count(*) <> count(distinct nullif(e->>'dog_id', '')::uuid)
+      from jsonb_array_elements(p_bookings) e
+    ) then
+      raise exception 'The same dog is listed more than once' using errcode = '22023';
+    end if;
+  exception
+    when invalid_text_representation then
+      raise exception 'dog_id must be a valid UUID' using errcode = '22023';
+  end;
 
   v_group_id := case when v_count > 1 then gen_random_uuid() else null end;
 
@@ -572,6 +598,18 @@ begin
       );
     end loop;
   end if;
+
+  -- Hold every existing requested dog row through insertion. Staff
+  -- reassignment and size edits must not move or change a dog after this RPC
+  -- has accepted its ownership and authoritative capacity size.
+  perform d.id
+  from public.dogs d
+  join (
+    select distinct nullif(e->>'dog_id', '')::uuid as dog_id
+    from jsonb_array_elements(p_bookings) e
+  ) requested on requested.dog_id = d.id
+  order by d.id
+  for update of d;
 
   v_idx := 0;
   for v_elem in select * from jsonb_array_elements(p_bookings) loop
@@ -1016,14 +1054,16 @@ declare
   v_uid uuid := (select auth.uid());
   v_human_id uuid;
   v_group_id uuid;
+  v_booking_date date;
   v_reason text := nullif(trim(coalesce(p_reason, '')), '');
   v_scope_count integer;
   v_owned_count integer;
   v_booked_count integer;
-  v_target_group_matches boolean;
+  v_target_scope_matches boolean;
   v_booking_ids uuid[];
   v_earliest_start timestamp without time zone;
   v_settings jsonb := '{}'::jsonb;
+  v_settings_count integer;
   v_allow_value jsonb;
   v_hours_value jsonb;
   v_allow_cancellations boolean := true;
@@ -1056,8 +1096,8 @@ begin
 
   -- Resolve only an owned target. A missing target and another customer's
   -- target deliberately produce the same non-disclosing outcome.
-  select b.group_id
-    into v_group_id
+  select b.group_id, b.booking_date
+    into v_group_id, v_booking_date
     from public.bookings b
     join public.dogs d on d.id = b.dog_id
    where b.id = p_booking_id
@@ -1067,11 +1107,15 @@ begin
     raise exception 'booking_not_cancellable' using errcode = 'SDC03';
   end if;
 
-  -- Serialise cancellation attempts for the stored visit. Singleton visits
-  -- use the target ID; grouped visits share their stored group ID.
+  -- Serialise cancellation attempts for one stored visit. Recurring staff
+  -- bookings reuse group_id across dates, so the visit key includes the
+  -- target date as well as its group (or singleton target) identifier.
   perform pg_advisory_xact_lock(
     hashtextextended(
-      'customer_booking_cancellation|' || coalesce(v_group_id, p_booking_id)::text,
+      'customer_booking_cancellation|'
+        || coalesce(v_group_id, p_booking_id)::text
+        || '|'
+        || v_booking_date::text,
       0
     )
   );
@@ -1081,10 +1125,24 @@ begin
   -- resolving the target and taking row locks.
   perform b.id
     from public.bookings b
-   where (v_group_id is not null and b.group_id = v_group_id)
+   where (v_group_id is not null
+          and b.group_id = v_group_id
+          and b.booking_date = v_booking_date)
       or (v_group_id is null and b.id = p_booking_id)
    order by b.id
    for update;
+
+  -- Ownership lives on dogs, not bookings. Hold those rows as well so a staff
+  -- merge cannot reassign a scoped dog after validation but before mutation.
+  perform d.id
+    from public.dogs d
+    join public.bookings b on b.dog_id = d.id
+   where (v_group_id is not null
+          and b.group_id = v_group_id
+          and b.booking_date = v_booking_date)
+      or (v_group_id is null and b.id = p_booking_id)
+   order by d.id
+   for update of d;
 
   select
     count(*)::integer,
@@ -1094,6 +1152,7 @@ begin
       bool_or(
         b.id = p_booking_id
         and b.group_id is not distinct from v_group_id
+        and b.booking_date is not distinct from v_booking_date
       ),
       false
     ),
@@ -1103,28 +1162,40 @@ begin
     v_scope_count,
     v_owned_count,
     v_booked_count,
-    v_target_group_matches,
+    v_target_scope_matches,
     v_booking_ids,
     v_earliest_start
   from public.bookings b
   left join public.dogs d on d.id = b.dog_id
-  where (v_group_id is not null and b.group_id = v_group_id)
+  where (v_group_id is not null
+         and b.group_id = v_group_id
+         and b.booking_date = v_booking_date)
      or (v_group_id is null and b.id = p_booking_id);
 
   if v_scope_count < 1
-     or not v_target_group_matches
+     or not v_target_scope_matches
      or v_owned_count <> v_scope_count
      or v_booked_count <> v_scope_count
      or v_earliest_start is null then
     raise exception 'booking_not_cancellable' using errcode = 'SDC03';
   end if;
 
-  select coalesce(sc.settings, '{}'::jsonb)
-    into v_settings
-    from public.salon_config sc
-   limit 1;
+  select count(*)::integer,
+         coalesce(
+           (array_agg(sc.settings order by sc.id))[1],
+           '{}'::jsonb
+         )
+    into v_settings_count, v_settings
+    from public.salon_config sc;
 
-  if not found or jsonb_typeof(v_settings) <> 'object' then
+  if v_settings_count > 1 then
+    raise exception 'online_cancellation_disabled'
+      using errcode = 'SDC01',
+            detail = 'salon_config_not_singleton',
+            hint = 'contact_staff';
+  end if;
+
+  if v_settings_count = 0 or jsonb_typeof(v_settings) <> 'object' then
     v_settings := '{}'::jsonb;
   end if;
 

@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(31);
 
 set local session_replication_role = replica;
 
@@ -255,7 +255,8 @@ select ok(
 
 reset role;
 update public.dogs
-set size = 'medium'
+set id = '1a000000-0000-4000-8000-000000000001',
+    size = 'medium'
 where human_id = '10000000-0000-4000-8000-000000000010'
   and name = 'Customer Pup';
 
@@ -398,6 +399,42 @@ select throws_ok(
   '22023',
   'dog_size_unconfirmed',
   'booking JSON size cannot bypass an unconfirmed authoritative dog size'
+);
+
+select throws_ok(
+  $$ select * from public.create_customer_booking_group(
+       (
+         select jsonb_build_array(
+           jsonb_build_object(
+             'dog_id', upper(d.id::text),
+             'slot', '09:00',
+             'service', 'full-groom'
+           ),
+           jsonb_build_object(
+             'dog_id', lower(d.id::text),
+             'slot', '10:00',
+             'service', 'full-groom'
+           )
+         )
+         from public.dogs d
+         where d.human_id = '10000000-0000-4000-8000-000000000010'
+           and d.name = 'Customer Pup Renamed'
+       ),
+       current_date + 7
+     ) $$,
+  '22023',
+  'The same dog is listed more than once',
+  'equivalent upper- and lower-case UUID text cannot bypass duplicate dog detection'
+);
+
+select throws_ok(
+  $$ select * from public.create_customer_booking_group(
+       '[{"dog_id":"not-a-uuid","slot":"09:00","service":"full-groom"}]'::jsonb,
+       current_date + 7
+     ) $$,
+  '22023',
+  'dog_id must be a valid UUID',
+  'invalid dog UUID text is rejected with the public input SQLSTATE'
 );
 
 reset role;
