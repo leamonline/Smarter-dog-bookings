@@ -551,6 +551,43 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(nonStaffClear).toBeGreaterThan(metadataReturn);
   });
 
+  it("serialises destination visit membership before metadata-only updates return", () => {
+    const capacity = extractFunction(
+      latestMigration,
+      "validate_booking_capacity",
+    );
+    const membershipStart = capacity.search(
+      /-- BEGIN: cancellation visit membership serialisation/i,
+    );
+    const metadataReturn = capacity.search(
+      /if\s+tg_op\s*=\s*'UPDATE'[\s\S]*?return\s+new;\s*end\s+if;/i,
+    );
+
+    expect(membershipStart).toBeGreaterThanOrEqual(0);
+    expect(metadataReturn).toBeGreaterThan(membershipStart);
+    expect(capacity).toMatch(
+      /tg_op\s*=\s*'INSERT'[\s\S]*?new\.group_id\s+is\s+distinct\s+from\s+old\.group_id[\s\S]*?new\.booking_date\s+is\s+distinct\s+from\s+old\.booking_date/i,
+    );
+    expect(capacity).toMatch(
+      /pg_advisory_xact_lock\s*\(\s*hashtextextended\s*\(\s*'customer_booking_cancellation\|'[\s\S]*?coalesce\(new\.group_id,\s*new\.id\)::text[\s\S]*?new\.booking_date::text[\s\S]*?,\s*0\s*\)\s*\)/i,
+    );
+  });
+
+  it("rejects a non-cancelled row joining or reactivating a cancelled visit", () => {
+    const capacity = extractFunction(
+      latestMigration,
+      "validate_booking_capacity",
+    );
+
+    expect(capacity).toMatch(
+      /new\.group_id\s+is\s+not\s+null[\s\S]*?new\.status\s+is\s+distinct\s+from\s+'Cancelled'/i,
+    );
+    expect(capacity).toMatch(
+      /tg_op\s*=\s*'UPDATE'[\s\S]*?old\.status\s*=\s*'Cancelled'[\s\S]*?exists\s*\([\s\S]*?from\s+public\.bookings\s+b[\s\S]*?b\.id\s*<>\s*new\.id[\s\S]*?b\.group_id\s*=\s*new\.group_id[\s\S]*?b\.booking_date\s*=\s*new\.booking_date[\s\S]*?b\.status\s*=\s*'Cancelled'/i,
+    );
+    expect(capacity).toMatch(/errcode\s*=\s*'SDC03'/i);
+  });
+
   it("otherwise keeps the latest capacity trigger definition unchanged", () => {
     const priorSql = readProjectFile(
       "supabase/migrations/20260702170000_extra_slots_bookable.sql",
@@ -569,6 +606,11 @@ describe("Tranche 1 customer cancellation boundary", () => {
       latestMigration,
       "validate_booking_capacity",
     );
+    const withoutMembershipSerialisation = actual.replace(
+      /\s*-- BEGIN: cancellation visit membership serialisation[\s\S]*?-- END: cancellation visit membership serialisation\s*/i,
+      "\n\n",
+    );
+    expect(withoutMembershipSerialisation).not.toBe(actual);
     const normalise = (value: string) =>
       value
         .replace(/function\s+public\./gi, "function ")
@@ -577,7 +619,7 @@ describe("Tranche 1 customer cancellation boundary", () => {
         .trim()
         .toLowerCase();
 
-    expect(normalise(actual)).toBe(normalise(expected));
+    expect(normalise(withoutMembershipSerialisation)).toBe(normalise(expected));
   });
 
   it("removes client-side group discovery and raw cancellation updates", () => {

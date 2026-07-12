@@ -892,6 +892,59 @@ declare
 begin
   v_is_staff := is_staff();
 
+  -- BEGIN: cancellation visit membership serialisation
+  -- A cancellation takes this visit key before it captures and locks the
+  -- visit's rows. Every INSERT and every membership/date-changing UPDATE must
+  -- take the same destination key before the metadata-only return below, or a
+  -- writer could join the visit after cancellation captured its member IDs.
+  --
+  -- Deliberately do not take OLD's visit key here. PostgreSQL already holds an
+  -- UPDATE's target row before this row trigger; taking OLD's key would invert
+  -- cancellation's visit-key-then-row-lock order. The existing cancellation
+  -- scope revalidation serialises departures through that row lock instead.
+  if tg_op = 'INSERT'
+     or (
+       tg_op = 'UPDATE'
+       and (
+         new.group_id is distinct from old.group_id
+         or new.booking_date is distinct from old.booking_date
+       )
+     )
+  then
+    perform pg_advisory_xact_lock(
+      hashtextextended(
+        'customer_booking_cancellation|'
+          || coalesce(new.group_id, new.id)::text
+          || '|'
+          || new.booking_date::text,
+        0
+      )
+    );
+  end if;
+
+  -- The application write paths use READ COMMITTED. If the destination lock
+  -- waited for a cancellation, this VOLATILE trigger's following query sees
+  -- that commit and prevents a Booked row joining the cancelled visit. Also
+  -- prevent an existing grouped cancellation from being reactivated.
+  if new.group_id is not null
+     and new.status is distinct from 'Cancelled'
+     and (
+       (tg_op = 'UPDATE' and old.status = 'Cancelled')
+       or exists (
+         select 1
+           from public.bookings b
+          where b.id <> new.id
+            and b.group_id = new.group_id
+            and b.booking_date = new.booking_date
+            and b.status = 'Cancelled'
+       )
+     )
+  then
+    raise exception 'booking_visit_already_cancelled'
+      using errcode = 'SDC03';
+  end if;
+  -- END: cancellation visit membership serialisation
+
   if tg_op = 'UPDATE'
      and new.booking_date is not distinct from old.booking_date
      and new.slot is not distinct from old.slot
