@@ -2,6 +2,7 @@
 -- go through the two narrow SECURITY DEFINER functions below; staff retain the
 -- existing full-row policy.
 drop policy if exists "customer_update_own_human" on public.humans;
+drop policy if exists "combined_update_humans" on public.humans;
 
 drop policy if exists "staff_update_humans" on public.humans;
 create policy "staff_update_humans" on public.humans
@@ -1168,10 +1169,24 @@ comment on function validate_booking_capacity() is
 
 revoke all on function validate_booking_capacity() from public, anon, authenticated, service_role;
 
--- Customers must cancel through one server-authoritative command. Removing
--- this policy prevents direct UPDATE calls from changing unrelated booking
--- fields while still preserving the existing staff update policy.
+-- Customers must cancel through one server-authoritative command. Remove every
+-- known customer-capable UPDATE and DELETE policy, including consolidated
+-- production names, then restore explicit staff-only mutation policies.
 drop policy if exists "customer_cancel_own_bookings_update" on public.bookings;
+drop policy if exists "customer_cancel_own_bookings" on public.bookings;
+drop policy if exists "combined_update_bookings" on public.bookings;
+drop policy if exists "combined_delete_bookings" on public.bookings;
+
+drop policy if exists "staff_update_bookings" on public.bookings;
+create policy "staff_update_bookings" on public.bookings
+  for update to authenticated
+  using ((select public.is_staff()))
+  with check ((select public.is_staff()));
+
+drop policy if exists "staff_delete_bookings" on public.bookings;
+create policy "staff_delete_bookings" on public.bookings
+  for delete to authenticated
+  using ((select public.is_staff()));
 
 create or replace function public.cancel_customer_booking(
   p_booking_id uuid,

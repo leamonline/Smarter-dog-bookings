@@ -56,6 +56,21 @@ function finalPolicyState(
   return state;
 }
 
+function extractPolicy(sql: string, policyName: string, table: string): string {
+  const start = sql.search(
+    new RegExp(
+      `create\\s+policy\\s+"?${policyName}"?\\s+on\\s+(?:public\\.)?${table}`,
+      "i",
+    ),
+  );
+  expect(start, `expected ${policyName} policy on ${table}`).toBeGreaterThanOrEqual(
+    0,
+  );
+  const end = sql.indexOf(";", start);
+  expect(end, `expected ${policyName} policy terminator`).toBeGreaterThan(start);
+  return sql.slice(start, end + 1);
+}
+
 const latestMigration = readProjectFile(
   "supabase/migrations/20260712115759_legal_risk_tranche1.sql",
 );
@@ -82,10 +97,29 @@ function extractDollarQuotedFunction(sql: string, name: string): string {
 }
 
 describe("Tranche 1 human write boundary", () => {
-  it("leaves the broad customer humans UPDATE policy dropped", () => {
+  it("leaves every broad customer humans UPDATE policy dropped", () => {
     expect(finalPolicyState("customer_update_own_human", "humans")).toBe(
       "dropped",
     );
+    expect(finalPolicyState("combined_update_humans", "humans")).toBe(
+      "dropped",
+    );
+  });
+
+  it("recreates a staff-only humans UPDATE policy in the candidate migration", () => {
+    expect(finalPolicyState("staff_update_humans", "humans")).toBe("created");
+
+    const staffUpdate = extractPolicy(
+      latestMigration,
+      "staff_update_humans",
+      "humans",
+    );
+    expect(staffUpdate).toMatch(/for\s+update\s+to\s+authenticated/i);
+    expect(staffUpdate).toMatch(/using\s*\(\(select public\.is_staff\(\)\)\)/i);
+    expect(staffUpdate).toMatch(
+      /with\s+check\s*\(\(select public\.is_staff\(\)\)\)/i,
+    );
+    expect(staffUpdate).not.toMatch(/auth\.uid|customer_user_id/i);
   });
 
   it("exposes only narrow customer profile RPCs", () => {
@@ -349,13 +383,49 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
 });
 
 describe("Tranche 1 customer cancellation boundary", () => {
-  it("leaves broad customer booking updates dropped and staff updates intact", () => {
+  it("leaves every customer-capable booking mutation policy dropped", () => {
     expect(
       finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
     ).toBe("dropped");
+    expect(finalPolicyState("customer_cancel_own_bookings", "bookings")).toBe(
+      "dropped",
+    );
+    expect(finalPolicyState("combined_update_bookings", "bookings")).toBe(
+      "dropped",
+    );
+    expect(finalPolicyState("combined_delete_bookings", "bookings")).toBe(
+      "dropped",
+    );
+  });
+
+  it("recreates staff-only booking mutation policies in the candidate migration", () => {
     expect(finalPolicyState("staff_update_bookings", "bookings")).toBe(
       "created",
     );
+    expect(finalPolicyState("staff_delete_bookings", "bookings")).toBe(
+      "created",
+    );
+
+    const staffUpdate = extractPolicy(
+      latestMigration,
+      "staff_update_bookings",
+      "bookings",
+    );
+    expect(staffUpdate).toMatch(/for\s+update\s+to\s+authenticated/i);
+    expect(staffUpdate).toMatch(/using\s*\(\(select public\.is_staff\(\)\)\)/i);
+    expect(staffUpdate).toMatch(
+      /with\s+check\s*\(\(select public\.is_staff\(\)\)\)/i,
+    );
+    expect(staffUpdate).not.toMatch(/auth\.uid|customer_user_id/i);
+
+    const staffDelete = extractPolicy(
+      latestMigration,
+      "staff_delete_bookings",
+      "bookings",
+    );
+    expect(staffDelete).toMatch(/for\s+delete\s+to\s+authenticated/i);
+    expect(staffDelete).toMatch(/using\s*\(\(select public\.is_staff\(\)\)\)/i);
+    expect(staffDelete).not.toMatch(/auth\.uid|customer_user_id/i);
   });
 
   it("exposes one narrow server-authoritative cancellation command", () => {

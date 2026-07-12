@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(26);
 
 -- Prove the command uses the salon's London wall clock rather than inheriting
 -- the database session timezone.
@@ -493,6 +493,26 @@ select ok(
    from public.bookings
    where id = '43000000-0000-4000-8000-000000000050'),
   'the blocked raw update changes no booking fields'
+);
+
+with deleted as (
+  delete from public.bookings
+   where id = '43000000-0000-4000-8000-000000000050'
+  returning id
+)
+select is(
+  (select count(*) from deleted),
+  0::bigint,
+  'a raw customer booking delete affects zero rows'
+);
+
+select ok(
+  (select exists (
+     select 1
+       from public.bookings
+      where id = '43000000-0000-4000-8000-000000000050'
+   )),
+  'the booking still exists after the blocked raw delete'
 );
 
 reset role;
