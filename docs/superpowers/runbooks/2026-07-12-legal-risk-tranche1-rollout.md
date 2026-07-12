@@ -77,7 +77,7 @@ Evidence recorded on branch `fix/legal-risk-remediation` on 12 July 2026:
 | `fnm exec --using=22 npm run lint` | Passed: 0 errors; 122 warnings |
 | `fnm exec --using=22 npm run typecheck` | Passed |
 | `fnm exec --using=22 npm run check:migrations` | Passed: 174 migration files |
-| `fnm exec --using=22 npm test` | Passed: 187 files, 1,844 tests |
+| `fnm exec --using=22 npm test` | Passed: 187 files, 1,845 tests |
 | `fnm exec --using=22 npm run build` | Passed: 3,471 modules; PWA precached 104 entries |
 | `fnm exec --using=22 npx --no-install supabase test db supabase/tests/115_customer_cancellation_concurrency.test.sql --local` | **Not executed successfully:** no local Postgres service was reachable (`LegacyDbConnectError`) |
 
@@ -319,8 +319,10 @@ Keep the migration's tightened database boundary in place during rollback.
 - If a profile or dog RPC fails, disable the affected customer action and show
   a neutral unavailable state while the narrow RPC is forward-fixed.
 - Keep trusted-contact creation disabled. Existing links remain readable.
-- If frontend/database versions are mismatched, withdraw the dependent
-  frontend version; do not undo the migration.
+- If frontend/database versions are mismatched, first activate the same
+  enforced maintenance/read-only release lock required above. Only then
+  withdraw the dependent frontend version, and retain the lock until a
+  compatible fail-visible frontend is active; do not undo the migration.
 - Never recreate broad customer human or booking update policies, raw customer
   dog insertion, the unsafe phone-lookup relationship function or a client-side
   size fallback.
