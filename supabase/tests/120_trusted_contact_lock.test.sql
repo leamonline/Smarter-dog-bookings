@@ -8,6 +8,9 @@ select plan(9);
 
 set local session_replication_role = replica;
 
+insert into auth.users (id) values
+  ('12000000-0000-4000-8000-000000000002');
+
 insert into public.humans (
   id, name, surname, phone, customer_user_id
 ) values
