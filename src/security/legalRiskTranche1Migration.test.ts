@@ -309,6 +309,9 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(cancellation).toMatch(/Europe\/London/i);
     expect(cancellation).toMatch(/pg_advisory_xact_lock/i);
     expect(cancellation).toMatch(/for\s+update/i);
+    expect(cancellation).toMatch(
+      /b\.id\s*=\s*p_booking_id[\s\S]*?b\.group_id\s+is\s+not\s+distinct\s+from\s+v_group_id/i,
+    );
     expect(cancellation).toMatch(/status\s*=\s*'Cancelled'/i);
     expect(cancellation).toMatch(/cancel_reason\s*=/i);
     expect(cancellation).toMatch(/errcode\s*=\s*'SDC01'/i);

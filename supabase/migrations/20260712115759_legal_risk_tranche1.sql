@@ -1020,7 +1020,7 @@ declare
   v_scope_count integer;
   v_owned_count integer;
   v_booked_count integer;
-  v_contains_target boolean;
+  v_target_group_matches boolean;
   v_booking_ids uuid[];
   v_earliest_start timestamp without time zone;
   v_settings jsonb := '{}'::jsonb;
@@ -1090,14 +1090,20 @@ begin
     count(*)::integer,
     count(*) filter (where d.human_id = v_human_id)::integer,
     count(*) filter (where b.status = 'Booked')::integer,
-    coalesce(bool_or(b.id = p_booking_id), false),
+    coalesce(
+      bool_or(
+        b.id = p_booking_id
+        and b.group_id is not distinct from v_group_id
+      ),
+      false
+    ),
     coalesce(array_agg(b.id order by b.id), '{}'::uuid[]),
     min(b.booking_date + b.slot::time)
   into
     v_scope_count,
     v_owned_count,
     v_booked_count,
-    v_contains_target,
+    v_target_group_matches,
     v_booking_ids,
     v_earliest_start
   from public.bookings b
@@ -1106,7 +1112,7 @@ begin
      or (v_group_id is null and b.id = p_booking_id);
 
   if v_scope_count < 1
-     or not v_contains_target
+     or not v_target_group_matches
      or v_owned_count <> v_scope_count
      or v_booked_count <> v_scope_count
      or v_earliest_start is null then
