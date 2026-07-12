@@ -74,7 +74,7 @@ Evidence recorded on branch `fix/legal-risk-remediation` on 12 July 2026:
 | `fnm exec --using=22 npm run lint` | Passed: 0 errors; 122 warnings |
 | `fnm exec --using=22 npm run typecheck` | Passed |
 | `fnm exec --using=22 npm run check:migrations` | Passed: 174 migration files |
-| `fnm exec --using=22 npm test` | Passed: 187 files, 1,831 tests |
+| `fnm exec --using=22 npm test` | Passed: 187 files, 1,838 tests |
 | `fnm exec --using=22 npm run build` | Passed: 3,471 modules; PWA precached 104 entries |
 | `fnm exec --using=22 npm run test:db` | **Not executed successfully:** Supabase could not connect to local Postgres; the local Docker CLI is unavailable |
 
@@ -116,6 +116,11 @@ The canonical executable checks are:
 - Signup approval and customer booking fail while an owned dog has no verified
   authoritative size.
 - A size supplied in booking JSON cannot act as a fallback.
+- Equivalent textual forms of one dog UUID cannot bypass duplicate-dog
+  detection, and invalid UUID text returns the public input SQLSTATE.
+- Customer dog creation/editing and signup approval share the same owner-row
+  lock; booking creation holds every requested dog through validation and
+  insertion.
 
 ### H-02 — trusted-contact creation lock
 
