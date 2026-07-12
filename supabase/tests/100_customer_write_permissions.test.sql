@@ -6,6 +6,8 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(16);
 
+set local session_replication_role = replica;
+
 insert into public.humans (
   id, name, surname, address, postcode, email, whatsapp, fb, insta, tiktok,
   customer_user_id, source, approved_at, approved_by, signup_submitted_at,
@@ -30,6 +32,8 @@ insert into public.humans (
   null,
   null
 );
+
+set local session_replication_role = default;
 
 select set_config(
   'request.jwt.claims',
