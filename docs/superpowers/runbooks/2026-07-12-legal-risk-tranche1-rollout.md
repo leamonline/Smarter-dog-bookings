@@ -10,6 +10,9 @@
 
 **Single migration:** `supabase/migrations/20260712115759_legal_risk_tranche1.sql`
 
+**Intended Supabase target:** organisation `igfmzgmalwntolwhavoa`, project
+`nlzhllhkigmsvrzduefz` (`Smarter-dog-grooming`)
+
 ## Hard stop and scope
 
 This runbook prepares a later authorised rollout. It does not authorise a
@@ -46,7 +49,7 @@ new RPCs is served.
    sufficient maintenance control for an already-open PWA.
 4. Apply only `20260712115759_legal_risk_tranche1.sql` to the authorised
    non-production database.
-5. Run the static security suite, all three Tranche 1 pgTAP files and the
+5. Run the static security suite, all four Tranche 1 pgTAP files and the
    synthetic smoke checks below.
 6. Regenerate `src/supabase/database.types.ts` from the applied schema using the
    project's authorised Supabase type-generation workflow. Never hand-edit it.
@@ -74,13 +77,29 @@ Evidence recorded on branch `fix/legal-risk-remediation` on 12 July 2026:
 | `fnm exec --using=22 npm run lint` | Passed: 0 errors; 122 warnings |
 | `fnm exec --using=22 npm run typecheck` | Passed |
 | `fnm exec --using=22 npm run check:migrations` | Passed: 174 migration files |
-| `fnm exec --using=22 npm test` | Passed: 187 files, 1,838 tests |
+| `fnm exec --using=22 npm test` | Passed: 187 files, 1,844 tests |
 | `fnm exec --using=22 npm run build` | Passed: 3,471 modules; PWA precached 104 entries |
-| `fnm exec --using=22 npm run test:db` | **Not executed successfully:** Supabase could not connect to local Postgres; the local Docker CLI is unavailable |
+| `fnm exec --using=22 npx --no-install supabase test db supabase/tests/115_customer_cancellation_concurrency.test.sql --local` | **Not executed successfully:** no local Postgres service was reachable (`LegacyDbConnectError`) |
 
-The pgTAP sources are authored but are not recorded as passing behavioural
-database evidence. They must run against an authorised disposable database
-before any production decision.
+## Authorised schema-baseline evidence
+
+The evidence jobs used the intended project above as a schema-only baseline;
+they did not dump or inspect customer data.
+
+- GitHub Actions run `29202542430` passed 13 pgTAP files / 133 tests against
+  the target schema baseline plus the candidate migration.
+- Run `29202899252` found no security-adviser issues. The performance adviser
+  reported 73 unused-index `INFO` notices expected on the fresh disposable
+  stack; none was an error or warning.
+- The generated `src/supabase/database.types.ts` body has SHA-256
+  `25febe3c7a58ae83a9e7c873c0fbce004e041868a93dcf4ee4e31d0bcf72d8f3`.
+- A paid Supabase preview branch was unavailable on the Free plan. No preview
+  branch was created and no cost was incurred.
+
+The new two-session cancellation-membership regression in
+`115_customer_cancellation_concurrency.test.sql` was added after those runs.
+Its current-head disposable CI result is still required and is not claimed as
+passing here.
 
 ## Synthetic database smoke checks
 
@@ -94,7 +113,9 @@ The canonical executable checks are:
 
 - `supabase/tests/100_customer_write_permissions.test.sql` for B-01 and H-01;
 - `supabase/tests/120_trusted_contact_lock.test.sql` for H-02;
-- `supabase/tests/110_customer_cancellation.test.sql` for H-06.
+- `supabase/tests/110_customer_cancellation.test.sql` for H-06;
+- `supabase/tests/115_customer_cancellation_concurrency.test.sql` for the H-06
+  cancellation-membership race.
 
 ### B-01 — protected human fields
 
@@ -314,8 +335,9 @@ Keep the migration's tightened database boundary in place during rollback.
   complete reschedule one transaction.
 - Existing trusted-contact links are retained. A verified invitation and
   acceptance lifecycle belongs to a later tranche.
-- Database behavioural execution, authorised schema-derived type generation and
-  the count-only historical review remain outstanding.
+- The current-head two-session database regression and the count-only
+  historical review remain outstanding. Authorised schema-derived type
+  generation is complete and recorded above.
 - Production migration, legal wording, supplier configuration, incident
   assessment and any identifiable-record review remain outside this handoff.
 
@@ -323,7 +345,7 @@ Keep the migration's tightened database boundary in place during rollback.
 
 - [ ] Separate production authority recorded
 - [ ] Authorised non-production pgTAP and synthetic smoke evidence attached
-- [ ] Schema-derived types regenerated and verified
+- [x] Schema-derived types regenerated and verified against the intended target
 - [ ] Release and rollback owners named
 - [ ] Production application decision made outside this task
 
