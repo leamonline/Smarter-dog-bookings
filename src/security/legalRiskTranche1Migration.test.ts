@@ -73,6 +73,23 @@ function extractFunction(sql: string, name: string): string {
   return sql.slice(start, end + 3);
 }
 
+function extractDollarQuotedFunction(sql: string, name: string): string {
+  const start = sql.search(
+    new RegExp(
+      `create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${name}\\s*\\(`,
+      "i",
+    ),
+  );
+  expect(start, `expected ${name} definition`).toBeGreaterThanOrEqual(0);
+  const tail = sql.slice(start);
+  const delimiter = tail.match(/\bas\s+(\$[a-z_]*\$)/i)?.[1];
+  expect(delimiter, `expected ${name} dollar-quote delimiter`).toBeTruthy();
+  const bodyStart = tail.indexOf(delimiter as string);
+  const end = tail.indexOf(`${delimiter};`, bodyStart + (delimiter as string).length);
+  expect(end, `expected ${name} closing delimiter`).toBeGreaterThan(bodyStart);
+  return tail.slice(0, end + (delimiter as string).length + 1);
+}
+
 describe("Tranche 1 human write boundary", () => {
   it("leaves the broad customer humans UPDATE policy dropped", () => {
     expect(finalPolicyState("customer_update_own_human", "humans")).toBe(
@@ -260,5 +277,124 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
     expect(dashboard).not.toMatch(
       /<TrustedHumansSection\b[^>]*\bonAdded\s*=/,
     );
+  });
+});
+
+describe("Tranche 1 customer cancellation boundary", () => {
+  it("leaves broad customer booking updates dropped and staff updates intact", () => {
+    expect(
+      finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
+    ).toBe("dropped");
+    expect(finalPolicyState("staff_update_bookings", "bookings")).toBe(
+      "created",
+    );
+  });
+
+  it("exposes one narrow server-authoritative cancellation command", () => {
+    const cancellation = extractFunction(
+      latestMigration,
+      "cancel_customer_booking",
+    );
+
+    expect(cancellation).toMatch(
+      /cancel_customer_booking\s*\(\s*p_booking_id\s+uuid,\s*p_reason\s+text\s*\)/i,
+    );
+    expect(cancellation).toMatch(/security\s+definer/i);
+    expect(cancellation).toMatch(/set\s+search_path\s*=\s*public,\s*pg_temp/i);
+    expect(cancellation).toMatch(/auth\.uid\(\)/i);
+    expect(cancellation).toMatch(/group_id/i);
+    expect(cancellation).toMatch(/customerPortal/i);
+    expect(cancellation).toMatch(/allowCancellations/i);
+    expect(cancellation).toMatch(/minCancellationHours/i);
+    expect(cancellation).toMatch(/Europe\/London/i);
+    expect(cancellation).toMatch(/pg_advisory_xact_lock/i);
+    expect(cancellation).toMatch(/for\s+update/i);
+    expect(cancellation).toMatch(/status\s*=\s*'Cancelled'/i);
+    expect(cancellation).toMatch(/cancel_reason\s*=/i);
+    expect(cancellation).toMatch(/errcode\s*=\s*'SDC01'/i);
+    expect(cancellation).toMatch(/errcode\s*=\s*'SDC02'/i);
+    expect(cancellation).toMatch(/errcode\s*=\s*'SDC03'/i);
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.cancel_customer_booking\(uuid,\s*text\)\s+from\s+public;/i,
+    );
+    expect(latestMigration).toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.cancel_customer_booking\(uuid,\s*text\)\s+from\s+anon;/i,
+    );
+    expect(latestMigration).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.cancel_customer_booking\(uuid,\s*text\)\s+to\s+authenticated;/i,
+    );
+  });
+
+  it("preserves an existing staff override before non-staff sanitisation", () => {
+    const capacity = extractFunction(
+      latestMigration,
+      "validate_booking_capacity",
+    );
+    const metadataReturn = capacity.search(
+      /if\s+tg_op\s*=\s*'UPDATE'[\s\S]*?return\s+new;\s*end\s+if;/i,
+    );
+    const nonStaffClear = capacity.search(
+      /if\s+not\s+v_is_staff\s+then\s+new\.staff_capacity_override\s*:=\s*false;/i,
+    );
+
+    expect(metadataReturn).toBeGreaterThanOrEqual(0);
+    expect(nonStaffClear).toBeGreaterThan(metadataReturn);
+  });
+
+  it("otherwise keeps the latest capacity trigger definition unchanged", () => {
+    const priorSql = readProjectFile(
+      "supabase/migrations/20260702170000_extra_slots_bookable.sql",
+    );
+    const prior = extractDollarQuotedFunction(
+      priorSql,
+      "validate_booking_capacity",
+    );
+    const expected = prior.replace(
+      /(if\s+not\s+v_is_staff\s+then\s+new\.staff_capacity_override\s*:=\s*false;\s+end\s+if;)(\s*)(if\s+tg_op\s*=\s*'UPDATE'[\s\S]*?return\s+new;\s+end\s+if;)/i,
+      "$3$2$1",
+    );
+    expect(expected).not.toBe(prior);
+
+    const actual = extractDollarQuotedFunction(
+      latestMigration,
+      "validate_booking_capacity",
+    );
+    const normalise = (value: string) =>
+      value
+        .replace(/function\s+public\./gi, "function ")
+        .replace(/\$function\$/g, "$$")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    expect(normalise(actual)).toBe(normalise(expected));
+  });
+
+  it("removes client-side group discovery and raw cancellation updates", () => {
+    const repo = readProjectFile(
+      "src/supabase/repositories/bookingsRepo.ts",
+    );
+    const card = readProjectFile("src/components/customer/BookingCard.jsx");
+    const wizard = readProjectFile(
+      "src/components/customer/booking/BookingWizard.tsx",
+    );
+
+    expect(repo).toContain("cancelCustomerBooking");
+    expect(repo).not.toContain("cancelMany");
+    expect(repo).not.toContain("listIdsInGroup");
+    expect(card).toContain("cancelCustomerBooking");
+    expect(wizard).toContain("cancelCustomerBooking");
+    expect(wizard).not.toContain("rescheduleFrom.groupId");
+  });
+
+  it("makes the dashboard refresh callback await the bookings reread", () => {
+    const dashboard = readProjectFile(
+      "src/components/customer/CustomerDashboard.jsx",
+    );
+
+    expect(dashboard).toMatch(
+      /const\s+refreshBookings\s*=\s*useCallback\(async\s*\(\)\s*=>[\s\S]*?\.from\(["']bookings["']\)[\s\S]*?if\s*\([^)]*error[^)]*\)\s*throw/i,
+    );
+    expect(dashboard).not.toContain("setRefreshKey");
   });
 });

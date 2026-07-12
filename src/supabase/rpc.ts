@@ -377,13 +377,14 @@ export function logFunnelEvent(
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status
-// and confirmed are set by the RPC (customers can't choose them). size is
-// optional — the RPC takes the authoritative size from the dog record and
-// only falls back to this when the dog has no size on file.
+// and confirmed are set by the RPC (customers can't choose them). The RPC
+// always takes authoritative size from the dog record.
 export interface CreateBookingGroupRow {
   dog_id: string;
   slot: string;
   service: string;
+  // Retained in the wire shape for deployment compatibility. The database
+  // ignores it and reads the staff-confirmed dogs.size value instead.
   size?: string;
   addons?: string[];
   payment?: string;
@@ -401,6 +402,28 @@ export function createCustomerBookingGroup(
   return client.rpc("create_customer_booking_group", {
     p_booking_date: params.bookingDate,
     p_bookings: params.bookings,
+  });
+}
+
+// Customer booking cancellation --------------------------------------
+
+export interface CustomerCancellationRpcRow {
+  target_booking_id: string;
+  booking_group_id: string | null;
+  cancelled_booking_ids: string[];
+  cancelled_count: number;
+  cancelled_at: string;
+}
+
+// The database derives ownership, group membership and the applicable salon
+// settings. The customer supplies only the booking they selected and a reason.
+export function cancelCustomerBooking(
+  client: SupabaseClient,
+  input: { bookingId: string; reason: string },
+) {
+  return client.rpc("cancel_customer_booking", {
+    p_booking_id: input.bookingId,
+    p_reason: input.reason,
   });
 }
 

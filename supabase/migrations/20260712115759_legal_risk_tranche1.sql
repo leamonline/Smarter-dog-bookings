@@ -681,3 +681,505 @@ revoke all on function public.list_customer_trusted_humans() from public;
 revoke all on function public.list_customer_trusted_humans() from anon;
 revoke all on function public.list_customer_trusted_humans() from authenticated;
 grant execute on function public.list_customer_trusted_humans() to authenticated;
+
+-- Preserve staff-capacity override audit fields on metadata-only booking
+-- updates (including cancellation). This is the latest effective function
+-- from 20260702170000, with only the metadata-only return moved ahead of the
+-- non-staff override sanitisation.
+create or replace function public.validate_booking_capacity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_enforce       boolean;
+  v_override      boolean;
+  v_is_staff      boolean;
+  v_slots         text[];
+  v_exclude_id    uuid;
+  v_seats_used    integer[];
+  v_slot_index    integer;
+  v_max_seats     integer;
+  v_used          integer;
+  v_seats_needed  integer;
+  v_early_close   boolean;
+  v_has_large     boolean;
+  v_can_share     boolean;
+  i               integer;
+  v_prev_slot     text;
+  v_next_slot     text;
+  v_daily_cap     integer;
+  v_day_count     integer;
+  v_blocked_seats integer;
+begin
+  v_is_staff := is_staff();
+
+  if tg_op = 'UPDATE'
+     and new.booking_date is not distinct from old.booking_date
+     and new.slot is not distinct from old.slot
+     and new.size is not distinct from old.size
+     and coalesce(new.staff_capacity_override, false)
+         is not distinct from coalesce(old.staff_capacity_override, false)
+     -- Reactivating a Cancelled booking re-adds a seat, so it is NOT a
+     -- metadata-only change — fall through to the full capacity check.
+     and not (old.status = 'Cancelled' and new.status is distinct from 'Cancelled')
+  then
+    return new;
+  end if;
+
+  if not v_is_staff then
+    new.staff_capacity_override := false;
+  end if;
+
+  select coalesce(sc.enforce_server_capacity, true)
+    into v_enforce
+    from salon_config sc
+   limit 1;
+
+  if not found then
+    v_enforce := true;
+  end if;
+
+  v_override := coalesce(new.staff_capacity_override, false) and v_is_staff;
+  if v_override then
+    new.staff_capacity_override_by := auth.uid();
+    new.staff_capacity_override_at := now();
+  else
+    new.staff_capacity_override_by := null;
+    new.staff_capacity_override_at := null;
+  end if;
+
+  if not v_enforce then
+    perform set_config('booking_diag.v_enforce',  v_enforce::text,  true);
+    perform set_config('booking_diag.v_override', v_override::text, true);
+    return new;
+  end if;
+
+  -- Serialise concurrent inserts/updates targeting the same (date, slot).
+  -- Without this, two transactions inserting into the same slot can both
+  -- read v_used = N-1 in their BEFORE trigger before either commits,
+  -- both pass the (v_used + needed > max) check, and both rows land.
+  -- The lock is transaction-scoped (released on commit/rollback) and
+  -- keyed per-slot, so different slots remain concurrent.
+  perform pg_advisory_xact_lock(
+    hashtextextended(new.booking_date::text || '|' || new.slot, 0)
+  );
+
+  -- ------------------------------------------------------------------
+  -- DAILY DOG CAP (total dogs per day, across every slot).
+  --
+  -- The per-slot 2-2-1 logic below never looks at the day total, so a day
+  -- with spare seats in some slot could be pushed past the salon's real
+  -- throughput. Cap the day total for non-staff writes only (customers and
+  -- the WhatsApp/AI agent run as a non-staff role); staff are trusted to
+  -- overbook deliberately. A cancelled row frees its place, so skip when
+  -- the resulting row is Cancelled.
+  --
+  -- The per-slot lock above does NOT make this race-safe (two inserts into
+  -- DIFFERENT slots on the same day wouldn't contend), so take a second
+  -- lock keyed on the date alone. Acquired AFTER the slot lock, so the lock
+  -- order is identical for every transaction (no deadlock).
+  -- ------------------------------------------------------------------
+  if not v_is_staff and coalesce(new.status, 'Booked') <> 'Cancelled' then
+    perform pg_advisory_xact_lock(
+      hashtextextended('booking_day_cap|' || new.booking_date::text, 0)
+    );
+
+    select coalesce(sc.daily_dog_cap, 14)
+      into v_daily_cap
+      from salon_config sc
+     limit 1;
+    if v_daily_cap is null then
+      v_daily_cap := 14;
+    end if;
+
+    select count(*)
+      into v_day_count
+      from bookings b
+     where b.booking_date = new.booking_date
+       and b.status is distinct from 'Cancelled'
+       and b.id <> new.id;
+
+    perform set_config('booking_diag.v_day_count', v_day_count::text, true);
+    perform set_config('booking_diag.v_daily_cap', v_daily_cap::text, true);
+
+    if (v_day_count + 1) > v_daily_cap then
+      raise exception
+        'Day is fully booked: % already has % dog(s) (maximum % per day)',
+        to_char(new.booking_date, 'DD Mon YYYY'), v_day_count, v_daily_cap;
+    end if;
+  end if;
+
+  -- The bookable grid for THIS date: canonical slots plus the date's
+  -- sanitised extra_slots. Extra-slot bookings join the seats array, so
+  -- the 2-2-1 windowing runs across the 13:00 → extras boundary
+  -- (get_max_seats_for_slot is array-length agnostic).
+  v_slots := active_slots_for(new.booking_date);
+
+  if tg_op = 'UPDATE' then
+    v_exclude_id := new.id;
+  else
+    v_exclude_id := null;
+  end if;
+
+  v_seats_used := array[]::integer[];
+  for i in 1..array_length(v_slots, 1) loop
+    v_seats_used := v_seats_used || get_seats_used(new.booking_date, v_slots[i], v_exclude_id);
+  end loop;
+
+  v_slot_index := null;
+  for i in 1..array_length(v_slots, 1) loop
+    if v_slots[i] = new.slot then
+      v_slot_index := i;
+      exit;
+    end if;
+  end loop;
+
+  if v_slot_index is null then
+    raise exception 'Invalid slot: %', new.slot;
+  end if;
+
+  v_seats_needed := get_seats_needed(new.size, new.slot);
+  v_used         := v_seats_used[v_slot_index];
+  v_early_close  := has_large_dog(new.booking_date, '12:00', v_exclude_id);
+  v_has_large    := has_large_dog(new.booking_date, new.slot, v_exclude_id);
+
+  v_max_seats := get_max_seats_for_slot(v_slot_index, v_seats_used);
+
+  if new.slot = '13:00' and v_early_close then
+    v_max_seats := 0;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- STAFF-BLOCKED SEATS (day_settings.overrides).
+  --
+  -- A blocked seat removes one usable seat from THIS slot only — it never
+  -- cascades into the 2-2-1 windowing of neighbours (v_seats_used) or the
+  -- daily cap, mirroring the TS engines. Placed before the large-dog and
+  -- general checks so every downstream comparison inherits the reduction,
+  -- and inside the per-slot advisory lock taken above. The key/value shape
+  -- guards skip the known malformed legacy overrides rows (date-keyed
+  -- slots, numeric seat values — same pattern as get_blocked_seats).
+  -- ------------------------------------------------------------------
+  select count(*)
+    into v_blocked_seats
+    from day_settings ds,
+         lateral jsonb_each_text(coalesce(ds.overrides -> new.slot, '{}'::jsonb)) as seat(k, v)
+   where ds.setting_date = new.booking_date
+     and seat.k ~ '^[0-9]+$'
+     and seat.v = 'blocked';
+
+  v_blocked_seats := coalesce(v_blocked_seats, 0);
+  v_max_seats     := greatest(v_max_seats - v_blocked_seats, 0);
+
+  -- Stash diagnostics for the AFTER trigger. set_config(local=true)
+  -- persists for the rest of the transaction.
+  perform set_config('booking_diag.v_enforce',          v_enforce::text,       true);
+  perform set_config('booking_diag.v_override',         v_override::text,      true);
+  perform set_config('booking_diag.v_used',             v_used::text,          true);
+  perform set_config('booking_diag.v_max_seats',        v_max_seats::text,     true);
+  perform set_config('booking_diag.v_seats_needed',     v_seats_needed::text,  true);
+  perform set_config('booking_diag.v_seats_used_array', v_seats_used::text,    true);
+  perform set_config('booking_diag.v_blocked_seats',    v_blocked_seats::text, true);
+
+  if new.size = 'large' then
+
+    if not is_large_dog_slot(new.slot) then
+      if not v_is_staff then
+        raise exception 'Large dogs need approval for this slot (%)', new.slot;
+      end if;
+    end if;
+
+    if new.slot = '09:00' then
+      if get_seats_used(new.booking_date, '08:30', v_exclude_id) > 0
+         and not v_override then
+        raise exception '09:00 large dog conditional: 08:30 must be empty';
+      end if;
+      if get_seats_used(new.booking_date, '10:00', v_exclude_id) > 1
+         and not v_override then
+        raise exception '09:00 large dog conditional: 10:00 must have 0-1 seats used';
+      end if;
+    end if;
+
+    if new.slot = '12:00' then
+      if get_seats_used(new.booking_date, '13:00', v_exclude_id) > 0
+         and not v_override then
+        raise exception '12:00 large dog requires 13:00 to be empty (early close)';
+      end if;
+    end if;
+
+    if new.slot = '13:00' and v_early_close and not v_override then
+      raise exception '13:00 is closed — large dog at 12:00 triggered early close';
+    end if;
+
+    v_can_share := large_dog_can_share(new.slot);
+
+    if not v_can_share then
+      if v_slot_index > 1 then
+        v_prev_slot := v_slots[v_slot_index - 1];
+        if is_large_dog_slot(v_prev_slot)
+           and not large_dog_can_share(v_prev_slot)
+           and has_large_dog(new.booking_date, v_prev_slot, v_exclude_id) then
+          if not (
+            (v_prev_slot = '12:30' and new.slot = '13:00') or
+            (v_prev_slot = '13:00' and new.slot = '12:30')
+          ) and not v_override then
+            raise exception 'Back-to-back large dogs only allowed at 12:30 + 13:00';
+          end if;
+        end if;
+      end if;
+
+      if v_slot_index < array_length(v_slots, 1) then
+        v_next_slot := v_slots[v_slot_index + 1];
+        if is_large_dog_slot(v_next_slot)
+           and not large_dog_can_share(v_next_slot)
+           and has_large_dog(new.booking_date, v_next_slot, v_exclude_id) then
+          if not (
+            (new.slot = '12:30' and v_next_slot = '13:00') or
+            (new.slot = '13:00' and v_next_slot = '12:30')
+          ) and not v_override then
+            raise exception 'Back-to-back large dogs only allowed at 12:30 + 13:00';
+          end if;
+        end if;
+      end if;
+    end if;
+
+    if v_can_share and v_has_large and not v_override then
+      raise exception 'Only a small/medium dog can share this slot with a large dog';
+    end if;
+
+    if not v_can_share and is_large_dog_slot(new.slot) and v_used > 0 and not v_override then
+      raise exception 'Large dog fills this slot — already has bookings';
+    end if;
+
+    if not v_can_share and is_large_dog_slot(new.slot)
+       and v_seats_needed > v_max_seats and not v_override then
+      raise exception 'Not enough capacity (2-2-1 rule)';
+    end if;
+
+  end if;
+
+  if (v_used + v_seats_needed) > v_max_seats and not v_override then
+    if new.size = 'large' then
+      raise exception 'Not enough capacity (2-2-1 rule)';
+    elsif new.slot = '13:00' and v_early_close then
+      raise exception '13:00 closed — early close from 12:00 large dog';
+    elsif v_blocked_seats > 0 then
+      -- The shortfall involves a staff-blocked seat; "Slot is full" is the
+      -- honest customer-facing message (and is already in the client's
+      -- capacity-rejection matcher).
+      raise exception 'Slot is full';
+    elsif v_max_seats < 2 then
+      raise exception 'Capped at 1 (2-2-1 rule)';
+    else
+      raise exception 'Slot is full';
+    end if;
+  end if;
+
+  if new.size <> 'large' and v_has_large and not v_override then
+    if is_large_dog_slot(new.slot) and not large_dog_can_share(new.slot) then
+      raise exception 'Large dog fills this slot';
+    end if;
+  end if;
+
+  return new;
+end;
+$function$;
+
+comment on function validate_booking_capacity() is
+  'BEFORE trigger on bookings: 2-2-1 seat rules over the per-date grid (active_slots_for: canonical + extra_slots), large-dog rules, daily dog cap (non-staff), and staff-blocked seats. Serialised by per-slot + per-date advisory locks. staff_capacity_override (staff only) bypasses the seat rules.';
+
+revoke all on function validate_booking_capacity() from public, anon, authenticated, service_role;
+
+-- Customers must cancel through one server-authoritative command. Removing
+-- this policy prevents direct UPDATE calls from changing unrelated booking
+-- fields while still preserving the existing staff update policy.
+drop policy if exists "customer_cancel_own_bookings_update" on public.bookings;
+
+create or replace function public.cancel_customer_booking(
+  p_booking_id uuid,
+  p_reason text
+)
+returns table (
+  target_booking_id uuid,
+  booking_group_id uuid,
+  cancelled_booking_ids uuid[],
+  cancelled_count integer,
+  cancelled_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := (select auth.uid());
+  v_human_id uuid;
+  v_group_id uuid;
+  v_reason text := nullif(trim(coalesce(p_reason, '')), '');
+  v_scope_count integer;
+  v_owned_count integer;
+  v_booked_count integer;
+  v_contains_target boolean;
+  v_booking_ids uuid[];
+  v_earliest_start timestamp without time zone;
+  v_settings jsonb := '{}'::jsonb;
+  v_allow_value jsonb;
+  v_hours_value jsonb;
+  v_allow_cancellations boolean := true;
+  v_min_cancellation_hours numeric := 24;
+  v_cancelled_count integer;
+  v_cancelled_at timestamptz := now();
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated' using errcode = '28000';
+  end if;
+
+  if p_booking_id is null then
+    raise exception 'booking_not_cancellable' using errcode = 'SDC03';
+  end if;
+
+  if v_reason is null or char_length(v_reason) > 500 then
+    raise exception 'cancellation_reason_must_be_1_to_500_characters'
+      using errcode = '22023';
+  end if;
+
+  select h.id
+    into v_human_id
+    from public.humans h
+   where h.customer_user_id = v_uid
+   limit 1;
+
+  if v_human_id is null then
+    raise exception 'no_linked_human' using errcode = '28000';
+  end if;
+
+  -- Resolve only an owned target. A missing target and another customer's
+  -- target deliberately produce the same non-disclosing outcome.
+  select b.group_id
+    into v_group_id
+    from public.bookings b
+    join public.dogs d on d.id = b.dog_id
+   where b.id = p_booking_id
+     and d.human_id = v_human_id;
+
+  if not found then
+    raise exception 'booking_not_cancellable' using errcode = 'SDC03';
+  end if;
+
+  -- Serialise cancellation attempts for the stored visit. Singleton visits
+  -- use the target ID; grouped visits share their stored group ID.
+  perform pg_advisory_xact_lock(
+    hashtextextended(
+      'customer_booking_cancellation|' || coalesce(v_group_id, p_booking_id)::text,
+      0
+    )
+  );
+
+  -- Lock every scoped row in deterministic order before checking status or
+  -- ownership. Revalidation after the advisory lock closes the gap between
+  -- resolving the target and taking row locks.
+  perform b.id
+    from public.bookings b
+   where (v_group_id is not null and b.group_id = v_group_id)
+      or (v_group_id is null and b.id = p_booking_id)
+   order by b.id
+   for update;
+
+  select
+    count(*)::integer,
+    count(*) filter (where d.human_id = v_human_id)::integer,
+    count(*) filter (where b.status = 'Booked')::integer,
+    coalesce(bool_or(b.id = p_booking_id), false),
+    coalesce(array_agg(b.id order by b.id), '{}'::uuid[]),
+    min(b.booking_date + b.slot::time)
+  into
+    v_scope_count,
+    v_owned_count,
+    v_booked_count,
+    v_contains_target,
+    v_booking_ids,
+    v_earliest_start
+  from public.bookings b
+  left join public.dogs d on d.id = b.dog_id
+  where (v_group_id is not null and b.group_id = v_group_id)
+     or (v_group_id is null and b.id = p_booking_id);
+
+  if v_scope_count < 1
+     or not v_contains_target
+     or v_owned_count <> v_scope_count
+     or v_booked_count <> v_scope_count
+     or v_earliest_start is null then
+    raise exception 'booking_not_cancellable' using errcode = 'SDC03';
+  end if;
+
+  select coalesce(sc.settings, '{}'::jsonb)
+    into v_settings
+    from public.salon_config sc
+   limit 1;
+
+  if not found or jsonb_typeof(v_settings) <> 'object' then
+    v_settings := '{}'::jsonb;
+  end if;
+
+  -- Treat malformed or missing values as the documented defaults rather
+  -- than allowing a JSON cast error to escape to a customer.
+  v_allow_value := v_settings #> '{customerPortal,allowCancellations}';
+  if jsonb_typeof(v_allow_value) = 'boolean' then
+    v_allow_cancellations := v_allow_value = 'true'::jsonb;
+  end if;
+
+  if not v_allow_cancellations then
+    raise exception 'online_cancellation_disabled'
+      using errcode = 'SDC01',
+            detail = 'customerPortal.allowCancellations=false',
+            hint = 'contact_staff';
+  end if;
+
+  v_hours_value := v_settings -> 'minCancellationHours';
+  if jsonb_typeof(v_hours_value) = 'number'
+     and (v_hours_value #>> '{}') ~ '^[0-9]+([.][0-9]+)?$' then
+    begin
+      v_min_cancellation_hours := (v_hours_value #>> '{}')::numeric;
+      if v_min_cancellation_hours > 876000 then
+        v_min_cancellation_hours := 24;
+      end if;
+    exception
+      when numeric_value_out_of_range or invalid_text_representation then
+        v_min_cancellation_hours := 24;
+    end;
+  end if;
+
+  -- Work entirely in London wall time. Exactly on the deadline remains
+  -- cancellable; only a request made after it is rejected.
+  if (now() at time zone 'Europe/London')
+       > v_earliest_start - (v_min_cancellation_hours * interval '1 hour') then
+    raise exception 'cancellation_deadline_passed'
+      using errcode = 'SDC02', hint = 'contact_staff';
+  end if;
+
+  update public.bookings b
+     set status = 'Cancelled',
+         cancel_reason = v_reason
+   where b.id = any(v_booking_ids)
+     and b.status = 'Booked';
+
+  get diagnostics v_cancelled_count = row_count;
+
+  if v_cancelled_count <> v_scope_count then
+    raise exception 'booking_not_cancellable' using errcode = 'SDC03';
+  end if;
+
+  target_booking_id := p_booking_id;
+  booking_group_id := v_group_id;
+  cancelled_booking_ids := v_booking_ids;
+  cancelled_count := v_cancelled_count;
+  cancelled_at := v_cancelled_at;
+  return next;
+end;
+$$;
+
+revoke all on function public.cancel_customer_booking(uuid, text) from public;
+revoke all on function public.cancel_customer_booking(uuid, text) from anon;
+revoke all on function public.cancel_customer_booking(uuid, text) from authenticated;
+grant execute on function public.cancel_customer_booking(uuid, text) to authenticated;

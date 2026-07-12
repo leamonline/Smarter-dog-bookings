@@ -49,7 +49,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [hasMorePast, setHasMorePast] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -149,7 +148,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     }
     fetchData();
     return () => { cancelled = true; };
-  }, [humanRecord, refreshKey]);
+  }, [humanRecord]);
 
   const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
@@ -270,7 +269,28 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     return map;
   }, [pastBookings]);
 
-  const refreshBookings = () => setRefreshKey(k => k + 1);
+  const refreshBookings = useCallback(async () => {
+    if (!supabase) throw new Error("Customer bookings are unavailable");
+    const dogIds = dogs.map((dog) => dog.id);
+    if (dogIds.length === 0) {
+      setBookings([]);
+      return;
+    }
+
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 180);
+    const pastStr = toDateStr(pastDate);
+    const { data, error: refreshError } = await supabase
+      .from("bookings")
+      .select("*, dogs(name, breed, size)")
+      .in("dog_id", dogIds)
+      .gte("booking_date", pastStr)
+      .order("booking_date", { ascending: false })
+      .order("slot", { ascending: false });
+
+    if (refreshError) throw refreshError;
+    setBookings(data || []);
+  }, [dogs]);
 
   if (loading) {
     return (
