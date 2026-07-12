@@ -15,6 +15,7 @@ export interface CustomerDogRow {
   name: string | null;
   breed: string | null;
   size: string | null;
+  reported_size: string | null;
   dob: string | null;
 }
 

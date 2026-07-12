@@ -20,8 +20,7 @@ import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
-import { getSizeForBreed } from "../../../constants/breeds";
-import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
+import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
 import { ServiceSelection } from "./ServiceSelection";
 import { DateSelection } from "./DateSelection";
@@ -218,13 +217,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setDogs(
         rows.map((d) => {
           const breed = d.breed || "";
-          const storedSize = d.size || null;
-          const derivedSize = !storedSize && breed ? (getSizeForBreed(breed) as DogSize | null) : null;
           return {
             id: d.id,
             name: d.name,
             breed,
-            size: storedSize ?? derivedSize ?? null,
+            size: d.size,
+            reportedSize: d.reportedSize,
             isPregnant: d.isPregnant,
           };
         })

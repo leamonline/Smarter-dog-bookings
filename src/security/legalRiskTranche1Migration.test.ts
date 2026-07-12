@@ -17,6 +17,12 @@ function getAllMigrationSqls(): string[] {
     .map((file: string) => readFileSync(join(migrationsDir, file), "utf8"));
 }
 
+function lastDefinitionOf(predicate: RegExp): string {
+  const matches = getAllMigrationSqls().filter((sql) => predicate.test(sql));
+  expect(matches.length, "expected at least one matching migration").toBeGreaterThan(0);
+  return matches[matches.length - 1];
+}
+
 function finalPolicyState(
   policyName: string,
   table: string,
@@ -123,5 +129,60 @@ describe("Tranche 1 human write boundary", () => {
     expect(dashboard).toContain("updateCustomerContactDetails");
     expect(profileGate).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
     expect(dashboard).not.toMatch(/\.from\(["']humans["']\)\s*\.update\(/);
+  });
+});
+
+describe("Tranche 1 dog size authority boundary", () => {
+  it("leaves the raw customer dogs INSERT policy dropped", () => {
+    expect(finalPolicyState("customer_insert_own_dogs", "dogs")).toBe(
+      "dropped",
+    );
+  });
+
+  it("stores customer-created sizes as reported values", () => {
+    const createDog = extractFunction(
+      lastDefinitionOf(
+        /create\s+or\s+replace\s+function\s+public\.create_customer_dog/i,
+      ),
+      "create_customer_dog",
+    );
+
+    expect(createDog).toMatch(/reported_size/i);
+  });
+
+  it("does not let create_customer_dog populate authoritative size", () => {
+    const createDog = extractFunction(
+      lastDefinitionOf(
+        /create\s+or\s+replace\s+function\s+public\.create_customer_dog/i,
+      ),
+      "create_customer_dog",
+    );
+
+    expect(createDog).not.toMatch(
+      /insert into public\.dogs[^;]*\(name, breed, size,/i,
+    );
+  });
+
+  it("does not accept booking JSON as a fallback for authoritative dog size", () => {
+    const createBooking = extractFunction(
+      lastDefinitionOf(
+        /create\s+or\s+replace\s+function\s+public\.create_customer_booking_group/i,
+      ),
+      "create_customer_booking_group",
+    );
+
+    expect(createBooking).not.toMatch(
+      /coalesce\([^;]*v_dog_size[^;]*v_in_size/i,
+    );
+  });
+
+  it("normalises edited reported size into the customer model", () => {
+    const dogsSection = readProjectFile(
+      "src/components/customer/DogsSection.jsx",
+    );
+
+    expect(dogsSection).toMatch(
+      /onSaved\(\{\s*\.\.\.dog,\s*\.\.\.row,\s*reportedSize:\s*row\.reported_size\s*\?\?\s*null\s*\}\)/,
+    );
   });
 });

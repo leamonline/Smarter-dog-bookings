@@ -23,8 +23,14 @@ function errorFromRpc(err) {
   return key ? ERR_LABEL[key] : "Something went wrong. Please try again.";
 }
 
-function effectiveSize(dog) {
-  return dog.size || getSizeForBreed(dog.breed) || "";
+function reportedSize(dog) {
+  return dog.reportedSize || dog.reported_size || (!dog.size && getSizeForBreed(dog.breed)) || "";
+}
+
+function displaySize(dog) {
+  if (dog.size) return dog.size;
+  const reported = reportedSize(dog);
+  return reported ? `reported ${reported}` : "";
 }
 
 const SIZES = [
@@ -67,7 +73,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
   const [form, setForm] = useState({
     name: dog.name || "",
     breed: dog.breed || "",
-    size: effectiveSize(dog),
+    size: reportedSize(dog),
     dob: dog.dob || "",
   });
 
@@ -75,7 +81,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
     setForm({
       name: dog.name || "",
       breed: dog.breed || "",
-      size: effectiveSize(dog),
+      size: reportedSize(dog),
       dob: dog.dob || "",
     });
     setError(null);
@@ -85,7 +91,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
   const handleBreedChange = (newBreed) => {
     setForm((f) => {
       const derived = getSizeForBreed(newBreed);
-      const shouldDerive = derived && (!f.size || f.size === effectiveSize(dog));
+      const shouldDerive = derived && (!f.size || f.size === reportedSize(dog));
       return { ...f, breed: newBreed, size: shouldDerive ? derived : f.size };
     });
   };
@@ -108,7 +114,9 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
       return;
     }
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && onSaved) onSaved({ ...dog, ...row });
+    if (row && onSaved) {
+      onSaved({ ...dog, ...row, reportedSize: row.reported_size ?? null });
+    }
     setEditing(false);
     toast.show(`${(form.name || dog.name || "Dog").trim()}'s details saved`, "success");
   }, [dog, form, onSaved, toast]);
@@ -175,7 +183,7 @@ function DogRow({ dog, lastGroomDate, onSaved }) {
 
   const initial = (dog.name || "?").trim().charAt(0).toUpperCase();
   const tint = avatarTintFor(dog.id);
-  const sizeLabel = effectiveSize(dog);
+  const sizeLabel = displaySize(dog);
   const sizeBit = sizeLabel ? ` · ${sizeLabel}` : "";
   const lastGroom = lastGroomLabel(lastGroomDate);
 

@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(29);
 
 set local session_replication_role = replica;
 
@@ -31,6 +31,37 @@ insert into public.humans (
   null,
   null,
   null
+);
+
+insert into public.humans (
+  id, name, surname, address, customer_user_id, source, approved_at,
+  signup_submitted_at, policies_accepted_at, policies_version
+) values
+  (
+    '10000000-0000-4000-8000-000000000010',
+    'Approved', 'Customer', '10 Booking Street',
+    '10000000-0000-4000-8000-000000000011',
+    'existing', now(), null, now(), '2026-07-test'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000020',
+    'Signup', 'Pending', '20 Signup Street',
+    '10000000-0000-4000-8000-000000000021',
+    'self_signup', null, null, null, null
+  ),
+  (
+    '10000000-0000-4000-8000-000000000030',
+    'Signup', 'Approved', '30 Signup Street',
+    '10000000-0000-4000-8000-000000000031',
+    'self_signup', now(), null, null, null
+  );
+
+insert into public.staff_profiles (id, user_id, role, display_name)
+values (
+  '10000000-0000-4000-8000-000000000040',
+  '10000000-0000-4000-8000-000000000041',
+  'staff',
+  'pgTAP Staff'
 );
 
 set local session_replication_role = default;
@@ -183,6 +214,190 @@ select is(
    where id = '10000000-0000-4000-8000-000000000001'),
   'CC3 3CC'::text,
   'the profile-completion RPC applies an explicitly supplied postcode'
+);
+
+-- Dog writes: customers may use the narrow RPCs, but cannot insert raw rows or
+-- promote their reported size to the staff-authoritative dogs.size column.
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ insert into public.dogs (name, breed, size, human_id)
+     values (
+       'Raw Insert', 'Poodle', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  '42501',
+  null,
+  'a customer cannot insert a raw owned dog row'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Customer Pup', 'Poodle', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts a customer-reported size'
+);
+
+select ok(
+  (select size is null and reported_size = 'small'
+   from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Customer Pup'),
+  'create_customer_dog keeps size unconfirmed and stores reported_size'
+);
+
+reset role;
+update public.dogs
+set size = 'medium'
+where human_id = '10000000-0000-4000-8000-000000000010'
+  and name = 'Customer Pup';
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select lives_ok(
+  $$ select * from public.update_customer_dog(
+       (select id from public.dogs
+        where human_id = '10000000-0000-4000-8000-000000000010'
+          and name = 'Customer Pup'),
+       'Customer Pup Renamed', 'Poodle', 'small', '2020-01'
+     ) $$,
+  'update_customer_dog accepts changes that leave breed and reported size unchanged'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Customer Pup Renamed'),
+  'medium'::text,
+  'a name-only customer edit preserves staff-confirmed size'
+);
+
+select lives_ok(
+  $$ select * from public.update_customer_dog(
+       (select id from public.dogs
+        where human_id = '10000000-0000-4000-8000-000000000010'
+          and name = 'Customer Pup Renamed'),
+       'Customer Pup Renamed', 'Poodle', 'large', '2020-01'
+     ) $$,
+  'update_customer_dog accepts a changed reported size'
+);
+
+select ok(
+  (select size is null and reported_size = 'large'
+   from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Customer Pup Renamed'),
+  'a changed customer-reported size clears the authoritative size'
+);
+
+-- Self-signup accepts only one pending self_signup shell. Dog size remains
+-- unverified until staff set dogs.size, and an approved shell cannot submit.
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000021","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select lives_ok(
+  $$ select public.submit_customer_signup(
+       '{"name":"New","surname":"Customer","address":"20 Signup Street","policies_version":"2026-07-test"}'::jsonb,
+       '[{"name":"Signup Pup","breed":"Poodle","size":"small","sex":"female","neutered":false}]'::jsonb
+     ) $$,
+  'a pending self-signup shell can submit once'
+);
+
+select ok(
+  (select d.size is null and d.reported_size = 'small'
+   from public.dogs d
+   where d.human_id = '10000000-0000-4000-8000-000000000020'
+     and d.name = 'Signup Pup'),
+  'self-signup dogs keep size unverified and store reported_size'
+);
+
+select throws_ok(
+  $$ select public.submit_customer_signup(
+       '{"name":"Repeat","surname":"Customer","address":"20 Signup Street","policies_version":"2026-07-test"}'::jsonb,
+       '[{"name":"Second Pup","breed":"Poodle","size":"small","sex":"female","neutered":false}]'::jsonb
+     ) $$,
+  'P0001',
+  'signup_not_pending',
+  'a submitted self-signup shell cannot submit again'
+);
+
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000031","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ select public.submit_customer_signup(
+       '{"name":"Already","surname":"Approved","address":"30 Signup Street","policies_version":"2026-07-test"}'::jsonb,
+       '[{"name":"Approved Pup","breed":"Poodle","size":"small","sex":"female","neutered":false}]'::jsonb
+     ) $$,
+  'P0001',
+  'signup_not_pending',
+  'an approved self-signup shell cannot submit'
+);
+
+-- Staff cannot approve a signup while any active owned dog lacks a confirmed
+-- size. The caller-provided booking JSON likewise cannot bypass that null.
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000041","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ select public.approve_customer_signup(
+       '10000000-0000-4000-8000-000000000020'
+     ) $$,
+  'P0001',
+  'signup_dog_size_unconfirmed',
+  'staff cannot approve a signup with an unconfirmed active dog size'
+);
+
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+
+select throws_ok(
+  $$ select * from public.create_customer_booking_group(
+       jsonb_build_array(jsonb_build_object(
+         'dog_id', (select id from public.dogs
+                    where human_id = '10000000-0000-4000-8000-000000000010'
+                      and name = 'Customer Pup Renamed'),
+         'slot', '09:00',
+         'service', 'full-groom',
+         'size', 'small'
+       )),
+       (date_trunc('week', current_date) + interval '7 days')::date
+     ) $$,
+  '22023',
+  'dog_size_unconfirmed',
+  'booking JSON size cannot bypass an unconfirmed authoritative dog size'
 );
 
 reset role;
