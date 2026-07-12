@@ -155,5 +155,12 @@ describe("BookingCard cancellation", () => {
     expect(
       screen.getByRole("region", { name: "Cancel booking" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Cancellation saved" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Reschedule" }),
+    ).not.toBeInTheDocument();
   });
 });

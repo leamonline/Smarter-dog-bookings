@@ -249,8 +249,10 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
               <button
                 type="button"
                 className="portal-btn portal-btn--secondary portal-btn--small"
-                onClick={() => setCancelling(false)}
-                disabled={saving}
+                onClick={() => {
+                  if (!cancellationCommitted) setCancelling(false);
+                }}
+                disabled={saving || cancellationCommitted}
               >
                 <X size={14} aria-hidden="true" />
                 Back
