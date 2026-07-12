@@ -314,12 +314,17 @@ describe("Tranche 1 trusted-contact creation boundary", () => {
     const authParent = fixture.search(
       /insert\s+into\s+auth\.users\s*\(\s*id\s*\)\s*values\s*\(\s*'12000000-0000-4000-8000-000000000002'\s*\)\s*;/i,
     );
-    const linkedHuman = fixture.search(
-      /insert\s+into\s+public\.humans\s*\([\s\S]*?customer_user_id[\s\S]*?\)\s*values[\s\S]*?'12000000-0000-4000-8000-000000000002'/i,
-    );
+    const humanInserts =
+      fixture.match(/insert\s+into\s+public\.humans\b[^;]*;/gi) ?? [];
+    const humanInsert = humanInserts[0] ?? "";
 
+    expect(humanInserts).toHaveLength(1);
+    expect(humanInsert).toMatch(/\bcustomer_user_id\b/i);
+    expect(humanInsert).toContain(
+      "'12000000-0000-4000-8000-000000000002'",
+    );
     expect(authParent).toBeGreaterThanOrEqual(0);
-    expect(linkedHuman).toBeGreaterThan(authParent);
+    expect(fixture.indexOf(humanInsert)).toBeGreaterThan(authParent);
   });
 
   it("drops the customer trusted-human creation function", () => {
