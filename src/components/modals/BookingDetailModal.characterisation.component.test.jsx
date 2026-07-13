@@ -7,7 +7,7 @@
 // Written against pre-refactor behaviour; async findBy* queries are used
 // for modal appearance so the same assertions hold once mounting is lazy.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../../contexts/ToastContext.jsx";
 
@@ -263,8 +263,8 @@ describe("BookingDetailModal — card surfaces", () => {
     renderModal();
     expect(screen.getByText("Time & Date")).toBeInTheDocument();
     expect(screen.getByText(/09:00 ·/)).toBeInTheDocument();
-    expect(screen.getByText("Total Due")).toBeInTheDocument();
-    // Full Groom small = £42 with nothing paid (header echo + total row).
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    // Full Groom small = £42 with nothing paid (header echo + integrated total row).
     expect(screen.getAllByText("£42").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Reschedule booking" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel booking" })).toBeInTheDocument();
@@ -286,10 +286,9 @@ describe("BookingDetailModal — card surfaces", () => {
     renderModal({
       booking: { ...baseBooking, payment: "Deposit Paid", depositAmount: 10 },
     });
-    expect(screen.getByText("Deposit Paid")).toBeInTheDocument();
-    expect(screen.getByText("−£10")).toBeInTheDocument();
-    // £42 base − £10 deposit.
-    expect(screen.getByText("£32")).toBeInTheDocument();
+    expect(screen.getByText("£10 paid · £32 to pay")).toBeInTheDocument();
+    // The appointment value remains £42; £32 is left after the £10 deposit.
+    expect(screen.getAllByText("£42").length).toBeGreaterThan(0);
   });
 
   it("WhatsApp-created bookings show the source link", () => {
@@ -319,6 +318,72 @@ describe("BookingDetailModal — card surfaces", () => {
     renderModal();
     expect(
       screen.getByRole("link", { name: /Send pickup-ready SMS to Sarah Jones/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses appointment details followed by services and payment for a ready unpaid booking", () => {
+    renderModal({
+      booking: {
+        ...baseBooking,
+        size: "medium",
+        status: "Ready for pick-up",
+      },
+    });
+
+    const appointmentRegion = screen.getByRole("region", { name: "Appointment details" });
+    const servicesPaymentRegion = screen.getByRole("region", { name: "Services & payment" });
+    const regions = screen.getAllByRole("region");
+
+    expect(appointmentRegion).toHaveTextContent("Pick-up person");
+    expect(servicesPaymentRegion).toHaveTextContent("£46 to pay");
+    expect(regions.indexOf(appointmentRegion)).toBeLessThan(
+      regions.indexOf(servicesPaymentRegion),
+    );
+    expect(screen.queryByRole("region", { name: "Payment & pickup" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Services & add-ons" })).not.toBeInTheDocument();
+  });
+
+  it("keeps payment collection available when a completed booking remains unpaid", () => {
+    renderModal({
+      booking: {
+        ...baseBooking,
+        size: "medium",
+        status: "Completed",
+      },
+    });
+
+    const servicesPaymentRegion = screen.getByRole("region", { name: "Services & payment" });
+    expect(within(servicesPaymentRegion).getByText("£46 to pay")).toBeInTheDocument();
+    expect(
+      within(servicesPaymentRegion).getByRole("button", {
+        name: "Record £46 cash payment",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(servicesPaymentRegion).getByRole("button", {
+        name: "Record £46 card payment",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps payment-state copy out of the paid booking header", () => {
+    renderModal({
+      booking: {
+        ...baseBooking,
+        size: "medium",
+        payment: "Paid in Full",
+        paymentMethod: "card",
+        paidAmount: 46,
+      },
+    });
+
+    const header = within(screen.getByRole("banner"));
+    expect(header.getByText("£46")).toBeInTheDocument();
+    expect(header.queryByText(/Paid|due/i)).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Services & payment" })).getByText(
+        "Paid £46 · Card",
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -27,8 +27,7 @@ import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { AppointmentDetailsCard } from "./booking-detail/AppointmentDetailsCard.jsx";
-import { ServicesAddonsCard } from "./booking-detail/ServicesAddonsCard.jsx";
-import { PaymentsPickupCard } from "./booking-detail/PaymentsPickupCard.jsx";
+import { ServicesPaymentCard } from "./booking-detail/ServicesPaymentCard.jsx";
 import { ReminderCard } from "./booking-detail/ReminderCard.jsx";
 import { BookingMetaFooters } from "./booking-detail/BookingMetaFooters.jsx";
 import { BookingDetailOverlays } from "./booking-detail/BookingDetailOverlays.jsx";
@@ -381,8 +380,8 @@ export function BookingDetailModal({
             sizeTheme={sizeTheme}
           />
 
-          {/* ── Card 2: Services & Add-ons ── */}
-          <ServicesAddonsCard
+          {/* ── Card 2: Services & Payment ── */}
+          <ServicesPaymentCard
             booking={booking}
             isEditing={isEditing}
             editData={editData}
@@ -393,24 +392,11 @@ export function BookingDetailModal({
             sizeTheme={sizeTheme}
             pricing={pricing}
             activeAddons={activeAddons}
-            activePayment={activePayment}
-            activeDepositAmount={activeDepositAmount}
-          />
-
-          {/* ── Card 3: Actions & Payments ── */}
-          <PaymentsPickupCard
-            booking={booking}
-            isEditing={isEditing}
-            editData={editData}
-            setEditData={setEditData}
-            humans={humans}
-            primaryHuman={primaryHuman}
-            pricing={pricing}
             onUpdate={onUpdate}
             currentDateStr={currentDateStr}
           />
 
-          {/* ── Card 4: Reminder ── (between Payment & Pickup and the
+          {/* ── Card 3: Reminder ── (between Services & Payment and the
               footer actions). The pickup-message action targets the saved
               pick-up human (pickupHuman) and only shows in view mode, so it
               always reflects the persisted pick-up selection. */}
