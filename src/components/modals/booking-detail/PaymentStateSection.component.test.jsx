@@ -71,6 +71,21 @@ describe("PaymentStateSection", () => {
     expect(screen.queryByText("Paid £0")).not.toBeInTheDocument();
   });
 
+  it("falls back to the positive subtotal when a settled booking stores paidAmount zero", () => {
+    renderSection({
+      booking: {
+        ...baseBooking,
+        payment: "Paid in Full",
+        paymentMethod: "card",
+        paidAmount: 0,
+      },
+      pricing: { subtotal: 46, amountDue: 0, isPaidInFull: true },
+    });
+
+    expect(screen.getByText("Paid £46 · Card")).toBeInTheDocument();
+    expect(screen.queryByText("Paid £0")).not.toBeInTheDocument();
+  });
+
   it("keeps every payment method enabled when recording fails", async () => {
     const onUpdate = vi.fn().mockResolvedValue(null);
     renderSection({

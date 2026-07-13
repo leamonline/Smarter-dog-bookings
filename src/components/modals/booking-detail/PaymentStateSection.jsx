@@ -127,7 +127,12 @@ export function PaymentStateSection({
   const amountToCollect = pricing.amountDue;
   const settledTotal = pricing.subtotal;
   const depositPaid = pricing.depositPaid ?? booking.depositAmount ?? 0;
-  const paidAmount = booking.paidAmount ?? settledTotal;
+  const paidAmount =
+    Number(booking.paidAmount) > 0
+      ? Number(booking.paidAmount)
+      : Number(settledTotal) > 0
+        ? settledTotal
+        : null;
 
   const markPaid = async (methodId) => {
     if (!onUpdate || savingMethod) return;
@@ -160,7 +165,7 @@ export function PaymentStateSection({
     >
       {isPaid ? (
         <p className="text-[14px] font-bold text-emerald-800">
-          Paid £{paidAmount}
+          {paidAmount != null ? `Paid £${paidAmount}` : "Paid in full"}
           {paymentMethodLabel(booking.paymentMethod)
             ? ` · ${paymentMethodLabel(booking.paymentMethod)}`
             : ""}
