@@ -1,6 +1,6 @@
 # Legal-risk Tranche 1 — non-production rollout runbook
 
-**Status:** Non-production handoff; production application is not authorised
+**Status:** Production migration applied; dependent frontend release remains pending review and merge
 
 **Findings:** B-01, H-01, H-02 and H-06
 
@@ -15,12 +15,13 @@
 
 ## Hard stop and scope
 
-This runbook prepares a later authorised rollout. It does not authorise a
-production migration, deployment, push or merge.
+This runbook began as a non-production handoff. On 13 July 2026, separate
+explicit production authority was recorded and the database migration below was
+applied. It does not authorise the dependent frontend deployment or merge.
 
 For this handoff:
 
-- do not apply the migration or dependent frontend code to production;
+- do not reapply the migration or alter migration history;
 - do not run the historical queries below;
 - do not inspect identifiable customer records;
 - do not publish or alter substantive legal wording;
@@ -29,6 +30,31 @@ For this handoff:
   environments only;
 - do not describe the wider legal-risk audit as remediated. This tranche closes
   four code-addressable findings only.
+
+## Production migration application — 13 July 2026
+
+Production application was explicitly authorised in the task conversation after
+the staging-only reconciliation and hosted pgTAP evidence were complete. At
+commit `bdf7a0c05bff70660e139747c04a11da8dd7bb0c`, the exact committed migration
+`20260712115759_legal_risk_tranche1.sql` was applied individually through the
+Supabase MCP to `nlzhllhkigmsvrzduefz` (`Smarter-dog-grooming`). No reset,
+migration-history repair or unrelated migration was run.
+
+The production migration-history entry is version `20260713151950` with name
+`legal_risk_tranche1`. Post-application checks confirmed:
+
+- `merge_humans` has the committed `prosrc` hash
+  `f5dbadd6912cb028ac6639e055b9bfd5`, all three opt-out guards, owner
+  `postgres`, `SECURITY DEFINER`, `search_path=public, pg_temp`, anonymous
+  execution denied and authenticated execution granted;
+- the staff-only policies, `dogs.reported_size` column and private cancellation
+  receipt table are present;
+- the security adviser returned 30 `WARN` notices and no errors; and
+- no synthetic writes or identifiable customer-record inspection were performed
+  against production.
+
+The dependent frontend has not been merged or deployed. Release and rollback
+owners, any maintenance lock, and the frontend release decision remain open.
 
 ## Required deployment order after separate authorisation
 
@@ -103,7 +129,8 @@ contains the pre-amendment statement text. This was an explicit scope boundary,
 not evidence that the amended file was replayed. Fresh-application proof comes
 from disposable GitHub run `29238760095`, which passed 15 pgTAP files / 151
 assertions against the production schema-only baseline plus the committed
-candidate migration. Production application still requires a separate decision.
+candidate migration. The production migration is now applied; the dependent
+frontend release remains a separate decision.
 
 ## Local verification evidence
 
@@ -384,15 +411,18 @@ Keep the migration's tightened database boundary in place during rollback.
 - The current-head two-session database regression and authorised
   schema-derived type generation are complete and recorded above. The
   count-only historical review remains outstanding.
-- Production migration, legal wording, supplier configuration, incident
-  assessment and any identifiable-record review remain outside this handoff.
+- Dependent frontend deployment/merge, legal wording, supplier configuration,
+  incident assessment and any identifiable-record review remain outside this
+  handoff.
 
 ## Final production stop
 
-- [ ] Separate production authority recorded
+- [x] Separate production authority recorded in the task conversation
 - [ ] Authorised non-production pgTAP and synthetic smoke evidence attached
 - [x] Schema-derived types regenerated and verified against the intended target
 - [ ] Release and rollback owners named
-- [ ] Production application decision made outside this task
+- [x] Production migration application decision recorded and migration applied
+- [ ] Dependent frontend release merged and deployed
 
-Stop here for the current task. This document grants no production authority.
+Stop here for the current task. This document records the migration authority
+above and grants no further frontend or deployment authority.
