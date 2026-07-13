@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import {
-  cancelMany,
+  cancelCustomerBooking,
   createMany,
   joinWaitlist,
-  listIdsInGroup,
   listOnDateForCapacity,
   listBlockedSeats,
   listImmediateSlots,
@@ -20,8 +19,7 @@ import { toDateStr } from "../../../supabase/transforms";
 import { logBookingDenial, logFunnelEvent, type BookingDenialInput } from "../../../supabase/rpc";
 import { mapDenialReason, friendlyDenialMessage } from "../../../engine/denials";
 import { resolveServicePricePence } from "../../../engine/bookingRules";
-import { getSizeForBreed } from "../../../constants/breeds";
-import type { WizardDog, DogSize, ServiceId, SlotAllocation } from "../../../types/index";
+import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import { DogSelection } from "./DogSelection";
 import { ServiceSelection } from "./ServiceSelection";
 import { DateSelection } from "./DateSelection";
@@ -52,7 +50,6 @@ interface BookingWizardProps {
  */
 interface RescheduleFromState {
   id: string;
-  groupId: string | null;
   // Pre-formatted display labels so the wizard's banner doesn't have
   // to re-fetch the original booking just to show what's being moved.
   dateLabel: string;
@@ -167,6 +164,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
+  const [rescheduleRecoveryIds, setRescheduleRecoveryIds] = useState<string[] | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -218,13 +216,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setDogs(
         rows.map((d) => {
           const breed = d.breed || "";
-          const storedSize = d.size || null;
-          const derivedSize = !storedSize && breed ? (getSizeForBreed(breed) as DogSize | null) : null;
           return {
             id: d.id,
             name: d.name,
             breed,
-            size: storedSize ?? derivedSize ?? null,
+            size: d.size,
+            reportedSize: d.reportedSize,
             isPregnant: d.isPregnant,
           };
         })
@@ -417,23 +414,22 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         throw err;
       }
 
-      // If this run started as a reschedule, the original booking(s) only get
-      // cancelled once the new insert has succeeded. Both writes share this
-      // try/catch — an insert failure means the cancel never runs (original
-      // stays held); a cancel failure after a successful insert surfaces as
-      // an error so the salon catches the rare duplicate, rather than us
-      // silently leaving two active bookings.
+      // If this run started as a reschedule, the original booking group is
+      // derived and cancelled server-side only after the replacement exists.
+      // A cancellation failure is a terminal partial success: retain the new
+      // IDs for support and prevent another confirmation creating duplicates.
       if (rescheduleFrom) {
-        const idsToCancel = await listIdsInGroup(supabase, {
-          groupId: rescheduleFrom.groupId ?? null,
-          fallbackId: rescheduleFrom.id,
-        });
-
-        const { error: cancelError } = await cancelMany(supabase, {
-          ids: idsToCancel,
-          reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
-        });
-        if (cancelError) throw cancelError;
+        const { receipt: cancelReceipt, error: cancelError } =
+          await cancelCustomerBooking(supabase, {
+            bookingId: rescheduleFrom.id,
+            reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
+          });
+        if (cancelError || !cancelReceipt) {
+          setBookedIds(insertedIds);
+          setRescheduleRecoveryIds(insertedIds);
+          setError(null);
+          return;
+        }
       }
 
       setBookedIds(insertedIds);
@@ -490,6 +486,25 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setSubmitting(false);
     }
   };
+
+  if (rescheduleRecoveryIds) {
+    return (
+      <div className="booking-success booking-success--recovery">
+        <div role="alert" className="portal-alert portal-alert--error">
+          Your new booking was created, but the original booking could not be cancelled. Please contact the salon so we can fix this.
+        </div>
+        <p className="booking-success-ref">
+          New booking reference: {rescheduleRecoveryIds.join(", ")}
+        </p>
+        <div className="booking-success-actions">
+          <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+            Back to dashboard
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // --- Success screens ---
   if (booked || waitlistJoined) {

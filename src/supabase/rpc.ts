@@ -15,6 +15,7 @@ export interface CustomerDogRow {
   name: string | null;
   breed: string | null;
   size: string | null;
+  reported_size: string | null;
   dob: string | null;
 }
 
@@ -108,22 +109,67 @@ export function replaceTrustedContacts(
   });
 }
 
-// Customer trusted-human linking --------------------------------------
+// Customer trusted-contact reading -----------------------------------
 
-export function addCustomerTrustedHuman(
+// Returns only the customer-safe fields for contacts linked to the caller.
+// The database derives the owner from auth.uid(); callers provide no row ID.
+export function listCustomerTrustedHumans(client: SupabaseClient) {
+  return client
+    .rpc("list_customer_trusted_humans")
+    .overrideTypes<CustomerTrustedHumanRow[], { merge: false }>();
+}
+
+// Customer profile editing --------------------------------------------
+
+export interface CustomerContactDetailsInput {
+  name: string;
+  surname: string;
+  address: string;
+  postcode?: string | null;
+  email?: string | null;
+  whatsapp?: boolean;
+  fb?: string | null;
+  insta?: string | null;
+  tiktok?: string | null;
+}
+
+// The database derives the target human from auth.uid(); callers provide no
+// row identifier and can submit only the profile fields exposed here.
+export function updateCustomerContactDetails(
   client: SupabaseClient,
-  params: {
-    name: string;
-    surname: string;
-    phone: string;
-    relationship: string;
-  },
+  input: CustomerContactDetailsInput,
 ) {
-  return client.rpc("add_customer_trusted_human", {
-    p_name: params.name,
-    p_surname: params.surname,
-    p_phone: params.phone,
-    p_relationship: params.relationship,
+  return client.rpc("update_customer_contact_details", {
+    p_name: input.name,
+    p_surname: input.surname,
+    p_address: input.address,
+    p_postcode: input.postcode ?? null,
+    p_email: input.email ?? null,
+    p_whatsapp: input.whatsapp ?? false,
+    p_fb: input.fb ?? null,
+    p_insta: input.insta ?? null,
+    p_tiktok: input.tiktok ?? null,
+  });
+}
+
+export interface CompleteCustomerProfileInput {
+  name: string;
+  surname: string;
+  address: string;
+  postcode?: string | null;
+  policiesVersion: string;
+}
+
+export function completeCustomerProfile(
+  client: SupabaseClient,
+  input: CompleteCustomerProfileInput,
+) {
+  return client.rpc("complete_customer_profile", {
+    p_name: input.name,
+    p_surname: input.surname,
+    p_address: input.address,
+    p_postcode: input.postcode ?? null,
+    p_policies_version: input.policiesVersion,
   });
 }
 
@@ -331,13 +377,14 @@ export function logFunnelEvent(
 // Customer booking creation -------------------------------------------
 
 // One row per dog in the group. group_id is assigned server-side; status
-// and confirmed are set by the RPC (customers can't choose them). size is
-// optional — the RPC takes the authoritative size from the dog record and
-// only falls back to this when the dog has no size on file.
+// and confirmed are set by the RPC (customers can't choose them). The RPC
+// always takes authoritative size from the dog record.
 export interface CreateBookingGroupRow {
   dog_id: string;
   slot: string;
   service: string;
+  // Retained in the wire shape for deployment compatibility. The database
+  // ignores it and reads the staff-confirmed dogs.size value instead.
   size?: string;
   addons?: string[];
   payment?: string;
@@ -355,6 +402,28 @@ export function createCustomerBookingGroup(
   return client.rpc("create_customer_booking_group", {
     p_booking_date: params.bookingDate,
     p_bookings: params.bookings,
+  });
+}
+
+// Customer booking cancellation --------------------------------------
+
+export interface CustomerCancellationRpcRow {
+  target_booking_id: string;
+  booking_group_id: string | null;
+  cancelled_booking_ids: string[];
+  cancelled_count: number;
+  cancelled_at: string;
+}
+
+// The database derives ownership, group membership and the applicable salon
+// settings. The customer supplies only the booking they selected and a reason.
+export function cancelCustomerBooking(
+  client: SupabaseClient,
+  input: { bookingId: string; reason: string },
+) {
+  return client.rpc("cancel_customer_booking", {
+    p_booking_id: input.bookingId,
+    p_reason: input.reason,
   });
 }
 

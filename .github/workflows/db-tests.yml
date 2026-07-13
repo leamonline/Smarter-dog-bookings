@@ -7,22 +7,24 @@ name: DB Tests (pgTAP)
 # does NOT rebuild from scratch — it has drift (timestamps that map to different
 # migrations than prod) and by-design prod-environment prerequisites (e.g. a
 # migration that RAISES unless a Vault secret was provisioned out-of-band). So
-# instead of replaying migrations, we dump prod's CURRENT public schema
-# (schema-only — `supabase db dump` carries NO data and NO custom roles unless
+# instead of replaying migrations, we dump prod's CURRENT application schemas:
+# `public` plus the non-API `smarter_dog_private` receipt schema. The dump is
+# schema-only — `supabase db dump` carries NO data and NO custom roles unless
 # you pass --data-only/--role-only, and excludes the managed auth/storage
-# schemas) and use that as the single baseline the local stack boots from. The
-# tests then run against a faithful copy of the real schema.
+# schemas. We use it as the single baseline the local stack boots from. The
+# tests then run against a faithful copy of the real schema. On pull requests,
+# migrations added relative to the base branch are applied after that baseline
+# so the candidate schema is tested without replaying the drifted history.
 #
 # `supabase start` supplies the base Supabase environment (the auth schema +
 # auth.uid(), the anon/authenticated/service_role roles, extensions) that the
-# dumped public objects reference. `supabase test db` runs supabase/tests/*.sql
+# dumped application objects reference. `supabase test db` runs
+# supabase/tests/*.sql
 # under pgTAP; each test is wrapped in a transaction that is rolled back.
 #
-# Requires repo secrets: SUPABASE_ACCESS_TOKEN (already set for edge deploys)
-# and SUPABASE_DB_PASSWORD (the prod database password — add it under Repo
-# Settings → Secrets and variables → Actions; find/reset it in the Supabase
-# dashboard → Project Settings → Database). Until SUPABASE_DB_PASSWORD is set,
-# the job SKIPS cleanly (succeeds with a warning) rather than failing red.
+# Requires the repo's SUPABASE_ACCESS_TOKEN secret (already set for edge
+# deploys). The CLI uses that token to create a short-lived database login role,
+# so CI never stores or transmits the production database password.
 
 on:
   push:
@@ -46,41 +48,60 @@ jobs:
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
-      # Gate: without the DB password we can't dump the baseline. Skip the rest
-      # cleanly (job stays green with a warning) instead of failing red, so the
-      # check is quiet on main until the secret is added.
-      - name: Check for DB password secret
-        id: gate
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "::warning::SUPABASE_DB_PASSWORD secret is not set — skipping DB tests. Add it under Repo Settings → Secrets and variables → Actions (find/reset it in the Supabase dashboard → Project Settings → Database) to enable them."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Check out repo
-        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v7
+        with:
+          # PR runs need the base history to identify candidate migrations.
+          fetch-depth: 0
+
+      - name: Preserve PR-added candidate migrations
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF"
+
+          candidate_root="$(mktemp -d)"
+          echo "CANDIDATE_MIGRATIONS_DIR=$candidate_root" >> "$GITHUB_ENV"
+
+          git diff --name-only --diff-filter=A -z \
+            "origin/${BASE_REF}...HEAD" -- supabase/migrations/ \
+            > "$candidate_root/added-migrations"
+
+          count=0
+          while IFS= read -r -d '' migration; do
+            case "$migration" in
+              *.sql) ;;
+              *) continue ;;
+            esac
+            destination="$candidate_root/$migration"
+            mkdir -p "$(dirname "$destination")"
+            cp -- "$migration" "$destination"
+            count=$((count + 1))
+          done < "$candidate_root/added-migrations"
+
+          echo "Candidate migrations preserved: $count"
 
       - name: Set up Supabase CLI
-        if: steps.gate.outputs.run == 'true'
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          version: 2.109.1
 
-      - name: Dump prod public schema (schema-only — no customer data) as the baseline
-        if: steps.gate.outputs.run == 'true'
+      - name: Dump prod application schemas (schema-only — no customer data) as the baseline
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          # Schema-only by default; --schema public scopes it to our objects.
-          supabase db dump --linked --schema public -f /tmp/baseline.sql
+          # Schema-only by default. The private schema contains durable receipt
+          # structure but no rows are copied. Before its production migration
+          # exists, pg_dump simply matches public and the PR candidate creates
+          # smarter_dog_private in the disposable stack.
+          supabase db dump --linked \
+            --schema public,smarter_dog_private \
+            -f /tmp/baseline.sql
           echo "baseline: $(wc -l < /tmp/baseline.sql) lines"
           # Replace the (non-rebuildable) migration history with the prod schema
           # as a single baseline migration, so `supabase start` boots a faithful
@@ -89,14 +110,23 @@ jobs:
           mkdir -p supabase/migrations
           cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
 
-      - name: Start local stack (applies the baseline schema)
-        if: steps.gate.outputs.run == 'true'
+      - name: Restore PR-added candidate migrations
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_source="$CANDIDATE_MIGRATIONS_DIR/supabase/migrations"
+          if [ -d "$candidate_source" ]; then
+            # Original timestamped names keep candidates after the baseline.
+            cp -R -- "$candidate_source/." supabase/migrations/
+          fi
+
+      - name: Start local stack (applies baseline then candidate migrations)
         run: supabase start
 
       - name: Run pgTAP database tests
-        if: steps.gate.outputs.run == 'true'
         run: supabase test db
 
       - name: Dump diagnostics on failure
-        if: failure() && steps.gate.outputs.run == 'true'
+        if: failure()
         run: supabase status || true

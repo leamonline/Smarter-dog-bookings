@@ -324,17 +324,24 @@ describe("Supabase security review regressions", () => {
     );
   });
 
-  it("retires the customer DELETE policy on bookings in favour of the UPDATE-to-cancel path", () => {
+  it("retires direct customer booking cancellation in favour of the narrow RPC", () => {
     // The original DELETE policy let customers hard-delete future bookings,
     // which bypasses cancel_reason capture and the notify-booking-cancelled
-    // trigger (which fires on UPDATE, not DELETE). The intended path is
-    // customer_cancel_own_bookings_update — keep that one, drop the DELETE.
+    // trigger. The later broad UPDATE policy also allowed unrelated column
+    // changes. Both direct paths stay closed; the RPC accepts only ID/reason.
     expect(finalPolicyState("customer_cancel_own_bookings", "bookings")).toBe(
       "dropped",
     );
     expect(
       finalPolicyState("customer_cancel_own_bookings_update", "bookings"),
-    ).toBe("created");
+    ).toBe("dropped");
+
+    const cancellation = lastMigrationSqlMatching((sql: string) =>
+      sql.includes("cancel_customer_booking"),
+    );
+    expect(cancellation).toMatch(
+      /create\s+or\s+replace\s+function\s+public\.cancel_customer_booking\s*\(\s*p_booking_id\s+uuid,\s*p_reason\s+text\s*\)/i,
+    );
   });
 
   it("does not leak raw error strings to clients in customer-facing Edge Functions", () => {

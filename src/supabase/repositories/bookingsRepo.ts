@@ -9,7 +9,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BOOKING_STATUS } from "../../constants/salon";
 import type { Booking, SlotOverrides } from "../../types/index";
-import { createCustomerBookingGroup, getSlotOccupancy, getOccupancyRange, getBlockedSeats, getImmediateSlots } from "../rpc";
+import {
+  cancelCustomerBooking as cancelCustomerBookingRpc,
+  createCustomerBookingGroup,
+  getBlockedSeats,
+  getImmediateSlots,
+  getOccupancyRange,
+  getSlotOccupancy,
+  type CustomerCancellationRpcRow,
+} from "../rpc";
 
 export interface CreateBookingInput {
   bookingDate: string;
@@ -143,22 +151,6 @@ export async function listImmediateSlots(
   return { date: rows[0].setting_date, slots: rows.map((r) => r.slot) };
 }
 
-// Resolve a "cancel one or cancel the whole group" intent to an array
-// of booking IDs. Returns at minimum the fallback ID so callers can
-// stay branch-free.
-export async function listIdsInGroup(
-  client: SupabaseClient,
-  { groupId, fallbackId }: { groupId: string | null | undefined; fallbackId: string },
-): Promise<string[]> {
-  if (!groupId) return [fallbackId];
-  const { data } = await client
-    .from("bookings")
-    .select("id")
-    .eq("group_id", groupId);
-  const ids = (data ?? []).map((r: { id: string }) => r.id);
-  return ids.length > 0 ? ids : [fallbackId];
-}
-
 // Insert a group of bookings (one row per dog) and return the inserted IDs.
 // Routes through the create_customer_booking_group SECURITY DEFINER RPC
 // rather than a raw INSERT: the RPC verifies the caller owns every dog,
@@ -197,19 +189,125 @@ export async function createMany(
   };
 }
 
-// Soft-cancel an array of booking IDs with a reason string. Used by
-// the reschedule flow (cancel originals once the new booking is
-// inserted) and the customer dashboard's cancel button.
-export async function cancelMany(
+export interface CustomerCancellationReceipt {
+  targetBookingId: string;
+  bookingGroupId: string | null;
+  cancelledBookingIds: string[];
+  cancelledCount: number;
+  cancelledAt: string;
+}
+
+export interface CustomerCancellationError {
+  code?: string;
+  message: string;
+  details?: string | null;
+  hint?: string | null;
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidCancellationRow(
+  value: unknown,
+  expectedBookingId: string,
+): value is CustomerCancellationRpcRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<CustomerCancellationRpcRow>;
+  if (
+    typeof row.target_booking_id !== "string" ||
+    !UUID_RE.test(row.target_booking_id) ||
+    row.target_booking_id !== expectedBookingId
+  ) {
+    return false;
+  }
+  if (
+    row.booking_group_id !== null &&
+    (typeof row.booking_group_id !== "string" || !UUID_RE.test(row.booking_group_id))
+  ) {
+    return false;
+  }
+  if (
+    !Array.isArray(row.cancelled_booking_ids) ||
+    row.cancelled_booking_ids.length === 0 ||
+    row.cancelled_booking_ids.some(
+      (id) => typeof id !== "string" || !UUID_RE.test(id),
+    ) ||
+    new Set(row.cancelled_booking_ids).size !== row.cancelled_booking_ids.length ||
+    !row.cancelled_booking_ids.includes(row.target_booking_id)
+  ) {
+    return false;
+  }
+  if (
+    !Number.isInteger(row.cancelled_count) ||
+    row.cancelled_count !== row.cancelled_booking_ids.length
+  ) {
+    return false;
+  }
+  return (
+    typeof row.cancelled_at === "string" &&
+    row.cancelled_at.trim() !== "" &&
+    Number.isFinite(Date.parse(row.cancelled_at))
+  );
+}
+
+function invalidCancellationReceipt(): CustomerCancellationError {
+  return {
+    code: "INVALID_CANCELLATION_RECEIPT",
+    message: "The cancellation response could not be verified.",
+    details: null,
+    hint: null,
+  };
+}
+
+// Customer cancellation is one atomic database command. The repository
+// accepts success only when exactly one complete receipt can be verified.
+export async function cancelCustomerBooking(
   client: SupabaseClient,
-  { ids, reason }: { ids: string[]; reason: string },
-): Promise<{ error: Error | null }> {
-  if (ids.length === 0) return { error: null };
-  const { error } = await client
-    .from("bookings")
-    .update({ status: BOOKING_STATUS.CANCELLED, cancel_reason: reason })
-    .in("id", ids);
-  return { error: error ? new Error(error.message) : null };
+  input: { bookingId: string; reason: string },
+): Promise<{
+  receipt: CustomerCancellationReceipt | null;
+  error: CustomerCancellationError | null;
+}> {
+  try {
+    const { data, error } = await cancelCustomerBookingRpc(client, input);
+    if (error) {
+      return {
+        receipt: null,
+        error: error as CustomerCancellationError,
+      };
+    }
+
+    if (
+      !Array.isArray(data) ||
+      data.length !== 1 ||
+      !isValidCancellationRow(data[0], input.bookingId)
+    ) {
+      return { receipt: null, error: invalidCancellationReceipt() };
+    }
+
+    const row = data[0];
+    return {
+      receipt: {
+        targetBookingId: row.target_booking_id,
+        bookingGroupId: row.booking_group_id,
+        cancelledBookingIds: row.cancelled_booking_ids,
+        cancelledCount: row.cancelled_count,
+        cancelledAt: row.cancelled_at,
+      },
+      error: null,
+    };
+  } catch (cause) {
+    return {
+      receipt: null,
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          cause instanceof Error ? cause.message : "The cancellation request failed.",
+        details: null,
+        hint: null,
+      },
+    };
+  }
 }
 
 // Customer asks to be told if a slot frees up on a given date.

@@ -25,12 +25,18 @@ instead:
 Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 `supabase/config.toml`.
 
+The guarded Tranche 1 staging smoke run uses
+[`scripts/run-hosted-pgtap.sh`](../../scripts/run-hosted-pgtap.sh). It converts
+the CLI's short-lived login into private temporary `psql` settings, assumes the
+linked project's `postgres` role, ensures `pg_net` is enabled under
+`extensions`, and removes the credential and TAP files on exit. It never needs
+a stored database password.
+
 ### Required secrets
 
-- `SUPABASE_ACCESS_TOKEN` — already set (used by the edge-deploy workflow).
-- `SUPABASE_DB_PASSWORD` — the prod database password. Add it under **Repo
-  Settings → Secrets and variables → Actions**; find/reset it in the Supabase
-  dashboard → **Project Settings → Database**.
+- `SUPABASE_ACCESS_TOKEN` — the only repository secret required. The CLI uses
+  it to create a short-lived database login, so no database password is stored
+  or passed to the workflow.
 
 ## Running locally
 
@@ -57,6 +63,9 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 - `020_rls_isolation.test.sql` — behavioural: acting as the `authenticated` role
   with a JWT `sub` claim, a customer reads only their own humans/dogs/bookings;
   another customer's rows are invisible; `anon` sees nothing.
+- `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
+  keeps active SMS, WhatsApp and email suppressions, including their timestamp
+  and reason evidence, when the losing human record is deleted.
 
 ### Planned (behavioural — follow-up)
 

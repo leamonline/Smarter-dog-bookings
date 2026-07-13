@@ -5,8 +5,8 @@ import { DogSelection } from "./DogSelection";
 const noop = () => {};
 
 const dogs = [
-  { id: "d1", name: "Alfie", breed: "Poodle", size: "small" as const, isPregnant: false },
-  { id: "d2", name: "Bella", breed: "Labrador", size: "small" as const, isPregnant: true },
+  { id: "d1", name: "Alfie", breed: "Poodle", size: "small" as const, reportedSize: null, isPregnant: false },
+  { id: "d2", name: "Bella", breed: "Labrador", size: "small" as const, reportedSize: null, isPregnant: true },
 ];
 
 describe("DogSelection blocks a pregnant dog (preflight UX)", () => {

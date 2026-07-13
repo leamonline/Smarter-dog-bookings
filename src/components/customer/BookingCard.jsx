@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { cancelMany, listIdsInGroup } from "../../supabase/repositories/bookingsRepo";
+import { cancelCustomerBooking } from "../../supabase/repositories/bookingsRepo";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
@@ -34,14 +34,14 @@ function dayLabel(dateStr) {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
-async function cancelBookingIds({ booking, reason, onChanged }) {
-  if (!supabase) return;
-  const ids = await listIdsInGroup(supabase, {
-    groupId: booking.group_id,
-    fallbackId: booking.id,
-  });
-  await cancelMany(supabase, { ids, reason });
-  onChanged?.();
+function friendlyCancellationError(error) {
+  if (error?.code === "SDC01") {
+    return "Online cancellation is currently unavailable. Please contact us and we’ll help.";
+  }
+  if (error?.code === "SDC02") {
+    return "It’s too close to your appointment to cancel online. Please contact us and we’ll help.";
+  }
+  return "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.";
 }
 
 export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
@@ -51,6 +51,8 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const [reason, setReason] = useState("");
   const [otherReason, setOtherReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
+  const [cancellationCommitted, setCancellationCommitted] = useState(false);
 
   const next = upcomingBookings[0];
   const dogName = next?.dogs?.name || dogs[0]?.name || "your pup";
@@ -91,7 +93,6 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
       state: {
         rescheduleFrom: {
           id: next.id,
-          groupId: next.group_id || null,
           dateLabel: dateStr,
           timeLabel: timeStr,
           dogName,
@@ -104,6 +105,8 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     setCancelling(true);
     setReason("");
     setOtherReason("");
+    setCancelError(null);
+    setCancellationCommitted(false);
   };
 
   const handleCancelConfirm = async () => {
@@ -111,13 +114,41 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     const cleaned = rawReason.replace(/<[^>]*>/g, "").slice(0, 500);
     if (!cleaned) return;
     setSaving(true);
+    setCancelError(null);
     try {
-      await cancelBookingIds({ booking: next, reason: cleaned, onChanged: onBookingChanged });
-    } finally {
-      setSaving(false);
+      if (!supabase) {
+        setCancelError(
+          "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.",
+        );
+        return;
+      }
+
+      const { receipt, error } = await cancelCustomerBooking(supabase, {
+        bookingId: next.id,
+        reason: cleaned,
+      });
+      if (error || !receipt) {
+        setCancelError(friendlyCancellationError(error));
+        return;
+      }
+
+      setCancellationCommitted(true);
+      try {
+        await onBookingChanged?.();
+      } catch {
+        setCancelError(
+          "Your cancellation was saved, but we couldn't refresh your bookings. Refresh the page to see the latest status.",
+        );
+        return;
+      }
+
       setCancelling(false);
       setReason("");
       setOtherReason("");
+      setCancelError(null);
+      setCancellationCommitted(false);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -197,19 +228,31 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
                 className="portal-input mb-2.5"
               />
             )}
+            {cancelError && (
+              <div role="alert" className="portal-inline-error mb-2.5">
+                {cancelError}
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
                 className="portal-btn portal-btn--danger flex-1 text-[13px]"
                 onClick={handleCancelConfirm}
-                disabled={saving || !reason || (reason === "Other" && !otherReason.trim())}
+                disabled={saving || cancellationCommitted || !reason || (reason === "Other" && !otherReason.trim())}
               >
-                {saving ? "Cancelling…" : "Confirm cancellation"}
+                {saving
+                  ? "Cancelling…"
+                  : cancellationCommitted
+                    ? "Cancellation saved"
+                    : "Confirm cancellation"}
               </button>
               <button
                 type="button"
                 className="portal-btn portal-btn--secondary portal-btn--small"
-                onClick={() => setCancelling(false)}
+                onClick={() => {
+                  if (!cancellationCommitted) setCancelling(false);
+                }}
+                disabled={saving || cancellationCommitted}
               >
                 <X size={14} aria-hidden="true" />
                 Back

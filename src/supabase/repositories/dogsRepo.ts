@@ -11,6 +11,7 @@ export interface CustomerDog {
   name: string;
   breed: string;
   size: DogSize | null;
+  reportedSize: DogSize | null;
   isPregnant: boolean;
 }
 
@@ -19,6 +20,7 @@ interface DbDogRow {
   name: string | null;
   breed: string | null;
   size: string | null;
+  reported_size: string | null;
   is_pregnant: boolean | null;
 }
 
@@ -28,6 +30,7 @@ function dbRowToCustomerDog(row: DbDogRow): CustomerDog {
     name: row.name ?? "",
     breed: row.breed ?? "",
     size: (row.size as DogSize | null) ?? null,
+    reportedSize: (row.reported_size as DogSize | null) ?? null,
     isPregnant: row.is_pregnant ?? false,
   };
 }
@@ -50,7 +53,8 @@ export async function createForHuman(
       id: row.id,
       name: row.name ?? "",
       breed: row.breed ?? "",
-      size: (row.size as DogSize | null) ?? null,
+      size: null,
+      reportedSize: (row.reported_size as DogSize | null) ?? null,
       isPregnant: false, // a freshly-added dog is never pregnant; staff set it later
     },
     error: null,
@@ -63,7 +67,7 @@ export async function listForHuman(
 ): Promise<{ dogs: CustomerDog[]; error: Error | null }> {
   let q = client
     .from("dogs")
-    .select("id, name, breed, size, is_pregnant")
+    .select("id, name, breed, size, reported_size, is_pregnant")
     .eq("human_id", humanId)
     .order("name");
   if (signal) q = q.abortSignal(signal);

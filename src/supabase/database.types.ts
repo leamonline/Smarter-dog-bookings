@@ -13,11 +13,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.4"
-  }
   public: {
     Tables: {
       app_settings: {
@@ -52,6 +47,8 @@ export type Database = {
           slot: string
           staff_capacity_override: boolean | null
           status: string | null
+          v_daily_cap: number | null
+          v_day_count: number | null
           v_enforce: boolean | null
           v_max_seats: number | null
           v_override: boolean | null
@@ -72,6 +69,8 @@ export type Database = {
           slot: string
           staff_capacity_override?: boolean | null
           status?: string | null
+          v_daily_cap?: number | null
+          v_day_count?: number | null
           v_enforce?: boolean | null
           v_max_seats?: number | null
           v_override?: boolean | null
@@ -92,6 +91,8 @@ export type Database = {
           slot?: string
           staff_capacity_override?: boolean | null
           status?: string | null
+          v_daily_cap?: number | null
+          v_day_count?: number | null
           v_enforce?: boolean | null
           v_max_seats?: number | null
           v_override?: boolean | null
@@ -101,8 +102,67 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_denials: {
+        Row: {
+          alternative_shown: boolean
+          alternative_taken: boolean
+          created_at: string
+          dog_count: number | null
+          human_id: string | null
+          id: string
+          reason_code: string
+          reason_detail: string | null
+          requested_date: string | null
+          service: string | null
+          size: string | null
+          slot: string | null
+          source: string
+        }
+        Insert: {
+          alternative_shown?: boolean
+          alternative_taken?: boolean
+          created_at?: string
+          dog_count?: number | null
+          human_id?: string | null
+          id?: string
+          reason_code?: string
+          reason_detail?: string | null
+          requested_date?: string | null
+          service?: string | null
+          size?: string | null
+          slot?: string | null
+          source?: string
+        }
+        Update: {
+          alternative_shown?: boolean
+          alternative_taken?: boolean
+          created_at?: string
+          dog_count?: number | null
+          human_id?: string | null
+          id?: string
+          reason_code?: string
+          reason_detail?: string | null
+          requested_date?: string | null
+          service?: string | null
+          size?: string | null
+          slot?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_denials_human_id_fkey"
+            columns: ["human_id"]
+            isOneToOne: false
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_events: {
         Row: {
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
           booking_date: string | null
           booking_id: string | null
           cancel_reason: string | null
@@ -118,6 +178,9 @@ export type Database = {
           slot: string | null
         }
         Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
           booking_date?: string | null
           booking_id?: string | null
           cancel_reason?: string | null
@@ -133,6 +196,9 @@ export type Database = {
           slot?: string | null
         }
         Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
           booking_date?: string | null
           booking_id?: string | null
           cancel_reason?: string | null
@@ -157,6 +223,41 @@ export type Database = {
           },
         ]
       }
+      booking_funnel_events: {
+        Row: {
+          created_at: string
+          dog_count: number | null
+          human_id: string | null
+          id: string
+          session_id: string
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          dog_count?: number | null
+          human_id?: string | null
+          id?: string
+          session_id: string
+          step: string
+        }
+        Update: {
+          created_at?: string
+          dog_count?: number | null
+          human_id?: string | null
+          id?: string
+          session_id?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_funnel_events_human_id_fkey"
+            columns: ["human_id"]
+            isOneToOne: false
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           addons: string[] | null
@@ -164,17 +265,29 @@ export type Database = {
           breed_snapshot: string | null
           cancel_reason: string | null
           chain_id: string | null
+          checked_in_at: string | null
+          completed_at: string | null
+          confirmation_channel: string
           confirmed: boolean | null
           created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
           deposit_amount: number | null
           dog_id: string
           dog_name_snapshot: string | null
           group_id: string | null
           id: string
           notes: string | null
+          notify_human_ids: string[] | null
           owner_name_snapshot: string | null
+          paid_amount: number | null
+          paid_at: string | null
           payment: string | null
+          payment_method: string | null
           pickup_by_id: string | null
+          price_override: number | null
+          ready_at: string | null
           reminder_confirmed_at: string | null
           service: string
           size: string
@@ -194,17 +307,29 @@ export type Database = {
           breed_snapshot?: string | null
           cancel_reason?: string | null
           chain_id?: string | null
+          checked_in_at?: string | null
+          completed_at?: string | null
+          confirmation_channel?: string
           confirmed?: boolean | null
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           deposit_amount?: number | null
           dog_id: string
           dog_name_snapshot?: string | null
           group_id?: string | null
           id?: string
           notes?: string | null
+          notify_human_ids?: string[] | null
           owner_name_snapshot?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
           payment?: string | null
+          payment_method?: string | null
           pickup_by_id?: string | null
+          price_override?: number | null
+          ready_at?: string | null
           reminder_confirmed_at?: string | null
           service: string
           size: string
@@ -224,17 +349,29 @@ export type Database = {
           breed_snapshot?: string | null
           cancel_reason?: string | null
           chain_id?: string | null
+          checked_in_at?: string | null
+          completed_at?: string | null
+          confirmation_channel?: string
           confirmed?: boolean | null
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           deposit_amount?: number | null
           dog_id?: string
           dog_name_snapshot?: string | null
           group_id?: string | null
           id?: string
           notes?: string | null
+          notify_human_ids?: string[] | null
           owner_name_snapshot?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
           payment?: string | null
+          payment_method?: string | null
           pickup_by_id?: string | null
+          price_override?: number | null
+          ready_at?: string | null
           reminder_confirmed_at?: string | null
           service?: string
           size?: string
@@ -326,14 +463,17 @@ export type Database = {
       customer_phone_lookup_attempts: {
         Row: {
           attempted_at: string
+          id: string
           ip: string
         }
         Insert: {
           attempted_at?: string
+          id?: string
           ip: string
         }
         Update: {
           attempted_at?: string
+          id?: string
           ip?: string
         }
         Relationships: []
@@ -396,6 +536,7 @@ export type Database = {
         Row: {
           extra_slots: string[] | null
           id: string
+          immediate_slots: string[]
           is_open: boolean | null
           overrides: Json | null
           setting_date: string
@@ -404,6 +545,7 @@ export type Database = {
         Insert: {
           extra_slots?: string[] | null
           id?: string
+          immediate_slots?: string[]
           is_open?: boolean | null
           overrides?: Json | null
           setting_date: string
@@ -412,6 +554,7 @@ export type Database = {
         Update: {
           extra_slots?: string[] | null
           id?: string
+          immediate_slots?: string[]
           is_open?: boolean | null
           overrides?: Json | null
           setting_date?: string
@@ -432,9 +575,12 @@ export type Database = {
           groom_notes: string | null
           human_id: string
           id: string
+          is_pregnant: boolean
+          last_groomed_date: string | null
           microchip: string | null
           name: string
           neutered: boolean | null
+          reported_size: string | null
           sex: string | null
           size: string | null
           updated_at: string | null
@@ -452,9 +598,12 @@ export type Database = {
           groom_notes?: string | null
           human_id: string
           id?: string
+          is_pregnant?: boolean
+          last_groomed_date?: string | null
           microchip?: string | null
           name: string
           neutered?: boolean | null
+          reported_size?: string | null
           sex?: string | null
           size?: string | null
           updated_at?: string | null
@@ -472,9 +621,12 @@ export type Database = {
           groom_notes?: string | null
           human_id?: string
           id?: string
+          is_pregnant?: boolean
+          last_groomed_date?: string | null
           microchip?: string | null
           name?: string
           neutered?: boolean | null
+          reported_size?: string | null
           sex?: string | null
           size?: string | null
           updated_at?: string | null
@@ -588,6 +740,7 @@ export type Database = {
           email_opted_out_at: string | null
           email_opted_out_reason: string | null
           fb: string | null
+          heard_about_us: string | null
           history_flag: string | null
           id: string
           insta: string | null
@@ -628,6 +781,7 @@ export type Database = {
           email_opted_out_at?: string | null
           email_opted_out_reason?: string | null
           fb?: string | null
+          heard_about_us?: string | null
           history_flag?: string | null
           id?: string
           insta?: string | null
@@ -668,6 +822,7 @@ export type Database = {
           email_opted_out_at?: string | null
           email_opted_out_reason?: string | null
           fb?: string | null
+          heard_about_us?: string | null
           history_flag?: string | null
           id?: string
           insta?: string | null
@@ -697,15 +852,44 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_dismissals: {
+        Row: {
+          booking_id: string
+          dismissed_at: string
+          dismissed_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_dismissals_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_log: {
         Row: {
           booking_id: string | null
           channel: string
           created_at: string | null
+          dedupe_key: string | null
           error_message: string | null
           group_id: string | null
           human_id: string | null
           id: string
+          message_text: string | null
+          provider_message_id: string | null
           sent_at: string | null
           status: string
           trigger_type: string
@@ -714,10 +898,13 @@ export type Database = {
           booking_id?: string | null
           channel: string
           created_at?: string | null
+          dedupe_key?: string | null
           error_message?: string | null
           group_id?: string | null
           human_id?: string | null
           id?: string
+          message_text?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
           status?: string
           trigger_type: string
@@ -726,10 +913,13 @@ export type Database = {
           booking_id?: string | null
           channel?: string
           created_at?: string | null
+          dedupe_key?: string | null
           error_message?: string | null
           group_id?: string | null
           human_id?: string | null
           id?: string
+          message_text?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
           status?: string
           trigger_type?: string
@@ -751,8 +941,50 @@ export type Database = {
           },
         ]
       }
+      retention_marks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dog_id: string
+          id: string
+          kind: string
+          reason: string | null
+          until: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dog_id: string
+          id?: string
+          kind: string
+          reason?: string | null
+          until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dog_id?: string
+          id?: string
+          kind?: string
+          reason?: string | null
+          until?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retention_marks_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salon_config: {
         Row: {
+          daily_dog_cap: number
           default_pickup_offset: number | null
           enforce_capacity: boolean | null
           enforce_server_capacity: boolean | null
@@ -764,6 +996,7 @@ export type Database = {
           whatsapp_provider: string
         }
         Insert: {
+          daily_dog_cap?: number
           default_pickup_offset?: number | null
           enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
@@ -775,6 +1008,7 @@ export type Database = {
           whatsapp_provider?: string
         }
         Update: {
+          daily_dog_cap?: number
           default_pickup_offset?: number | null
           enforce_capacity?: boolean | null
           enforce_server_capacity?: boolean | null
@@ -828,6 +1062,39 @@ export type Database = {
           },
         ]
       }
+      staff_alert_prefs: {
+        Row: {
+          cancellation: boolean
+          messages: boolean
+          new_booking: boolean
+          new_client: boolean
+          reschedule: boolean
+          updated_at: string
+          user_id: string
+          waitlist: boolean
+        }
+        Insert: {
+          cancellation?: boolean
+          messages?: boolean
+          new_booking?: boolean
+          new_client?: boolean
+          reschedule?: boolean
+          updated_at?: string
+          user_id: string
+          waitlist?: boolean
+        }
+        Update: {
+          cancellation?: boolean
+          messages?: boolean
+          new_booking?: boolean
+          new_client?: boolean
+          reschedule?: boolean
+          updated_at?: string
+          user_id?: string
+          waitlist?: boolean
+        }
+        Relationships: []
+      }
       staff_profiles: {
         Row: {
           created_at: string | null
@@ -858,6 +1125,42 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_push_subscriptions: {
+        Row: {
+          auth: string | null
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_used_at: string | null
+          p256dh: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth?: string | null
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string | null
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       waitlist_entries: {
         Row: {
           created_at: string | null
@@ -883,6 +1186,54 @@ export type Database = {
             columns: ["human_id"]
             isOneToOne: false
             referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_ai_action_audit: {
+        Row: {
+          action_kind: string
+          conversation_id: string
+          created_at: string
+          draft_id: string
+          id: string
+          outcome: string
+          payload: Json
+          reason: string | null
+        }
+        Insert: {
+          action_kind: string
+          conversation_id: string
+          created_at?: string
+          draft_id: string
+          id?: string
+          outcome: string
+          payload: Json
+          reason?: string | null
+        }
+        Update: {
+          action_kind?: string
+          conversation_id?: string
+          created_at?: string
+          draft_id?: string
+          id?: string
+          outcome?: string
+          payload?: Json
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_action_audit_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_action_audit_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_drafts"
             referencedColumns: ["id"]
           },
         ]
@@ -1203,6 +1554,99 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_flow_sessions: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          expires_at: string
+          flow_token: string
+          flow_type: string
+          human_id: string | null
+          phone_e164: string
+          screen: string | null
+          state: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          expires_at?: string
+          flow_token: string
+          flow_type?: string
+          human_id?: string | null
+          phone_e164: string
+          screen?: string | null
+          state?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          expires_at?: string
+          flow_token?: string
+          flow_type?: string
+          human_id?: string | null
+          phone_e164?: string
+          screen?: string | null
+          state?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_flow_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_flow_sessions_human_id_fkey"
+            columns: ["human_id"]
+            isOneToOne: false
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_manage_sessions: {
+        Row: {
+          action: string
+          candidate_visits: Json
+          conversation_id: string | null
+          created_at: string
+          expires_at: string
+          human_id: string
+          id: string
+          selected_key: string | null
+          status: string
+        }
+        Insert: {
+          action: string
+          candidate_visits?: Json
+          conversation_id?: string | null
+          created_at?: string
+          expires_at?: string
+          human_id: string
+          id?: string
+          selected_key?: string | null
+          status?: string
+        }
+        Update: {
+          action?: string
+          candidate_visits?: Json
+          conversation_id?: string | null
+          created_at?: string
+          expires_at?: string
+          human_id?: string
+          id?: string
+          selected_key?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           channel: string
@@ -1214,6 +1658,8 @@ export type Database = {
           event_id: string | null
           id: string
           in_reply_to_meta_id: string | null
+          media_mime: string | null
+          media_path: string | null
           meta_message_id: string | null
           raw: Json | null
           reaction_emoji: string | null
@@ -1232,6 +1678,8 @@ export type Database = {
           event_id?: string | null
           id?: string
           in_reply_to_meta_id?: string | null
+          media_mime?: string | null
+          media_path?: string | null
           meta_message_id?: string | null
           raw?: Json | null
           reaction_emoji?: string | null
@@ -1250,6 +1698,8 @@ export type Database = {
           event_id?: string | null
           id?: string
           in_reply_to_meta_id?: string | null
+          media_mime?: string | null
+          media_path?: string | null
           meta_message_id?: string | null
           raw?: Json | null
           reaction_emoji?: string | null
@@ -1323,27 +1773,17 @@ export type Database = {
     }
     Functions: {
       active_slots: { Args: never; Returns: string[] }
-      add_customer_trusted_human: {
-        Args: {
-          p_name: string
-          p_phone: string
-          p_relationship?: string
-          p_surname: string
-        }
-        Returns: {
-          id: string
-          name: string
-          phone: string
-          relationship: string
-          surname: string
-        }[]
-      }
+      active_slots_for: { Args: { p_date: string }; Returns: string[] }
       apply_whatsapp_booking_action: {
         Args: { p_action_id: string }
         Returns: string
       }
       approve_customer_signup: {
         Args: { p_human_id: string }
+        Returns: undefined
+      }
+      assert_booking_dog_not_pregnant: {
+        Args: { p_dog_id: string }
         Returns: undefined
       }
       booking_event_party: {
@@ -1354,14 +1794,135 @@ export type Database = {
           dog_name: string
         }[]
       }
+      cancel_customer_booking: {
+        Args: { p_booking_id: string; p_reason: string }
+        Returns: {
+          booking_group_id: string
+          cancelled_at: string
+          cancelled_booking_ids: string[]
+          cancelled_count: number
+          target_booking_id: string
+        }[]
+      }
+      cancel_whatsapp_booking_by_id: {
+        Args: { p_booking_id: string; p_human_id: string; p_reason?: string }
+        Returns: {
+          booking_ids: string[]
+          cancelled_count: number
+          group_id: string
+        }[]
+      }
+      cancel_whatsapp_booking_group: {
+        Args: { p_group_id: string; p_human_id: string; p_reason?: string }
+        Returns: {
+          booking_ids: string[]
+          cancelled_count: number
+          group_id: string
+        }[]
+      }
+      complete_customer_profile: {
+        Args: {
+          p_address: string
+          p_name: string
+          p_policies_version?: string
+          p_postcode?: string
+          p_surname: string
+        }
+        Returns: {
+          address: string
+          id: string
+          name: string
+          policies_accepted_at: string
+          policies_version: string
+          postcode: string
+          surname: string
+        }[]
+      }
       create_customer_booking_group: {
         Args: { p_booking_date: string; p_bookings: Json }
         Returns: {
           id: string
         }[]
       }
+      create_customer_dog: {
+        Args: {
+          p_breed?: string
+          p_human_id?: string
+          p_name: string
+          p_size?: string
+        }
+        Returns: {
+          breed: string
+          human_id: string
+          id: string
+          name: string
+          reported_size: string
+          size: string
+        }[]
+      }
       create_pending_customer: {
         Args: never
+        Returns: {
+          id: string
+        }[]
+      }
+      create_staff_booking_from_conversation: {
+        Args: { p_conversation_id: string; p_payload: Json }
+        Returns: string
+      }
+      create_staff_booking_group: {
+        Args: { p_booking_date: string; p_bookings: Json }
+        Returns: {
+          addons: string[] | null
+          booking_date: string
+          breed_snapshot: string | null
+          cancel_reason: string | null
+          chain_id: string | null
+          checked_in_at: string | null
+          completed_at: string | null
+          confirmation_channel: string
+          confirmed: boolean | null
+          created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          deposit_amount: number | null
+          dog_id: string
+          dog_name_snapshot: string | null
+          group_id: string | null
+          id: string
+          notes: string | null
+          notify_human_ids: string[] | null
+          owner_name_snapshot: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          payment: string | null
+          payment_method: string | null
+          pickup_by_id: string | null
+          price_override: number | null
+          ready_at: string | null
+          reminder_confirmed_at: string | null
+          service: string
+          size: string
+          slot: string
+          source: string | null
+          staff_capacity_override: boolean
+          staff_capacity_override_at: string | null
+          staff_capacity_override_by: string | null
+          status: string
+          updated_at: string | null
+          whatsapp_conversation_id: string | null
+          whatsapp_message_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      create_whatsapp_booking_group: {
+        Args: { p_booking_date: string; p_bookings: Json; p_human_id: string }
         Returns: {
           id: string
         }[]
@@ -1386,6 +1947,36 @@ export type Database = {
         Returns: boolean
       }
       customer_phone_on_file: { Args: { p_phone: string }; Returns: boolean }
+      dismiss_delivery_failure: {
+        Args: { p_booking_id: string }
+        Returns: undefined
+      }
+      get_blocked_seats: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          seat_index: number
+          setting_date: string
+          slot: string
+        }[]
+      }
+      get_dog_grooming_intervals: {
+        Args: never
+        Returns: {
+          dog_id: string
+          first_groomed_date: string
+          last_groomed_date: string
+          last_service: string
+          median_interval_days: number
+          visit_count: number
+        }[]
+      }
+      get_immediate_slots: {
+        Args: never
+        Returns: {
+          setting_date: string
+          slot: string
+        }[]
+      }
       get_large_dog_day_availability: {
         Args: { p_from: string; p_to: string }
         Returns: {
@@ -1398,6 +1989,14 @@ export type Database = {
         Returns: number
       }
       get_my_role: { Args: never; Returns: string }
+      get_occupancy_range: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          booking_date: string
+          size: string
+          slot: string
+        }[]
+      }
       get_open_days: {
         Args: { p_end: string; p_start: string }
         Returns: {
@@ -1464,9 +2063,40 @@ export type Database = {
           whatsapp: boolean
         }[]
       }
-      link_or_create_customer_human: {
-        Args: { p_email?: string; p_name?: string; p_phone: string }
-        Returns: Json
+      list_customer_trusted_humans: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          phone: string
+          relationship: string
+          surname: string
+        }[]
+      }
+      log_booking_denial: {
+        Args: {
+          p_alternative_shown?: boolean
+          p_alternative_taken?: boolean
+          p_dog_count?: number
+          p_human_id?: string
+          p_reason_code: string
+          p_reason_detail?: string
+          p_requested_date?: string
+          p_service?: string
+          p_size?: string
+          p_slot?: string
+          p_source?: string
+        }
+        Returns: string
+      }
+      log_funnel_event: {
+        Args: {
+          p_dog_count?: number
+          p_human_id?: string
+          p_session_id: string
+          p_step: string
+        }
+        Returns: undefined
       }
       mark_reminder_confirmed: {
         Args: { p_human_id: string }
@@ -1488,6 +2118,14 @@ export type Database = {
       replace_trusted_contacts: {
         Args: { p_contacts?: Json; p_human_id: string }
         Returns: undefined
+      }
+      resolve_event_actor: {
+        Args: { p_source?: string }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          actor_role: string
+        }[]
       }
       revoke_calendar_feed_token: {
         Args: { p_feed_type: string }
@@ -1532,6 +2170,31 @@ export type Database = {
           reason: string
         }[]
       }
+      update_customer_contact_details: {
+        Args: {
+          p_address: string
+          p_email?: string
+          p_fb?: string
+          p_insta?: string
+          p_name: string
+          p_postcode?: string
+          p_surname: string
+          p_tiktok?: string
+          p_whatsapp?: boolean
+        }
+        Returns: {
+          address: string
+          email: string
+          fb: string
+          id: string
+          insta: string
+          name: string
+          postcode: string
+          surname: string
+          tiktok: string
+          whatsapp: boolean
+        }[]
+      }
       update_customer_dog: {
         Args: {
           p_breed?: string
@@ -1546,6 +2209,7 @@ export type Database = {
           human_id: string
           id: string
           name: string
+          reported_size: string
           size: string
         }[]
       }

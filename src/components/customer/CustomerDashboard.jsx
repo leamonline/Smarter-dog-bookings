@@ -16,6 +16,10 @@ import { friendlySaveError } from "../../utils/friendlyError";
 import { PawPrint, MessageCircle, Mail } from "lucide-react";
 import { BOOKING_STATUS } from "../../constants/salon";
 import {
+  listCustomerTrustedHumans,
+  updateCustomerContactDetails,
+} from "../../supabase/rpc";
+import {
   SALON_PHONE_DISPLAY,
   SALON_WHATSAPP_URL,
   SALON_EMAIL,
@@ -45,7 +49,6 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
   const [hasMorePast, setHasMorePast] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [details, setDetails] = useState({
     name: humanRecord?.name || "",
     surname: humanRecord?.surname || "",
@@ -128,19 +131,11 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           if (!cancelled) setHasMorePast((count || 0) > 0);
         }
 
-        const { data: trustedLinks, error: trustedErr } = await supabase
-          .from("human_trusted_contacts")
-          .select("trusted_id, relationship, humans!human_trusted_contacts_trusted_id_fkey(id, name, surname, phone)")
-          .eq("human_id", humanRecord.id);
+        const { data: trustedLinks, error: trustedErr } =
+          await listCustomerTrustedHumans(supabase);
         if (trustedErr) throw trustedErr;
 
-        if (!cancelled && trustedLinks) {
-          setTrustedHumans(
-            trustedLinks
-              .map(link => link.humans ? { ...link.humans, relationship: link.relationship || "" } : null)
-              .filter(Boolean)
-          );
-        }
+        if (!cancelled) setTrustedHumans(trustedLinks || []);
       } catch (err) {
         logger.error("CustomerDashboard fetch failed", err, {
           tags: { component: "CustomerDashboard", op: "fetchData" },
@@ -153,25 +148,23 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     }
     fetchData();
     return () => { cancelled = true; };
-  }, [humanRecord, refreshKey]);
+  }, [humanRecord]);
 
   const handleSave = useCallback(async () => {
     if (!supabase || !humanRecord?.id) return;
     setSaving(true);
     setSaveError(null);
-    const { error: err } = await supabase
-      .from("humans")
-      .update({
-        name: details.name,
-        surname: details.surname,
-        address: details.address,
-        email: details.email,
-        whatsapp: details.whatsapp,
-        fb: details.fb,
-        insta: details.insta,
-        tiktok: details.tiktok,
-      })
-      .eq("id", humanRecord.id);
+    const { error: err } = await updateCustomerContactDetails(supabase, {
+      name: details.name,
+      surname: details.surname,
+      address: details.address,
+      postcode: humanRecord?.postcode ?? null,
+      email: details.email,
+      whatsapp: details.whatsapp,
+      fb: details.fb,
+      insta: details.insta,
+      tiktok: details.tiktok,
+    });
     setSaving(false);
     if (err) {
       // Inline saveError is the primary feedback channel — it persists
@@ -276,7 +269,28 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
     return map;
   }, [pastBookings]);
 
-  const refreshBookings = () => setRefreshKey(k => k + 1);
+  const refreshBookings = useCallback(async () => {
+    if (!supabase) throw new Error("Customer bookings are unavailable");
+    const dogIds = dogs.map((dog) => dog.id);
+    if (dogIds.length === 0) {
+      setBookings([]);
+      return;
+    }
+
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 180);
+    const pastStr = toDateStr(pastDate);
+    const { data, error: refreshError } = await supabase
+      .from("bookings")
+      .select("*, dogs(name, breed, size)")
+      .in("dog_id", dogIds)
+      .gte("booking_date", pastStr)
+      .order("booking_date", { ascending: false })
+      .order("slot", { ascending: false });
+
+    if (refreshError) throw refreshError;
+    setBookings(data || []);
+  }, [dogs]);
 
   if (loading) {
     return (
@@ -393,15 +407,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
               }
             />
 
-            <TrustedHumansSection
-              dogName={dogs[0]?.name || "your pup"}
-              trustedHumans={trustedHumans}
-              onAdded={(row) =>
-                setTrustedHumans(prev =>
-                  prev.some(t => t.id === row.id) ? prev : [...prev, row]
-                )
-              }
-            />
+            <TrustedHumansSection trustedHumans={trustedHumans} />
           </div>
 
           {/* Past appointments — collapsed by default. */}

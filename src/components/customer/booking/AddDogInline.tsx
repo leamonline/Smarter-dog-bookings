@@ -82,7 +82,7 @@ export function AddDogInline({ humanId, onDogAdded, onCancel }: AddDogInlineProp
         />
         {breed && getSizeForBreed(breed) && (
           <span className="text-xs text-[var(--sd-cyan-dark)]">
-            Size auto-set: {getSizeForBreed(breed)}
+            Estimated size: {getSizeForBreed(breed)} — we’ll confirm this before online booking.
           </span>
         )}
       </div>
