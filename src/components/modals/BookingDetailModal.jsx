@@ -18,6 +18,7 @@ import {
   getHumanByIdOrName,
   normalizeServiceForSize,
   computeBookingPricing,
+  validateDepositAmount,
 } from "../../engine/bookingRules";
 import { toDateStr } from "../../supabase/transforms";
 import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
@@ -239,19 +240,14 @@ export function BookingDetailModal({
   // Autosave — lightweight save of booking fields while editing
   const autosaveFn = useCallback(async () => {
     if (!editData.slot) return;
-    if (
-      editData.payment === "Deposit Paid" &&
-      Number(editData.depositAmount) <= 0
-    ) {
-      setSaveError("Enter a deposit above £0");
-      return;
-    }
-    if (
-      editData.payment === "Deposit Paid" &&
-      Number(editData.depositAmount) >= pricing.subtotal
-    ) {
-      setSaveError("Deposit must be less than the booking total");
-      return;
+    const depositValidationError = validateDepositAmount(
+      editData.payment,
+      editData.depositAmount,
+      pricing.subtotal,
+    );
+    if (depositValidationError) {
+      setSaveError(depositValidationError);
+      throw new Error(depositValidationError);
     }
     const newDateStr = toDateStr(editData.date);
     // Resolve the chosen pick-up once and persist BOTH name and id — see the

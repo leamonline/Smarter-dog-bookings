@@ -5,6 +5,7 @@ import {
   getHumanByIdOrName,
   getServicePriceAmount,
   normalizeServiceForSize,
+  validateDepositAmount,
   type PricingConfig,
 } from "../engine/bookingRules";
 import { formatFullDate } from "../engine/utils";
@@ -196,20 +197,14 @@ export function useBookingSave({
         priceOverride: editedPrice,
         configPricing,
       }).subtotal;
-      if (
-        editData.payment === "Deposit Paid" &&
-        Number(editData.depositAmount) <= 0
-      ) {
+      const depositValidationError = validateDepositAmount(
+        editData.payment,
+        editData.depositAmount,
+        editedSubtotal,
+      );
+      if (depositValidationError) {
         setSaving(false);
-        setSaveError("Enter a deposit above £0");
-        return;
-      }
-      if (
-        editData.payment === "Deposit Paid" &&
-        Number(editData.depositAmount) >= editedSubtotal
-      ) {
-        setSaving(false);
-        setSaveError("Deposit must be less than the booking total");
+        setSaveError(depositValidationError);
         return;
       }
       const usualPrice =

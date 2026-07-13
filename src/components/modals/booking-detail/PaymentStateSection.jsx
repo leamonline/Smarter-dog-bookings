@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BOOKING_STATUS, PAYMENT_METHODS, paymentMethodLabel } from "../../../constants/salon";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { buildMarkPaidPatch } from "../../../engine/bookingRules";
+import { buildMarkPaidPatch, validateDepositAmount } from "../../../engine/bookingRules";
 import { DetailRow, FinanceLabel, MODAL_INPUT_CLS } from "./shared.jsx";
 
 const PAYMENT_CONTROL_CLS = `${MODAL_INPUT_CLS} min-h-11 focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2`;
@@ -19,6 +19,11 @@ export function PaymentStateSection({
   const [savingMethod, setSavingMethod] = useState(null);
   const subtotal = Number(pricing?.subtotal) || 0;
   const maximumDeposit = Math.max(0, Math.round((subtotal - 0.01) * 100) / 100);
+  const depositValidationError = validateDepositAmount(
+    editData?.payment,
+    editData?.depositAmount,
+    subtotal,
+  );
 
   if (isEditing) {
     return (
@@ -39,10 +44,6 @@ export function PaymentStateSection({
                     payment === "Paid in Full"
                       ? previous.paidAmount ?? pricing?.subtotal ?? null
                       : previous.paidAmount,
-                  depositAmount:
-                    payment === "Deposit Paid"
-                      ? Math.min(Number(previous.depositAmount) || 0, maximumDeposit)
-                      : previous.depositAmount,
                 }));
               }}
               className={PAYMENT_CONTROL_CLS}
@@ -112,26 +113,32 @@ export function PaymentStateSection({
             label={<FinanceLabel text="Deposit Amount" />}
             value={`£${editData.depositAmount}`}
             editNode={
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold">£</span>
-                <input
-                  aria-label="Deposit amount"
-                  type="number"
-                  min="0"
-                  max={maximumDeposit}
-                  step="0.01"
-                  value={editData.depositAmount}
-                  onChange={(event) =>
-                    setEditData((previous) => ({
-                      ...previous,
-                      depositAmount: Math.max(
-                        0,
-                        Math.min(Number(event.target.value), maximumDeposit),
-                      ),
-                    }))
-                  }
-                  className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
-                />
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold">£</span>
+                  <input
+                    aria-label="Deposit amount"
+                    aria-invalid={depositValidationError ? "true" : undefined}
+                    aria-describedby={depositValidationError ? "deposit-amount-error" : undefined}
+                    type="number"
+                    min="0"
+                    max={maximumDeposit}
+                    step="0.01"
+                    value={editData.depositAmount}
+                    onChange={(event) =>
+                      setEditData((previous) => ({
+                        ...previous,
+                        depositAmount: Number(event.target.value),
+                      }))
+                    }
+                    className="min-h-11 w-20 px-3 py-2 rounded-lg border border-slate-200 text-[13px] outline-none font-inherit text-slate-800 box-border focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                  />
+                </div>
+                {depositValidationError && (
+                  <p id="deposit-amount-error" className="text-[12px] font-semibold text-brand-coral text-right">
+                    {depositValidationError}
+                  </p>
+                )}
               </div>
             }
             isEditing

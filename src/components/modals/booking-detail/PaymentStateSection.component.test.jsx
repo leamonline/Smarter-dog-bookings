@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
@@ -45,6 +46,28 @@ function renderEditingSection({ booking = baseBooking, pricing, editData, setEdi
         currentDateStr="2026-07-13"
       />
     </ToastProvider>,
+  );
+}
+
+function EditablePaymentHarness({ pricing }) {
+  const [editData, setEditData] = useState({
+    payment: "Deposit Paid",
+    paymentMethod: "card",
+    paidAmount: null,
+    depositAmount: 10,
+  });
+  return (
+    <ToastProvider>
+      <PaymentStateSection
+        booking={{ ...baseBooking, payment: "Deposit Paid", depositAmount: 10 }}
+        pricing={pricing}
+        isEditing
+        editData={editData}
+        setEditData={setEditData}
+        onUpdate={vi.fn()}
+        currentDateStr="2026-07-13"
+      />
+    </ToastProvider>
   );
 }
 
@@ -224,5 +247,17 @@ describe("PaymentStateSection", () => {
     expect(control).toHaveAttribute("max", "45.99");
     expect(control).toHaveClass("min-h-11");
     expect(control.className).toContain("focus-visible:ring");
+  });
+
+  it("keeps an exact-total deposit as entered and surfaces shared validation", () => {
+    render(<EditablePaymentHarness pricing={{ subtotal: 46, amountDue: 36 }} />);
+
+    const control = screen.getByRole("spinbutton", { name: "Deposit amount" });
+    fireEvent.change(control, { target: { value: "46" } });
+
+    expect(control).toHaveValue(46);
+    expect(control).not.toHaveValue(45.99);
+    expect(control).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Deposit must be less than the booking total")).toBeInTheDocument();
   });
 });
