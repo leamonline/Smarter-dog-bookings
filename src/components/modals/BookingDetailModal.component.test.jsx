@@ -149,6 +149,23 @@ describe("BookingDetailModal", () => {
     expect(screen.getAllByRole("combobox").length).toBeGreaterThan(0);
   });
 
+  it("passes humans to the appointment pick-up field", () => {
+    const dave = {
+      ...human,
+      id: "human-2",
+      fullName: "Dave Smith",
+      name: "Dave",
+      surname: "Smith",
+    };
+    const sarah = { ...human, trustedIds: ["human-2"] };
+
+    renderModal({ humans: { "Sarah Jones": sarah, "Dave Smith": dave } });
+    fireEvent.click(screen.getByRole("button", { name: "Edit booking" }));
+
+    const pickupSelect = screen.getByRole("combobox", { name: "Pick-up person" });
+    expect(within(pickupSelect).getByRole("option", { name: "Dave Smith" })).toHaveValue("human-2");
+  });
+
   // Regression: changing the pick-up human must persist the NEW human's id,
   // not the stale one carried over by the `...booking` spread. updateBooking
   // resolves pickup_by_id from `_pickupById` first, so the save mapper has to

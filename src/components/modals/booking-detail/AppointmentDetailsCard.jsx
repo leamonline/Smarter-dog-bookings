@@ -9,6 +9,7 @@ import { titleCase } from "../../../utils/text";
 import { CalendarDays, AlertTriangle } from "lucide-react";
 import { DetailRow, LogisticsLabel, Row } from "./shared.jsx";
 import { PanelShell } from "../shell/index.js";
+import { PickupPersonField } from "./PickupPersonField.jsx";
 
 /**
  * Card 1 of the booking detail surface: appointment summary. Edit mode
@@ -24,6 +25,7 @@ export function AppointmentDetailsCard({
   setEditData,
   setSaveError,
   currentDateObj,
+  humans,
   primaryHuman,
   onOpenHuman,
   onOpenDatePicker,
@@ -130,6 +132,14 @@ export function AppointmentDetailsCard({
           value={titleCase(booking.owner)}
           isEditing={isEditing}
         />
+        <PickupPersonField
+          booking={booking}
+          editData={editData}
+          setEditData={setEditData}
+          humans={humans}
+          primaryHuman={primaryHuman}
+          isEditing={isEditing}
+        />
         <DetailRow
           label={<LogisticsLabel text="Grooming Notes" />}
           value={<span style={{ whiteSpace: "pre-wrap" }}>{editData.groomNotes || "Standard groom (no specific notes)"}</span>}
@@ -152,6 +162,14 @@ export function AppointmentDetailsCard({
         label="Owner"
         value={titleCase(booking.owner)}
         onClick={() => onOpenHuman?.(primaryHuman?.id || booking._ownerId || booking.owner)}
+      />
+      <PickupPersonField
+        booking={booking}
+        editData={editData}
+        setEditData={setEditData}
+        humans={humans}
+        primaryHuman={primaryHuman}
+        isEditing={isEditing}
       />
       <Row
         label="Grooming Notes"

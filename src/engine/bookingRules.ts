@@ -115,6 +115,22 @@ export function computeBookingPricing(input: BookingPricingInput): BookingPricin
   };
 }
 
+/**
+ * Deposit Paid represents a genuine part-payment. Keep one validation rule
+ * and one set of staff-facing copy across edit hints, autosave and manual save.
+ */
+export function validateDepositAmount(
+  payment: string | null | undefined,
+  depositAmount: number | null | undefined,
+  subtotal: number,
+): string | null {
+  if (payment !== "Deposit Paid") return null;
+  const amount = Number(depositAmount);
+  if (!Number.isFinite(amount) || amount <= 0) return "Enter a deposit above £0";
+  if (amount >= Number(subtotal)) return "Deposit must be less than the booking total";
+  return null;
+}
+
 export interface MarkPaidPatch {
   payment: "Paid in Full";
   paymentMethod: string | null;

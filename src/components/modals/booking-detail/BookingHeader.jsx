@@ -61,32 +61,13 @@ export function BookingHeader({
   const openDog = () =>
     onOpenDog?.(dogData?.id || booking._dogId || booking.dogName);
 
-  // Price echoed beside the title, mirroring the dashboard card: the full
-  // appointment value for every payment state, with the payment status as
-  // a smaller secondary — "£X due" when a deposit has been taken, or a
-  // "Paid" chip when settled.
+  // Price echoed beside the title, mirroring the dashboard card. Payment
+  // state belongs to the Services & payment card below.
   const renderPrice = () => {
     if (!pricing || pricing.subtotal <= 0) return null;
     return (
-      <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums">
-        <span className="text-[15px] font-bold text-slate-800">
-          {"£"}{pricing.subtotal}
-        </span>
-        {pricing.isPaidInFull ? (
-          <span
-            className="text-[11px] font-bold text-brand-green-700 bg-brand-green-50 border border-brand-green-200 px-1.5 py-0.5 rounded-md"
-            title={`Paid in full (£${pricing.subtotal})`}
-          >
-            Paid
-          </span>
-        ) : pricing.isDepositPaid ? (
-          <span
-            className="text-[12px] font-semibold text-slate-500"
-            title={`£${pricing.amountDue} due at pick-up (deposit of £${pricing.depositPaid} paid)`}
-          >
-            {"£"}{pricing.amountDue} due
-          </span>
-        ) : null}
+      <span className="text-[15px] font-bold text-slate-800 whitespace-nowrap tabular-nums">
+        £{pricing.subtotal}
       </span>
     );
   };

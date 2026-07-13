@@ -116,6 +116,44 @@ describe("useBookingSave price semantics", () => {
     expect(params.onUpdateDog).not.toHaveBeenCalled();
     expect(params.onUpdate).not.toHaveBeenCalled();
   });
+
+  it.each([42, 50])("rejects a £%s deposit that covers or exceeds the booking total", async (depositAmount) => {
+    const params = makeParams({
+      editData: {
+        ...makeParams().editData,
+        payment: "Deposit Paid",
+        depositAmount,
+      },
+    });
+    const { result } = renderHook(() => useBookingSave(params));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(params.setSaveError).toHaveBeenCalledWith("Deposit must be less than the booking total");
+    expect(params.onUpdateDog).not.toHaveBeenCalled();
+    expect(params.onUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each([0, -5])("rejects a non-positive £%s deposit", async (depositAmount) => {
+    const params = makeParams({
+      editData: {
+        ...makeParams().editData,
+        payment: "Deposit Paid",
+        depositAmount,
+      },
+    });
+    const { result } = renderHook(() => useBookingSave(params));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(params.setSaveError).toHaveBeenCalledWith("Enter a deposit above £0");
+    expect(params.onUpdateDog).not.toHaveBeenCalled();
+    expect(params.onUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe("useBookingSave result handling", () => {

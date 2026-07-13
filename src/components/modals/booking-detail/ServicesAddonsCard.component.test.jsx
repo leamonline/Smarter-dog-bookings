@@ -75,3 +75,26 @@ describe("ServicesAddonsCard price hint (#307) and one-off price tick", () => {
     expect(screen.getByText("Standard price")).toBeInTheDocument();
   });
 });
+
+describe("ServicesAddonsCard embedded mode", () => {
+  it("returns service fields without a nested region in embedded mode", () => {
+    render(
+      <ServicesAddonsCard
+        booking={{ size: "medium", service: "full-groom", dogName: "Freddie" }}
+        isEditing={false}
+        editData={{ service: "full-groom", price: 46, saveAsUsual: false, addons: [] }}
+        setEditData={vi.fn()}
+        setSaveError={vi.fn()}
+        dogData={{}}
+        allowedServices={[{ id: "full-groom", name: "Full Groom" }]}
+        sizeTheme={{ primary: "#006B5E" }}
+        pricing={{ basePrice: 46, subtotal: 46, amountDue: 46 }}
+        activeAddons={[]}
+        embedded
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "Services & add-ons" })).not.toBeInTheDocument();
+    expect(screen.getByText("Full Groom")).toBeInTheDocument();
+  });
+});
