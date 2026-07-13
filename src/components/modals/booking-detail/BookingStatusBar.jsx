@@ -94,6 +94,10 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                       currentDateStr,
                     ),
                   );
+                } catch {
+                  // onUpdate owns the existing error-reporting path. Absorb
+                  // the rejection here so the async click handler does not
+                  // create an unhandled rejection or show false success UI.
                 } finally {
                   setSavingStatus(null);
                 }
