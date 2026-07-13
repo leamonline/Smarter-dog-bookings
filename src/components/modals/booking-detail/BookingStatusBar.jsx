@@ -95,9 +95,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
                     ),
                   );
                 } catch {
-                  // onUpdate owns the existing error-reporting path. Absorb
-                  // the rejection here so the async click handler does not
-                  // create an unhandled rejection or show false success UI.
+                  toast.show("Couldn't update status — try again", "error");
                 } finally {
                   setSavingStatus(null);
                 }

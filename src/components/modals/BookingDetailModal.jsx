@@ -239,6 +239,20 @@ export function BookingDetailModal({
   // Autosave — lightweight save of booking fields while editing
   const autosaveFn = useCallback(async () => {
     if (!editData.slot) return;
+    if (
+      editData.payment === "Deposit Paid" &&
+      Number(editData.depositAmount) <= 0
+    ) {
+      setSaveError("Enter a deposit above £0");
+      return;
+    }
+    if (
+      editData.payment === "Deposit Paid" &&
+      Number(editData.depositAmount) >= pricing.subtotal
+    ) {
+      setSaveError("Deposit must be less than the booking total");
+      return;
+    }
     const newDateStr = toDateStr(editData.date);
     // Resolve the chosen pick-up once and persist BOTH name and id — see the
     // note in useBookingSave: updateBooking reads pickup_by_id from
@@ -262,7 +276,7 @@ export function BookingDetailModal({
       currentDateStr,
       newDateStr,
     );
-  }, [editData, booking, humans, currentDateStr, onUpdate]);
+  }, [editData, booking, humans, currentDateStr, onUpdate, pricing.subtotal, setSaveError]);
 
   const { status: autosaveStatus } = useAutosave(
     editData,

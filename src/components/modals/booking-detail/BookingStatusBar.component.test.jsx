@@ -224,37 +224,29 @@ describe("BookingStatusBar update safety", () => {
   });
 
   it("handles a rejected update without leaking success or leaving controls disabled", async () => {
-    const unhandledRejection = vi.fn();
-    process.on("unhandledRejection", unhandledRejection);
     const onUpdate = vi.fn().mockRejectedValue(new Error("save failed"));
+    render(
+      <BookingStatusBar
+        booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
+        currentDateStr="2026-07-13"
+        onUpdate={onUpdate}
+      />,
+    );
 
-    try {
-      render(
-        <BookingStatusBar
-          booking={{ id: "b1", status: BOOKING_STATUS.BOOKED }}
-          currentDateStr="2026-07-13"
-          onUpdate={onUpdate}
-        />,
-      );
-
-      await userEvent.click(
-        screen.getByRole("radio", { name: /set status to checked in/i }),
-      );
-      await waitFor(() => {
-        screen.getAllByRole("radio").forEach((control) => {
-          expect(control).toBeEnabled();
-        });
+    await userEvent.click(
+      screen.getByRole("radio", { name: /set status to checked in/i }),
+    );
+    await waitFor(() => {
+      screen.getAllByRole("radio").forEach((control) => {
+        expect(control).toBeEnabled();
       });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-      expect(unhandledRejection).not.toHaveBeenCalled();
-      expect(showToast).not.toHaveBeenCalled();
-      expect(screen.getByRole("status")).toHaveTextContent("");
-      expect(
-        screen.getByRole("radio", { name: /set status to booked/i }),
-      ).toBeChecked();
-    } finally {
-      process.off("unhandledRejection", unhandledRejection);
-    }
+    expect(showToast).toHaveBeenCalledWith("Couldn't update status — try again", "error");
+    expect(showToast).not.toHaveBeenCalledWith(expect.stringMatching(/saved/i), expect.anything(), expect.anything());
+    expect(screen.getByRole("status")).toHaveTextContent("");
+    expect(
+      screen.getByRole("radio", { name: /set status to booked/i }),
+    ).toBeChecked();
   });
 });
