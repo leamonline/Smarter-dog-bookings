@@ -6,11 +6,11 @@ import { IconMessage } from "../../icons/index.jsx";
 /**
  * Card 3 of the booking detail surface: the "are you still coming?" reminder.
  *
- * Everything visible — the card tint, the status icon, the status text and
- * which reminder action is offered — is driven off a SINGLE source of truth:
- * `booking.reminderState` (none | sent | read | confirmed). That value is
- * mirrored onto the root as `data-state` and looked up in STATE_CONFIG, so
- * wiring this to the backend later is just "make reminderState change".
+ * Reminder status treatment — the card tint, status icon, status text and
+ * reminder action — is driven by `booking.reminderState`
+ * (none | sent | read | confirmed). That value is mirrored onto the root as
+ * `data-state` and looked up in STATE_CONFIG. Collection-message priority is
+ * separate and derives from the grooming status.
  *
  * Pick-up messaging is kept deliberately separate from the reminder status
  * (a distinct "Message …" action), so "we told them it's ready" never gets
@@ -108,7 +108,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
     <button
       type="button"
       onClick={onSendReminder}
-      className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+      className="inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full border-none bg-brand-purple text-white text-[13px] font-bold cursor-pointer font-inherit transition-colors hover:bg-brand-purple-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
     >
       <Send size={13} aria-hidden="true" />
       Send reminder
@@ -122,7 +122,7 @@ export function ReminderCard({ booking, pickupHuman, isEditing, onSendReminder }
       )}`}
       aria-label={`Send pickup-ready SMS to ${pickupName}`}
       data-priority={isReady ? "primary" : "secondary"}
-      className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full text-[13px] font-bold no-underline cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+      className={`inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2 max-sm:w-full rounded-full text-[13px] font-bold no-underline cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
         isReady
           ? "border-none bg-brand-purple text-white hover:bg-brand-purple-light focus-visible:ring-brand-purple"
           : "border-[1.5px] border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-300"
