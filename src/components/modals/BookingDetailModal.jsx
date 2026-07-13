@@ -371,6 +371,7 @@ export function BookingDetailModal({
             setEditData={setEditData}
             setSaveError={setSaveError}
             currentDateObj={currentDateObj}
+            humans={humans}
             primaryHuman={primaryHuman}
             onOpenHuman={onOpenHuman}
             onOpenDatePicker={() => setShowDatePicker(true)}

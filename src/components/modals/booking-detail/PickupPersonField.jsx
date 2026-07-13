@@ -11,15 +11,30 @@ function buildPickupOptions({ booking, editData, humans, primaryHuman }) {
   const ownerId = primaryHuman?.id || booking._ownerId || booking.owner;
   const values = [ownerId, ...(primaryHuman?.trustedIds || [])].filter(Boolean);
   const currentValue = editData.pickupBy || booking.pickupBy || booking.owner;
-  if (currentValue && !values.includes(currentValue)) values.unshift(currentValue);
+  const currentHuman = getHumanByIdOrName(humans, currentValue);
+  const currentIdentity = currentHuman?.id || currentValue;
+  const seen = new Set();
+  const options = [];
 
-  return [...new Set(values)].map((value) => {
+  for (const value of values) {
     const human = getHumanByIdOrName(humans, value);
-    return {
-      value: human?.id || value,
+    const identity = human?.id || value;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    options.push({
+      value: identity === currentIdentity ? currentValue : human?.id || value,
       label: titleCase(human?.fullName || `${human?.name || ""} ${human?.surname || ""}`.trim() || value),
-    };
-  });
+    });
+  }
+
+  if (currentValue && !seen.has(currentIdentity)) {
+    options.unshift({
+      value: currentValue,
+      label: titleCase(currentHuman?.fullName || currentValue),
+    });
+  }
+
+  return options;
 }
 
 export function PickupPersonField({ booking, editData, setEditData, humans, primaryHuman, isEditing }) {
@@ -40,7 +55,7 @@ export function PickupPersonField({ booking, editData, setEditData, humans, prim
           aria-label="Pick-up person"
           value={editData.pickupBy}
           onChange={(event) => setEditData((previous) => ({ ...previous, pickupBy: event.target.value }))}
-          className={MODAL_INPUT_CLS}
+          className={`${MODAL_INPUT_CLS} min-h-11 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2`}
         >
           {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>

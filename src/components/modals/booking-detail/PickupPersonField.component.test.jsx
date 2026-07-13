@@ -22,4 +22,18 @@ describe("PickupPersonField", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Pick-up person" }), "owner");
     expect(editData.pickupBy).toBe("owner");
   });
+
+  it("preserves a saved name exactly when the same person is also trusted", async () => {
+    let editData = { pickupBy: "Sam Jones" };
+    const setEditData = vi.fn((update) => { editData = update(editData); });
+    render(<PickupPersonField booking={{ owner: "Tom Clark", pickupBy: "Sam Jones" }} editData={editData} humans={humans} primaryHuman={humans.owner} isEditing setEditData={setEditData} />);
+
+    const select = screen.getByRole("combobox", { name: "Pick-up person" });
+    expect(select).toHaveValue("Sam Jones");
+    expect(screen.getAllByRole("option", { name: "Sam Jones" })).toHaveLength(1);
+    expect(select).toHaveClass("min-h-11", "focus-visible:ring-2", "focus-visible:ring-brand-purple", "focus-visible:ring-offset-2");
+
+    await userEvent.selectOptions(select, "owner");
+    expect(editData.pickupBy).toBe("owner");
+  });
 });
