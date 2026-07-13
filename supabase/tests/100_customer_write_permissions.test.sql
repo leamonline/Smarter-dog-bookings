@@ -230,7 +230,7 @@ select is(
 
 -- Dog writes: customers may use the narrow RPCs, but cannot insert raw rows or
 -- promote their reported size to the staff-authoritative dogs.size column.
-reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated"}',
@@ -265,7 +265,7 @@ select ok(
   'create_customer_dog keeps size unconfirmed and stores reported_size'
 );
 
-reset role;
+set local role postgres;
 update public.dogs
 set id = '1a000000-0000-4000-8000-000000000001',
     size = 'medium'
@@ -317,7 +317,7 @@ select ok(
 
 -- Self-signup accepts only one pending self_signup shell. Dog size remains
 -- unverified until staff set dogs.size, and an approved shell cannot submit.
-reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000021","role":"authenticated"}',
@@ -351,7 +351,7 @@ select throws_ok(
   'a submitted self-signup shell cannot submit again'
 );
 
-reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000031","role":"authenticated"}',
@@ -371,7 +371,7 @@ select throws_ok(
 
 -- Staff cannot approve a signup while any active owned dog lacks a confirmed
 -- size. The caller-provided booking JSON likewise cannot bypass that null.
-reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000041","role":"authenticated"}',
@@ -388,7 +388,7 @@ select throws_ok(
   'staff cannot approve a signup with an unconfirmed active dog size'
 );
 
-reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated"}',
@@ -449,7 +449,7 @@ select throws_ok(
   'invalid dog UUID text is rejected with the public input SQLSTATE'
 );
 
-reset role;
+set local role postgres;
 select set_config('request.jwt.claims', '', true);
 set local role anon;
 
@@ -471,6 +471,6 @@ select throws_ok(
   'anon cannot execute complete_customer_profile'
 );
 
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

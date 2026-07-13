@@ -71,6 +71,7 @@ jobs:
 
           cat > /tmp/prod-baseline.sql <<'SQL'
           ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
           SQL
           cat /tmp/prod-schema.sql >> /tmp/prod-baseline.sql
 
@@ -119,8 +120,4 @@ jobs:
         run: |
           set -euo pipefail
           test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
-          supabase test db --linked \
-            supabase/tests/100_customer_write_permissions.test.sql \
-            supabase/tests/120_trusted_contact_lock.test.sql \
-            supabase/tests/110_customer_cancellation.test.sql \
-            supabase/tests/115_customer_cancellation_concurrency.test.sql
+          scripts/run-hosted-pgtap.sh "$STAGING_PROJECT_REF"

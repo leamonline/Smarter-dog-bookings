@@ -119,7 +119,7 @@ select is(
   'the blocked insert creates no new trusted-contact link'
 );
 
-reset role;
+set local role postgres;
 select set_config('request.jwt.claims', '', true);
 set local role anon;
 
@@ -130,6 +130,6 @@ select throws_ok(
   'anon cannot execute the customer trusted-human read function'
 );
 
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

@@ -280,7 +280,7 @@ select throws_ok(
   'a cancellation reason longer than 500 characters is rejected'
 );
 
-reset role;
+set local role postgres;
 update public.salon_config
 set settings = '{"minCancellationHours":24,"customerPortal":{"allowCancellations":false}}'::jsonb;
 set local role authenticated;
@@ -293,7 +293,7 @@ select throws_ok(
   'disabled online cancellation is enforced server-side'
 );
 
-reset role;
+set local role postgres;
 update public.salon_config
 set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
 set local role authenticated;
@@ -313,7 +313,7 @@ select throws_ok(
   'a request one microsecond after the London deadline is rejected'
 );
 
-reset role;
+set local role postgres;
 update public.salon_config set settings = '{}'::jsonb;
 set local role authenticated;
 
@@ -332,7 +332,7 @@ select throws_ok(
   'missing cancellation settings reject one microsecond inside the default 24-hour deadline'
 );
 
-reset role;
+set local role postgres;
 update public.salon_config
 set settings = '{"minCancellationHours":"invalid","customerPortal":{"allowCancellations":"invalid"}}'::jsonb;
 set local role authenticated;
@@ -352,7 +352,7 @@ select throws_ok(
   'malformed cancellation settings reject one microsecond inside the default 24-hour deadline'
 );
 
-reset role;
+set local role postgres;
 update public.salon_config
 set settings = '{"minCancellationHours":48,"customerPortal":{"allowCancellations":true}}'::jsonb;
 
@@ -370,7 +370,7 @@ select throws_ok(
   'duplicate cancellation configuration fails closed'
 );
 
-reset role;
+set local role postgres;
 delete from public.salon_config
 where id = '46000000-0000-4000-8000-000000000001';
 set local role authenticated;
@@ -447,7 +447,7 @@ select results_eq(
   'cancellation preserves every non-cancellation field including trigger-managed audit data'
 );
 
-reset role;
+set local role postgres;
 update public.bookings
    set group_id = '44000000-0000-4000-8000-000000000099'
  where id = '43000000-0000-4000-8000-000000000002';
@@ -494,7 +494,7 @@ select throws_ok(
   'mixed ownership inside a stored group fails closed'
 );
 
-reset role;
+set local role postgres;
 select ok(
   (select count(*) = 2
           and bool_and(status = 'Booked')
@@ -511,7 +511,7 @@ select * from public.cancel_customer_booking(
   '43000000-0000-4000-8000-000000000050', 'Changed plans'
 );
 
-reset role;
+set local role postgres;
 update public.bookings
    set status = 'Booked', cancel_reason = null
  where id = '43000000-0000-4000-8000-000000000050';
@@ -528,7 +528,7 @@ select throws_ok(
   'an old receipt is not replayed after reactivation and same-reason recancellation'
 );
 
-reset role;
+set local role postgres;
 update public.bookings
    set status = 'Booked', cancel_reason = null
  where id = '43000000-0000-4000-8000-000000000050';
@@ -579,7 +579,7 @@ select ok(
   'the booking still exists after the blocked raw delete'
 );
 
-reset role;
+set local role postgres;
 select set_config('request.jwt.claims', '', true);
 set local role anon;
 
@@ -591,6 +591,6 @@ select throws_ok(
   'anon cannot execute the customer cancellation function'
 );
 
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

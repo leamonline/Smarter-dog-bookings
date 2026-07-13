@@ -25,6 +25,13 @@ instead:
 Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 `supabase/config.toml`.
 
+The guarded Tranche 1 staging smoke run uses
+[`scripts/run-hosted-pgtap.sh`](../../scripts/run-hosted-pgtap.sh). It converts
+the CLI's short-lived login into private temporary `psql` settings, assumes the
+linked project's `postgres` role, ensures `pg_net` is enabled under
+`extensions`, and removes the credential and TAP files on exit. It never needs
+a stored database password.
+
 ### Required secrets
 
 - `SUPABASE_ACCESS_TOKEN` — the only repository secret required. The CLI uses

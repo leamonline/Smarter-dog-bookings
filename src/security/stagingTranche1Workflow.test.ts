@@ -11,6 +11,18 @@ const testsReadme = readFileSync(
   join(root, "supabase/tests/README.md"),
   "utf8",
 );
+const hostedPgTapRunner = readFileSync(
+  join(root, "scripts/run-hosted-pgtap.sh"),
+  "utf8",
+);
+const hostedPgTapFiles = [
+  "100_customer_write_permissions.test.sql",
+  "120_trusted_contact_lock.test.sql",
+  "110_customer_cancellation.test.sql",
+  "115_customer_cancellation_concurrency.test.sql",
+].map((file) =>
+  readFileSync(join(root, "supabase/tests", file), "utf8"),
+);
 
 const productionRef = "nlzhllhkigmsvrzduefz";
 const stagingRef = "btjnxvgkpdbfrrqxvkfj";
@@ -93,8 +105,11 @@ describe("Tranche 1 staging provision workflow", () => {
       'supabase link --project-ref "$PRODUCTION_PROJECT_REF"',
     );
     const dump = positionOf("supabase db dump --linked \\");
-    const prelude = positionOf(
+    const tablePrelude = positionOf(
       "ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;",
+    );
+    const functionPrelude = positionOf(
+      "ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;",
     );
     const append = positionOf(
       "cat /tmp/prod-schema.sql >> /tmp/prod-baseline.sql",
@@ -106,8 +121,9 @@ describe("Tranche 1 staging provision workflow", () => {
       /--data-only|--role-only|--include-seed|supabase (?:db )?seed\b/,
     );
     expect(productionLink).toBeLessThan(dump);
-    expect(dump).toBeLessThan(prelude);
-    expect(prelude).toBeLessThan(append);
+    expect(dump).toBeLessThan(tablePrelude);
+    expect(tablePrelude).toBeLessThan(functionPrelude);
+    expect(functionPrelude).toBeLessThan(append);
 
     expect(workflow).toContain(
       "cp -- /tmp/prod-baseline.sql supabase/migrations/00000000000000_prod_baseline.sql",
@@ -128,7 +144,9 @@ describe("Tranche 1 staging provision workflow", () => {
     const actualPush = positionOf(
       "supabase db push --linked --include-all --yes",
     );
-    const pgTap = positionOf("supabase test db --linked \\");
+    const pgTap = positionOf(
+      'scripts/run-hosted-pgtap.sh "$STAGING_PROJECT_REF"',
+    );
 
     expect(stagingLink).toBeLessThan(migrationList);
     expect(migrationList).toBeLessThan(dryRun);
@@ -141,14 +159,14 @@ describe("Tranche 1 staging provision workflow", () => {
       `${targetAssertion}\n          supabase db push --linked --include-all --yes`,
     );
     expect(workflow).toContain(
-      `${targetAssertion}\n          supabase test db --linked \\`,
+      `${targetAssertion}\n          scripts/run-hosted-pgtap.sh "$STAGING_PROJECT_REF"`,
     );
     expect(workflow.split(targetAssertion)).toHaveLength(5);
   });
 
-  it("runs exactly the four canonical pgTAP files and no deployment or seed", () => {
+  it("runs exactly the four canonical pgTAP files through the private hosted adapter", () => {
     const pgTapPaths = Array.from(
-      workflow.matchAll(/supabase\/tests\/[^\s\\]+\.test\.sql/g),
+      hostedPgTapRunner.matchAll(/supabase\/tests\/[^\s"']+\.test\.sql/g),
       (match) => match[0],
     );
 
@@ -158,9 +176,62 @@ describe("Tranche 1 staging provision workflow", () => {
       "supabase/tests/110_customer_cancellation.test.sql",
       "supabase/tests/115_customer_cancellation_concurrency.test.sql",
     ]);
+    expect(workflow).not.toContain("supabase test db --linked");
+    expect(hostedPgTapRunner).toContain(
+      'test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"',
+    );
+    expect(hostedPgTapRunner).toContain(
+      `EXPECTED_STAGING_PROJECT_REF="${stagingRef}"`,
+    );
+    expect(hostedPgTapRunner).toContain(
+      `PRODUCTION_PROJECT_REF="${productionRef}"`,
+    );
+    expect(hostedPgTapRunner).toContain(
+      'test "$STAGING_PROJECT_REF" = "$EXPECTED_STAGING_PROJECT_REF"',
+    );
+    expect(hostedPgTapRunner).toContain(
+      'test "$STAGING_PROJECT_REF" != "$PRODUCTION_PROJECT_REF"',
+    );
+    expect(hostedPgTapRunner).toContain(
+      "supabase db dump --linked --schema public --dry-run",
+    );
+    expect(hostedPgTapRunner).toContain("trap cleanup EXIT");
+    expect(hostedPgTapRunner).toContain(
+      "sed -En '/^export PG(HOST|PORT|USER|PASSWORD|DATABASE)=/p'",
+    );
+    expect(hostedPgTapRunner).toContain('source "$credential_exports"');
+    expect(hostedPgTapRunner).not.toContain("source <(");
+    expect(hostedPgTapRunner).toContain(
+      "set role postgres; set search_path = public, extensions;",
+    );
+    expect(hostedPgTapRunner).toContain(
+      "create extension if not exists pg_net with schema extensions;",
+    );
+    expect(hostedPgTapRunner).toContain(
+      "extnamespace::regnamespace::text from pg_extension where extname = 'pg_net'",
+    );
+    expect(hostedPgTapRunner).toContain("prove --nocolor --exec cat");
+    expect(hostedPgTapRunner).not.toMatch(/set -x|echo .*PGPASSWORD/i);
     expect(workflow).not.toMatch(
       /supabase functions deploy|vercel (?:deploy|--prod)|npm run seed|supabase (?:db )?seed\b/i,
     );
+  });
+
+  it("makes the canonical pgTAP SQL portable to a temporary hosted login", () => {
+    for (const sql of hostedPgTapFiles) {
+      expect(sql).not.toMatch(/^reset role;$/m);
+    }
+
+    const concurrency = hostedPgTapFiles[3];
+    expect(concurrency).toContain(
+      "set pgtap.hosted_dblink_password = :'hosted_dblink_password';",
+    );
+    expect(concurrency).toContain("session_user");
+    expect(concurrency).toContain(
+      "current_setting('pgtap.hosted_dblink_password')",
+    );
+    expect(concurrency.match(/set local role postgres;/g)).toHaveLength(2);
+    expect(concurrency).not.toContain("user=postgres password=postgres");
   });
 
   it("documents access-token temporary login without a database password", () => {

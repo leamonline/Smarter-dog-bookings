@@ -3,6 +3,12 @@
 -- dblink backend cannot see the pgTAP controller's outer transaction, and
 -- removed again before the test finishes.
 
+\if :{?hosted_dblink_password}
+set pgtap.hosted_dblink_password = :'hosted_dblink_password';
+\else
+set pgtap.hosted_dblink_password = 'postgres';
+\endif
+
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
@@ -12,10 +18,12 @@ create temp table _dblink_config (connstr text not null);
 insert into _dblink_config
 values (
   format(
-    'hostaddr=%s port=%s dbname=%I user=postgres password=postgres',
-    host(inet_server_addr()),
+    'hostaddr=%L port=%L dbname=%L user=%L password=%L',
+    host(inet_server_addr())::text,
     current_setting('port'),
-    current_database()
+    current_database(),
+    session_user,
+    current_setting('pgtap.hosted_dblink_password')
   )
 );
 
@@ -28,6 +36,7 @@ select extensions.dblink_connect(
 -- then create committed fixtures with application triggers disabled.
 select extensions.dblink_exec('setup', $setup$
   begin;
+  set local role postgres;
   set local session_replication_role = replica;
 
   delete from smarter_dog_private.customer_cancellation_receipts
@@ -481,6 +490,7 @@ select is(
 -- namespace and pre-clean make the next run idempotent as well.
 select extensions.dblink_exec('setup', $cleanup$
   begin;
+  set local role postgres;
   set local session_replication_role = replica;
   delete from smarter_dog_private.customer_cancellation_receipts
    where customer_user_id = '47000000-0000-4000-8000-000000000002'
