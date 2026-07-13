@@ -13,6 +13,7 @@ tests=(
   supabase/tests/120_trusted_contact_lock.test.sql
   supabase/tests/110_customer_cancellation.test.sql
   supabase/tests/115_customer_cancellation_concurrency.test.sql
+  supabase/tests/125_merge_humans_opt_outs.test.sql
 )
 
 umask 077

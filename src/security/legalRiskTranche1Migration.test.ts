@@ -295,6 +295,31 @@ describe("Tranche 1 dog size authority boundary", () => {
     expect(firstMutation).toBeGreaterThan(dogLocks);
   });
 
+  it("preserves every active communication opt-out when human records merge", () => {
+    const mergeHumans = extractFunction(latestMigration, "merge_humans");
+
+    for (const channel of ["sms", "whatsapp", "email"]) {
+      expect(mergeHumans).toMatch(
+        new RegExp(
+          `${channel}_opted_out\\s*=\\s*w\\.${channel}_opted_out\\s+or\\s+l\\.${channel}_opted_out`,
+          "i",
+        ),
+      );
+      expect(mergeHumans).toMatch(
+        new RegExp(
+          `${channel}_opted_out_at\\s*=\\s*case[\\s\\S]*?w\\.${channel}_opted_out[\\s\\S]*?l\\.${channel}_opted_out[\\s\\S]*?w\\.${channel}_opted_out_at[\\s\\S]*?l\\.${channel}_opted_out_at[\\s\\S]*?end`,
+          "i",
+        ),
+      );
+      expect(mergeHumans).toMatch(
+        new RegExp(
+          `${channel}_opted_out_reason\\s*=\\s*case[\\s\\S]*?w\\.${channel}_opted_out[\\s\\S]*?l\\.${channel}_opted_out[\\s\\S]*?w\\.${channel}_opted_out_reason[\\s\\S]*?l\\.${channel}_opted_out_reason[\\s\\S]*?end`,
+          "i",
+        ),
+      );
+    }
+  });
+
   it("normalises edited reported size into the customer model", () => {
     const dogsSection = readProjectFile(
       "src/components/customer/DogsSection.jsx",

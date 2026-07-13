@@ -622,7 +622,85 @@ begin
         else w.notes || E'\n\n' || l.notes
       end,
       sms = w.sms or l.sms,
-      whatsapp = w.whatsapp or l.whatsapp
+      whatsapp = w.whatsapp or l.whatsapp,
+      -- Channel setup is additive, but an explicit opt-out is a hard
+      -- suppression. Keep each timestamp/reason pair from one source record so
+      -- two separate opt-out events cannot be presented as one audit event.
+      sms_opted_out = w.sms_opted_out or l.sms_opted_out,
+      sms_opted_out_at = case
+        when w.sms_opted_out and (
+          w.sms_opted_out_at is not null
+          or nullif(trim(w.sms_opted_out_reason), '') is not null
+        ) then w.sms_opted_out_at
+        when l.sms_opted_out then l.sms_opted_out_at
+        when w.sms_opted_out then w.sms_opted_out_at
+        when w.sms_opted_out_at is not null
+          or nullif(trim(w.sms_opted_out_reason), '') is not null
+          then w.sms_opted_out_at
+        else l.sms_opted_out_at
+      end,
+      sms_opted_out_reason = case
+        when w.sms_opted_out and (
+          w.sms_opted_out_at is not null
+          or nullif(trim(w.sms_opted_out_reason), '') is not null
+        ) then w.sms_opted_out_reason
+        when l.sms_opted_out then l.sms_opted_out_reason
+        when w.sms_opted_out then w.sms_opted_out_reason
+        when w.sms_opted_out_at is not null
+          or nullif(trim(w.sms_opted_out_reason), '') is not null
+          then w.sms_opted_out_reason
+        else l.sms_opted_out_reason
+      end,
+      whatsapp_opted_out = w.whatsapp_opted_out or l.whatsapp_opted_out,
+      whatsapp_opted_out_at = case
+        when w.whatsapp_opted_out and (
+          w.whatsapp_opted_out_at is not null
+          or nullif(trim(w.whatsapp_opted_out_reason), '') is not null
+        ) then w.whatsapp_opted_out_at
+        when l.whatsapp_opted_out then l.whatsapp_opted_out_at
+        when w.whatsapp_opted_out then w.whatsapp_opted_out_at
+        when w.whatsapp_opted_out_at is not null
+          or nullif(trim(w.whatsapp_opted_out_reason), '') is not null
+          then w.whatsapp_opted_out_at
+        else l.whatsapp_opted_out_at
+      end,
+      whatsapp_opted_out_reason = case
+        when w.whatsapp_opted_out and (
+          w.whatsapp_opted_out_at is not null
+          or nullif(trim(w.whatsapp_opted_out_reason), '') is not null
+        ) then w.whatsapp_opted_out_reason
+        when l.whatsapp_opted_out then l.whatsapp_opted_out_reason
+        when w.whatsapp_opted_out then w.whatsapp_opted_out_reason
+        when w.whatsapp_opted_out_at is not null
+          or nullif(trim(w.whatsapp_opted_out_reason), '') is not null
+          then w.whatsapp_opted_out_reason
+        else l.whatsapp_opted_out_reason
+      end,
+      email_opted_out = w.email_opted_out or l.email_opted_out,
+      email_opted_out_at = case
+        when w.email_opted_out and (
+          w.email_opted_out_at is not null
+          or nullif(trim(w.email_opted_out_reason), '') is not null
+        ) then w.email_opted_out_at
+        when l.email_opted_out then l.email_opted_out_at
+        when w.email_opted_out then w.email_opted_out_at
+        when w.email_opted_out_at is not null
+          or nullif(trim(w.email_opted_out_reason), '') is not null
+          then w.email_opted_out_at
+        else l.email_opted_out_at
+      end,
+      email_opted_out_reason = case
+        when w.email_opted_out and (
+          w.email_opted_out_at is not null
+          or nullif(trim(w.email_opted_out_reason), '') is not null
+        ) then w.email_opted_out_reason
+        when l.email_opted_out then l.email_opted_out_reason
+        when w.email_opted_out then w.email_opted_out_reason
+        when w.email_opted_out_at is not null
+          or nullif(trim(w.email_opted_out_reason), '') is not null
+          then w.email_opted_out_reason
+        else l.email_opted_out_reason
+      end
   where w.id = p_winner;
 end;
 $$;

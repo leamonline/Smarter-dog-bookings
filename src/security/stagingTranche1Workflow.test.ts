@@ -20,6 +20,7 @@ const hostedPgTapFiles = [
   "120_trusted_contact_lock.test.sql",
   "110_customer_cancellation.test.sql",
   "115_customer_cancellation_concurrency.test.sql",
+  "125_merge_humans_opt_outs.test.sql",
 ].map((file) =>
   readFileSync(join(root, "supabase/tests", file), "utf8"),
 );
@@ -164,7 +165,7 @@ describe("Tranche 1 staging provision workflow", () => {
     expect(workflow.split(targetAssertion)).toHaveLength(5);
   });
 
-  it("runs exactly the four canonical pgTAP files through the private hosted adapter", () => {
+  it("runs exactly the five canonical pgTAP files through the private hosted adapter", () => {
     const pgTapPaths = Array.from(
       hostedPgTapRunner.matchAll(/supabase\/tests\/[^\s"']+\.test\.sql/g),
       (match) => match[0],
@@ -175,6 +176,7 @@ describe("Tranche 1 staging provision workflow", () => {
       "supabase/tests/120_trusted_contact_lock.test.sql",
       "supabase/tests/110_customer_cancellation.test.sql",
       "supabase/tests/115_customer_cancellation_concurrency.test.sql",
+      "supabase/tests/125_merge_humans_opt_outs.test.sql",
     ]);
     expect(workflow).not.toContain("supabase test db --linked");
     expect(hostedPgTapRunner).toContain(

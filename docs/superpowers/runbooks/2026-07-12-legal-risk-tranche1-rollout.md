@@ -49,7 +49,7 @@ new RPCs is served.
    sufficient maintenance control for an already-open PWA.
 4. Apply only `20260712115759_legal_risk_tranche1.sql` to the authorised
    non-production database.
-5. Run the static security suite, all four Tranche 1 pgTAP files and the
+5. Run the static security suite, all five Tranche 1 pgTAP files and the
    synthetic smoke checks below.
 6. Regenerate `src/supabase/database.types.ts` from the applied schema using the
    project's authorised Supabase type-generation workflow. Never hand-edit it.
@@ -67,6 +67,20 @@ and RPCs. The release lock closes the dangerous migration-to-frontend interval:
 without it, the old cancellation UI would ignore tightened-RLS failures and
 report false success. Applying only part of the migration would leave the old
 permission model in an unknown state; the migration must not be split.
+
+## Staging revalidation required after the 13 July amendment
+
+The candidate migration was amended before production application so
+`merge_humans` preserves active SMS, WhatsApp and email opt-outs when deleting a
+duplicate record. Staging already records migration version `20260712115759`,
+so a normal `db push` will not re-execute the amended file. The earlier hosted
+database evidence therefore applies to the pre-amendment candidate only.
+
+Before any production decision, obtain separate staging-database approval and
+either freshly reprovision staging or explicitly repair and reapply the amended
+single migration. Then run all five canonical pgTAP files. Do not present the
+old staging result as proof of the amended function, and do not add a production
+follow-up migration merely to conceal stale non-production history.
 
 ## Local verification evidence
 
@@ -118,7 +132,9 @@ The canonical executable checks are:
 - `supabase/tests/120_trusted_contact_lock.test.sql` for H-02;
 - `supabase/tests/110_customer_cancellation.test.sql` for H-06;
 - `supabase/tests/115_customer_cancellation_concurrency.test.sql` for the H-06
-  cancellation-membership race.
+  cancellation-membership race;
+- `supabase/tests/125_merge_humans_opt_outs.test.sql` for preservation of active
+  communication suppressions during duplicate-customer merges.
 
 ### B-01 — protected human fields
 

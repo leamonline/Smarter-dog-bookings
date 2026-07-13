@@ -63,6 +63,9 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 - `020_rls_isolation.test.sql` — behavioural: acting as the `authenticated` role
   with a JWT `sub` claim, a customer reads only their own humans/dogs/bookings;
   another customer's rows are invisible; `anon` sees nothing.
+- `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
+  keeps active SMS, WhatsApp and email suppressions, including their timestamp
+  and reason evidence, when the losing human record is deleted.
 
 ### Planned (behavioural — follow-up)
 
