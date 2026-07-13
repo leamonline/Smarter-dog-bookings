@@ -68,7 +68,7 @@ without it, the old cancellation UI would ignore tightened-RLS failures and
 report false success. Applying only part of the migration would leave the old
 permission model in an unknown state; the migration must not be split.
 
-## Staging revalidation required after the 13 July amendment
+## Staging revalidation after the 13 July amendment
 
 The candidate migration was amended before production application so
 `merge_humans` preserves active SMS, WhatsApp and email opt-outs when deleting a
@@ -76,11 +76,34 @@ duplicate record. Staging already records migration version `20260712115759`,
 so a normal `db push` will not re-execute the amended file. The earlier hosted
 database evidence therefore applies to the pre-amendment candidate only.
 
-Before any production decision, obtain separate staging-database approval and
-either freshly reprovision staging or explicitly repair and reapply the amended
-single migration. Then run all five canonical pgTAP files. Do not present the
-old staging result as proof of the amended function, and do not add a production
-follow-up migration merely to conceal stale non-production history.
+Separate staging-database approval was granted on 13 July 2026. At exact commit
+`a0cef60` and Supabase CLI `2.109.1`, the committed `merge_humans` definition,
+comment and grants were applied to project `btjnxvgkpdbfrrqxvkfj` in one
+transaction. This narrow reconciliation did not replay the other migration DDL,
+reset staging, alter migration history, inspect customer records or touch
+production.
+
+Post-reconciliation evidence:
+
+- the live function body MD5 is `f5dbadd6912cb028ac6639e055b9bfd5`, matching
+  the committed function body, with all three opt-out assignments present;
+- owner `postgres`, `SECURITY DEFINER` and `search_path=public, pg_temp` remained
+  unchanged; anonymous execution stayed denied and authenticated execution
+  stayed granted;
+- all five canonical hosted pgTAP files passed: 84 assertions, including the
+  two-session cancellation race and the duplicate-human opt-out merge;
+- aggregate cleanup counts were zero for every reserved synthetic fixture,
+  including Auth users, identities, sessions, app rows, receipts and the test
+  Vault secret;
+- the staging security adviser remained at the same 29 expected `WARN` notices
+  for deliberately authenticated `SECURITY DEFINER` endpoints, with no errors.
+
+The existing staging migration-history row remains unchanged and therefore
+contains the pre-amendment statement text. This was an explicit scope boundary,
+not evidence that the amended file was replayed. Fresh-application proof comes
+from disposable GitHub run `29238760095`, which passed 15 pgTAP files / 151
+assertions against the production schema-only baseline plus the committed
+candidate migration. Production application still requires a separate decision.
 
 ## Local verification evidence
 
@@ -108,6 +131,8 @@ they did not dump or inspect customer data.
 - Exact-head run `29211218338` passed 14 pgTAP files / 148 tests at
   `f29565e`, including the two-session membership race, post-commit receipt
   replay and stale-lifecycle rejection.
+- Amended-candidate run `29238760095` passed 15 pgTAP files / 151 assertions at
+  `a0cef60`, including `125_merge_humans_opt_outs.test.sql`.
 - The generated `src/supabase/database.types.ts` body has SHA-256
   `25febe3c7a58ae83a9e7c873c0fbce004e041868a93dcf4ee4e31d0bcf72d8f3`.
 - A paid Supabase preview branch was unavailable on the Free plan. No preview
