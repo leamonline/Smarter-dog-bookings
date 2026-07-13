@@ -22,11 +22,9 @@ name: DB Tests (pgTAP)
 # supabase/tests/*.sql
 # under pgTAP; each test is wrapped in a transaction that is rolled back.
 #
-# Requires repo secrets: SUPABASE_ACCESS_TOKEN (already set for edge deploys)
-# and SUPABASE_DB_PASSWORD (the prod database password — add it under Repo
-# Settings → Secrets and variables → Actions; find/reset it in the Supabase
-# dashboard → Project Settings → Database). Until SUPABASE_DB_PASSWORD is set,
-# the job SKIPS cleanly (succeeds with a warning) rather than failing red.
+# Requires the repo's SUPABASE_ACCESS_TOKEN secret (already set for edge
+# deploys). The CLI uses that token to create a short-lived database login role,
+# so CI never stores or transmits the production database password.
 
 on:
   push:
@@ -50,30 +48,14 @@ jobs:
     env:
       SUPABASE_PROJECT_REF: nlzhllhkigmsvrzduefz
     steps:
-      # Gate: without the DB password we can't dump the baseline. Skip the rest
-      # cleanly (job stays green with a warning) instead of failing red, so the
-      # check is quiet on main until the secret is added.
-      - name: Check for DB password secret
-        id: gate
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "::warning::SUPABASE_DB_PASSWORD secret is not set — skipping DB tests. Add it under Repo Settings → Secrets and variables → Actions (find/reset it in the Supabase dashboard → Project Settings → Database) to enable them."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Check out repo
-        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v7
         with:
           # PR runs need the base history to identify candidate migrations.
           fetch-depth: 0
 
       - name: Preserve PR-added candidate migrations
-        if: steps.gate.outputs.run == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         shell: bash
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -103,16 +85,13 @@ jobs:
           echo "Candidate migrations preserved: $count"
 
       - name: Set up Supabase CLI
-        if: steps.gate.outputs.run == 'true'
         uses: supabase/setup-cli@v2
         with:
           version: 2.109.1
 
       - name: Dump prod application schemas (schema-only — no customer data) as the baseline
-        if: steps.gate.outputs.run == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
@@ -132,7 +111,7 @@ jobs:
           cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
 
       - name: Restore PR-added candidate migrations
-        if: steps.gate.outputs.run == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -143,13 +122,11 @@ jobs:
           fi
 
       - name: Start local stack (applies baseline then candidate migrations)
-        if: steps.gate.outputs.run == 'true'
         run: supabase start
 
       - name: Run pgTAP database tests
-        if: steps.gate.outputs.run == 'true'
         run: supabase test db
 
       - name: Dump diagnostics on failure
-        if: failure() && steps.gate.outputs.run == 'true'
+        if: failure()
         run: supabase status || true
