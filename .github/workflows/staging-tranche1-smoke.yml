@@ -1,0 +1,126 @@
+name: Tranche 1 staging provision and database smoke run
+
+# Production is a schema source only. Every migration write targets staging.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_staging_ref:
+        description: Type the exact staging project ref to continue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-tranche1-smoke
+  cancel-in-progress: false
+
+jobs:
+  provision-and-smoke:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      PRODUCTION_PROJECT_REF: nlzhllhkigmsvrzduefz
+      STAGING_PROJECT_REF: btjnxvgkpdbfrrqxvkfj
+      CANDIDATE_MIGRATION: 20260712115759_legal_risk_tranche1.sql
+    steps:
+      - name: Confirm exact staging target
+        shell: bash
+        env:
+          CONFIRM_STAGING_REF: ${{ inputs.confirm_staging_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM_STAGING_REF" != "$STAGING_PROJECT_REF" ]; then
+            echo "::error::Confirmation does not match the staging project ref."
+            exit 1
+          fi
+          if [ "$STAGING_PROJECT_REF" = "$PRODUCTION_PROJECT_REF" ]; then
+            echo "::error::Staging and production project refs must differ."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.109.1
+
+      - name: Preserve the Tranche 1 candidate migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_dir="$(mktemp -d)"
+          CANDIDATE_COPY="$candidate_dir/$CANDIDATE_MIGRATION"
+          cp -- "supabase/migrations/$CANDIDATE_MIGRATION" "$CANDIDATE_COPY"
+          echo "CANDIDATE_COPY=$CANDIDATE_COPY" >> "$GITHUB_ENV"
+
+      - name: Build the production schema baseline
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Production is linked only to read its application schema.
+          supabase link --project-ref "$PRODUCTION_PROJECT_REF"
+          supabase db dump --linked \
+            --schema public,smarter_dog_private \
+            --file /tmp/prod-schema.sql
+
+          cat > /tmp/prod-baseline.sql <<'SQL'
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+          SQL
+          cat /tmp/prod-schema.sql >> /tmp/prod-baseline.sql
+
+      - name: Install only the baseline and candidate migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp -- /tmp/prod-baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
+          cp -- "$CANDIDATE_COPY" "supabase/migrations/$CANDIDATE_MIGRATION"
+
+      - name: Link staging and show its migration state
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Every linked command from here targets staging.
+          supabase link --project-ref "$STAGING_PROJECT_REF"
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          supabase migration list --linked
+
+      - name: Preview the staging migrations
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          supabase db push --linked --include-all --dry-run
+
+      - name: Apply the staging migrations
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          supabase db push --linked --include-all --yes
+
+      - name: Run canonical pgTAP smoke tests on staging
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(cat supabase/.temp/project-ref)" = "$STAGING_PROJECT_REF"
+          supabase test db --linked \
+            supabase/tests/100_customer_write_permissions.test.sql \
+            supabase/tests/120_trusted_contact_lock.test.sql \
+            supabase/tests/110_customer_cancellation.test.sql \
+            supabase/tests/115_customer_cancellation_concurrency.test.sql

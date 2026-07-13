@@ -27,10 +27,9 @@ Triggered on any PR/push touching `supabase/migrations/`, `supabase/tests/`, or
 
 ### Required secrets
 
-- `SUPABASE_ACCESS_TOKEN` — already set (used by the edge-deploy workflow).
-- `SUPABASE_DB_PASSWORD` — the prod database password. Add it under **Repo
-  Settings → Secrets and variables → Actions**; find/reset it in the Supabase
-  dashboard → **Project Settings → Database**.
+- `SUPABASE_ACCESS_TOKEN` — the only repository secret required. The CLI uses
+  it to create a short-lived database login, so no database password is stored
+  or passed to the workflow.
 
 ## Running locally
 
