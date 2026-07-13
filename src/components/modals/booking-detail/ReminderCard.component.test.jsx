@@ -46,4 +46,28 @@ describe("ReminderCard", () => {
     expect(screen.getByText(/confirmed by/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /send reminder|resend/i })).toBeNull();
   });
+
+  it("makes the collection message primary when the groom is Ready", () => {
+    render(
+      <ReminderCard
+        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "Ready for pick-up", reminderState: "none" }}
+        pickupHuman={{ fullName: "Tom Clark", phone: "+447700900000" }}
+        isEditing={false}
+        onSendReminder={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("link", { name: /send pickup-ready sms/i })).toHaveAttribute("data-priority", "primary");
+  });
+
+  it("keeps the collection message secondary before Ready", () => {
+    render(
+      <ReminderCard
+        booking={{ id: "b1", dogName: "Freddie", owner: "Tom Clark", status: "In bath", reminderState: "none" }}
+        pickupHuman={{ fullName: "Tom Clark", phone: "+447700900000" }}
+        isEditing={false}
+        onSendReminder={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("link", { name: /send pickup-ready sms/i })).toHaveAttribute("data-priority", "secondary");
+  });
 });
