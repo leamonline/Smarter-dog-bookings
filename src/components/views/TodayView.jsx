@@ -264,7 +264,7 @@ export function TodayView({
     day: "numeric",
     month: "long",
   });
-  const isEmptyDay = selectedBookings.length === 0;
+  const isEmptyDay = feed.length === 0;
 
   const feedHandlers = {
     onOpenDog,
