@@ -1,26 +1,25 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useReportsData } from "../../hooks/useReportsData.ts";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { SkeletonKpiRow, SkeletonChart, EmptyState, Card } from "../ui/index.js";
-import { ErrorBanner } from "../ui/ErrorBanner.jsx";
-import { Kpi, PERIODS, ReportsExpandAllContext } from "./reports/ReportWidgets.jsx";
-import { RevenueTrend } from "./reports/RevenueTrend.jsx";
-import { ServiceMix } from "./reports/ServiceMix.jsx";
-import { DemandPattern } from "./reports/DemandPattern.jsx";
-import { KeyInsights } from "./reports/KeyInsights.jsx";
-import { CustomerRanking } from "./reports/CustomerRanking.jsx";
-import { BookingHealth } from "./reports/BookingHealth.jsx";
-import { WeeklyCashUp } from "./reports/WeeklyCashUp.jsx";
-import { SlotFillReport } from "./reports/SlotFillReport.jsx";
-import { ServiceValueReport } from "./reports/ServiceValueReport.jsx";
-import { OutcomesReport } from "./reports/OutcomesReport.jsx";
-import { SourceMixReport } from "./reports/SourceMixReport.jsx";
-import { RetentionReport } from "./reports/RetentionReport.jsx";
-import { CapacityPreventedReport } from "./reports/CapacityPreventedReport.jsx";
-import { CollectedByMethodReport } from "./reports/CollectedByMethodReport.jsx";
-import { FunnelReport } from "./reports/FunnelReport.jsx";
-import { useSalon } from "../../contexts/SalonContext";
+import { useReportsData } from "../../../hooks/useReportsData.ts";
+import { useMediaQuery } from "../../../hooks/useMediaQuery";
+import { SkeletonKpiRow, SkeletonChart, EmptyState, Card } from "../../ui/index.js";
+import { ErrorBanner } from "../../ui/ErrorBanner.jsx";
+import { Kpi, PERIODS, ReportsExpandAllContext } from "./ReportWidgets.jsx";
+import { RevenueTrend } from "./RevenueTrend.jsx";
+import { ServiceMix } from "./ServiceMix.jsx";
+import { DemandPattern } from "./DemandPattern.jsx";
+import { KeyInsights } from "./KeyInsights.jsx";
+import { CustomerRanking } from "./CustomerRanking.jsx";
+import { BookingHealth } from "./BookingHealth.jsx";
+import { SlotFillReport } from "./SlotFillReport.jsx";
+import { ServiceValueReport } from "./ServiceValueReport.jsx";
+import { OutcomesReport } from "./OutcomesReport.jsx";
+import { SourceMixReport } from "./SourceMixReport.jsx";
+import { RetentionReport } from "./RetentionReport.jsx";
+import { CapacityPreventedReport } from "./CapacityPreventedReport.jsx";
+import { CollectedByMethodReport } from "./CollectedByMethodReport.jsx";
+import { FunnelReport } from "./FunnelReport.jsx";
+import { useSalon } from "../../../contexts/SalonContext";
 
 const ALLOWED_PERIODS = [7, 30, 90];
 const DEFAULT_PERIOD = 30;
@@ -30,7 +29,7 @@ function parsePeriod(value) {
   return ALLOWED_PERIODS.includes(n) ? n : null;
 }
 
-export function ReportsView({ loadError = null }) {
+export function ReportsInsightsView({ loadError = null }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const days = parsePeriod(searchParams.get("period")) ?? DEFAULT_PERIOD;
   const setDays = useCallback(
@@ -70,23 +69,8 @@ export function ReportsView({ loadError = null }) {
   const [allExpanded, setAllExpanded] = useState(false);
 
   return (
-    <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
-      {/* Page title */}
-      <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
-        Cash-up &amp; reports
-      </h1>
-
-      {/* Part A — Weekly cash-up (its own week selector, expected takings) */}
-      <WeeklyCashUp />
-
-      {/* Divider between the cash-up sheet and the analytics dashboard */}
-      <div className="flex items-center gap-3 pt-1">
-        <div className="h-px bg-slate-200 flex-1" />
-        <span className="text-label text-ink-muted">Reports &amp; insights</span>
-        <div className="h-px bg-slate-200 flex-1" />
-      </div>
-
-      {/* Part B — Analytics: period control (scopes the analytics below only) */}
+    <div className="flex flex-col gap-3 sm:gap-4">
+      {/* Analytics period control */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base sm:text-lg font-extrabold m-0 text-slate-800 font-display leading-tight">
