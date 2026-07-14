@@ -197,7 +197,12 @@ describe("BookingFeed — accessible journey rows", () => {
         ),
       ]),
     ]);
-    expect(screen.getByRole("button", { name: "Waiting to be collected" })).toBeInTheDocument();
+    const waiting = screen.getByRole("button", { name: "Waiting to be collected" });
+    expect(waiting).toBeInTheDocument();
+    expect(waiting.querySelector(".lucide-scissors")).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Collected" }).querySelector(".lucide-car"),
+    ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
     expect(screen.getByTestId("booking-journey-grid")).toHaveAttribute("data-centres", "7");
   });
@@ -224,6 +229,29 @@ describe("BookingFeed — accessible journey rows", () => {
     const paid = screen.getByRole("button", { name: "Paid £42" });
     expect(paid).toHaveClass("border-brand-paper-line");
     expect(paid.querySelector(".lucide-pound-sterling")).not.toBeNull();
+  });
+
+  it.each([
+    ["cash", "Paid £42 by cash", ["banknote", "coins"]],
+    ["card", "Paid £42 by card", ["credit-card"]],
+    ["bank_transfer", "Paid £42 by bank transfer", ["landmark"]],
+  ])("renders %s payments with the approved Lucide icon mapping", (paymentMethod, label, icons) => {
+    renderFeed([
+      group("09:00", [
+        entry({
+          ...booking,
+          payment: "Paid in Full",
+          paymentMethod,
+          paidAmount: 42,
+        }),
+      ]),
+    ]);
+
+    const paid = screen.getByRole("button", { name: label });
+    expect(paid.querySelectorAll("svg")).toHaveLength(icons.length);
+    for (const icon of icons) {
+      expect(paid.querySelector(`.lucide-${icon}`)).not.toBeNull();
+    }
   });
 
   it("routes each sentence destination through its matching handler", () => {

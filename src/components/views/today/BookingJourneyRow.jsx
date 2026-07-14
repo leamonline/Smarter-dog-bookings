@@ -19,7 +19,7 @@ const ACTION_ICONS = {
   startGroom: Bubbles,
   ready: Scissors,
   messageCollection: Send,
-  waiting: Car,
+  waiting: Scissors,
   collected: Car,
 };
 
