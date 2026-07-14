@@ -282,6 +282,7 @@ describe("buildDaySummary", () => {
     expect(s.total).toBe(4);
     expect(s.expected).toBe(1);
     expect(s.arrived).toBe(3);
+    expect(s.onSite).toBe(2);
     expect(s.ready).toBe(1);
     expect(s.collected).toBe(1);
     expect(s.unpaidCount).toBe(2);
@@ -301,6 +302,20 @@ describe("buildDaySummary", () => {
     expect(bare.total).toBe(1);
     expect(bare.expected).toBe(1);
     expect(bare.arrived).toBe(0);
+  });
+
+  it("counts only dogs physically on site", () => {
+    const summary = buildDaySummary([
+      bk({ status: "Booked" }),
+      bk({ status: "Checked in" }),
+      bk({ status: "In bath" }),
+      bk({ status: "Ready for pick-up" }),
+      bk({ status: "Completed" }),
+      bk({ status: "Cancelled" }),
+    ]);
+
+    expect(summary.dogsBooked).toBe(5);
+    expect(summary.onSite).toBe(3);
   });
 });
 
