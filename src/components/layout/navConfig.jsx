@@ -10,7 +10,7 @@ import { DogSilhouette } from "../decor/index.jsx";
 export const PRIMARY_NAV = [
   {
     to: "/today",
-    label: "Today",
+    label: "Daily Brief",
     // White pill — brand-purple would vanish against the purple header/strip.
     activeBg: "bg-white text-brand-purple shadow-[0_2px_8px_rgba(255,255,255,0.35)]",
     activeText: "text-brand-purple",
@@ -101,7 +101,7 @@ export const MOBILE_NAV = PRIMARY_NAV;
 // Resolve the section title for the context row from the current path.
 // Handles profile sub-routes (/dogs/:id, /humans/:id) too.
 export function sectionTitleFor(pathname) {
-  if (pathname.startsWith("/today")) return "Today";
+  if (pathname.startsWith("/today")) return "Daily Brief";
   if (pathname === "/" || pathname === "") return "Bookings";
   if (pathname.startsWith("/dogs")) return "Dogs";
   if (pathname.startsWith("/humans")) return "Humans";

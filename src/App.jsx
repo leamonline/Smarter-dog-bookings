@@ -13,7 +13,6 @@ import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";
-import { londonDateStr } from "./engine/today";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
@@ -141,6 +140,11 @@ const InboxView = lazy(() =>
 const NewBookingModal = lazy(() =>
   import("./components/modals/NewBookingModal.jsx").then((module) => ({
     default: module.NewBookingModal,
+  })),
+);
+const DatePickerModal = lazy(() =>
+  import("./components/modals/DatePickerModal.jsx").then((module) => ({
+    default: module.DatePickerModal,
   })),
 );
 const BookingDetailModal = lazy(() =>
@@ -496,14 +500,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     // Runs once on mount by design (the post-auth entry point).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // While on /today, keep the week nav pinned to the real (London) today so the
-  // Today view's rows are in the fetched window and same-day slot toggles
-  // (which target the calendar's current day) act on today.
-  useEffect(() => {
-    if (location.pathname !== "/today") return;
-    if (currentDateStr !== londonDateStr()) rawDatePick(new Date());
-  }, [location.pathname, currentDateStr, rawDatePick]);
 
   // Boot-path deferral for the two 50-row directory page-0 fetches: hold
   // them back until a directory route / the new-booking modal needs them,
@@ -1063,6 +1059,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
                   <Route path="/today" element={
                     <TodayView
+                      selectedDateObj={currentDateObj}
+                      selectedDateStr={currentDateStr}
+                      onOpenDatePicker={() => setShowDatePicker(true)}
+                      onOpenDog={handleOpenDog}
+                      onOpenHuman={handleOpenHuman}
                       bookingsByDate={bookingsByDate}
                       bookingsLoading={bookingsLoading}
                       bookingsError={be}
@@ -1138,6 +1139,18 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
               </main>
             </Suspense>
           </ErrorBoundary>
+
+          {showDatePicker && location.pathname === "/today" && (
+            <Suspense fallback={<LoadingSpinner />}>
+              <DatePickerModal
+                currentDate={currentDateObj}
+                onSelectDate={handleDatePick}
+                onClose={() => setShowDatePicker(false)}
+                dayOpenState={dayOpenState}
+                allowClosedDates={location.pathname === "/today"}
+              />
+            </Suspense>
+          )}
 
           {selectedHumanId && (
             <ErrorBoundary>
