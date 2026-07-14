@@ -396,7 +396,7 @@ describe("TodayView — selected-date operations", () => {
 });
 
 describe("TodayHeader", () => {
-  it("renders the Daily Brief heading, date control and balanced availability panel", () => {
+  it("visually leads with a full-width mobile date control while retaining an accessible page heading", () => {
     render(
       <TodayHeader
         dateLabel="Tuesday 14 July"
@@ -409,8 +409,21 @@ describe("TodayHeader", () => {
         onManageAvailability={vi.fn()}
       />,
     );
-    expect(screen.getByRole("heading", { name: "Daily Brief" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Choose date, Tuesday 14 July/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Daily Brief" })).toHaveClass("sr-only");
+    const dateControl = screen.getByRole("button", {
+      name: /Choose date, Tuesday 14 July/i,
+    });
+    expect(dateControl).toHaveClass(
+      "w-full",
+      "justify-center",
+      "border",
+      "border-brand-yellow",
+      "bg-brand-yellow",
+      "sm:w-auto",
+      "sm:justify-start",
+      "sm:border-transparent",
+      "sm:bg-transparent",
+    );
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Manage availability" })).toBeInTheDocument();
     const summary = screen.getByRole("list", { name: "Today's summary" });
