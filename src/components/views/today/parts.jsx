@@ -250,13 +250,13 @@ export function BookingStatusLine({ booking, waitMinutes = null, pay = null, sho
 }
 
 /** The one strong action on a card — teal, filled, unmissable. */
-export function PrimaryButton({ onClick, children, disabled, ...rest }) {
+export function PrimaryButton({ onClick, children, disabled, fluid = false, ...rest }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className={`inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fluid ? "w-full" : ""}`}
       {...rest}
     >
       {children}
@@ -278,13 +278,94 @@ export function SecondaryButton({ onClick, children, ...rest }) {
   );
 }
 
+// ---- Action tiles ---------------------------------------------------------
+// The expanded-row action bar: equal-width cells, icon above a short label.
+// The visible label is always a substring of the aria-label, so screen
+// readers hear the full verb ("Mark collected") while the tile stays compact.
+const TILE_ICON_PATHS = {
+  message: <path d="M8 9h8m-8 4h6M6 18l-3 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H6z" />,
+  cash: (
+    <>
+      <rect x="3" y="7" width="18" height="10" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  check: <path d="M20 6 9 17l-5-5" />,
+  document: <path d="M14 3v4a1 1 0 0 0 1 1h4M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />,
+  bell: <path d="M10 5a2 2 0 1 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6M9 17v1a3 3 0 0 0 6 0v-1" />,
+  login: <path d="M15 12H3m12 0-4 4m4-4-4-4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />,
+  refresh: <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4m-4 4a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />,
+  dots: (
+    <>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </>
+  ),
+};
+
+export function TileIcon({ name }) {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      {TILE_ICON_PATHS[name] || null}
+    </svg>
+  );
+}
+
+/** Shared tile chrome — also used by MoreMenu's tile trigger. */
+export const TILE_CLASS =
+  "w-full flex flex-col items-center justify-center gap-0.5 min-h-[48px] px-1 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-semibold leading-tight hover:bg-slate-200 motion-safe:transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+
+export function ActionTile({ icon, label, ariaLabel, onClick, disabled }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={ariaLabel || label} className={TILE_CLASS}>
+      <TileIcon name={icon} />
+      {label}
+    </button>
+  );
+}
+
+/**
+ * The payment-method chooser — the one way a payment is recorded from this
+ * page, so the method fact is never silently dropped from the takings.
+ */
+export function PaymentMethodChooser({ onPick, onCancel }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap w-full">
+      <span className="text-[13px] font-semibold text-slate-600">Paid by:</span>
+      {PAYMENT_METHODS.map((m) => (
+        <SecondaryButton key={m.id} onClick={() => onPick(m.id)}>{m.label}</SecondaryButton>
+      ))}
+      <button
+        type="button"
+        onClick={onCancel}
+        className="text-[13px] text-slate-500 underline min-h-[44px] px-1 bg-transparent border-none cursor-pointer"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 /**
  * The card-level "More" menu — one quiet button that reveals the lower-priority
  * actions, so a card never shows five equal-weight buttons. Keyboard + outside
  * click close it; items are proper menuitems. `items` = [{ label, onClick,
- * disabled }]; renders nothing when empty.
+ * disabled }]; renders nothing when empty. `tile` renders the trigger as an
+ * ActionTile-shaped cell for the expanded-row action bar.
  */
-export function MoreMenu({ items, label = "More", menuLabel }) {
+export function MoreMenu({ items, label = "More", menuLabel, tile = false }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   useEffect(() => {
@@ -317,10 +398,15 @@ export function MoreMenu({ items, label = "More", menuLabel }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={menuLabel}
-        className="inline-flex items-center gap-1 min-h-[44px] px-3 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+        className={
+          tile
+            ? TILE_CLASS
+            : "inline-flex items-center gap-1 min-h-[44px] px-3 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors"
+        }
       >
+        {tile && <TileIcon name="dots" />}
         {label}
-        <Chevron open={open} />
+        {!tile && <Chevron open={open} />}
       </button>
       {open && (
         <div
@@ -376,13 +462,13 @@ export function MarkPaidAction({ booking, onMarkPaid, variant = "primary" }) {
   const [choosing, setChoosing] = useState(false);
   if (choosing) {
     return (
-      <>
-        <span className="text-[13px] font-semibold text-slate-600 self-center">Paid by:</span>
-        {PAYMENT_METHODS.map((m) => (
-          <SecondaryButton key={m.id} onClick={() => { onMarkPaid(booking, m.id); setChoosing(false); }}>{m.label}</SecondaryButton>
-        ))}
-        <button type="button" onClick={() => setChoosing(false)} className="text-[13px] text-slate-500 underline min-h-[44px] px-1 bg-transparent border-none cursor-pointer">Cancel</button>
-      </>
+      <PaymentMethodChooser
+        onPick={(m) => {
+          onMarkPaid(booking, m);
+          setChoosing(false);
+        }}
+        onCancel={() => setChoosing(false)}
+      />
     );
   }
   const Trigger = variant === "primary" ? PrimaryButton : SecondaryButton;
