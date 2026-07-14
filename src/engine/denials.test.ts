@@ -125,3 +125,18 @@ describe("computeDenialStats (2F)", () => {
     expect(empty.firstSeen).toBeNull();
   });
 });
+
+describe("customer_slot_blocked (per-human blocked slots)", () => {
+  it("maps the enforce_human_slot_blocks message", () => {
+    expect(
+      mapDenialReason(
+        "That time isn't available for your account — please pick a different time or message the salon.",
+      ),
+    ).toBe("customer_slot_blocked");
+  });
+  it("keeps the meaning in the friendly copy", () => {
+    expect(
+      friendlyDenialMessage("That time isn't available for your account — x"),
+    ).toMatch(/for your account/i);
+  });
+});

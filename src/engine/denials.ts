@@ -17,6 +17,7 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
   past_date: "Date in the past",
   past_cutoff: "Past the last-minute cutoff",
   pregnant: "Pregnant dog",
+  customer_slot_blocked: "Blocked time for this customer",
   double_booked: "Dog already booked",
   unavailable: "No availability",
   unknown: "Other",
@@ -32,6 +33,9 @@ export function mapDenialReason(message?: string | null): string {
   const m = (message || "").toLowerCase();
   if (!m) return "unknown";
   if (m.includes("pregnant")) return "pregnant";
+  // enforce_human_slot_blocks (migration 20260714120000): the owner's
+  // blocked_slots gate. "for your account" is unique to that message.
+  if (m.includes("for your account")) return "customer_slot_blocked";
   if (m.includes("2-2-1")) return "capacity_2_2_1";
   if (m.includes("fully booked") && m.includes("per day")) return "daily_cap";
   if (m.includes("slot is full")) return "slot_full";
@@ -79,6 +83,10 @@ export function friendlyDenialMessage(message?: string | null): string {
       return "That time isn’t available for a larger dog. Please pick another slot, or give us a call and we’ll find one that works.";
     case "double_booked":
       return "That dog’s already booked in for that time. Check “My appointments”, or pick a different slot.";
+    case "customer_slot_blocked":
+      // Keep the meaning (this time is off the menu for THEM, not full)
+      // rather than pretending the slot was taken.
+      return "That time isn’t available for your account — please pick a different time, or message the salon and we’ll help.";
     case "capacity_2_2_1":
     case "slot_full":
     case "seat_blocked":

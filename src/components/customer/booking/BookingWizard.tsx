@@ -8,6 +8,7 @@ import {
   listOnDateForCapacity,
   listBlockedSeats,
   listImmediateSlots,
+  getDepositSettings,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
@@ -164,6 +165,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
+  // Deposit-required owners: the DB stamps reference + due-by at insert;
+  // we read them back after creation so the success screen can show the
+  // payment instructions. Null = no deposit needed (or lookup failed —
+  // the dashboard panel shows the same details).
+  const [depositInfo, setDepositInfo] = useState<{
+    amount: number;
+    reference: string | null;
+    dueBy: string | null;
+    bank: { accountName: string; sortCode: string; accountNumber: string } | null;
+  } | null>(null);
   const [rescheduleRecoveryIds, setRescheduleRecoveryIds] = useState<string[] | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -414,6 +425,31 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         throw err;
       }
 
+      // Deposit-tagged owner? The stamping trigger has already written the
+      // reference + due-by onto the new rows (one shared reference per
+      // visit) — read them back for the success screen. Best-effort: a
+      // failure here never blocks the booking.
+      try {
+        const [{ data: depRow }, depositSettings] = await Promise.all([
+          supabase
+            .from("bookings")
+            .select("deposit_required, deposit_reference, deposit_due_by, deposit_amount")
+            .eq("id", insertedIds[0])
+            .maybeSingle(),
+          getDepositSettings(supabase),
+        ]);
+        if (depRow?.deposit_required) {
+          setDepositInfo({
+            amount: depRow.deposit_amount ?? 10,
+            reference: depRow.deposit_reference ?? null,
+            dueBy: depRow.deposit_due_by ?? null,
+            bank: depositSettings.bank,
+          });
+        }
+      } catch {
+        /* non-fatal — the dashboard shows the same instructions */
+      }
+
       // If this run started as a reschedule, the original booking group is
       // derived and cancelled server-side only after the replacement exists.
       // A cancellation failure is a terminal partial success: retain the new
@@ -563,6 +599,47 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         <p className="booking-success-subtitle">
           Can&apos;t wait to see {dogNameStr} on <strong>{dateLabel}</strong> at <strong>{fmtTime(dropOff)}</strong>.
         </p>
+        {depositInfo && (
+          <div
+            role="status"
+            aria-label="Deposit needed"
+            className="wizard-card"
+            style={{ textAlign: "left", marginTop: 12 }}
+          >
+            <h2 style={{ fontSize: 16, marginTop: 0 }}>
+              One last step — your £{depositInfo.amount} deposit
+            </h2>
+            {depositInfo.bank && (
+              <p style={{ margin: "6px 0" }}>
+                Please send £{depositInfo.amount} to{" "}
+                <strong>{depositInfo.bank.accountName}</strong>, sort code{" "}
+                <strong>{depositInfo.bank.sortCode}</strong>, account{" "}
+                <strong>{depositInfo.bank.accountNumber}</strong>.
+              </p>
+            )}
+            <p style={{ margin: "6px 0" }}>
+              Use the reference <strong>{depositInfo.reference}</strong>
+              {depositInfo.dueBy ? (
+                <>
+                  {" "}by{" "}
+                  <strong>
+                    {new Date(depositInfo.dueBy).toLocaleString("en-GB", {
+                      weekday: "long",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </strong>
+                </>
+              ) : null}
+              .
+            </p>
+            <p style={{ margin: "6px 0", fontSize: 13 }}>
+              Your booking is confirmed once your deposit arrives. Deposits are
+              non-refundable and can&apos;t be transferred to another date if you
+              don&apos;t show.
+            </p>
+          </div>
+        )}
         {bookingRef && (
           <div className="booking-success-ref">
             Booking ref · <code>{bookingRef}</code>
@@ -716,6 +793,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onBack={() => setStep(3)}
             onJoinWaitlist={handleJoinWaitlist}
             onNoAvailability={handleNoAvailability}
+            humanId={humanRecord.id}
           />
         )}
 
