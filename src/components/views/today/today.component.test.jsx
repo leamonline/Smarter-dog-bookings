@@ -416,16 +416,20 @@ describe("TodayHeader", () => {
     expect(dateControl).toHaveClass(
       "w-full",
       "justify-center",
-      "border",
+      "border-2",
       "border-brand-yellow",
       "bg-brand-yellow",
-      "sm:w-auto",
-      "sm:justify-start",
-      "sm:border-transparent",
-      "sm:bg-transparent",
+      "text-black",
     );
-    expect(screen.getByText("No online slots available")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Manage availability" })).toBeInTheDocument();
+    expect(dateControl).not.toHaveClass("sm:w-auto", "sm:bg-transparent");
+    expect(screen.getByText("No online slots available")).toHaveClass(
+      "w-full",
+      "text-center",
+    );
+    expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass(
+      "w-full",
+      "justify-center",
+    );
     const summary = screen.getByRole("list", { name: "Today's summary" });
     const items = within(summary).getAllByRole("listitem");
     expect(items).toHaveLength(3);
@@ -520,7 +524,41 @@ describe("BookingFeed — accessible journey rows", () => {
     expect(screen.getByRole("button", { name: "Open David Law's human file" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open £42 invoice" })).toBeInTheDocument();
     expect(screen.getAllByTestId("journey-action")).toHaveLength(6);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(6);
+    expect(screen.getAllByRole("checkbox").every((checkbox) => !checkbox.checked)).toBe(true);
     expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
+  });
+
+  it("gives every booking the compact sentence, time and message treatment", () => {
+    renderFeed([
+      group("09:00", [
+        entry(booking),
+        entry({ ...booking, id: "b2", dogName: "Ruby", owner: "Derrick Asquith" }),
+      ]),
+    ]);
+
+    for (const dogName of ["Jack", "Ruby"]) {
+      const dogButton = screen.getByRole("button", { name: `Open ${dogName}'s dog file` });
+      expect(dogButton.closest("p")).toHaveClass("font-sans", "text-xl");
+    }
+    for (const timeButton of screen.getAllByRole("button", { name: "Open 09:00 booking" })) {
+      expect(timeButton).toHaveClass(
+        "size-11",
+        "border",
+        "border-journey-time",
+        "bg-journey-time",
+      );
+    }
+    for (const messageButton of [
+      screen.getByRole("button", { name: "Message David Law" }),
+      screen.getByRole("button", { name: "Message Derrick Asquith" }),
+    ]) {
+      expect(messageButton).toHaveClass(
+        "size-11",
+        "bg-journey-message",
+        "text-journey-message",
+      );
+    }
   });
 
   it("keeps time, journey actions and owner message in chronological DOM order", () => {
@@ -556,6 +594,9 @@ describe("BookingFeed — accessible journey rows", () => {
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
     expect(screen.getByTestId("booking-journey-grid")).toHaveAttribute("data-centres", "7");
+    const completionBoxes = screen.getAllByRole("checkbox");
+    expect(completionBoxes).toHaveLength(5);
+    expect(completionBoxes.filter((checkbox) => checkbox.checked)).toHaveLength(3);
   });
 
   it("shows the same label pill on hover and keyboard focus", () => {

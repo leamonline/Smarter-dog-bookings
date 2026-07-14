@@ -22,7 +22,7 @@ export function TodayHeader({
             type="button"
             aria-label={`Choose date, ${dateLabel}`}
             onClick={onOpenDatePicker}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-yellow bg-brand-yellow px-3 text-center text-brand-purple outline-none hover:bg-brand-yellow/85 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 sm:w-auto sm:justify-start sm:border-transparent sm:bg-transparent sm:text-left sm:hover:bg-white"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-brand-yellow bg-brand-yellow px-3 text-center text-black outline-none hover:bg-brand-yellow/85 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
             <CalendarDays size={20} aria-hidden="true" />
             <span className="font-display text-base font-bold">{dateLabel}</span>
@@ -77,19 +77,19 @@ export function TodayHeader({
         <button
           type="button"
           onClick={onManageAvailability}
-          className="inline-flex min-h-11 items-center rounded-full border border-brand-paper-line bg-white px-4 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:border-brand-purple/30 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-brand-paper-line bg-white px-4 text-center text-[13px] font-bold text-brand-purple outline-none transition-colors hover:border-brand-purple/30 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
         >
           Manage availability
         </button>
         {nextOnlineSlot ? (
-          <p className="text-[12px] text-slate-500">
+          <p className="w-full text-center text-[12px] text-slate-500">
             Next online slot{" "}
             <span className="font-bold tabular-nums text-brand-teal-text">
               {nextOnlineSlot}
             </span>
           </p>
         ) : (
-          <p className="text-[12px] font-semibold text-slate-500">
+          <p className="w-full text-center text-[12px] font-semibold text-slate-500">
             No online slots available
           </p>
         )}

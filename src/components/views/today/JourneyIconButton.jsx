@@ -6,7 +6,7 @@ export function JourneyIconButton({
   children,
 }) {
   return (
-    <span className="group relative flex min-w-0 justify-center pb-7">
+    <span className="group relative flex min-w-0 flex-col items-center justify-start gap-1 pb-7">
       <button
         type="button"
         data-testid="journey-action"
@@ -24,6 +24,13 @@ export function JourneyIconButton({
       >
         {children}
       </button>
+      <input
+        type="checkbox"
+        checked={complete}
+        disabled
+        aria-label={`${label} completed`}
+        className="size-4 accent-brand-teal disabled:cursor-default disabled:opacity-100"
+      />
       <span
         aria-hidden="true"
         className="pointer-events-none absolute bottom-0 z-10 whitespace-nowrap rounded-full bg-brand-purple px-2 py-1 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"

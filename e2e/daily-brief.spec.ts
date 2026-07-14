@@ -37,25 +37,48 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     name: "Choose date, Tuesday 14 July",
   });
   await expect(dateControl).toBeVisible();
-  if (testInfo.project.name === "mobile") {
-    expect(
-      await dateControl.evaluate((element) => {
-        const styles = getComputedStyle(element);
-        return {
-          backgroundColor: styles.backgroundColor,
-          borderWidth: styles.borderWidth,
-          justifyContent: styles.justifyContent,
-          fillsParent: element.getBoundingClientRect().width ===
-            element.parentElement?.getBoundingClientRect().width,
-        };
-      }),
-    ).toEqual({
-      backgroundColor: "rgb(254, 204, 19)",
-      borderWidth: "1px",
-      justifyContent: "center",
-      fillsParent: true,
-    });
-  }
+  expect(
+    await dateControl.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        backgroundColor: styles.backgroundColor,
+        borderColor: styles.borderColor,
+        borderWidth: styles.borderWidth,
+        color: styles.color,
+        justifyContent: styles.justifyContent,
+        fillsParent: element.getBoundingClientRect().width ===
+          element.parentElement?.getBoundingClientRect().width,
+      };
+    }),
+  ).toEqual({
+    backgroundColor: "rgb(254, 204, 19)",
+    borderColor: "rgb(254, 204, 19)",
+    borderWidth: "2px",
+    color: "rgb(0, 0, 0)",
+    justifyContent: "center",
+    fillsParent: true,
+  });
+
+  const availability = page.getByRole("button", { name: "Manage availability" });
+  const noSlots = page.getByText("No online slots available");
+  await expect(availability).toBeVisible();
+  await expect(noSlots).toBeVisible();
+  await expect(availability).toHaveCSS("justify-content", "center");
+  await expect(noSlots).toHaveCSS("text-align", "center");
+  expect(
+    await availability.evaluate(
+      (element) => {
+        const parent = element.parentElement;
+        if (!parent) return false;
+        const parentStyles = getComputedStyle(parent);
+        const contentWidth =
+          parent.clientWidth -
+          Number.parseFloat(parentStyles.paddingLeft) -
+          Number.parseFloat(parentStyles.paddingRight);
+        return Math.abs(element.getBoundingClientRect().width - contentWidth) < 1;
+      },
+    ),
+  ).toBe(true);
   await expect(
     page.getByRole("link", { name: "Humans — 7 new customers awaiting approval" }),
   ).toBeVisible();
@@ -84,6 +107,26 @@ test("Daily Brief keeps its core journey usable at every supported width", async
   await expect(
     firstJourney.getByRole("button", { name: "Check-in" }),
   ).toBeVisible();
+  const journeyRows = page.getByRole("article").filter({
+    has: page.getByTestId("booking-journey-grid"),
+  });
+  const rowCount = await journeyRows.count();
+  expect(rowCount).toBeGreaterThan(1);
+  for (let index = 0; index < rowCount; index += 1) {
+    const row = journeyRows.nth(index);
+    const time = row.getByRole("button", { name: /Open \d{2}:\d{2} booking/ });
+    const message = row.locator(
+      'button[aria-label^="Message "]:not([data-testid="journey-action"])',
+    );
+    await expect(time).toHaveCSS("width", "44px");
+    await expect(time).toHaveCSS("height", "44px");
+    await expect(time).toHaveCSS("background-color", "rgb(255, 76, 56)");
+    await expect(message).toHaveCSS("width", "44px");
+    await expect(message).toHaveCSS("height", "44px");
+    await expect(message).toHaveCSS("background-color", "rgb(91, 209, 0)");
+    const actionCount = await row.getByTestId("journey-action").count();
+    await expect(row.getByRole("checkbox")).toHaveCount(actionCount);
+  }
 
   await firstJourney
     .getByRole("button", { name: /Open £.* invoice/ })
