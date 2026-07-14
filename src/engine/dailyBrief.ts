@@ -1,7 +1,14 @@
 import { BOOKING_STATUS } from "../constants/index";
 import { paymentMethodLabel } from "../constants/salon";
 import type { Booking } from "../types/index";
-import { buildFutureDayFeed, buildTodayFeed, londonDateStr } from "./today";
+import {
+  buildFutureDayFeed,
+  buildTodayFeed,
+  isPaymentOutstanding,
+  londonDateStr,
+  needsConfirmation,
+  statusRank,
+} from "./today";
 
 export type JourneyActionId =
   | "checkIn"
@@ -11,7 +18,7 @@ export type JourneyActionId =
   | "waiting"
   | "collected"
   | "paid";
-export type PaymentVisual = "unpaid" | "cash" | "card" | "bankTransfer";
+export type PaymentVisual = "unpaid" | "cash" | "card" | "bankTransfer" | "paidUnknown";
 
 export interface JourneyAction {
   id: JourneyActionId;
@@ -65,18 +72,22 @@ export function paymentVisual(booking: Booking): { visual: PaymentVisual; label:
     return { visual: "unpaid", label: "Record payment" };
   }
 
-  const amount = Number(booking.paidAmount || 0).toLocaleString("en-GB", {
-    maximumFractionDigits: 2,
-  });
-  const method = paymentMethodLabel(booking.paymentMethod) || "unrecorded method";
+  const amount = booking.paidAmount == null
+    ? null
+    : booking.paidAmount.toLocaleString("en-GB", { maximumFractionDigits: 2 });
+  const method = paymentMethodLabel(booking.paymentMethod);
   const visual: PaymentVisual =
     booking.paymentMethod === "cash"
       ? "cash"
       : booking.paymentMethod === "card"
         ? "card"
-        : "bankTransfer";
+        : booking.paymentMethod === "bank_transfer"
+          ? "bankTransfer"
+          : "paidUnknown";
+  const amountLabel = amount == null ? "" : ` £${amount}`;
+  const methodLabel = method ? ` by ${method.toLowerCase()}` : "";
 
-  return { visual, label: `Paid £${amount} by ${method.toLowerCase()}` };
+  return { visual, label: `Paid${amountLabel}${methodLabel}` };
 }
 
 export function requiresCareSkipConfirmation(
@@ -101,7 +112,15 @@ export function buildDailyBriefFeed(
   selectedDateStr: string,
   now: Date,
 ) {
-  return selectedDateStr === londonDateStr(now)
-    ? buildTodayFeed(bookings, now)
-    : buildFutureDayFeed(bookings);
+  if (selectedDateStr === londonDateStr(now)) return buildTodayFeed(bookings, now);
+
+  return buildFutureDayFeed(bookings).map((entry) => {
+    const rank = statusRank(entry.booking.status);
+    const isUnconfirmed = rank === 0 && needsConfirmation(entry.booking);
+    const owes = isPaymentOutstanding(entry.booking);
+    const needsAction =
+      entry.stage === "ready" || isUnconfirmed || (rank >= 1 && owes);
+
+    return { ...entry, isUnconfirmed, owes, needsAction };
+  });
 }
