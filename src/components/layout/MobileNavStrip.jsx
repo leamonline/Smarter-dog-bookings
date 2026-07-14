@@ -1,14 +1,14 @@
 import { NavLink } from "react-router-dom";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
-import { MOBILE_NAV } from "./navConfig.jsx";
+import { MOBILE_NAV, navTargetFor } from "./navConfig.jsx";
 
 // ── Mobile/tablet primary nav (below lg) ──────────────────────────
 // A purple strip of labelled tabs directly under the top bar. Every icon
 // carries a visible text label — staff should never have to guess what a
 // glyph means — and the active tab is a solid per-section accent pill.
 // Badges (Inbox unread, Humans approvals) ride on the icon.
-export function MobileNavStrip() {
+export function MobileNavStrip({ currentDateStr }) {
   const { unread: waUnread } = useWhatsAppUnread();
   const waBadge = waUnread > 0 ? (waUnread > 99 ? "99+" : String(waUnread)) : null;
   const { count: pendingSignups } = usePendingSignupsCount();
@@ -34,7 +34,7 @@ export function MobileNavStrip() {
         return (
           <NavLink
             key={item.to}
-            to={item.to}
+            to={navTargetFor(item, currentDateStr)}
             end={item.to === "/"}
             aria-label={ariaLabel}
             className={({ isActive }) =>

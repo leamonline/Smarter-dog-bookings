@@ -1,4 +1,4 @@
-// The one and only "Today" heading. The app shell hides its context row on
+// The page-owned Daily Brief heading. The app shell hides its context row on
 // /today, so this header carries the page identity, the compact daily stats a
 // groomer wants at a glance, the "Next online slot" a customer could book, and
 // the entry point to the availability modal.
@@ -18,7 +18,7 @@ export function TodayHeader({
     <header className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-[24px] font-extrabold text-brand-purple leading-tight">Today</h1>
+          <h1 className="font-display text-[24px] font-extrabold text-brand-purple leading-tight">Daily Brief</h1>
           <p className="mt-0.5 flex items-center gap-2 text-[13px] font-semibold text-slate-700">
             <span>{dateLabel}</span>
             {!isDayOpen && (

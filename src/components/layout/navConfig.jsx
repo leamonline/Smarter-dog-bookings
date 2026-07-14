@@ -98,6 +98,16 @@ export const SETTINGS_ITEM = {
 // Mobile strip shows the same primary sections as the desktop nav.
 export const MOBILE_NAV = PRIMARY_NAV;
 
+// Daily Brief is date-addressable. Keep the configured pathname stable for
+// active-state and badge checks, but include the current in-memory selection
+// in the rendered destination so entering the page cannot drop that context.
+export function navTargetFor(item, currentDateStr) {
+  if (item.to === "/today" && currentDateStr) {
+    return `/today?date=${currentDateStr}`;
+  }
+  return item.to;
+}
+
 // Resolve the section title for the context row from the current path.
 // Handles profile sub-routes (/dogs/:id, /humans/:id) too.
 export function sectionTitleFor(pathname) {

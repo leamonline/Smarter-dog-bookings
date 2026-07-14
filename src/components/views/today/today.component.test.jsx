@@ -66,7 +66,7 @@ describe("TodayHeader", () => {
         onManageAvailability={noop}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Daily Brief" })).toBeInTheDocument();
     expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
     const summary = screen.getByRole("list", { name: "Today's summary" });
     const items = within(summary).getAllByRole("listitem");

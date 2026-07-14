@@ -869,6 +869,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onSignOut={signOut}
           isOnline={isOnline}
           user={user}
+          currentDateStr={currentDateStr}
           onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
           onNewClient={() => setShowNewClient(true)}
           onOpenOverview={() => {
@@ -894,7 +895,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                 : "open"
           }
         />
-        <MobileNavStrip />
+        <MobileNavStrip currentDateStr={currentDateStr} />
 
         <SalonProvider
           dogs={dogs}
