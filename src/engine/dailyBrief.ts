@@ -9,6 +9,8 @@ import {
   needsConfirmation,
   statusRank,
 } from "./today";
+import { computeBookingPricing, validateDepositAmount } from "./bookingRules";
+import type { BookingPricingInput } from "./bookingRules";
 
 export type JourneyActionId =
   | "checkIn"
@@ -25,6 +27,65 @@ export interface JourneyAction {
   label: string;
   completed: boolean;
   next: boolean;
+}
+
+export interface MiniInvoiceInput {
+  booking: BookingPricingInput;
+  basePrice: number;
+  addons: string[];
+  depositAmount: number;
+  paymentReceived: number;
+  paymentMethod: string | null;
+}
+
+export function buildMiniInvoicePatch(input: MiniInvoiceInput) {
+  const basePrice = Number(input.basePrice);
+  if (!Number.isFinite(basePrice) || basePrice <= 0) {
+    return { ok: false as const, error: "Enter a base price above £0" };
+  }
+
+  const pricingInput = { ...input.booking, priceOverride: basePrice, addons: input.addons };
+  const subtotal = computeBookingPricing(pricingInput).subtotal;
+  const deposit = Number(input.depositAmount || 0);
+  const depositError =
+    deposit > 0 ? validateDepositAmount("Deposit Paid", deposit, subtotal) : null;
+  if (depositError) return { ok: false as const, error: depositError };
+
+  const amountDue = Math.max(0, subtotal - deposit);
+  const received = Number(input.paymentReceived || 0);
+  if (!Number.isFinite(received) || received < 0) {
+    return { ok: false as const, error: "Payment received cannot be negative" };
+  }
+  if (received > 0 && !input.paymentMethod) {
+    return { ok: false as const, error: "Choose Cash, Card or Bank transfer" };
+  }
+  if (received > 0 && Math.round(received * 100) !== Math.round(amountDue * 100)) {
+    return {
+      ok: false as const,
+      error: `Enter the full £${amountDue.toLocaleString("en-GB", {
+        maximumFractionDigits: 2,
+      })} balance or update the deposit amount`,
+    };
+  }
+
+  const settled = received > 0;
+  return {
+    ok: true as const,
+    subtotal,
+    amountDue,
+    patch: {
+      priceOverride: basePrice,
+      addons: input.addons,
+      payment: settled
+        ? ("Paid in Full" as const)
+        : deposit > 0
+          ? ("Deposit Paid" as const)
+          : ("Due at Pick-up" as const),
+      depositAmount: deposit > 0 ? deposit : null,
+      paymentMethod: settled ? input.paymentMethod : null,
+      paidAmount: settled ? subtotal : null,
+    },
+  };
 }
 
 const CARE = [

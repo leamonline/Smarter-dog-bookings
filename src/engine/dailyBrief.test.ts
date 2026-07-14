@@ -4,6 +4,7 @@ import type { Booking } from "../types/index";
 import {
   buildDailyBriefFeed,
   buildJourneyActions,
+  buildMiniInvoicePatch,
   paymentVisual,
   requiresCareSkipConfirmation,
 } from "./dailyBrief";
@@ -179,6 +180,54 @@ describe("Daily Brief journey", () => {
       isNext: false,
       overdueMinutes: 0,
       waitMinutes: null,
+    });
+  });
+});
+
+describe("buildMiniInvoicePatch", () => {
+  const input = {
+    booking: booking({ service: "full-groom", size: "small" }),
+    basePrice: 42,
+    addons: [],
+    depositAmount: 10,
+    paymentReceived: 32,
+    paymentMethod: "card",
+  };
+
+  it("stores the appointment total, final method and retained deposit", () => {
+    expect(buildMiniInvoicePatch(input)).toEqual({
+      ok: true,
+      subtotal: 42,
+      amountDue: 32,
+      patch: {
+        priceOverride: 42,
+        addons: [],
+        payment: "Paid in Full",
+        depositAmount: 10,
+        paymentMethod: "card",
+        paidAmount: 42,
+      },
+    });
+  });
+
+  it("does not mark a partial final payment as paid", () => {
+    expect(buildMiniInvoicePatch({ ...input, paymentReceived: 20 })).toEqual({
+      ok: false,
+      error: "Enter the full £32 balance or update the deposit amount",
+    });
+  });
+
+  it("saves deposit-only state without a payment method", () => {
+    expect(
+      buildMiniInvoicePatch({ ...input, paymentReceived: 0, paymentMethod: null }),
+    ).toMatchObject({
+      ok: true,
+      patch: {
+        payment: "Deposit Paid",
+        depositAmount: 10,
+        paymentMethod: null,
+        paidAmount: null,
+      },
     });
   });
 });
