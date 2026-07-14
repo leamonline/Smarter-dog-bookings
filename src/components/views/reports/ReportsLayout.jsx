@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 const REPORT_SECTIONS = [
   { to: "/reports/cash-up", label: "Cash-up" },
@@ -6,6 +6,8 @@ const REPORT_SECTIONS = [
 ];
 
 export function ReportsLayout() {
+  const location = useLocation();
+
   return (
     <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
       <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
@@ -15,7 +17,7 @@ export function ReportsLayout() {
         {REPORT_SECTIONS.map((section) => (
           <NavLink
             key={section.to}
-            to={section.to}
+            to={{ pathname: section.to, search: location.search }}
             className={({ isActive }) => isActive
               ? "min-h-[44px] inline-flex items-center rounded-md bg-white px-4 text-sm font-bold text-brand-purple shadow-sm no-underline"
               : "min-h-[44px] inline-flex items-center rounded-md px-4 text-sm font-semibold text-slate-600 no-underline hover:text-slate-800"}
