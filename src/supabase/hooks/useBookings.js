@@ -415,8 +415,6 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     async (updatedBooking, _fromDateStr, toDateStrValue) => {
       if (!supabase) return updatedBooking;
 
-      setError(null);
-
       const pickupHumanId =
         updatedBooking._pickupById ||
         (updatedBooking.pickupBy
@@ -486,7 +484,6 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         logger.error("Failed to update booking", err, {
           tags: { hook: "useBookings", op: "updateBooking" },
         });
-        setError(err.message);
         onErrorRef.current?.(err.message);
         return null;
       }

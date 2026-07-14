@@ -54,6 +54,7 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
   const [minutes, setMinutes] = useState("15");
   const [sendingId, setSendingId] = useState(null);
   const [sentIds, setSentIds] = useState(() => new Set());
+  const [contactsUnavailable, setContactsUnavailable] = useState("");
   const readyNotifiedRef = useRef(false);
 
   const ownerId = booking?._ownerId ?? null;
@@ -74,6 +75,15 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setContactsUnavailable("");
+      if (!supabase) {
+        setRecipients([]);
+        setContactsUnavailable(
+          "Collection messaging isn't available offline. Contact the customer directly.",
+        );
+        setLoading(false);
+        return;
+      }
       if (!ownerId) {
         setRecipients([]);
         setLoading(false);
@@ -238,7 +248,7 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
             onClick={() => onClose?.()}
             className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full text-sm font-bold font-[inherit] bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
           >
-            {sentIds.size > 0 ? "Done" : "No, close"}
+            {sentIds.size > 0 ? "Done" : contactsUnavailable ? "Close" : "No, close"}
           </button>
         </div>
       }
@@ -274,7 +284,11 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
             </div>
           )}
 
-          {loading ? (
+          {contactsUnavailable ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-[12px] font-semibold text-amber-900">
+              {contactsUnavailable}
+            </div>
+          ) : loading ? (
             <div className="text-[12px] text-slate-500 py-4 text-center" role="status">Loading contacts…</div>
           ) : recipients.length === 0 ? (
             <div className="text-[12px] text-slate-500 py-2">

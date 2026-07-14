@@ -1,6 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { render, renderHook, act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { BOOKING_STATUS } from "../../constants/salon";
+import { ToastProvider } from "../../contexts/ToastContext.jsx";
+import { TodayView } from "../../components/views/TodayView.jsx";
+
+vi.mock("../../hooks/useUnpaidFortnight", () => ({
+  useUnpaidFortnight: () => ({ loading: false, available: false, count: 0 }),
+}));
+vi.mock("../../hooks/useRetentionData", () => ({
+  useRetentionData: () => ({
+    loading: false,
+    available: false,
+    candidates: [],
+    excludedCount: 0,
+    overdueCount: 0,
+    refresh: vi.fn(),
+    mark: vi.fn(),
+  }),
+}));
 
 // vi.mock factories must not reference outer variables, so we define
 // stub state on globalThis and let the mock pull values from there.
@@ -198,6 +216,38 @@ const humansById = {
 };
 
 const weekStart = new Date(2026, 4, 18); // Mon 18 May 2026
+
+function DailyBriefUpdateHarness() {
+  const bookingState = useBookings(weekStart, dogsById, humansById);
+  return (
+    <MemoryRouter initialEntries={["/today?date=2026-05-18"]}>
+      <ToastProvider>
+        <TodayView
+          selectedDateObj={new Date(2026, 4, 18)}
+          selectedDateStr="2026-05-18"
+          onOpenDatePicker={vi.fn()}
+          onOpenDog={vi.fn()}
+          onOpenHuman={vi.fn()}
+          bookingsByDate={bookingState.bookingsByDate}
+          bookingsLoading={bookingState.loading}
+          bookingsError={bookingState.error}
+          dogs={dogsById}
+          humans={humansById}
+          daySettings={{ "2026-05-18": { extraSlots: [], immediateSlots: [] } }}
+          dayOpenState={{ "2026-05-18": true }}
+          isOnline
+          onUpdateBooking={bookingState.updateBooking}
+          onOpenBooking={vi.fn()}
+          onNewBooking={vi.fn()}
+          onSendCollection={vi.fn()}
+          toggleImmediateSlot={vi.fn()}
+          onRefresh={bookingState.refetch}
+          configPricing={null}
+        />
+      </ToastProvider>
+    </MemoryRouter>
+  );
+}
 
 describe("useBookings", () => {
   // Reset on entry so each test starts from a clean slot. We don't
@@ -444,6 +494,36 @@ describe("useBookings", () => {
     expect(returned?.status).toBe("Checked in");
     expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("10:00");
+  });
+
+  it("keeps a journey update failure out of the booking-load error surface", async () => {
+    const initialRow = {
+      id: "booking-7",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [initialRow], error: null },
+        updateResult: { data: null, error: { message: "update denied" } },
+      }),
+    );
+
+    render(<DailyBriefUpdateHarness />);
+    const checkIn = await screen.findByRole("button", { name: "Check-in" });
+    fireEvent.click(checkIn);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check-in could not be saved.",
+    );
+    expect(screen.queryByText("Couldn't load bookings for this date.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check-in" })).toBeInTheDocument();
   });
 
   it("removeBooking deletes optimistically and reports success", async () => {
@@ -967,7 +1047,9 @@ describe("useBookings", () => {
 
     expect(returned).toBeNull();
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("09:00");
-    expect(result.current.error).toBe("update failed");
+    // Mutation failures stay out of the fetch/load error channel. The caller
+    // receives null and onError so its own action-specific recovery can run.
+    expect(result.current.error).toBeNull();
     expect(onError).toHaveBeenCalledWith("update failed");
     expect(stub.getLastPayload("update").staff_capacity_override).toBe(true);
   });
