@@ -50,4 +50,3 @@
 - [ ] Run `npm run build`.
 - [ ] Inspect Today, Add client, Humans, Dogs, Reports, Settings, New Booking, and representative stacked modals at 1440×900, 768×1024, and 390×844.
 - [ ] Confirm no application code outside the named plans changed.
-

@@ -942,7 +942,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -975,7 +974,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}

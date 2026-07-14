@@ -202,4 +202,3 @@ With a standard modal open, confirm the page navigation and main content are hid
 Run: `npm run typecheck && npm run lint && npm test && npm run build`
 
 Expected: all commands exit 0.
-
