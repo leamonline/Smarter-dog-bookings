@@ -8,6 +8,8 @@ import {
   WaitBadge,
   waitTone,
   MoreMenu,
+  ActionTile,
+  PaymentMethodChooser,
   WAIT_AMBER_MINUTES,
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
@@ -123,6 +125,40 @@ describe("MoreMenu", () => {
   it("renders nothing when there are no items", () => {
     const { container } = render(<MoreMenu items={[]} />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe("ActionTile", () => {
+  it("renders icon + short label with a full accessible name", () => {
+    const onClick = vi.fn();
+    render(<ActionTile icon="check" label="Collected" ariaLabel="Mark collected" onClick={onClick} />);
+    const btn = screen.getByRole("button", { name: "Mark collected" });
+    expect(btn).toHaveTextContent("Collected");
+    expect(btn.querySelector("svg")).not.toBeNull();
+    fireEvent.click(btn);
+    expect(onClick).toHaveBeenCalled();
+  });
+});
+
+describe("PaymentMethodChooser", () => {
+  it("offers every payment method and a cancel", () => {
+    const onPick = vi.fn();
+    const onCancel = vi.fn();
+    render(<PaymentMethodChooser onPick={onPick} onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole("button", { name: "Bank transfer" }));
+    expect(onPick).toHaveBeenCalledWith("bank_transfer");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("MoreMenu tile variant", () => {
+  it("renders a tile-shaped trigger that still opens the menu", () => {
+    const onA = vi.fn();
+    render(<MoreMenu tile menuLabel="More actions for Rex" items={[{ label: "Didn't show", onClick: onA }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Rex" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
+    expect(onA).toHaveBeenCalled();
   });
 });
 

@@ -16,7 +16,8 @@ import {
   OnTheWayChip,
   PrimaryButton,
   SecondaryButton,
-  MarkPaidAction,
+  ActionTile,
+  PaymentMethodChooser,
   MoreMenu,
   Chevron,
   formatMinutes,
@@ -68,7 +69,15 @@ function ChipRow({ chips }) {
   );
 }
 
-/** The expanded detail + action block — the old card's body, verbatim logic. */
+/**
+ * The expanded detail + action block. Layout discipline: ONE full-width
+ * primary, then a bar of equal-width icon tiles (More always last, and only
+ * when it has items) — no control ever sizes to its own text or floats
+ * right. Rare/risky actions (Didn't show, Hide until tomorrow) live behind
+ * More so a wet-handed mis-tap can't fire them. The `mode` machine keeps the
+ * two safeguards: collection has a confirm step, payment has the method
+ * chooser.
+ */
 function RowDetail({ entry, welfare, pay, otw, handlers }) {
   const {
     onMarkArrived, onStartGroom, onMarkReady, onMarkCollected, onSendCollection,
@@ -76,7 +85,7 @@ function RowDetail({ entry, welfare, pay, otw, handlers }) {
   } = handlers;
   const b = entry.booking;
   const d = resolve(b);
-  const [confirming, setConfirming] = useState(false);
+  const [mode, setMode] = useState("idle");
 
   const isReady = entry.stage === "ready";
   const isCollected = entry.stage === "collected";
@@ -87,60 +96,89 @@ function RowDetail({ entry, welfare, pay, otw, handlers }) {
   // Money never hides; only a not-yet-arrived, not-owing booking can be tucked away.
   const canHide = entry.stage === "booked" && !entry.owes;
 
+  const messageTile = { icon: "message", label: "Message", ariaLabel: "Message owner", onClick: () => onMessageOwner(b) };
+  const bookingTile = { icon: "document", label: "Booking", ariaLabel: "Open booking", onClick: () => onOpenBooking(b.id) };
+  const paidTile = { icon: "cash", label: "Paid", ariaLabel: "Mark paid", onClick: () => setMode("choosePayment") };
+
   let primary = null;
-  let secondary = null;
+  const tiles = [];
   const moreItems = [];
-  const messageOwner = { label: "Message owner", onClick: () => onMessageOwner(b) };
-  const openBooking = { label: "Open booking", onClick: () => onOpenBooking(b.id) };
 
   if (entry.isLate) {
-    primary = <PrimaryButton onClick={() => onMarkArrived(b)}>Mark arrived</PrimaryButton>;
-    secondary = <SecondaryButton onClick={() => onMessageOwner(b)}>Message owner</SecondaryButton>;
-    moreItems.push({ label: "Didn't show", onClick: () => onDidntShow(b) }, openBooking);
+    primary = <PrimaryButton fluid onClick={() => onMarkArrived(b)}>Mark arrived</PrimaryButton>;
+    tiles.push(messageTile, bookingTile);
+    moreItems.push({ label: "Didn't show", onClick: () => onDidntShow(b) });
   } else if (isReady) {
-    if (confirming) {
-      primary = <PrimaryButton onClick={() => { onMarkCollected(b); setConfirming(false); }}>Confirm collected</PrimaryButton>;
-      secondary = <SecondaryButton onClick={() => setConfirming(false)}>Cancel</SecondaryButton>;
-    } else if (collectionSent) {
-      primary = <PrimaryButton onClick={() => setConfirming(true)}>Mark collected</PrimaryButton>;
-      secondary = <SecondaryButton onClick={() => onSendCollection(b)}>Resend message</SecondaryButton>;
+    if (collectionSent) {
+      primary = <PrimaryButton fluid onClick={() => setMode("confirmCollect")}>Mark collected</PrimaryButton>;
+      tiles.push({ icon: "refresh", label: "Resend", ariaLabel: "Resend message", onClick: () => onSendCollection(b) });
     } else {
-      primary = <PrimaryButton onClick={() => onSendCollection(b)}>Send collection message</PrimaryButton>;
-      secondary = <SecondaryButton onClick={() => setConfirming(true)}>Mark collected</SecondaryButton>;
+      primary = <PrimaryButton fluid onClick={() => onSendCollection(b)}>Send collection message</PrimaryButton>;
+      tiles.push({ icon: "check", label: "Collected", ariaLabel: "Mark collected", onClick: () => setMode("confirmCollect") });
     }
-    moreItems.push(messageOwner, openBooking);
+    if (owesNow) tiles.push(paidTile);
+    tiles.push(messageTile);
+    moreItems.push({ label: "Open booking", onClick: () => onOpenBooking(b.id) });
   } else if (entry.stage === "inSalon") {
     // Checked in → the groom is the next step; In bath → it's finishing.
     if (b.status === BOOKING_STATUS.CHECKED_IN) {
-      primary = <PrimaryButton onClick={() => onStartGroom(b)}>Start groom</PrimaryButton>;
-      secondary = <SecondaryButton onClick={() => onMarkReady(b)}>Mark ready</SecondaryButton>;
+      primary = <PrimaryButton fluid onClick={() => onStartGroom(b)}>Start groom</PrimaryButton>;
+      tiles.push({ icon: "bell", label: "Ready", ariaLabel: "Mark ready", onClick: () => onMarkReady(b) });
     } else {
-      primary = <PrimaryButton onClick={() => onMarkReady(b)}>Mark ready</PrimaryButton>;
+      primary = <PrimaryButton fluid onClick={() => onMarkReady(b)}>Mark ready</PrimaryButton>;
     }
-    moreItems.push(messageOwner, openBooking);
+    if (owesNow) tiles.push(paidTile);
+    tiles.push(messageTile, bookingTile);
   } else if (isCollected) {
     if (owesNow) {
       // Money at risk — recording the payment IS the primary action.
-      primary = <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="primary" />;
-      moreItems.push(messageOwner, openBooking);
+      primary = <PrimaryButton fluid onClick={() => setMode("choosePayment")}>Mark paid</PrimaryButton>;
+      tiles.push(messageTile, bookingTile);
     } else {
-      secondary = <SecondaryButton onClick={() => onOpenBooking(b.id)}>Open booking</SecondaryButton>;
-      moreItems.push(messageOwner);
+      tiles.push(bookingTile, messageTile);
     }
   } else if (entry.isUnconfirmed) {
     // A reminder was sent and went unanswered — the job is to chase it, which
     // happens in the owner's message thread.
-    primary = <PrimaryButton onClick={() => onMessageOwner(b)}>Chase confirmation</PrimaryButton>;
-    secondary = <SecondaryButton onClick={() => onMarkArrived(b)}>Mark arrived</SecondaryButton>;
-    moreItems.push(openBooking);
+    primary = <PrimaryButton fluid onClick={() => onMessageOwner(b)}>Chase confirmation</PrimaryButton>;
+    tiles.push({ icon: "login", label: "Arrived", ariaLabel: "Mark arrived", onClick: () => onMarkArrived(b) }, bookingTile);
   } else {
     // Plain booked / next.
-    primary = <PrimaryButton onClick={() => onMarkArrived(b)}>Mark arrived</PrimaryButton>;
-    moreItems.push(messageOwner, openBooking);
+    primary = <PrimaryButton fluid onClick={() => onMarkArrived(b)}>Mark arrived</PrimaryButton>;
+    tiles.push(messageTile, bookingTile);
   }
   if (canHide) moreItems.push({ label: "Hide until tomorrow", onClick: () => onHideUntilTomorrow(b.id) });
-  // "Mark paid" stays reachable (not primary) for an arrived/ready dog that owes.
-  const showMarkPaidSecondary = owesNow && !isCollected;
+
+  let actionArea;
+  if (mode === "confirmCollect") {
+    actionArea = (
+      <div className="grid grid-cols-2 gap-1.5">
+        <PrimaryButton fluid onClick={() => { onMarkCollected(b); setMode("idle"); }}>Confirm collected</PrimaryButton>
+        <SecondaryButton onClick={() => setMode("idle")}>Cancel</SecondaryButton>
+      </div>
+    );
+  } else if (mode === "choosePayment") {
+    actionArea = (
+      <PaymentMethodChooser
+        onPick={(m) => { onMarkPaid(b, m); setMode("idle"); }}
+        onCancel={() => setMode("idle")}
+      />
+    );
+  } else {
+    actionArea = (
+      <>
+        {primary}
+        {(tiles.length > 0 || moreItems.length > 0) && (
+          <div className="grid grid-flow-col auto-cols-fr gap-1.5">
+            {tiles.map((t) => (
+              <ActionTile key={t.label} {...t} />
+            ))}
+            {moreItems.length > 0 && <MoreMenu tile items={moreItems} menuLabel={`More actions for ${d.dogName}`} />}
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="pt-1.5">
@@ -152,16 +190,7 @@ function RowDetail({ entry, welfare, pay, otw, handlers }) {
         {b.notes && b.notes.trim() && <span className="italic">“{b.notes.trim()}”</span>}
       </BookingStatusLine>
       <WelfareChips alerts={welfare.alerts} pregnant={welfare.pregnant} notes={welfare.notes} />
-      <div className="flex items-center gap-2 flex-wrap mt-2.5">
-        {primary}
-        {secondary}
-        {showMarkPaidSecondary && <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="secondary" />}
-        {moreItems.length > 0 && (
-          <span className="ml-auto">
-            <MoreMenu items={moreItems} menuLabel={`More actions for ${d.dogName}`} />
-          </span>
-        )}
-      </div>
+      <div className="flex flex-col gap-1.5 mt-2.5">{actionArea}</div>
     </div>
   );
 }

@@ -259,14 +259,48 @@ describe("BookingFeed — expanded-row actions (same contextual set as before)",
     expect(onHide).toHaveBeenCalledWith("u");
   });
 
-  it("a plain booked row keeps Message owner one tap away in More", () => {
+  it("a plain booked row surfaces Message owner and Open booking as tiles", () => {
     const onMessageOwner = vi.fn();
-    open(base, {}, { onMessageOwner });
+    const onOpenBooking = vi.fn();
+    open(base, {}, { onMessageOwner, onOpenBooking });
     expect(screen.getByRole("button", { name: "Mark arrived" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Message owner" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /More actions for Rex/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Message owner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Message owner" }));
     expect(onMessageOwner).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Open booking" }));
+    expect(onOpenBooking).toHaveBeenCalledWith("x");
+  });
+
+  it("the Paid tile appears only when money is owed", () => {
+    const { unmount } = open(
+      { ...base, id: "r1", status: "Ready for pick-up", collectionSentAt: null },
+      { stage: "ready", owes: true },
+      { paymentOf: dueOf },
+    );
+    expect(screen.getByRole("button", { name: "Mark paid" })).toBeInTheDocument();
+    unmount();
+    open({ ...base, id: "r2", status: "Ready for pick-up", collectionSentAt: null }, { stage: "ready", owes: false });
+    expect(screen.queryByRole("button", { name: "Mark paid" })).not.toBeInTheDocument();
+  });
+
+  it("the Paid tile runs the method chooser before recording", () => {
+    const onMarkPaid = vi.fn();
+    open(
+      { ...base, id: "rp", status: "Ready for pick-up", collectionSentAt: null },
+      { stage: "ready", owes: true },
+      { paymentOf: dueOf, onMarkPaid },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
+    expect(onMarkPaid).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Card" }));
+    expect(onMarkPaid).toHaveBeenCalledWith(expect.objectContaining({ id: "rp" }), "card");
+  });
+
+  it("rare actions never render as tiles — only inside More", () => {
+    open(base, { isLate: true, needsAction: true, overdueMinutes: 20 });
+    expect(screen.queryByRole("button", { name: "Didn't show" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hide until tomorrow" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /More actions for Rex/ }));
+    expect(screen.getByRole("menuitem", { name: "Didn't show" })).toBeInTheDocument();
   });
 
   it("surfaces care notes on the expanded row", () => {
