@@ -150,7 +150,7 @@ function IdentityButton({ entry, resolve, onJumpTo, context }) {
       <span className="flex items-baseline gap-x-2">
         <span className="min-w-0 truncate">
           <span className="font-bold text-[15px] text-slate-800">{d.dogName}</span>
-          {d.breed && <span className="text-[13px] text-slate-600"> · {d.breed}</span>}
+          {d.breed && <span className="text-[15px] font-medium text-slate-600"> — {d.breed}</span>}
         </span>
         {b.slot && (
           <span className="ml-auto shrink-0 text-[13px] font-bold text-slate-600 tabular-nums">{b.slot}</span>

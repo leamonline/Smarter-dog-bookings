@@ -150,15 +150,17 @@ export function OpStatusChip({ opStatus }) {
  * dot or glyph, so no status ever leans on colour alone. Colours come in via
  * className (token utilities) or style (the status palette tokens).
  */
-export function Chip({ className = "", style, dot = false, icon = null, title, children }) {
+export function Chip({ className = "", style, dot = false, icon = null, title, ariaLabel, children }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${className}`}
+      data-today-status-pill
+      aria-label={ariaLabel}
+      className={`inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-bold ${className}`}
       style={style}
       title={title}
     >
       {dot && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />}
-      {icon && <span aria-hidden>{icon}</span>}
+      {icon && <span aria-hidden className="inline-flex shrink-0 items-center">{icon}</span>}
       {children}
     </span>
   );

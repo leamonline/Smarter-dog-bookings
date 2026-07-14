@@ -54,7 +54,7 @@ function entry(booking, overrides = {}) {
 }
 
 describe("TodayHeader", () => {
-  it("shows the title, date, compact stats and Next online slot", () => {
+  it("shows a balanced semantic summary and the next online slot", () => {
     render(
       <TodayHeader
         dateLabel="Thursday 2 July"
@@ -68,10 +68,32 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
     expect(screen.getByText(/Thursday 2 July/)).toBeInTheDocument();
-    expect(screen.getByText(/11 dogs booked/)).toBeInTheDocument();
-    expect(screen.getByText(/6 need action/)).toBeInTheDocument();
-    expect(screen.getByText(/£478 unpaid/)).toBeInTheDocument();
+    const summary = screen.getByRole("list", { name: "Today's summary" });
+    const items = within(summary).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent("11 booked");
+    expect(items[1]).toHaveTextContent("6 need action");
+    expect(items[2]).toHaveTextContent("£478 unpaid");
     expect(screen.getByText("09:00")).toBeInTheDocument();
+  });
+
+  it("uses a clear empty-slot message and keeps all three summary positions", () => {
+    render(
+      <TodayHeader
+        dateLabel="Thursday 2 July"
+        dogsBooked={1}
+        actionCount={0}
+        unpaidTotal={0}
+        nextOnlineSlot={null}
+        isDayOpen
+        onManageAvailability={noop}
+      />,
+    );
+    expect(screen.getByText("No online slots available")).toBeInTheDocument();
+    const summary = screen.getByRole("list", { name: "Today's summary" });
+    expect(within(summary).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(summary).getByText("All calm")).toBeInTheDocument();
+    expect(within(summary).getByText("All paid")).toBeInTheDocument();
   });
 
   it("reads calm and opens the availability modal", () => {
@@ -79,15 +101,15 @@ describe("TodayHeader", () => {
     render(
       <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen onManageAvailability={onManage} />,
     );
-    expect(screen.getByText(/1 dog booked/)).toBeInTheDocument();
-    expect(screen.getByText(/all calm/)).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Today's summary" }).firstElementChild).toHaveTextContent("1 booked");
+    expect(screen.getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
     expect(onManage).toHaveBeenCalled();
   });
 
   it("hides the availability control when the salon is closed", () => {
     render(<TodayHeader dateLabel="Thursday 2 July" dogsBooked={0} actionCount={0} isDayOpen={false} onManageAvailability={noop} />);
-    expect(screen.getByText(/salon closed/)).toBeInTheDocument();
+    expect(screen.getByText(/salon closed/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Manage availability/ })).not.toBeInTheDocument();
   });
 
@@ -159,14 +181,21 @@ describe("BookingFeed — slot-grouped diary", () => {
     expect(onToggleExpand).toHaveBeenCalledWith("b1");
   });
 
-  it("chips: overdue shows, overflow collapses to +N, dog name never hidden", () => {
-    renderFeed([group("08:30", [entry(booking, { isLate: true, overdueMinutes: 25, owes: true, stage: "inSalon" })])], {
+  it("shows dog and breed together, removes the size letter, and standardises status pills", () => {
+    const { container } = renderFeed([group("08:30", [entry(booking, { isLate: true, overdueMinutes: 25, owes: true, stage: "inSalon" })])], {
       ownerCounts: { h1: 2 },
     });
-    // Late + payment due + large dog + two-dogs-one-owner = 4 signals → 2 chips + "+2".
-    expect(screen.getByText("Rex")).toBeInTheDocument();
-    expect(screen.getByText(/25 min overdue/)).toBeInTheDocument();
-    expect(screen.getByText("+2")).toBeInTheDocument();
+    // Late + payment due + large dog + shared owner = 4 signals → 2 pills + overflow.
+    const toggle = container.querySelector("#today-card-b1-toggle");
+    expect(toggle).toHaveTextContent("Rex — Poodle");
+    expect(toggle).toHaveTextContent("Full Groom · Owner");
+    expect(toggle).not.toHaveTextContent(/\bL\b/);
+    const pills = container.querySelectorAll("[data-today-status-pill]");
+    expect(pills.length).toBe(3);
+    for (const pill of pills) expect(pill.className).toContain("h-6");
+    const late = screen.getByText("25 min late").closest("[data-today-status-pill]");
+    expect(late.querySelector("svg")).not.toBeNull();
+    expect(screen.getByLabelText("2 more statuses")).toHaveTextContent("+");
   });
 
   it("readOnly mode renders no buttons at all and no time-relative chips", () => {
