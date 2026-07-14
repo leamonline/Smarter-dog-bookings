@@ -6,6 +6,16 @@
 // cards had. readOnly mode (the closed-day brief) renders no buttons and no
 // time-relative chips at all.
 import { useState } from "react";
+import {
+  BellRing,
+  CheckCircle2,
+  CirclePoundSterling,
+  Clock3,
+  MessageCircle,
+  PawPrint,
+  TriangleAlert,
+  UsersRound,
+} from "lucide-react";
 import { entryOpStatus } from "../../../engine/today";
 import { BOOKING_STATUS, DOG_SIZE } from "../../../constants/index";
 import {
@@ -41,17 +51,19 @@ function collapsedChips({ entry, welfare, isLargeDog, sharedOwner, readOnly }) {
   const chips = [];
   if (!readOnly) {
     const op = entryOpStatus(entry);
-    if (op.kind === "overdue") chips.push({ key: "op", label: `${formatMinutes(entry.overdueMinutes)} overdue`, cls: CHIP_TONE_CLASS.coral });
-    else if (["paymentDue", "unconfirmed", "readyWaiting"].includes(op.kind)) chips.push({ key: "op", label: op.label, cls: CHIP_TONE_CLASS[op.tone] });
-    if (entry.owes && op.kind !== "paymentDue" && entry.stage !== "booked") chips.push({ key: "owes", label: "Payment due", cls: "bg-brand-yellow/25 text-slate-800" });
+    if (op.kind === "overdue") chips.push({ key: "op", label: `${formatMinutes(entry.overdueMinutes)} late`, icon: Clock3, cls: CHIP_TONE_CLASS.coral });
+    else if (op.kind === "paymentDue") chips.push({ key: "op", label: "Payment due", icon: CirclePoundSterling, cls: CHIP_TONE_CLASS[op.tone] });
+    else if (op.kind === "unconfirmed") chips.push({ key: "op", label: op.label, icon: MessageCircle, cls: CHIP_TONE_CLASS[op.tone] });
+    else if (op.kind === "readyWaiting") chips.push({ key: "op", label: "Chase collection", icon: BellRing, cls: CHIP_TONE_CLASS[op.tone] });
+    if (entry.owes && op.kind !== "paymentDue" && entry.stage !== "booked") chips.push({ key: "owes", label: "Payment due", icon: CirclePoundSterling, cls: "bg-brand-yellow/25 text-slate-800" });
   }
   if (readOnly && (entry.booking.payment || "") === "Paid in Full") {
-    chips.push({ key: "paid", label: "Paid", cls: CHIP_TONE_CLASS.neutral });
+    chips.push({ key: "paid", label: "Paid", icon: CheckCircle2, cls: CHIP_TONE_CLASS.neutral });
   }
   const alerts = (welfare.pregnant ? ["Pregnant"] : []).concat(welfare.alerts || []).filter(Boolean);
-  if (alerts.length) chips.push({ key: "welfare", label: alerts.slice(0, 2).join(" · "), cls: "bg-amber-50 text-amber-800" });
-  if (isLargeDog) chips.push({ key: "large", label: "Large dog", cls: "bg-cyan-50 text-cyan-800" });
-  if (sharedOwner) chips.push({ key: "shared", label: "Two dogs, one owner", cls: CHIP_TONE_CLASS.neutral });
+  if (alerts.length) chips.push({ key: "welfare", label: alerts.slice(0, 2).join(" · "), icon: TriangleAlert, cls: "bg-amber-50 text-amber-800" });
+  if (isLargeDog) chips.push({ key: "large", label: "Large dog", icon: PawPrint, cls: "bg-cyan-50 text-cyan-800" });
+  if (sharedOwner) chips.push({ key: "shared", label: "Shared owner", icon: UsersRound, cls: CHIP_TONE_CLASS.neutral });
   return chips;
 }
 
@@ -61,10 +73,11 @@ function ChipRow({ chips }) {
   const hidden = chips.length - shown.length;
   return (
     <div className="flex flex-wrap items-center justify-end gap-1 shrink-0 max-w-[45%] sm:max-w-none">
-      {shown.map((c) => (
-        <Chip key={c.key} dot className={c.cls}>{c.label}</Chip>
-      ))}
-      {hidden > 0 && <Chip className={CHIP_TONE_CLASS.muted}>{`+${hidden}`}</Chip>}
+      {shown.map((c) => {
+        const Icon = c.icon;
+        return <Chip key={c.key} icon={<Icon size={12} strokeWidth={2.4} />} className={c.cls}>{c.label}</Chip>;
+      })}
+      {hidden > 0 && <Chip ariaLabel={`${hidden} more statuses`} className={CHIP_TONE_CLASS.muted}>+</Chip>}
     </div>
   );
 }
@@ -208,23 +221,19 @@ function DiaryRow({ entry, readOnly, expanded, onToggleExpand, highlighted, owne
   const ownerId = dog?._humanId ?? null;
   const sharedOwner = !!ownerId && (ownerCounts?.[ownerId] ?? 0) > 1;
   const isLargeDog = (b.size || dog?.size || "").toLowerCase() === DOG_SIZE.LARGE.toLowerCase();
-  const sizeLetter = (b.size || dog?.size || "").charAt(0).toUpperCase() || null;
-
   const chips = collapsedChips({ entry, welfare, isLargeDog, sharedOwner, readOnly });
 
   const summary = (
     <>
-      <span className="flex items-center gap-1.5 min-w-0">
-        <span className={`font-bold text-[14px] truncate ${muted ? "text-slate-500" : "text-brand-purple"}`}>
+      <span className={`block min-w-0 truncate text-[14px] ${muted ? "text-slate-500" : "text-brand-purple"}`}>
+        <span className="font-bold">
           {muted && <span aria-hidden>✓ </span>}
           {d.dogName}
         </span>
-        {sizeLetter && (
-          <span className="shrink-0 text-[10px] font-bold text-brand-purple-light border border-brand-paper-line rounded px-1">{sizeLetter}</span>
-        )}
+        {d.breed && <span className="font-medium"> — {d.breed}</span>}
       </span>
       <span className="block text-[12.5px] text-slate-600 truncate">
-        {[d.breed, b.service, d.owner].filter(Boolean).join(" · ")}
+        {[b.service, d.owner].filter(Boolean).join(" · ")}
       </span>
     </>
   );
