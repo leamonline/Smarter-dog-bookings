@@ -76,7 +76,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 end={item.to === "/"}
                 aria-label={ariaLabel}
                 className={({ isActive }) =>
-                  `group relative inline-flex items-center gap-1.5 h-10 px-3 rounded-xl no-underline transition-all duration-150 ${
+                  `group relative inline-flex items-center gap-1.5 h-10 px-1.5 xl:px-3 rounded-xl no-underline transition-all duration-150 ${
                     isActive
                       ? `${item.activeBg} font-bold`
                       : "bg-transparent text-white/85 hover:bg-white/10 hover:text-white font-semibold"

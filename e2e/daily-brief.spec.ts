@@ -22,7 +22,10 @@ async function tabTo(page: Page, target: Locator, maxTabs: number) {
 
 test("Daily Brief keeps its core journey usable at every supported width", async ({
   page,
-}) => {
+}, testInfo) => {
+  if (testInfo.project.name === "tablet") {
+    await page.setViewportSize({ width: 1024, height: 1366 });
+  }
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
@@ -30,6 +33,11 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     page.getByRole("heading", { level: 1, name: "Daily Brief" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/today\?date=2026-07-14/);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 
   const firstJourney = firstJourneyRow(page);
   await expect(
