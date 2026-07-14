@@ -71,7 +71,7 @@ describe("TodayHeader", () => {
     const summary = screen.getByRole("list", { name: "Today's summary" });
     const items = within(summary).getAllByRole("listitem");
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent("11 booked");
+    expect(items[0]).toHaveTextContent("11 dogs booked");
     expect(items[1]).toHaveTextContent("6 need action");
     expect(items[2]).toHaveTextContent("£478 unpaid");
     expect(screen.getByText("09:00")).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("TodayHeader", () => {
     render(
       <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen onManageAvailability={onManage} />,
     );
-    expect(screen.getByRole("list", { name: "Today's summary" }).firstElementChild).toHaveTextContent("1 booked");
+    expect(screen.getByRole("list", { name: "Today's summary" }).firstElementChild).toHaveTextContent("1 dog booked");
     expect(screen.getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
     expect(onManage).toHaveBeenCalled();

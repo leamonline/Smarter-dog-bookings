@@ -58,7 +58,7 @@ export function TodayHeader({
       {!briefMode && (
         <ul aria-label="Today's summary" className="grid grid-cols-3 gap-2">
           <li className="flex h-9 items-center justify-center whitespace-nowrap rounded-full bg-slate-100 px-3 text-[12px] font-semibold text-slate-700">
-            <strong className="mr-1 font-extrabold text-slate-900">{dogsBooked}</strong> booked
+            <strong className="mr-1 font-extrabold text-slate-900">{dogsBooked}</strong> {dogsBooked === 1 ? "dog" : "dogs"} booked
           </li>
           <li className={`flex h-9 items-center justify-center whitespace-nowrap rounded-full px-3 text-[12px] font-bold ${actionCount > 0 ? "bg-brand-coral/10 text-brand-coral-text" : "bg-brand-teal/10 text-brand-teal-text"}`}>
             {actionCount > 0 ? <><strong className="mr-1 font-extrabold">{actionCount}</strong> need action</> : "All calm"}
