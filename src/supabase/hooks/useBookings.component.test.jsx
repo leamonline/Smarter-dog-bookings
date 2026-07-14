@@ -984,6 +984,49 @@ describe("useBookings", () => {
     expect(payload.pickup_by_id).toBe("human-1");
   });
 
+  it("does not open the automatic collection prompt for ready-without-message", async () => {
+    const onReadyForPickup = vi.fn();
+    const initialRow = {
+      id: "booking-7",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: BOOKING_STATUS.IN_BATH,
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_PICKUP };
+    const stub = makeSupabaseStub({
+      selectResult: { data: [initialRow], error: null },
+      updateResult: { data: readyRow, error: null },
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById, { onReadyForPickup }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.updateBooking(
+        {
+          ...result.current.bookingsByDate["2026-05-18"][0],
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          _skipCollectionPrompt: true,
+        },
+        "2026-05-18",
+        "2026-05-18",
+      );
+    });
+
+    expect(onReadyForPickup).not.toHaveBeenCalled();
+    expect(stub.getLastPayload("update")).not.toHaveProperty(
+      "_skipCollectionPrompt",
+    );
+  });
+
   it("does not fire onReadyForPickup when the booking was already Ready", async () => {
     const onReadyForPickup = vi.fn();
     const initialRow = {

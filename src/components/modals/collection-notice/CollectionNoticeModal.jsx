@@ -15,7 +15,7 @@
 // template must be Approved in Meta before live sends succeed.
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { supabase } from "../../../supabase/client.js";
@@ -47,13 +47,14 @@ function whatsappAvailability(h) {
   return { ok: true, reason: "" };
 }
 
-export function CollectionNoticeModal({ booking, onClose }) {
+export function CollectionNoticeModal({ booking, onClose, onSent }) {
   const toast = useToast();
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minutes, setMinutes] = useState("15");
   const [sendingId, setSendingId] = useState(null);
   const [sentIds, setSentIds] = useState(() => new Set());
+  const readyNotifiedRef = useRef(false);
 
   const ownerId = booking?._ownerId ?? null;
   // The owner's other dogs booked the same day that are ALSO ready get
@@ -182,13 +183,24 @@ export function CollectionNoticeModal({ booking, onClose }) {
         if (data?.error) throw new Error(data.detail || data.error);
         setSentIds((prev) => new Set(prev).add(recipient.id));
         toast.show(`Collection notice sent to ${displayName(recipient)}.`, "success");
+        if (!readyNotifiedRef.current) {
+          readyNotifiedRef.current = true;
+          try {
+            await onSent?.(booking);
+          } catch {
+            toast.show(
+              "Message sent, but the booking could not be marked ready. Mark it ready manually.",
+              "error",
+            );
+          }
+        }
       } catch (err) {
         toast.show(err instanceof Error ? err.message : String(err), "error");
       } finally {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, toast],
+    [sendingId, minutesValid, dogName, minutes, toast, onSent, booking],
   );
 
   return (
