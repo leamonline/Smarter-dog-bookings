@@ -526,7 +526,7 @@ describe("ClosedDayBrief", () => {
     expect(screen.getByText(/Closed today/)).toBeInTheDocument();
     expect(screen.getByText(/Monday 13 July/)).toBeInTheDocument();
     // KPI count comes from the TARGET day's bookings (one dog), never today's.
-    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("Booked").parentElement).toHaveTextContent("1");
     expect(screen.getByText("Rex")).toBeInTheDocument();
     // Read-only: no action buttons, no time-relative chips.
     expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();

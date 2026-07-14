@@ -355,6 +355,7 @@ export interface DaySummary {
   total: number;
   expected: number;
   arrived: number;
+  onSite: number;
   ready: number;
   collected: number;
   unpaidCount: number;
@@ -372,6 +373,7 @@ export function buildDaySummary(
   const countable = bookings.filter(isCountableBooking);
   let expected = 0;
   let arrived = 0;
+  let onSite = 0;
   let ready = 0;
   let collected = 0;
   let unpaidCount = 0;
@@ -381,6 +383,7 @@ export function buildDaySummary(
     const rank = Math.max(0, statusRank(b.status));
     if (rank === 0) expected++;
     if (rank >= 1) arrived++;
+    if (rank >= 1 && b.status !== BOOKING_STATUS.COMPLETED) onSite++;
     if (b.status === BOOKING_STATUS.READY_FOR_PICKUP) ready++;
     if (b.status === BOOKING_STATUS.COMPLETED) collected++;
     if ((b.payment || "Due at Pick-up") !== "Paid in Full") unpaidCount++;
@@ -391,6 +394,7 @@ export function buildDaySummary(
     total,
     expected,
     arrived,
+    onSite,
     ready,
     collected,
     unpaidCount,

@@ -3,7 +3,6 @@ import { getSizeForBreed } from "../../constants/index";
 import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
-import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
 import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
@@ -52,7 +51,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-function UnarchiveButton({ onUnarchive }) {
+function UnarchiveButton({ onUnarchive, inline = false }) {
   return (
     <button
       type="button"
@@ -61,7 +60,9 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
+      className={inline
+        ? "min-h-[40px] px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
     >
       Unarchive
     </button>
@@ -145,9 +146,8 @@ function SizeLegend({ className = "" }) {
   );
 }
 
-// One directory entry, rendered as a grid card or a dense list row. Both
-// reuse the same tel:/wa.me link pattern (stopPropagation so the links don't
-// open the profile) and stay keyboard-openable (role=button + Enter/Space).
+// One directory entry, rendered as a grid card or a dense list row. Contact
+// links and the profile action remain separate, explicit controls.
 function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenHuman, onUnarchive }) {
   const cleanSurname = normaliseSurname(human.surname);
   const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
@@ -157,22 +157,12 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
       (dog) => dog._humanId === human.id || dog.humanId === fullName,
     );
   const open = () => onOpenHuman(human.id || fullName);
-  const onKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
 
   if (mode === "list") {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${titleCase(fullName)}'s profile`}
-        onClick={open}
-        onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      <article
+        aria-label={titleCase(fullName)}
+        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:border-brand-purple"
       >
         <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
           <div className="flex items-center gap-2 min-w-0">
@@ -181,7 +171,6 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           </div>
           <div
             className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0"
-            onClick={(e) => e.stopPropagation()}
           >
             {human.phone ? (
               <>
@@ -202,26 +191,34 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
             ) : (
               <span className="italic text-ink-muted shrink-0">No phone</span>
             )}
-            {human.email && <span className="truncate text-slate-400">· {human.email}</span>}
+            {human.email && (
+              <span className="truncate text-slate-400">
+                · <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">{human.email}</a>
+              </span>
+            )}
           </div>
         </div>
         <div className="hidden sm:flex items-center gap-2 shrink-0 overflow-hidden">
           <DogChips dogs={humanDogs} max={3} dim={14} />
         </div>
         <div className="hidden sm:block flex-1" aria-hidden="true" />
-        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
-      </div>
+        <button
+          type="button"
+          onClick={open}
+          className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-purple/10 text-brand-purple text-xs font-bold hover:bg-brand-purple/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+          aria-label={`View profile for ${titleCase(fullName)}`}
+        >
+          View profile
+        </button>
+        {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(human.id)} />}
+      </article>
     );
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${titleCase(fullName)}'s profile`}
-      onClick={open}
-      onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+    <article
+      aria-label={titleCase(fullName)}
+      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card-resting hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col"
     >
       <div
         className="h-[3px] shrink-0"
@@ -235,7 +232,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         </div>
 
         {human.phone ? (
-          <div className="flex items-center gap-2.5 leading-snug" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2.5 leading-snug">
             <a href={telLink(human.phone)} className="text-body text-slate-500 font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
               {human.phone}
             </a>
@@ -255,7 +252,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         )}
 
         {human.email && (
-          <div className="text-micro text-slate-400 truncate leading-snug" onClick={(e) => e.stopPropagation()}>
+          <div className="text-micro text-slate-400 truncate leading-snug">
             <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">
               {human.email}
             </a>
@@ -269,10 +266,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           // the profile, where a dog can be added.
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
+            onClick={open}
             className="mt-1 self-start text-xs font-semibold italic text-brand-coral-text bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
           >
             No dogs yet — add one?
@@ -283,7 +277,15 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           </div>
         )}
       </div>
-    </div>
+      <button
+        type="button"
+        onClick={open}
+        className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-purple/10 text-brand-purple text-xs font-bold hover:bg-brand-purple/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        aria-label={`View profile for ${titleCase(fullName)}`}
+      >
+        View profile
+      </button>
+    </article>
   );
 }
 
@@ -303,11 +305,9 @@ export function HumansView({
   dogsByHumanId,
   ensureDogsForHumans,
   onOpenHuman,
-  onAddHuman,
   onNewClient,
   onUpdateHuman,
   fetchArchivedHumans,
-  findHumanByFullName,
   hasMore,
   totalCount,
   loadMore,
@@ -327,7 +327,6 @@ export function HumansView({
   filters = null,
   onToggleFilter,
 }) {
-  const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
@@ -490,13 +489,10 @@ export function HumansView({
               />
             </div>
             {onNewClient && (
-              <Button variant="primary" onClick={onNewClient}>
-                + New client
+              <Button variant="primary" onClick={onNewClient} aria-label="Add client">
+                + Add client
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setShowAddModal(true)}>
-              + Add Human
-            </Button>
           </div>
         </div>
       </div>
@@ -714,16 +710,6 @@ export function HumansView({
           )}
         </div>
       </div>
-
-      {showAddModal && (
-        <AddHumanModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={onAddHuman}
-          dogs={dogs}
-          humans={humans}
-          findHumanByFullName={findHumanByFullName}
-        />
-      )}
     </div>
   );
 }

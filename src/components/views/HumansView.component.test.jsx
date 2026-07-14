@@ -1,9 +1,9 @@
 // Component tests for the server-driven Humans Directory: it renders the
 // directoryHumans list in server order (no client re-sort), the A–Z rail
 // disables empty letters and reports jumps, the sort toggle and Load-more
-// fall back cleanly, and cards stay keyboard-openable.
+// fall back cleanly, and cards expose independent actions.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 const { HumansView } = await import("./HumansView.jsx");
 
@@ -17,7 +17,7 @@ function renderView(overrides = {}) {
     dogsByHumanId: {},
     ensureDogsForHumans: vi.fn(),
     onOpenHuman: vi.fn(),
-    onAddHuman: vi.fn(),
+    onNewClient: vi.fn(),
     onUpdateHuman: vi.fn(),
     fetchArchivedHumans: vi.fn(() => Promise.resolve([])),
     findHumanByFullName: vi.fn(),
@@ -59,11 +59,19 @@ describe("HumansView directory", () => {
     expect(screen.queryByText("2 humans registered")).not.toBeInTheDocument();
   });
 
+  it("offers one Add client action and opens the guided flow", () => {
+    const { onNewClient } = renderView();
+    const action = screen.getByRole("button", { name: "Add client" });
+    expect(screen.queryByRole("button", { name: /add human/i })).not.toBeInTheDocument();
+    fireEvent.click(action);
+    expect(onNewClient).toHaveBeenCalledTimes(1);
+  });
+
   it("renders the directory list in the server-provided order", () => {
     renderView();
-    const cards = screen.getAllByRole("button", { name: /profile$/ });
-    expect(cards[0]).toHaveAccessibleName("Open Dave Smith's profile");
-    expect(cards[1]).toHaveAccessibleName("Open Sarah Jones's profile");
+    const cards = screen.getAllByRole("article");
+    expect(cards[0]).toHaveAccessibleName("Dave Smith");
+    expect(cards[1]).toHaveAccessibleName("Sarah Jones");
   });
 
   it("disables A–Z letters that have no matches", () => {
@@ -91,12 +99,16 @@ describe("HumansView directory", () => {
     expect(loadMore).toHaveBeenCalled();
   });
 
-  it("opens a profile on card click and on keyboard Enter", () => {
-    const { onOpenHuman } = renderView();
-    const card = screen.getByRole("button", { name: "Open Dave Smith's profile" });
-    fireEvent.click(card);
-    expect(onOpenHuman).toHaveBeenCalledWith("h2");
-    fireEvent.keyDown(screen.getByRole("button", { name: "Open Sarah Jones's profile" }), { key: "Enter" });
+  it("renders articles with explicit profile and contact actions", () => {
+    const { onOpenHuman } = renderView({ directoryHumans: [sarah] });
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+    const phone = within(article).getByRole("link", { name: "07700900111" });
+
+    phone.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(phone);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+    fireEvent.click(profile);
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
@@ -112,6 +124,21 @@ describe("HumansView directory", () => {
     ).toHaveAttribute("href", "mailto:sarah@example.com");
   });
 
+  it("offers email as an independent action in List mode", () => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const email = within(article).getByRole("link", { name: "sarah@example.com" });
+    expect(email).toHaveAttribute("href", "mailto:sarah@example.com");
+
+    email.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(email);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+  });
+
   it("renders the history-flag reason as visible text, not just an emoji", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.
@@ -125,7 +152,8 @@ describe("HumansView directory", () => {
     expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
     expect(localStorage.getItem("humansViewMode")).toBe("list");
     // Cards still render in list mode.
-    expect(screen.getByRole("button", { name: "Open Dave Smith's profile" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Dave Smith" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View profile for Dave Smith" })).toBeInTheDocument();
   });
 
   it("filter chips toggle the server-side filter and reflect active state", () => {
@@ -151,5 +179,26 @@ describe("HumansView directory", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it("keeps profile and inline unarchive actions independent in archived List mode", async () => {
+    const archivedHuman = { ...sarah, id: "h9", fullName: "Sarah Jones" };
+    const fetchArchivedHumans = vi.fn(() => Promise.resolve([archivedHuman]));
+    const { onOpenHuman, onUpdateHuman } = renderView({ fetchArchivedHumans });
+
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
+
+    const article = await screen.findByRole("article", { name: "Sarah Jones" });
+    const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+    const unarchive = within(article).getByRole("button", { name: "Unarchive" });
+    expect(unarchive).not.toHaveClass("absolute");
+    expect(unarchive).toHaveClass("min-h-[40px]");
+
+    fireEvent.click(profile);
+    expect(onOpenHuman).toHaveBeenCalledWith("h9");
+    fireEvent.click(unarchive);
+    expect(onUpdateHuman).toHaveBeenCalledWith("h9", { archivedAt: null });
+    expect(onOpenHuman).toHaveBeenCalledTimes(1);
   });
 });

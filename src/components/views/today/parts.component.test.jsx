@@ -163,15 +163,19 @@ describe("MoreMenu tile variant", () => {
 });
 
 describe("TodayKpiRow", () => {
-  it("shows dogs in, expected revenue and capacity from the same count", () => {
-    render(<TodayKpiRow dogsBooked={11} expectedRevenue={478.4} />);
-    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("11");
+  it("shows on-site dogs with the booked total and keeps capacity booked-based", () => {
+    render(<TodayKpiRow dogsBooked={11} onSite={3} expectedRevenue={478.4} />);
+    expect(screen.getByText("On site").parentElement).toHaveTextContent("3");
+    expect(screen.getByText("11 booked today")).toBeInTheDocument();
     expect(screen.getByText("£478")).toBeInTheDocument();
-    expect(screen.getByText("if all paid")).toBeInTheDocument();
-    expect(screen.getByText(/\/ 14/)).toBeInTheDocument();
     const bar = screen.getByRole("progressbar", { name: /capacity/i });
     expect(bar).toHaveAttribute("aria-valuenow", "11");
-    expect(bar).toHaveAttribute("aria-valuemax", "14");
+  });
+
+  it("shows a booked-only card when onSite is omitted for a future brief", () => {
+    render(<TodayKpiRow dogsBooked={6} expectedRevenue={252} />);
+    expect(screen.getByText("Booked").parentElement).toHaveTextContent("6");
+    expect(screen.queryByText("On site")).not.toBeInTheDocument();
   });
 
   it("caps the bar at 100% when over capacity", () => {

@@ -1,4 +1,5 @@
 import { render, fireEvent } from "@testing-library/react";
+import { OverlayProvider } from "react-aria";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { AccessibleModal } from "./AccessibleModal";
 
@@ -8,6 +9,43 @@ afterEach(() => {
 });
 
 describe("AccessibleModal", () => {
+  it("hides the application from assistive technology while a modal is open", () => {
+    const view = render(
+      <OverlayProvider>
+        <main data-testid="application">Application content</main>
+        <AccessibleModal onClose={() => {}} titleId="isolation-title">
+          <h2 id="isolation-title">Modal content</h2>
+        </AccessibleModal>
+      </OverlayProvider>,
+    );
+
+    const application = view.getByTestId("application");
+    const hiddenAncestor = application.closest('[aria-hidden="true"]');
+    expect(hiddenAncestor).not.toBeNull();
+    expect(
+      view.getByRole("dialog", { name: "Modal content" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not hide the application for a non-modal drawer", () => {
+    const view = render(
+      <OverlayProvider>
+        <main data-testid="application">Application content</main>
+        <AccessibleModal
+          modal={false}
+          onClose={() => {}}
+          titleId="drawer-title"
+        >
+          <h2 id="drawer-title">Drawer content</h2>
+        </AccessibleModal>
+      </OverlayProvider>,
+    );
+
+    expect(
+      view.getByTestId("application").closest('[aria-hidden="true"]'),
+    ).toBeNull();
+  });
+
   it("portals to document.body so it escapes a transformed ancestor", () => {
     // A transformed ancestor (like the customer portal's animated cards)
     // would otherwise trap a position:fixed overlay inside the card.
@@ -21,9 +59,12 @@ describe("AccessibleModal", () => {
 
     // The dialog is NOT inside the transformed render container…
     expect(container.querySelector('[aria-modal="true"]')).toBeNull();
-    // …it's portaled out to document.body instead.
+    // …it's portaled out to React Aria's body-level overlay container instead.
     const dialog = document.body.querySelector('[aria-modal="true"]');
     expect(dialog).not.toBeNull();
+    const overlayContainer = dialog?.closest("[data-overlay-container]");
+    expect(overlayContainer).not.toBeNull();
+    expect(overlayContainer?.parentElement).toBe(document.body);
     expect(document.body.contains(dialog)).toBe(true);
     expect(container.contains(dialog)).toBe(false);
   });
@@ -107,6 +148,60 @@ describe("AccessibleModal — non-modal mode (modal={false})", () => {
 });
 
 describe("AccessibleModal — stacked dialogs", () => {
+  it("hides a lower sibling modal until the top modal unmounts", () => {
+    const bottom = render(
+      <AccessibleModal onClose={() => {}} titleId="modal-bottom">
+        <h2 id="modal-bottom">Bottom modal</h2>
+      </AccessibleModal>,
+    );
+    const bottomDialog = document.body.querySelector(
+      '[aria-labelledby="modal-bottom"]',
+    ) as HTMLElement;
+    const bottomOverlay = bottomDialog.closest('[class*="inset-0"]');
+
+    const top = render(
+      <AccessibleModal onClose={() => {}} titleId="modal-top">
+        <h2 id="modal-top">Top modal</h2>
+      </AccessibleModal>,
+    );
+    const topDialog = document.body.querySelector(
+      '[aria-labelledby="modal-top"]',
+    ) as HTMLElement;
+    const topOverlay = topDialog.closest('[class*="inset-0"]');
+
+    expect(bottomOverlay).toHaveAttribute("aria-hidden", "true");
+    expect(topOverlay).not.toHaveAttribute("aria-hidden");
+
+    top.unmount();
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
+    bottom.unmount();
+  });
+
+  it("keeps sibling non-modal drawers exposed", () => {
+    const bottom = render(
+      <AccessibleModal modal={false} onClose={() => {}} titleId="drawer-a">
+        <h2 id="drawer-a">Drawer A</h2>
+      </AccessibleModal>,
+    );
+    const top = render(
+      <AccessibleModal modal={false} onClose={() => {}} titleId="drawer-b">
+        <h2 id="drawer-b">Drawer B</h2>
+      </AccessibleModal>,
+    );
+
+    const drawers = ["drawer-a", "drawer-b"].map((titleId) =>
+      document.body
+        .querySelector(`[aria-labelledby="${titleId}"]`)
+        ?.closest('[class*="inset-0"]'),
+    );
+    drawers.forEach((drawer) => {
+      expect(drawer).not.toHaveAttribute("aria-hidden");
+    });
+
+    top.unmount();
+    bottom.unmount();
+  });
+
   it("Escape only closes the topmost dialog, not the one underneath", () => {
     const closeBottom = vi.fn();
     const closeTop = vi.fn();
@@ -115,11 +210,24 @@ describe("AccessibleModal — stacked dialogs", () => {
         <h2 id="stack-bottom">Drawer</h2>
       </AccessibleModal>,
     );
+    const bottomDialog = document.body.querySelector(
+      '[aria-labelledby="stack-bottom"]',
+    ) as HTMLElement;
+    const bottomOverlay = bottomDialog.closest('[class*="inset-0"]');
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
+
     const top = render(
       <AccessibleModal onClose={closeTop} titleId="stack-top">
         <h2 id="stack-top">Confirm</h2>
       </AccessibleModal>,
     );
+    const topDialog = document.body.querySelector(
+      '[aria-labelledby="stack-top"]',
+    ) as HTMLElement;
+    const topOverlay = topDialog.closest('[class*="inset-0"]');
+
+    expect(bottomOverlay).toHaveAttribute("aria-hidden", "true");
+    expect(topOverlay).not.toHaveAttribute("aria-hidden");
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(closeTop).toHaveBeenCalledTimes(1);
@@ -127,6 +235,7 @@ describe("AccessibleModal — stacked dialogs", () => {
 
     // Once the top dialog unmounts, the drawer becomes topmost again.
     top.unmount();
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(closeBottom).toHaveBeenCalledTimes(1);
 

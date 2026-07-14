@@ -83,7 +83,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-function UnarchiveButton({ onUnarchive }) {
+function UnarchiveButton({ onUnarchive, inline = false }) {
   return (
     <button
       type="button"
@@ -92,7 +92,9 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this dog"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
+      className={inline
+        ? "min-h-[40px] px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
     >
       Unarchive
     </button>
@@ -137,12 +139,11 @@ function resolveOwner(dog, humans) {
   return { label: fb.label, phone: fb.phone, missing: fb.missing, server: false };
 }
 
-// Owner phone + WhatsApp links (stopPropagation so they don't open the
-// profile). Mirrors the contact links on the Humans cards.
+// Owner phone + WhatsApp links mirror the contact links on the Humans cards.
 function OwnerContact({ phone, className = "" }) {
   if (!phone) return null;
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
+    <span className={`inline-flex items-center gap-2 ${className}`}>
       <a href={telLink(phone)} className="font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
         {phone}
       </a>
@@ -160,9 +161,8 @@ function OwnerContact({ phone, className = "" }) {
   );
 }
 
-// One directory entry, rendered as a grid card or a dense list row. Both stay
-// keyboard-openable (role=button + Enter/Space) and reuse the same owner-resolve
-// + tel/wa link pattern.
+// One directory entry, rendered as a grid card or a dense list row. Owner
+// contacts and the profile action remain separate, explicit controls.
 function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive }) {
   const owner = resolveOwner(dog, humans);
   const ownerSkeleton = owner.missing && !owner.server && Object.keys(humans || {}).length === 0;
@@ -175,22 +175,12 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   const age = computeAge(dog);
   const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
   const open = () => onOpenDog(dog.id || dog.name);
-  const onKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
 
   if (mode === "list") {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${titleCase(dog.name)}'s profile`}
-        onClick={open}
-        onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      <article
+        aria-label={titleCase(dog.name)}
+        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:border-brand-cyan"
       >
         <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -221,19 +211,23 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           </div>
         </div>
         <div className="hidden sm:block flex-1" aria-hidden="true" />
-        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(dog.id)} />}
-      </div>
+        <button
+          type="button"
+          onClick={open}
+          className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-cyan/10 text-brand-cyan-text text-xs font-bold hover:bg-brand-cyan/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+          aria-label={`View profile for ${titleCase(dog.name)}`}
+        >
+          View profile
+        </button>
+        {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />}
+      </article>
     );
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${titleCase(dog.name)}'s profile`}
-      onClick={open}
-      onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-cyan hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+    <article
+      aria-label={titleCase(dog.name)}
+      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card-resting hover:border-brand-cyan hover:shadow-card-hover min-h-[112px] flex flex-col"
     >
       <div
         className="h-[3px] shrink-0"
@@ -278,7 +272,15 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           )}
         </div>
       </div>
-    </div>
+      <button
+        type="button"
+        onClick={open}
+        className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-cyan/10 text-brand-cyan-text text-xs font-bold hover:bg-brand-cyan/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        aria-label={`View profile for ${titleCase(dog.name)}`}
+      >
+        View profile
+      </button>
+    </article>
   );
 }
 

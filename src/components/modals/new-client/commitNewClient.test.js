@@ -16,6 +16,51 @@ const realisticAddDog = () =>
   vi.fn(async (d) => (d._ownerOverride?.id ? { id: `dog-${d.name}` } : null));
 
 describe("commitNewClient", () => {
+  it("saves a client without dogs or a booking", async () => {
+    const addHuman = vi.fn(async () => ({ id: "h1" }));
+    const addDog = realisticAddDog();
+    const onAddBookings = vi.fn(async () => ({ ok: true }));
+
+    const out = await commitNewClient({
+      addHuman,
+      addDog,
+      onAddBookings,
+      human,
+      phone: "+447700900123",
+      dogs: [],
+      selections: {},
+      dateStr: "",
+      slot: "",
+      committed: makeCommitted(),
+    });
+
+    expect(out).toEqual({ ok: true, humanId: "h1" });
+    expect(addDog).not.toHaveBeenCalled();
+    expect(onAddBookings).not.toHaveBeenCalled();
+  });
+
+  it("saves a client and dogs without making a booking", async () => {
+    const addHuman = vi.fn(async () => ({ id: "h1" }));
+    const addDog = realisticAddDog();
+    const onAddBookings = vi.fn(async () => ({ ok: true }));
+
+    await commitNewClient({
+      addHuman,
+      addDog,
+      onAddBookings,
+      human,
+      phone: "+447700900123",
+      dogs: [dog("a", "Alfie")],
+      selections: { a: { booked: false, service: "full-groom", addons: [] } },
+      dateStr: "",
+      slot: "",
+      committed: makeCommitted(),
+    });
+
+    expect(addDog).toHaveBeenCalledTimes(1);
+    expect(onAddBookings).not.toHaveBeenCalled();
+  });
+
   it("creates human → dog → booking, handing the just-created owner to addDog", async () => {
     const addHuman = vi.fn(async () => ({ id: "h1" }));
     const addDog = realisticAddDog();

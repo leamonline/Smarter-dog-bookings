@@ -389,7 +389,11 @@ export function TodayView({
           </>
         ) : (
           <>
-            <TodayKpiRow dogsBooked={summary.dogsBooked} expectedRevenue={summary.expectedRevenue} />
+            <TodayKpiRow
+              dogsBooked={summary.dogsBooked}
+              onSite={summary.onSite}
+              expectedRevenue={summary.expectedRevenue}
+            />
             <TodayNowStrip
               selection={nowNext}
               now={now}

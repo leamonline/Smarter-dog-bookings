@@ -118,9 +118,19 @@ const WeekCalendarView = lazy(() =>
     default: module.WeekCalendarView,
   })),
 );
-const ReportsView = lazy(() =>
-  import("./components/views/ReportsView.jsx").then((module) => ({
-    default: module.ReportsView,
+const ReportsLayout = lazy(() =>
+  import("./components/views/reports/ReportsLayout.jsx").then((module) => ({
+    default: module.ReportsLayout,
+  })),
+);
+const CashUpView = lazy(() =>
+  import("./components/views/reports/CashUpView.jsx").then((module) => ({
+    default: module.CashUpView,
+  })),
+);
+const ReportsInsightsView = lazy(() =>
+  import("./components/views/reports/ReportsInsightsView.jsx").then((module) => ({
+    default: module.ReportsInsightsView,
   })),
 );
 const InboxView = lazy(() =>
@@ -177,6 +187,7 @@ const ROUTE_CHUNK_IMPORTS = [
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
   ["/settings", () => import("./components/views/SettingsView.jsx")],
+  ["/reports", () => import("./components/views/reports/ReportsLayout.jsx")],
   ["/", () => import("./components/layout/WeekCalendarView.jsx")],
 ];
 let routeChunkWarmed = false;
@@ -927,12 +938,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -961,12 +970,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -1042,7 +1049,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       loadError={de}
                     />
                   } />
-                  <Route path="/reports" element={<ReportsView loadError={be || de || he} />} />
+                  <Route path="/reports" element={<ReportsLayout />}>
+                    <Route index element={<Navigate to="cash-up" replace />} />
+                    <Route path="cash-up" element={<CashUpView />} />
+                    <Route path="insights" element={<ReportsInsightsView loadError={be || de || he} />} />
+                  </Route>
                   <Route path="/inbox" element={
                     <InboxView
                       onOpenHuman={handleOpenHuman}
