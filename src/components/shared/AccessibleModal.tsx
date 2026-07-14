@@ -1,7 +1,12 @@
 // src/components/shared/AccessibleModal.tsx
 import { useRef, useEffect, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { useDialog, FocusScope } from "react-aria";
+import {
+  FocusScope,
+  mergeProps,
+  OverlayContainer,
+  useDialog,
+  useModal,
+} from "react-aria";
 
 interface AccessibleModalProps {
   children: ReactNode;
@@ -29,6 +34,13 @@ interface AccessibleModalProps {
    * clickable, focus moves freely, Escape and the close button dismiss.
    */
   modal?: boolean;
+}
+
+interface ModalDialogProps {
+  children: ReactNode;
+  titleId?: string;
+  className: string;
+  modal: boolean;
 }
 
 // Reference-counted body scroll lock. Counting (rather than save/restore
@@ -60,6 +72,33 @@ function unlockBodyScroll() {
 // booking drawer) would all close on one Escape, discarding drafts.
 const dialogStack: symbol[] = [];
 
+function ModalDialog({
+  children,
+  titleId,
+  className,
+  modal,
+}: ModalDialogProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { dialogProps } = useDialog(
+    { role: "dialog", "aria-labelledby": titleId },
+    ref,
+  );
+  const { modalProps } = useModal({ isDisabled: !modal });
+  const mergedDialogProps = mergeProps(dialogProps, modalProps);
+
+  return (
+    <div
+      {...mergedDialogProps}
+      ref={ref}
+      aria-modal={modal ? "true" : undefined}
+      className={`${modal ? "" : "pointer-events-auto"} ${className}`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function AccessibleModal({
   children,
   onClose,
@@ -71,13 +110,8 @@ export function AccessibleModal({
   overlayClassName = "flex items-center justify-center",
   modal = true,
 }: AccessibleModalProps) {
-  const ref = useRef<HTMLDivElement>(null);
   const stackIdRef = useRef<symbol | undefined>(undefined);
   if (!stackIdRef.current) stackIdRef.current = Symbol("dialog");
-  const { dialogProps } = useDialog(
-    { role: "dialog", "aria-labelledby": titleId },
-    ref,
-  );
 
   // Register in the dialog stack for the lifetime of the mount.
   useEffect(() => {
@@ -113,29 +147,22 @@ export function AccessibleModal({
 
   if (typeof document === "undefined") return null;
 
-  // Portal to <body> so the fixed-position overlay is always relative to
-  // the viewport. Rendered inline, a `position: fixed` overlay is trapped
-  // by any ancestor with a transform/filter (e.g. the portal cards' entry
-  // animation keeps a translateY(0)), which would confine the modal to
-  // that card instead of covering the screen.
-  return createPortal(
-    <div
-      className={`fixed inset-0 ${modal ? backdropClass : "pointer-events-none"} ${overlayClassName}`}
-      style={{ zIndex }}
-      onClick={modal ? onClose : undefined}
-    >
-      <FocusScope contain={modal} restoreFocus autoFocus>
-        <div
-          {...dialogProps}
-          ref={ref}
-          aria-modal={modal ? "true" : undefined}
-          className={`${modal ? "" : "pointer-events-auto"} ${className}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {children}
-        </div>
-      </FocusScope>
-    </div>,
-    document.body,
+  // OverlayContainer portals to <body> so the fixed-position overlay is
+  // always relative to the viewport. It also participates in React Aria's
+  // modal isolation, hiding background content from assistive technology.
+  return (
+    <OverlayContainer>
+      <div
+        className={`fixed inset-0 ${modal ? backdropClass : "pointer-events-none"} ${overlayClassName}`}
+        style={{ zIndex }}
+        onClick={modal ? onClose : undefined}
+      >
+        <FocusScope contain={modal} restoreFocus autoFocus>
+          <ModalDialog titleId={titleId} className={className} modal={modal}>
+            {children}
+          </ModalDialog>
+        </FocusScope>
+      </div>
+    </OverlayContainer>
   );
 }

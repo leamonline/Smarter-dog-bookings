@@ -1,4 +1,5 @@
 import { render, fireEvent } from "@testing-library/react";
+import { OverlayProvider } from "react-aria";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { AccessibleModal } from "./AccessibleModal";
 
@@ -8,6 +9,43 @@ afterEach(() => {
 });
 
 describe("AccessibleModal", () => {
+  it("hides the application from assistive technology while a modal is open", () => {
+    const view = render(
+      <OverlayProvider>
+        <main data-testid="application">Application content</main>
+        <AccessibleModal onClose={() => {}} titleId="isolation-title">
+          <h2 id="isolation-title">Modal content</h2>
+        </AccessibleModal>
+      </OverlayProvider>,
+    );
+
+    const application = view.getByTestId("application");
+    const hiddenAncestor = application.closest('[aria-hidden="true"]');
+    expect(hiddenAncestor).not.toBeNull();
+    expect(
+      view.getByRole("dialog", { name: "Modal content" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not hide the application for a non-modal drawer", () => {
+    const view = render(
+      <OverlayProvider>
+        <main data-testid="application">Application content</main>
+        <AccessibleModal
+          modal={false}
+          onClose={() => {}}
+          titleId="drawer-title"
+        >
+          <h2 id="drawer-title">Drawer content</h2>
+        </AccessibleModal>
+      </OverlayProvider>,
+    );
+
+    expect(
+      view.getByTestId("application").closest('[aria-hidden="true"]'),
+    ).toBeNull();
+  });
+
   it("portals to document.body so it escapes a transformed ancestor", () => {
     // A transformed ancestor (like the customer portal's animated cards)
     // would otherwise trap a position:fixed overlay inside the card.
@@ -21,9 +59,12 @@ describe("AccessibleModal", () => {
 
     // The dialog is NOT inside the transformed render container…
     expect(container.querySelector('[aria-modal="true"]')).toBeNull();
-    // …it's portaled out to document.body instead.
+    // …it's portaled out to React Aria's body-level overlay container instead.
     const dialog = document.body.querySelector('[aria-modal="true"]');
     expect(dialog).not.toBeNull();
+    const overlayContainer = dialog?.closest("[data-overlay-container]");
+    expect(overlayContainer).not.toBeNull();
+    expect(overlayContainer?.parentElement).toBe(document.body);
     expect(document.body.contains(dialog)).toBe(true);
     expect(container.contains(dialog)).toBe(false);
   });
