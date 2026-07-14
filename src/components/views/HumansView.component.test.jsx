@@ -124,6 +124,21 @@ describe("HumansView directory", () => {
     ).toHaveAttribute("href", "mailto:sarah@example.com");
   });
 
+  it("offers email as an independent action in List mode", () => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const email = within(article).getByRole("link", { name: "sarah@example.com" });
+    expect(email).toHaveAttribute("href", "mailto:sarah@example.com");
+
+    email.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(email);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+  });
+
   it("renders the history-flag reason as visible text, not just an emoji", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.

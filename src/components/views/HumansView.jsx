@@ -191,7 +191,11 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
             ) : (
               <span className="italic text-ink-muted shrink-0">No phone</span>
             )}
-            {human.email && <span className="truncate text-slate-400">· {human.email}</span>}
+            {human.email && (
+              <span className="truncate text-slate-400">
+                · <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">{human.email}</a>
+              </span>
+            )}
           </div>
         </div>
         <div className="hidden sm:flex items-center gap-2 shrink-0 overflow-hidden">
