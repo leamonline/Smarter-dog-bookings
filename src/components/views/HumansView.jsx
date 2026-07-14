@@ -144,9 +144,8 @@ function SizeLegend({ className = "" }) {
   );
 }
 
-// One directory entry, rendered as a grid card or a dense list row. Both
-// reuse the same tel:/wa.me link pattern (stopPropagation so the links don't
-// open the profile) and stay keyboard-openable (role=button + Enter/Space).
+// One directory entry, rendered as a grid card or a dense list row. Contact
+// links and the profile action remain separate, explicit controls.
 function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenHuman, onUnarchive }) {
   const cleanSurname = normaliseSurname(human.surname);
   const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
@@ -156,22 +155,12 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
       (dog) => dog._humanId === human.id || dog.humanId === fullName,
     );
   const open = () => onOpenHuman(human.id || fullName);
-  const onKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
 
   if (mode === "list") {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${titleCase(fullName)}'s profile`}
-        onClick={open}
-        onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+      <article
+        aria-label={titleCase(fullName)}
+        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:border-brand-purple"
       >
         <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
           <div className="flex items-center gap-2 min-w-0">
@@ -180,7 +169,6 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           </div>
           <div
             className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0"
-            onClick={(e) => e.stopPropagation()}
           >
             {human.phone ? (
               <>
@@ -208,19 +196,23 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           <DogChips dogs={humanDogs} max={3} dim={14} />
         </div>
         <div className="hidden sm:block flex-1" aria-hidden="true" />
+        <button
+          type="button"
+          onClick={open}
+          className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-purple/10 text-brand-purple text-xs font-bold hover:bg-brand-purple/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+          aria-label={`View profile for ${titleCase(fullName)}`}
+        >
+          View profile
+        </button>
         {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
-      </div>
+      </article>
     );
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${titleCase(fullName)}'s profile`}
-      onClick={open}
-      onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+    <article
+      aria-label={titleCase(fullName)}
+      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card-resting hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col"
     >
       <div
         className="h-[3px] shrink-0"
@@ -234,7 +226,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         </div>
 
         {human.phone ? (
-          <div className="flex items-center gap-2.5 leading-snug" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2.5 leading-snug">
             <a href={telLink(human.phone)} className="text-body text-slate-500 font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
               {human.phone}
             </a>
@@ -254,7 +246,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         )}
 
         {human.email && (
-          <div className="text-micro text-slate-400 truncate leading-snug" onClick={(e) => e.stopPropagation()}>
+          <div className="text-micro text-slate-400 truncate leading-snug">
             <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">
               {human.email}
             </a>
@@ -268,10 +260,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           // the profile, where a dog can be added.
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
+            onClick={open}
             className="mt-1 self-start text-xs font-semibold italic text-brand-coral-text bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
           >
             No dogs yet — add one?
@@ -282,7 +271,15 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
           </div>
         )}
       </div>
-    </div>
+      <button
+        type="button"
+        onClick={open}
+        className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-purple/10 text-brand-purple text-xs font-bold hover:bg-brand-purple/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        aria-label={`View profile for ${titleCase(fullName)}`}
+      >
+        View profile
+      </button>
+    </article>
   );
 }
 
