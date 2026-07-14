@@ -148,6 +148,60 @@ describe("AccessibleModal — non-modal mode (modal={false})", () => {
 });
 
 describe("AccessibleModal — stacked dialogs", () => {
+  it("hides a lower sibling modal until the top modal unmounts", () => {
+    const bottom = render(
+      <AccessibleModal onClose={() => {}} titleId="modal-bottom">
+        <h2 id="modal-bottom">Bottom modal</h2>
+      </AccessibleModal>,
+    );
+    const bottomDialog = document.body.querySelector(
+      '[aria-labelledby="modal-bottom"]',
+    ) as HTMLElement;
+    const bottomOverlay = bottomDialog.closest('[class*="inset-0"]');
+
+    const top = render(
+      <AccessibleModal onClose={() => {}} titleId="modal-top">
+        <h2 id="modal-top">Top modal</h2>
+      </AccessibleModal>,
+    );
+    const topDialog = document.body.querySelector(
+      '[aria-labelledby="modal-top"]',
+    ) as HTMLElement;
+    const topOverlay = topDialog.closest('[class*="inset-0"]');
+
+    expect(bottomOverlay).toHaveAttribute("aria-hidden", "true");
+    expect(topOverlay).not.toHaveAttribute("aria-hidden");
+
+    top.unmount();
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
+    bottom.unmount();
+  });
+
+  it("keeps sibling non-modal drawers exposed", () => {
+    const bottom = render(
+      <AccessibleModal modal={false} onClose={() => {}} titleId="drawer-a">
+        <h2 id="drawer-a">Drawer A</h2>
+      </AccessibleModal>,
+    );
+    const top = render(
+      <AccessibleModal modal={false} onClose={() => {}} titleId="drawer-b">
+        <h2 id="drawer-b">Drawer B</h2>
+      </AccessibleModal>,
+    );
+
+    const drawers = ["drawer-a", "drawer-b"].map((titleId) =>
+      document.body
+        .querySelector(`[aria-labelledby="${titleId}"]`)
+        ?.closest('[class*="inset-0"]'),
+    );
+    drawers.forEach((drawer) => {
+      expect(drawer).not.toHaveAttribute("aria-hidden");
+    });
+
+    top.unmount();
+    bottom.unmount();
+  });
+
   it("Escape only closes the topmost dialog, not the one underneath", () => {
     const closeBottom = vi.fn();
     const closeTop = vi.fn();
@@ -156,11 +210,24 @@ describe("AccessibleModal — stacked dialogs", () => {
         <h2 id="stack-bottom">Drawer</h2>
       </AccessibleModal>,
     );
+    const bottomDialog = document.body.querySelector(
+      '[aria-labelledby="stack-bottom"]',
+    ) as HTMLElement;
+    const bottomOverlay = bottomDialog.closest('[class*="inset-0"]');
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
+
     const top = render(
       <AccessibleModal onClose={closeTop} titleId="stack-top">
         <h2 id="stack-top">Confirm</h2>
       </AccessibleModal>,
     );
+    const topDialog = document.body.querySelector(
+      '[aria-labelledby="stack-top"]',
+    ) as HTMLElement;
+    const topOverlay = topDialog.closest('[class*="inset-0"]');
+
+    expect(bottomOverlay).toHaveAttribute("aria-hidden", "true");
+    expect(topOverlay).not.toHaveAttribute("aria-hidden");
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(closeTop).toHaveBeenCalledTimes(1);
@@ -168,6 +235,7 @@ describe("AccessibleModal — stacked dialogs", () => {
 
     // Once the top dialog unmounts, the drawer becomes topmost again.
     top.unmount();
+    expect(bottomOverlay).not.toHaveAttribute("aria-hidden");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(closeBottom).toHaveBeenCalledTimes(1);
 

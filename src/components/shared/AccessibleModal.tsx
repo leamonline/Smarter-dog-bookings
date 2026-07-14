@@ -1,5 +1,5 @@
 // src/components/shared/AccessibleModal.tsx
-import { useRef, useEffect, type ReactNode } from "react";
+import { useRef, useEffect, useState, type ReactNode } from "react";
 import {
   FocusScope,
   mergeProps,
@@ -65,12 +65,37 @@ function unlockBodyScroll() {
   }
 }
 
+interface DialogStackEntry {
+  id: symbol;
+  modal: boolean;
+  setHiddenBySiblingModal: (hidden: boolean) => void;
+}
+
 // Mounted-dialog stack (module-level, mirrors the scroll-lock refcount).
 // Escape must only dismiss the TOPMOST dialog: every instance registers on
 // mount, and the keydown handler bails unless it is last in the stack —
 // otherwise stacked dialogs (e.g. a ConfirmDialog over the non-modal
 // booking drawer) would all close on one Escape, discarding drafts.
-const dialogStack: symbol[] = [];
+//
+// React Aria automatically hides nested overlay containers, but sibling
+// portals share the root provider and therefore need the same relationship
+// expressed explicitly. When a modal is mounted, every lower sibling overlay
+// is hidden; non-modal overlays above it remain exposed by design.
+const dialogStack: DialogStackEntry[] = [];
+
+function syncSiblingModalIsolation() {
+  let topModalIndex = -1;
+  for (let index = dialogStack.length - 1; index >= 0; index -= 1) {
+    if (dialogStack[index].modal) {
+      topModalIndex = index;
+      break;
+    }
+  }
+
+  dialogStack.forEach((entry, index) => {
+    entry.setHiddenBySiblingModal(index < topModalIndex);
+  });
+}
 
 function ModalDialog({
   children,
@@ -110,18 +135,35 @@ export function AccessibleModal({
   overlayClassName = "flex items-center justify-center",
   modal = true,
 }: AccessibleModalProps) {
-  const stackIdRef = useRef<symbol | undefined>(undefined);
-  if (!stackIdRef.current) stackIdRef.current = Symbol("dialog");
+  const [hiddenBySiblingModal, setHiddenBySiblingModal] = useState(false);
+  const stackEntryRef = useRef<DialogStackEntry | undefined>(undefined);
+  if (!stackEntryRef.current) {
+    stackEntryRef.current = {
+      id: Symbol("dialog"),
+      modal,
+      setHiddenBySiblingModal,
+    };
+  }
 
   // Register in the dialog stack for the lifetime of the mount.
   useEffect(() => {
-    const id = stackIdRef.current as symbol;
-    dialogStack.push(id);
+    const entry = stackEntryRef.current as DialogStackEntry;
+    dialogStack.push(entry);
+    syncSiblingModalIsolation();
     return () => {
-      const i = dialogStack.indexOf(id);
+      const i = dialogStack.indexOf(entry);
       if (i !== -1) dialogStack.splice(i, 1);
+      syncSiblingModalIsolation();
     };
   }, []);
+
+  // Preserve stack order if a caller switches an existing overlay between
+  // modal and non-modal modes.
+  useEffect(() => {
+    const entry = stackEntryRef.current as DialogStackEntry;
+    entry.modal = modal;
+    if (dialogStack.includes(entry)) syncSiblingModalIsolation();
+  }, [modal]);
 
   // Escape key
   useEffect(() => {
@@ -129,7 +171,10 @@ export function AccessibleModal({
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       // Only the topmost mounted dialog responds — see dialogStack above.
-      if (dialogStack[dialogStack.length - 1] !== stackIdRef.current) return;
+      if (
+        dialogStack[dialogStack.length - 1]?.id !== stackEntryRef.current?.id
+      )
+        return;
       e.stopPropagation();
       onClose();
     };
@@ -153,6 +198,7 @@ export function AccessibleModal({
   return (
     <OverlayContainer>
       <div
+        aria-hidden={hiddenBySiblingModal || undefined}
         className={`fixed inset-0 ${modal ? backdropClass : "pointer-events-none"} ${overlayClassName}`}
         style={{ zIndex }}
         onClick={modal ? onClose : undefined}
