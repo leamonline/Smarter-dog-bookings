@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PiggyBank } from "lucide-react";
-import { supabase } from "../../../supabase/client.js";
-import { getDepositSettings } from "../../../supabase/repositories/bookingsRepo";
+import { useDepositSettings } from "../../../supabase/hooks/useDepositSettings.js";
 import { isAwaitingDeposit } from "../../../engine/deposits";
 
 // Awaiting-deposit panel on the booking detail modal. Renders only while
@@ -20,21 +19,10 @@ function formatDue(dueBy) {
 }
 
 export function DepositSection({ booking, onMarkReceived }) {
-  const [bank, setBank] = useState(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const awaiting = isAwaitingDeposit(booking);
-
-  useEffect(() => {
-    if (!awaiting) return undefined;
-    let cancelled = false;
-    getDepositSettings(supabase).then((s) => {
-      if (!cancelled) setBank(s.bank);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [awaiting]);
+  const { bank } = useDepositSettings(awaiting);
 
   if (!awaiting) return null;
 
