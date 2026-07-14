@@ -1,7 +1,6 @@
-// The brief-style KPI row — the day at a glance in three cards: dogs in,
-// expected takings if everyone pays, and capacity against the daily dog cap.
-// Capacity is derived from the same dogsBooked the first card shows, so the
-// two can never disagree.
+// The brief-style KPI row — the day at a glance in three cards: live on-site
+// dogs (or booked dogs for a future brief), expected takings if everyone pays,
+// and booked capacity against the daily dog cap.
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { formatMoney } from "./parts.jsx";
 
@@ -15,11 +14,17 @@ function KpiCard({ label, children, hint }) {
   );
 }
 
-export function TodayKpiRow({ dogsBooked, expectedRevenue }) {
+export function TodayKpiRow({ dogsBooked, onSite, expectedRevenue }) {
   const pct = Math.min(100, Math.round((dogsBooked / DAY_CAPACITY) * 100));
+  const isLiveDay = Number.isFinite(onSite);
   return (
     <div className="grid grid-cols-3 gap-2.5">
-      <KpiCard label="Dogs in">{dogsBooked}</KpiCard>
+      <KpiCard
+        label={isLiveDay ? "On site" : "Booked"}
+        hint={isLiveDay ? `${dogsBooked} booked today` : undefined}
+      >
+        {isLiveDay ? onSite : dogsBooked}
+      </KpiCard>
       <KpiCard label="Expected" hint="if all paid">{formatMoney(expectedRevenue)}</KpiCard>
       <div className="rounded-xl border border-brand-paper-line bg-white px-3.5 py-3">
         <p className="text-[12px] text-slate-600">Capacity</p>
