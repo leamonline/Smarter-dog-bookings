@@ -21,9 +21,9 @@ import { StepCustomer } from "./StepCustomer.jsx";
 import { StepDogs } from "./StepDogs.jsx";
 import { StepFirstBooking } from "./StepFirstBooking.jsx";
 import { commitNewClient } from "./commitNewClient.js";
-import { canAdvanceCustomer, canAdvanceDogs, canConfirm } from "./wizardValidation.js";
+import { canAdvanceCustomer, canConfirm } from "./wizardValidation.js";
 
-const STEP_TITLES = ["Customer", "Their dogs", "First booking"];
+const STEP_TITLES = ["Customer", "Their dogs (optional)", "First booking"];
 const DEFAULT_SERVICE = SERVICES[0]?.id ?? "full-groom";
 const emptyHuman = () => ({
   name: "", surname: "", phone: "", email: "", address: "", sms: false, whatsapp: false, notes: "",
@@ -94,7 +94,7 @@ export function NewClientWizard({
   const onSelectDate = (date) => { setDateStr(toDateStr(date)); setSlot(""); };
 
   // ── Navigation ──
-  const canNext = step === 1 ? canAdvanceCustomer(human) : step === 2 ? canAdvanceDogs(dogs) : false;
+  const canNext = step === 1 ? canAdvanceCustomer(human) : false;
 
   async function handleNext() {
     if (step === 1) {
@@ -116,17 +116,24 @@ export function NewClientWizard({
         }
       }
       setStep(2);
-    } else if (step === 2) {
-      setStep(3);
     }
   }
 
-  // ── Confirm (write-at-end; idempotent retry via committedRef) ──
-  async function handleConfirm() {
+  // ── Save (write-at-end; idempotent retry via committedRef) ──
+  async function handleCommit({ includeBooking }) {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
+
     try {
+      const commitSelections = includeBooking
+        ? selections
+        : Object.fromEntries(
+            dogs.map((dog) => [
+              dog.clientKey,
+              { ...selections[dog.clientKey], booked: false },
+            ]),
+          );
       const { humanId } = await commitNewClient({
         addHuman,
         addDog,
@@ -134,24 +141,24 @@ export function NewClientWizard({
         human,
         phone: normalisedPhoneRef.current || human.phone.trim(),
         dogs,
-        selections,
-        dateStr,
-        slot,
+        selections: commitSelections,
+        dateStr: includeBooking ? dateStr : "",
+        slot: includeBooking ? slot : "",
         committed: committedRef.current,
         onCustomerCreated: () => setCustomerCreated(true),
       });
 
-      const action = onBookAnother && humanId
+      const dogCopy = dogs.length === 0
+        ? ""
+        : ` with ${dogs.length} dog${dogs.length === 1 ? "" : "s"}`;
+      const bookingCopy = includeBooking ? " and a booking" : "";
+      const action = includeBooking && onBookAnother && humanId
         ? { label: `Book another for ${human.name}`, onClick: () => onBookAnother(humanId) }
         : undefined;
-      toast.show(
-        `${human.name} saved with ${dogs.length} dog${dogs.length === 1 ? "" : "s"} and a booking`,
-        "success",
-        action,
-      );
+      toast.show(`${human.name} saved${dogCopy}${bookingCopy}`, "success", action);
       onClose();
     } catch (err) {
-      logger.error("NewClientWizard confirm failed", err);
+      logger.error("NewClientWizard save failed", err);
       setError(err?.message || "That didn't quite work — let's try again.");
     } finally {
       setSubmitting(false);
@@ -210,16 +217,53 @@ export function NewClientWizard({
             Cancel
           </button>
         )}
-        {step < 3 ? (
+        {step === 1 ? (
           <button type="button" onClick={handleNext} disabled={!canNext}
             className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
-            {step === 1 && duplicate ? "Next anyway" : "Next"}
+            {duplicate ? "Next anyway" : "Next"}
           </button>
+        ) : step === 2 ? (
+          <div className="ml-auto flex items-center gap-2">
+            {dogs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleCommit({ includeBooking: false })}
+                disabled={submitting}
+                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Save &amp; book later
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={dogs.length === 0
+                ? () => handleCommit({ includeBooking: false })
+                : () => setStep(3)}
+              disabled={submitting}
+              className="px-5 py-2.5 rounded-full bg-brand-teal text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+            >
+              {submitting ? "Saving…" : dogs.length === 0 ? "Save client" : "Continue to booking"}
+            </button>
+          </div>
         ) : (
-          <button type="button" onClick={handleConfirm} disabled={!confirmReady}
-            className="px-5 py-2.5 rounded-full bg-brand-green-600 text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green-700 transition-colors">
-            {submitting ? "Saving…" : "Confirm booking"}
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleCommit({ includeBooking: false })}
+              disabled={submitting}
+              className="px-4 py-2.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save &amp; book later
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCommit({ includeBooking: true })}
+              disabled={!confirmReady}
+              className="px-5 py-2.5 rounded-full bg-brand-green-600 text-white text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green-700 transition-colors"
+            >
+              {submitting ? "Saving…" : "Confirm booking"}
+            </button>
+          </div>
         )}
       </div>
     </div>
