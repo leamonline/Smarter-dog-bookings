@@ -130,9 +130,12 @@ function makeSupabaseStub({
       );
       builder.abortSignal = vi.fn(() => {
         fetchCount += 1;
+        const result = typeof selectResult === "function"
+          ? selectResult(fetchCount)
+          : selectResult;
         return deferSelect
           ? selectPromise
-          : Promise.resolve(selectResult ?? { data: [], error: null });
+          : Promise.resolve(result ?? { data: [], error: null });
       });
       builder.single = vi.fn(() => {
         if (fromCalls.at(-1)?.op === "insert") {
@@ -621,7 +624,7 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("client-uuid-1");
   });
 
-  it("surfaces the week-fetch error and falls back to an empty schedule", async () => {
+  it("surfaces an initial week-fetch error with a naturally empty schedule", async () => {
     setSupabase(
       makeSupabaseStub({
         selectResult: { data: null, error: { message: "network down" } },
@@ -635,6 +638,40 @@ describe("useBookings", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("network down");
     expect(result.current.bookingsByDate).toEqual({});
+  });
+
+  it("preserves the last confirmed schedule when a refetch fails", async () => {
+    const initialRow = {
+      id: "booking-1",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const stub = makeSupabaseStub({
+      selectResult: (fetchNumber) => fetchNumber === 1
+        ? { data: [initialRow], error: null }
+        : { data: null, error: { message: "network down" } },
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+
+    act(() => result.current.refetch());
+    await waitFor(() => expect(stub.getFetchCount()).toBe(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe("network down");
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+    expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("booking-1");
   });
 
   it("ignores the fetch result when the request was aborted by unmount", async () => {

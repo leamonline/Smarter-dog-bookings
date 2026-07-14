@@ -5,8 +5,8 @@ import { SectionCard } from "./parts.jsx";
 // "Awaiting deposit" attention section: every unpaid deposit booking on
 // today's diary with its time left; overdue rows are flagged before the
 // hourly cron sweep (at :20 past) auto-releases them.
-// v1 scope: today's diary only — a future-dated awaiting booking surfaces
-// on its own day (TodayView only holds today's bookings).
+// v1 scope: today's diary only — TodayView deliberately renders this live
+// countdown surface only when the selected date is the real London today.
 
 function timeLeftLabel(minutesLeft, overdue) {
   if (overdue) return "overdue — releases at 20 past the hour";

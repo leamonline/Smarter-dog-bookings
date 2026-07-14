@@ -82,6 +82,7 @@ export function TodayView({
   const realTodayStr = londonDateStr(now);
   const dateStr = selectedDateStr || realTodayStr;
   const dateObj = selectedDateObj || now;
+  const isToday = dateStr === realTodayStr;
   const selectedSettings = daySettings?.[dateStr] || {};
   const selectedBookings = useMemo(
     () => bookingsByDate?.[dateStr] || [],
@@ -241,6 +242,10 @@ export function TodayView({
     return null;
   }, [onSendCollection, updateStatus]);
 
+  const onOpenDepositBooking = useCallback(
+    (booking) => onOpenBooking?.(booking.id),
+    [onOpenBooking],
+  );
   const onOpenInvoice = useCallback((booking) => setInvoiceBooking(booking), []);
   const onSaveInvoice = useCallback(
     (booking, invoicePatch) => patch(booking, invoicePatch, "Payment recorded"),
@@ -283,6 +288,7 @@ export function TodayView({
           unpaidTotal={unpaidTotal}
           nextOnlineSlot={availabilityView.nextOnlineSlot}
           isDayOpen={isDayOpen}
+          isToday={isToday}
           onOpenDatePicker={onOpenDatePicker}
           onManageAvailability={() => setShowAvailability(true)}
         />
@@ -313,20 +319,24 @@ export function TodayView({
           <>
             <TodayKpiRow
               dogsBooked={summary.dogsBooked}
-              onSite={summary.onSite}
+              onSite={isToday ? summary.onSite : undefined}
               expectedRevenue={summary.expectedRevenue}
             />
-            <TodayNowStrip
-              selection={nowNext}
-              now={now}
-              resolve={resolve}
-              onJumpTo={onJumpTo}
-            />
-            <AwaitingDepositsCard
-              bookings={selectedBookings}
-              now={now}
-              onOpenBooking={onOpenBooking}
-            />
+            {isToday && (
+              <>
+                <TodayNowStrip
+                  selection={nowNext}
+                  now={now}
+                  resolve={resolve}
+                  onJumpTo={onJumpTo}
+                />
+                <AwaitingDepositsCard
+                  bookings={selectedBookings}
+                  now={now}
+                  onOpenBooking={onOpenDepositBooking}
+                />
+              </>
+            )}
             <BookingFeed
               groups={groups}
               ownerCounts={ownerCounts}
@@ -337,7 +347,7 @@ export function TodayView({
               priceOf={(booking) => paymentOf(booking).subtotal}
               {...feedHandlers}
             />
-            <TodaySummaryStrip summary={summary} takings={takings} />
+            <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
               <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>

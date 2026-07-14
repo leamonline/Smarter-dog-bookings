@@ -202,6 +202,78 @@ describe("TodayView — selected-date operations", () => {
     );
   });
 
+  it.each([
+    ["past", "2026-07-13", new Date(2026, 6, 13)],
+    ["future", "2026-07-16", new Date(2026, 6, 16)],
+  ])("keeps %s selected dates free of live-day surfaces and copy while journey controls remain", (_label, dateStr, dateObj) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T09:15:00Z"));
+    const paidBooking = {
+      ...selectedBooking,
+      id: `paid-${dateStr}`,
+      slot: "10:30",
+      payment: "Paid in Full",
+      paymentMethod: "card",
+      paidAmount: 42,
+      _bookingDate: dateStr,
+    };
+    const awaitingBooking = {
+      ...selectedBooking,
+      id: `awaiting-${dateStr}`,
+      slot: "11:00",
+      dogName: "Lucy",
+      depositRequired: true,
+      depositReference: "SDG-7K3M",
+      depositDueBy: "2026-07-14T08:00:00Z",
+      depositReceivedAt: null,
+      _bookingDate: dateStr,
+    };
+
+    renderToday({
+      selectedDateObj: dateObj,
+      selectedDateStr: dateStr,
+      bookingsByDate: { [dateStr]: [paidBooking, awaitingBooking] },
+      daySettings: { [dateStr]: { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { [dateStr]: true },
+    });
+
+    expect(screen.queryByRole("region", { name: "Happening now" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
+    expect(screen.queryByText(/due in|overdue|booked today|taken today/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Booked", { selector: "p" }).parentElement).toHaveTextContent("2");
+    expect(screen.getByText("Taken £42")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Check-in" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Start groom" })).toHaveLength(2);
+  });
+
+  it("opens an awaiting-deposit booking by id", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T09:15:00Z"));
+    const onOpenBooking = vi.fn();
+    const awaitingBooking = {
+      ...selectedBooking,
+      id: "awaiting-today",
+      slot: "10:30",
+      depositRequired: true,
+      depositReference: "SDG-7K3M",
+      depositDueBy: "2026-07-14T11:15:00Z",
+      depositReceivedAt: null,
+      _bookingDate: "2026-07-14",
+    };
+
+    renderToday({
+      selectedDateObj: new Date(2026, 6, 14),
+      selectedDateStr: "2026-07-14",
+      bookingsByDate: { "2026-07-14": [awaitingBooking] },
+      daySettings: { "2026-07-14": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-14": true },
+      onOpenBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /SDG-7K3M/ }));
+    expect(onOpenBooking).toHaveBeenCalledWith("awaiting-today");
+  });
+
   it("routes dog, service, time, human, price and owner-message destinations", () => {
     const onOpenDog = vi.fn();
     const onOpenHuman = vi.fn();

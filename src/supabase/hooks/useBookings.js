@@ -130,7 +130,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
       if (err) {
         setError(err.message);
-        setRows([]);
+        // Keep the last confirmed schedule visible when a refresh fails.
+        // On the initial fetch rows is still null, so the derived view remains
+        // naturally empty while the error and retry state are exposed.
         setLoading(false);
         return;
       }

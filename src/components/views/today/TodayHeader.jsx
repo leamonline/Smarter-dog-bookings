@@ -8,6 +8,7 @@ export function TodayHeader({
   unpaidTotal = 0,
   nextOnlineSlot = null,
   isDayOpen,
+  isToday = true,
   briefMode = false,
   onOpenDatePicker,
   onManageAvailability,
@@ -31,7 +32,7 @@ export function TodayHeader({
         </div>
 
         {!briefMode && (
-          <ul aria-label="Today's summary" className="grid grid-cols-3 gap-2">
+          <ul aria-label={isToday ? "Today's summary" : "Selected date summary"} className="grid grid-cols-3 gap-2">
             <li className="flex h-9 items-center justify-center whitespace-nowrap rounded-full bg-slate-100 px-3 text-[12px] font-semibold text-slate-700">
               <strong className="mr-1 font-extrabold text-slate-900">{dogsBooked}</strong>{" "}
               {dogsBooked === 1 ? "dog" : "dogs"} booked
