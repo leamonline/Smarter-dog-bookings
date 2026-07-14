@@ -50,6 +50,12 @@ export function buildHumanMapEntry(row: any) {
     historyFlag: row.history_flag || "",
     reminderHours: row.reminder_hours ?? 24,
     reminderChannels: row.reminder_channels || ["whatsapp"],
+    // Booking rules (migration 20260714120000): staff-managed on the human
+    // card; blocked slots are DB-enforced for non-staff, deposit_required
+    // makes every booking await a bank-transfer deposit.
+    preferredSlots: row.preferred_slots || [],
+    blockedSlots: row.blocked_slots || [],
+    depositRequired: row.deposit_required === true,
     archivedAt: row.archived_at || null,
     // "Where did you hear about us?" — captured at self-signup, read-only to
     // staff. Only on the full select("*") fetch (not the directory projection).

@@ -93,3 +93,32 @@ export async function searchHumansAndDogs(
     dogOwners,
   );
 }
+
+export interface HumanBookingRules {
+  preferredSlots: string[];
+  blockedSlots: string[];
+  depositRequired: boolean;
+}
+
+/**
+ * Per-human booking rules for the portal wizard (customers can SELECT their
+ * own humans row). Returns null on any error — callers treat that as "no
+ * rules" and rely on the DB trigger as the authority.
+ */
+export async function getBookingRules(
+  client: SupabaseClient,
+  humanId: string,
+): Promise<HumanBookingRules | null> {
+  if (!client || !humanId) return null;
+  const { data, error } = await client
+    .from("humans")
+    .select("preferred_slots, blocked_slots, deposit_required")
+    .eq("id", humanId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    preferredSlots: data.preferred_slots || [],
+    blockedSlots: data.blocked_slots || [],
+    depositRequired: data.deposit_required === true,
+  };
+}

@@ -48,6 +48,10 @@ export interface Human {
   historyFlag: string;
   reminderHours: number;
   reminderChannels: string[];
+  /** Booking rules (staff-managed on the human card, migration 20260714120000). */
+  preferredSlots?: string[];
+  blockedSlots?: string[];
+  depositRequired?: boolean;
   trustedIds: string[];
   trustedContacts: TrustedContact[];
 }
@@ -87,6 +91,11 @@ export interface Booking {
   pickupBy: string;
   payment: string;
   depositAmount?: number | null;
+  /** Deposit-required workflow (owner tagged; DB-stamped, read-only here). */
+  depositRequired?: boolean;
+  depositReference?: string | null;
+  depositDueBy?: string | null;
+  depositReceivedAt?: string | null;
   // Minimal payment ledger (improvement #3): how + when settled. Populated by
   // the DB read path; paidAt is trigger-stamped, method/amount are staff-set.
   paymentMethod?: string | null;
