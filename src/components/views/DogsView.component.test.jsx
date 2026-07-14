@@ -1,10 +1,10 @@
 // Component tests for the server-driven Dogs Directory: it renders the
 // directoryDogs list in server order (no client re-sort), the A–Z rail disables
 // empty letters and reports jumps, the sort/filter/view toggles report changes,
-// cards stay keyboard-openable and show the owner's contact links, and the
+// cards expose independent profile and owner-contact actions, and the
 // archived view loads + unarchives.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 vi.mock("../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: vi.fn() }),
@@ -61,9 +61,9 @@ describe("DogsView directory", () => {
 
   it("renders the directory list in the server-provided order", () => {
     renderView();
-    const cards = screen.getAllByRole("button", { name: /^Open .+ profile$/ });
-    expect(cards[0]).toHaveAccessibleName("Open Rex's profile");
-    expect(cards[1]).toHaveAccessibleName("Open Bella's profile");
+    const cards = screen.getAllByRole("article");
+    expect(cards[0]).toHaveAccessibleName("Rex");
+    expect(cards[1]).toHaveAccessibleName("Bella");
   });
 
   it("disables A–Z letters that have no matches", () => {
@@ -97,12 +97,17 @@ describe("DogsView directory", () => {
     expect(loadMore).toHaveBeenCalled();
   });
 
-  it("opens a profile on card click and on keyboard Enter", () => {
-    const { onOpenDog } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: "Open Rex's profile" }));
+  it("renders articles with independent owner contacts and a profile action", () => {
+    const { onOpenDog } = renderView({ directoryDogs: [rex] });
+    const article = screen.getByRole("article", { name: "Rex" });
+    const profile = within(article).getByRole("button", { name: "View profile for Rex" });
+    const phone = within(article).getByRole("link", { name: "07700900111" });
+
+    phone.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(phone);
+    expect(onOpenDog).not.toHaveBeenCalled();
+    fireEvent.click(profile);
     expect(onOpenDog).toHaveBeenCalledWith("d1");
-    fireEvent.keyDown(screen.getByRole("button", { name: "Open Bella's profile" }), { key: "Enter" });
-    expect(onOpenDog).toHaveBeenCalledWith("d2");
   });
 
   it("footer shows loaded-of-total", () => {
@@ -142,7 +147,8 @@ describe("DogsView directory", () => {
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
     expect(localStorage.getItem("dogsViewMode")).toBe("list");
-    expect(screen.getByRole("button", { name: "Open Rex's profile" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Rex" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View profile for Rex" })).toBeInTheDocument();
   });
 
   it("the size filter chip toggles the server-side filter and reflects active state", () => {
@@ -174,7 +180,8 @@ describe("DogsView directory", () => {
     expect(fetchArchivedDogs).toHaveBeenCalled();
 
     // The archived card arrives once the fetch resolves.
-    await screen.findByRole("button", { name: "Open Max's profile" });
+    const article = await screen.findByRole("article", { name: "Max" });
+    expect(within(article).getByRole("button", { name: "View profile for Max" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
     expect(onUpdateDog).toHaveBeenCalledWith("d9", { archivedAt: null });
