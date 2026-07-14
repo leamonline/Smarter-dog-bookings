@@ -165,4 +165,25 @@ describe("HumansView directory", () => {
     fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
+
+  it("keeps profile and inline unarchive actions independent in archived List mode", async () => {
+    const archivedHuman = { ...sarah, id: "h9", fullName: "Sarah Jones" };
+    const fetchArchivedHumans = vi.fn(() => Promise.resolve([archivedHuman]));
+    const { onOpenHuman, onUpdateHuman } = renderView({ fetchArchivedHumans });
+
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
+
+    const article = await screen.findByRole("article", { name: "Sarah Jones" });
+    const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+    const unarchive = within(article).getByRole("button", { name: "Unarchive" });
+    expect(unarchive).not.toHaveClass("absolute");
+    expect(unarchive).toHaveClass("min-h-[40px]");
+
+    fireEvent.click(profile);
+    expect(onOpenHuman).toHaveBeenCalledWith("h9");
+    fireEvent.click(unarchive);
+    expect(onUpdateHuman).toHaveBeenCalledWith("h9", { archivedAt: null });
+    expect(onOpenHuman).toHaveBeenCalledTimes(1);
+  });
 });

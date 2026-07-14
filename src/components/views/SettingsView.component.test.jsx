@@ -71,6 +71,29 @@ describe("SettingsView unsaved-changes guard", () => {
     expect(screen.getByText(/advance booking window/i)).toBeInTheDocument();
   });
 
+  it("keeps the desktop tab order and moves from Hours to Account with ArrowRight", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView {...baseProps()} />);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Your Business",
+      "Hours & Closures",
+      "Your Account",
+      "Services & Pricing",
+      "Booking Rules",
+      "Capacity Engine",
+      "Customer Portal",
+      "Notifications",
+      "Calendar Sync",
+    ]);
+
+    await user.click(screen.getByRole("tab", { name: "Hours & Closures" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveFocus();
+  });
+
   it("groups mobile settings and uses the existing dirty-state guard", async () => {
     setViewportMobile(true);
     const user = userEvent.setup();

@@ -174,16 +174,23 @@ describe("DogsView directory", () => {
   it("Show archived loads the archived set and unarchive calls onUpdateDog", async () => {
     const archivedDog = { id: "d9", name: "Max", breed: "Lab", size: "large", alerts: [], ownerFullName: "Old Owner", ownerPhone: "" };
     const fetchArchivedDogs = vi.fn(() => Promise.resolve([archivedDog]));
-    const { onUpdateDog } = renderView({ fetchArchivedDogs });
+    const { onOpenDog, onUpdateDog } = renderView({ fetchArchivedDogs });
 
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
     fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
     expect(fetchArchivedDogs).toHaveBeenCalled();
 
     // The archived card arrives once the fetch resolves.
     const article = await screen.findByRole("article", { name: "Max" });
-    expect(within(article).getByRole("button", { name: "View profile for Max" })).toBeInTheDocument();
+    const profile = within(article).getByRole("button", { name: "View profile for Max" });
+    const unarchive = within(article).getByRole("button", { name: "Unarchive" });
+    expect(unarchive).not.toHaveClass("absolute");
+    expect(unarchive).toHaveClass("min-h-[40px]");
 
-    fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+    fireEvent.click(profile);
+    expect(onOpenDog).toHaveBeenCalledWith("d9");
+    fireEvent.click(unarchive);
     expect(onUpdateDog).toHaveBeenCalledWith("d9", { archivedAt: null });
+    expect(onOpenDog).toHaveBeenCalledTimes(1);
   });
 });

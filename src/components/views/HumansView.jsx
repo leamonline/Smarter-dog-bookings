@@ -51,7 +51,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-function UnarchiveButton({ onUnarchive }) {
+function UnarchiveButton({ onUnarchive, inline = false }) {
   return (
     <button
       type="button"
@@ -60,7 +60,9 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
+      className={inline
+        ? "min-h-[40px] px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
     >
       Unarchive
     </button>
@@ -204,7 +206,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         >
           View profile
         </button>
-        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
+        {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(human.id)} />}
       </article>
     );
   }

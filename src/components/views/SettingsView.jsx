@@ -32,7 +32,17 @@ const SETTING_GROUPS = [
   ] },
 ];
 
-const SECTIONS = SETTING_GROUPS.flatMap((group) => group.sections);
+const SECTIONS = [
+  { id: "business", label: "Your Business" },
+  { id: "hours", label: "Hours & Closures" },
+  { id: "account", label: "Your Account" },
+  { id: "pricing", label: "Services & Pricing" },
+  { id: "rules", label: "Booking Rules" },
+  { id: "capacity", label: "Capacity Engine" },
+  { id: "portal", label: "Customer Portal" },
+  { id: "notifs", label: "Notifications" },
+  { id: "calendar", label: "Calendar Sync" },
+];
 
 function groupForSection(sectionId) {
   return SETTING_GROUPS.find((group) =>
