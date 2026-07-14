@@ -21,7 +21,13 @@ import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
-let state = { count: 0, loading: true };
+const e2ePendingSignups = Number(import.meta.env.VITE_E2E_PENDING_SIGNUPS || 0);
+let state = {
+  count: Number.isFinite(e2ePendingSignups)
+    ? Math.max(0, e2ePendingSignups)
+    : 0,
+  loading: true,
+};
 let channel = null;
 const listeners = new Set();
 

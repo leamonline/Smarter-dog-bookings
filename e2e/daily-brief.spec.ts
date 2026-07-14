@@ -33,11 +33,26 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     page.getByRole("heading", { level: 1, name: "Daily Brief" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/today\?date=2026-07-14/);
+  await expect(
+    page.getByRole("link", { name: "Humans — 7 new customers awaiting approval" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Inbox — 12 to reply" }),
+  ).toBeVisible();
   expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-    ),
-  ).toBe(true);
+    await page.evaluate(() => ({
+      documentFits:
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      bodyFits: document.body.scrollWidth <= document.body.clientWidth,
+    })),
+  ).toEqual({ documentFits: true, bodyFits: true });
+  if (testInfo.project.name === "tablet") {
+    const account = page.getByRole("button", { name: "Account menu" });
+    await expect(account).toBeVisible();
+    expect(
+      await account.evaluate((element) => element.getBoundingClientRect().right),
+    ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  }
 
   const firstJourney = firstJourneyRow(page);
   await expect(

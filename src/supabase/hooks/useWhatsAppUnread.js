@@ -34,7 +34,11 @@ import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
 
-let state = { unread: 0, loading: true };
+const e2eUnread = Number(import.meta.env.VITE_E2E_WHATSAPP_UNREAD || 0);
+let state = {
+  unread: Number.isFinite(e2eUnread) ? Math.max(0, e2eUnread) : 0,
+  loading: true,
+};
 let channel = null;
 const listeners = new Set();
 

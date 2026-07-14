@@ -43,7 +43,11 @@ export default defineConfig({
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
-    env: { VITE_FORCE_OFFLINE: "1" },
+    env: {
+      VITE_FORCE_OFFLINE: "1",
+      VITE_E2E_WHATSAPP_UNREAD: "12",
+      VITE_E2E_PENDING_SIGNUPS: "7",
+    },
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
