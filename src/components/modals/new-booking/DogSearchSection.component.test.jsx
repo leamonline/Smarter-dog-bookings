@@ -118,6 +118,13 @@ function renderTypedSearch(overrides = {}) {
 }
 
 describe("DogSearchSection — typed search (UX #1)", () => {
+  it("shows no dog results until staff type", () => {
+    renderTypedSearch({ dogQuery: "", isSearchingDogs: false });
+    expect(screen.queryByText("Belle")).not.toBeInTheDocument();
+    expect(screen.queryByText("Eti")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New customer" })).toBeInTheDocument();
+  });
+
   it("notifies the parent so the debounced server search runs", () => {
     const props = renderTypedSearch();
     fireEvent.change(
