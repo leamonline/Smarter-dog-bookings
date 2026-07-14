@@ -38,6 +38,11 @@ async function addValidDog(user, name) {
 }
 
 describe("NewClientWizard", () => {
+  it("uses Add client as the visible flow label", () => {
+    renderWizard();
+    expect(screen.getByText("Add client · Step 1 of 3")).toBeInTheDocument();
+  });
+
   it("saves a client from the optional dog step without adding a dog", async () => {
     const user = userEvent.setup();
     const props = renderWizard();

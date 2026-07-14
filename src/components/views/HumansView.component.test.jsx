@@ -17,7 +17,6 @@ function renderView(overrides = {}) {
     dogsByHumanId: {},
     ensureDogsForHumans: vi.fn(),
     onOpenHuman: vi.fn(),
-    onAddHuman: vi.fn(),
     onNewClient: vi.fn(),
     onUpdateHuman: vi.fn(),
     fetchArchivedHumans: vi.fn(() => Promise.resolve([])),

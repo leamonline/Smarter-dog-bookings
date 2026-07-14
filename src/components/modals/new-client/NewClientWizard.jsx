@@ -1,9 +1,9 @@
 // ============================================================
 // src/components/modals/new-client/NewClientWizard.jsx
 //
-// Staff "New client" wizard: customer → dog(s) → first booking, in one flow.
-// WRITE-AT-END — nothing is persisted until Confirm, so abandoning mid-flow
-// leaves no orphan records. On Confirm it writes sequentially:
+// Staff "Add client" wizard: customer → optional dog(s) → optional first booking.
+// WRITE-AT-END — nothing is persisted until a terminal save action, so
+// abandoning before then leaves no orphan records. Saving writes sequentially:
 //   addHuman → addDog (per dog) → onAddBookings (per booked dog).
 // Reuses the existing write functions + capacity widgets; never touches the
 // capacity engine, the BEFORE-INSERT gates, RLS, or the booking RPCs.
@@ -172,7 +172,7 @@ export function NewClientWizard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-label text-ink-muted">
-            New client · Step {step} of 3
+            Add client · Step {step} of 3
           </div>
           <h2 id={titleId} className="text-xl font-bold font-display text-brand-purple leading-tight mt-0.5 truncate">
             {STEP_TITLES[step - 1]}
