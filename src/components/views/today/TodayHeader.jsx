@@ -17,14 +17,12 @@ export function TodayHeader({
     <header className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,.65fr)]">
       <div className="flex min-w-0 flex-col gap-3">
         <div>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight text-brand-purple">
-            Daily Brief
-          </h1>
+          <h1 className="sr-only">Daily Brief</h1>
           <button
             type="button"
             aria-label={`Choose date, ${dateLabel}`}
             onClick={onOpenDatePicker}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-left text-brand-purple outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-yellow bg-brand-yellow px-3 text-center text-brand-purple outline-none hover:bg-brand-yellow/85 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 sm:w-auto sm:justify-start sm:border-transparent sm:bg-transparent sm:text-left sm:hover:bg-white"
           >
             <CalendarDays size={20} aria-hidden="true" />
             <span className="font-display text-base font-bold">{dateLabel}</span>

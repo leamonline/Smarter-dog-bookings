@@ -29,10 +29,33 @@ test("Daily Brief keeps its core journey usable at every supported width", async
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Daily Brief" }),
-  ).toBeVisible();
+  const pageHeading = page.getByRole("heading", { level: 1, name: "Daily Brief" });
+  await expect(pageHeading).toBeAttached();
+  await expect(pageHeading).toHaveClass(/sr-only/);
   await expect(page).toHaveURL(/\/today\?date=2026-07-14/);
+  const dateControl = page.getByRole("button", {
+    name: "Choose date, Tuesday 14 July",
+  });
+  await expect(dateControl).toBeVisible();
+  if (testInfo.project.name === "mobile") {
+    expect(
+      await dateControl.evaluate((element) => {
+        const styles = getComputedStyle(element);
+        return {
+          backgroundColor: styles.backgroundColor,
+          borderWidth: styles.borderWidth,
+          justifyContent: styles.justifyContent,
+          fillsParent: element.getBoundingClientRect().width ===
+            element.parentElement?.getBoundingClientRect().width,
+        };
+      }),
+    ).toEqual({
+      backgroundColor: "rgb(254, 204, 19)",
+      borderWidth: "1px",
+      justifyContent: "center",
+      fillsParent: true,
+    });
+  }
   await expect(
     page.getByRole("link", { name: "Humans — 7 new customers awaiting approval" }),
   ).toBeVisible();
