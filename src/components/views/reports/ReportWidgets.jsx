@@ -13,6 +13,30 @@ import { BOOKING_STATUS } from "../../../constants/salon";
 // Absent provider (e.g. a Section used elsewhere) → sections are self-managed.
 export const ReportsExpandAllContext = createContext(null);
 
+export function DetailedReportsDisclosure({ children }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-card-resting overflow-hidden">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls="detailed-reports"
+        onClick={() => setExpanded((open) => !open)}
+        className="w-full min-h-[56px] flex items-center justify-between gap-3 px-5 py-3 bg-white text-left text-sm font-extrabold text-brand-purple"
+      >
+        <span>{expanded ? "Hide detailed reports" : "Show detailed reports"}</span>
+        <span aria-hidden="true">{expanded ? "−" : "+"}</span>
+      </button>
+      {expanded && (
+        <div id="detailed-reports" className="border-t border-slate-100 p-3 sm:p-4 flex flex-col gap-3 sm:gap-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Trend({ cur, prev, invert }) {
   // formatDelta returns an em-dash when the previous period was zero \u2014 there's
   // no meaningful percentage to display in that case, so the badge is

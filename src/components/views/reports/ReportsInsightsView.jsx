@@ -4,7 +4,12 @@ import { useReportsData } from "../../../hooks/useReportsData.ts";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { SkeletonKpiRow, SkeletonChart, EmptyState, Card } from "../../ui/index.js";
 import { ErrorBanner } from "../../ui/ErrorBanner.jsx";
-import { Kpi, PERIODS, ReportsExpandAllContext } from "./ReportWidgets.jsx";
+import {
+  DetailedReportsDisclosure,
+  Kpi,
+  PERIODS,
+  ReportsExpandAllContext,
+} from "./ReportWidgets.jsx";
 import { RevenueTrend } from "./RevenueTrend.jsx";
 import { ServiceMix } from "./ServiceMix.jsx";
 import { DemandPattern } from "./DemandPattern.jsx";
@@ -141,8 +146,7 @@ export function ReportsInsightsView({ loadError = null }) {
           />
         </Card>
       ) : (
-        <ReportsExpandAllContext.Provider value={compact ? allExpanded : null}>
-          {/* Band 3 — KPI row */}
+        <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi
               label="Expected"
@@ -183,87 +187,71 @@ export function ReportsInsightsView({ loadError = null }) {
             />
           </div>
 
-          {/* Expand/collapse all — only useful where the reports collapse (phones) */}
-          {compact && (
-            <div className="flex justify-end -mt-1 -mb-1">
-              <button
-                type="button"
-                onClick={() => setAllExpanded((v) => !v)}
-                aria-expanded={allExpanded}
-                className="inline-flex items-center gap-1 min-h-[36px] px-2 bg-transparent border-none cursor-pointer text-xs font-bold text-brand-purple hover:text-brand-purple/70 font-[inherit]"
-              >
-                {allExpanded ? "Collapse all" : "Expand all"}
-              </button>
-            </div>
-          )}
+          <KeyInsights stats={stats} insights={insights} days={days} />
 
-          {/* Band 4 — Trend + Key Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <RevenueTrend
-              days={days}
-              chart={stats.chart}
-              maxChartRev={stats.maxChartRev}
-              chartLabels={chartLabels}
-              insight={insights.capacity}
-            />
-            <KeyInsights stats={stats} insights={insights} days={days} />
-          </div>
-
-          {/* Band 5 — Service Mix + Demand Pattern */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <ServiceMix svcs={stats.svcs} maxSvcRev={stats.maxSvcRev} insight={insights.service} />
-            <DemandPattern
-              dow={stats.dow}
-              maxDowN={stats.maxDowN}
-              busiestDay={stats.busiestDay}
-              slots={stats.slots}
-              maxSlotN={stats.maxSlotN}
-              busiestSlot={stats.busiestSlot}
-              dayInsight={insights.day}
-            />
-          </div>
-
-          {/* Band 6 — Customers + Booking Health */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <CustomerRanking
-              topCusts={stats.topCusts}
-              uniqueCusts={stats.uniqueCusts}
-              revPerCust={stats.revPerCust}
-            />
-            <BookingHealth
-              statusAcc={stats.statusAcc}
-              totalPast={stats.totalPast}
-              noShowN={stats.noShowN}
-              noShowRate={stats.noShowRate}
-              prevNoShowRate={stats.prevNoShowRate}
-              insight={insights.health}
-            />
-          </div>
-
-          {/* Band 7 — Hardest to fill + Value per hour by service */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <SlotFillReport slotFill={analytics.slotFill} slotLevers={analytics.slotLevers} />
-            <ServiceValueReport serviceValue={analytics.serviceValue} />
-          </div>
-
-          {/* Band 8 — Outcomes + Booking source */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <OutcomesReport outcomes={analytics.outcomes} />
-            <SourceMixReport sourceMix={analytics.sourceMix} />
-          </div>
-
-          {/* Band 9 — Retention (self-fetching, spans all booking history) */}
-          <RetentionReport />
-
-          {/* Band 10 — Capacity-prevented demand (self-fetching booking_denials) */}
-          <CapacityPreventedReport days={days} />
-
-          {/* Band 11 — Booking funnel drop-off (self-fetching booking_funnel_events) */}
-          <FunnelReport days={days} />
-
-          {/* Band 12 — Collected by method (recorded takings, improvement #3) */}
-          <CollectedByMethodReport collectedByMethod={analytics.collectedByMethod} />
-        </ReportsExpandAllContext.Provider>
+          <DetailedReportsDisclosure>
+            <ReportsExpandAllContext.Provider value={compact ? allExpanded : null}>
+              {compact && (
+                <div className="flex justify-end -mt-1 -mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setAllExpanded((value) => !value)}
+                    aria-expanded={allExpanded}
+                    className="inline-flex items-center gap-1 min-h-[36px] px-2 bg-transparent border-none cursor-pointer text-xs font-bold text-brand-purple hover:text-brand-purple/70 font-[inherit]"
+                  >
+                    {allExpanded ? "Collapse all" : "Expand all"}
+                  </button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <RevenueTrend
+                  days={days}
+                  chart={stats.chart}
+                  maxChartRev={stats.maxChartRev}
+                  chartLabels={chartLabels}
+                  insight={insights.capacity}
+                />
+                <ServiceMix svcs={stats.svcs} maxSvcRev={stats.maxSvcRev} insight={insights.service} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <DemandPattern
+                  dow={stats.dow}
+                  maxDowN={stats.maxDowN}
+                  busiestDay={stats.busiestDay}
+                  slots={stats.slots}
+                  maxSlotN={stats.maxSlotN}
+                  busiestSlot={stats.busiestSlot}
+                  dayInsight={insights.day}
+                />
+                <CustomerRanking
+                  topCusts={stats.topCusts}
+                  uniqueCusts={stats.uniqueCusts}
+                  revPerCust={stats.revPerCust}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <BookingHealth
+                  statusAcc={stats.statusAcc}
+                  totalPast={stats.totalPast}
+                  noShowN={stats.noShowN}
+                  noShowRate={stats.noShowRate}
+                  prevNoShowRate={stats.prevNoShowRate}
+                  insight={insights.health}
+                />
+                <SlotFillReport slotFill={analytics.slotFill} slotLevers={analytics.slotLevers} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <ServiceValueReport serviceValue={analytics.serviceValue} />
+                <OutcomesReport outcomes={analytics.outcomes} />
+              </div>
+              <SourceMixReport sourceMix={analytics.sourceMix} />
+              <RetentionReport />
+              <CapacityPreventedReport days={days} />
+              <FunnelReport days={days} />
+              <CollectedByMethodReport collectedByMethod={analytics.collectedByMethod} />
+            </ReportsExpandAllContext.Provider>
+          </DetailedReportsDisclosure>
+        </>
       )}
     </div>
   );
