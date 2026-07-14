@@ -111,6 +111,7 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
         <span className="relative flex justify-center pb-7">
           <button
             type="button"
+            id={`today-card-${booking.id}-time`}
             aria-label={`Open ${slotLabel} booking`}
             onClick={() => handlers.onOpenBooking?.(booking.id)}
             className="flex size-13 items-center justify-center rounded-full bg-brand-purple text-sm font-extrabold text-white tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
