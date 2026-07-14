@@ -6,9 +6,11 @@ import { allocationIsImmediate } from "../../../engine/immediateBooking";
 import { buildSlotGrid } from "../../../engine/slotGrid";
 import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { listOnDateForCapacity, listBlockedSeats, listImmediateSlots } from "../../../supabase/repositories/bookingsRepo";
+import { getBookingRules, type HumanBookingRules } from "../../../supabase/repositories/humansRepo";
+import { partitionSlotsForHuman } from "../../../engine/deposits";
 import { toDateStr } from "../../../supabase/transforms";
 import type { WizardDog, SlotAllocation } from "../../../types/index";
-import { Clock, ArrowRight, PawPrint } from "lucide-react";
+import { Clock, ArrowRight, PawPrint, Star } from "lucide-react";
 import { WizardTick } from "./WizardTick";
 
 interface SlotSelectionProps {
@@ -22,6 +24,10 @@ interface SlotSelectionProps {
   /** Fired once when a genuinely open date returns no bookable slots for the
    *  selected dogs (not on a fetch error) — drives best-effort denial logging. */
   onNoAvailability?: (info: { date: string; isToday: boolean }) => void;
+  /** When set, per-human booking rules apply: the owner's blocked slots are
+   *  filtered out (defence in depth — the DB trigger is the authority) and
+   *  preferred slots are surfaced first as "Your usual time". */
+  humanId?: string;
 }
 
 function formatSlot(slot: string): string {
@@ -46,8 +52,10 @@ export function SlotSelection({
   onBack,
   onJoinWaitlist,
   onNoAvailability,
+  humanId,
 }: SlotSelectionProps) {
   const [availableSlots, setAvailableSlots] = useState<SlotAllocation[]>([]);
+  const [preferredSlots, setPreferredSlots] = useState<SlotAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -69,10 +77,13 @@ export function SlotSelection({
         // seats (staff overrides) come from get_blocked_seats: day_settings is
         // staff-only, so without this the engine can't see a blocked seat and
         // would offer it. listBlockedSeats degrades to {} on error.
-        const [{ bookings, error }, { byDate: blockedByDate }, immediateRes] = await Promise.all([
+        const [{ bookings, error }, { byDate: blockedByDate }, immediateRes, rules] = await Promise.all([
           listOnDateForCapacity(supabase, selectedDate),
           listBlockedSeats(supabase, selectedDate, selectedDate),
           listImmediateSlots(supabase),
+          // Per-human rules (null = none / fetch failed — fail open, the DB
+          // trigger is the authority on blocked slots).
+          humanId ? getBookingRules(supabase, humanId) : Promise.resolve<HumanBookingRules | null>(null),
         ]);
 
         if (cancelled) return;
@@ -113,13 +124,16 @@ export function SlotSelection({
           const flagged = new Set(isImmediateDay ? immediateRes.slots : []);
           results = results.filter((a) => allocationIsImmediate(a, flagged));
         }
+        // Per-human rules: blocked slots vanish, preferred float to the top.
+        const { preferred, rest } = partitionSlotsForHuman(results, rules ?? {});
         if (!cancelled) {
-          setAvailableSlots(results);
+          setPreferredSlots(preferred);
+          setAvailableSlots(rest);
           // A genuinely open date with nothing bookable for these dogs is
           // capacity-prevented demand — signal it once (the parent dedupes +
           // logs best-effort). Errors already returned above, so this is a real
           // "fully booked", not a fetch blip.
-          if (results.length === 0) {
+          if (preferred.length + rest.length === 0) {
             onNoAvailability?.({ date: selectedDate, isToday: selectedDate === toDateStr(new Date()) });
           }
         }
@@ -129,15 +143,16 @@ export function SlotSelection({
     })();
 
     return () => { cancelled = true; };
-  }, [selectedDate, selectedDogs, onNoAvailability]);
+  }, [selectedDate, selectedDogs, onNoAvailability, humanId]);
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
   const isToday = selectedDate === toDateStr(new Date());
 
+  const totalSlots = preferredSlots.length + availableSlots.length;
   const morning = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) < 12);
   const afternoon = availableSlots.filter((s) => parseInt(s.dropOffTime.split(":")[0], 10) >= 12);
 
-  const renderSlotTile = (allocation: SlotAllocation) => {
+  const renderSlotTile = (allocation: SlotAllocation, starred = false) => {
     const selected = selectedDropOff === allocation.dropOffTime;
     return (
       <button
@@ -149,7 +164,11 @@ export function SlotSelection({
       >
         <span className="inline-flex flex-col items-start gap-0.5 min-w-0">
           <span className="inline-flex items-center gap-2">
-            <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+            {starred ? (
+              <Star size={16} aria-hidden="true" className="text-[var(--sd-yellow-dark)] fill-current" />
+            ) : (
+              <Clock size={16} aria-hidden="true" className="text-[var(--sd-cyan-dark)]" />
+            )}
             <span className="font-['Quicksand',sans-serif] text-[15px] font-bold">
               {formatSlot(allocation.dropOffTime)}
             </span>
@@ -188,7 +207,7 @@ export function SlotSelection({
           </div>
         )}
 
-        {!loading && !loadError && availableSlots.length === 0 && (
+        {!loading && !loadError && totalSlots === 0 && (
           <div className="wizard-empty-slots" style={{ background: "var(--sd-coral-tint)", borderRadius: "var(--radius-sd-card)", padding: 20 }}>
             <div className="portal-polaroid">
               <div className="portal-polaroid-frame">
@@ -219,13 +238,21 @@ export function SlotSelection({
           </div>
         )}
 
-        {!loading && availableSlots.length > 0 && (
+        {!loading && totalSlots > 0 && (
           <>
+            {preferredSlots.length > 0 && (
+              <>
+                <h3 className="wizard-slot-group">Your usual time</h3>
+                <div className="flex flex-col gap-2">
+                  {preferredSlots.map((a) => renderSlotTile(a, true))}
+                </div>
+              </>
+            )}
             {morning.length > 0 && (
               <>
                 <h3 className="wizard-slot-group">Morning drop-offs</h3>
                 <div className="flex flex-col gap-2">
-                  {morning.map(renderSlotTile)}
+                  {morning.map((a) => renderSlotTile(a))}
                 </div>
               </>
             )}
@@ -233,7 +260,7 @@ export function SlotSelection({
               <>
                 <h3 className="wizard-slot-group">Afternoon drop-offs</h3>
                 <div className="flex flex-col gap-2">
-                  {afternoon.map(renderSlotTile)}
+                  {afternoon.map((a) => renderSlotTile(a))}
                 </div>
               </>
             )}

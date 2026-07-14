@@ -321,3 +321,44 @@ export async function joinWaitlist(
   });
   return { error: error ? new Error(error.message) : null };
 }
+
+export interface DepositSettings {
+  bank: { accountName: string; sortCode: string; accountNumber: string } | null;
+  releaseHours: number;
+}
+
+/**
+ * Bank details + release window for the deposit panels. Reads
+ * salon_config.settings (customers hold a SELECT policy). Degrades to
+ * { bank: null, releaseHours: 12 } — panels then show the reference and
+ * amount without bank details rather than erroring.
+ */
+export async function getDepositSettings(client: SupabaseClient): Promise<DepositSettings> {
+  const fallback: DepositSettings = { bank: null, releaseHours: 12 };
+  if (!client) return fallback;
+  const { data, error } = await client
+    .from("salon_config")
+    .select("settings")
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.settings) return fallback;
+  const s = data.settings as {
+    depositBank?: { accountName?: string; sortCode?: string; accountNumber?: string } | null;
+    depositReleaseHours?: number | null;
+  };
+  const bank = s.depositBank;
+  const complete = Boolean(bank?.accountName && bank?.sortCode && bank?.accountNumber);
+  return {
+    bank: complete
+      ? {
+          accountName: bank!.accountName!,
+          sortCode: bank!.sortCode!,
+          accountNumber: bank!.accountNumber!,
+        }
+      : null,
+    releaseHours:
+      typeof s.depositReleaseHours === "number" && s.depositReleaseHours > 0
+        ? s.depositReleaseHours
+        : 12,
+  };
+}

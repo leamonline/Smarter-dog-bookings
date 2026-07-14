@@ -34,6 +34,7 @@ import { useNextOpenDayBrief } from "../../hooks/useNextOpenDayBrief";
 import { TodayHeader } from "./today/TodayHeader.jsx";
 import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
+import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
 import { TodayKpiRow } from "./today/TodayKpiRow.jsx";
@@ -406,6 +407,11 @@ export function TodayView({
               onSendCollection={onSendCollection}
               onMessageOwner={onMessageOwner}
               onMarkPaid={onMarkPaid}
+            />
+            <AwaitingDepositsCard
+              bookings={todayBookings}
+              now={now}
+              onOpenBooking={onOpenBooking}
             />
             <BookingFeed
               groups={groups}

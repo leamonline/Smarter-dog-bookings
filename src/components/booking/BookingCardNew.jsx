@@ -13,6 +13,7 @@ import {
   resolveBookingDisplay,
 } from "../../engine/bookingRules";
 import { PAYMENT_METHODS } from "../../constants/salon";
+import { isAwaitingDeposit } from "../../engine/deposits";
 import { titleCase } from "../../utils/text";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailures.js";
@@ -441,7 +442,14 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               <span className="text-[12px] md:text-[13px] font-bold text-slate-800">
                 {"£"}{pricing.subtotal}
               </span>
-              {pricing.isPaidInFull ? (
+              {isAwaitingDeposit(booking) ? (
+                <span
+                  className="text-[9px] md:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1 py-0.5 rounded leading-none"
+                  title={`Awaiting £${booking.depositAmount ?? 10} deposit${booking.depositReference ? ` — ref ${booking.depositReference}` : ""}`}
+                >
+                  Awaiting deposit
+                </span>
+              ) : pricing.isPaidInFull ? (
                 <span
                   className="text-[9px] md:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded leading-none"
                   title={`Paid in full (£${pricing.subtotal})`}

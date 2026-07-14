@@ -26,6 +26,7 @@ import { useBookingDeliveryFailure } from "../../supabase/hooks/useDeliveryFailu
 import { BookingHeader } from "./booking-detail/BookingHeader.jsx";
 import { BookingStatusBar } from "./booking-detail/BookingStatusBar.jsx";
 import { BookingAlerts } from "./booking-detail/BookingAlerts.jsx";
+import { DepositSection } from "./booking-detail/DepositSection.jsx";
 import { BookingActions } from "./booking-detail/BookingActions.jsx";
 import { AppointmentDetailsCard } from "./booking-detail/AppointmentDetailsCard.jsx";
 import { ServicesPaymentCard } from "./booking-detail/ServicesPaymentCard.jsx";
@@ -389,6 +390,27 @@ export function BookingDetailModal({
             editSettings={editSettings}
             sizeTheme={sizeTheme}
           />
+
+          {/* Awaiting-deposit strip: reference + copy line + one-tap
+              received. "Received" just sets the Deposit Paid payment state —
+              deposit_received_at is stamped by the DB trigger. */}
+          {!isEditing && (
+            <DepositSection
+              booking={booking}
+              onMarkReceived={
+                onUpdate
+                  ? async () => {
+                      const result = await onUpdate(
+                        { ...booking, payment: "Deposit Paid" },
+                        currentDateStr,
+                        currentDateStr,
+                      );
+                      if (result !== null) toast.show("Deposit recorded", "success");
+                    }
+                  : undefined
+              }
+            />
+          )}
 
           {/* ── Card 2: Services & Payment ── */}
           <ServicesPaymentCard

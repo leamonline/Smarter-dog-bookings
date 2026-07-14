@@ -30,6 +30,9 @@ interface DbHumanRow {
   history_flag: string | null;
   reminder_hours: number | null;
   reminder_channels: string[] | null;
+  preferred_slots?: string[] | null;
+  blocked_slots?: string[] | null;
+  deposit_required?: boolean | null;
 }
 
 interface DbDogRow {
@@ -61,6 +64,10 @@ interface DbBookingRow {
   addons: string[] | null;
   payment: string | null;
   deposit_amount?: number | null;
+  deposit_required?: boolean | null;
+  deposit_reference?: string | null;
+  deposit_due_by?: string | null;
+  deposit_received_at?: string | null;
   payment_method?: string | null;
   paid_at?: string | null;
   paid_amount?: number | null;
@@ -386,6 +393,12 @@ export function dbBookingsToArray(
       pickupBy: (pickupHuman as { fullName?: string } | null)?.fullName || ownerHuman?.fullName || ownerSnapshot || "",
       payment: row.payment || "Due at Pick-up",
       depositAmount: row.deposit_amount ?? null,
+      // Deposit-required workflow (migration 20260714120000). DB-stamped;
+      // the app reads these, never writes them.
+      depositRequired: row.deposit_required === true,
+      depositReference: row.deposit_reference ?? null,
+      depositDueBy: row.deposit_due_by ?? null,
+      depositReceivedAt: row.deposit_received_at ?? null,
       // Minimal payment ledger (improvement #3): how + when a booking was settled.
       paymentMethod: row.payment_method ?? null,
       paidAt: row.paid_at ?? null,
