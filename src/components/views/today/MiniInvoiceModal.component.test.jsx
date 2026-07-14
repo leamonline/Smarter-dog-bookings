@@ -49,6 +49,107 @@ describe("MiniInvoiceModal", () => {
     );
   });
 
+  it("preserves an existing paid booking and its retained deposit when saved unchanged", async () => {
+    const onSave = vi.fn().mockResolvedValue({ id: "b1" });
+    render(
+      <MiniInvoiceModal
+        booking={{
+          ...bookingFixture,
+          payment: "Paid in Full",
+          depositAmount: 10,
+          paymentMethod: "card",
+          paidAmount: 42,
+        }}
+        dog={dogFixture}
+        configPricing={null}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Deposit received")).toHaveValue(10);
+    expect(screen.getByLabelText("Payment received")).toHaveValue(32);
+    expect(screen.getByRole("radio", { name: "Card" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({
+        priceOverride: 42,
+        addons: [],
+        payment: "Paid in Full",
+        depositAmount: 10,
+        paymentMethod: "card",
+        paidAmount: 42,
+      }),
+    );
+  });
+
+  it("updates an existing paid booking balance when its price changes", async () => {
+    const onSave = vi.fn().mockResolvedValue({ id: "b1" });
+    render(
+      <MiniInvoiceModal
+        booking={{
+          ...bookingFixture,
+          payment: "Paid in Full",
+          depositAmount: 10,
+          paymentMethod: "cash",
+          paidAmount: 42,
+        }}
+        dog={dogFixture}
+        configPricing={null}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Base groom price"), {
+      target: { value: "46" },
+    });
+
+    expect(screen.getByLabelText("Payment received")).toHaveValue(36);
+    fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          priceOverride: 46,
+          payment: "Paid in Full",
+          depositAmount: 10,
+          paymentMethod: "cash",
+          paidAmount: 46,
+        }),
+      ),
+    );
+  });
+
+  it("requires a method before saving a legacy paid booking", async () => {
+    const onSave = vi.fn();
+    render(
+      <MiniInvoiceModal
+        booking={{
+          ...bookingFixture,
+          payment: "Paid in Full",
+          depositAmount: 10,
+          paymentMethod: null,
+          paidAmount: 42,
+        }}
+        dog={dogFixture}
+        configPricing={null}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Payment received")).toHaveValue(32);
+    fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Choose Cash, Card or Bank transfer",
+    );
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it("keeps edited values and shows an inline error when the save fails", async () => {
     const onSave = vi.fn().mockResolvedValue(null);
     render(
@@ -69,6 +170,44 @@ describe("MiniInvoiceModal", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Payment could not be saved");
     expect(screen.getByLabelText("Base groom price")).toHaveValue(46);
+  });
+
+  it("ignores backdrop dismissal while a save is pending", async () => {
+    let resolveSave;
+    const onSave = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const onClose = vi.fn();
+    render(
+      <MiniInvoiceModal
+        booking={bookingFixture}
+        dog={dogFixture}
+        configPricing={null}
+        onSave={onSave}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Base groom price"), {
+      target: { value: "46" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Cash" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Invoice · Jack" });
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    fireEvent.click(dialog.parentElement);
+    expect(onClose).not.toHaveBeenCalled();
+
+    resolveSave(null);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Payment could not be saved",
+    );
+    expect(screen.getByLabelText("Base groom price")).toHaveValue(46);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("preserves an edited payment while pricing changes and rejects a partial balance", async () => {

@@ -22,11 +22,16 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
       customPrice: dog?.customPrice ?? null,
       configPricing,
     });
+    const retainedDeposit = pricing.isPaidInFull
+      ? (booking.depositAmount ?? 0)
+      : pricing.depositPaid;
     return {
       basePrice: pricing.basePrice,
       addons: [...(booking.addons || [])],
-      depositAmount: pricing.depositPaid,
-      paymentReceived: pricing.amountDue,
+      depositAmount: retainedDeposit,
+      paymentReceived: pricing.isPaidInFull
+        ? Math.max(0, pricing.subtotal - Number(retainedDeposit))
+        : pricing.amountDue,
       paymentMethod: booking.paymentMethod ?? null,
     };
   });
@@ -87,6 +92,15 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
     if (window.confirm("Discard these invoice changes?")) onClose();
   };
 
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) {
+      requestDirtyClose();
+      return;
+    }
+    onClose();
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     setError("");
@@ -125,7 +139,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
   return (
     <ModalShell
       titleId="mini-invoice-title"
-      onClose={dirty && !saving ? requestDirtyClose : onClose}
+      onClose={requestClose}
       dismissOnEscape={!saving}
       widthClass="w-[min(520px,95vw)]"
       bodyClassName="p-4 sm:p-5"
@@ -147,7 +161,7 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
         <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-5 py-3">
           <button
             type="button"
-            onClick={dirty ? requestDirtyClose : onClose}
+            onClick={requestClose}
             disabled={saving}
             className="min-h-11 rounded-full border border-slate-200 font-bold disabled:cursor-wait disabled:opacity-60"
           >

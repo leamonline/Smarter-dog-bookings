@@ -230,4 +230,32 @@ describe("buildMiniInvoicePatch", () => {
       },
     });
   });
+
+  it.each([-5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects an invalid deposit amount of %s",
+    (depositAmount) => {
+      expect(buildMiniInvoicePatch({ ...input, depositAmount })).toEqual({
+        ok: false,
+        error: "Enter a valid deposit amount",
+      });
+    },
+  );
+
+  it.each([0, ""])("treats a zero or blank deposit of %j as no deposit", (depositAmount) => {
+    expect(
+      buildMiniInvoicePatch({
+        ...input,
+        depositAmount,
+        paymentReceived: 42,
+      }),
+    ).toMatchObject({
+      ok: true,
+      amountDue: 42,
+      patch: {
+        payment: "Paid in Full",
+        depositAmount: null,
+        paidAmount: 42,
+      },
+    });
+  });
 });

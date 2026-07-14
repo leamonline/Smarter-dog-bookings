@@ -33,7 +33,7 @@ export interface MiniInvoiceInput {
   booking: BookingPricingInput;
   basePrice: number;
   addons: string[];
-  depositAmount: number;
+  depositAmount: number | string;
   paymentReceived: number;
   paymentMethod: string | null;
 }
@@ -46,7 +46,10 @@ export function buildMiniInvoicePatch(input: MiniInvoiceInput) {
 
   const pricingInput = { ...input.booking, priceOverride: basePrice, addons: input.addons };
   const subtotal = computeBookingPricing(pricingInput).subtotal;
-  const deposit = Number(input.depositAmount || 0);
+  const deposit = input.depositAmount === "" ? 0 : Number(input.depositAmount);
+  if (!Number.isFinite(deposit) || deposit < 0) {
+    return { ok: false as const, error: "Enter a valid deposit amount" };
+  }
   const depositError =
     deposit > 0 ? validateDepositAmount("Deposit Paid", deposit, subtotal) : null;
   if (depositError) return { ok: false as const, error: depositError };
