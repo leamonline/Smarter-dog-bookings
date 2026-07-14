@@ -20,12 +20,14 @@ import { supabase } from "../client.js";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import { e2eFixtureCount } from "./e2eFixtureCounts.js";
 
-const e2ePendingSignups = Number(import.meta.env.VITE_E2E_PENDING_SIGNUPS || 0);
+const e2ePendingSignups = e2eFixtureCount(
+  import.meta.env.VITE_E2E_PENDING_SIGNUPS,
+  import.meta.env.VITE_FORCE_OFFLINE === "1",
+);
 let state = {
-  count: Number.isFinite(e2ePendingSignups)
-    ? Math.max(0, e2ePendingSignups)
-    : 0,
+  count: e2ePendingSignups,
   loading: true,
 };
 let channel = null;

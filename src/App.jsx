@@ -414,19 +414,27 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const handleOpenDog = useCallback(
     (id) => {
       if (!id) return;
+      if (location.pathname === "/today") {
+        setSelectedDogId(id);
+        return;
+      }
       // Profile pages get a URL — call sites still pass through here so
       // direct navigation (e.g. /dogs/abc123 from a Slack share) and
       // in-app clicks land on the same modal.
       navigate(`/dogs/${id}`);
     },
-    [navigate],
+    [location.pathname, navigate, setSelectedDogId],
   );
   const handleOpenHuman = useCallback(
     (id) => {
       if (!id) return;
+      if (location.pathname === "/today") {
+        setSelectedHumanId(id);
+        return;
+      }
       navigate(`/humans/${id}`);
     },
-    [navigate],
+    [location.pathname, navigate, setSelectedHumanId],
   );
   const handleCloseDogProfile = useCallback(() => {
     setSelectedDogId(null);
@@ -1083,6 +1091,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       }
                       toggleImmediateSlot={toggleImmediateSlot}
                       onRefresh={refetchBookings}
+                      configPricing={salonConfig?.pricing}
                     />
                   } />
                   <Route path="/" element={

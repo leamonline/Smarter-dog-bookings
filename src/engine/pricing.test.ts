@@ -25,6 +25,17 @@ describe("computeRevenue", () => {
     expect(computeRevenue(bookings, dogs)).toBe(65); // £55 custom + £10 flea bath
   });
 
+  it("uses the configured salon guide price before the fallback table", () => {
+    const bookings = [
+      { service: "full-groom", size: "small", addons: [], _dogId: "d1" },
+    ] as any;
+    const dogs = { d1: { id: "d1", name: "Bella" } } as any;
+
+    expect(
+      computeRevenue(bookings, dogs, { "full-groom": { small: 5000 } }),
+    ).toBe(50);
+  });
+
   it("is invariant to payment state (revenue = appointment value, not amount due)", () => {
     const base = { service: "full-groom", size: "small", addons: ["Flea Bath"], _dogId: "d1" };
     const dogs = { d1: { id: "d1", name: "Bella" } } as any;

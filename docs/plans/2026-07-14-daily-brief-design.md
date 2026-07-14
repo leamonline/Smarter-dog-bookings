@@ -1,6 +1,6 @@
 # Daily Brief UX design
 
-**Status:** Approved on 14 July 2026  
+**Status:** Approved on 14 July 2026
 **Scope:** Rename and refine the existing `/today` operational view. This document records the approved design only; application implementation is a separate step.
 
 ## Outcome

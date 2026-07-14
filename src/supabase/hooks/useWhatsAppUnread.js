@@ -33,10 +33,14 @@ import { supabase } from "../client.js";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import { e2eFixtureCount } from "./e2eFixtureCounts.js";
 
-const e2eUnread = Number(import.meta.env.VITE_E2E_WHATSAPP_UNREAD || 0);
+const e2eUnread = e2eFixtureCount(
+  import.meta.env.VITE_E2E_WHATSAPP_UNREAD,
+  import.meta.env.VITE_FORCE_OFFLINE === "1",
+);
 let state = {
-  unread: Number.isFinite(e2eUnread) ? Math.max(0, e2eUnread) : 0,
+  unread: e2eUnread,
   loading: true,
 };
 let channel = null;

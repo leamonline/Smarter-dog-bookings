@@ -108,3 +108,28 @@ test("journey and invoice work by keyboard", async ({ page }) => {
     "1",
   );
 });
+
+test("dog and human files preserve the selected Daily Brief and restore focus", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  const dogTrigger = page.getByRole("button", { name: "Open Bella's dog file" });
+  await dogTrigger.click();
+  await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
+  const dogDialog = page.getByRole("dialog", { name: /Bella/i });
+  await expect(dogDialog).toBeVisible();
+  await dogDialog.getByRole("button", { name: "Close" }).click();
+  await expect(dogTrigger).toBeFocused();
+
+  const humanTrigger = page.getByRole("button", {
+    name: "Open Sarah Jones's human file",
+  });
+  await humanTrigger.click();
+  await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
+  const humanDialog = page.getByRole("dialog", { name: /Sarah Jones/i });
+  await expect(humanDialog).toBeVisible();
+  await humanDialog.getByRole("button", { name: "Close" }).click();
+  await expect(humanTrigger).toBeFocused();
+});

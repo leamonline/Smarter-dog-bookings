@@ -177,6 +177,58 @@ describe("TodayView — selected-date operations", () => {
     expect(onUpdateBooking).toHaveBeenCalledTimes(1);
   });
 
+  it("uses one configured guide price for the row, unpaid summary and mini invoice", () => {
+    renderToday({
+      configPricing: { "full-groom": { small: 5000 } },
+    });
+
+    expect(screen.getByRole("button", { name: "Open £50 invoice" })).toBeInTheDocument();
+    const summary = screen.getByRole("list", { name: "Selected date summary" });
+    expect(within(summary).getAllByRole("listitem")[2]).toHaveTextContent("£50 unpaid");
+    expect(screen.getByText("Expected", { selector: "p" }).parentElement).toHaveTextContent("£50");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open £50 invoice" }));
+    expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
+    expect(screen.getAllByText("£50", { selector: "dd" })).toHaveLength(2);
+  });
+
+  it("shows a load failure without also claiming the date is empty", () => {
+    const onRefresh = vi.fn();
+    renderToday({
+      bookingsByDate: { "2026-07-16": [] },
+      bookingsError: new Error("load failed"),
+      onRefresh,
+    });
+
+    expect(screen.getByText("Couldn't load bookings for this date.")).toBeInTheDocument();
+    expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps confirmed rows visible when a refetch fails", () => {
+    renderToday({ bookingsError: new Error("refetch failed") });
+
+    expect(screen.getByText("Couldn't load bookings for this date.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Jack's dog file" })).toBeInTheDocument();
+    expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
+  });
+
+  it("keeps the row unchanged and offers an action-specific retry when check-in fails", async () => {
+    const onUpdateBooking = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(selectedBooking);
+    renderToday({ onUpdateBooking });
+
+    fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Check-in could not be saved.");
+    expect(screen.getByRole("button", { name: "Check-in" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
+  });
+
   it("uses the selected past date as the mutation fallback for legacy bookings", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
     const legacyBooking = {

@@ -22,7 +22,6 @@ import {
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useSalonPricing } from "../../contexts/SalonContext";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { TodayHeader } from "./today/TodayHeader.jsx";
 import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
@@ -64,10 +63,10 @@ export function TodayView({
   onSendCollection,
   toggleImmediateSlot,
   onRefresh,
+  configPricing,
 }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const configPricing = useSalonPricing();
 
   // Re-tick every minute so "15 min overdue" / "waiting 25 min" stay live.
   const [now, setNow] = useState(() => new Date());
@@ -106,7 +105,10 @@ export function TodayView({
   );
 
   // ---- Engine selectors ----
-  const summary = useMemo(() => buildDaySummary(selectedBookings, dogs), [selectedBookings, dogs]);
+  const summary = useMemo(
+    () => buildDaySummary(selectedBookings, dogs, configPricing),
+    [selectedBookings, dogs, configPricing],
+  );
   const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
   const feed = useMemo(
     () => buildDailyBriefFeed(selectedBookings, dateStr, now),
@@ -183,8 +185,8 @@ export function TodayView({
   }, [dogs]);
   const paymentOf = useCallback((b) => {
     const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-    return paymentState(b, dog?.customPrice ?? null);
-  }, [dogs]);
+    return paymentState(b, dog?.customPrice ?? null, configPricing);
+  }, [dogs, configPricing]);
 
   const unpaidTotal = useMemo(
     () => visibleFeed.filter((e) => e.owes).reduce((n, e) => n + (paymentOf(e.booking).amountDue ?? 0), 0),
@@ -192,14 +194,46 @@ export function TodayView({
   );
 
   // ---- Actions (reuse the exact update path the detail modal uses) ----
-  const patch = useCallback(async (b, changes, message) => {
+  const patch = useCallback(async (
+    b,
+    changes,
+    successMessage,
+    failureMessage = "Booking update could not be saved.",
+    { showFailureToast = true } = {},
+  ) => {
     const date = b._bookingDate || dateStr;
-    const result = await onUpdateBooking({ ...b, ...changes }, date, date);
-    if (result !== null && message) toast.show(message, "success");
-    return result;
+    let result;
+    try {
+      result = await onUpdateBooking({ ...b, ...changes }, date, date);
+    } catch {
+      result = null;
+    }
+    if (result !== null && result !== false) {
+      if (successMessage) toast.show(successMessage, "success");
+      return result;
+    }
+    if (showFailureToast) {
+      toast.show(failureMessage, "error", {
+        label: "Retry",
+        onClick: () => patch(
+          b,
+          changes,
+          successMessage,
+          failureMessage,
+          { showFailureToast },
+        ),
+      });
+    }
+    return null;
   }, [onUpdateBooking, toast, dateStr]);
 
-  const updateStatus = useCallback(async (booking, status, successMessage, options = {}) => {
+  const updateStatus = useCallback(async (
+    booking,
+    status,
+    successMessage,
+    failureMessage,
+    options = {},
+  ) => {
     const skipped = requiresCareSkipConfirmation(booking.status, status);
     if (
       skipped &&
@@ -215,28 +249,45 @@ export function TodayView({
         ...(options.skipCollectionPrompt ? { _skipCollectionPrompt: true } : {}),
       },
       successMessage,
+      failureMessage,
     );
   }, [patch]);
 
   const onJourneyAction = useCallback((booking, action) => {
     if (action.completed && action.id !== "paid") return null;
     if (action.id === "checkIn") {
-      return updateStatus(booking, BOOKING_STATUS.CHECKED_IN, `${booking.dogName} checked in`);
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.CHECKED_IN,
+        `${booking.dogName} checked in`,
+        "Check-in could not be saved.",
+      );
     }
     if (action.id === "startGroom") {
-      return updateStatus(booking, BOOKING_STATUS.IN_BATH, `${booking.dogName} — groom started`);
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.IN_BATH,
+        `${booking.dogName} — groom started`,
+        "Starting the groom could not be saved.",
+      );
     }
     if (action.id === "ready") {
       return updateStatus(
         booking,
         BOOKING_STATUS.READY_FOR_PICKUP,
         `${booking.dogName} is waiting to be collected`,
+        "Ready for collection could not be saved.",
         { skipCollectionPrompt: true, skipConfirmation: true },
       );
     }
     if (action.id === "messageCollection") return onSendCollection(booking);
     if (action.id === "collected") {
-      return updateStatus(booking, BOOKING_STATUS.COMPLETED, `${booking.dogName} collected`);
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.COMPLETED,
+        `${booking.dogName} collected`,
+        "Collection could not be saved.",
+      );
     }
     if (action.id === "paid") setInvoiceBooking(booking);
     return null;
@@ -248,10 +299,24 @@ export function TodayView({
   );
   const onOpenInvoice = useCallback((booking) => setInvoiceBooking(booking), []);
   const onSaveInvoice = useCallback(
-    (booking, invoicePatch) => patch(booking, invoicePatch, "Payment recorded"),
+    (booking, invoicePatch) => patch(
+      booking,
+      invoicePatch,
+      "Payment recorded",
+      "Payment could not be saved.",
+      { showFailureToast: false },
+    ),
     [patch],
   );
-  const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
+  const onDidntShow = useCallback(
+    (b) => patch(
+      b,
+      { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
+      `${b.dogName} marked as a no-show`,
+      "Marking this booking as a no-show could not be saved.",
+    ),
+    [patch],
+  );
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
     else toast.show("Messaging isn't available for this booking", "info");
@@ -305,7 +370,7 @@ export function TodayView({
             <SectionSkeleton />
             <SectionSkeleton />
           </>
-        ) : isEmptyDay ? (
+        ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
             <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-10 text-center">
               <p className="text-[16px] font-bold text-slate-700">No bookings on this date</p>
