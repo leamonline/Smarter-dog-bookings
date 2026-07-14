@@ -3,7 +3,6 @@ import { getSizeForBreed } from "../../constants/index";
 import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
-import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
 import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
@@ -303,11 +302,9 @@ export function HumansView({
   dogsByHumanId,
   ensureDogsForHumans,
   onOpenHuman,
-  onAddHuman,
   onNewClient,
   onUpdateHuman,
   fetchArchivedHumans,
-  findHumanByFullName,
   hasMore,
   totalCount,
   loadMore,
@@ -327,7 +324,6 @@ export function HumansView({
   filters = null,
   onToggleFilter,
 }) {
-  const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
@@ -490,13 +486,10 @@ export function HumansView({
               />
             </div>
             {onNewClient && (
-              <Button variant="primary" onClick={onNewClient}>
-                + New client
+              <Button variant="primary" onClick={onNewClient} aria-label="Add client">
+                + Add client
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setShowAddModal(true)}>
-              + Add Human
-            </Button>
           </div>
         </div>
       </div>
@@ -714,16 +707,6 @@ export function HumansView({
           )}
         </div>
       </div>
-
-      {showAddModal && (
-        <AddHumanModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={onAddHuman}
-          dogs={dogs}
-          humans={humans}
-          findHumanByFullName={findHumanByFullName}
-        />
-      )}
     </div>
   );
 }

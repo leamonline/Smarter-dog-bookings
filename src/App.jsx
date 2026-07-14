@@ -927,7 +927,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
@@ -961,7 +960,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
