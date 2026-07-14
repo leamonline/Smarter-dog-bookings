@@ -22,7 +22,9 @@ test.describe("Smoke", () => {
     await page.goto("/today");
     await expect(page).toHaveURL(/\/today/);
     // Exactly one page heading — the shell's context row stands down here.
-    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Daily Brief" }),
+    ).toBeVisible();
     // Open days (Mon–Wed) show the live "N dogs booked" subline; closed days
     // show the read-only next-open-day brief banner instead. The smoke runs
     // on real wall-clock dates, so it must accept either state.
@@ -31,7 +33,10 @@ test.describe("Smoke", () => {
     ).toBeVisible();
     // The primary nav is labelled, not icon-only.
     await expect(
-      page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Today" }).first(),
+      page
+        .getByRole("navigation", { name: "Primary" })
+        .getByRole("link", { name: "Daily Brief" })
+        .first(),
     ).toBeVisible();
   });
 

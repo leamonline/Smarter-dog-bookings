@@ -1,6 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { render, renderHook, act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { BOOKING_STATUS } from "../../constants/salon";
+import { ToastProvider } from "../../contexts/ToastContext.jsx";
+import { TodayView } from "../../components/views/TodayView.jsx";
+
+vi.mock("../../hooks/useUnpaidFortnight", () => ({
+  useUnpaidFortnight: () => ({ loading: false, available: false, count: 0 }),
+}));
+vi.mock("../../hooks/useRetentionData", () => ({
+  useRetentionData: () => ({
+    loading: false,
+    available: false,
+    candidates: [],
+    excludedCount: 0,
+    overdueCount: 0,
+    refresh: vi.fn(),
+    mark: vi.fn(),
+  }),
+}));
 
 // vi.mock factories must not reference outer variables, so we define
 // stub state on globalThis and let the mock pull values from there.
@@ -130,9 +148,12 @@ function makeSupabaseStub({
       );
       builder.abortSignal = vi.fn(() => {
         fetchCount += 1;
+        const result = typeof selectResult === "function"
+          ? selectResult(fetchCount)
+          : selectResult;
         return deferSelect
           ? selectPromise
-          : Promise.resolve(selectResult ?? { data: [], error: null });
+          : Promise.resolve(result ?? { data: [], error: null });
       });
       builder.single = vi.fn(() => {
         if (fromCalls.at(-1)?.op === "insert") {
@@ -195,6 +216,38 @@ const humansById = {
 };
 
 const weekStart = new Date(2026, 4, 18); // Mon 18 May 2026
+
+function DailyBriefUpdateHarness() {
+  const bookingState = useBookings(weekStart, dogsById, humansById);
+  return (
+    <MemoryRouter initialEntries={["/today?date=2026-05-18"]}>
+      <ToastProvider>
+        <TodayView
+          selectedDateObj={new Date(2026, 4, 18)}
+          selectedDateStr="2026-05-18"
+          onOpenDatePicker={vi.fn()}
+          onOpenDog={vi.fn()}
+          onOpenHuman={vi.fn()}
+          bookingsByDate={bookingState.bookingsByDate}
+          bookingsLoading={bookingState.loading}
+          bookingsError={bookingState.error}
+          dogs={dogsById}
+          humans={humansById}
+          daySettings={{ "2026-05-18": { extraSlots: [], immediateSlots: [] } }}
+          dayOpenState={{ "2026-05-18": true }}
+          isOnline
+          onUpdateBooking={bookingState.updateBooking}
+          onOpenBooking={vi.fn()}
+          onNewBooking={vi.fn()}
+          onSendCollection={vi.fn()}
+          toggleImmediateSlot={vi.fn()}
+          onRefresh={bookingState.refetch}
+          configPricing={null}
+        />
+      </ToastProvider>
+    </MemoryRouter>
+  );
+}
 
 describe("useBookings", () => {
   // Reset on entry so each test starts from a clean slot. We don't
@@ -443,6 +496,36 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("10:00");
   });
 
+  it("keeps a journey update failure out of the booking-load error surface", async () => {
+    const initialRow = {
+      id: "booking-7",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    setSupabase(
+      makeSupabaseStub({
+        selectResult: { data: [initialRow], error: null },
+        updateResult: { data: null, error: { message: "update denied" } },
+      }),
+    );
+
+    render(<DailyBriefUpdateHarness />);
+    const checkIn = await screen.findByRole("button", { name: "Check-in" });
+    fireEvent.click(checkIn);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check-in could not be saved.",
+    );
+    expect(screen.queryByText("Couldn't load bookings for this date.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check-in" })).toBeInTheDocument();
+  });
+
   it("removeBooking deletes optimistically and reports success", async () => {
     const initialRow = {
       id: "booking-7",
@@ -621,7 +704,7 @@ describe("useBookings", () => {
     expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("client-uuid-1");
   });
 
-  it("surfaces the week-fetch error and falls back to an empty schedule", async () => {
+  it("surfaces an initial week-fetch error with a naturally empty schedule", async () => {
     setSupabase(
       makeSupabaseStub({
         selectResult: { data: null, error: { message: "network down" } },
@@ -635,6 +718,40 @@ describe("useBookings", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("network down");
     expect(result.current.bookingsByDate).toEqual({});
+  });
+
+  it("preserves the last confirmed schedule when a refetch fails", async () => {
+    const initialRow = {
+      id: "booking-1",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: "Booked",
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const stub = makeSupabaseStub({
+      selectResult: (fetchNumber) => fetchNumber === 1
+        ? { data: [initialRow], error: null }
+        : { data: null, error: { message: "network down" } },
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+
+    act(() => result.current.refetch());
+    await waitFor(() => expect(stub.getFetchCount()).toBe(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe("network down");
+    expect(result.current.bookingsByDate["2026-05-18"]).toHaveLength(1);
+    expect(result.current.bookingsByDate["2026-05-18"][0].id).toBe("booking-1");
   });
 
   it("ignores the fetch result when the request was aborted by unmount", async () => {
@@ -930,7 +1047,9 @@ describe("useBookings", () => {
 
     expect(returned).toBeNull();
     expect(result.current.bookingsByDate["2026-05-18"][0].slot).toBe("09:00");
-    expect(result.current.error).toBe("update failed");
+    // Mutation failures stay out of the fetch/load error channel. The caller
+    // receives null and onError so its own action-specific recovery can run.
+    expect(result.current.error).toBeNull();
     expect(onError).toHaveBeenCalledWith("update failed");
     expect(stub.getLastPayload("update").staff_capacity_override).toBe(true);
   });
@@ -982,6 +1101,49 @@ describe("useBookings", () => {
     const payload = stub.getLastPayload("update");
     expect(payload.staff_capacity_override).toBe(true);
     expect(payload.pickup_by_id).toBe("human-1");
+  });
+
+  it("does not open the automatic collection prompt for ready-without-message", async () => {
+    const onReadyForPickup = vi.fn();
+    const initialRow = {
+      id: "booking-7",
+      booking_date: "2026-05-18",
+      slot: "09:00",
+      size: "small",
+      service: "full-groom",
+      status: BOOKING_STATUS.IN_BATH,
+      addons: [],
+      dog_id: "dog-1",
+      payment: "Due at Pick-up",
+    };
+    const readyRow = { ...initialRow, status: BOOKING_STATUS.READY_FOR_PICKUP };
+    const stub = makeSupabaseStub({
+      selectResult: { data: [initialRow], error: null },
+      updateResult: { data: readyRow, error: null },
+    });
+    setSupabase(stub);
+
+    const { result } = renderHook(() =>
+      useBookings(weekStart, dogsById, humansById, { onReadyForPickup }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.updateBooking(
+        {
+          ...result.current.bookingsByDate["2026-05-18"][0],
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          _skipCollectionPrompt: true,
+        },
+        "2026-05-18",
+        "2026-05-18",
+      );
+    });
+
+    expect(onReadyForPickup).not.toHaveBeenCalled();
+    expect(stub.getLastPayload("update")).not.toHaveProperty(
+      "_skipCollectionPrompt",
+    );
   });
 
   it("does not fire onReadyForPickup when the booking was already Ready", async () => {

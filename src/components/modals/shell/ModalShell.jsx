@@ -22,11 +22,21 @@ export function ModalShell({
   dismissOnEscape = true,
   zIndex,
   bodyClassName = "",
+  mobilePresentation = "full",
   // Extra classes for the modal container (the outer box). Lets a single
   // modal opt into a marker class (e.g. `.bm-fields` for the iOS zoom fix)
   // without changing the shared chrome for the other entity modals.
   rootClassName = "",
 }) {
+  const mobileClass =
+    mobilePresentation === "sheet"
+      ? "max-sm:w-full max-sm:max-w-none max-sm:max-h-[92dvh] max-sm:rounded-t-[24px] max-sm:rounded-b-none"
+      : "max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none";
+  const overlayClassName =
+    mobilePresentation === "sheet"
+      ? "flex items-end justify-center sm:items-center"
+      : "flex items-center justify-center";
+
   return (
     <AccessibleModal
       onClose={onClose}
@@ -34,7 +44,8 @@ export function ModalShell({
       dismissOnEscape={dismissOnEscape}
       zIndex={zIndex}
       backdropClass={backdropClass}
-      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] ${widthClass} ${maxHeightClass} max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none ${rootClassName}`}
+      overlayClassName={overlayClassName}
+      className={`bg-[var(--color-brand-paper)] flex flex-col overflow-hidden animate-shell-in rounded-[20px] shadow-[0_18px_50px_-12px_rgba(45,0,75,0.28)] ${widthClass} ${maxHeightClass} ${mobileClass} ${rootClassName}`}
     >
       {accent ? (
         <div aria-hidden="true" className="h-1 shrink-0" style={{ background: accent }} />

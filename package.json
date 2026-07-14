@@ -33,6 +33,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fontsource/caveat": "^5.2.8",
     "@marsidev/react-turnstile": "^1.5.3",
     "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "^2.110.0",

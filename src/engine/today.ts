@@ -19,6 +19,7 @@
 import { slotToMinutes, DAY_CAPACITY } from "./utilisation";
 import { getBookableSeatCount, canBookSlot } from "./capacity";
 import { computeBookingPricing, isCountableBooking } from "./bookingRules";
+import type { PricingConfig } from "./bookingRules";
 import { computeRevenue } from "./pricing";
 import {
   BOOKING_STATUS,
@@ -220,7 +221,11 @@ export interface PaymentInfo {
   subtotal: number;
 }
 
-export function paymentState(b: TodayBooking, customPrice: number | null = null): PaymentInfo {
+export function paymentState(
+  b: TodayBooking,
+  customPrice: number | null = null,
+  configPricing?: PricingConfig,
+): PaymentInfo {
   const pricing = computeBookingPricing({
     service: b.service ?? "",
     size: b.size ?? DOG_SIZE.SMALL,
@@ -229,6 +234,7 @@ export function paymentState(b: TodayBooking, customPrice: number | null = null)
     depositAmount: b.depositAmount ?? null,
     priceOverride: b.priceOverride ?? null,
     customPrice,
+    configPricing,
   });
   const raw = (b.payment || "Due at Pick-up").trim();
   if (raw === "Paid in Full") {
@@ -369,6 +375,7 @@ export interface DaySummary {
 export function buildDaySummary(
   bookings: TodayBooking[],
   dogs: Record<string, Dog> | null = null,
+  configPricing?: PricingConfig,
 ): DaySummary {
   const countable = bookings.filter(isCountableBooking);
   let expected = 0;
@@ -400,8 +407,8 @@ export function buildDaySummary(
     unpaidCount,
     dogsBooked: total,
     capacityUsedPct: Math.round((total / DAY_CAPACITY) * 100),
-    expectedRevenue: computeRevenue(countable as unknown as Booking[], dogs),
-    collectedRevenue: computeRevenue(paid as unknown as Booking[], dogs),
+    expectedRevenue: computeRevenue(countable as unknown as Booking[], dogs, configPricing),
+    collectedRevenue: computeRevenue(paid as unknown as Booking[], dogs, configPricing),
   };
 }
 

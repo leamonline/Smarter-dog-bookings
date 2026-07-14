@@ -163,6 +163,8 @@ export interface Booking {
   _pickupById: string | null;
   _bookingDate: string;
   _groupId: string | null;
+  /** Transient UI instruction; never persisted to the bookings table. */
+  _skipCollectionPrompt?: boolean;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;

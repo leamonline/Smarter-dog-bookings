@@ -16,7 +16,7 @@ function Stat({ label, value, hint }) {
   );
 }
 
-export function TodaySummaryStrip({ summary, takings }) {
+export function TodaySummaryStrip({ summary, takings, isToday = true }) {
   return (
     <section
       aria-label="Daily progress"
@@ -42,7 +42,7 @@ export function TodaySummaryStrip({ summary, takings }) {
 
       {takings && takings.total > 0 && (
         <div className="border-t border-slate-100 px-3.5 py-2 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px]">
-          <span className="font-bold text-slate-700">Taken today {formatMoney(takings.total)}</span>
+          <span className="font-bold text-slate-700">Taken{isToday ? " today" : ""} {formatMoney(takings.total)}</span>
           {takings.byMethod.map((m) => (
             <span key={m.method} className="text-slate-600">
               {m.label} <span className="font-semibold text-slate-800 tabular-nums">{formatMoney(m.amount)}</span>

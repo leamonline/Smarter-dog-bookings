@@ -173,6 +173,17 @@ describe("paymentState (G4 mapping)", () => {
     expect(p.amountDue).toBe(42);
   });
 
+  it("uses the configured salon guide price for the displayed balance", () => {
+    const p = paymentState(
+      bk({ ...base, payment: "Due at Pick-up" }),
+      null,
+      { "full-groom": { small: 5000 } },
+    );
+
+    expect(p.subtotal).toBe(50);
+    expect(p.amountDue).toBe(50);
+  });
+
   it("renders an unknown legacy value neutrally with no implied balance", () => {
     const p = paymentState(bk({ ...base, payment: "Refunded" }));
     expect(p.kind).toBe("other");
@@ -291,6 +302,16 @@ describe("buildDaySummary", () => {
   it("splits expected vs recorded-as-paid revenue via computeRevenue", () => {
     expect(s.expectedRevenue).toBe(168); // 4 x £42
     expect(s.collectedRevenue).toBe(84); // 2 x £42 paid in full
+  });
+
+  it("uses configured guide prices for day revenue summaries", () => {
+    const summary = buildDaySummary(
+      [bk({ status: "Booked", payment: "Due at Pick-up", service: "full-groom", size: "small" })],
+      null,
+      { "full-groom": { small: 5000 } },
+    );
+
+    expect(summary.expectedRevenue).toBe(50);
   });
 
   it("reports capacity used against the daily cap", () => {

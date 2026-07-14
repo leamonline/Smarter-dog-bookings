@@ -1,9 +1,8 @@
 // The sticky "Now / Up next" strip — a slim live control panel pinned beneath
 // the header while the booking feed scrolls. WHAT it shows is decided entirely
-// by the engine (selectNowNext + entryOpStatus), and its primary action reuses
-// the same contextual-action handlers as the booking cards, so the strip can
-// never disagree with the card it points at. Tapping the booking identity
-// scrolls to (and briefly highlights) the matching card.
+// by the engine (selectNowNext + entryOpStatus). Tapping the booking identity
+// scrolls to the matching card and focuses its time control. Booking mutations
+// live only on the journey row, so each booking has one operational surface.
 //
 // Safe areas: the wrapper is sticky at top-0 with an env(safe-area-inset-top)
 // padding that is cancelled out by an equal negative margin — zero extra height
@@ -11,46 +10,14 @@
 // iPhone (installed PWA, viewport-fit=cover) the padding pushes the panel
 // below the status bar and the wrapper's background covers the content
 // scrolling behind it.
-import { useState } from "react";
 import { entryOpStatus, minutesUntilSlot } from "../../../engine/today";
 import { BOOKING_STATUS } from "../../../constants/index";
 import {
   Chip,
   CHIP_TONE_CLASS,
-  MarkPaidAction,
   formatMinutes,
   formatLondonTime,
 } from "./parts.jsx";
-
-/**
- * Compact solid-teal primary — same hierarchy as the cards, strip-sized.
- * `flex-1 min-w-0` so that, in the action row, one button fills the whole
- * width and two split it evenly (rather than sizing to their own text).
- */
-function StripPrimary({ onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex-1 min-w-0 inline-flex items-center justify-center min-h-[44px] px-3 rounded-xl bg-brand-teal text-white text-[13px] font-bold hover:bg-brand-teal-dark motion-safe:transition-colors text-center"
-    >
-      {children}
-    </button>
-  );
-}
-
-/** Compact muted secondary for the strip — same equal-width rule as the primary. */
-function StripSecondary({ onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex-1 min-w-0 inline-flex items-center justify-center min-h-[44px] px-3 rounded-xl bg-slate-100 text-slate-700 text-[13px] font-semibold hover:bg-slate-200 motion-safe:transition-colors text-center"
-    >
-      {children}
-    </button>
-  );
-}
 
 /** One short live context line for the NOW booking — time-anchored, honest. */
 function nowContext(entry, now) {
@@ -69,66 +36,6 @@ function nowContext(entry, now) {
   const mins = minutesUntilSlot(entry.booking.slot || "00:00", now);
   if (mins <= 0) return "due now";
   return `due in ${formatMinutes(mins)}`;
-}
-
-/**
- * The NOW booking's one primary action — the same mapping the cards use.
- * Collection keeps its two-step confirm; recording a payment keeps its
- * method chooser (MarkPaidAction), so nothing here can skip a safeguard.
- */
-function NowAction({ entry, onMarkArrived, onStartGroom, onMarkReady, onMarkCollected, onSendCollection, onMessageOwner, onMarkPaid }) {
-  const [confirming, setConfirming] = useState(false);
-  const b = entry.booking;
-  const op = entryOpStatus(entry);
-
-  if (op.kind === "overdue") {
-    return (
-      <>
-        <StripPrimary onClick={() => onMarkArrived(b)}>Mark arrived</StripPrimary>
-        <StripSecondary onClick={() => onMessageOwner(b)}>Message</StripSecondary>
-      </>
-    );
-  }
-  if (op.kind === "paymentDue") {
-    return <MarkPaidAction booking={b} onMarkPaid={onMarkPaid} variant="primary" />;
-  }
-  if (op.kind === "unconfirmed") {
-    return (
-      <>
-        <StripPrimary onClick={() => onMessageOwner(b)}>Chase confirmation</StripPrimary>
-        <StripSecondary onClick={() => onMarkArrived(b)}>Mark arrived</StripSecondary>
-      </>
-    );
-  }
-  if (entry.stage === "ready") {
-    if (confirming) {
-      return (
-        <>
-          <StripPrimary onClick={() => { onMarkCollected(b); setConfirming(false); }}>Confirm collected</StripPrimary>
-          <StripSecondary onClick={() => setConfirming(false)}>Cancel</StripSecondary>
-        </>
-      );
-    }
-    return b.collectionSentAt ? (
-      <StripPrimary onClick={() => setConfirming(true)}>Mark collected</StripPrimary>
-    ) : (
-      <StripPrimary onClick={() => onSendCollection(b)}>Send collection message</StripPrimary>
-    );
-  }
-  if (entry.stage === "inSalon") {
-    return b.status === BOOKING_STATUS.CHECKED_IN ? (
-      <StripPrimary onClick={() => onStartGroom(b)}>Start groom</StripPrimary>
-    ) : (
-      <StripPrimary onClick={() => onMarkReady(b)}>Mark ready</StripPrimary>
-    );
-  }
-  // Due soon / expected.
-  return (
-    <>
-      <StripPrimary onClick={() => onMarkArrived(b)}>Mark arrived</StripPrimary>
-      <StripSecondary onClick={() => onMessageOwner(b)}>Message</StripSecondary>
-    </>
-  );
 }
 
 /**
@@ -168,13 +75,6 @@ export function TodayNowStrip({
   now,
   resolve,
   onJumpTo,
-  onMarkArrived,
-  onStartGroom,
-  onMarkReady,
-  onMarkCollected,
-  onSendCollection,
-  onMessageOwner,
-  onMarkPaid,
 }) {
   const { now: nowEntry, next: nextEntry, readyCount } = selection;
   const nowOp = nowEntry ? entryOpStatus(nowEntry) : null;
@@ -187,27 +87,12 @@ export function TodayNowStrip({
         className="rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.08)] divide-y divide-slate-100"
       >
         {nowEntry ? (
-          <div className="flex flex-col gap-2 px-3 py-2">
+          <div className="px-3 py-2">
             <div className="flex items-center gap-2">
               <span className={`shrink-0 text-[10px] font-extrabold uppercase tracking-wider ${nowOp.tone === "coral" ? "text-brand-coral-text" : nowOp.tone === "amber" ? "text-amber-700" : "text-brand-teal-text"}`}>
                 Now
               </span>
               <IdentityButton entry={nowEntry} resolve={resolve} onJumpTo={onJumpTo} context={nowContext(nowEntry, now)} />
-            </div>
-            {/* Actions get their own full-width row so a primary+secondary
-                pair splits the card evenly instead of competing with the
-                identity text for space. */}
-            <div className="flex gap-2">
-              <NowAction
-                entry={nowEntry}
-                onMarkArrived={onMarkArrived}
-                onStartGroom={onStartGroom}
-                onMarkReady={onMarkReady}
-                onMarkCollected={onMarkCollected}
-                onSendCollection={onSendCollection}
-                onMessageOwner={onMessageOwner}
-                onMarkPaid={onMarkPaid}
-              />
             </div>
           </div>
         ) : (

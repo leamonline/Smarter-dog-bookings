@@ -9,6 +9,7 @@ export function DatePickerModal({
   onSelectDate,
   onClose,
   dayOpenState,
+  allowClosedDates = false,
 }) {
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
@@ -38,6 +39,8 @@ export function DatePickerModal({
   const isSelected = (d) => {
     return d === currentDate.getDate() && viewMonth === currentDate.getMonth() && viewYear === currentDate.getFullYear();
   };
+
+  const canSelect = (dateStr) => allowClosedDates || isDateOpen(dateStr, dayOpenState);
 
   // Always render 6 rows (42 cells) so the header never shifts position
   const cells = [];
@@ -79,8 +82,7 @@ export function DatePickerModal({
             onClick={() => {
               const today = new Date();
               const todayStr = toDateStr(today);
-              const isOpen = isDateOpen(todayStr, dayOpenState);
-              if (isOpen) onSelectDate(today);
+              if (canSelect(todayStr)) onSelectDate(today);
             }}
             className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full border-[1.5px] border-slate-200 bg-white text-sm font-bold text-brand-purple cursor-pointer font-[inherit] hover:bg-slate-50 transition-colors"
           >
@@ -104,7 +106,7 @@ export function DatePickerModal({
             const cellDate = new Date(viewYear, viewMonth, d);
             const dateStr = toDateStr(cellDate);
             const isOpen = isDateOpen(dateStr, dayOpenState);
-            const disabled = !isOpen;
+            const disabled = !allowClosedDates && !isOpen;
             const selected = isSelected(d);
             const today = isToday(d);
 
@@ -119,13 +121,13 @@ export function DatePickerModal({
               day: "numeric",
               month: "long",
               year: "numeric",
-            }) + (disabled ? ", salon closed" : "");
+            }) + (!isOpen ? ", salon closed" : "");
 
             return (
               <button
                 key={d}
                 type="button"
-                onClick={() => { if (!disabled) onSelectDate(new Date(viewYear, viewMonth, d)); }}
+                onClick={() => { if (!disabled) onSelectDate(cellDate); }}
                 disabled={disabled}
                 aria-label={cellLabel}
                 aria-current={today ? "date" : undefined}
