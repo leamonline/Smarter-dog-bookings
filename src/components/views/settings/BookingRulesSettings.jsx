@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Card, CardHead, CardBody, SettingRow, Toggle, InlineField, useAutosaveStatus, SaveStatus } from "./shared.jsx";
+import { useEffect, useState } from "react";
+import { Card, CardHead, CardBody, SettingRow, Toggle, InlineField, useAutosaveStatus, SaveStatus, INPUT_CLS, SECTION_LABEL_CLS } from "./shared.jsx";
+
+const EMPTY_BANK = { accountName: "", sortCode: "", accountNumber: "" };
 
 export function BookingRulesSettings({ config, onUpdateConfig, canEdit = true }) {
   const { save, status } = useAutosaveStatus(onUpdateConfig, { canEdit });
@@ -30,6 +32,33 @@ export function BookingRulesSettings({ config, onUpdateConfig, canEdit = true })
   const updateConfigField = (field, value) => {
     save((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Deposit bank details: local state while typing, persisted on blur so we
+  // don't autosave per keystroke. Re-syncs when the loaded config arrives.
+  const [bank, setBank] = useState(config?.depositBank ?? EMPTY_BANK);
+  useEffect(() => {
+    setBank(config?.depositBank ?? EMPTY_BANK);
+  }, [config?.depositBank]);
+
+  const saveBank = () => {
+    save((prev) => ({ ...prev, depositBank: { ...EMPTY_BANK, ...bank } }));
+  };
+
+  const bankField = (key, label, placeholder) => (
+    <label className="block flex-1 min-w-[140px]">
+      <span className="text-xs text-slate-500 block mb-1">{label}</span>
+      <input
+        type="text"
+        value={bank?.[key] ?? ""}
+        placeholder={placeholder}
+        disabled={!canEdit}
+        onChange={(e) => setBank((b) => ({ ...EMPTY_BANK, ...b, [key]: e.target.value }))}
+        onBlur={saveBank}
+        aria-label={label}
+        className={INPUT_CLS}
+      />
+    </label>
+  );
 
   return (
     <Card id="settings-rules">
@@ -72,8 +101,35 @@ export function BookingRulesSettings({ config, onUpdateConfig, canEdit = true })
               disabled={!canEdit}
             />
           }
-          border={false}
         />
+
+        {/* Deposits: window + the bank details customers are GIVEN to pay
+            into (account name / sort code / account number — not secrets).
+            Shown with the payment reference on every deposit booking. */}
+        <div className="pt-3.5">
+          <div className={SECTION_LABEL_CLS}>Deposits</div>
+          <InlineField
+            label="Deposit hold window"
+            sublabel="Hours an unpaid deposit booking keeps its slot"
+            suffix="hours"
+            value={config?.depositReleaseHours ?? 12}
+            onChange={(e) => updateNumericField("depositReleaseHours", e.target.value)}
+            disabled={!canEdit}
+            error={errors.depositReleaseHours}
+          />
+          <div className="py-3.5">
+            <div className="text-sm font-semibold text-slate-800">Deposit bank details</div>
+            <div className="text-xs text-slate-500 mt-0.5 mb-2.5">
+              Customers see these with their payment reference — leave blank to
+              share them yourself instead.
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              {bankField("accountName", "Account name", "Smarter Dog Grooming")}
+              {bankField("sortCode", "Sort code", "00-00-00")}
+              {bankField("accountNumber", "Account number", "12345678")}
+            </div>
+          </div>
+        </div>
       </CardBody>
     </Card>
   );

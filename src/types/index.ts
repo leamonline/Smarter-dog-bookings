@@ -239,6 +239,13 @@ export interface SalonSettings {
   advanceBookingWeeks: number;
   minCancellationHours: number;
   autoConfirm: boolean;
+  /** Bank details customers are GIVEN to pay deposits into (not secrets).
+   *  Read by the deposit panels (staff + portal) via getDepositSettings. */
+  depositBank: { accountName: string; sortCode: string; accountNumber: string };
+  /** Hours an unpaid deposit booking holds its slot (default 12). The SQL
+   *  helper deposit_due_by_for reads this exact camelCase key from
+   *  salon_config.settings. */
+  depositReleaseHours: number;
   customerPortal: CustomerPortalSettings;
   notifications: Record<string, NotificationSetting>;
   services: SalonService[];
