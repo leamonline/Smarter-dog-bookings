@@ -1,35 +1,34 @@
-# Design QA — Daily Brief mobile header annotations
+# Design QA — Daily Brief desktop journey annotations
 
-- Source visual truth: `browser:Daily Brief`, annotations 1–3 supplied in the conversation (430 × 971 CSS px).
-- Implementation screenshot: `.superpowers/sdd/annotation-qa/daily-brief-mobile-after.png`.
-- Viewport: 430 × 971 CSS px.
-- State: Daily Brief for Tuesday 14 July, closed date picker, mobile navigation visible.
+- Source visual truth: browser annotations 1–6 supplied in the conversation at 1440 × 900 CSS px.
+- Desktop implementation screenshot: `.superpowers/sdd/annotation-qa/daily-brief-desktop-after.png`.
+- Mobile regression screenshot: `.superpowers/sdd/annotation-qa/daily-brief-mobile-after-latest.png` at 430 × 971 CSS px.
+- State: Daily Brief for Tuesday 14 July, closed date picker, deterministic offline sample bookings.
 
 ## Full-view comparison evidence
 
-The implementation was captured at the same viewport as the annotated source. The repeated visible `Daily Brief` page heading has been removed. The date selector now fills the available content width, uses the brand-yellow background and border, and centres the calendar icon and date label. The summary pills, availability panel, KPI cards, now/next strip and booking rows retain their existing structure and spacing.
+The implementation was captured at the same 1440 × 900 viewport as the annotated source and compared against the complete annotated view. The date control now fills and centres within the left header column, with a 2px yellow border, yellow surface and black foreground. The availability button and supporting empty-state copy fill and centre within the right column. Every booking uses the same compact sans-serif sentence treatment, 44px coral time control, six journey-stage controls and 44px green customer-message control.
 
-The implementation uses deterministic offline sample data and therefore differs from the production screenshot in the banner, counts and dog records. Those content differences are environmental and outside the annotated header scope.
+The implementation uses deterministic offline sample data, so names, totals and journey states differ from the production screenshot. Those content differences are environmental and outside the annotation scope.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: the existing display font, weight and date label size are preserved. The visually removed page title remains as an `sr-only` H1 for assistive technology.
-- Spacing and layout rhythm: the date control fills its mobile parent width and remains compact from the `sm` breakpoint upwards. The surrounding 12px section gap and header grid are unchanged.
-- Colours and visual tokens: the control uses the existing `brand-yellow` token for background and border, with the existing brand-purple foreground and focus ring.
-- Image quality and asset fidelity: no image assets changed. The existing Lucide calendar icon is retained at 20px.
-- Copy and content: `Tuesday 14 July` and the accessible label `Choose date, Tuesday 14 July` are unchanged.
-
-No separate focused crop was needed because the complete annotated header and its typography, border, colour and alignment are clearly readable in the full 430px capture.
+- Typography: booking summaries use the existing Montserrat/system sans stack at 20px, bold, centred and responsive rather than the previous 32px Caveat treatment.
+- Header layout: the date and availability controls use `w-full` inside the existing responsive grid columns. This matches the annotated proportions without introducing brittle fixed pixel widths.
+- Colours: the existing brand-yellow token is retained for the date selector. Dedicated journey endpoint tokens match the annotated coral `#FF4C38` time control and green `#5BD100` message control.
+- Journey layout: all booking cards share the same data-driven component. Each grooming action has a 16px native completion box beneath it; the box is checked from the action's existing completion state and is disabled because it is an indicator, not a second action target.
+- Responsiveness: desktop retains one evenly distributed journey row. Mobile retains the existing four-column wrap so controls remain 44px and do not shrink or overflow.
+- Accessibility: the visually removed page title remains an `sr-only` H1. Date, availability, booking, journey and message controls retain accessible names and keyboard focus styles. Completion boxes have action-specific labels.
 
 ## Findings
 
-No actionable P0, P1 or P2 differences remain within the annotation scope.
+No actionable P0, P1 or P2 visual differences remain within the annotation scope. The native completion boxes are intentionally quieter than the action controls, so they communicate state without competing with the chronological journey.
 
 ## Comparison history
 
-1. Before: a visible `Daily Brief` H1 appeared above a transparent, content-width date control.
-2. Annotation fixes: visually hide the repeated H1; make the mobile date control full-width, centred, yellow and 1px bordered; preserve the compact control at `sm` and wider.
-3. After: the 430 × 971 capture and responsive E2E computed-style assertions confirm the requested appearance without horizontal overflow or surrounding layout drift.
+1. Before: desktop date and availability controls were content-width; booking summaries used large Caveat text; time and message endpoints were 52px; journey completion was communicated only through icon colour.
+2. Annotation fixes: make header controls fill their columns, apply the requested typography and endpoint colours/sizes, and add completion boxes beneath the six journey actions.
+3. After: same-viewport visual review and responsive E2E computed-style assertions confirm the requested appearance without horizontal overflow. Every rendered booking row uses the same component and completion-state mapping.
 
 ## Follow-up polish
 

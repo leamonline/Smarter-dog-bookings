@@ -64,7 +64,7 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
       id={`today-card-${booking.id}`}
       className="rounded-2xl border border-brand-paper-line bg-white px-3 py-3 sm:px-4"
     >
-      <p className="min-w-0 text-center font-handwriting text-[clamp(1.45rem,3vw,2rem)] font-bold leading-tight text-brand-purple">
+      <p className="min-w-0 text-center font-sans text-xl font-bold leading-tight text-brand-purple">
         <button
           type="button"
           aria-label={`Open ${display.dogName}'s dog file`}
@@ -114,7 +114,7 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
             id={`today-card-${booking.id}-time`}
             aria-label={`Open ${slotLabel} booking`}
             onClick={() => handlers.onOpenBooking?.(booking.id)}
-            className="flex size-13 items-center justify-center rounded-full bg-brand-purple text-sm font-extrabold text-white tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="flex size-11 items-center justify-center rounded-full border border-journey-time bg-journey-time text-sm font-extrabold text-white tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
             {slotLabel}
           </button>
@@ -138,9 +138,9 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
             type="button"
             aria-label={`Message ${display.owner}`}
             onClick={() => handlers.onMessageOwner?.(booking)}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-brand-purple outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="flex size-11 items-center justify-center rounded-full bg-journey-message text-journey-message outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
-            <MessageCircle size={52} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
+            <MessageCircle size={44} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
           </button>
         </span>
       </div>
