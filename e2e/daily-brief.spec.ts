@@ -100,6 +100,20 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   }
 
+  const allJourneyRows = page.getByRole("article").filter({
+    has: page.getByTestId("booking-journey-grid"),
+  });
+
+  const actionKey = page.getByRole("button", { name: "Show booking action key" });
+  if (testInfo.project.name === "desktop") {
+    await expect(actionKey).toBeHidden();
+  } else {
+    await expect(actionKey).toBeVisible();
+    await actionKey.click();
+    await expect(page.getByRole("region", { name: "Booking action key" })).toBeVisible();
+    await page.getByRole("button", { name: "Hide booking action key" }).click();
+  }
+
   const firstJourney = firstJourneyRow(page);
   await expect(
     firstJourney.getByRole("button", { name: /Open .*'s dog file/ }),
@@ -107,9 +121,7 @@ test("Daily Brief keeps its core journey usable at every supported width", async
   await expect(
     firstJourney.getByRole("button", { name: "Check-in" }),
   ).toBeVisible();
-  const journeyRows = page.getByRole("article").filter({
-    has: page.getByTestId("booking-journey-grid"),
-  });
+  const journeyRows = allJourneyRows;
   const rowCount = await journeyRows.count();
   expect(rowCount).toBeGreaterThan(1);
   for (let index = 0; index < rowCount; index += 1) {
@@ -120,12 +132,26 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     );
     await expect(time).toHaveCSS("width", "44px");
     await expect(time).toHaveCSS("height", "44px");
-    await expect(time).toHaveCSS("background-color", "rgb(255, 76, 56)");
+    const appointmentState = await time.getAttribute("data-appointment-state");
+    const expectedTimeColour = appointmentState === "late"
+      ? "rgb(231, 84, 108)"
+      : appointmentState === "blocked"
+        ? "rgb(254, 204, 19)"
+        : "rgb(45, 0, 75)";
+    await expect(time).toHaveCSS("background-color", expectedTimeColour);
     await expect(message).toHaveCSS("width", "44px");
     await expect(message).toHaveCSS("height", "44px");
-    await expect(message).toHaveCSS("background-color", "rgb(91, 209, 0)");
+    await expect(message).toHaveClass(/bg-brand-purple\/5/);
+    await expect(message.locator(".lucide-message-circle")).toBeVisible();
     const actionCount = await row.getByTestId("journey-action").count();
-    await expect(row.getByRole("checkbox")).toHaveCount(actionCount);
+    expect(actionCount).toBeGreaterThan(0);
+    await expect(row.getByRole("checkbox")).toHaveCount(0);
+    for (let actionIndex = 0; actionIndex < actionCount; actionIndex += 1) {
+      await expect(row.getByTestId("journey-action").nth(actionIndex)).toHaveAttribute(
+        "aria-pressed",
+        /true|false/,
+      );
+    }
   }
 
   await firstJourney

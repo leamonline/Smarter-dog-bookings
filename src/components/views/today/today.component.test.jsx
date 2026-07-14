@@ -214,6 +214,50 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.queryByText("No bookings on this date")).not.toBeInTheDocument();
   });
 
+  it("filters the diary to the clearly defined need-action queue", () => {
+    const actionBooking = {
+      ...selectedBooking,
+      id: "b-action",
+      dogName: "Ruby",
+      _dogId: "d-action",
+      status: "Ready for pick-up",
+    };
+    const calmBooking = {
+      ...selectedBooking,
+      id: "b-calm",
+      dogName: "Milo",
+      _dogId: "d-calm",
+      slot: "10:00",
+    };
+    renderToday({
+      bookingsByDate: { "2026-07-16": [actionBooking, calmBooking] },
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-action": { id: "d-action", name: "Ruby", size: "small", _humanId: "h1" },
+        "d-calm": { id: "d-calm", name: "Milo", size: "small", _humanId: "h1" },
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Open Ruby's dog file" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Milo's dog file" })).toBeInTheDocument();
+
+    const filter = screen.getByRole("button", { name: /Filter 1 booking needing action/i });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(filter);
+
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Open Ruby's dog file" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Milo's dog file" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Showing 1 booking needing action:/i),
+    ).toHaveTextContent(
+      "late arrivals, confirmation chases, overdue collections and unpaid bookings after arrival",
+    );
+
+    fireEvent.click(filter);
+    expect(screen.getByRole("button", { name: "Open Milo's dog file" })).toBeInTheDocument();
+  });
+
   it("keeps the row unchanged and offers an action-specific retry when check-in fails", async () => {
     const onUpdateBooking = vi
       .fn()
@@ -524,8 +568,10 @@ describe("BookingFeed — accessible journey rows", () => {
     expect(screen.getByRole("button", { name: "Open David Law's human file" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open £42 invoice" })).toBeInTheDocument();
     expect(screen.getAllByTestId("journey-action")).toHaveLength(6);
-    expect(screen.getAllByRole("checkbox")).toHaveLength(6);
-    expect(screen.getAllByRole("checkbox").every((checkbox) => !checkbox.checked)).toBe(true);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByTestId("journey-action").every((button) => button.getAttribute("aria-pressed") === "false"),
+    ).toBe(true);
     expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
   });
 
@@ -539,15 +585,16 @@ describe("BookingFeed — accessible journey rows", () => {
 
     for (const dogName of ["Jack", "Ruby"]) {
       const dogButton = screen.getByRole("button", { name: `Open ${dogName}'s dog file` });
-      expect(dogButton.closest("p")).toHaveClass("font-sans", "text-xl");
+      expect(dogButton.closest("p")).toHaveClass("font-sans", "text-lg", "sm:text-xl");
     }
     for (const timeButton of screen.getAllByRole("button", { name: "Open 09:00 booking" })) {
       expect(timeButton).toHaveClass(
         "size-11",
         "border",
-        "border-journey-time",
-        "bg-journey-time",
+        "border-brand-purple",
+        "bg-brand-purple",
       );
+      expect(timeButton).toHaveAttribute("data-appointment-state", "scheduled");
     }
     for (const messageButton of [
       screen.getByRole("button", { name: "Message David Law" }),
@@ -555,10 +602,34 @@ describe("BookingFeed — accessible journey rows", () => {
     ]) {
       expect(messageButton).toHaveClass(
         "size-11",
-        "bg-journey-message",
-        "text-journey-message",
+        "border-brand-purple/20",
+        "bg-brand-purple/5",
+        "text-brand-purple",
       );
+      expect(messageButton.querySelector(".lucide-message-circle")).not.toBeNull();
+      expect(messageButton.querySelector("svg")).toHaveAttribute("fill", "none");
     }
+  });
+
+  it("reserves coral and amber appointment controls for late and blocked bookings", () => {
+    renderFeed([
+      group("09:00", [entry(booking)]),
+      group("09:30", [entry({ ...booking, id: "late", slot: "09:30" }, { isLate: true })]),
+      group("10:00", [entry({ ...booking, id: "blocked", slot: "10:00" }, { isUnconfirmed: true })]),
+    ]);
+
+    expect(screen.getByRole("button", { name: "Open 09:00 booking" })).toHaveAttribute(
+      "data-appointment-state",
+      "scheduled",
+    );
+    expect(screen.getByRole("button", { name: "Open 09:30 booking — late" })).toHaveClass(
+      "border-brand-coral",
+      "bg-brand-coral",
+    );
+    expect(screen.getByRole("button", { name: "Open 10:00 booking — needs confirmation" })).toHaveClass(
+      "border-brand-yellow-dark",
+      "bg-brand-yellow",
+    );
   });
 
   it("keeps time, journey actions and owner message in chronological DOM order", () => {
@@ -594,9 +665,27 @@ describe("BookingFeed — accessible journey rows", () => {
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
     expect(screen.getByTestId("booking-journey-grid")).toHaveAttribute("data-centres", "7");
-    const completionBoxes = screen.getAllByRole("checkbox");
-    expect(completionBoxes).toHaveLength(5);
-    expect(completionBoxes.filter((checkbox) => checkbox.checked)).toHaveLength(3);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    const actions = screen.getAllByTestId("journey-action");
+    expect(actions).toHaveLength(5);
+    expect(actions.filter((button) => button.getAttribute("aria-pressed") === "true")).toHaveLength(3);
+    for (const completed of actions.filter((button) => button.getAttribute("aria-pressed") === "true")) {
+      expect(completed).toHaveClass("border-brand-teal", "bg-brand-teal", "text-white");
+    }
+  });
+
+  it("offers a compact action key for touch screens without adding permanent labels", () => {
+    renderFeed([group("09:00", [entry(booking)])]);
+    const help = screen.getByRole("button", { name: "Show booking action key" });
+    expect(help).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Booking action key" })).not.toBeInTheDocument();
+
+    fireEvent.click(help);
+    expect(help).toHaveAttribute("aria-expanded", "true");
+    const key = screen.getByRole("region", { name: "Booking action key" });
+    for (const label of ["Check-in", "Grooming", "Ready", "Collection message", "Collected", "Paid"]) {
+      expect(within(key).getByText(label)).toBeInTheDocument();
+    }
   });
 
   it("shows the same label pill on hover and keyboard focus", () => {
@@ -779,6 +868,25 @@ describe("TodayNowStrip", () => {
     expect(screen.getByText(/due in 15 min/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("labels a distant upcoming appointment as FIRST UP rather than NOW", () => {
+    const upcoming = entry(
+      { id: "later", dogName: "Mabel", breed: "Cavapoo", slot: "13:00", status: "Booked" },
+      { slotMinutes: 780 },
+    );
+    render(
+      <TodayNowStrip
+        selection={{ now: upcoming, nowReason: "upcoming", next: null, readyCount: 0 }}
+        now={NOW}
+        resolve={resolve}
+        onJumpTo={noop}
+      />,
+    );
+
+    expect(screen.getByText("First up")).toBeInTheDocument();
+    expect(screen.queryByText("Now")).not.toBeInTheDocument();
+    expect(screen.getByText(/due in 2 hr 45 min/i)).toBeInTheDocument();
   });
 
   it("tapping the identity jumps to the booking card", () => {

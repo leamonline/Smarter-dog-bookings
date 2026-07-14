@@ -66,10 +66,6 @@
   /* Accents */
   --color-brand-coral: #E7546C;
   --color-brand-coral-light: #FDE2E8;
-  /* Daily Brief journey endpoints — the time and customer-message controls
-     intentionally bookend the teal journey stages with distinct colours. */
-  --color-journey-time: #FF4C38;
-  --color-journey-message: #5BD100;
   /* Darker coral for borders/strokes on coral surfaces (e.g. size-large
      border, status pill borders). */
   --color-brand-coral-dark: #C93D63;
