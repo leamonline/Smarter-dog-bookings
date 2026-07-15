@@ -22,9 +22,9 @@ describe("DogSizeMark", () => {
     [null, "unknown"],
   ])("maps %s to the authoritative size tone", (size, tone) => {
     render(<DogSizeMark size={size} />);
-    const mark = screen.getByLabelText(
-      new RegExp(tone === "unknown" ? "size unknown" : `${tone} dog`, "i"),
-    );
+    const mark = screen.getByRole("img", {
+      name: new RegExp(tone === "unknown" ? "size unknown" : `${tone} dog`, "i"),
+    });
     expect(mark).toHaveAttribute("data-size-tone", tone);
     expect(mark.querySelector("img")).toBeNull();
   });
@@ -34,7 +34,9 @@ describe("DogSizeMark", () => {
     const mark = screen.getByTestId("dog-size-mark");
 
     expect(mark).toHaveAttribute("aria-hidden", "true");
+    expect(mark).not.toHaveAttribute("role");
     expect(mark).not.toHaveAttribute("aria-label");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 });
 

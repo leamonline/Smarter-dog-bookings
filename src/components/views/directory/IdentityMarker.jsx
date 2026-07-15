@@ -38,6 +38,7 @@ export function DogSizeMark({ size, decorative = false, className = "" }) {
     <span
       data-testid="dog-size-mark"
       data-size-tone={tone}
+      role={decorative ? undefined : "img"}
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : label}
       className={`grid size-13 shrink-0 place-items-center rounded-full border ${DOG_TONE[tone]} ${className}`}
