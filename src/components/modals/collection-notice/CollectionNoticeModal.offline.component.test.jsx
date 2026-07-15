@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 
 vi.mock("../../../supabase/client.js", () => ({ supabase: null }));
@@ -18,10 +18,12 @@ describe("CollectionNoticeModal offline recovery", () => {
             _bookingDate: "2026-07-14",
           }}
           onClose={vi.fn()}
-          onSent={vi.fn()}
         />
       </ToastProvider>,
     );
+
+    expect(screen.queryByText(/isn't available offline/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
     expect(
       await screen.findByText(

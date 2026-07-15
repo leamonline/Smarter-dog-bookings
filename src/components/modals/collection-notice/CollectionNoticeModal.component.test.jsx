@@ -71,18 +71,17 @@ const { CollectionNoticeModal } = await import("./CollectionNoticeModal.jsx");
 const bookingFixture = {
   id: "booking-1",
   dogName: "Bella",
-  status: "In bath",
+  status: "Ready for pick-up",
   _ownerId: "human-1",
   _bookingDate: "2026-07-14",
 };
 
-function renderModal(onSent, onClose = vi.fn()) {
+function renderModal(onClose = vi.fn()) {
   return render(
     <ToastProvider>
       <CollectionNoticeModal
         booking={bookingFixture}
         onClose={onClose}
-        onSent={onSent}
       />
     </ToastProvider>,
   );
@@ -96,50 +95,34 @@ describe("CollectionNoticeModal", () => {
     trustedHumans = [];
   });
 
-  it("calls onSent once after the first successful recipient send", async () => {
-    const onSent = vi.fn().mockResolvedValue(undefined);
-    invoke.mockResolvedValue({ data: { success: true }, error: null });
+  it("asks before loading recipient controls", async () => {
+    renderModal();
 
-    renderModal(onSent);
+    expect(screen.getByText(/message their humans/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Not now" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Minutes until ready for collection")).not.toBeInTheDocument();
+    expect(supabase.from).not.toHaveBeenCalled();
 
-    await screen.findByText("Owner");
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
-    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(1));
-    expect(onSent).toHaveBeenCalledWith(bookingFixture);
+    expect(await screen.findByLabelText("Minutes until ready for collection")).toHaveValue(15);
+    expect(await screen.findByText("Owner")).toBeInTheDocument();
   });
 
-  it("does not call onSent when the WhatsApp send fails", async () => {
-    const onSent = vi.fn();
-    invoke.mockResolvedValue({
-      data: { error: "WhatsApp send failed", detail: "Message undeliverable" },
-      error: null,
-    });
-
-    renderModal(onSent);
-
-    await screen.findByText("Owner");
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
-
-    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
-    expect(onSent).not.toHaveBeenCalled();
-  });
-
-  it("does not call onSent when staff close without sending", async () => {
-    const onSent = vi.fn();
+  it("closes from Not now without loading contacts or sending", () => {
     const onClose = vi.fn();
 
-    renderModal(onSent, onClose);
+    renderModal(onClose);
 
-    await screen.findByText("Owner");
-    fireEvent.click(screen.getByRole("button", { name: "No, close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(supabase.from).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalled();
-    expect(onSent).not.toHaveBeenCalled();
   });
 
-  it("does not repeat onSent when a second recipient is sent successfully", async () => {
+  it("retains the ready-in, preview and recipient controls when composing", async () => {
     trustedLinks = [{ trusted_id: "human-2", relationship: "Partner" }];
     trustedHumans = [{
       id: "human-2",
@@ -148,31 +131,50 @@ describe("CollectionNoticeModal", () => {
       phone: "07123456780",
       whatsapp_opted_out: false,
     }];
-    const onSent = vi.fn().mockResolvedValue(undefined);
-    invoke.mockResolvedValue({ data: { success: true }, error: null });
-
-    renderModal(onSent);
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
     await screen.findByText("Partner");
-    const sendButtons = screen.getAllByRole("button", { name: "Send" });
-    fireEvent.click(sendButtons[0]);
-    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
-    expect(onSent).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Minutes until ready for collection")).toHaveValue(15);
+    expect(screen.getByText(/Bella is all done.*15 mins/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Send" })).toHaveLength(2);
   });
 
-  it("shows the manual-action error when onSent rejects", async () => {
-    const onSent = vi.fn().mockRejectedValue(new Error("ready update failed"));
+  it("sends the existing collection template to the chosen recipient", async () => {
     invoke.mockResolvedValue({ data: { success: true }, error: null });
-
-    renderModal(onSent);
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
     await screen.findByText("Owner");
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Message sent, but the booking could not be marked ready. Mark it ready manually.",
-    );
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+      "whatsapp-send",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          human_id: "human-1",
+          template_name: "ready_for_collection_v1",
+          to: "+447123456789",
+        }),
+      }),
+    ));
+    expect(await screen.findByRole("button", { name: "Sent ✓" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
+  });
+
+  it("keeps Ready when sending fails", async () => {
+    invoke.mockResolvedValue({
+      data: { error: "WhatsApp send failed", detail: "Message undeliverable" },
+      error: null,
+    });
+
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await screen.findByText("Owner");
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Message undeliverable");
+    expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
   });
 });

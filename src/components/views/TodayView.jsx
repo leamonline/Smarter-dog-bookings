@@ -325,7 +325,7 @@ export function TodayView({
       : result;
   }, [authoriseResolvedFocusAdvance, patch]);
 
-  const onJourneyAction = useCallback((booking, action) => {
+  const onJourneyAction = useCallback(async (booking, action) => {
     if (action.completed && action.id !== "paid") return null;
     if (action.id === "checkIn") {
       return updateStatus(
@@ -345,15 +345,22 @@ export function TodayView({
       );
     }
     if (action.id === "ready") {
-      return updateStatus(
+      const saved = await updateStatus(
         booking,
         BOOKING_STATUS.READY_FOR_PICKUP,
         `${booking.dogName} is waiting to be collected`,
         "Ready for collection could not be saved.",
         { skipCollectionPrompt: true, skipConfirmation: true },
       );
+      if (saved) {
+        onSendCollection({
+          ...booking,
+          ...saved,
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+        });
+      }
+      return saved;
     }
-    if (action.id === "messageCollection") return onSendCollection(booking);
     if (action.id === "collected") {
       return updateStatus(
         booking,

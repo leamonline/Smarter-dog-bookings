@@ -155,14 +155,18 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
 
-  it("marks Ready directly without sending a collection message", async () => {
-    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+  it("opens collection messaging only after Ready saves", async () => {
+    let resolveSave;
+    const onUpdateBooking = vi.fn(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
     const onSendCollection = vi.fn();
     const confirm = vi.spyOn(window, "confirm");
     renderToday({ onUpdateBooking, onSendCollection });
 
     fireEvent.click(screen.getByRole("button", { name: "Ready for collection" }));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(onSendCollection).not.toHaveBeenCalled();
     expect(onUpdateBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "b-selected",
@@ -172,9 +176,23 @@ describe("TodayView — selected-date operations", () => {
       "2026-07-16",
       "2026-07-16",
     );
-    expect(onSendCollection).not.toHaveBeenCalled();
+    resolveSave({ id: "b-selected", status: "Ready for pick-up" });
+    await waitFor(() => expect(onSendCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "b-selected", status: "Ready for pick-up" }),
+    ));
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
+  });
+
+  it("does not open collection messaging when Ready fails to save", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(null);
+    const onSendCollection = vi.fn();
+    renderToday({ onUpdateBooking, onSendCollection });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ready for collection" }));
+
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(onSendCollection).not.toHaveBeenCalled();
   });
 
   it("uses one configured guide price for the row, unpaid summary and mini invoice", () => {

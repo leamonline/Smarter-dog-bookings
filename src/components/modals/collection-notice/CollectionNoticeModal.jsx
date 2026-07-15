@@ -4,9 +4,8 @@
 // Pops up when a booking transitions to "Ready for pick-up" (fired
 // centrally from useBookings.updateBooking). Lets staff send a WhatsApp
 // "ready for collection" template to the owner and/or any trusted
-// contact, with a staff-entered ETA in minutes. Each recipient has its
-// own Send button; the footer "No, close" button dismisses without
-// sending.
+// contact, with a staff-entered ETA in minutes. Staff opt in before
+// recipient data is loaded; each recipient then has its own Send button.
 //
 // Sending reuses the whatsapp-send edge function (Meta Cloud API
 // template) — the same path the inbox compose-new flow uses — so the
@@ -15,7 +14,7 @@
 // template must be Approved in Meta before live sends succeed.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { supabase } from "../../../supabase/client.js";
@@ -47,15 +46,15 @@ function whatsappAvailability(h) {
   return { ok: true, reason: "" };
 }
 
-export function CollectionNoticeModal({ booking, onClose, onSent }) {
+export function CollectionNoticeModal({ booking, onClose }) {
   const toast = useToast();
+  const [step, setStep] = useState("ask");
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minutes, setMinutes] = useState("15");
   const [sendingId, setSendingId] = useState(null);
   const [sentIds, setSentIds] = useState(() => new Set());
   const [contactsUnavailable, setContactsUnavailable] = useState("");
-  const readyNotifiedRef = useRef(false);
 
   const ownerId = booking?._ownerId ?? null;
   // The owner's other dogs booked the same day that are ALSO ready get
@@ -72,6 +71,7 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
   // ModalShell/AccessibleModal — no hand-rolled key handler needed here.
 
   useEffect(() => {
+    if (step !== "compose") return undefined;
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -151,7 +151,7 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
     return () => {
       cancelled = true;
     };
-  }, [ownerId, booking?.id, booking?._bookingDate]);
+  }, [step, ownerId, booking?.id, booking?._bookingDate]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
@@ -193,24 +193,37 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
         if (data?.error) throw new Error(data.detail || data.error);
         setSentIds((prev) => new Set(prev).add(recipient.id));
         toast.show(`Collection notice sent to ${displayName(recipient)}.`, "success");
-        if (!readyNotifiedRef.current) {
-          readyNotifiedRef.current = true;
-          try {
-            await onSent?.(booking);
-          } catch {
-            toast.show(
-              "Message sent, but the booking could not be marked ready. Mark it ready manually.",
-              "error",
-            );
-          }
-        }
       } catch (err) {
         toast.show(err instanceof Error ? err.message : String(err), "error");
       } finally {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, toast, onSent, booking],
+    [sendingId, minutesValid, dogName, minutes, toast],
+  );
+
+  const askBody = (
+    <div className="flex flex-col gap-4">
+      <p className="text-[13px] text-slate-700">
+        Would you like to message their humans to let them know they&apos;re nearly ready?
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="min-h-11 rounded-full bg-brand-purple px-4 font-bold text-white"
+          onClick={() => setStep("compose")}
+        >
+          Send message
+        </button>
+        <button
+          type="button"
+          className="min-h-11 rounded-full border border-slate-200 px-4 font-bold text-slate-700"
+          onClick={() => onClose?.()}
+        >
+          Not now
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -241,7 +254,7 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
           </HeaderIconButton>
         </header>
       }
-      footer={
+      footer={step === "compose" ? (
         <div className="border-t border-slate-100 bg-white px-5 py-3 flex justify-end">
           <button
             type="button"
@@ -251,8 +264,10 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
             {sentIds.size > 0 ? "Done" : contactsUnavailable ? "Close" : "No, close"}
           </button>
         </div>
-      }
+      ) : null}
     >
+      {step === "ask" ? askBody : (
+        <>
           {/* Body */}
           <p className="text-[13px] text-slate-600 m-0">
             Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
@@ -338,6 +353,8 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
               })}
             </ul>
           )}
+        </>
+      )}
     </ModalShell>
   );
 }
