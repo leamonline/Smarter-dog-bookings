@@ -10,7 +10,7 @@ test.describe("Entity modal shell", () => {
     await page.goto("/humans");
     // Activate via Enter — a centre click can land on the card's tel:
     // link, which stops propagation and never opens the profile.
-    await page.getByRole("button", { name: /Open .*profile/ }).first().press("Enter");
+    await page.getByRole("button", { name: /View profile for/i }).first().press("Enter");
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
