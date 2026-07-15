@@ -198,7 +198,9 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           </p>
           <p className="mt-1 inline-flex items-center gap-1.5 text-caption font-semibold text-ink-muted">
             <SizeDot size={dog.size} dim={16} />
-            {dog.size ? titleCase(dog.size) : "Size unknown"}
+            <span data-testid="dog-size-label">
+              {dog.size ? titleCase(dog.size) : "Size unknown"}
+            </span>
           </p>
           {dog.alerts?.length > 0 && (
             <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
