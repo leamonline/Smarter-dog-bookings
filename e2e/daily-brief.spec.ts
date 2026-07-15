@@ -213,6 +213,9 @@ test("live arrival advances without a duplicate Now panel", async ({ page }) => 
   const liveJourneyId = await initialLiveJourney.getAttribute("id");
   if (!liveJourneyId) throw new Error("Live journey row is missing its booking ID");
   const liveJourney = page.locator(`[id="${liveJourneyId}"]`);
+  const liveJourneyGrid = liveJourney.getByTestId("booking-journey-grid");
+  await expect(liveJourneyGrid).toHaveCount(1);
+  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
   const readyActions = liveJourney.getByRole("button", {
     name: "Ready for collection",
   });
@@ -228,6 +231,8 @@ test("live arrival advances without a duplicate Now panel", async ({ page }) => 
   await expect(waiting).toBeVisible();
   await expect(waiting).toHaveAttribute("aria-pressed", "true");
   await expect(waiting).toHaveClass(/border-brand-teal/);
+  await expect(liveJourneyGrid).toHaveCount(1);
+  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
   await expect(liveMarker.locator("..").getByRole("article")).not.toHaveAttribute(
     "id",
     liveJourneyId,
