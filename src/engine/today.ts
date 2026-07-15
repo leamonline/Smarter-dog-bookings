@@ -856,6 +856,59 @@ export function entryOpStatus(entry: TodayFeedEntry): OpStatus {
   return { kind, ...OP_STATUS[kind] };
 }
 
+// ---- Live focus and context --------------------------------------------------
+
+export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | null {
+  const overdue = entries
+    .filter((entry) => entry.stage === "booked" && entry.isLate)
+    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+  if (overdue[0]) return overdue[0];
+
+  const upcoming = entries
+    .filter((entry) => entry.stage === "booked" && !entry.isLate)
+    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+  if (upcoming[0]) return upcoming[0];
+
+  const ready = entries
+    .filter((entry) => entry.stage === "ready")
+    .sort((a, b) => (b.waitMinutes ?? 0) - (a.waitMinutes ?? 0));
+  if (ready[0]) return ready[0];
+
+  return entries
+    .filter((entry) => entry.stage === "inSalon")
+    .sort((a, b) => a.slotMinutes - b.slotMinutes)[0] ?? null;
+}
+
+export interface LiveFocusContext {
+  text: string;
+  tone: "live" | "overdue";
+  ariaLabel: string;
+}
+
+function liveMinutes(minutes: number): string {
+  const whole = Math.max(0, Math.round(minutes));
+  return `${whole} ${whole === 1 ? "min" : "mins"}`;
+}
+
+function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"]): LiveFocusContext {
+  return { text, tone, ariaLabel: `${dog} — ${text.toLowerCase()}` };
+}
+
+function checkedInCopy(checkedInAt: string | null | undefined, now: Date): string {
+  if (!checkedInAt) return "Checked in";
+  const elapsed = Math.max(0, Math.floor((now.getTime() - new Date(checkedInAt).getTime()) / 60_000));
+  return `Checked in ${liveMinutes(elapsed)} ago`;
+}
+
+export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {
+  const dog = entry.booking.dogName || "Booking";
+  if (entry.isLate) return focusContext(dog, `${liveMinutes(entry.overdueMinutes)} overdue`, "overdue");
+  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${liveMinutes(entry.waitMinutes ?? 0)}`, "live");
+  if (entry.stage === "inSalon") return focusContext(dog, checkedInCopy(entry.booking.checkedInAt, now), "live");
+  const minutes = minutesUntilSlot(entry.booking.slot || "00:00", now);
+  return focusContext(dog, minutes <= 0 ? "Due now" : `Due to arrive in ${liveMinutes(minutes)}`, "live");
+}
+
 // ---- The sticky "Now / Up next" strip -----------------------------------------
 
 /** A booked dog counts as "due soon" this many minutes before its slot. */
