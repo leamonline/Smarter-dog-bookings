@@ -6,6 +6,7 @@ import { DogSizeMark, HumanInitials, ProfileArrow } from "./IdentityMarker.jsx";
 describe("HumanInitials", () => {
   it.each([
     ["Mollie Bennett", "MB"],
+    ["Mary Jane Smith", "MS"],
     ["Prince", "P"],
     ["", "?"],
   ])("derives initials for %s", (name, initials) => {
@@ -16,17 +17,17 @@ describe("HumanInitials", () => {
 
 describe("DogSizeMark", () => {
   it.each([
-    ["small", "small"],
-    ["medium", "medium"],
-    ["large", "large"],
-    [null, "unknown"],
-  ])("maps %s to the authoritative size tone", (size, tone) => {
+    ["small", "small", "text-brand-yellow-dark"],
+    ["medium", "medium", "text-brand-teal-dark"],
+    ["large", "large", "text-brand-coral-dark"],
+    [null, "unknown", "text-slate-500"],
+  ])("maps %s to the authoritative size tone", (size, tone, silhouetteClass) => {
     render(<DogSizeMark size={size} />);
     const mark = screen.getByRole("img", {
       name: new RegExp(tone === "unknown" ? "size unknown" : `${tone} dog`, "i"),
     });
     expect(mark).toHaveAttribute("data-size-tone", tone);
-    expect(mark.querySelector("img")).toBeNull();
+    expect(mark.querySelector(".dog-size-mark__silhouette")).toHaveClass(silhouetteClass);
   });
 
   it("can be decorative when written size is already present", () => {

@@ -876,7 +876,22 @@ export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | nul
 
   return entries
     .filter((entry) => entry.stage === "inSalon")
-    .sort((a, b) => a.slotMinutes - b.slotMinutes)[0] ?? null;
+    .sort((a, b) => {
+      const aCheckedIn = a.booking.checkedInAt
+        ? new Date(a.booking.checkedInAt).getTime()
+        : Number.NaN;
+      const bCheckedIn = b.booking.checkedInAt
+        ? new Date(b.booking.checkedInAt).getTime()
+        : Number.NaN;
+      if (
+        Number.isFinite(aCheckedIn) &&
+        Number.isFinite(bCheckedIn) &&
+        aCheckedIn !== bCheckedIn
+      ) {
+        return aCheckedIn - bCheckedIn;
+      }
+      return a.slotMinutes - b.slotMinutes;
+    })[0] ?? null;
 }
 
 export interface LiveFocusContext {

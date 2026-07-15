@@ -638,6 +638,51 @@ describe("selectLiveFocus", () => {
     ]));
     expect(ready?.booking.id).toBe("ready");
   });
+
+  it("chooses the longest elapsed in-salon booking before slot order", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "earlier-slot-later-check-in",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "Checked in",
+        checkedInAt: "2026-07-02T09:00:00Z",
+      }),
+      bk({
+        id: "later-slot-earlier-check-in",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "In bath",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+    ]));
+
+    expect(focus?.booking.id).toBe("later-slot-earlier-check-in");
+  });
+
+  it.each([
+    ["missing", null, null],
+    ["equal", "2026-07-02T08:00:00Z", "2026-07-02T08:00:00Z"],
+  ])("uses slot order when in-salon check-in timestamps are %s", (_label, firstAt, secondAt) => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "later-slot",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "Checked in",
+        checkedInAt: firstAt,
+      }),
+      bk({
+        id: "earlier-slot",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "In bath",
+        checkedInAt: secondAt,
+      }),
+    ]));
+
+    expect(focus?.booking.id).toBe("earlier-slot");
+  });
 });
 
 describe("liveFocusContext", () => {

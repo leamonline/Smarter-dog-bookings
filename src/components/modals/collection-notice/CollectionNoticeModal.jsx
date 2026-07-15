@@ -55,6 +55,8 @@ export function CollectionNoticeModal({ booking, onClose }) {
   const [sendingId, setSendingId] = useState(null);
   const [sentIds, setSentIds] = useState(() => new Set());
   const [contactsUnavailable, setContactsUnavailable] = useState("");
+  const [contactLoadError, setContactLoadError] = useState("");
+  const [contactLoadAttempt, setContactLoadAttempt] = useState(0);
 
   const ownerId = booking?._ownerId ?? null;
   // The owner's other dogs booked the same day that are ALSO ready get
@@ -76,6 +78,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
     async function load() {
       setLoading(true);
       setContactsUnavailable("");
+      setContactLoadError("");
       if (!supabase) {
         setRecipients([]);
         setContactsUnavailable(
@@ -89,69 +92,82 @@ export function CollectionNoticeModal({ booking, onClose }) {
         setLoading(false);
         return;
       }
-      const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
-      const [ownerRes, linkRes, dayRes] = await Promise.all([
-        supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
-        supabase
-          .from("human_trusted_contacts")
-          .select("trusted_id, relationship")
-          .eq("human_id", ownerId),
-        booking?._bookingDate
-          ? supabase
-              .from("bookings")
-              .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
-              .eq("booking_date", booking._bookingDate)
-              .eq("dogs.human_id", ownerId)
-              .neq("status", "Cancelled")
-          : Promise.resolve({ data: null }),
-      ]);
-
-      // Name every dog of this owner that's ready for pick-up today
-      // (this booking's dog included regardless of how fresh its status
-      // row is — the modal opens on the transition itself).
-      const dayRows = dayRes?.data ?? [];
-      const ready = dayRows.filter(
-        (r) =>
-          r.id === booking?.id ||
-          r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
-          r.status === BOOKING_STATUS.COMPLETED,
-      );
-      if (ready.length > 0) {
-        const names = [];
-        for (const r of ready) {
-          const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
-          const name = dog?.name || r.dog_name_snapshot;
-          if (name && !names.includes(name)) names.push(name);
+      try {
+        const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
+        const [ownerRes, linkRes, dayRes] = await Promise.all([
+          supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
+          supabase
+            .from("human_trusted_contacts")
+            .select("trusted_id, relationship")
+            .eq("human_id", ownerId),
+          booking?._bookingDate
+            ? supabase
+                .from("bookings")
+                .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
+                .eq("booking_date", booking._bookingDate)
+                .eq("dogs.human_id", ownerId)
+                .neq("status", "Cancelled")
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+        if (ownerRes.error || linkRes.error || dayRes.error) {
+          throw new Error("Contact query failed");
         }
-        if (!cancelled && names.length > 0) setReadyDogNames(names);
+
+        // Name every dog of this owner that's ready for pick-up today
+        // (this booking's dog included regardless of how fresh its status
+        // row is — the modal opens on the transition itself).
+        const dayRows = dayRes?.data ?? [];
+        const ready = dayRows.filter(
+          (r) =>
+            r.id === booking?.id ||
+            r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+            r.status === BOOKING_STATUS.COMPLETED,
+        );
+        if (ready.length > 0) {
+          const names = [];
+          for (const r of ready) {
+            const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
+            const name = dog?.name || r.dog_name_snapshot;
+            if (name && !names.includes(name)) names.push(name);
+          }
+          if (!cancelled && names.length > 0) setReadyDogNames(names);
+        }
+
+        const links = linkRes.data ?? [];
+        const trustedIds = links.map((r) => r.trusted_id).filter(Boolean);
+        const relById = new Map(links.map((r) => [r.trusted_id, r.relationship]));
+
+        let trusted = [];
+        if (trustedIds.length) {
+          const trustedRes = await supabase.from("humans").select(ownerCols).in("id", trustedIds);
+          if (trustedRes.error) throw new Error("Trusted contact query failed");
+          trusted = (trustedRes.data ?? []).map((h) => ({
+            ...h,
+            relationship: relById.get(h.id) || "Trusted contact",
+            isOwner: false,
+          }));
+        }
+
+        if (cancelled) return;
+        const list = [];
+        if (ownerRes.data) list.push({ ...ownerRes.data, relationship: "Owner", isOwner: true });
+        list.push(...trusted);
+        setRecipients(list);
+      } catch {
+        if (cancelled) return;
+        setRecipients([]);
+        setContactLoadError(
+          "We couldn’t load contact details. This booking is still marked Ready. Retry, or contact the customer directly.",
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const links = linkRes.data ?? [];
-      const trustedIds = links.map((r) => r.trusted_id).filter(Boolean);
-      const relById = new Map(links.map((r) => [r.trusted_id, r.relationship]));
-
-      let trusted = [];
-      if (trustedIds.length) {
-        const trustedRes = await supabase.from("humans").select(ownerCols).in("id", trustedIds);
-        trusted = (trustedRes.data ?? []).map((h) => ({
-          ...h,
-          relationship: relById.get(h.id) || "Trusted contact",
-          isOwner: false,
-        }));
-      }
-
-      if (cancelled) return;
-      const list = [];
-      if (ownerRes.data) list.push({ ...ownerRes.data, relationship: "Owner", isOwner: true });
-      list.push(...trusted);
-      setRecipients(list);
-      setLoading(false);
     }
     load();
     return () => {
       cancelled = true;
     };
-  }, [step, ownerId, booking?.id, booking?._bookingDate]);
+  }, [step, ownerId, booking?.id, booking?._bookingDate, contactLoadAttempt]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
@@ -261,7 +277,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
             onClick={() => onClose?.()}
             className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full text-sm font-bold font-[inherit] bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
           >
-            {sentIds.size > 0 ? "Done" : contactsUnavailable ? "Close" : "No, close"}
+            {sentIds.size > 0 ? "Done" : contactLoadError ? "Not now" : contactsUnavailable ? "Close" : "No, close"}
           </button>
         </div>
       ) : null}
@@ -299,7 +315,21 @@ export function CollectionNoticeModal({ booking, onClose }) {
             </div>
           )}
 
-          {contactsUnavailable ? (
+          {contactLoadError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-[12px] font-semibold text-brand-coral-dark"
+            >
+              <p>{contactLoadError}</p>
+              <button
+                type="button"
+                onClick={() => setContactLoadAttempt((attempt) => attempt + 1)}
+                className="mt-2 min-h-11 rounded-full border border-brand-coral/30 bg-white px-4 font-bold text-brand-coral-dark"
+              >
+                Retry
+              </button>
+            </div>
+          ) : contactsUnavailable ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-[12px] font-semibold text-amber-900">
               {contactsUnavailable}
             </div>

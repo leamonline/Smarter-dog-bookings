@@ -1,20 +1,27 @@
 const DOG_TONE = {
-  small: "text-brand-purple bg-brand-yellow/30 border-brand-yellow-dark/50",
-  medium: "text-brand-teal-dark bg-brand-teal/10 border-brand-teal/35",
-  large: "text-brand-coral-dark bg-brand-coral-light border-brand-coral/35",
-  unknown: "text-slate-500 bg-slate-100 border-slate-300",
+  small: {
+    container: "bg-brand-yellow/30 border-brand-yellow-dark/50",
+    silhouette: "text-brand-yellow-dark",
+  },
+  medium: {
+    container: "bg-brand-teal/10 border-brand-teal/35",
+    silhouette: "text-brand-teal-dark",
+  },
+  large: {
+    container: "bg-brand-coral-light border-brand-coral/35",
+    silhouette: "text-brand-coral-dark",
+  },
+  unknown: {
+    container: "bg-slate-100 border-slate-300",
+    silhouette: "text-slate-500",
+  },
 };
 
 export function HumanInitials({ fullName, className = "" }) {
-  const initials =
-    String(fullName || "")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "?";
+  const words = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  const initials = words.length > 0
+    ? `${words[0][0]}${words.length > 1 ? words[words.length - 1][0] : ""}`.toUpperCase()
+    : "?";
 
   return (
     <span
@@ -41,9 +48,12 @@ export function DogSizeMark({ size, decorative = false, className = "" }) {
       role={decorative ? undefined : "img"}
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : label}
-      className={`grid size-13 shrink-0 place-items-center rounded-full border ${DOG_TONE[tone]} ${className}`}
+      className={`grid size-13 shrink-0 place-items-center rounded-full border ${DOG_TONE[tone].container} ${className}`}
     >
-      <span aria-hidden="true" className="dog-size-mark__silhouette size-8" />
+      <span
+        aria-hidden="true"
+        className={`dog-size-mark__silhouette size-8 ${DOG_TONE[tone].silhouette}`}
+      />
     </span>
   );
 }

@@ -5,6 +5,7 @@ import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 const invoke = vi.fn();
 let trustedLinks = [];
 let trustedHumans = [];
+let contactQueryError = null;
 
 function makeBookingsQuery() {
   const query = {
@@ -41,7 +42,7 @@ const supabase = {
                   phone: "07123456789",
                   whatsapp_opted_out: false,
                 },
-                error: null,
+                error: contactQueryError,
               }),
             ),
           })),
@@ -52,7 +53,7 @@ const supabase = {
     if (table === "human_trusted_contacts") {
       return {
         select: vi.fn(() => ({
-          eq: vi.fn(() => Promise.resolve({ data: trustedLinks, error: null })),
+          eq: vi.fn(() => Promise.resolve({ data: trustedLinks, error: contactQueryError })),
         })),
       };
     }
@@ -93,6 +94,7 @@ describe("CollectionNoticeModal", () => {
     supabase.from.mockClear();
     trustedLinks = [];
     trustedHumans = [];
+    contactQueryError = null;
   });
 
   it("asks before loading recipient controls", async () => {
@@ -176,5 +178,33 @@ describe("CollectionNoticeModal", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Message undeliverable");
     expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
+  });
+
+  it("reports a contact-load failure without claiming there are no contacts", async () => {
+    contactQueryError = new Error("query failed");
+    renderModal();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn.t load contact details/i);
+    expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByText(/no contact to notify/i)).not.toBeInTheDocument();
+  });
+
+  it("re-runs contact queries and shows recipients after a successful retry", async () => {
+    contactQueryError = new Error("query failed");
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await screen.findByRole("alert");
+    const callsAfterFailure = supabase.from.mock.calls.length;
+    contactQueryError = null;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Owner")).toBeInTheDocument();
+    expect(supabase.from.mock.calls.length).toBeGreaterThan(callsAfterFailure);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

@@ -350,7 +350,7 @@ export function TodayView({
         BOOKING_STATUS.READY_FOR_PICKUP,
         `${booking.dogName} is waiting to be collected`,
         "Ready for collection could not be saved.",
-        { skipCollectionPrompt: true, skipConfirmation: true },
+        { skipCollectionPrompt: true, skipConfirmation: true, advanceLiveFocus: true },
       );
       if (saved) {
         onSendCollection({
@@ -367,6 +367,7 @@ export function TodayView({
         BOOKING_STATUS.COMPLETED,
         `${booking.dogName} collected`,
         "Collection could not be saved.",
+        { advanceLiveFocus: true },
       );
     }
     if (action.id === "paid") setInvoiceBooking(booking);

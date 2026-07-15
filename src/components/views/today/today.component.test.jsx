@@ -605,6 +605,169 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
 
+  it("scrolls exactly once to the next focus after the focused booking is marked Ready", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:00",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+      onUpdateBooking,
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getAllByRole("button", { name: "Ready for collection" })[0]);
+    await act(async () => Promise.resolve());
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [{ ...jack, status: "Ready for pick-up" }, ruby],
+      },
+    }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Ruby — due to arrive in 5 mins")).toBeInTheDocument();
+  });
+
+  it("scrolls exactly once to the next focus after the focused booking is Collected", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:00",
+      status: "Ready for pick-up",
+      readyAt: "2026-07-15T06:00:00Z",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "08:30",
+      status: "In bath",
+      checkedInAt: "2026-07-15T07:00:00Z",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+      onUpdateBooking,
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(screen.getByRole("article", { name: "Jack booking" })).getByRole(
+      "button",
+      { name: "Collected" },
+    ));
+    await act(async () => Promise.resolve());
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [{ ...jack, status: "Completed" }, ruby],
+      },
+    }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText(/Ruby — checked in/i)).toBeInTheDocument();
+  });
+
+  it("does not scroll when a successful journey mutation was not on the current focus", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:00",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+      onUpdateBooking,
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(screen.getByRole("article", { name: "Ruby booking" })).getByRole(
+      "button",
+      { name: "Ready for collection" },
+    ));
+    await act(async () => Promise.resolve());
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [jack, { ...ruby, status: "Ready for pick-up" }],
+      },
+    }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Jack — 25 mins overdue")).toBeInTheDocument();
+  });
+
   it("scrolls when the selected date changes to today", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
