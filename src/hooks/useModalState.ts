@@ -38,7 +38,6 @@ interface PendingBooking {
 
 interface CollectionNoticeRequest {
   booking: Booking;
-  markReadyOnSend: boolean;
 }
 
 interface UseModalStateReturn {
