@@ -660,6 +660,64 @@ describe("selectLiveFocus", () => {
     expect(focus?.booking.id).toBe("later-slot-earlier-check-in");
   });
 
+  it("sorts a valid check-in before a missing timestamp regardless of slot order", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "missing-earlier-slot",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "Checked in",
+        checkedInAt: null,
+      }),
+      bk({
+        id: "valid-later-slot",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "In bath",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+    ]));
+
+    expect(focus?.booking.id).toBe("valid-later-slot");
+  });
+
+  it("keeps valid, invalid and missing check-ins transitive across input permutations", () => {
+    const records = [
+      bk({
+        id: "valid",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "Checked in",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+      bk({
+        id: "invalid",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "In bath",
+        checkedInAt: "not-a-date",
+      }),
+      bk({
+        id: "missing",
+        _bookingDate: TODAY,
+        slot: "09:00",
+        status: "Checked in",
+        checkedInAt: null,
+      }),
+    ];
+    const permutations = [
+      [records[0], records[1], records[2]],
+      [records[0], records[2], records[1]],
+      [records[1], records[0], records[2]],
+      [records[1], records[2], records[0]],
+      [records[2], records[0], records[1]],
+      [records[2], records[1], records[0]],
+    ];
+
+    expect(permutations.map((bookings) => selectLiveFocus(feedOf(bookings))?.booking.id))
+      .toEqual(Array(6).fill("valid"));
+  });
+
   it.each([
     ["missing", null, null],
     ["equal", "2026-07-02T08:00:00Z", "2026-07-02T08:00:00Z"],
@@ -706,6 +764,18 @@ describe("liveFocusContext", () => {
 
     expect.soft(liveFocusContext(overdue, later).text).toBe("45 mins overdue");
     expect.soft(liveFocusContext(ready, later).text).toBe("Waiting for collection 45 mins");
+  });
+
+  it("uses plain checked-in copy for an invalid check-in timestamp", () => {
+    const entry = buildTodayFeed([
+      bk({ dogName: "Rufus", status: "Checked in", checkedInAt: "not-a-date" }),
+    ], NOW_SUMMER)[0];
+
+    expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({
+      text: "Checked in",
+      ariaLabel: "Rufus — checked in",
+    });
+    expect(liveFocusContext(entry, NOW_SUMMER).text).not.toContain("NaN");
   });
 });
 

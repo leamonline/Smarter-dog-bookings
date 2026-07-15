@@ -90,4 +90,61 @@ Results:
 
 - No new functional concern remains from this review wave.
 - The repository-wide lint command reports 124 pre-existing warnings, but no errors and none in the files changed here.
-- Browser E2E was not run because the requested verification gate was focused tests plus one full npm test/typecheck/lint/build pass.
+- Browser E2E was not part of the initial wave’s requested gate; the follow-up below now records the requested Daily Brief and directory E2E run.
+
+## Follow-up: deterministic in-salon timestamp ordering
+
+The final comparator follow-up was completed on 2026-07-15 under Node `v22.23.1`.
+
+### RED
+
+Command:
+
+```sh
+fnm exec --using=22 npm test -- src/engine/today.test.ts
+```
+
+Result: expected failure, 1 file failed; 3 tests failed and 80 passed.
+
+- A valid check-in lost to a missing timestamp with an earlier slot.
+- The valid/invalid/missing three-record set selected `invalid` rather than `valid` across all six input permutations.
+- Invalid live-copy input rendered `Checked in NaN mins ago`.
+
+### GREEN
+
+Focused engine command:
+
+```sh
+fnm exec --using=22 npm test -- src/engine/today.test.ts
+```
+
+Result: 1 file passed; 83 tests passed; 0 failed.
+
+Configured-project E2E command:
+
+```sh
+fnm exec --using=22 npx playwright test e2e/daily-brief.spec.ts e2e/directories.spec.ts
+```
+
+Result: 15 tests passed across the configured desktop, tablet, and mobile Chromium projects; 0 failed. The preview build retained the existing informational empty `supabase` chunk and `NO_COLOR`/`FORCE_COLOR` notices.
+
+Typecheck command:
+
+```sh
+fnm exec --using=22 npm run typecheck
+```
+
+Result: exit 0 (`tsc --noEmit` and `tsc -p tsconfig.node-tests.json`).
+
+### Follow-up self-review
+
+- Each in-salon entry is decorated with one parsed `checkedInAt` value before sorting.
+- Valid timestamps sort before missing or invalid timestamps; valid timestamps sort oldest first.
+- Equal valid timestamps and pairs where both values are missing/invalid fall back to slot order, then booking ID for a deterministic total order.
+- `checkedInCopy` reuses the finite timestamp parser and returns plain `Checked in` for missing or invalid values.
+- Added valid-plus-missing, all six mixed-set permutations, equal-valid fallback, missing fallback, and invalid-copy regression coverage.
+
+### Follow-up concerns
+
+- No functional concern remains.
+- The E2E web server emitted only the existing informational build/colour-environment notices described above.

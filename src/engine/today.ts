@@ -858,6 +858,18 @@ export function entryOpStatus(entry: TodayFeedEntry): OpStatus {
 
 // ---- Live focus and context --------------------------------------------------
 
+function validTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareSlotThenId(a: TodayFeedEntry, b: TodayFeedEntry): number {
+  const slotOrder = a.slotMinutes - b.slotMinutes;
+  if (slotOrder !== 0) return slotOrder;
+  return String(a.booking.id ?? "").localeCompare(String(b.booking.id ?? ""));
+}
+
 export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | null {
   const overdue = entries
     .filter((entry) => entry.stage === "booked" && entry.isLate)
@@ -876,22 +888,22 @@ export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | nul
 
   return entries
     .filter((entry) => entry.stage === "inSalon")
+    .map((entry) => ({
+      entry,
+      checkedInAt: validTimestamp(entry.booking.checkedInAt),
+    }))
     .sort((a, b) => {
-      const aCheckedIn = a.booking.checkedInAt
-        ? new Date(a.booking.checkedInAt).getTime()
-        : Number.NaN;
-      const bCheckedIn = b.booking.checkedInAt
-        ? new Date(b.booking.checkedInAt).getTime()
-        : Number.NaN;
+      if (a.checkedInAt !== null && b.checkedInAt === null) return -1;
+      if (a.checkedInAt === null && b.checkedInAt !== null) return 1;
       if (
-        Number.isFinite(aCheckedIn) &&
-        Number.isFinite(bCheckedIn) &&
-        aCheckedIn !== bCheckedIn
+        a.checkedInAt !== null &&
+        b.checkedInAt !== null &&
+        a.checkedInAt !== b.checkedInAt
       ) {
-        return aCheckedIn - bCheckedIn;
+        return a.checkedInAt - b.checkedInAt;
       }
-      return a.slotMinutes - b.slotMinutes;
-    })[0] ?? null;
+      return compareSlotThenId(a.entry, b.entry);
+    })[0]?.entry ?? null;
 }
 
 export interface LiveFocusContext {
@@ -910,8 +922,9 @@ function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"])
 }
 
 function checkedInCopy(checkedInAt: string | null | undefined, now: Date): string {
-  if (!checkedInAt) return "Checked in";
-  const elapsed = Math.max(0, Math.floor((now.getTime() - new Date(checkedInAt).getTime()) / 60_000));
+  const checkedInTime = validTimestamp(checkedInAt);
+  if (checkedInTime === null) return "Checked in";
+  const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
   return `Checked in ${liveMinutes(elapsed)} ago`;
 }
 
