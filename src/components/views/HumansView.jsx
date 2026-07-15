@@ -52,7 +52,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-function UnarchiveButton({ onUnarchive, inline = false }) {
+function UnarchiveButton({ onUnarchive }) {
   return (
     <button
       type="button"
@@ -61,9 +61,7 @@ function UnarchiveButton({ onUnarchive, inline = false }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className={inline
-        ? "min-h-[40px] px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-        : "absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
+      className="min-h-11 min-w-11 rounded-full border border-brand-purple/30 bg-white px-3 py-2 text-xs font-bold text-brand-purple transition-colors hover:bg-brand-purple/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
     >
       Unarchive
     </button>
@@ -130,7 +128,7 @@ function ContactLines({ human }) {
         <>
           <a
             href={telLink(human.phone)}
-            className="inline-block shrink-0 font-medium no-underline hover:text-brand-purple max-sm:py-1.5 max-sm:-my-1.5"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center font-medium no-underline hover:text-brand-purple"
           >
             {human.phone}
           </a>
@@ -140,7 +138,7 @@ function ContactLines({ human }) {
             rel="noopener noreferrer"
             title="Open in WhatsApp"
             aria-label="Open in WhatsApp"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100 max-sm:size-11"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100"
           >
             <MessageCircle size={18} aria-hidden="true" />
           </a>
@@ -151,7 +149,7 @@ function ContactLines({ human }) {
       {human.email && (
         <a
           href={`mailto:${human.email}`}
-          className="min-w-0 truncate text-slate-400 no-underline hover:text-brand-purple"
+          className="inline-flex min-h-11 min-w-11 items-center truncate text-slate-400 no-underline hover:text-brand-purple"
         >
           {human.email}
         </a>
@@ -166,7 +164,7 @@ function HumanDogs({ dogList, archived, onOpen }) {
       <button
         type="button"
         onClick={onOpen}
-        className="mt-1 self-start border-none bg-transparent p-0 text-xs font-semibold italic text-brand-coral-text underline-offset-2 hover:text-brand-coral-text hover:underline"
+        className="mt-1 min-h-11 min-w-11 self-start border-none bg-transparent p-0 text-xs font-semibold italic text-brand-coral-text underline-offset-2 hover:text-brand-coral-text hover:underline"
       >
         No dogs yet — add one?
       </button>
@@ -192,30 +190,36 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
     );
   const open = () => onOpenHuman(human.id || fullName);
   const gridCardClass =
-    "group relative flex min-h-[112px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover";
+    "group relative flex min-h-[112px] flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover";
   const listCardClass =
-    "group relative flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-purple";
+    "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-purple";
 
   return (
     <article
       aria-label={titleCase(fullName)}
       className={mode === "list" ? listCardClass : gridCardClass}
     >
-      <HumanInitials fullName={fullName} />
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-title font-extrabold text-brand-purple">
-            {titleCase(fullName)}
-          </span>
-          {human.historyFlag && (
-            <SafetyAlertChip items={[human.historyFlag]} className="max-w-[45%] shrink-0" />
-          )}
+      <div data-testid="human-card-primary" className="flex w-full min-w-0 items-start gap-3">
+        <HumanInitials fullName={fullName} />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-title font-extrabold text-brand-purple">
+              {titleCase(fullName)}
+            </span>
+            {human.historyFlag && (
+              <SafetyAlertChip items={[human.historyFlag]} className="max-w-[45%] shrink-0" />
+            )}
+          </div>
+          <ContactLines human={human} />
+          <HumanDogs dogList={humanDogs} archived={showArchived} onOpen={open} />
         </div>
-        <ContactLines human={human} />
-        <HumanDogs dogList={humanDogs} archived={showArchived} onOpen={open} />
+        <ProfileArrow label={`View profile for ${titleCase(fullName)}`} onClick={open} />
       </div>
-      <ProfileArrow label={`View profile for ${titleCase(fullName)}`} onClick={open} />
-      {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(human.id)} />}
+      {showArchived && (
+        <div data-testid="human-card-secondary-actions" className="flex w-full justify-end">
+          <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />
+        </div>
+      )}
     </article>
   );
 }
