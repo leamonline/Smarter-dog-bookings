@@ -741,6 +741,26 @@ describe("selectLiveFocus", () => {
 
     expect(focus?.booking.id).toBe("earlier-slot");
   });
+
+  it("uses booking ID deterministically when timestamps and slots cannot order in-salon records", () => {
+    const alpha = bk({
+      id: "alpha",
+      _bookingDate: TODAY,
+      status: "Checked in",
+      checkedInAt: null,
+    });
+    const zulu = bk({
+      id: "zulu",
+      _bookingDate: TODAY,
+      status: "In bath",
+      checkedInAt: "not-a-date",
+    });
+
+    expect([
+      selectLiveFocus(feedOf([alpha, zulu]))?.booking.id,
+      selectLiveFocus(feedOf([zulu, alpha]))?.booking.id,
+    ]).toEqual(["alpha", "alpha"]);
+  });
 });
 
 describe("liveFocusContext", () => {

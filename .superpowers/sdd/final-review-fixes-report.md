@@ -148,3 +148,38 @@ Result: exit 0 (`tsc --noEmit` and `tsc -p tsconfig.node-tests.json`).
 
 - No functional concern remains.
 - The E2E web server emitted only the existing informational build/colour-environment notices described above.
+
+## Follow-up: non-finite slot tie-break
+
+Completed on 2026-07-15 under Node `v22.23.1`.
+
+### RED
+
+Command:
+
+```sh
+fnm exec --using=22 npm test -- src/engine/today.test.ts
+```
+
+Result: expected failure, 1 file failed; 1 test failed and 83 passed. Two in-salon records with missing/invalid timestamps and no slots selected `alpha` in `[alpha, zulu]` input order but `zulu` in reversed input order.
+
+### GREEN
+
+Commands:
+
+```sh
+fnm exec --using=22 npm test -- src/engine/today.test.ts
+fnm exec --using=22 npm run typecheck
+```
+
+Results:
+
+- Focused engine suite: 1 file passed; 84 tests passed; 0 failed.
+- Typecheck: exit 0 (`tsc --noEmit` and `tsc -p tsconfig.node-tests.json`).
+
+### Implementation and self-review
+
+- `compareSlotThenId` normalises every non-finite `slotMinutes` value to `Infinity`.
+- It checks normalised slot equality before subtraction, avoiding `Infinity - Infinity` producing `NaN`.
+- Equal normalised slots now always reach the booking-ID tie-break, so reversing input order does not change the selected booking.
+- No concern remains from this edge-case follow-up.

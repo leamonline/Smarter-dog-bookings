@@ -865,8 +865,9 @@ function validTimestamp(value: string | null | undefined): number | null {
 }
 
 function compareSlotThenId(a: TodayFeedEntry, b: TodayFeedEntry): number {
-  const slotOrder = a.slotMinutes - b.slotMinutes;
-  if (slotOrder !== 0) return slotOrder;
+  const aSlot = Number.isFinite(a.slotMinutes) ? a.slotMinutes : Number.POSITIVE_INFINITY;
+  const bSlot = Number.isFinite(b.slotMinutes) ? b.slotMinutes : Number.POSITIVE_INFINITY;
+  if (aSlot !== bSlot) return aSlot - bSlot;
   return String(a.booking.id ?? "").localeCompare(String(b.booking.id ?? ""));
 }
 
