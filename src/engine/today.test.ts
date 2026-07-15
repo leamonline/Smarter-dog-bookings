@@ -649,6 +649,19 @@ describe("liveFocusContext", () => {
     const entry = buildTodayFeed([bk({ dogName: "Minnie", slot, status: "Booked" })], NOW_SUMMER)[0];
     expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({ text, ariaLabel: `Minnie — ${text.toLowerCase()}` });
   });
+
+  it("refreshes overdue and ready wait copy from the supplied time", () => {
+    const later = new Date("2026-07-02T09:45:00Z"); // BST (+1) => 10:45 London
+    const overdue = buildTodayFeed([
+      bk({ dogName: "Minnie", slot: "10:00", status: "Booked" }),
+    ], NOW_SUMMER)[0];
+    const ready = buildTodayFeed([
+      bk({ dogName: "Rufus", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
+    ], NOW_SUMMER)[0];
+
+    expect.soft(liveFocusContext(overdue, later).text).toBe("45 mins overdue");
+    expect.soft(liveFocusContext(ready, later).text).toBe("Waiting for collection 45 mins");
+  });
 });
 
 describe("buildTakingsByMethod (improvement #3 — till view)", () => {

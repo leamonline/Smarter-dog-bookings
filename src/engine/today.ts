@@ -902,8 +902,8 @@ function checkedInCopy(checkedInAt: string | null | undefined, now: Date): strin
 
 export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {
   const dog = entry.booking.dogName || "Booking";
-  if (entry.isLate) return focusContext(dog, `${liveMinutes(entry.overdueMinutes)} overdue`, "overdue");
-  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${liveMinutes(entry.waitMinutes ?? 0)}`, "live");
+  if (entry.isLate) return focusContext(dog, `${liveMinutes(minutesOverdue(entry.booking, now))} overdue`, "overdue");
+  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${liveMinutes(collectionWaitMinutes(entry.booking, now) ?? 0)}`, "live");
   if (entry.stage === "inSalon") return focusContext(dog, checkedInCopy(entry.booking.checkedInAt, now), "live");
   const minutes = minutesUntilSlot(entry.booking.slot || "00:00", now);
   return focusContext(dog, minutes <= 0 ? "Due now" : `Due to arrive in ${liveMinutes(minutes)}`, "live");
