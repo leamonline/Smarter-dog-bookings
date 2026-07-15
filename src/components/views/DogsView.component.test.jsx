@@ -110,6 +110,47 @@ describe("DogsView directory", () => {
     expect(onOpenDog).toHaveBeenCalledWith("d1");
   });
 
+  it("presents the page heading and controls as one directory shell", () => {
+    renderView();
+    const shell = screen.getByTestId("dogs-directory-shell");
+
+    expect(within(shell).getByRole("heading", { name: "Dogs Directory" })).toBeInTheDocument();
+    expect(within(shell).getByRole("searchbox", { name: "Search dogs by name, breed or owner" })).toBeInTheDocument();
+    expect(within(shell).getByRole("group", { name: "Filter dogs" })).toBeInTheDocument();
+    expect(within(shell).getByRole("group", { name: "Sort dogs" })).toBeInTheDocument();
+    expect(within(shell).getByRole("group", { name: "Directory view" })).toBeInTheDocument();
+  });
+
+  it("uses a visible profile label rather than an unexplained chevron", () => {
+    renderView({ directoryDogs: [rex] });
+    const profile = within(screen.getByRole("article", { name: "Rex" })).getByRole(
+      "button",
+      { name: "View profile for Rex" },
+    );
+
+    expect(profile).toHaveTextContent("View profile");
+    expect(profile).not.toHaveTextContent("›");
+  });
+
+  it("keeps owner contact actions in a consistent card footer", () => {
+    renderView({ directoryDogs: [rex] });
+    const card = screen.getByRole("article", { name: "Rex" });
+    const contact = within(card).getByTestId("dog-card-contact");
+
+    expect(within(contact).getByText("Sarah Jones")).toBeInTheDocument();
+    expect(within(contact).getByRole("link", { name: "07700900111" })).toBeInTheDocument();
+    expect(within(contact).getByRole("link", { name: "Open in WhatsApp" })).toBeInTheDocument();
+  });
+
+  it("uses a neutral identity mark while preserving the written size", () => {
+    renderView({ directoryDogs: [rex] });
+    const card = screen.getByRole("article", { name: "Rex" });
+
+    expect(within(card).getByTestId("dog-size-mark")).toHaveClass("bg-brand-purple/5");
+    expect(within(card).getByText("Large")).toBeInTheDocument();
+    expect(within(card).getByRole("img", { name: "Large dog" })).toBeInTheDocument();
+  });
+
   it("footer shows loaded-of-total", () => {
     renderView({ totalCount: 5 });
     expect(screen.getByText("Showing 2 of 5 dogs")).toBeInTheDocument();
