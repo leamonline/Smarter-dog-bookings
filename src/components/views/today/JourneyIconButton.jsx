@@ -6,11 +6,13 @@ export function JourneyIconButton({
   children,
 }) {
   return (
-    <span className="group relative flex min-w-0 flex-col items-center justify-start gap-1 pb-7">
+    <span className="group relative flex min-w-0 items-center justify-center pb-0 [@media(hover:hover)]:pb-7">
       <button
         type="button"
         data-testid="journey-action"
+        data-state={complete ? "complete" : active ? "current" : "upcoming"}
         aria-label={label}
+        aria-pressed={complete}
         onClick={onClick}
         className={[
           "inline-flex size-11 items-center justify-center rounded-full border-2 outline-none transition",
@@ -24,16 +26,9 @@ export function JourneyIconButton({
       >
         {children}
       </button>
-      <input
-        type="checkbox"
-        checked={complete}
-        disabled
-        aria-label={`${label} completed`}
-        className="size-4 accent-brand-teal disabled:cursor-default disabled:opacity-100"
-      />
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 z-10 whitespace-nowrap rounded-full bg-brand-purple px-2 py-1 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute bottom-0 z-10 hidden whitespace-nowrap rounded-full bg-brand-purple px-2 py-1 text-[10px] font-bold text-white opacity-0 transition-opacity [@media(hover:hover)]:block group-hover:opacity-100 group-focus-within:opacity-100"
       >
         {label}
       </span>

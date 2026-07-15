@@ -79,6 +79,7 @@ export function TodayNowStrip({
   const { now: nowEntry, next: nextEntry, readyCount } = selection;
   const nowOp = nowEntry ? entryOpStatus(nowEntry) : null;
   const nextOp = nextEntry ? entryOpStatus(nextEntry) : null;
+  const focusLabel = selection.nowReason === "upcoming" ? "First up" : "Now";
 
   return (
     <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 pt-[env(safe-area-inset-top,0px)] -mt-[env(safe-area-inset-top,0px)] bg-brand-paper pb-1.5">
@@ -90,7 +91,7 @@ export function TodayNowStrip({
           <div className="px-3 py-2">
             <div className="flex items-center gap-2">
               <span className={`shrink-0 text-[10px] font-extrabold uppercase tracking-wider ${nowOp.tone === "coral" ? "text-brand-coral-text" : nowOp.tone === "amber" ? "text-amber-700" : "text-brand-teal-text"}`}>
-                Now
+                {focusLabel}
               </span>
               <IdentityButton entry={nowEntry} resolve={resolve} onJumpTo={onJumpTo} context={nowContext(nowEntry, now)} />
             </div>

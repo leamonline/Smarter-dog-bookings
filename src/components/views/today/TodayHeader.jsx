@@ -1,5 +1,8 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, CircleHelp } from "lucide-react";
 import { formatMoney } from "./parts.jsx";
+
+export const NEEDS_ACTION_DEFINITION =
+  "Need action means late arrivals, confirmation chases, overdue collections and unpaid bookings after arrival.";
 
 export function TodayHeader({
   dateLabel,
@@ -12,6 +15,8 @@ export function TodayHeader({
   briefMode = false,
   onOpenDatePicker,
   onManageAvailability,
+  actionFilterActive = false,
+  onToggleActionFilter,
 }) {
   return (
     <header className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,.65fr)]">
@@ -35,19 +40,33 @@ export function TodayHeader({
               <strong className="mr-1 font-extrabold text-slate-900">{dogsBooked}</strong>{" "}
               {dogsBooked === 1 ? "dog" : "dogs"} booked
             </li>
-            <li
-              className={`flex h-9 items-center justify-center whitespace-nowrap rounded-full px-3 text-[12px] font-bold ${
-                actionCount > 0
-                  ? "bg-brand-coral/10 text-brand-coral-text"
-                  : "bg-brand-teal/10 text-brand-teal-text"
-              }`}
-            >
+            <li className="relative flex h-9 items-stretch justify-center whitespace-nowrap rounded-full text-[12px] font-bold">
               {actionCount > 0 ? (
-                <>
+                <button
+                  type="button"
+                  aria-label={`Filter ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing action`}
+                  aria-describedby="needs-action-definition"
+                  aria-pressed={actionFilterActive}
+                  title={NEEDS_ACTION_DEFINITION}
+                  onClick={onToggleActionFilter}
+                  className={`group inline-flex min-w-0 flex-1 items-center justify-center rounded-full px-3 outline-none transition focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${
+                    actionFilterActive
+                      ? "bg-brand-purple text-white"
+                      : "bg-brand-coral/10 text-brand-coral-text hover:bg-brand-coral/20"
+                  }`}
+                >
                   <strong className="mr-1 font-extrabold">{actionCount}</strong> need action
-                </>
+                  <CircleHelp size={14} className="ml-1 shrink-0" aria-hidden="true" />
+                </button>
               ) : (
-                "All calm"
+                <span className="flex flex-1 items-center justify-center rounded-full bg-brand-teal/10 px-3 text-brand-teal-text">
+                  All calm
+                </span>
+              )}
+              {actionCount > 0 && (
+                <span id="needs-action-definition" className="sr-only">
+                  {NEEDS_ACTION_DEFINITION}
+                </span>
               )}
             </li>
             <li

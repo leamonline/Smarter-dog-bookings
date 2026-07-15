@@ -50,6 +50,28 @@ function priceLabel(price) {
     : String(price);
 }
 
+function appointmentTone(entry) {
+  if (entry.isLate) {
+    return {
+      state: "late",
+      label: "late",
+      className: "border-brand-coral bg-brand-coral text-white",
+    };
+  }
+  if (entry.isUnconfirmed) {
+    return {
+      state: "blocked",
+      label: "needs confirmation",
+      className: "border-brand-yellow-dark bg-brand-yellow text-brand-purple",
+    };
+  }
+  return {
+    state: "scheduled",
+    label: null,
+    className: "border-brand-purple bg-brand-purple text-white",
+  };
+}
+
 const sentenceButtonClass =
   "inline-flex min-h-11 items-center rounded-md px-0.5 outline-none hover:bg-brand-yellow/20 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
@@ -58,13 +80,14 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
   const journey = buildJourneyActions(booking);
   const payment = paymentVisual(booking);
   const formattedPrice = priceLabel(price);
+  const timeTone = appointmentTone(entry);
 
   return (
     <article
       id={`today-card-${booking.id}`}
-      className="rounded-2xl border border-brand-paper-line bg-white px-3 py-3 sm:px-4"
+      className="rounded-2xl border border-brand-paper-line bg-white px-3 py-2.5 sm:px-4 sm:py-3"
     >
-      <p className="min-w-0 text-center font-sans text-xl font-bold leading-tight text-brand-purple">
+      <p className="min-w-0 text-center font-sans text-lg font-bold leading-tight text-brand-purple sm:text-xl">
         <button
           type="button"
           aria-label={`Open ${display.dogName}'s dog file`}
@@ -105,16 +128,18 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
       <div
         data-testid="booking-journey-grid"
         data-centres={journey.length === 6 ? "8" : "7"}
-        className="journey-grid mt-3 grid grid-cols-8 items-start justify-items-center gap-y-1 sm:grid-cols-[repeat(var(--journey-centres),minmax(0,1fr))]"
+        className="journey-grid mt-2 grid grid-cols-8 items-start justify-items-center gap-y-3 sm:mt-3 sm:gap-y-1 sm:grid-cols-[repeat(var(--journey-centres),minmax(0,1fr))]"
         style={{ "--journey-centres": journey.length + 2 }}
       >
-        <span className="relative flex justify-center pb-7">
+        <span className="relative flex justify-center pb-0 [@media(hover:hover)]:pb-7">
           <button
             type="button"
             id={`today-card-${booking.id}-time`}
-            aria-label={`Open ${slotLabel} booking`}
+            aria-label={`Open ${slotLabel} booking${timeTone.label ? ` — ${timeTone.label}` : ""}`}
+            title={timeTone.label || undefined}
+            data-appointment-state={timeTone.state}
             onClick={() => handlers.onOpenBooking?.(booking.id)}
-            className="flex size-11 items-center justify-center rounded-full border border-journey-time bg-journey-time text-sm font-extrabold text-white tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className={`flex size-11 items-center justify-center rounded-full border text-sm font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${timeTone.className}`}
           >
             {slotLabel}
           </button>
@@ -133,14 +158,14 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
             {iconFor(action, payment)}
           </JourneyIconButton>
         ))}
-        <span className="relative flex justify-center pb-7">
+        <span className="relative flex justify-center pb-0 [@media(hover:hover)]:pb-7">
           <button
             type="button"
             aria-label={`Message ${display.owner}`}
             onClick={() => handlers.onMessageOwner?.(booking)}
-            className="flex size-11 items-center justify-center rounded-full bg-journey-message text-journey-message outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+            className="flex size-11 items-center justify-center rounded-full border border-brand-purple/20 bg-brand-purple/5 text-brand-purple outline-none transition-colors hover:bg-brand-purple/10 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
-            <MessageCircle size={44} fill="currentColor" strokeWidth={1.8} aria-hidden="true" />
+            <MessageCircle size={26} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </span>
       </div>

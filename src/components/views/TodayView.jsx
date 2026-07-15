@@ -23,7 +23,7 @@ import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
-import { TodayHeader } from "./today/TodayHeader.jsx";
+import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
 import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
@@ -77,6 +77,7 @@ export function TodayView({
 
   const [showAvailability, setShowAvailability] = useState(false);
   const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [showNeedsActionOnly, setShowNeedsActionOnly] = useState(false);
 
   const realTodayStr = londonDateStr(now);
   const dateStr = selectedDateStr || realTodayStr;
@@ -155,11 +156,19 @@ export function TodayView({
 
   const visibleFeed = useMemo(() => feed.filter((e) => !dismissed.has(e.booking.id)), [feed, dismissed]);
   const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
+  const displayedFeed = useMemo(
+    () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
+    [showNeedsActionOnly, visibleFeed],
+  );
+  useEffect(() => setShowNeedsActionOnly(false), [dateStr]);
+  useEffect(() => {
+    if (actionCount === 0) setShowNeedsActionOnly(false);
+  }, [actionCount]);
   // The sticky strip reads the same visible feed the diary renders from, so
   // marking a dog arrived/ready/collected updates both in the same render.
-  const nowNext = useMemo(() => selectNowNext(visibleFeed, now), [visibleFeed, now]);
-  const groups = useMemo(() => groupFeedBySlot(visibleFeed), [visibleFeed]);
-  const ownerCounts = useMemo(() => countDogsPerOwner(visibleFeed, dogs), [visibleFeed, dogs]);
+  const nowNext = useMemo(() => selectNowNext(displayedFeed, now), [displayedFeed, now]);
+  const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
+  const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
 
   // ---- "Jump to row" from the sticky strip ----
   const onJumpTo = useCallback((id) => {
@@ -356,7 +365,18 @@ export function TodayView({
           isToday={isToday}
           onOpenDatePicker={onOpenDatePicker}
           onManageAvailability={() => setShowAvailability(true)}
+          actionFilterActive={showNeedsActionOnly}
+          onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
         />
+
+        {showNeedsActionOnly && (
+          <p
+            role="status"
+            className="rounded-xl border border-brand-purple/15 bg-brand-purple/5 px-3 py-2 text-[12px] font-medium text-brand-purple"
+          >
+            Showing {actionCount} {actionCount === 1 ? "booking" : "bookings"} needing action: {NEEDS_ACTION_DEFINITION.replace("Need action means ", "").replace(/\.$/, "").toLowerCase()}.
+          </p>
+        )}
 
         {bookingsError && (
           <div className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark flex items-center justify-between gap-3">
@@ -395,11 +415,13 @@ export function TodayView({
                   resolve={resolve}
                   onJumpTo={onJumpTo}
                 />
-                <AwaitingDepositsCard
-                  bookings={selectedBookings}
-                  now={now}
-                  onOpenBooking={onOpenDepositBooking}
-                />
+                {!showNeedsActionOnly && (
+                  <AwaitingDepositsCard
+                    bookings={selectedBookings}
+                    now={now}
+                    onOpenBooking={onOpenDepositBooking}
+                  />
+                )}
               </>
             )}
             <BookingFeed
