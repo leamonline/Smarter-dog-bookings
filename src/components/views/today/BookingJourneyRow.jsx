@@ -11,6 +11,7 @@ import {
   Scissors,
   Send,
 } from "lucide-react";
+import { BOOKING_STATUS } from "../../../constants/index";
 import { buildJourneyActions, paymentVisual } from "../../../engine/dailyBrief";
 import { JourneyIconButton } from "./JourneyIconButton.jsx";
 
@@ -72,6 +73,41 @@ function appointmentTone(entry) {
   };
 }
 
+export function journeyCardTone(entry) {
+  const booking = entry.booking;
+  if (booking.status === BOOKING_STATUS.CANCELLED) return "cancelled";
+  if (
+    booking.reminderConfirmedAt ||
+    [
+      BOOKING_STATUS.CHECKED_IN,
+      BOOKING_STATUS.IN_BATH,
+      BOOKING_STATUS.READY_FOR_PICKUP,
+      BOOKING_STATUS.COMPLETED,
+    ].includes(booking.status)
+  ) {
+    return "success";
+  }
+  return "default";
+}
+
+const CARD_TONE = {
+  success: "border-emerald-300 bg-emerald-50/80",
+  cancelled: "border-brand-coral/30 bg-brand-coral/[0.06]",
+  default: "border-brand-paper-line bg-white",
+};
+
+function formatConfirmedAt(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/London",
+  });
+}
+
 const sentenceButtonClass =
   "inline-flex min-h-11 items-center rounded-md px-0.5 outline-none hover:bg-brand-yellow/20 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
@@ -81,11 +117,15 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
   const payment = paymentVisual(booking);
   const formattedPrice = priceLabel(price);
   const timeTone = appointmentTone(entry);
+  const cardTone = journeyCardTone(entry);
+  const confirmedAt = formatConfirmedAt(booking.reminderConfirmedAt);
 
   return (
     <article
       id={`today-card-${booking.id}`}
-      className="rounded-2xl border border-brand-paper-line bg-white px-3 py-2.5 sm:px-4 sm:py-3"
+      aria-label={`${display.dogName} booking`}
+      data-journey-tone={cardTone}
+      className={`rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3 ${CARD_TONE[cardTone]}`}
     >
       <p className="min-w-0 text-center font-sans text-lg font-bold leading-tight text-brand-purple sm:text-xl">
         <button
@@ -96,6 +136,28 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
         >
           {display.dogName} · {display.breed}
         </button>
+        {booking.reminderConfirmedAt && (
+          <span
+            role="img"
+            aria-label={`Customer confirmed at ${confirmedAt}`}
+            title={`Confirmed via WhatsApp at ${confirmedAt}`}
+            className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 align-middle text-emerald-700"
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        )}
         <span aria-hidden="true"> · </span>
         <button
           type="button"

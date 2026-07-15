@@ -561,6 +561,26 @@ describe("BookingFeed — accessible journey rows", () => {
     owner: "David Law",
   };
 
+  it.each([
+    [{ reminderConfirmedAt: "2026-07-15T07:20:00Z", status: "Booked" }, "success", true],
+    [{ reminderConfirmedAt: null, status: "Checked in" }, "success", false],
+    [{ reminderConfirmedAt: null, status: "In bath" }, "success", false],
+    [{ reminderConfirmedAt: "2026-07-15T07:20:00Z", status: "Cancelled" }, "cancelled", true],
+  ])(
+    "applies the %s journey tone and confirmation tick independently",
+    (patch, tone, hasTick) => {
+      renderFeed([group("09:00", [entry({ ...booking, ...patch })])]);
+
+      const card = screen.getByRole("article", { name: "Jack booking" });
+      expect(card).toHaveAttribute("data-journey-tone", tone);
+      const tick = within(card).queryByRole("img", { name: /customer confirmed/i });
+      expect(tick !== null).toBe(hasTick);
+      if (hasTick) {
+        expect(tick).toHaveAccessibleName("Customer confirmed at 08:20");
+      }
+    },
+  );
+
   it("exposes distinct row destinations and six journey actions before readiness", () => {
     renderFeed([group("09:00", [entry(booking)])]);
     expect(screen.getByRole("button", { name: "Open Jack's dog file" })).toBeInTheDocument();
