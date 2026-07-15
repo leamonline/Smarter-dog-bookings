@@ -112,6 +112,27 @@ describe("HumansView directory", () => {
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
+  it.each(["Grid", "List"])("uses the identity-led %s card without merging contact actions", (mode) => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+      dogsByHumanId: {
+        h1: [{ id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" }],
+      },
+    });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(card).getByTestId("human-initials")).toHaveTextContent("SJ");
+    expect(within(card).getByText(/Minnie/)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveAttribute(
+      "href",
+      "mailto:sarah@example.com",
+    );
+
+    fireEvent.click(within(card).getByRole("button", { name: "View profile for Sarah Jones" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
   it("footer shows loaded-of-total", () => {
     renderView({ totalCount: 5 });
     expect(screen.getByText("Showing 2 of 5 humans")).toBeInTheDocument();
@@ -142,7 +163,8 @@ describe("HumansView directory", () => {
   it("renders the history-flag reason as visible text, not just an emoji", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.
-    expect(screen.getByText("Muzzle required")).toBeInTheDocument();
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("Muzzle required")).toBeInTheDocument();
   });
 
   it("the grid/list view toggle switches mode and persists it", () => {
@@ -177,8 +199,17 @@ describe("HumansView directory", () => {
       dogs: {},
       dogsByHumanId: {},
     });
-    fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    fireEvent.click(within(article).getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it.each(["Grid", "List"])("keeps the no-phone state inside the %s card", (mode) => {
+    renderView({ directoryHumans: [{ ...sarah, phone: "" }] });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("No phone")).toBeInTheDocument();
   });
 
   it("keeps profile and inline unarchive actions independent in archived List mode", async () => {
