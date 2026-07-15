@@ -229,6 +229,30 @@ describe("DogsView directory", () => {
     expect(screen.getByText(/Showing 2 of 4 dogs · Large, Has alert/)).toBeInTheDocument();
   });
 
+  it.each(["grid", "list"])("keeps archived Dog identity and actions in independent %s rows", async (mode) => {
+    const archivedDog = { id: "d9", name: "Max", breed: "Lab", size: "large", age: "4", alerts: [], ownerFullName: "Old Owner", ownerPhone: "" };
+    const fetchArchivedDogs = vi.fn(() => Promise.resolve([archivedDog]));
+    renderView({ fetchArchivedDogs });
+
+    if (mode === "list") fireEvent.click(screen.getByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
+
+    const article = await screen.findByRole("article", { name: "Max" });
+    const primary = within(article).getByTestId("dog-card-primary");
+    const secondary = within(article).getByTestId("dog-card-secondary-actions");
+
+    expect(primary).toHaveClass("w-full");
+    expect(within(primary).getByTestId("dog-size-mark")).toHaveAttribute("data-size-tone", "large");
+    expect(within(primary).getByText("Max")).toBeInTheDocument();
+    expect(within(primary).getByText("Lab · 4 yrs")).toBeInTheDocument();
+    expect(within(primary).getByText("Large")).toBeInTheDocument();
+    expect(within(primary).getByRole("button", { name: "View profile for Max" })).toHaveClass("size-11");
+    expect(within(primary).queryByRole("button", { name: "Unarchive" })).not.toBeInTheDocument();
+
+    expect(secondary).toHaveClass("w-full");
+    expect(within(secondary).getByRole("button", { name: "Unarchive" })).toHaveClass("min-h-11");
+  });
+
   it("Show archived loads the archived set and unarchive calls onUpdateDog", async () => {
     const archivedDog = { id: "d9", name: "Max", breed: "Lab", size: "large", alerts: [], ownerFullName: "Old Owner", ownerPhone: "" };
     const fetchArchivedDogs = vi.fn(() => Promise.resolve([archivedDog]));

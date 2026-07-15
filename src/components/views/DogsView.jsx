@@ -193,41 +193,47 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   const open = () => onOpenDog(dog.id || dog.name);
 
   const gridCardClass =
-    "group relative flex min-h-[112px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-cyan hover:shadow-card-hover";
+    "group relative flex min-h-[112px] flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-cyan hover:shadow-card-hover";
   const listCardClass =
-    "group relative flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-cyan";
+    "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-cyan";
 
   return (
     <article
       aria-label={titleCase(dog.name)}
       className={mode === "list" ? listCardClass : gridCardClass}
     >
-      <DogSizeMark size={dog.size} decorative />
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-title font-extrabold text-brand-purple">
-            {titleCase(dog.name)}
-          </span>
-          {incomplete && (
-            <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
-              Incomplete
-            </Badge>
+      <div data-testid="dog-card-primary" className="flex w-full min-w-0 items-start gap-3">
+        <DogSizeMark size={dog.size} decorative />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-title font-extrabold text-brand-purple">
+              {titleCase(dog.name)}
+            </span>
+            {incomplete && (
+              <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
+                Incomplete
+              </Badge>
+            )}
+          </div>
+
+          <p className="truncate text-body font-semibold text-slate-600">
+            {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
+          </p>
+          <p className="text-micro font-semibold text-ink-muted">
+            {dog.size ? titleCase(dog.size) : "Size unknown"}
+          </p>
+          <OwnerLine owner={owner} skeleton={ownerSkeleton} />
+          {dog.alerts?.length > 0 && (
+            <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
           )}
         </div>
-
-        <p className="truncate text-body font-semibold text-slate-600">
-          {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
-        </p>
-        <p className="text-micro font-semibold text-ink-muted">
-          {dog.size ? titleCase(dog.size) : "Size unknown"}
-        </p>
-        <OwnerLine owner={owner} skeleton={ownerSkeleton} />
-        {dog.alerts?.length > 0 && (
-          <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
-        )}
+        <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} />
       </div>
-      <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} />
-      {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />}
+      {showArchived && (
+        <div data-testid="dog-card-secondary-actions" className="flex w-full justify-end">
+          <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />
+        </div>
+      )}
     </article>
   );
 }
