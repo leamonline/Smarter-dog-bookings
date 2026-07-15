@@ -1,6 +1,6 @@
 // Daily Brief command centre. Every date-specific selector and mutation is
 // anchored to the selected date, including closed, past and future dates.
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
@@ -11,7 +11,8 @@ import {
   buildTakingsByMethod,
   buildSlotOpportunities,
   buildAvailabilityView,
-  selectNowNext,
+  liveFocusContext,
+  selectLiveFocus,
   groupFeedBySlot,
   countDogsPerOwner,
 } from "../../engine/today";
@@ -24,7 +25,6 @@ import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
-import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
@@ -164,22 +164,71 @@ export function TodayView({
   useEffect(() => {
     if (actionCount === 0) setShowNeedsActionOnly(false);
   }, [actionCount]);
-  // The sticky strip reads the same visible feed the diary renders from, so
-  // marking a dog arrived/ready/collected updates both in the same render.
-  const nowNext = useMemo(() => selectNowNext(displayedFeed, now), [displayedFeed, now]);
+  const liveFocus = useMemo(
+    () => (isToday ? selectLiveFocus(displayedFeed) : null),
+    [displayedFeed, isToday],
+  );
+  const liveContext = useMemo(
+    () => (liveFocus ? liveFocusContext(liveFocus, now) : null),
+    [liveFocus, now],
+  );
+  const liveFocusId = liveFocus?.booking.id ?? null;
   const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
   const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
 
-  // ---- "Jump to row" from the sticky strip ----
-  const onJumpTo = useCallback((id) => {
+  // Scrolling is permission-based: candidate changes alone never move the
+  // viewport. Initial/date loads and successful focused-booking resolutions
+  // issue an explicit request, while ticks, filters and refetches only update
+  // the marker in place.
+  const [scrollRequest, setScrollRequest] = useState(null);
+  const initialLoadDateRef = useRef(null);
+  const handledScrollRequestRef = useRef(0);
+  const requestLiveScroll = useCallback((focusId) => {
+    setScrollRequest((previous) => ({
+      sequence: (previous?.sequence ?? 0) + 1,
+      dateStr,
+      focusId,
+    }));
+  }, [dateStr]);
+
+  useEffect(() => {
+    if (!isToday) {
+      initialLoadDateRef.current = null;
+      return;
+    }
+    if (bookingsLoading || initialLoadDateRef.current === dateStr) return;
+    initialLoadDateRef.current = dateStr;
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, dateStr, isToday, liveFocusId, requestLiveScroll]);
+
+  useEffect(() => {
+    if (
+      !scrollRequest ||
+      !isToday ||
+      bookingsLoading ||
+      scrollRequest.dateStr !== dateStr ||
+      handledScrollRequestRef.current === scrollRequest.sequence
+    ) {
+      return;
+    }
+    handledScrollRequestRef.current = scrollRequest.sequence;
     requestAnimationFrame(() => {
-      const el = document.getElementById(`today-card-${id}`);
-      if (!el) return;
+      const el = document.getElementById(`today-card-${scrollRequest.focusId}`);
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-      document.getElementById(`today-card-${id}-time`)?.focus({ preventScroll: true });
+      el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
-  }, []);
+  }, [bookingsLoading, dateStr, isToday, scrollRequest]);
+
+  const [pendingResolvedFocusId, setPendingResolvedFocusId] = useState(null);
+  useEffect(() => {
+    if (!pendingResolvedFocusId || !isToday || bookingsLoading) return;
+    const resolvedEntry = visibleFeed.find(
+      (entry) => entry.booking.id === pendingResolvedFocusId,
+    );
+    if (resolvedEntry?.stage === "booked") return;
+    setPendingResolvedFocusId(null);
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, isToday, liveFocusId, pendingResolvedFocusId, requestLiveScroll, visibleFeed]);
 
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
@@ -236,6 +285,17 @@ export function TodayView({
     return null;
   }, [onUpdateBooking, toast, dateStr]);
 
+  const authoriseResolvedFocusAdvance = useCallback((booking, result) => {
+    if (
+      result !== null &&
+      result !== false &&
+      booking.id === liveFocusId
+    ) {
+      setPendingResolvedFocusId(booking.id);
+    }
+    return result;
+  }, [liveFocusId]);
+
   const updateStatus = useCallback(async (
     booking,
     status,
@@ -251,7 +311,7 @@ export function TodayView({
     ) {
       return null;
     }
-    return patch(
+    const result = await patch(
       booking,
       {
         status,
@@ -260,9 +320,12 @@ export function TodayView({
       successMessage,
       failureMessage,
     );
-  }, [patch]);
+    return options.advanceLiveFocus
+      ? authoriseResolvedFocusAdvance(booking, result)
+      : result;
+  }, [authoriseResolvedFocusAdvance, patch]);
 
-  const onJourneyAction = useCallback((booking, action) => {
+  const onJourneyAction = useCallback(async (booking, action) => {
     if (action.completed && action.id !== "paid") return null;
     if (action.id === "checkIn") {
       return updateStatus(
@@ -270,6 +333,7 @@ export function TodayView({
         BOOKING_STATUS.CHECKED_IN,
         `${booking.dogName} checked in`,
         "Check-in could not be saved.",
+        { advanceLiveFocus: true },
       );
     }
     if (action.id === "startGroom") {
@@ -281,21 +345,29 @@ export function TodayView({
       );
     }
     if (action.id === "ready") {
-      return updateStatus(
+      const saved = await updateStatus(
         booking,
         BOOKING_STATUS.READY_FOR_PICKUP,
         `${booking.dogName} is waiting to be collected`,
         "Ready for collection could not be saved.",
-        { skipCollectionPrompt: true, skipConfirmation: true },
+        { skipCollectionPrompt: true, skipConfirmation: true, advanceLiveFocus: true },
       );
+      if (saved) {
+        onSendCollection({
+          ...booking,
+          ...saved,
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+        });
+      }
+      return saved;
     }
-    if (action.id === "messageCollection") return onSendCollection(booking);
     if (action.id === "collected") {
       return updateStatus(
         booking,
         BOOKING_STATUS.COMPLETED,
         `${booking.dogName} collected`,
         "Collection could not be saved.",
+        { advanceLiveFocus: true },
       );
     }
     if (action.id === "paid") setInvoiceBooking(booking);
@@ -318,13 +390,16 @@ export function TodayView({
     [patch],
   );
   const onDidntShow = useCallback(
-    (b) => patch(
+    async (b) => authoriseResolvedFocusAdvance(
       b,
-      { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
-      `${b.dogName} marked as a no-show`,
-      "Marking this booking as a no-show could not be saved.",
+      await patch(
+        b,
+        { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
+        `${b.dogName} marked as a no-show`,
+        "Marking this booking as a no-show could not be saved.",
+      ),
     ),
-    [patch],
+    [authoriseResolvedFocusAdvance, patch],
   );
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
@@ -409,12 +484,6 @@ export function TodayView({
             />
             {isToday && (
               <>
-                <TodayNowStrip
-                  selection={nowNext}
-                  now={now}
-                  resolve={resolve}
-                  onJumpTo={onJumpTo}
-                />
                 {!showNeedsActionOnly && (
                   <AwaitingDepositsCard
                     bookings={selectedBookings}
@@ -432,6 +501,8 @@ export function TodayView({
               getWelfare={getWelfare}
               paymentOf={paymentOf}
               priceOf={(booking) => paymentOf(booking).subtotal}
+              liveFocusId={liveFocusId}
+              liveContext={liveContext}
               {...feedHandlers}
             />
             <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />

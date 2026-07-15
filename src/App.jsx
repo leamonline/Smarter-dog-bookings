@@ -13,7 +13,6 @@ import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";
-import { BOOKING_STATUS } from "./constants/index";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
@@ -592,7 +591,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     refetch: refetchBookings,
   } = useBookings(weekStart, dogsById, humansById, {
     onReadyForPickup: (booking) =>
-      setCollectionNotice({ booking, markReadyOnSend: false }),
+      setCollectionNotice({ booking }),
     // Capture the (already-friendly) insert error so the booking modal can
     // surface it after awaiting the save, rather than toasting a false success.
     onError: (msg) => {
@@ -1087,7 +1086,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onOpenBooking={handleOpenBooking}
                       onNewBooking={requestNewBooking}
                       onSendCollection={(booking) =>
-                        setCollectionNotice({ booking, markReadyOnSend: true })
+                        setCollectionNotice({ booking })
                       }
                       toggleImmediateSlot={toggleImmediateSlot}
                       onRefresh={refetchBookings}
@@ -1388,20 +1387,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                 <CollectionNoticeModal
                   booking={collectionNotice.booking}
                   onClose={() => setCollectionNotice(null)}
-                  onSent={async (booking) => {
-                    if (!collectionNotice.markReadyOnSend) return;
-                    const date = booking._bookingDate || currentDateStr;
-                    const saved = await handleUpdate(
-                      {
-                        ...booking,
-                        status: BOOKING_STATUS.READY_FOR_PICKUP,
-                        _skipCollectionPrompt: true,
-                      },
-                      date,
-                      date,
-                    );
-                    if (!saved) throw new Error("Ready update failed");
-                  }}
                 />
               </Suspense>
             </ErrorBoundary>

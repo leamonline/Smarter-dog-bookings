@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "@fontsource/caveat/700.css";
 
+.dog-size-mark__silhouette {
+  background: currentColor;
+  mask: url("/images/dog-silhouette.png") center / contain no-repeat;
+  -webkit-mask: url("/images/dog-silhouette.png") center / contain no-repeat;
+}
+
 /* ── Self-hosted brand fonts ──────────────────────────────────── */
 @font-face {
   font-family: "Montserrat";

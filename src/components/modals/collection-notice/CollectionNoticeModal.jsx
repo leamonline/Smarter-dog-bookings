@@ -4,9 +4,8 @@
 // Pops up when a booking transitions to "Ready for pick-up" (fired
 // centrally from useBookings.updateBooking). Lets staff send a WhatsApp
 // "ready for collection" template to the owner and/or any trusted
-// contact, with a staff-entered ETA in minutes. Each recipient has its
-// own Send button; the footer "No, close" button dismisses without
-// sending.
+// contact, with a staff-entered ETA in minutes. Staff opt in before
+// recipient data is loaded; each recipient then has its own Send button.
 //
 // Sending reuses the whatsapp-send edge function (Meta Cloud API
 // template) — the same path the inbox compose-new flow uses — so the
@@ -15,7 +14,7 @@
 // template must be Approved in Meta before live sends succeed.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, HeaderIconButton } from "../shell/index.js";
 import { supabase } from "../../../supabase/client.js";
@@ -47,15 +46,17 @@ function whatsappAvailability(h) {
   return { ok: true, reason: "" };
 }
 
-export function CollectionNoticeModal({ booking, onClose, onSent }) {
+export function CollectionNoticeModal({ booking, onClose }) {
   const toast = useToast();
+  const [step, setStep] = useState("ask");
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minutes, setMinutes] = useState("15");
   const [sendingId, setSendingId] = useState(null);
   const [sentIds, setSentIds] = useState(() => new Set());
   const [contactsUnavailable, setContactsUnavailable] = useState("");
-  const readyNotifiedRef = useRef(false);
+  const [contactLoadError, setContactLoadError] = useState("");
+  const [contactLoadAttempt, setContactLoadAttempt] = useState(0);
 
   const ownerId = booking?._ownerId ?? null;
   // The owner's other dogs booked the same day that are ALSO ready get
@@ -72,10 +73,12 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
   // ModalShell/AccessibleModal — no hand-rolled key handler needed here.
 
   useEffect(() => {
+    if (step !== "compose") return undefined;
     let cancelled = false;
     async function load() {
       setLoading(true);
       setContactsUnavailable("");
+      setContactLoadError("");
       if (!supabase) {
         setRecipients([]);
         setContactsUnavailable(
@@ -89,69 +92,82 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
         setLoading(false);
         return;
       }
-      const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
-      const [ownerRes, linkRes, dayRes] = await Promise.all([
-        supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
-        supabase
-          .from("human_trusted_contacts")
-          .select("trusted_id, relationship")
-          .eq("human_id", ownerId),
-        booking?._bookingDate
-          ? supabase
-              .from("bookings")
-              .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
-              .eq("booking_date", booking._bookingDate)
-              .eq("dogs.human_id", ownerId)
-              .neq("status", "Cancelled")
-          : Promise.resolve({ data: null }),
-      ]);
-
-      // Name every dog of this owner that's ready for pick-up today
-      // (this booking's dog included regardless of how fresh its status
-      // row is — the modal opens on the transition itself).
-      const dayRows = dayRes?.data ?? [];
-      const ready = dayRows.filter(
-        (r) =>
-          r.id === booking?.id ||
-          r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
-          r.status === BOOKING_STATUS.COMPLETED,
-      );
-      if (ready.length > 0) {
-        const names = [];
-        for (const r of ready) {
-          const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
-          const name = dog?.name || r.dog_name_snapshot;
-          if (name && !names.includes(name)) names.push(name);
+      try {
+        const ownerCols = "id, name, surname, phone, whatsapp_opted_out";
+        const [ownerRes, linkRes, dayRes] = await Promise.all([
+          supabase.from("humans").select(ownerCols).eq("id", ownerId).maybeSingle(),
+          supabase
+            .from("human_trusted_contacts")
+            .select("trusted_id, relationship")
+            .eq("human_id", ownerId),
+          booking?._bookingDate
+            ? supabase
+                .from("bookings")
+                .select("id, status, dog_name_snapshot, dogs!inner(human_id, name)")
+                .eq("booking_date", booking._bookingDate)
+                .eq("dogs.human_id", ownerId)
+                .neq("status", "Cancelled")
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+        if (ownerRes.error || linkRes.error || dayRes.error) {
+          throw new Error("Contact query failed");
         }
-        if (!cancelled && names.length > 0) setReadyDogNames(names);
+
+        // Name every dog of this owner that's ready for pick-up today
+        // (this booking's dog included regardless of how fresh its status
+        // row is — the modal opens on the transition itself).
+        const dayRows = dayRes?.data ?? [];
+        const ready = dayRows.filter(
+          (r) =>
+            r.id === booking?.id ||
+            r.status === BOOKING_STATUS.READY_FOR_PICKUP ||
+            r.status === BOOKING_STATUS.COMPLETED,
+        );
+        if (ready.length > 0) {
+          const names = [];
+          for (const r of ready) {
+            const dog = Array.isArray(r.dogs) ? r.dogs[0] : r.dogs;
+            const name = dog?.name || r.dog_name_snapshot;
+            if (name && !names.includes(name)) names.push(name);
+          }
+          if (!cancelled && names.length > 0) setReadyDogNames(names);
+        }
+
+        const links = linkRes.data ?? [];
+        const trustedIds = links.map((r) => r.trusted_id).filter(Boolean);
+        const relById = new Map(links.map((r) => [r.trusted_id, r.relationship]));
+
+        let trusted = [];
+        if (trustedIds.length) {
+          const trustedRes = await supabase.from("humans").select(ownerCols).in("id", trustedIds);
+          if (trustedRes.error) throw new Error("Trusted contact query failed");
+          trusted = (trustedRes.data ?? []).map((h) => ({
+            ...h,
+            relationship: relById.get(h.id) || "Trusted contact",
+            isOwner: false,
+          }));
+        }
+
+        if (cancelled) return;
+        const list = [];
+        if (ownerRes.data) list.push({ ...ownerRes.data, relationship: "Owner", isOwner: true });
+        list.push(...trusted);
+        setRecipients(list);
+      } catch {
+        if (cancelled) return;
+        setRecipients([]);
+        setContactLoadError(
+          "We couldn’t load contact details. This booking is still marked Ready. Retry, or contact the customer directly.",
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const links = linkRes.data ?? [];
-      const trustedIds = links.map((r) => r.trusted_id).filter(Boolean);
-      const relById = new Map(links.map((r) => [r.trusted_id, r.relationship]));
-
-      let trusted = [];
-      if (trustedIds.length) {
-        const trustedRes = await supabase.from("humans").select(ownerCols).in("id", trustedIds);
-        trusted = (trustedRes.data ?? []).map((h) => ({
-          ...h,
-          relationship: relById.get(h.id) || "Trusted contact",
-          isOwner: false,
-        }));
-      }
-
-      if (cancelled) return;
-      const list = [];
-      if (ownerRes.data) list.push({ ...ownerRes.data, relationship: "Owner", isOwner: true });
-      list.push(...trusted);
-      setRecipients(list);
-      setLoading(false);
     }
     load();
     return () => {
       cancelled = true;
     };
-  }, [ownerId, booking?.id, booking?._bookingDate]);
+  }, [step, ownerId, booking?.id, booking?._bookingDate, contactLoadAttempt]);
 
   const minutesValid = /^\d{1,3}$/.test(minutes.trim()) && Number(minutes.trim()) > 0;
   const previewText =
@@ -193,24 +209,37 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
         if (data?.error) throw new Error(data.detail || data.error);
         setSentIds((prev) => new Set(prev).add(recipient.id));
         toast.show(`Collection notice sent to ${displayName(recipient)}.`, "success");
-        if (!readyNotifiedRef.current) {
-          readyNotifiedRef.current = true;
-          try {
-            await onSent?.(booking);
-          } catch {
-            toast.show(
-              "Message sent, but the booking could not be marked ready. Mark it ready manually.",
-              "error",
-            );
-          }
-        }
       } catch (err) {
         toast.show(err instanceof Error ? err.message : String(err), "error");
       } finally {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, toast, onSent, booking],
+    [sendingId, minutesValid, dogName, minutes, toast],
+  );
+
+  const askBody = (
+    <div className="flex flex-col gap-4">
+      <p className="text-[13px] text-slate-700">
+        Would you like to message their humans to let them know they&apos;re nearly ready?
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="min-h-11 rounded-full bg-brand-purple px-4 font-bold text-white"
+          onClick={() => setStep("compose")}
+        >
+          Send message
+        </button>
+        <button
+          type="button"
+          className="min-h-11 rounded-full border border-slate-200 px-4 font-bold text-slate-700"
+          onClick={() => onClose?.()}
+        >
+          Not now
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -241,18 +270,20 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
           </HeaderIconButton>
         </header>
       }
-      footer={
+      footer={step === "compose" ? (
         <div className="border-t border-slate-100 bg-white px-5 py-3 flex justify-end">
           <button
             type="button"
             onClick={() => onClose?.()}
             className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-full text-sm font-bold font-[inherit] bg-white text-slate-600 border-[1.5px] border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
           >
-            {sentIds.size > 0 ? "Done" : contactsUnavailable ? "Close" : "No, close"}
+            {sentIds.size > 0 ? "Done" : contactLoadError ? "Not now" : contactsUnavailable ? "Close" : "No, close"}
           </button>
         </div>
-      }
+      ) : null}
     >
+      {step === "ask" ? askBody : (
+        <>
           {/* Body */}
           <p className="text-[13px] text-slate-600 m-0">
             Send a WhatsApp collection notice for <span className="font-semibold">{dogName}</span>?
@@ -284,7 +315,21 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
             </div>
           )}
 
-          {contactsUnavailable ? (
+          {contactLoadError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-[12px] font-semibold text-brand-coral-dark"
+            >
+              <p>{contactLoadError}</p>
+              <button
+                type="button"
+                onClick={() => setContactLoadAttempt((attempt) => attempt + 1)}
+                className="mt-2 min-h-11 rounded-full border border-brand-coral/30 bg-white px-4 font-bold text-brand-coral-dark"
+              >
+                Retry
+              </button>
+            </div>
+          ) : contactsUnavailable ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-[12px] font-semibold text-amber-900">
               {contactsUnavailable}
             </div>
@@ -338,6 +383,8 @@ export function CollectionNoticeModal({ booking, onClose, onSent }) {
               })}
             </ul>
           )}
+        </>
+      )}
     </ModalShell>
   );
 }

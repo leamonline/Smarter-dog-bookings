@@ -112,6 +112,46 @@ describe("HumansView directory", () => {
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
+  it.each(["Grid", "List"])("uses the identity-led %s card without merging contact actions", (mode) => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+      dogsByHumanId: {
+        h1: [{ id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" }],
+      },
+    });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(card).getByTestId("human-initials")).toHaveTextContent("SJ");
+    expect(within(card).getByText(/Minnie/)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveAttribute(
+      "href",
+      "mailto:sarah@example.com",
+    );
+
+    fireEvent.click(within(card).getByRole("button", { name: "View profile for Sarah Jones" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it.each(["Grid", "List"])("keeps every direct %s card action at least 44px tall", (mode) => {
+    renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com", historyFlag: "Muzzle required" }],
+      dogsByHumanId: { h1: [] },
+    });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(card).getByRole("link", { name: "07700900111" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "No dogs yet — add one?" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("button", { name: "View profile for Sarah Jones" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "Safety alert: Muzzle required" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+
   it("footer shows loaded-of-total", () => {
     renderView({ totalCount: 5 });
     expect(screen.getByText("Showing 2 of 5 humans")).toBeInTheDocument();
@@ -142,7 +182,8 @@ describe("HumansView directory", () => {
   it("renders the history-flag reason as visible text, not just an emoji", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.
-    expect(screen.getByText("Muzzle required")).toBeInTheDocument();
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("Muzzle required")).toBeInTheDocument();
   });
 
   it("the grid/list view toggle switches mode and persists it", () => {
@@ -177,28 +218,48 @@ describe("HumansView directory", () => {
       dogs: {},
       dogsByHumanId: {},
     });
-    fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    fireEvent.click(within(article).getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
-  it("keeps profile and inline unarchive actions independent in archived List mode", async () => {
-    const archivedHuman = { ...sarah, id: "h9", fullName: "Sarah Jones" };
-    const fetchArchivedHumans = vi.fn(() => Promise.resolve([archivedHuman]));
-    const { onOpenHuman, onUpdateHuman } = renderView({ fetchArchivedHumans });
+  it.each(["Grid", "List"])("keeps the no-phone state inside the %s card", (mode) => {
+    renderView({ directoryHumans: [{ ...sarah, phone: "" }] });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "List" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
-
-    const article = await screen.findByRole("article", { name: "Sarah Jones" });
-    const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
-    const unarchive = within(article).getByRole("button", { name: "Unarchive" });
-    expect(unarchive).not.toHaveClass("absolute");
-    expect(unarchive).toHaveClass("min-h-[40px]");
-
-    fireEvent.click(profile);
-    expect(onOpenHuman).toHaveBeenCalledWith("h9");
-    fireEvent.click(unarchive);
-    expect(onUpdateHuman).toHaveBeenCalledWith("h9", { archivedAt: null });
-    expect(onOpenHuman).toHaveBeenCalledTimes(1);
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("No phone")).toBeInTheDocument();
   });
+
+  it.each(["Grid", "List"])(
+    "keeps archived %s card identity primary and unarchive in a 44px secondary row",
+    async (mode) => {
+      const archivedHuman = { ...sarah, id: "h9", fullName: "Sarah Jones" };
+      const fetchArchivedHumans = vi.fn(() => Promise.resolve([archivedHuman]));
+      const { onOpenHuman, onUpdateHuman } = renderView({ fetchArchivedHumans });
+
+      if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+      fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
+
+      const article = await screen.findByRole("article", { name: "Sarah Jones" });
+      const primary = within(article).getByTestId("human-card-primary");
+      const secondary = within(article).getByTestId("human-card-secondary-actions");
+      const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+      const unarchive = within(article).getByRole("button", { name: "Unarchive" });
+      expect(article).toHaveClass("flex-col");
+      expect(primary).toHaveClass("w-full", "min-w-0");
+      expect(within(primary).getByText("Sarah Jones")).toBeInTheDocument();
+      expect(within(primary).getByRole("button", { name: "View profile for Sarah Jones" })).toBe(profile);
+      expect(within(primary).queryByRole("button", { name: "Unarchive" })).not.toBeInTheDocument();
+      expect(secondary).toHaveClass("flex", "w-full", "justify-end");
+      expect(within(secondary).getByRole("button", { name: "Unarchive" })).toBe(unarchive);
+      expect(unarchive).toHaveClass("min-h-11");
+
+      fireEvent.click(profile);
+      expect(onOpenHuman).toHaveBeenCalledWith("h9");
+      fireEvent.click(unarchive);
+      expect(onUpdateHuman).toHaveBeenCalledWith("h9", { archivedAt: null });
+      expect(onOpenHuman).toHaveBeenCalledTimes(1);
+    },
+  );
 });

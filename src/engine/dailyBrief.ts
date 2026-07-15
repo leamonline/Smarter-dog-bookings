@@ -16,7 +16,6 @@ export type JourneyActionId =
   | "checkIn"
   | "startGroom"
   | "ready"
-  | "messageCollection"
   | "waiting"
   | "collected"
   | "paid";
@@ -122,10 +121,7 @@ export function buildJourneyActions(booking: Booking): JourneyAction[] {
     ),
     ...(index >= 3
       ? [action("waiting", "Waiting to be collected", true, false)]
-      : [
-          action("ready", "Ready for collection", false, index === 2),
-          action("messageCollection", "Message for collection", false, false),
-        ]),
+      : [action("ready", "Ready for collection", false, index === 2)]),
     action("collected", index >= 4 ? "Complete" : "Collected", index >= 4, index === 3),
     action("paid", paymentVisual(booking).label, paid, false),
   ];

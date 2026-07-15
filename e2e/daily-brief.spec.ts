@@ -201,6 +201,44 @@ test("journey and invoice work by keyboard", async ({ page }) => {
   );
 });
 
+test("live arrival advances without a duplicate Now panel", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-14");
+
+  const liveMarker = page.getByLabel(/due now|due to arrive|overdue/i);
+  await expect(liveMarker).toBeVisible();
+  await expect(page.getByRole("region", { name: "Happening now" })).toHaveCount(0);
+
+  const initialLiveJourney = liveMarker.locator("..").getByRole("article");
+  const liveJourneyId = await initialLiveJourney.getAttribute("id");
+  if (!liveJourneyId) throw new Error("Live journey row is missing its booking ID");
+  const liveJourney = page.locator(`[id="${liveJourneyId}"]`);
+  const liveJourneyGrid = liveJourney.getByTestId("booking-journey-grid");
+  await expect(liveJourneyGrid).toHaveCount(1);
+  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
+  const readyActions = liveJourney.getByRole("button", {
+    name: "Ready for collection",
+  });
+  await expect(readyActions).toHaveCount(1);
+  await readyActions.click();
+
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
+  await page.getByRole("button", { name: "Not now" }).click();
+  await expect(liveJourney).toHaveAttribute("data-journey-tone", "success");
+  const waiting = liveJourney.getByRole("button", {
+    name: "Waiting to be collected",
+  });
+  await expect(waiting).toBeVisible();
+  await expect(waiting).toHaveAttribute("aria-pressed", "true");
+  await expect(waiting).toHaveClass(/border-brand-teal/);
+  await expect(liveJourneyGrid).toHaveCount(1);
+  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
+  await expect(liveMarker.locator("..").getByRole("article")).not.toHaveAttribute(
+    "id",
+    liveJourneyId,
+  );
+});
+
 test("dog and human files preserve the selected Daily Brief and restore focus", async ({
   page,
 }) => {

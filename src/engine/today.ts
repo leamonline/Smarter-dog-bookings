@@ -856,94 +856,86 @@ export function entryOpStatus(entry: TodayFeedEntry): OpStatus {
   return { kind, ...OP_STATUS[kind] };
 }
 
-// ---- The sticky "Now / Up next" strip -----------------------------------------
+// ---- Live focus and context --------------------------------------------------
 
-/** A booked dog counts as "due soon" this many minutes before its slot. */
-export const DUE_SOON_MINUTES = 45;
-
-export type NowReason = "urgent" | "dueSoon" | "active" | "upcoming" | null;
-
-export interface NowNextSelection {
-  /** The most operationally relevant booking right now (null = nothing live). */
-  now: TodayFeedEntry | null;
-  nowReason: NowReason;
-  /** The next expected arrival after `now` — an unconfirmed one wins. */
-  next: TodayFeedEntry | null;
-  /** Dogs currently waiting to be collected (drives the calm empty state). */
-  readyCount: number;
+function validTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-/**
- * Pick the strip's NOW and UP NEXT bookings from the feed.
- *
- * NOW, in order: (1) the most urgent actionable entry (late → unpaid-collected
- * → unconfirmed-due-soon → ready-waiting, ties broken by most overdue /
- * longest wait); (2) the next arrival once it's due within DUE_SOON_MINUTES;
- * (3) the calm live booking — a ready dog first, else the dog longest in the
- * salon; (4) with nothing live at all, the day's first still-expected arrival
- * (an empty NOW while arrivals are still scheduled would read as a finished
- * day). Collected dogs never come back as NOW unless they still owe.
- *
- * UP NEXT: the earliest still-expected arrival after NOW; if any of those
- * still needs confirmation the earliest unconfirmed one wins (it has an
- * action worth taking).
- */
-export function selectNowNext(entries: TodayFeedEntry[], now: Date): NowNextSelection {
-  const live = entries.filter((e) => entryOpStatus(e).kind !== "collected");
-  const readyCount = entries.filter((e) => e.stage === "ready").length;
+function compareSlotThenId(a: TodayFeedEntry, b: TodayFeedEntry): number {
+  const aSlot = Number.isFinite(a.slotMinutes) ? a.slotMinutes : Number.POSITIVE_INFINITY;
+  const bSlot = Number.isFinite(b.slotMinutes) ? b.slotMinutes : Number.POSITIVE_INFINITY;
+  if (aSlot !== bSlot) return aSlot - bSlot;
+  return String(a.booking.id ?? "").localeCompare(String(b.booking.id ?? ""));
+}
 
-  // 1) Urgent: anything the attention queue would rank, most urgent first.
-  const urgentKinds: OpStatusKind[] = ["overdue", "paymentDue", "unconfirmed", "readyWaiting"];
-  const urgent = live
-    .filter((e) => urgentKinds.includes(entryOpStatus(e).kind))
-    .sort((a, b) => {
-      const ua = entryOpStatus(a).urgency;
-      const ub = entryOpStatus(b).urgency;
-      if (ua !== ub) return ua - ub;
-      if (a.isLate) return b.overdueMinutes - a.overdueMinutes;
-      if (a.stage === "ready") return (b.waitMinutes ?? -1) - (a.waitMinutes ?? -1);
-      return a.slotMinutes - b.slotMinutes;
-    });
-
-  const upcoming = live
-    .filter((e) => e.stage === "booked" && !e.isLate)
+export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | null {
+  const overdue = entries
+    .filter((entry) => entry.stage === "booked" && entry.isLate)
     .sort((a, b) => a.slotMinutes - b.slotMinutes);
+  if (overdue[0]) return overdue[0];
 
-  let nowEntry: TodayFeedEntry | null = null;
-  let nowReason: NowReason = null;
+  const upcoming = entries
+    .filter((entry) => entry.stage === "booked" && !entry.isLate)
+    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+  if (upcoming[0]) return upcoming[0];
 
-  if (urgent.length > 0) {
-    nowEntry = urgent[0];
-    nowReason = "urgent";
-  } else {
-    // 2) Due soon: the next arrival, once it's close enough to matter.
-    const nowMins = londonNowParts(now).minutesOfDay;
-    const dueSoon = upcoming.find((e) => e.slotMinutes - nowMins <= DUE_SOON_MINUTES);
-    if (dueSoon) {
-      nowEntry = dueSoon;
-      nowReason = "dueSoon";
-    } else {
-      // 3) Active: a ready dog beats an in-progress one (it has a next step).
-      const active =
-        live.find((e) => e.stage === "ready") ??
-        live
-          .filter((e) => e.stage === "inSalon")
-          .sort((a, b) => a.slotMinutes - b.slotMinutes)[0];
-      if (active) {
-        nowEntry = active;
-        nowReason = "active";
-      } else if (upcoming.length > 0) {
-        // 4) A quiet moment before the day starts — the first arrival IS "now".
-        nowEntry = upcoming[0];
-        nowReason = "upcoming";
+  const ready = entries
+    .filter((entry) => entry.stage === "ready")
+    .sort((a, b) => (b.waitMinutes ?? 0) - (a.waitMinutes ?? 0));
+  if (ready[0]) return ready[0];
+
+  return entries
+    .filter((entry) => entry.stage === "inSalon")
+    .map((entry) => ({
+      entry,
+      checkedInAt: validTimestamp(entry.booking.checkedInAt),
+    }))
+    .sort((a, b) => {
+      if (a.checkedInAt !== null && b.checkedInAt === null) return -1;
+      if (a.checkedInAt === null && b.checkedInAt !== null) return 1;
+      if (
+        a.checkedInAt !== null &&
+        b.checkedInAt !== null &&
+        a.checkedInAt !== b.checkedInAt
+      ) {
+        return a.checkedInAt - b.checkedInAt;
       }
-    }
-  }
+      return compareSlotThenId(a.entry, b.entry);
+    })[0]?.entry ?? null;
+}
 
-  const laterArrivals = upcoming.filter((e) => e !== nowEntry);
-  const nextEntry = laterArrivals.find((e) => e.isUnconfirmed) ?? laterArrivals[0] ?? null;
+export interface LiveFocusContext {
+  text: string;
+  tone: "live" | "overdue";
+  ariaLabel: string;
+}
 
-  return { now: nowEntry, nowReason, next: nextEntry, readyCount };
+function liveMinutes(minutes: number): string {
+  const whole = Math.max(0, Math.round(minutes));
+  return `${whole} ${whole === 1 ? "min" : "mins"}`;
+}
+
+function focusContext(dog: string, text: string, tone: LiveFocusContext["tone"]): LiveFocusContext {
+  return { text, tone, ariaLabel: `${dog} — ${text.toLowerCase()}` };
+}
+
+function checkedInCopy(checkedInAt: string | null | undefined, now: Date): string {
+  const checkedInTime = validTimestamp(checkedInAt);
+  if (checkedInTime === null) return "Checked in";
+  const elapsed = Math.max(0, Math.floor((now.getTime() - checkedInTime) / 60_000));
+  return `Checked in ${liveMinutes(elapsed)} ago`;
+}
+
+export function liveFocusContext(entry: TodayFeedEntry, now: Date): LiveFocusContext {
+  const dog = entry.booking.dogName || "Booking";
+  if (entry.isLate) return focusContext(dog, `${liveMinutes(minutesOverdue(entry.booking, now))} overdue`, "overdue");
+  if (entry.stage === "ready") return focusContext(dog, `Waiting for collection ${liveMinutes(collectionWaitMinutes(entry.booking, now) ?? 0)}`, "live");
+  if (entry.stage === "inSalon") return focusContext(dog, checkedInCopy(entry.booking.checkedInAt, now), "live");
+  const minutes = minutesUntilSlot(entry.booking.slot || "00:00", now);
+  return focusContext(dog, minutes <= 0 ? "Due now" : `Due to arrive in ${liveMinutes(minutes)}`, "live");
 }
 
 // ---- Takings by method (improvement #3 — till view) --------------------------
