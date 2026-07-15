@@ -135,7 +135,7 @@ describe("HumansView directory", () => {
 
   it.each(["Grid", "List"])("keeps every direct %s card action at least 44px tall", (mode) => {
     renderView({
-      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+      directoryHumans: [{ ...sarah, email: "sarah@example.com", historyFlag: "Muzzle required" }],
       dogsByHumanId: { h1: [] },
     });
     if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
@@ -146,6 +146,10 @@ describe("HumansView directory", () => {
     expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass("size-11");
     expect(within(card).getByRole("button", { name: "No dogs yet — add one?" })).toHaveClass("min-h-11");
     expect(within(card).getByRole("button", { name: "View profile for Sarah Jones" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "Safety alert: Muzzle required" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
   });
 
   it("footer shows loaded-of-total", () => {

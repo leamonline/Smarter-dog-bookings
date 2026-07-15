@@ -207,7 +207,10 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
               {titleCase(fullName)}
             </span>
             {human.historyFlag && (
-              <SafetyAlertChip items={[human.historyFlag]} className="max-w-[45%] shrink-0" />
+              <SafetyAlertChip
+                items={[human.historyFlag]}
+                className="min-h-11 min-w-11 max-w-[45%] shrink-0"
+              />
             )}
           </div>
           <ContactLines human={human} />
