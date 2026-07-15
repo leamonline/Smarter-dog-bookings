@@ -17,17 +17,18 @@ describe("HumanInitials", () => {
 
 describe("DogSizeMark", () => {
   it.each([
-    ["small", "small", "text-brand-yellow-dark"],
-    ["medium", "medium", "text-brand-teal-dark"],
-    ["large", "large", "text-brand-coral-dark"],
-    [null, "unknown", "text-slate-500"],
-  ])("maps %s to the authoritative size tone", (size, tone, silhouetteClass) => {
+    ["small", "small"],
+    ["medium", "medium"],
+    ["large", "large"],
+    [null, "unknown"],
+  ])("preserves the %s size data on a neutral identity mark", (size, tone) => {
     render(<DogSizeMark size={size} />);
     const mark = screen.getByRole("img", {
       name: new RegExp(tone === "unknown" ? "size unknown" : `${tone} dog`, "i"),
     });
     expect(mark).toHaveAttribute("data-size-tone", tone);
-    expect(mark.querySelector(".dog-size-mark__silhouette")).toHaveClass(silhouetteClass);
+    expect(mark).toHaveClass("bg-brand-purple/5", "border-brand-purple/15");
+    expect(mark.querySelector(".dog-size-mark__silhouette")).toHaveClass("text-brand-purple");
   });
 
   it("can be decorative when written size is already present", () => {

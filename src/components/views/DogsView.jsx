@@ -101,32 +101,6 @@ function UnarchiveButton({ onUnarchive, inline = false }) {
   );
 }
 
-// Key for the size dots — reuses SizeDot so the legend can never drift from the
-// real colours. Decorative for screen readers (each dog card carries a written
-// size label alongside its identity silhouette).
-function SizeLegend({ className = "" }) {
-  const items = [
-    ["small", "Small"],
-    ["medium", "Medium"],
-    ["large", "Large"],
-    [null, "Unknown"],
-  ];
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex items-center gap-x-3 gap-y-1 flex-wrap text-micro text-ink-muted ${className}`}
-    >
-      <span className="font-bold uppercase tracking-wide">Size</span>
-      {items.map(([size, label]) => (
-        <span key={label} className="inline-flex items-center gap-1">
-          <SizeDot size={size} dim={12} />
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 // Resolve an owner for display. Directory entries from the RPC carry server-
 // resolved owner fields (ownerFullName/ownerPhone); the offline fallback
 // resolves against the loaded humans map via formatOwnerLabel.
@@ -163,15 +137,18 @@ function OwnerContact({ phone, className = "" }) {
 
 function OwnerLine({ owner, skeleton }) {
   return (
-    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-semibold text-ink-muted">
+    <div
+      data-testid="dog-card-contact"
+      className="mt-auto flex min-h-11 w-full min-w-0 items-center gap-2 border-t border-slate-100 pt-2 text-xs font-semibold text-ink-muted"
+    >
       {skeleton ? (
         <SkeletonBlock className="h-3 w-24" />
       ) : owner.missing ? (
         <span className="truncate italic">{owner.label}</span>
       ) : (
         <>
-          <span className="truncate">{titleCase(owner.label)}</span>
-          <OwnerContact phone={owner.phone} />
+          <span className="min-w-0 flex-1 truncate">{titleCase(owner.label)}</span>
+          <OwnerContact phone={owner.phone} className="ml-auto" />
         </>
       )}
     </div>
@@ -193,9 +170,9 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   const open = () => onOpenDog(dog.id || dog.name);
 
   const gridCardClass =
-    "group relative flex min-h-[112px] flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-cyan hover:shadow-card-hover";
+    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple/30 hover:shadow-card-hover";
   const listCardClass =
-    "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-cyan";
+    "group relative flex flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-purple/30";
 
   return (
     <article
@@ -219,16 +196,17 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           <p className="truncate text-body font-semibold text-slate-600">
             {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
           </p>
-          <p className="text-micro font-semibold text-ink-muted">
+          <p className="mt-1 inline-flex items-center gap-1.5 text-caption font-semibold text-ink-muted">
+            <SizeDot size={dog.size} dim={16} />
             {dog.size ? titleCase(dog.size) : "Size unknown"}
           </p>
-          <OwnerLine owner={owner} skeleton={ownerSkeleton} />
           {dog.alerts?.length > 0 && (
             <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
           )}
         </div>
-        <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} />
+        <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} visibleLabel />
       </div>
+      <OwnerLine owner={owner} skeleton={ownerSkeleton} />
       {showArchived && (
         <div data-testid="dog-card-secondary-actions" className="flex w-full justify-end">
           <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />
@@ -402,52 +380,57 @@ export function DogsView({
       {/* Colourful dog-silhouette backdrop — same brand decor the dashboard
           uses (sits -z-10, shows through the gaps around cards). */}
       <FloatingDecor />
-      {/* Header banner — Dogs keep their cyan section identity. */}
-      <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-4 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
-        <svg aria-hidden="true" className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
-        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-display font-black text-white font-display m-0">Dogs Directory</h1>
-            <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
-              {isInitialLoading && displayList.length === 0 ? (
-                <SkeletonBlock className="h-4 w-32 bg-white/20" />
-              ) : (
-                headerCountText
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
-            <div className="relative flex-1">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="#64748b" />
+      {/* One connected shell keeps the page identity, search and directory
+          controls on the same grid instead of stacking separate systems. */}
+      <section
+        data-testid="dogs-directory-shell"
+        aria-label="Dogs directory controls"
+        className="mb-4 overflow-hidden rounded-xl border border-brand-paper-line bg-white shadow-card-resting"
+      >
+        <div className="bg-sd-sky-tint px-5 py-4 md:px-6">
+          <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="m-0 font-display text-2xl font-black text-brand-purple md:text-display">Dogs Directory</h1>
+              <div className="mt-0.5 min-h-[1.25rem] text-sm font-semibold text-ink-muted">
+                {isInitialLoading && displayList.length === 0 ? (
+                  <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+                ) : (
+                  headerCountText
+                )}
               </div>
-              <input
-                type="text"
-                aria-label="Search dogs by name, breed or owner"
-                placeholder="Search by name, breed or owner..."
-                value={searchQuery}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white text-sm font-inherit outline-none text-slate-800 placeholder:text-slate-500 transition-colors focus:border-white shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-              />
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-cyan border-none rounded-control px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-            >
-              + Add Dog
-            </button>
+            <div className="flex max-w-[420px] flex-1 items-center gap-2.5">
+              <div className="relative flex-1">
+                <div className="absolute left-3.5 top-1/2 flex -translate-y-1/2">
+                  <IconSearch size={16} colour="#64748b" />
+                </div>
+                <input
+                  type="search"
+                  aria-label="Search dogs by name, breed or owner"
+                  placeholder="Search by name, breed or owner..."
+                  value={searchQuery}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="w-full rounded-control border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 shadow-sm outline-none transition-colors placeholder:text-slate-500 focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/15"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="min-h-11 whitespace-nowrap rounded-control border-none bg-brand-purple px-4 py-2.5 text-body font-bold text-white shadow-sm transition-colors hover:bg-brand-purple-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+              >
+                + Add Dog
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Toolbar: size + alert/incomplete filters + sort + view unified into one
-          control row, with a size key beneath. Active states use the shared
-          yellow/purple language. */}
-      <div className="mb-4">
+      {/* One toolbar, one control language. Size remains written on each card,
+          so there is no duplicate legend competing with these filters. */}
+      <div className="border-t border-brand-paper-line px-5 py-3 md:px-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter dogs">
                 {SIZE_FILTERS.map((s) => {
                   const active = filters?.size === s.value;
                   return (
@@ -457,7 +440,7 @@ export function DogsView({
                       onClick={() => onToggleFilter("size", s.value)}
                       aria-pressed={active}
                       aria-label={s.label}
-                      className={`inline-flex items-center gap-1.5 text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-caption font-bold transition-colors ${
                         active
                           ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                           : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -473,7 +456,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("alert")}
                   aria-pressed={!!filters?.alert}
-                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                  className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.alert
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -485,7 +468,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("incomplete")}
                   aria-pressed={!!filters?.incomplete}
-                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                  className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.incomplete
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -499,7 +482,7 @@ export function DogsView({
           )}
 
           {showRailAndSort && (
-            <div className="inline-flex items-center gap-2">
+            <div className="inline-flex items-center gap-2" role="group" aria-label="Sort dogs">
               <span className="text-label text-ink-muted">Sort</span>
               <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
                 {[["name", "Name"], ["recent", "Recently added"]].map(([mode, label]) => (
@@ -525,7 +508,11 @@ export function DogsView({
           {showRailAndSort && (
             <span className="hidden sm:block h-5 w-px bg-slate-200 ml-auto" aria-hidden="true" />
           )}
-          <div className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}>
+          <div
+              className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}
+              role="group"
+              aria-label="Directory view"
+            >
             <span className="text-label text-ink-muted">View</span>
             <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
               {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
@@ -546,9 +533,8 @@ export function DogsView({
             </div>
           </div>
         </div>
-
-        {displayList.length > 0 && <SizeLegend className="mt-2.5" />}
       </div>
+      </section>
 
       {/* Mobile A–Z strip */}
       {showRailAndSort && (
