@@ -176,24 +176,59 @@ export function TodayView({
   const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
   const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
 
-  // Position the current booking once per date/focus. Minute ticks may refresh
-  // the marker copy, but must not move the viewport or keyboard focus again.
-  const scrolledFocusRef = useRef(null);
+  // Scrolling is permission-based: candidate changes alone never move the
+  // viewport. Initial/date loads and successful focused-booking resolutions
+  // issue an explicit request, while ticks, filters and refetches only update
+  // the marker in place.
+  const [scrollRequest, setScrollRequest] = useState(null);
+  const initialLoadDateRef = useRef(null);
+  const handledScrollRequestRef = useRef(0);
+  const requestLiveScroll = useCallback((focusId) => {
+    setScrollRequest((previous) => ({
+      sequence: (previous?.sequence ?? 0) + 1,
+      dateStr,
+      focusId,
+    }));
+  }, [dateStr]);
+
   useEffect(() => {
     if (!isToday) {
-      scrolledFocusRef.current = null;
+      initialLoadDateRef.current = null;
       return;
     }
-    if (!liveFocusId || bookingsLoading) return;
-    const key = `${dateStr}:${liveFocusId}`;
-    if (scrolledFocusRef.current === key) return;
-    scrolledFocusRef.current = key;
+    if (bookingsLoading || initialLoadDateRef.current === dateStr) return;
+    initialLoadDateRef.current = dateStr;
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, dateStr, isToday, liveFocusId, requestLiveScroll]);
+
+  useEffect(() => {
+    if (
+      !scrollRequest ||
+      !isToday ||
+      bookingsLoading ||
+      scrollRequest.dateStr !== dateStr ||
+      handledScrollRequestRef.current === scrollRequest.sequence
+    ) {
+      return;
+    }
+    handledScrollRequestRef.current = scrollRequest.sequence;
     requestAnimationFrame(() => {
-      const el = document.getElementById(`today-card-${liveFocusId}`);
+      const el = document.getElementById(`today-card-${scrollRequest.focusId}`);
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
       el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
-  }, [bookingsLoading, dateStr, isToday, liveFocusId]);
+  }, [bookingsLoading, dateStr, isToday, scrollRequest]);
+
+  const [pendingResolvedFocusId, setPendingResolvedFocusId] = useState(null);
+  useEffect(() => {
+    if (!pendingResolvedFocusId || !isToday || bookingsLoading) return;
+    const resolvedEntry = visibleFeed.find(
+      (entry) => entry.booking.id === pendingResolvedFocusId,
+    );
+    if (resolvedEntry?.stage === "booked") return;
+    setPendingResolvedFocusId(null);
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, isToday, liveFocusId, pendingResolvedFocusId, requestLiveScroll, visibleFeed]);
 
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
@@ -250,6 +285,17 @@ export function TodayView({
     return null;
   }, [onUpdateBooking, toast, dateStr]);
 
+  const authoriseResolvedFocusAdvance = useCallback((booking, result) => {
+    if (
+      result !== null &&
+      result !== false &&
+      booking.id === liveFocusId
+    ) {
+      setPendingResolvedFocusId(booking.id);
+    }
+    return result;
+  }, [liveFocusId]);
+
   const updateStatus = useCallback(async (
     booking,
     status,
@@ -265,7 +311,7 @@ export function TodayView({
     ) {
       return null;
     }
-    return patch(
+    const result = await patch(
       booking,
       {
         status,
@@ -274,7 +320,10 @@ export function TodayView({
       successMessage,
       failureMessage,
     );
-  }, [patch]);
+    return options.advanceLiveFocus
+      ? authoriseResolvedFocusAdvance(booking, result)
+      : result;
+  }, [authoriseResolvedFocusAdvance, patch]);
 
   const onJourneyAction = useCallback((booking, action) => {
     if (action.completed && action.id !== "paid") return null;
@@ -284,6 +333,7 @@ export function TodayView({
         BOOKING_STATUS.CHECKED_IN,
         `${booking.dogName} checked in`,
         "Check-in could not be saved.",
+        { advanceLiveFocus: true },
       );
     }
     if (action.id === "startGroom") {
@@ -332,13 +382,16 @@ export function TodayView({
     [patch],
   );
   const onDidntShow = useCallback(
-    (b) => patch(
+    async (b) => authoriseResolvedFocusAdvance(
       b,
-      { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
-      `${b.dogName} marked as a no-show`,
-      "Marking this booking as a no-show could not be saved.",
+      await patch(
+        b,
+        { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
+        `${b.dogName} marked as a no-show`,
+        "Marking this booking as a no-show could not be saved.",
+      ),
     ),
-    [patch],
+    [authoriseResolvedFocusAdvance, patch],
   );
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);

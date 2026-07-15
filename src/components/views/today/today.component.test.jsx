@@ -108,15 +108,19 @@ function LocationProbe() {
   return <output aria-label="Current route">{`${location.pathname}${location.search}`}</output>;
 }
 
-function renderToday(props = {}) {
-  return render(
+function todayTree(props = {}) {
+  return (
     <MemoryRouter initialEntries={["/today?date=2026-07-16"]}>
       <ToastProvider>
         <TodayView {...selectedViewProps} {...props} />
         <LocationProbe />
       </ToastProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderToday(props = {}) {
+  return render(todayTree(props));
 }
 
 describe("TodayView — selected-date operations", () => {
@@ -440,6 +444,175 @@ describe("TodayView — selected-date operations", () => {
     await act(() => vi.advanceTimersByTimeAsync(60_000));
 
     expect(screen.getByLabelText("Jack — due to arrive in 4 mins")).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
+  });
+
+  it("does not scroll when the needs-action filter changes the live candidate", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const upcoming = {
+      ...selectedBooking,
+      id: "b-upcoming",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const overdueCollection = {
+      ...selectedBooking,
+      id: "b-ready",
+      dogName: "Ruby",
+      _dogId: "d-ready",
+      slot: "08:00",
+      status: "Ready for pick-up",
+      readyAt: "2026-07-15T06:25:00Z",
+      _bookingDate: "2026-07-15",
+    };
+
+    renderToday({
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      bookingsByDate: { "2026-07-15": [overdueCollection, upcoming] },
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ready": { id: "d-ready", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: /Filter 1 booking needing action/i }));
+
+    expect(screen.getByLabelText(/Ruby — waiting for collection/i)).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not scroll when a background booking refresh changes the live candidate", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "09:00",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [{ ...jack, status: "Checked in" }, ruby],
+      },
+    }));
+
+    expect(screen.getByLabelText("Ruby — due to arrive in 35 mins")).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("scrolls exactly once to the next focus after the focused booking checks in successfully", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:00",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+      onUpdateBooking,
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getAllByRole("button", { name: "Check-in" })[0]);
+    expect(onUpdateBooking).toHaveBeenCalledTimes(1);
+    await act(async () => Promise.resolve());
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [{ ...jack, status: "Checked in" }, ruby],
+      },
+    }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Ruby — due to arrive in 5 mins")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
+  });
+
+  it("scrolls when the selected date changes to today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const todayBooking = {
+      ...selectedBooking,
+      id: "b-today",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
+    };
+    const { rerender } = renderToday();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    rerender(todayTree({
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      bookingsByDate: { "2026-07-15": [todayBooking] },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+    }));
+
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
