@@ -155,7 +155,7 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
 
-  it("keeps direct Ready separate from the collection-message flow", async () => {
+  it("marks Ready directly without sending a collection message", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
     const onSendCollection = vi.fn();
     const confirm = vi.spyOn(window, "confirm");
@@ -174,10 +174,7 @@ describe("TodayView — selected-date operations", () => {
     );
     expect(onSendCollection).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Message for collection" }));
-    expect(onSendCollection).toHaveBeenCalledWith(selectedBooking);
-    expect(onUpdateBooking).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Message for collection" })).not.toBeInTheDocument();
   });
 
   it("uses one configured guide price for the row, unpaid summary and mini invoice", () => {
@@ -777,13 +774,13 @@ describe("BookingFeed — accessible journey rows", () => {
     },
   );
 
-  it("exposes distinct row destinations and six journey actions before readiness", () => {
+  it("exposes distinct row destinations and five journey actions before readiness", () => {
     renderFeed([group("09:00", [entry(booking)])]);
     expect(screen.getByRole("button", { name: "Open Jack's dog file" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Full groom booking" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open David Law's human file" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open £42 invoice" })).toBeInTheDocument();
-    expect(screen.getAllByTestId("journey-action")).toHaveLength(6);
+    expect(screen.getAllByTestId("journey-action")).toHaveLength(5);
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(
       screen.getAllByTestId("journey-action").every((button) => button.getAttribute("aria-pressed") === "false"),
@@ -856,15 +853,14 @@ describe("BookingFeed — accessible journey rows", () => {
       "Check-in",
       "Start groom",
       "Ready for collection",
-      "Message for collection",
       "Collected",
       "Record payment",
       "Message David Law",
     ]);
-    expect(grid).toHaveAttribute("data-centres", "8");
+    expect(grid).toHaveAttribute("data-centres", "7");
   });
 
-  it("merges collection actions and redistributes the row at ready", () => {
+  it("keeps seven centres and replaces Ready with waiting at ready", () => {
     renderFeed([
       group("09:00", [
         entry(
@@ -899,9 +895,10 @@ describe("BookingFeed — accessible journey rows", () => {
     fireEvent.click(help);
     expect(help).toHaveAttribute("aria-expanded", "true");
     const key = screen.getByRole("region", { name: "Booking action key" });
-    for (const label of ["Check-in", "Grooming", "Ready", "Collection message", "Collected", "Paid"]) {
+    for (const label of ["Check-in", "Grooming", "Ready", "Collected", "Paid"]) {
       expect(within(key).getByText(label)).toBeInTheDocument();
     }
+    expect(within(key).queryByText("Collection message")).not.toBeInTheDocument();
   });
 
   it("shows the same label pill on hover and keyboard focus", () => {

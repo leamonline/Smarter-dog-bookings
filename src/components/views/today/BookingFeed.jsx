@@ -7,7 +7,6 @@ import {
   LogIn,
   PoundSterling,
   Scissors,
-  Send,
 } from "lucide-react";
 import { SERVICES } from "../../../constants/index";
 import { BookingJourneyRow } from "./BookingJourneyRow.jsx";
@@ -16,7 +15,6 @@ const ACTION_KEY = [
   { label: "Check-in", Icon: LogIn },
   { label: "Grooming", Icon: Bubbles },
   { label: "Ready", Icon: Scissors },
-  { label: "Collection message", Icon: Send },
   { label: "Collected", Icon: Car },
   { label: "Paid", Icon: PoundSterling },
 ];

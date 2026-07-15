@@ -9,7 +9,6 @@ import {
   MessageCircle,
   PoundSterling,
   Scissors,
-  Send,
 } from "lucide-react";
 import { BOOKING_STATUS } from "../../../constants/index";
 import { buildJourneyActions, paymentVisual } from "../../../engine/dailyBrief";
@@ -19,7 +18,6 @@ const ACTION_ICONS = {
   checkIn: LogIn,
   startGroom: Bubbles,
   ready: Scissors,
-  messageCollection: Send,
   waiting: Scissors,
   collected: Car,
 };
@@ -189,7 +187,7 @@ export function BookingJourneyRow({ entry, slotLabel, display, price, handlers =
 
       <div
         data-testid="booking-journey-grid"
-        data-centres={journey.length === 6 ? "8" : "7"}
+        data-centres={journey.length + 2}
         className="journey-grid mt-2 grid grid-cols-8 items-start justify-items-center gap-y-3 sm:mt-3 sm:gap-y-1 sm:grid-cols-[repeat(var(--journey-centres),minmax(0,1fr))]"
         style={{ "--journey-centres": journey.length + 2 }}
       >

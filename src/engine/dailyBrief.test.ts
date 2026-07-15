@@ -40,12 +40,11 @@ const booking = (overrides: Partial<Booking> = {}): Booking => ({
 });
 
 describe("Daily Brief journey", () => {
-  it("shows two collection alternatives before readiness and one waiting action afterwards", () => {
+  it("shows one ready action before readiness and one waiting action afterwards", () => {
     expect(buildJourneyActions(booking()).map((action) => action.id)).toEqual([
       "checkIn",
       "startGroom",
       "ready",
-      "messageCollection",
       "collected",
       "paid",
     ]);
