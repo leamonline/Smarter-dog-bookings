@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
@@ -14,6 +13,7 @@ import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 import { Button, Badge, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
+import { DogSizeMark, ProfileArrow } from "./directory/IdentityMarker.jsx";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -93,8 +93,8 @@ function UnarchiveButton({ onUnarchive, inline = false }) {
       }}
       title="Unarchive this dog"
       className={inline
-        ? "min-h-[40px] px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-        : "absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
+        ? "min-h-11 min-w-11 px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] min-h-11 min-w-11 text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
     >
       Unarchive
     </button>
@@ -102,8 +102,8 @@ function UnarchiveButton({ onUnarchive, inline = false }) {
 }
 
 // Key for the size dots — reuses SizeDot so the legend can never drift from the
-// real colours. Decorative for screen readers (each dog already carries its own
-// size label via SizeDot on the cards).
+// real colours. Decorative for screen readers (each dog card carries a written
+// size label alongside its identity silhouette).
 function SizeLegend({ className = "" }) {
   const items = [
     ["small", "Small"],
@@ -144,7 +144,7 @@ function OwnerContact({ phone, className = "" }) {
   if (!phone) return null;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <a href={telLink(phone)} className="font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
+      <a href={telLink(phone)} className="inline-flex min-h-11 min-w-11 items-center truncate font-medium no-underline hover:text-brand-purple">
         {phone}
       </a>
       <a
@@ -153,11 +153,28 @@ function OwnerContact({ phone, className = "" }) {
         rel="noopener noreferrer"
         title="Open in WhatsApp"
         aria-label="Open in WhatsApp"
-        className="tap-target inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100"
       >
         <MessageCircle size={18} aria-hidden="true" />
       </a>
     </span>
+  );
+}
+
+function OwnerLine({ owner, skeleton }) {
+  return (
+    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-semibold text-ink-muted">
+      {skeleton ? (
+        <SkeletonBlock className="h-3 w-24" />
+      ) : owner.missing ? (
+        <span className="truncate italic">{owner.label}</span>
+      ) : (
+        <>
+          <span className="truncate">{titleCase(owner.label)}</span>
+          <OwnerContact phone={owner.phone} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -173,76 +190,24 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   // positive (the very thing the server query fixes).
   const incomplete = !dog.size || !(dog.breed && dog.breed.trim());
   const age = computeAge(dog);
-  const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
   const open = () => onOpenDog(dog.id || dog.name);
 
-  if (mode === "list") {
-    return (
-      <article
-        aria-label={titleCase(dog.name)}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:border-brand-cyan"
-      >
-        <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <SizeDot size={dog.size} dim={14} />
-            <span className="font-bold text-slate-800 truncate">{titleCase(dog.name)}</span>
-            {incomplete && (
-              <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
-                Incomplete
-              </Badge>
-            )}
-            {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="shrink-0 max-w-[45%]" />}
-          </div>
-          <div className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0">
-            <span className="truncate shrink-0">
-              {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}
-              {age ? ` · ${age}` : ""}
-            </span>
-            {ownerSkeleton ? (
-              <SkeletonBlock className="h-3 w-24" />
-            ) : owner.missing ? (
-              <span className="italic text-ink-muted truncate">· {owner.label}</span>
-            ) : (
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="truncate">· {titleCase(owner.label)}</span>
-                <OwnerContact phone={owner.phone} />
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="hidden sm:block flex-1" aria-hidden="true" />
-        <button
-          type="button"
-          onClick={open}
-          className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-cyan/10 text-brand-cyan-text text-xs font-bold hover:bg-brand-cyan/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-          aria-label={`View profile for ${titleCase(dog.name)}`}
-        >
-          View profile
-        </button>
-        {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />}
-      </article>
-    );
-  }
+  const gridCardClass =
+    "group relative flex min-h-[112px] items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-cyan hover:shadow-card-hover";
+  const listCardClass =
+    "group relative flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-cyan";
 
   return (
     <article
       aria-label={titleCase(dog.name)}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card-resting hover:border-brand-cyan hover:shadow-card-hover min-h-[112px] flex flex-col"
+      className={mode === "list" ? listCardClass : gridCardClass}
     >
-      <div
-        className="h-[3px] shrink-0"
-        style={{ background: `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1] || t.gradient[0]})` }}
-      />
-      {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(dog.id)} />}
-
-      <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0 gap-0.5">
-        <div className="flex justify-between items-start gap-2">
-          <div className="flex items-center gap-1.5 truncate">
-            <SizeDot size={dog.size} dim={16} />
-            <span className="text-title font-extrabold text-slate-800 truncate">
-              {titleCase(dog.name)}
-            </span>
-          </div>
+      <DogSizeMark size={dog.size} decorative />
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-title font-extrabold text-brand-purple">
+            {titleCase(dog.name)}
+          </span>
           {incomplete && (
             <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
               Incomplete
@@ -250,36 +215,19 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
           )}
         </div>
 
-        <div className="text-body text-slate-500 font-semibold leading-snug truncate">
+        <p className="truncate text-body font-semibold text-slate-600">
           {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
-        </div>
-
-        {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="mt-1 self-start" />}
-
-        {/* Owner — pushed to bottom. While humans are still loading we can't
-            tell "missing owner" from "owner row hasn't arrived yet", so show a
-            skeleton instead of the misleading "Unknown owner" flash. */}
-        <div className="mt-auto text-xs font-semibold text-ink-muted truncate flex items-center gap-2 min-w-0">
-          {ownerSkeleton ? (
-            <SkeletonBlock className="h-3 w-24" />
-          ) : owner.missing ? (
-            <span className="italic">{owner.label}</span>
-          ) : (
-            <>
-              <span className="truncate">{titleCase(owner.label)}</span>
-              <OwnerContact phone={owner.phone} />
-            </>
-          )}
-        </div>
+        </p>
+        <p className="text-micro font-semibold text-ink-muted">
+          {dog.size ? titleCase(dog.size) : "Size unknown"}
+        </p>
+        <OwnerLine owner={owner} skeleton={ownerSkeleton} />
+        {dog.alerts?.length > 0 && (
+          <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
+        )}
       </div>
-      <button
-        type="button"
-        onClick={open}
-        className="mt-auto self-start min-h-[40px] px-3 py-2 rounded-full bg-brand-cyan/10 text-brand-cyan-text text-xs font-bold hover:bg-brand-cyan/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-        aria-label={`View profile for ${titleCase(dog.name)}`}
-      >
-        View profile
-      </button>
+      <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} />
+      {showArchived && <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />}
     </article>
   );
 }

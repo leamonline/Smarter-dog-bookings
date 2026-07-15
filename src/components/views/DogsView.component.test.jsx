@@ -129,6 +129,62 @@ describe("DogsView directory", () => {
     expect(screen.getByText("Nervous of clippers")).toBeInTheDocument();
   });
 
+  it.each([
+    ["small", "small"],
+    ["medium", "medium"],
+    ["large", "large"],
+    [null, "unknown"],
+  ])("renders the %s silhouette with written size", (size, tone) => {
+    renderView({ directoryDogs: [{ ...rex, size, name: `Dog ${tone}` }] });
+    const card = screen.getByRole("article", { name: `Dog ${tone[0].toUpperCase()}${tone.slice(1)}` });
+    expect(within(card).getByTestId("dog-size-mark")).toHaveAttribute("data-size-tone", tone);
+    const written = tone === "unknown" ? "Size unknown" : `${size[0].toUpperCase()}${size.slice(1)}`;
+    expect(within(card).getByText(written)).toBeInTheDocument();
+  });
+
+  it("keeps alert, incomplete, owner contact and profile actions independent", () => {
+    const { onOpenDog } = renderView({ directoryDogs: [{ ...bella, size: null }] });
+    const card = screen.getByRole("article", { name: "Bella" });
+    expect(within(card).getByText("Incomplete")).toBeInTheDocument();
+    expect(within(card).getByText("Nervous of clippers")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "07700900112" })).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "View profile for Bella" }));
+    expect(onOpenDog).toHaveBeenCalledWith("d2");
+  });
+
+  it("preserves breed, age and the resolved owner label", () => {
+    renderView({ directoryDogs: [rex] });
+    const card = screen.getByRole("article", { name: "Rex" });
+    expect(within(card).getByText("Boxer · 3 yrs")).toBeInTheDocument();
+    expect(within(card).getByText("Sarah Jones")).toBeInTheDocument();
+  });
+
+  it("preserves the explicit missing-owner state", () => {
+    renderView({ directoryDogs: [{ ...rex, ownerFullName: "", ownerPhone: "" }] });
+    const card = screen.getByRole("article", { name: "Rex" });
+    expect(within(card).getByText("Unknown owner")).toBeInTheDocument();
+    expect(within(card).queryByRole("link", { name: "07700900111" })).not.toBeInTheDocument();
+  });
+
+  it("preserves the owner skeleton while the humans map is unavailable", () => {
+    renderView({
+      directoryDogs: [{ id: "d4", name: "Scout", breed: "Spaniel", size: "medium", age: "2", alerts: [], humanId: "h4" }],
+      humans: {},
+    });
+    const card = screen.getByRole("article", { name: "Scout" });
+    expect(card.querySelector(".animate-skeleton-pulse")).toBeInTheDocument();
+    expect(within(card).queryByText("Unknown owner")).not.toBeInTheDocument();
+  });
+
+  it("gives every direct dog-card action a 44px touch target", () => {
+    renderView({ directoryDogs: [bella] });
+    const card = screen.getByRole("article", { name: "Bella" });
+    expect(within(card).getByRole("link", { name: "07700900112" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "Safety alert: Nervous of clippers" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("button", { name: "View profile for Bella" })).toHaveClass("size-11");
+  });
+
   it("flags a dog missing size or breed as Incomplete (and a complete dog isn't)", () => {
     renderView({
       directoryDogs: [{ id: "d3", name: "Patch", breed: "", size: null, alerts: [], ownerFullName: "Sam Lee", ownerPhone: "" }],
@@ -147,7 +203,9 @@ describe("DogsView directory", () => {
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
     expect(localStorage.getItem("dogsViewMode")).toBe("list");
-    expect(screen.getByRole("article", { name: "Rex" })).toBeInTheDocument();
+    const rexCard = screen.getByRole("article", { name: "Rex" });
+    expect(within(rexCard).getByTestId("dog-size-mark")).toHaveAttribute("data-size-tone", "large");
+    expect(within(rexCard).getByText("Large")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View profile for Rex" })).toBeInTheDocument();
   });
 
@@ -185,7 +243,7 @@ describe("DogsView directory", () => {
     const profile = within(article).getByRole("button", { name: "View profile for Max" });
     const unarchive = within(article).getByRole("button", { name: "Unarchive" });
     expect(unarchive).not.toHaveClass("absolute");
-    expect(unarchive).toHaveClass("min-h-[40px]");
+    expect(unarchive).toHaveClass("min-h-11");
 
     fireEvent.click(profile);
     expect(onOpenDog).toHaveBeenCalledWith("d9");
