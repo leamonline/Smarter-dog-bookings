@@ -3,12 +3,11 @@
 // actions), and the Manage-availability modal. The feed/availability LOGIC is
 // unit-tested in src/engine/today.ts; these assert the UI renders the right
 // rows, chips, action hierarchy and fires its actions.
-import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { ToastProvider } from "../../../contexts/ToastContext.jsx";
 import { TodayHeader } from "./TodayHeader.jsx";
-import { TodayNowStrip } from "./TodayNowStrip.jsx";
 import { BookingFeed } from "./BookingFeed.jsx";
 import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./TodaySummaryStrip.jsx";
@@ -412,30 +411,37 @@ describe("TodayView — selected-date operations", () => {
     );
   });
 
-  it("jumps from the Now strip to the row's time control", () => {
+  it("scrolls to the live booking once without moving keyboard focus on minute ticks", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-14T09:15:00Z"));
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
     vi.stubGlobal("requestAnimationFrame", (callback) => callback());
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const booking = {
       ...selectedBooking,
       id: "b-today",
-      slot: "10:30",
-      _bookingDate: "2026-07-14",
+      slot: "08:30",
+      _bookingDate: "2026-07-15",
     };
 
     renderToday({
-      selectedDateObj: new Date(2026, 6, 14),
-      selectedDateStr: "2026-07-14",
-      bookingsByDate: { "2026-07-14": [booking] },
-      daySettings: { "2026-07-14": { extraSlots: [], immediateSlots: [] } },
-      dayOpenState: { "2026-07-14": true },
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      bookingsByDate: { "2026-07-15": [booking] },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Show Jack's booking card" }));
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-    expect(screen.getByRole("button", { name: "Open 10:30 booking" })).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect(screen.getByLabelText("Jack — due to arrive in 5 mins")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
+
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(screen.getByLabelText("Jack — due to arrive in 4 mins")).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
 });
 
@@ -560,6 +566,23 @@ describe("BookingFeed — accessible journey rows", () => {
     _ownerId: "h1",
     owner: "David Law",
   };
+
+  it("renders one left-gutter marker beside the focused booking", () => {
+    renderFeed([group("09:00", [entry(booking)])], {
+      liveFocusId: "b1",
+      liveContext: {
+        text: "Due to arrive in 5 mins",
+        tone: "live",
+        ariaLabel: "Jack — due to arrive in 5 mins",
+      },
+    });
+
+    expect(screen.getByLabelText("Jack — due to arrive in 5 mins")).toHaveTextContent(
+      "Due to arrive in 5 mins",
+    );
+    expect(screen.getByTestId("live-arrival-arrow")).toBeInTheDocument();
+    expect(screen.getAllByTestId("live-arrival-arrow")).toHaveLength(1);
+  });
 
   it.each([
     [{ reminderConfirmedAt: "2026-07-15T07:20:00Z", status: "Booked" }, "success", true],
@@ -864,106 +887,6 @@ describe("TodaySummaryStrip", () => {
     );
     expect(screen.getByText(/Taken today £84/)).toBeInTheDocument();
     expect(screen.getByText("Card")).toBeInTheDocument();
-  });
-});
-
-describe("TodayNowStrip", () => {
-  // 10:15 London (BST) — matches the engine tests' fixed instant.
-  const NOW = new Date("2026-07-02T09:15:00Z");
-
-  it("shows the NOW booking identity and live context without duplicate mutations", () => {
-    const due = entry({ id: "d", dogName: "Charlie", breed: "Poodle", slot: "10:30", status: "Booked" }, { slotMinutes: 630 });
-    render(
-      <TodayNowStrip
-        selection={{ now: due, nowReason: "dueSoon", next: null, readyCount: 0 }}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={noop}
-      />,
-    );
-    expect(screen.getByText("Now")).toBeInTheDocument();
-    expect(screen.getByText("Charlie")).toBeInTheDocument();
-    expect(screen.getByText(/Poodle/)).toBeInTheDocument(); // dog · breed
-    expect(screen.getByText("10:30")).toBeInTheDocument(); // the appointment arrival time
-    expect(screen.getByText(/due in 15 min/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Mark arrived" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-  });
-
-  it("labels a distant upcoming appointment as FIRST UP rather than NOW", () => {
-    const upcoming = entry(
-      { id: "later", dogName: "Mabel", breed: "Cavapoo", slot: "13:00", status: "Booked" },
-      { slotMinutes: 780 },
-    );
-    render(
-      <TodayNowStrip
-        selection={{ now: upcoming, nowReason: "upcoming", next: null, readyCount: 0 }}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={noop}
-      />,
-    );
-
-    expect(screen.getByText("First up")).toBeInTheDocument();
-    expect(screen.queryByText("Now")).not.toBeInTheDocument();
-    expect(screen.getByText(/due in 2 hr 45 min/i)).toBeInTheDocument();
-  });
-
-  it("tapping the identity jumps to the booking card", () => {
-    const onJumpTo = vi.fn();
-    const due = entry({ id: "d", dogName: "Charlie", slot: "10:30", status: "Booked" });
-    render(
-      <TodayNowStrip
-        selection={{ now: due, nowReason: "dueSoon", next: null, readyCount: 0 }}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={onJumpTo}
-        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Show Charlie's booking card" }));
-    expect(onJumpTo).toHaveBeenCalledWith("d");
-  });
-
-  it("UP NEXT surfaces an unresolved issue as a labelled chip", () => {
-    const nowE = entry({ id: "n1", dogName: "Charlie", slot: "10:30", status: "Booked" });
-    const nextE = entry({ id: "n2", dogName: "Lucy", slot: "11:00", status: "Booked" }, { isUnconfirmed: true, needsAction: true });
-    render(
-      <TodayNowStrip
-        selection={{ now: nowE, nowReason: "dueSoon", next: nextE, readyCount: 0 }}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={noop}
-        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
-      />,
-    );
-    expect(screen.getByText("Up next")).toBeInTheDocument();
-    expect(screen.getByText("Lucy")).toBeInTheDocument();
-    expect(screen.getByText("Needs confirmation")).toBeInTheDocument();
-  });
-
-  it("reads calm when nothing is left, and louder when dogs wait for collection", () => {
-    const empty = { now: null, nowReason: null, next: null, readyCount: 0 };
-    const { rerender } = render(
-      <TodayNowStrip
-        selection={empty}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={noop}
-        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
-      />,
-    );
-    expect(screen.getByText("No more arrivals scheduled today.")).toBeInTheDocument();
-    rerender(
-      <TodayNowStrip
-        selection={{ ...empty, readyCount: 2 }}
-        now={NOW}
-        resolve={resolve}
-        onJumpTo={noop}
-        {...{ onMarkArrived: noop, onStartGroom: noop, onMarkReady: noop, onMarkCollected: noop, onSendCollection: noop, onMessageOwner: noop, onMarkPaid: noop }}
-      />,
-    );
-    expect(screen.getByText("2 dogs are ready for collection.")).toBeInTheDocument();
   });
 });
 

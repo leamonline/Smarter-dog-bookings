@@ -1,6 +1,6 @@
 // Daily Brief command centre. Every date-specific selector and mutation is
 // anchored to the selected date, including closed, past and future dates.
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
@@ -11,7 +11,8 @@ import {
   buildTakingsByMethod,
   buildSlotOpportunities,
   buildAvailabilityView,
-  selectNowNext,
+  liveFocusContext,
+  selectLiveFocus,
   groupFeedBySlot,
   countDogsPerOwner,
 } from "../../engine/today";
@@ -24,7 +25,6 @@ import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
-import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
@@ -164,22 +164,36 @@ export function TodayView({
   useEffect(() => {
     if (actionCount === 0) setShowNeedsActionOnly(false);
   }, [actionCount]);
-  // The sticky strip reads the same visible feed the diary renders from, so
-  // marking a dog arrived/ready/collected updates both in the same render.
-  const nowNext = useMemo(() => selectNowNext(displayedFeed, now), [displayedFeed, now]);
+  const liveFocus = useMemo(
+    () => (isToday ? selectLiveFocus(displayedFeed) : null),
+    [displayedFeed, isToday],
+  );
+  const liveContext = useMemo(
+    () => (liveFocus ? liveFocusContext(liveFocus, now) : null),
+    [liveFocus, now],
+  );
+  const liveFocusId = liveFocus?.booking.id ?? null;
   const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
   const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
 
-  // ---- "Jump to row" from the sticky strip ----
-  const onJumpTo = useCallback((id) => {
+  // Position the current booking once per date/focus. Minute ticks may refresh
+  // the marker copy, but must not move the viewport or keyboard focus again.
+  const scrolledFocusRef = useRef(null);
+  useEffect(() => {
+    if (!isToday) {
+      scrolledFocusRef.current = null;
+      return;
+    }
+    if (!liveFocusId || bookingsLoading) return;
+    const key = `${dateStr}:${liveFocusId}`;
+    if (scrolledFocusRef.current === key) return;
+    scrolledFocusRef.current = key;
     requestAnimationFrame(() => {
-      const el = document.getElementById(`today-card-${id}`);
-      if (!el) return;
+      const el = document.getElementById(`today-card-${liveFocusId}`);
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-      document.getElementById(`today-card-${id}-time`)?.focus({ preventScroll: true });
+      el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
-  }, []);
+  }, [bookingsLoading, dateStr, isToday, liveFocusId]);
 
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
@@ -409,12 +423,6 @@ export function TodayView({
             />
             {isToday && (
               <>
-                <TodayNowStrip
-                  selection={nowNext}
-                  now={now}
-                  resolve={resolve}
-                  onJumpTo={onJumpTo}
-                />
                 {!showNeedsActionOnly && (
                   <AwaitingDepositsCard
                     bookings={selectedBookings}
@@ -432,6 +440,8 @@ export function TodayView({
               getWelfare={getWelfare}
               paymentOf={paymentOf}
               priceOf={(booking) => paymentOf(booking).subtotal}
+              liveFocusId={liveFocusId}
+              liveContext={liveContext}
               {...feedHandlers}
             />
             <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
