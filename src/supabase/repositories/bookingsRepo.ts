@@ -16,6 +16,7 @@ import {
   getImmediateSlots,
   getOccupancyRange,
   getSlotOccupancy,
+  rescheduleCustomerBooking as rescheduleCustomerBookingRpc,
   type CustomerCancellationRpcRow,
 } from "../rpc";
 
@@ -187,6 +188,73 @@ export async function createMany(
     ids: ((data ?? []) as Array<{ id: string }>).map((row) => row.id),
     error: null,
   };
+}
+
+export async function rescheduleCustomerBooking(
+  client: SupabaseClient,
+  input: {
+    bookingId: string;
+    bookingDate: string;
+    reason: string;
+    bookings: Array<Omit<CreateBookingInput, "bookingDate">>;
+  },
+): Promise<{
+  ids: string[];
+  error: CustomerCancellationError | null;
+}> {
+  try {
+    const { data, error } = await rescheduleCustomerBookingRpc(client, {
+      bookingId: input.bookingId,
+      bookingDate: input.bookingDate,
+      reason: input.reason,
+      bookings: input.bookings.map((booking) => ({
+        dog_id: booking.dogId,
+        slot: booking.slot,
+        service: booking.service,
+        size: booking.size,
+        addons: booking.addons ?? [],
+        payment: booking.payment ?? "Due at Pick-up",
+      })),
+    });
+    if (error) {
+      return {
+        ids: [],
+        error: error as CustomerCancellationError,
+      };
+    }
+
+    const ids = Array.isArray(data)
+      ? (data as Array<{ id?: unknown }>).map((row) => row.id)
+      : [];
+    if (
+      ids.length !== input.bookings.length ||
+      ids.some((id) => typeof id !== "string" || !UUID_RE.test(id)) ||
+      new Set(ids).size !== ids.length
+    ) {
+      return {
+        ids: [],
+        error: {
+          code: "INVALID_RESCHEDULE_RECEIPT",
+          message: "The reschedule response could not be verified.",
+          details: null,
+          hint: null,
+        },
+      };
+    }
+
+    return { ids: ids as string[], error: null };
+  } catch (cause) {
+    return {
+      ids: [],
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          cause instanceof Error ? cause.message : "The reschedule request failed.",
+        details: null,
+        hint: null,
+      },
+    };
+  }
 }
 
 export interface CustomerCancellationReceipt {

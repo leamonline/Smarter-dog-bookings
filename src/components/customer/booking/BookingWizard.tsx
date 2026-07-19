@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { customerSupabase as supabase } from "../../../supabase/customerClient.js";
 import {
-  cancelCustomerBooking,
   createMany,
   joinWaitlist,
   listOnDateForCapacity,
   listBlockedSeats,
   listImmediateSlots,
   getDepositSettings,
+  rescheduleCustomerBooking,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { useDraftPersistence } from "../../../hooks/useDraftPersistence.js";
@@ -44,19 +44,23 @@ interface BookingWizardProps {
 }
 
 /**
- * State the dashboard's BookingCard passes via `navigate("/customer/book", { state })`
- * when the customer chooses Reschedule. Tells the wizard which existing
- * booking to cancel *after* the new one is successfully created — so a
- * customer who abandons the wizard never loses their original slot.
+ * Optional display state passed by BookingCard when the customer chooses
+ * Reschedule. The original booking UUID in the URL is authoritative; these
+ * labels may disappear across refresh/auth navigation without changing the
+ * operation back into an ordinary booking.
  */
 interface RescheduleFromState {
   id: string;
   // Pre-formatted display labels so the wizard's banner doesn't have
   // to re-fetch the original booking just to show what's being moved.
-  dateLabel: string;
-  timeLabel: string;
-  dogName: string;
+  dateLabel?: string;
+  timeLabel?: string;
+  dogName?: string;
+  invalid?: boolean;
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function fmtTimeForReason(slot: string): string {
   const [h, m] = slot.split(":").map(Number);
@@ -122,20 +126,30 @@ function ConfettiPaws() {
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
   const location = useLocation();
-  // Read the reschedule context exactly once on mount. If the customer reloads
-  // the page mid-wizard, route state is gone — they fall back into a normal
-  // booking flow, and their original slot stays untouched. That's the right
-  // failure mode.
+  // Keep the original booking ID in the URL so a refresh or auth redirect
+  // cannot silently turn a reschedule into an ordinary second booking. Route
+  // state still carries the friendly labels, but is no longer authoritative.
   const [rescheduleFrom] = useState<RescheduleFromState | null>(() => {
     const state = location.state as { rescheduleFrom?: RescheduleFromState } | null;
-    return state?.rescheduleFrom ?? null;
+    const queryId = new URLSearchParams(location.search).get("reschedule");
+    if (queryId !== null) {
+      if (!UUID_RE.test(queryId)) return { id: queryId, invalid: true };
+      return state?.rescheduleFrom?.id === queryId
+        ? state.rescheduleFrom
+        : { id: queryId };
+    }
+    // Route state is intentionally display-only. If it says this was a
+    // reschedule but the durable query parameter has disappeared, stop here
+    // instead of silently treating the flow as a brand-new booking.
+    return state?.rescheduleFrom
+      ? { id: state.rescheduleFrom.id, invalid: true }
+      : null;
   });
 
   // Persist an in-progress booking to localStorage so navigating away (back
   // button, refresh) doesn't wipe the customer's selections. Disabled during a
-  // reschedule: that flow carries one-shot route state and its own cancel-after
-  // semantics, so a leftover draft from an abandoned normal booking must not
-  // bleed into it.
+  // reschedule: a leftover draft from an abandoned normal booking must not
+  // bleed into the visit being moved.
   interface BookingDraft {
     step: 1 | 2 | 3 | 4 | 5;
     selectedDogs: WizardDog[];
@@ -175,7 +189,6 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     dueBy: string | null;
     bank: { accountName: string; sortCode: string; accountNumber: string } | null;
   } | null>(null);
-  const [rescheduleRecoveryIds, setRescheduleRecoveryIds] = useState<string[] | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -413,10 +426,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         };
       });
 
-      const { ids: insertedIds, error: insertError } = await createMany(
-        supabase,
-        inputs,
-      );
+      const reason = `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`;
+      const { ids: insertedIds, error: insertError } = rescheduleFrom
+        ? await rescheduleCustomerBooking(supabase, {
+            bookingId: rescheduleFrom.id,
+            bookingDate: selectedDate,
+            bookings: inputs,
+            reason,
+          })
+        : await createMany(supabase, inputs);
       if (insertError) {
         // Preserve the original Postgres error code so the catch
         // block's trigger-error matcher (P0001) still fires.
@@ -450,24 +468,6 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         /* non-fatal — the dashboard shows the same instructions */
       }
 
-      // If this run started as a reschedule, the original booking group is
-      // derived and cancelled server-side only after the replacement exists.
-      // A cancellation failure is a terminal partial success: retain the new
-      // IDs for support and prevent another confirmation creating duplicates.
-      if (rescheduleFrom) {
-        const { receipt: cancelReceipt, error: cancelError } =
-          await cancelCustomerBooking(supabase, {
-            bookingId: rescheduleFrom.id,
-            reason: `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`,
-          });
-        if (cancelError || !cancelReceipt) {
-          setBookedIds(insertedIds);
-          setRescheduleRecoveryIds(insertedIds);
-          setError(null);
-          return;
-        }
-      }
-
       setBookedIds(insertedIds);
       setBooked(true);
     } catch (err) {
@@ -496,7 +496,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           alternativeShown: false,
         });
       }
-      setError(isTriggerError ? friendlyDenialMessage(msg) : "Sorry, we couldn’t create that booking. Please try again, or message us if it keeps happening.");
+      setError(
+        cause?.code === "SDC02"
+          ? "This appointment is within 24 hours, so it can’t be moved online. Please message us and the team will help."
+          : cause?.code === "SDC04"
+            ? "Please select the same dog or dogs as the groom you’re moving."
+          : isTriggerError
+            ? friendlyDenialMessage(msg)
+            : "Sorry, we couldn’t save that booking change. Please try again, or message us if it keeps happening.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -523,15 +531,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     }
   };
 
-  if (rescheduleRecoveryIds) {
+  if (rescheduleFrom?.invalid) {
     return (
       <div className="booking-success booking-success--recovery">
         <div role="alert" className="portal-alert portal-alert--error">
-          Your new booking was created, but the original booking could not be cancelled. Please contact the salon so we can fix this.
+          This reschedule link isn’t valid. Please return to your dashboard and choose Reschedule again.
         </div>
-        <p className="booking-success-ref">
-          New booking reference: {rescheduleRecoveryIds.join(", ")}
-        </p>
         <div className="booking-success-actions">
           <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
             Back to dashboard
@@ -700,14 +705,15 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           ))}
         </ol>
 
-        {/* Rescheduling banner — only present when the BookingCard sent us
-            here with a rescheduleFrom in route state. Reassures the customer
-            that nothing has been cancelled yet. */}
+        {/* The UUID in the URL keeps reschedule mode durable. Route state adds
+            friendly labels when it survives navigation. */}
         {rescheduleFrom && (
           <div role="status" className="portal-alert portal-alert--info">
             <span>
               <strong>
-                Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.
+                {rescheduleFrom.dogName && rescheduleFrom.dateLabel && rescheduleFrom.timeLabel
+                  ? <>Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.</>
+                  : <>Rescheduling your current groom.</>}
               </strong>
               {" "}
               Your original booking stays held until you confirm a new time. Cancel out and nothing changes.
