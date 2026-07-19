@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { cancelCustomerBooking } from "./bookingsRepo";
+import { cancelCustomerBooking, rescheduleCustomerBooking } from "./bookingsRepo";
 
 const TARGET = "40000000-0000-4000-8000-000000000001";
 const GROUP = "40000000-0000-4000-8000-000000000010";
@@ -151,5 +151,64 @@ describe("cancelCustomerBooking", () => {
       cancelledCount: 1,
     });
     expect(result.error).toBeNull();
+  });
+});
+
+describe("rescheduleCustomerBooking", () => {
+  it("uses one atomic RPC for replacement creation and original cancellation", async () => {
+    const replacementIds = [
+      "50000000-0000-4000-8000-000000000001",
+      "50000000-0000-4000-8000-000000000002",
+    ];
+    const { client, rpc } = fakeClient({
+      data: replacementIds.map((id) => ({ id })),
+      error: null,
+    });
+
+    const result = await rescheduleCustomerBooking(client, {
+      bookingId: TARGET,
+      bookingDate: "2099-06-15",
+      reason: "Rescheduled to 15 Jun 2099 at 9:00am",
+      bookings: [
+        {
+          dogId: "42000000-0000-4000-8000-000000000001",
+          slot: "09:00",
+          service: "full-groom",
+          size: "small",
+        },
+        {
+          dogId: "42000000-0000-4000-8000-000000000002",
+          slot: "10:00",
+          service: "full-groom",
+          size: "medium",
+        },
+      ],
+    });
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("reschedule_customer_booking", {
+      p_booking_id: TARGET,
+      p_booking_date: "2099-06-15",
+      p_bookings: [
+        {
+          dog_id: "42000000-0000-4000-8000-000000000001",
+          slot: "09:00",
+          service: "full-groom",
+          size: "small",
+          addons: [],
+          payment: "Due at Pick-up",
+        },
+        {
+          dog_id: "42000000-0000-4000-8000-000000000002",
+          slot: "10:00",
+          service: "full-groom",
+          size: "medium",
+          addons: [],
+          payment: "Due at Pick-up",
+        },
+      ],
+      p_reason: "Rescheduled to 15 Jun 2099 at 9:00am",
+    });
+    expect(result).toEqual({ ids: replacementIds, error: null });
   });
 });

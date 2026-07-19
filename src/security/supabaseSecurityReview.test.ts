@@ -337,7 +337,9 @@ describe("Supabase security review regressions", () => {
     ).toBe("dropped");
 
     const cancellation = lastMigrationSqlMatching((sql: string) =>
-      sql.includes("cancel_customer_booking"),
+      /create\s+or\s+replace\s+function\s+public\.cancel_customer_booking\s*\(/i.test(
+        sql,
+      ),
     );
     expect(cancellation).toMatch(
       /create\s+or\s+replace\s+function\s+public\.cancel_customer_booking\s*\(\s*p_booking_id\s+uuid,\s*p_reason\s+text\s*\)/i,

@@ -427,6 +427,23 @@ export function cancelCustomerBooking(
   });
 }
 
+export function rescheduleCustomerBooking(
+  client: SupabaseClient,
+  params: {
+    bookingId: string;
+    bookingDate: string;
+    bookings: CreateBookingGroupRow[];
+    reason: string;
+  },
+) {
+  return client.rpc("reschedule_customer_booking", {
+    p_booking_id: params.bookingId,
+    p_bookings: params.bookings,
+    p_booking_date: params.bookingDate,
+    p_reason: params.reason,
+  });
+}
+
 // Staff booking creation ------------------------------------------------
 
 // One row per dog in a same-date staff booking group. Unlike the customer

@@ -687,7 +687,7 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(normalise(withoutMembershipSerialisation)).toBe(normalise(expected));
   });
 
-  it("removes client-side group discovery and raw cancellation updates", () => {
+  it("keeps cancellation narrow and routes rescheduling through one command", () => {
     const repo = readProjectFile(
       "src/supabase/repositories/bookingsRepo.ts",
     );
@@ -700,7 +700,8 @@ describe("Tranche 1 customer cancellation boundary", () => {
     expect(repo).not.toContain("cancelMany");
     expect(repo).not.toContain("listIdsInGroup");
     expect(card).toContain("cancelCustomerBooking");
-    expect(wizard).toContain("cancelCustomerBooking");
+    expect(wizard).toContain("rescheduleCustomerBooking");
+    expect(wizard).not.toContain("cancelCustomerBooking");
     expect(wizard).not.toContain("rescheduleFrom.groupId");
   });
 
