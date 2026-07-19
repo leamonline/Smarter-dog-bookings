@@ -1,9 +1,9 @@
 // Component tests for the server-driven Humans Directory: it renders the
 // directoryHumans list in server order (no client re-sort), the A–Z rail
 // disables empty letters and reports jumps, the sort toggle and Load-more
-// fall back cleanly, and cards stay keyboard-openable.
+// fall back cleanly, and cards expose independent actions.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 const { HumansView } = await import("./HumansView.jsx");
 
@@ -17,7 +17,7 @@ function renderView(overrides = {}) {
     dogsByHumanId: {},
     ensureDogsForHumans: vi.fn(),
     onOpenHuman: vi.fn(),
-    onAddHuman: vi.fn(),
+    onNewClient: vi.fn(),
     onUpdateHuman: vi.fn(),
     fetchArchivedHumans: vi.fn(() => Promise.resolve([])),
     findHumanByFullName: vi.fn(),
@@ -59,11 +59,19 @@ describe("HumansView directory", () => {
     expect(screen.queryByText("2 humans registered")).not.toBeInTheDocument();
   });
 
+  it("offers one Add client action and opens the guided flow", () => {
+    const { onNewClient } = renderView();
+    const action = screen.getByRole("button", { name: "Add client" });
+    expect(screen.queryByRole("button", { name: /add human/i })).not.toBeInTheDocument();
+    fireEvent.click(action);
+    expect(onNewClient).toHaveBeenCalledTimes(1);
+  });
+
   it("renders the directory list in the server-provided order", () => {
     renderView();
-    const cards = screen.getAllByRole("button", { name: /profile$/ });
-    expect(cards[0]).toHaveAccessibleName("Open Dave Smith's profile");
-    expect(cards[1]).toHaveAccessibleName("Open Sarah Jones's profile");
+    const cards = screen.getAllByRole("article");
+    expect(cards[0]).toHaveAccessibleName("Dave Smith");
+    expect(cards[1]).toHaveAccessibleName("Sarah Jones");
   });
 
   it("disables A–Z letters that have no matches", () => {
@@ -91,13 +99,57 @@ describe("HumansView directory", () => {
     expect(loadMore).toHaveBeenCalled();
   });
 
-  it("opens a profile on card click and on keyboard Enter", () => {
-    const { onOpenHuman } = renderView();
-    const card = screen.getByRole("button", { name: "Open Dave Smith's profile" });
-    fireEvent.click(card);
-    expect(onOpenHuman).toHaveBeenCalledWith("h2");
-    fireEvent.keyDown(screen.getByRole("button", { name: "Open Sarah Jones's profile" }), { key: "Enter" });
+  it("renders articles with explicit profile and contact actions", () => {
+    const { onOpenHuman } = renderView({ directoryHumans: [sarah] });
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+    const phone = within(article).getByRole("link", { name: "07700900111" });
+
+    phone.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(phone);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+    fireEvent.click(profile);
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it.each(["Grid", "List"])("uses the identity-led %s card without merging contact actions", (mode) => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+      dogsByHumanId: {
+        h1: [{ id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" }],
+      },
+    });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(card).getByTestId("human-initials")).toHaveTextContent("SJ");
+    expect(within(card).getByText(/Minnie/)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveAttribute(
+      "href",
+      "mailto:sarah@example.com",
+    );
+
+    fireEvent.click(within(card).getByRole("button", { name: "View profile for Sarah Jones" }));
+    expect(onOpenHuman).toHaveBeenCalledWith("h1");
+  });
+
+  it.each(["Grid", "List"])("keeps every direct %s card action at least 44px tall", (mode) => {
+    renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com", historyFlag: "Muzzle required" }],
+      dogsByHumanId: { h1: [] },
+    });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(card).getByRole("link", { name: "07700900111" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "No dogs yet — add one?" })).toHaveClass("min-h-11");
+    expect(within(card).getByRole("button", { name: "View profile for Sarah Jones" })).toHaveClass("size-11");
+    expect(within(card).getByRole("button", { name: "Safety alert: Muzzle required" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
   });
 
   it("footer shows loaded-of-total", () => {
@@ -112,10 +164,26 @@ describe("HumansView directory", () => {
     ).toHaveAttribute("href", "mailto:sarah@example.com");
   });
 
+  it("offers email as an independent action in List mode", () => {
+    const { onOpenHuman } = renderView({
+      directoryHumans: [{ ...sarah, email: "sarah@example.com" }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    const email = within(article).getByRole("link", { name: "sarah@example.com" });
+    expect(email).toHaveAttribute("href", "mailto:sarah@example.com");
+
+    email.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(email);
+    expect(onOpenHuman).not.toHaveBeenCalled();
+  });
+
   it("renders the history-flag reason as visible text, not just an emoji", () => {
     renderView({ directoryHumans: [{ ...sarah, historyFlag: "Muzzle required" }] });
     // The reason is real text (screen-reader readable), not only a title tooltip.
-    expect(screen.getByText("Muzzle required")).toBeInTheDocument();
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("Muzzle required")).toBeInTheDocument();
   });
 
   it("the grid/list view toggle switches mode and persists it", () => {
@@ -125,7 +193,8 @@ describe("HumansView directory", () => {
     expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
     expect(localStorage.getItem("humansViewMode")).toBe("list");
     // Cards still render in list mode.
-    expect(screen.getByRole("button", { name: "Open Dave Smith's profile" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Dave Smith" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View profile for Dave Smith" })).toBeInTheDocument();
   });
 
   it("filter chips toggle the server-side filter and reflect active state", () => {
@@ -149,7 +218,48 @@ describe("HumansView directory", () => {
       dogs: {},
       dogsByHumanId: {},
     });
-    fireEvent.click(screen.getByRole("button", { name: "No dogs yet — add one?" }));
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    fireEvent.click(within(article).getByRole("button", { name: "No dogs yet — add one?" }));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
+
+  it.each(["Grid", "List"])("keeps the no-phone state inside the %s card", (mode) => {
+    renderView({ directoryHumans: [{ ...sarah, phone: "" }] });
+    if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+    const article = screen.getByRole("article", { name: "Sarah Jones" });
+    expect(within(article).getByText("No phone")).toBeInTheDocument();
+  });
+
+  it.each(["Grid", "List"])(
+    "keeps archived %s card identity primary and unarchive in a 44px secondary row",
+    async (mode) => {
+      const archivedHuman = { ...sarah, id: "h9", fullName: "Sarah Jones" };
+      const fetchArchivedHumans = vi.fn(() => Promise.resolve([archivedHuman]));
+      const { onOpenHuman, onUpdateHuman } = renderView({ fetchArchivedHumans });
+
+      if (mode === "List") fireEvent.click(screen.getByRole("button", { name: "List" }));
+      fireEvent.click(screen.getByRole("button", { name: "Show archived" }));
+
+      const article = await screen.findByRole("article", { name: "Sarah Jones" });
+      const primary = within(article).getByTestId("human-card-primary");
+      const secondary = within(article).getByTestId("human-card-secondary-actions");
+      const profile = within(article).getByRole("button", { name: "View profile for Sarah Jones" });
+      const unarchive = within(article).getByRole("button", { name: "Unarchive" });
+      expect(article).toHaveClass("flex-col");
+      expect(primary).toHaveClass("w-full", "min-w-0");
+      expect(within(primary).getByText("Sarah Jones")).toBeInTheDocument();
+      expect(within(primary).getByRole("button", { name: "View profile for Sarah Jones" })).toBe(profile);
+      expect(within(primary).queryByRole("button", { name: "Unarchive" })).not.toBeInTheDocument();
+      expect(secondary).toHaveClass("flex", "w-full", "justify-end");
+      expect(within(secondary).getByRole("button", { name: "Unarchive" })).toBe(unarchive);
+      expect(unarchive).toHaveClass("min-h-11");
+
+      fireEvent.click(profile);
+      expect(onOpenHuman).toHaveBeenCalledWith("h9");
+      fireEvent.click(unarchive);
+      expect(onUpdateHuman).toHaveBeenCalledWith("h9", { archivedAt: null });
+      expect(onOpenHuman).toHaveBeenCalledTimes(1);
+    },
+  );
 });

@@ -125,7 +125,14 @@ export function useWeekNav() {
     }
 
     if (current !== dateStr) {
-      setSearchParams({ date: dateStr }, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("date", dateStr);
+          return next;
+        },
+        { replace: true },
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- URL writer reacts to state changes only; including searchParams would re-fire on our own writes
   }, [selectedDay, dates]);

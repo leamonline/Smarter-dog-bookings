@@ -4,11 +4,12 @@ import type { SalonConfig, SalonSettings } from "../types/index";
 export const DEFAULT_BUSINESS_NAME = "Smarter Dog Grooming";
 
 export type PersistedSalonSettings = Partial<
-  Omit<SalonSettings, "businessHours" | "customerPortal" | "notifications">
+  Omit<SalonSettings, "businessHours" | "customerPortal" | "notifications" | "depositBank">
 > & {
   businessHours?: Partial<Record<string, Partial<SalonSettings["businessHours"][string]>>>;
   customerPortal?: Partial<SalonSettings["customerPortal"]>;
   notifications?: Record<string, Partial<SalonSettings["notifications"][string]>>;
+  depositBank?: Partial<SalonSettings["depositBank"]>;
 };
 
 export const DEFAULT_BUSINESS_HOURS: SalonSettings["businessHours"] = {
@@ -27,6 +28,14 @@ export const DEFAULT_CUSTOMER_PORTAL_SETTINGS: SalonSettings["customerPortal"] =
   allowRebooking: false,
   allowCancellations: true,
 };
+
+export const DEFAULT_DEPOSIT_BANK: SalonSettings["depositBank"] = {
+  accountName: "",
+  sortCode: "",
+  accountNumber: "",
+};
+
+export const DEFAULT_DEPOSIT_RELEASE_HOURS = 12;
 
 export const DEFAULT_NOTIFICATION_SETTINGS: SalonSettings["notifications"] = {
   bookingConfirmation: { enabled: true, channels: ["whatsapp", "email"] },
@@ -50,6 +59,8 @@ export function createDefaultSalonSettings(): SalonSettings {
     advanceBookingWeeks: 8,
     minCancellationHours: 24,
     autoConfirm: true,
+    depositBank: cloneJson(DEFAULT_DEPOSIT_BANK),
+    depositReleaseHours: DEFAULT_DEPOSIT_RELEASE_HOURS,
     customerPortal: cloneJson(DEFAULT_CUSTOMER_PORTAL_SETTINGS),
     notifications: cloneJson(DEFAULT_NOTIFICATION_SETTINGS),
     services: SERVICES.map((service) => ({ ...service })),
@@ -105,6 +116,14 @@ export function mergeSalonSettings(settings?: PersistedSalonSettings | null): Sa
       ...defaults.customerPortal,
       ...(settings.customerPortal || {}),
     },
+    depositBank: {
+      ...defaults.depositBank,
+      ...(settings.depositBank || {}),
+    },
+    depositReleaseHours:
+      typeof settings.depositReleaseHours === "number" && settings.depositReleaseHours > 0
+        ? settings.depositReleaseHours
+        : defaults.depositReleaseHours,
     notifications,
     services: Array.isArray(settings.services)
       ? settings.services.map((service) => ({ ...service }))

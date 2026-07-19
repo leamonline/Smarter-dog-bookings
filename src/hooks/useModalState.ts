@@ -36,6 +36,10 @@ interface PendingBooking {
   owner: { id: string; label: string; phone: string } | null;
 }
 
+interface CollectionNoticeRequest {
+  booking: Booking;
+}
+
 interface UseModalStateReturn {
   // State
   selectedHumanId: string | null;
@@ -52,8 +56,8 @@ interface UseModalStateReturn {
   setShowNewClient: (show: boolean) => void;
   pendingBooking: PendingBooking | null;
   setPendingBooking: (data: PendingBooking | null) => void;
-  collectionNotice: Booking | null;
-  setCollectionNotice: (booking: Booking | null) => void;
+  collectionNotice: CollectionNoticeRequest | null;
+  setCollectionNotice: (request: CollectionNoticeRequest | null) => void;
   selectedBooking: Booking | null;
   setSelectedBooking: (booking: Booking | null) => void;
 }
@@ -66,7 +70,7 @@ export function useModalState(): UseModalStateReturn {
   const [showAddDogModal, setShowAddDogModal] = useState<boolean>(false);
   const [showNewClient, setShowNewClient] = useState<boolean>(false);
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
-  const [collectionNotice, setCollectionNotice] = useState<Booking | null>(null);
+  const [collectionNotice, setCollectionNotice] = useState<CollectionNoticeRequest | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   return {

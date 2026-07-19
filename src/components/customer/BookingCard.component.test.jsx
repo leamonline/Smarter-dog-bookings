@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -43,6 +43,15 @@ const receipt = {
 };
 
 function renderCard(onBookingChanged = vi.fn().mockResolvedValue(undefined)) {
+  function LocationProbe() {
+    const location = useLocation();
+    return (
+      <output data-testid="location">
+        {location.pathname + location.search}
+      </output>
+    );
+  }
+
   render(
     <MemoryRouter>
       <BookingCard
@@ -51,6 +60,7 @@ function renderCard(onBookingChanged = vi.fn().mockResolvedValue(undefined)) {
         onBook={vi.fn()}
         onBookingChanged={onBookingChanged}
       />
+      <LocationProbe />
     </MemoryRouter>,
   );
   return onBookingChanged;
@@ -91,6 +101,18 @@ describe("BookingCard cancellation", () => {
     expect(within(region).getByRole("combobox")).toHaveValue("Changed plans");
     expect(screen.getByText(/Next groom:/i)).toBeInTheDocument();
     expect(onBookingChanged).not.toHaveBeenCalled();
+  });
+
+  it("keeps the original booking ID in the reschedule URL", async () => {
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.click(screen.getByRole("button", { name: "Reschedule" }));
+    await user.click(screen.getByRole("button", { name: "Pick a new time" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      `/customer/book?reschedule=${booking.id}`,
+    );
   });
 
   it.each([

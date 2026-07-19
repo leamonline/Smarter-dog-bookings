@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { canBookSlot, isCapacityRejection } from "../engine/capacity";
 import {
+  computeBookingPricing,
   getHumanByIdOrName,
   getServicePriceAmount,
   normalizeServiceForSize,
+  validateDepositAmount,
   type PricingConfig,
 } from "../engine/bookingRules";
 import { formatFullDate } from "../engine/utils";
@@ -184,6 +186,25 @@ export function useBookingSave({
       if (!(editedPrice > 0)) {
         setSaving(false);
         setSaveError("Enter a price above £0");
+        return;
+      }
+      const editedSubtotal = computeBookingPricing({
+        service: normalizedService,
+        size: booking.size,
+        addons: editData.addons,
+        payment: editData.payment,
+        depositAmount: editData.depositAmount,
+        priceOverride: editedPrice,
+        configPricing,
+      }).subtotal;
+      const depositValidationError = validateDepositAmount(
+        editData.payment,
+        editData.depositAmount,
+        editedSubtotal,
+      );
+      if (depositValidationError) {
+        setSaving(false);
+        setSaveError(depositValidationError);
         return;
       }
       const usualPrice =

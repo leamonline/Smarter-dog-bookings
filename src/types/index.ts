@@ -48,6 +48,10 @@ export interface Human {
   historyFlag: string;
   reminderHours: number;
   reminderChannels: string[];
+  /** Booking rules (staff-managed on the human card, migration 20260714120000). */
+  preferredSlots?: string[];
+  blockedSlots?: string[];
+  depositRequired?: boolean;
   trustedIds: string[];
   trustedContacts: TrustedContact[];
 }
@@ -87,6 +91,11 @@ export interface Booking {
   pickupBy: string;
   payment: string;
   depositAmount?: number | null;
+  /** Deposit-required workflow (owner tagged; DB-stamped, read-only here). */
+  depositRequired?: boolean;
+  depositReference?: string | null;
+  depositDueBy?: string | null;
+  depositReceivedAt?: string | null;
   // Minimal payment ledger (improvement #3): how + when settled. Populated by
   // the DB read path; paidAt is trigger-stamped, method/amount are staff-set.
   paymentMethod?: string | null;
@@ -154,6 +163,8 @@ export interface Booking {
   _pickupById: string | null;
   _bookingDate: string;
   _groupId: string | null;
+  /** Transient UI instruction; never persisted to the bookings table. */
+  _skipCollectionPrompt?: boolean;
 }
 
 export type BookingsByDate = Record<string, Booking[]>;
@@ -230,6 +241,13 @@ export interface SalonSettings {
   advanceBookingWeeks: number;
   minCancellationHours: number;
   autoConfirm: boolean;
+  /** Bank details customers are GIVEN to pay deposits into (not secrets).
+   *  Read by the deposit panels (staff + portal) via getDepositSettings. */
+  depositBank: { accountName: string; sortCode: string; accountNumber: string };
+  /** Hours an unpaid deposit booking holds its slot (default 12). The SQL
+   *  helper deposit_due_by_for reads this exact camelCase key from
+   *  salon_config.settings. */
+  depositReleaseHours: number;
   customerPortal: CustomerPortalSettings;
   notifications: Record<string, NotificationSetting>;
   services: SalonService[];

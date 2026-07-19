@@ -1,8 +1,8 @@
-// The one and only "Today" heading. The app shell hides its context row on
-// /today, so this header carries the page identity, the compact daily stats a
-// groomer wants at a glance, the "Next online slot" a customer could book, and
-// the entry point to the availability modal.
+import { CalendarDays, CircleHelp } from "lucide-react";
 import { formatMoney } from "./parts.jsx";
+
+export const NEEDS_ACTION_DEFINITION =
+  "Need action means late arrivals, confirmation chases, overdue collections and unpaid bookings after arrival.";
 
 export function TodayHeader({
   dateLabel,
@@ -11,70 +11,113 @@ export function TodayHeader({
   unpaidTotal = 0,
   nextOnlineSlot = null,
   isDayOpen,
+  isToday = true,
   briefMode = false,
+  onOpenDatePicker,
   onManageAvailability,
+  actionFilterActive = false,
+  onToggleActionFilter,
 }) {
-  const dogsLabel = `${dogsBooked} ${dogsBooked === 1 ? "dog" : "dogs"} booked`;
   return (
-    <header className="flex flex-col gap-2">
-      <div>
-        <h1 className="font-display text-[24px] font-extrabold text-brand-purple leading-tight">Today</h1>
-        <p className="text-[13px] text-slate-600 mt-0.5 flex items-center gap-x-1.5 flex-wrap">
-          <span className="font-semibold text-slate-700">{dateLabel}</span>
-          {!isDayOpen && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="font-bold text-brand-coral-text">salon closed</span>
-            </>
-          )}
-          {/* briefMode = the closed-day brief: today's stats would sit next to
-              the NEXT open day's KPIs and read as that day's — so they hide. */}
-          {!briefMode && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{dogsLabel}</span>
-              <span aria-hidden>·</span>
-              {actionCount > 0 ? (
-                <span className="font-bold text-brand-coral-text">
-                  {actionCount} need action
-                </span>
-              ) : (
-                <span className="font-semibold text-brand-teal-text">all calm</span>
-              )}
-              {unpaidTotal > 0 && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="font-bold text-slate-800">{formatMoney(unpaidTotal)} unpaid</span>
-                </>
-              )}
-            </>
-          )}
-        </p>
-      </div>
-
-      {isDayOpen && (
-        <div className="flex items-center gap-3 flex-wrap">
+    <header className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,.65fr)]">
+      <div className="flex min-w-0 flex-col gap-3">
+        <div>
+          <h1 className="sr-only">Daily Brief</h1>
           <button
             type="button"
-            onClick={onManageAvailability}
-            className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 rounded-full bg-white border border-slate-200 text-[13px] font-bold text-brand-purple hover:border-brand-purple/30 hover:bg-brand-purple/5 motion-safe:transition-colors"
+            aria-label={`Choose date, ${dateLabel}`}
+            onClick={onOpenDatePicker}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-brand-yellow bg-brand-yellow px-3 text-center text-black outline-none hover:bg-brand-yellow/85 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            Manage availability
+            <CalendarDays size={20} aria-hidden="true" />
+            <span className="font-display text-base font-bold">{dateLabel}</span>
           </button>
-          <span className="text-[13px] text-slate-600">
-            Next online slot:{" "}
-            {nextOnlineSlot ? (
-              <span className="font-bold text-brand-teal-text tabular-nums">{nextOnlineSlot}</span>
-            ) : (
-              <span className="font-semibold text-slate-500">none open</span>
-            )}
-          </span>
         </div>
-      )}
+
+        {!briefMode && (
+          <ul aria-label={isToday ? "Today's summary" : "Selected date summary"} className="grid grid-cols-3 gap-2">
+            <li className="flex h-9 items-center justify-center whitespace-nowrap rounded-full bg-slate-100 px-3 text-[12px] font-semibold text-slate-700">
+              <strong className="mr-1 font-extrabold text-slate-900">{dogsBooked}</strong>{" "}
+              {dogsBooked === 1 ? "dog" : "dogs"} booked
+            </li>
+            <li className="relative flex h-9 items-stretch justify-center whitespace-nowrap rounded-full text-[12px] font-bold">
+              {actionCount > 0 ? (
+                <button
+                  type="button"
+                  aria-label={`Filter ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing action`}
+                  aria-describedby="needs-action-definition"
+                  aria-pressed={actionFilterActive}
+                  title={NEEDS_ACTION_DEFINITION}
+                  onClick={onToggleActionFilter}
+                  className={`group inline-flex min-w-0 flex-1 items-center justify-center rounded-full px-3 outline-none transition focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${
+                    actionFilterActive
+                      ? "bg-brand-purple text-white"
+                      : "bg-brand-coral/10 text-brand-coral-text hover:bg-brand-coral/20"
+                  }`}
+                >
+                  <strong className="mr-1 font-extrabold">{actionCount}</strong> need action
+                  <CircleHelp size={14} className="ml-1 shrink-0" aria-hidden="true" />
+                </button>
+              ) : (
+                <span className="flex flex-1 items-center justify-center rounded-full bg-brand-teal/10 px-3 text-brand-teal-text">
+                  All calm
+                </span>
+              )}
+              {actionCount > 0 && (
+                <span id="needs-action-definition" className="sr-only">
+                  {NEEDS_ACTION_DEFINITION}
+                </span>
+              )}
+            </li>
+            <li
+              className={`flex h-9 items-center justify-center whitespace-nowrap rounded-full px-3 text-[12px] font-bold ${
+                unpaidTotal > 0
+                  ? "bg-brand-yellow/25 text-slate-800"
+                  : "bg-brand-teal/10 text-brand-teal-text"
+              }`}
+            >
+              {unpaidTotal > 0 ? (
+                <>
+                  <strong className="mr-1 font-extrabold">{formatMoney(unpaidTotal)}</strong>{" "}
+                  unpaid
+                </>
+              ) : (
+                "All paid"
+              )}
+            </li>
+          </ul>
+        )}
+      </div>
+
+      <aside
+        aria-label="Availability"
+        className="flex min-h-full flex-col items-start justify-center gap-1.5 rounded-2xl border border-brand-paper-line bg-brand-paper px-4 py-3 lg:items-end lg:text-right"
+      >
+        <button
+          type="button"
+          onClick={onManageAvailability}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-brand-paper-line bg-white px-4 text-center text-[13px] font-bold text-brand-purple outline-none transition-colors hover:border-brand-purple/30 hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+        >
+          Manage availability
+        </button>
+        {nextOnlineSlot ? (
+          <p className="w-full text-center text-[12px] text-slate-500">
+            Next online slot{" "}
+            <span className="font-bold tabular-nums text-brand-teal-text">
+              {nextOnlineSlot}
+            </span>
+          </p>
+        ) : (
+          <p className="w-full text-center text-[12px] font-semibold text-slate-500">
+            No online slots available
+          </p>
+        )}
+        {!isDayOpen && (
+          <p className="rounded-full bg-brand-coral/10 px-2 py-0.5 text-[11px] font-bold text-brand-coral-text">
+            Salon closed
+          </p>
+        )}
+      </aside>
     </header>
   );
 }

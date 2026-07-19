@@ -25,8 +25,8 @@ import {
   buildTodayFeed,
   buildAvailabilityView,
   entryOpStatus,
-  selectNowNext,
-  DUE_SOON_MINUTES,
+  selectLiveFocus,
+  liveFocusContext,
   groupFeedBySlot,
   buildFutureDayFeed,
   countDogsPerOwner,
@@ -173,6 +173,17 @@ describe("paymentState (G4 mapping)", () => {
     expect(p.amountDue).toBe(42);
   });
 
+  it("uses the configured salon guide price for the displayed balance", () => {
+    const p = paymentState(
+      bk({ ...base, payment: "Due at Pick-up" }),
+      null,
+      { "full-groom": { small: 5000 } },
+    );
+
+    expect(p.subtotal).toBe(50);
+    expect(p.amountDue).toBe(50);
+  });
+
   it("renders an unknown legacy value neutrally with no implied balance", () => {
     const p = paymentState(bk({ ...base, payment: "Refunded" }));
     expect(p.kind).toBe("other");
@@ -282,6 +293,7 @@ describe("buildDaySummary", () => {
     expect(s.total).toBe(4);
     expect(s.expected).toBe(1);
     expect(s.arrived).toBe(3);
+    expect(s.onSite).toBe(2);
     expect(s.ready).toBe(1);
     expect(s.collected).toBe(1);
     expect(s.unpaidCount).toBe(2);
@@ -290,6 +302,16 @@ describe("buildDaySummary", () => {
   it("splits expected vs recorded-as-paid revenue via computeRevenue", () => {
     expect(s.expectedRevenue).toBe(168); // 4 x £42
     expect(s.collectedRevenue).toBe(84); // 2 x £42 paid in full
+  });
+
+  it("uses configured guide prices for day revenue summaries", () => {
+    const summary = buildDaySummary(
+      [bk({ status: "Booked", payment: "Due at Pick-up", service: "full-groom", size: "small" })],
+      null,
+      { "full-groom": { small: 5000 } },
+    );
+
+    expect(summary.expectedRevenue).toBe(50);
   });
 
   it("reports capacity used against the daily cap", () => {
@@ -301,6 +323,20 @@ describe("buildDaySummary", () => {
     expect(bare.total).toBe(1);
     expect(bare.expected).toBe(1);
     expect(bare.arrived).toBe(0);
+  });
+
+  it("counts only dogs physically on site", () => {
+    const summary = buildDaySummary([
+      bk({ status: "Booked" }),
+      bk({ status: "Checked in" }),
+      bk({ status: "In bath" }),
+      bk({ status: "Ready for pick-up" }),
+      bk({ status: "Completed" }),
+      bk({ status: "Cancelled" }),
+    ]);
+
+    expect(summary.dogsBooked).toBe(5);
+    expect(summary.onSite).toBe(3);
   });
 });
 
@@ -576,122 +612,190 @@ describe("entryOpStatus — one priority order for rails, labels and actions", (
   });
 });
 
-describe("selectNowNext — the sticky strip's brain", () => {
-  // NOW_SUMMER is 10:15 London. Feed built from real bookings so the flags
-  // come from buildTodayFeed, not hand-set.
+describe("selectLiveFocus", () => {
   const feedOf = (bookings: Booking[]) => buildTodayFeed(bookings, NOW_SUMMER);
 
-  it("picks the most urgent booking first (late beats unconfirmed)", () => {
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "late", _bookingDate: TODAY, slot: "09:00", status: "Booked", dogName: "Amber" }),
-        bk({ id: "unconf", _bookingDate: TODAY, slot: "11:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp" }),
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("late");
-    expect(sel.nowReason).toBe("urgent");
+  it("keeps the earliest overdue Booked arrival ahead of newer arrivals", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({ id: "old", _bookingDate: TODAY, slot: "08:30", status: "Booked" }),
+      bk({ id: "new", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
+    ]));
+    expect(focus?.booking.id).toBe("old");
   });
 
-  it("breaks late ties by most overdue", () => {
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "l1", _bookingDate: TODAY, slot: "09:30", status: "Booked" }),
-        bk({ id: "l2", _bookingDate: TODAY, slot: "08:30", status: "Booked" }),
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("l2");
+  it("advances to the nearest upcoming arrival after check-in", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({ id: "done", _bookingDate: TODAY, slot: "08:30", status: "Checked in" }),
+      bk({ id: "next", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
+    ]));
+    expect(focus?.booking.id).toBe("next");
   });
 
-  it("falls back to the next arrival once it's due within the window", () => {
-    // 10:15 now; 10:30 is 15 min away — due soon. 13:00 is not.
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "soon", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
-        bk({ id: "later", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("soon");
-    expect(sel.nowReason).toBe("dueSoon");
-    expect(sel.next?.booking.id).toBe("later");
+  it("falls back from arrivals to longest-waiting ready, then longest in-salon", () => {
+    const ready = selectLiveFocus(feedOf([
+      bk({ id: "bath", status: "In bath", checkedInAt: "2026-07-02T08:30:00Z" }),
+      bk({ id: "ready", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
+    ]));
+    expect(ready?.booking.id).toBe("ready");
   });
 
-  it("does not treat a distant next arrival as NOW; shows the live dog instead", () => {
-    const mins = DUE_SOON_MINUTES + 30; // 13:00 slot vs 10:15 now = 165 min out
-    expect(mins).toBeGreaterThan(DUE_SOON_MINUTES);
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "far", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
-        bk({ id: "bath", _bookingDate: TODAY, slot: "09:30", status: "In bath" }),
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("bath");
-    expect(sel.nowReason).toBe("active");
-    expect(sel.next?.booking.id).toBe("far");
+  it("chooses the longest elapsed in-salon booking before slot order", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "earlier-slot-later-check-in",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "Checked in",
+        checkedInAt: "2026-07-02T09:00:00Z",
+      }),
+      bk({
+        id: "later-slot-earlier-check-in",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "In bath",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+    ]));
+
+    expect(focus?.booking.id).toBe("later-slot-earlier-check-in");
   });
 
-  it("a calm ready dog outranks an in-progress one as the active NOW", () => {
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "bath", _bookingDate: TODAY, slot: "09:00", status: "In bath" }),
-        bk({ id: "rdy", _bookingDate: TODAY, slot: "09:30", status: "Ready for pick-up", readyAt: "2026-07-02T09:10:00Z" }), // 5 min wait — calm
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("rdy");
-    expect(sel.readyCount).toBe(1);
+  it("sorts a valid check-in before a missing timestamp regardless of slot order", () => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "missing-earlier-slot",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "Checked in",
+        checkedInAt: null,
+      }),
+      bk({
+        id: "valid-later-slot",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "In bath",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+    ]));
+
+    expect(focus?.booking.id).toBe("valid-later-slot");
   });
 
-  it("UP NEXT prefers an unconfirmed arrival over an earlier settled one", () => {
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "now", _bookingDate: TODAY, slot: "10:30", status: "Booked" }),
-        bk({ id: "plain", _bookingDate: TODAY, slot: "11:00", status: "Booked" }),
-        bk({ id: "chase", _bookingDate: TODAY, slot: "12:00", status: "Booked", reminderState: "sent", confirmationChannel: "whatsapp" }),
-      ]),
-      NOW_SUMMER,
-    );
-    // The unconfirmed booking is urgent, so it IS the NOW; next is the due-soon arrival.
-    expect(sel.now?.booking.id).toBe("chase");
-    expect(sel.next?.booking.id).toBe("now");
+  it("keeps valid, invalid and missing check-ins transitive across input permutations", () => {
+    const records = [
+      bk({
+        id: "valid",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "Checked in",
+        checkedInAt: "2026-07-02T08:00:00Z",
+      }),
+      bk({
+        id: "invalid",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "In bath",
+        checkedInAt: "not-a-date",
+      }),
+      bk({
+        id: "missing",
+        _bookingDate: TODAY,
+        slot: "09:00",
+        status: "Checked in",
+        checkedInAt: null,
+      }),
+    ];
+    const permutations = [
+      [records[0], records[1], records[2]],
+      [records[0], records[2], records[1]],
+      [records[1], records[0], records[2]],
+      [records[1], records[2], records[0]],
+      [records[2], records[0], records[1]],
+      [records[2], records[1], records[0]],
+    ];
+
+    expect(permutations.map((bookings) => selectLiveFocus(feedOf(bookings))?.booking.id))
+      .toEqual(Array(6).fill("valid"));
   });
 
-  it("a collected-but-unpaid dog resurfaces as NOW; a settled one never does", () => {
-    const owing = selectNowNext(
-      feedOf([bk({ id: "c", _bookingDate: TODAY, slot: "08:30", status: "Completed", payment: "Due at Pick-up", service: "full-groom", size: "small" })]),
-      NOW_SUMMER,
-    );
-    expect(owing.now?.booking.id).toBe("c");
-    expect(owing.nowReason).toBe("urgent");
+  it.each([
+    ["missing", null, null],
+    ["equal", "2026-07-02T08:00:00Z", "2026-07-02T08:00:00Z"],
+  ])("uses slot order when in-salon check-in timestamps are %s", (_label, firstAt, secondAt) => {
+    const focus = selectLiveFocus(feedOf([
+      bk({
+        id: "later-slot",
+        _bookingDate: TODAY,
+        slot: "10:00",
+        status: "Checked in",
+        checkedInAt: firstAt,
+      }),
+      bk({
+        id: "earlier-slot",
+        _bookingDate: TODAY,
+        slot: "08:30",
+        status: "In bath",
+        checkedInAt: secondAt,
+      }),
+    ]));
 
-    const settled = selectNowNext(
-      feedOf([bk({ id: "c", _bookingDate: TODAY, slot: "08:30", status: "Completed", payment: "Paid in Full" })]),
-      NOW_SUMMER,
-    );
-    expect(settled.now).toBeNull();
-    expect(settled.next).toBeNull();
+    expect(focus?.booking.id).toBe("earlier-slot");
   });
 
-  it("with nothing live, the day's first still-expected arrival is NOW (never a false 'all done')", () => {
-    // 10:15 now; the only bookings are hours away — the first one is still NOW.
-    const sel = selectNowNext(
-      feedOf([
-        bk({ id: "b", _bookingDate: TODAY, slot: "13:00", status: "Booked" }),
-        bk({ id: "a", _bookingDate: TODAY, slot: "12:30", status: "Booked" }),
-      ]),
-      NOW_SUMMER,
-    );
-    expect(sel.now?.booking.id).toBe("a");
-    expect(sel.nowReason).toBe("upcoming");
-    expect(sel.next?.booking.id).toBe("b");
+  it("uses booking ID deterministically when timestamps and slots cannot order in-salon records", () => {
+    const alpha = bk({
+      id: "alpha",
+      _bookingDate: TODAY,
+      status: "Checked in",
+      checkedInAt: null,
+    });
+    const zulu = bk({
+      id: "zulu",
+      _bookingDate: TODAY,
+      status: "In bath",
+      checkedInAt: "not-a-date",
+    });
+
+    expect([
+      selectLiveFocus(feedOf([alpha, zulu]))?.booking.id,
+      selectLiveFocus(feedOf([zulu, alpha]))?.booking.id,
+    ]).toEqual(["alpha", "alpha"]);
+  });
+});
+
+describe("liveFocusContext", () => {
+  it.each([
+    ["10:20", "Due to arrive in 5 mins"],
+    ["10:15", "Due now"],
+    ["10:00", "15 mins overdue"],
+  ])("formats %s against the current London time", (slot, text) => {
+    const entry = buildTodayFeed([bk({ dogName: "Minnie", slot, status: "Booked" })], NOW_SUMMER)[0];
+    expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({ text, ariaLabel: `Minnie — ${text.toLowerCase()}` });
   });
 
-  it("empty feed → nothing now, nothing next, zero ready", () => {
-    const sel = selectNowNext([], NOW_SUMMER);
-    expect(sel).toEqual({ now: null, nowReason: null, next: null, readyCount: 0 });
+  it("refreshes overdue and ready wait copy from the supplied time", () => {
+    const later = new Date("2026-07-02T09:45:00Z"); // BST (+1) => 10:45 London
+    const overdue = buildTodayFeed([
+      bk({ dogName: "Minnie", slot: "10:00", status: "Booked" }),
+    ], NOW_SUMMER)[0];
+    const ready = buildTodayFeed([
+      bk({ dogName: "Rufus", status: "Ready for pick-up", readyAt: "2026-07-02T09:00:00Z" }),
+    ], NOW_SUMMER)[0];
+
+    expect.soft(liveFocusContext(overdue, later).text).toBe("45 mins overdue");
+    expect.soft(liveFocusContext(ready, later).text).toBe("Waiting for collection 45 mins");
+  });
+
+  it("uses plain checked-in copy for an invalid check-in timestamp", () => {
+    const entry = buildTodayFeed([
+      bk({ dogName: "Rufus", status: "Checked in", checkedInAt: "not-a-date" }),
+    ], NOW_SUMMER)[0];
+
+    expect(liveFocusContext(entry, NOW_SUMMER)).toMatchObject({
+      text: "Checked in",
+      ariaLabel: "Rufus — checked in",
+    });
+    expect(liveFocusContext(entry, NOW_SUMMER).text).not.toContain("NaN");
   });
 });
 

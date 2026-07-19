@@ -103,6 +103,12 @@ export function useHumanMutations({
         dbUpdates.reminder_hours = updates.reminderHours;
       if (updates.reminderChannels !== undefined)
         dbUpdates.reminder_channels = updates.reminderChannels;
+      if (updates.preferredSlots !== undefined)
+        dbUpdates.preferred_slots = updates.preferredSlots;
+      if (updates.blockedSlots !== undefined)
+        dbUpdates.blocked_slots = updates.blockedSlots;
+      if (updates.depositRequired !== undefined)
+        dbUpdates.deposit_required = updates.depositRequired;
       if (updates.archivedAt !== undefined)
         dbUpdates.archived_at = updates.archivedAt;
 
@@ -184,6 +190,9 @@ export function useHumanMutations({
         historyFlag: savedRow.history_flag || "",
         reminderHours: savedRow.reminder_hours ?? 24,
         reminderChannels: savedRow.reminder_channels || ["whatsapp"],
+        preferredSlots: savedRow.preferred_slots || [],
+        blockedSlots: savedRow.blocked_slots || [],
+        depositRequired: savedRow.deposit_required === true,
         archivedAt: savedRow.archived_at || null,
         trustedIds: trustedNames,
         trustedContacts: savedTrustedContacts,

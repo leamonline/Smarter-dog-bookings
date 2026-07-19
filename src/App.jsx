@@ -13,7 +13,6 @@ import { supabase } from "./supabase/client.js";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { getDefaultOpenForDate } from "./engine/utils";
 import { DAY_CAPACITY } from "./engine/utilisation";
-import { londonDateStr } from "./engine/today";
 import { safeGet, safeSet } from "./lib/storage";
 import { useAuth } from "./supabase/hooks/useAuth.js";
 import { useHumans } from "./supabase/hooks/useHumans";
@@ -118,9 +117,19 @@ const WeekCalendarView = lazy(() =>
     default: module.WeekCalendarView,
   })),
 );
-const ReportsView = lazy(() =>
-  import("./components/views/ReportsView.jsx").then((module) => ({
-    default: module.ReportsView,
+const ReportsLayout = lazy(() =>
+  import("./components/views/reports/ReportsLayout.jsx").then((module) => ({
+    default: module.ReportsLayout,
+  })),
+);
+const CashUpView = lazy(() =>
+  import("./components/views/reports/CashUpView.jsx").then((module) => ({
+    default: module.CashUpView,
+  })),
+);
+const ReportsInsightsView = lazy(() =>
+  import("./components/views/reports/ReportsInsightsView.jsx").then((module) => ({
+    default: module.ReportsInsightsView,
   })),
 );
 const InboxView = lazy(() =>
@@ -131,6 +140,11 @@ const InboxView = lazy(() =>
 const NewBookingModal = lazy(() =>
   import("./components/modals/NewBookingModal.jsx").then((module) => ({
     default: module.NewBookingModal,
+  })),
+);
+const DatePickerModal = lazy(() =>
+  import("./components/modals/DatePickerModal.jsx").then((module) => ({
+    default: module.DatePickerModal,
   })),
 );
 const BookingDetailModal = lazy(() =>
@@ -177,6 +191,7 @@ const ROUTE_CHUNK_IMPORTS = [
   ["/dogs", () => import("./components/views/DogsView.jsx")],
   ["/humans", () => import("./components/views/HumansView.jsx")],
   ["/settings", () => import("./components/views/SettingsView.jsx")],
+  ["/reports", () => import("./components/views/reports/ReportsLayout.jsx")],
   ["/", () => import("./components/layout/WeekCalendarView.jsx")],
 ];
 let routeChunkWarmed = false;
@@ -398,19 +413,27 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   const handleOpenDog = useCallback(
     (id) => {
       if (!id) return;
+      if (location.pathname === "/today") {
+        setSelectedDogId(id);
+        return;
+      }
       // Profile pages get a URL — call sites still pass through here so
       // direct navigation (e.g. /dogs/abc123 from a Slack share) and
       // in-app clicks land on the same modal.
       navigate(`/dogs/${id}`);
     },
-    [navigate],
+    [location.pathname, navigate, setSelectedDogId],
   );
   const handleOpenHuman = useCallback(
     (id) => {
       if (!id) return;
+      if (location.pathname === "/today") {
+        setSelectedHumanId(id);
+        return;
+      }
       navigate(`/humans/${id}`);
     },
-    [navigate],
+    [location.pathname, navigate, setSelectedHumanId],
   );
   const handleCloseDogProfile = useCallback(() => {
     setSelectedDogId(null);
@@ -485,14 +508,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     // Runs once on mount by design (the post-auth entry point).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // While on /today, keep the week nav pinned to the real (London) today so the
-  // Today view's rows are in the fetched window and same-day slot toggles
-  // (which target the calendar's current day) act on today.
-  useEffect(() => {
-    if (location.pathname !== "/today") return;
-    if (currentDateStr !== londonDateStr()) rawDatePick(new Date());
-  }, [location.pathname, currentDateStr, rawDatePick]);
 
   // Boot-path deferral for the two 50-row directory page-0 fetches: hold
   // them back until a directory route / the new-booking modal needs them,
@@ -575,7 +590,8 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     fetchBookingHistoryForDog: sbFetchBookingHistoryForDog,
     refetch: refetchBookings,
   } = useBookings(weekStart, dogsById, humansById, {
-    onReadyForPickup: setCollectionNotice,
+    onReadyForPickup: (booking) =>
+      setCollectionNotice({ booking }),
     // Capture the (already-friendly) insert error so the booking modal can
     // surface it after awaiting the save, rather than toasting a false success.
     onError: (msg) => {
@@ -862,6 +878,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           onSignOut={signOut}
           isOnline={isOnline}
           user={user}
+          currentDateStr={currentDateStr}
           onNewBooking={() => requestNewBooking({ dateStr: currentDateStr, slot: "" })}
           onNewClient={() => setShowNewClient(true)}
           onOpenOverview={() => {
@@ -887,7 +904,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                 : "open"
           }
         />
-        <MobileNavStrip />
+        <MobileNavStrip currentDateStr={currentDateStr} />
 
         <SalonProvider
           dogs={dogs}
@@ -927,12 +944,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -961,12 +976,10 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       dogsByHumanId={dogsByHumanId}
                       ensureDogsForHumans={ensureDogsForHumans}
                       onOpenHuman={handleOpenHuman}
-                      onAddHuman={addHuman}
                       onNewClient={() => setShowNewClient(true)}
                       onUpdateDog={updateDog}
                       onUpdateHuman={updateHuman}
                       fetchArchivedHumans={sbFetchArchivedHumans}
-                      findHumanByFullName={sbFindHumanByFullName}
                       hasMore={humansHasMore}
                       totalCount={humansTotalCount}
                       loadMore={humansLoadMore}
@@ -1042,7 +1055,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       loadError={de}
                     />
                   } />
-                  <Route path="/reports" element={<ReportsView loadError={be || de || he} />} />
+                  <Route path="/reports" element={<ReportsLayout />}>
+                    <Route index element={<Navigate to="cash-up" replace />} />
+                    <Route path="cash-up" element={<CashUpView />} />
+                    <Route path="insights" element={<ReportsInsightsView loadError={be || de || he} />} />
+                  </Route>
                   <Route path="/inbox" element={
                     <InboxView
                       onOpenHuman={handleOpenHuman}
@@ -1052,6 +1069,11 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   <Route path="/whatsapp" element={<Navigate to="/inbox" replace />} />
                   <Route path="/today" element={
                     <TodayView
+                      selectedDateObj={currentDateObj}
+                      selectedDateStr={currentDateStr}
+                      onOpenDatePicker={() => setShowDatePicker(true)}
+                      onOpenDog={handleOpenDog}
+                      onOpenHuman={handleOpenHuman}
                       bookingsByDate={bookingsByDate}
                       bookingsLoading={bookingsLoading}
                       bookingsError={be}
@@ -1063,9 +1085,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       onUpdateBooking={handleUpdate}
                       onOpenBooking={handleOpenBooking}
                       onNewBooking={requestNewBooking}
-                      onSendCollection={setCollectionNotice}
+                      onSendCollection={(booking) =>
+                        setCollectionNotice({ booking })
+                      }
                       toggleImmediateSlot={toggleImmediateSlot}
                       onRefresh={refetchBookings}
+                      configPricing={salonConfig?.pricing}
                     />
                   } />
                   <Route path="/" element={
@@ -1127,6 +1152,18 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
               </main>
             </Suspense>
           </ErrorBoundary>
+
+          {showDatePicker && location.pathname === "/today" && (
+            <Suspense fallback={<LoadingSpinner />}>
+              <DatePickerModal
+                currentDate={currentDateObj}
+                onSelectDate={handleDatePick}
+                onClose={() => setShowDatePicker(false)}
+                dayOpenState={dayOpenState}
+                allowClosedDates={location.pathname === "/today"}
+              />
+            </Suspense>
+          )}
 
           {selectedHumanId && (
             <ErrorBoundary>
@@ -1348,7 +1385,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
             <ErrorBoundary>
               <Suspense fallback={null}>
                 <CollectionNoticeModal
-                  booking={collectionNotice}
+                  booking={collectionNotice.booking}
                   onClose={() => setCollectionNotice(null)}
                 />
               </Suspense>

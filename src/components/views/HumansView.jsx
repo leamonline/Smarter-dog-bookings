@@ -3,7 +3,6 @@ import { getSizeForBreed } from "../../constants/index";
 import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
-import { AddHumanModal } from "../modals/AddHumanModal.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
 import { filterHumansForDirectory } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
@@ -12,6 +11,7 @@ import { SizeDot } from "../ui/SizeDot.jsx";
 import { safeGet, safeSet } from "../../lib/storage";
 import { Button, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
+import { HumanInitials, ProfileArrow } from "./directory/IdentityMarker.jsx";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -61,7 +61,7 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this person"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
+      className="min-h-11 min-w-11 rounded-full border border-brand-purple/30 bg-white px-3 py-2 text-xs font-bold text-brand-purple transition-colors hover:bg-brand-purple/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
     >
       Unarchive
     </button>
@@ -95,30 +95,6 @@ function DogChips({ dogs: dogList, max, dim }) {
   );
 }
 
-// Dog-size colour language, shared by the size dots and each card's top strip,
-// so a card's accent and its dots say the same thing. The strip takes the
-// human's *largest* dog size; neutral when there's no size to show.
-const SIZE_RANK = { small: 1, medium: 2, large: 3 };
-const STRIP_COLOUR = {
-  small: "var(--color-size-small)",
-  medium: "var(--color-brand-teal)",
-  large: "var(--color-brand-coral)",
-};
-
-function dominantSize(dogList) {
-  let best = null;
-  let bestRank = 0;
-  for (const dog of dogList) {
-    const size = dog.size || getSizeForBreed(dog.breed);
-    const rank = SIZE_RANK[size] || 0;
-    if (rank > bestRank) {
-      bestRank = rank;
-      best = size;
-    }
-  }
-  return best;
-}
-
 // Key for the size dots — reuses SizeDot so the legend can never drift from the
 // real colours. Decorative for screen readers (each dog already carries its own
 // size label via SizeDot on the cards).
@@ -145,9 +121,65 @@ function SizeLegend({ className = "" }) {
   );
 }
 
-// One directory entry, rendered as a grid card or a dense list row. Both
-// reuse the same tel:/wa.me link pattern (stopPropagation so the links don't
-// open the profile) and stay keyboard-openable (role=button + Enter/Space).
+function ContactLines({ human }) {
+  return (
+    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-micro text-slate-500">
+      {human.phone ? (
+        <>
+          <a
+            href={telLink(human.phone)}
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center font-medium no-underline hover:text-brand-purple"
+          >
+            {human.phone}
+          </a>
+          <a
+            href={waLink(human.phone)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open in WhatsApp"
+            aria-label="Open in WhatsApp"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100"
+          >
+            <MessageCircle size={18} aria-hidden="true" />
+          </a>
+        </>
+      ) : (
+        <span className="shrink-0 italic text-ink-muted">No phone</span>
+      )}
+      {human.email && (
+        <a
+          href={`mailto:${human.email}`}
+          className="inline-flex min-h-11 min-w-11 items-center truncate text-slate-400 no-underline hover:text-brand-purple"
+        >
+          {human.email}
+        </a>
+      )}
+    </div>
+  );
+}
+
+function HumanDogs({ dogList, archived, onOpen }) {
+  if (dogList.length === 0 && !archived) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-1 min-h-11 min-w-11 self-start border-none bg-transparent p-0 text-xs font-semibold italic text-brand-coral-text underline-offset-2 hover:text-brand-coral-text hover:underline"
+      >
+        No dogs yet — add one?
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex max-h-[26px] flex-wrap items-center gap-2.5 overflow-hidden">
+      <DogChips dogs={dogList} max={4} dim={16} />
+    </div>
+  );
+}
+
+// One directory entry, rendered as a grid card or a dense list row. Contact
+// links and the profile action remain separate, explicit controls.
 function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenHuman, onUnarchive }) {
   const cleanSurname = normaliseSurname(human.surname);
   const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
@@ -157,133 +189,41 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
       (dog) => dog._humanId === human.id || dog.humanId === fullName,
     );
   const open = () => onOpenHuman(human.id || fullName);
-  const onKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
-
-  if (mode === "list") {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${titleCase(fullName)}'s profile`}
-        onClick={open}
-        onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-      >
-        <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold text-slate-800 truncate">{titleCase(fullName)}</span>
-            {human.historyFlag && <SafetyAlertChip items={[human.historyFlag]} className="shrink-0 max-w-[45%]" />}
-          </div>
-          <div
-            className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {human.phone ? (
-              <>
-                <a href={telLink(human.phone)} className="font-medium no-underline hover:text-brand-purple shrink-0 inline-block max-sm:py-1.5 max-sm:-my-1.5">
-                  {human.phone}
-                </a>
-                <a
-                  href={waLink(human.phone)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Open in WhatsApp"
-                  aria-label="Open in WhatsApp"
-                  className="inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
-                >
-                  <MessageCircle size={18} aria-hidden="true" />
-                </a>
-              </>
-            ) : (
-              <span className="italic text-ink-muted shrink-0">No phone</span>
-            )}
-            {human.email && <span className="truncate text-slate-400">· {human.email}</span>}
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2 shrink-0 overflow-hidden">
-          <DogChips dogs={humanDogs} max={3} dim={14} />
-        </div>
-        <div className="hidden sm:block flex-1" aria-hidden="true" />
-        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
-      </div>
-    );
-  }
+  const gridCardClass =
+    "group relative flex min-h-[112px] flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover";
+  const listCardClass =
+    "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-purple";
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${titleCase(fullName)}'s profile`}
-      onClick={open}
-      onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-purple hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+    <article
+      aria-label={titleCase(fullName)}
+      className={mode === "list" ? listCardClass : gridCardClass}
     >
-      <div
-        className="h-[3px] shrink-0"
-        style={{ background: STRIP_COLOUR[dominantSize(humanDogs)] || "var(--color-slate-200)" }}
-      />
-      {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />}
-
-      <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0 gap-0.5">
-        <div className="text-title font-extrabold text-slate-800 truncate">
-          {titleCase(fullName)}
+      <div data-testid="human-card-primary" className="flex w-full min-w-0 items-start gap-3">
+        <HumanInitials fullName={fullName} />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-title font-extrabold text-brand-purple">
+              {titleCase(fullName)}
+            </span>
+            {human.historyFlag && (
+              <SafetyAlertChip
+                items={[human.historyFlag]}
+                className="min-h-11 min-w-11 max-w-[45%] shrink-0"
+              />
+            )}
+          </div>
+          <ContactLines human={human} />
+          <HumanDogs dogList={humanDogs} archived={showArchived} onOpen={open} />
         </div>
-
-        {human.phone ? (
-          <div className="flex items-center gap-2.5 leading-snug" onClick={(e) => e.stopPropagation()}>
-            <a href={telLink(human.phone)} className="text-body text-slate-500 font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
-              {human.phone}
-            </a>
-            <a
-              href={waLink(human.phone)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open in WhatsApp"
-              aria-label="Open in WhatsApp"
-              className="inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
-            >
-              <MessageCircle size={18} aria-hidden="true" />
-            </a>
-          </div>
-        ) : (
-          <div className="text-body text-ink-muted italic leading-snug">No phone</div>
-        )}
-
-        {human.email && (
-          <div className="text-micro text-slate-400 truncate leading-snug" onClick={(e) => e.stopPropagation()}>
-            <a href={`mailto:${human.email}`} className="no-underline hover:text-brand-purple">
-              {human.email}
-            </a>
-          </div>
-        )}
-
-        {human.historyFlag && <SafetyAlertChip items={[human.historyFlag]} className="mt-1 self-start" />}
-
-        {humanDogs.length === 0 && !showArchived ? (
-          // Data-hygiene nudge: a one-off enquiry with no dog on file. Opens
-          // the profile, where a dog can be added.
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
-            className="mt-1 self-start text-xs font-semibold italic text-brand-coral-text bg-transparent border-none p-0 cursor-pointer hover:text-brand-coral-text hover:underline underline-offset-2"
-          >
-            No dogs yet — add one?
-          </button>
-        ) : (
-          <div className="mt-1 flex items-center gap-2.5 flex-wrap overflow-hidden max-h-[26px]">
-            <DogChips dogs={humanDogs} max={4} dim={16} />
-          </div>
-        )}
+        <ProfileArrow label={`View profile for ${titleCase(fullName)}`} onClick={open} />
       </div>
-    </div>
+      {showArchived && (
+        <div data-testid="human-card-secondary-actions" className="flex w-full justify-end">
+          <UnarchiveButton onUnarchive={() => onUnarchive(human.id)} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -303,11 +243,9 @@ export function HumansView({
   dogsByHumanId,
   ensureDogsForHumans,
   onOpenHuman,
-  onAddHuman,
   onNewClient,
   onUpdateHuman,
   fetchArchivedHumans,
-  findHumanByFullName,
   hasMore,
   totalCount,
   loadMore,
@@ -327,7 +265,6 @@ export function HumansView({
   filters = null,
   onToggleFilter,
 }) {
-  const [showAddModal, setShowAddModal] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedList, setArchivedList] = useState(null);
@@ -490,13 +427,10 @@ export function HumansView({
               />
             </div>
             {onNewClient && (
-              <Button variant="primary" onClick={onNewClient}>
-                + New client
+              <Button variant="primary" onClick={onNewClient} aria-label="Add client">
+                + Add client
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setShowAddModal(true)}>
-              + Add Human
-            </Button>
           </div>
         </div>
       </div>
@@ -714,16 +648,6 @@ export function HumansView({
           )}
         </div>
       </div>
-
-      {showAddModal && (
-        <AddHumanModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={onAddHuman}
-          dogs={dogs}
-          humans={humans}
-          findHumanByFullName={findHumanByFullName}
-        />
-      )}
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { SIZE_THEME, SIZE_FALLBACK } from "../../constants/index";
 import { MessageCircle } from "lucide-react";
 import { IconSearch } from "../icons/index.jsx";
 import { FloatingDecor } from "../decor/index.jsx";
@@ -14,6 +13,7 @@ import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 import { Button, Badge, EmptyState, SafetyAlertChip } from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
+import { DogSizeMark, ProfileArrow } from "./directory/IdentityMarker.jsx";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -83,7 +83,7 @@ function AlphabetRail({ availableLetters, activeLetter, onLetterChange, classNam
   );
 }
 
-function UnarchiveButton({ onUnarchive }) {
+function UnarchiveButton({ onUnarchive, inline = false }) {
   return (
     <button
       type="button"
@@ -92,36 +92,12 @@ function UnarchiveButton({ onUnarchive }) {
         onUnarchive();
       }}
       title="Unarchive this dog"
-      className="absolute top-2 right-2 z-[1] text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"
+      className={inline
+        ? "min-h-11 min-w-11 px-3 py-2 rounded-full text-xs font-bold text-brand-purple bg-white border border-brand-purple/30 cursor-pointer hover:bg-brand-purple/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+        : "absolute top-2 right-2 z-[1] min-h-11 min-w-11 text-[11px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/30 px-2 py-0.5 rounded-md cursor-pointer hover:bg-brand-purple/20 transition-colors"}
     >
       Unarchive
     </button>
-  );
-}
-
-// Key for the size dots — reuses SizeDot so the legend can never drift from the
-// real colours. Decorative for screen readers (each dog already carries its own
-// size label via SizeDot on the cards).
-function SizeLegend({ className = "" }) {
-  const items = [
-    ["small", "Small"],
-    ["medium", "Medium"],
-    ["large", "Large"],
-    [null, "Unknown"],
-  ];
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex items-center gap-x-3 gap-y-1 flex-wrap text-micro text-ink-muted ${className}`}
-    >
-      <span className="font-bold uppercase tracking-wide">Size</span>
-      {items.map(([size, label]) => (
-        <span key={label} className="inline-flex items-center gap-1">
-          <SizeDot size={size} dim={12} />
-          {label}
-        </span>
-      ))}
-    </div>
   );
 }
 
@@ -137,13 +113,12 @@ function resolveOwner(dog, humans) {
   return { label: fb.label, phone: fb.phone, missing: fb.missing, server: false };
 }
 
-// Owner phone + WhatsApp links (stopPropagation so they don't open the
-// profile). Mirrors the contact links on the Humans cards.
+// Owner phone + WhatsApp links mirror the contact links on the Humans cards.
 function OwnerContact({ phone, className = "" }) {
   if (!phone) return null;
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
-      <a href={telLink(phone)} className="font-medium no-underline hover:text-brand-purple truncate inline-block max-sm:py-1.5 max-sm:-my-1.5">
+    <span className={`inline-flex items-center gap-2 ${className}`}>
+      <a href={telLink(phone)} className="inline-flex min-h-11 min-w-11 items-center truncate font-medium no-underline hover:text-brand-purple">
         {phone}
       </a>
       <a
@@ -152,7 +127,7 @@ function OwnerContact({ phone, className = "" }) {
         rel="noopener noreferrer"
         title="Open in WhatsApp"
         aria-label="Open in WhatsApp"
-        className="tap-target inline-flex items-center justify-center w-10 h-10 max-sm:w-11 max-sm:h-11 rounded-full text-emerald-600 bg-emerald-50 border border-emerald-200 no-underline hover:bg-emerald-100 shrink-0"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100"
       >
         <MessageCircle size={18} aria-hidden="true" />
       </a>
@@ -160,9 +135,28 @@ function OwnerContact({ phone, className = "" }) {
   );
 }
 
-// One directory entry, rendered as a grid card or a dense list row. Both stay
-// keyboard-openable (role=button + Enter/Space) and reuse the same owner-resolve
-// + tel/wa link pattern.
+function OwnerLine({ owner, skeleton }) {
+  return (
+    <div
+      data-testid="dog-card-contact"
+      className="mt-auto flex min-h-11 w-full min-w-0 items-center gap-2 border-t border-slate-100 pt-2 text-xs font-semibold text-ink-muted"
+    >
+      {skeleton ? (
+        <SkeletonBlock className="h-3 w-24" />
+      ) : owner.missing ? (
+        <span className="truncate italic">{owner.label}</span>
+      ) : (
+        <>
+          <span className="min-w-0 flex-1 truncate">{titleCase(owner.label)}</span>
+          <OwnerContact phone={owner.phone} className="ml-auto" />
+        </>
+      )}
+    </div>
+  );
+}
+
+// One directory entry, rendered as a grid card or a dense list row. Owner
+// contacts and the profile action remain separate, explicit controls.
 function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive }) {
   const owner = resolveOwner(dog, humans);
   const ownerSkeleton = owner.missing && !owner.server && Object.keys(humans || {}).length === 0;
@@ -173,112 +167,54 @@ function DirectoryItem({ dog, mode, humans, showArchived, onOpenDog, onUnarchive
   // positive (the very thing the server query fixes).
   const incomplete = !dog.size || !(dog.breed && dog.breed.trim());
   const age = computeAge(dog);
-  const t = SIZE_THEME[dog.size] || SIZE_FALLBACK;
   const open = () => onOpenDog(dog.id || dog.name);
-  const onKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
 
-  if (mode === "list") {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${titleCase(dog.name)}'s profile`}
-        onClick={open}
-        onKeyDown={onKeyDown}
-        className="group relative flex items-center gap-3 bg-white rounded-lg border border-slate-200 px-3 py-2 cursor-pointer transition-colors hover:border-brand-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-      >
-        <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[28rem]">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <SizeDot size={dog.size} dim={14} />
-            <span className="font-bold text-slate-800 truncate">{titleCase(dog.name)}</span>
+  const gridCardClass =
+    "group relative flex min-h-[154px] flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple/30 hover:shadow-card-hover";
+  const listCardClass =
+    "group relative flex flex-col items-start gap-2 rounded-xl border border-brand-paper-line bg-white px-4 py-3 transition-colors hover:border-brand-purple/30";
+
+  return (
+    <article
+      aria-label={titleCase(dog.name)}
+      className={mode === "list" ? listCardClass : gridCardClass}
+    >
+      <div data-testid="dog-card-primary" className="flex w-full min-w-0 items-start gap-3">
+        <DogSizeMark size={dog.size} decorative />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-title font-extrabold text-brand-purple">
+              {titleCase(dog.name)}
+            </span>
             {incomplete && (
               <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
                 Incomplete
               </Badge>
             )}
-            {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="shrink-0 max-w-[45%]" />}
           </div>
-          <div className="flex items-center gap-2.5 text-micro text-slate-500 mt-0.5 min-w-0">
-            <span className="truncate shrink-0">
-              {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}
-              {age ? ` · ${age}` : ""}
-            </span>
-            {ownerSkeleton ? (
-              <SkeletonBlock className="h-3 w-24" />
-            ) : owner.missing ? (
-              <span className="italic text-ink-muted truncate">· {owner.label}</span>
-            ) : (
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="truncate">· {titleCase(owner.label)}</span>
-                <OwnerContact phone={owner.phone} />
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="hidden sm:block flex-1" aria-hidden="true" />
-        {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(dog.id)} />}
-      </div>
-    );
-  }
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${titleCase(dog.name)}'s profile`}
-      onClick={open}
-      onKeyDown={onKeyDown}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer motion-safe:transition-all shadow-card-resting hover:-translate-y-0.5 hover:border-brand-cyan hover:shadow-card-hover min-h-[112px] flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-    >
-      <div
-        className="h-[3px] shrink-0"
-        style={{ background: `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1] || t.gradient[0]})` }}
-      />
-      {showArchived && <UnarchiveButton onUnarchive={() => onUnarchive(dog.id)} />}
-
-      <div className="p-3.5 px-4 flex flex-col flex-1 min-h-0 gap-0.5">
-        <div className="flex justify-between items-start gap-2">
-          <div className="flex items-center gap-1.5 truncate">
+          <p className="truncate text-body font-semibold text-slate-600">
+            {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1.5 text-caption font-semibold text-ink-muted">
             <SizeDot size={dog.size} dim={16} />
-            <span className="text-title font-extrabold text-slate-800 truncate">
-              {titleCase(dog.name)}
+            <span data-testid="dog-size-label">
+              {dog.size ? titleCase(dog.size) : "Size unknown"}
             </span>
-          </div>
-          {incomplete && (
-            <Badge tone="warning" size="xs" uppercase title="Missing size, breed or owner">
-              Incomplete
-            </Badge>
+          </p>
+          {dog.alerts?.length > 0 && (
+            <SafetyAlertChip items={dog.alerts} className="mt-1 min-h-11 min-w-11 max-w-full" />
           )}
         </div>
-
-        <div className="text-body text-slate-500 font-semibold leading-snug truncate">
-          {titleCase(dog.breed) || <span className="italic text-ink-muted">No breed</span>}{age ? ` · ${age}` : ""}
-        </div>
-
-        {dog.alerts?.length > 0 && <SafetyAlertChip items={dog.alerts} className="mt-1 self-start" />}
-
-        {/* Owner — pushed to bottom. While humans are still loading we can't
-            tell "missing owner" from "owner row hasn't arrived yet", so show a
-            skeleton instead of the misleading "Unknown owner" flash. */}
-        <div className="mt-auto text-xs font-semibold text-ink-muted truncate flex items-center gap-2 min-w-0">
-          {ownerSkeleton ? (
-            <SkeletonBlock className="h-3 w-24" />
-          ) : owner.missing ? (
-            <span className="italic">{owner.label}</span>
-          ) : (
-            <>
-              <span className="truncate">{titleCase(owner.label)}</span>
-              <OwnerContact phone={owner.phone} />
-            </>
-          )}
-        </div>
+        <ProfileArrow label={`View profile for ${titleCase(dog.name)}`} onClick={open} visibleLabel />
       </div>
-    </div>
+      <OwnerLine owner={owner} skeleton={ownerSkeleton} />
+      {showArchived && (
+        <div data-testid="dog-card-secondary-actions" className="flex w-full justify-end">
+          <UnarchiveButton inline onUnarchive={() => onUnarchive(dog.id)} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -446,52 +382,57 @@ export function DogsView({
       {/* Colourful dog-silhouette backdrop — same brand decor the dashboard
           uses (sits -z-10, shows through the gaps around cards). */}
       <FloatingDecor />
-      {/* Header banner — Dogs keep their cyan section identity. */}
-      <div className="bg-gradient-to-br from-brand-cyan-light to-brand-cyan-dark py-4 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
-        <svg aria-hidden="true" className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
-        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-display font-black text-white font-display m-0">Dogs Directory</h1>
-            <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
-              {isInitialLoading && displayList.length === 0 ? (
-                <SkeletonBlock className="h-4 w-32 bg-white/20" />
-              ) : (
-                headerCountText
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
-            <div className="relative flex-1">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="#64748b" />
+      {/* One connected shell keeps the page identity, search and directory
+          controls on the same grid instead of stacking separate systems. */}
+      <section
+        data-testid="dogs-directory-shell"
+        aria-label="Dogs directory controls"
+        className="mb-4 overflow-hidden rounded-xl border border-brand-paper-line bg-white shadow-card-resting"
+      >
+        <div className="bg-sd-sky-tint px-5 py-4 md:px-6">
+          <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="m-0 font-display text-2xl font-black text-brand-purple md:text-display">Dogs Directory</h1>
+              <div className="mt-0.5 min-h-[1.25rem] text-sm font-semibold text-ink-muted">
+                {isInitialLoading && displayList.length === 0 ? (
+                  <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+                ) : (
+                  headerCountText
+                )}
               </div>
-              <input
-                type="text"
-                aria-label="Search dogs by name, breed or owner"
-                placeholder="Search by name, breed or owner..."
-                value={searchQuery}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white text-sm font-inherit outline-none text-slate-800 placeholder:text-slate-500 transition-colors focus:border-white shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-              />
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-white text-brand-cyan border-none rounded-control px-4 py-2.5 text-[13px] font-bold cursor-pointer font-inherit whitespace-nowrap transition-all hover:bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-            >
-              + Add Dog
-            </button>
+            <div className="flex max-w-[420px] flex-1 items-center gap-2.5">
+              <div className="relative flex-1">
+                <div className="absolute left-3.5 top-1/2 flex -translate-y-1/2">
+                  <IconSearch size={16} colour="#64748b" />
+                </div>
+                <input
+                  type="search"
+                  aria-label="Search dogs by name, breed or owner"
+                  placeholder="Search by name, breed or owner..."
+                  value={searchQuery}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="w-full rounded-control border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 shadow-sm outline-none transition-colors placeholder:text-slate-500 focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/15"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="min-h-11 whitespace-nowrap rounded-control border-none bg-brand-purple px-4 py-2.5 text-body font-bold text-white shadow-sm transition-colors hover:bg-brand-purple-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
+              >
+                + Add Dog
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Toolbar: size + alert/incomplete filters + sort + view unified into one
-          control row, with a size key beneath. Active states use the shared
-          yellow/purple language. */}
-      <div className="mb-4">
+      {/* One toolbar, one control language. Size remains written on each card,
+          so there is no duplicate legend competing with these filters. */}
+      <div className="border-t border-brand-paper-line px-5 py-3 md:px-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter dogs">
                 {SIZE_FILTERS.map((s) => {
                   const active = filters?.size === s.value;
                   return (
@@ -501,7 +442,7 @@ export function DogsView({
                       onClick={() => onToggleFilter("size", s.value)}
                       aria-pressed={active}
                       aria-label={s.label}
-                      className={`inline-flex items-center gap-1.5 text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-caption font-bold transition-colors ${
                         active
                           ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                           : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -517,7 +458,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("alert")}
                   aria-pressed={!!filters?.alert}
-                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                  className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.alert
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -529,7 +470,7 @@ export function DogsView({
                   type="button"
                   onClick={() => onToggleFilter("incomplete")}
                   aria-pressed={!!filters?.incomplete}
-                  className={`text-micro font-bold px-3 py-1 max-sm:px-3 max-sm:py-2 rounded-full border transition-colors ${
+                  className={`min-h-11 rounded-full border px-3 text-caption font-bold transition-colors ${
                     filters?.incomplete
                       ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                       : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -543,7 +484,7 @@ export function DogsView({
           )}
 
           {showRailAndSort && (
-            <div className="inline-flex items-center gap-2">
+            <div className="inline-flex items-center gap-2" role="group" aria-label="Sort dogs">
               <span className="text-label text-ink-muted">Sort</span>
               <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
                 {[["name", "Name"], ["recent", "Recently added"]].map(([mode, label]) => (
@@ -569,7 +510,11 @@ export function DogsView({
           {showRailAndSort && (
             <span className="hidden sm:block h-5 w-px bg-slate-200 ml-auto" aria-hidden="true" />
           )}
-          <div className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}>
+          <div
+              className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}
+              role="group"
+              aria-label="Directory view"
+            >
             <span className="text-label text-ink-muted">View</span>
             <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
               {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
@@ -590,9 +535,8 @@ export function DogsView({
             </div>
           </div>
         </div>
-
-        {displayList.length > 0 && <SizeLegend className="mt-2.5" />}
       </div>
+      </section>
 
       {/* Mobile A–Z strip */}
       {showRailAndSort && (

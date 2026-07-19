@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   createMany: vi.fn(),
   cancelCustomerBooking: vi.fn(),
+  rescheduleCustomerBooking: vi.fn(),
   cancelMany: vi.fn(),
   listIdsInGroup: vi.fn(),
   listForHuman: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("../../../supabase/repositories/dogsRepo", () => ({
 vi.mock("../../../supabase/repositories/bookingsRepo", () => ({
   createMany: mocks.createMany,
   cancelCustomerBooking: mocks.cancelCustomerBooking,
+  rescheduleCustomerBooking: mocks.rescheduleCustomerBooking,
   cancelMany: mocks.cancelMany,
   listIdsInGroup: mocks.listIdsInGroup,
   listOnDateForCapacity: vi.fn().mockResolvedValue({ bookings: [], error: null }),
@@ -104,6 +106,10 @@ describe("BookingWizard partial reschedule", () => {
       error: null,
     });
     mocks.createMany.mockResolvedValue({ ids: ["new-1"], error: null });
+    mocks.rescheduleCustomerBooking.mockResolvedValue({
+      ids: ["50000000-0000-4000-8000-000000000001"],
+      error: null,
+    });
     mocks.cancelCustomerBooking.mockResolvedValue({
       receipt: null,
       error: { code: "SDC03", message: "not_cancellable" },
@@ -112,16 +118,17 @@ describe("BookingWizard partial reschedule", () => {
     mocks.cancelMany.mockResolvedValue({ error: new Error("not cancellable") });
   });
 
-  it("enters a terminal recovery state after replacement succeeds but cancellation fails", async () => {
+  it("submits a reschedule as one atomic command", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter
         initialEntries={[
           {
             pathname: "/customer/book",
+            search: "?reschedule=40000000-0000-4000-8000-000000000001",
             state: {
               rescheduleFrom: {
-                id: "old-1",
+                id: "40000000-0000-4000-8000-000000000001",
                 dateLabel: "15 June",
                 timeLabel: "9:00am",
                 dogName: "Alfie",
@@ -142,24 +149,83 @@ describe("BookingWizard partial reschedule", () => {
       await screen.findByRole("button", { name: "Confirm replacement" }),
     );
 
-    expect(
-      await screen.findByText(
-        "Your new booking was created, but the original booking could not be cancelled. Please contact the salon so we can fix this.",
+    await waitFor(() =>
+      expect(mocks.rescheduleCustomerBooking).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          bookingId: "40000000-0000-4000-8000-000000000001",
+          bookingDate: "2099-06-15",
+        }),
       ),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/couldn.t create that booking/i),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText(/new-1/i)).toBeInTheDocument();
-    expect(mocks.createMany).toHaveBeenCalledTimes(1);
-    expect(mocks.cancelCustomerBooking).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ bookingId: "old-1" }),
+    );
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(mocks.cancelCustomerBooking).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when route state has no durable reschedule ID", async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/customer/book",
+            state: {
+              rescheduleFrom: {
+                id: "40000000-0000-4000-8000-000000000001",
+                dateLabel: "15 June",
+                timeLabel: "9:00am",
+                dogName: "Alfie",
+              },
+            },
+          },
+        ]}
+      >
+        <BookingWizard
+          humanRecord={{ id: "human-1", name: "Alex", surname: "Taylor" }}
+          onComplete={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /reschedule link isn.t valid/i,
     );
     expect(
       screen.queryByRole("button", { name: "Confirm replacement" }),
     ).not.toBeInTheDocument();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(mocks.rescheduleCustomerBooking).not.toHaveBeenCalled();
+  });
 
-    await waitFor(() => expect(mocks.createMany).toHaveBeenCalledTimes(1));
+  it("keeps reschedule mode after route state is lost on refresh", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/customer/book?reschedule=40000000-0000-4000-8000-000000000001",
+        ]}
+      >
+        <BookingWizard
+          humanRecord={{ id: "human-1", name: "Alex", surname: "Taylor" }}
+          onComplete={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm replacement" }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.rescheduleCustomerBooking).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          bookingId: "40000000-0000-4000-8000-000000000001",
+        }),
+      ),
+    );
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(mocks.cancelCustomerBooking).not.toHaveBeenCalled();
   });
 });

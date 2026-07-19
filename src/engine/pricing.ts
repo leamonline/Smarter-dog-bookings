@@ -1,4 +1,5 @@
 import { computeBookingPricing, getDogByIdOrName } from "./bookingRules";
+import type { PricingConfig } from "./bookingRules";
 import type { Booking, Dog } from "../types/index";
 
 /**
@@ -12,6 +13,7 @@ import type { Booking, Dog } from "../types/index";
 export function computeRevenue(
   bookings: Booking[] | null | undefined,
   dogs: Record<string, Dog> | null | undefined,
+  configPricing?: PricingConfig,
 ): number {
   let total = 0;
   for (const b of bookings || []) {
@@ -22,6 +24,7 @@ export function computeRevenue(
       addons: b.addons,
       priceOverride: b.priceOverride,
       customPrice: dog?.customPrice,
+      configPricing,
     });
     total += subtotal;
   }

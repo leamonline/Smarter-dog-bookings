@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { OverlayProvider } from "react-aria";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { supabaseConfigError } from "./supabase/client.js";
 import { CustomerUnavailablePage } from "./components/CustomerUnavailablePage.jsx";
@@ -21,19 +22,21 @@ const ResetPasswordPage = lazy(() =>
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
-    {supabaseConfigError ? (
-      <Routes>
-        <Route path="/customer/*" element={<CustomerUnavailablePage />} />
-        <Route path="/*" element={<StaffMisconfiguredPage />} />
-      </Routes>
-    ) : (
-      <Suspense fallback={<LoadingSpinner />}>
+    <OverlayProvider>
+      {supabaseConfigError ? (
         <Routes>
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/customer/*" element={<CustomerApp />} />
-          <Route path="/*" element={<App />} />
+          <Route path="/customer/*" element={<CustomerUnavailablePage />} />
+          <Route path="/*" element={<StaffMisconfiguredPage />} />
         </Routes>
-      </Suspense>
-    )}
-  </BrowserRouter>
+      ) : (
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/customer/*" element={<CustomerApp />} />
+            <Route path="/*" element={<App />} />
+          </Routes>
+        </Suspense>
+      )}
+    </OverlayProvider>
+  </BrowserRouter>,
 );

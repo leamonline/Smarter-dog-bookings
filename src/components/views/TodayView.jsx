@@ -1,16 +1,8 @@
-// Today command centre — the staff daily landing screen, in the morning-brief
-// layout. One booking, one truth: a slot-grouped diary with one expandable row
-// per booking/dog (built on the pure buildTodayFeed/groupFeedBySlot
-// selectors), a KPI card row, the sticky Now strip, warm notes, and a separate
-// "Manage availability" modal. All logic lives in the Today engine
-// (src/engine/today.ts) so the component just wires data + actions.
-//
-// Closed days show a READ-ONLY brief of the next open day instead (see
-// ClosedDayBrief below) — one-date rule: everything date-specific in that mode
-// derives from the brief's date + bookings, never from today's.
+// Daily Brief command centre. Every date-specific selector and mutation is
+// anchored to the selected date, including closed, past and future dates.
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { resolveBookingDisplay, getDogByIdOrName, buildMarkPaidPatch } from "../../engine/bookingRules";
+import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRules";
 import { buildSlotGrid } from "../../engine/slotGrid";
 import {
   londonDateStr,
@@ -19,21 +11,23 @@ import {
   buildTakingsByMethod,
   buildSlotOpportunities,
   buildAvailabilityView,
-  buildTodayFeed,
-  selectNowNext,
+  liveFocusContext,
+  selectLiveFocus,
   groupFeedBySlot,
-  buildFutureDayFeed,
   countDogsPerOwner,
 } from "../../engine/today";
+import {
+  buildDailyBriefFeed,
+  requiresCareSkipConfirmation,
+} from "../../engine/dailyBrief";
 import { BOOKING_STATUS } from "../../constants/index";
 import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useSalonPricing } from "../../contexts/SalonContext";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
-import { useNextOpenDayBrief } from "../../hooks/useNextOpenDayBrief";
-import { TodayHeader } from "./today/TodayHeader.jsx";
-import { TodayNowStrip } from "./today/TodayNowStrip.jsx";
+import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
 import { BookingFeed } from "./today/BookingFeed.jsx";
+import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
+import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
 import { TodayKpiRow } from "./today/TodayKpiRow.jsx";
@@ -49,98 +43,12 @@ function SectionSkeleton() {
   );
 }
 
-/** Pretty "Monday 13 July" from a YYYY-MM-DD, without touching the clock. */
-function prettyDate(dateStr) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-}
-
-/**
- * The closed-day, read-only brief for the next open day. One-date rule:
- * every figure and label below derives from brief.dateStr + brief.bookings;
- * nothing here may read today's bookings or the live clock.
- */
-export function ClosedDayBrief({ brief, dogs, resolve, getWelfare, paymentOf, onOpenCalendar }) {
-  const feed = useMemo(() => buildFutureDayFeed(brief.bookings), [brief.bookings]);
-  const groups = useMemo(() => groupFeedBySlot(feed), [feed]);
-  const ownerCounts = useMemo(() => countDogsPerOwner(feed, dogs), [feed, dogs]);
-  const summary = useMemo(() => buildDaySummary(brief.bookings, dogs), [brief.bookings, dogs]);
-
-  const banner = (
-    <div className="rounded-xl bg-brand-purple/[0.06] text-brand-purple px-3.5 py-2.5 text-[13px] font-semibold flex items-center justify-between gap-2 flex-wrap">
-      <span>Closed today — here&apos;s your next open day{brief.dateStr ? `: ${prettyDate(brief.dateStr)}` : ""}.</span>
-      {onOpenCalendar && (
-        <button type="button" onClick={onOpenCalendar} className="min-h-[44px] px-1 font-bold underline underline-offset-2">
-          Open the calendar
-        </button>
-      )}
-    </div>
-  );
-
-  if (brief.loading) {
-    return (
-      <>
-        {banner}
-        <SectionSkeleton />
-      </>
-    );
-  }
-
-  if (!brief.available) {
-    return (
-      <>
-        {banner}
-        <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-8 text-center">
-          <p className="text-[14px] font-bold text-slate-700">
-            Couldn&apos;t load the diary{brief.dateStr ? ` for ${prettyDate(brief.dateStr)}` : ""}.
-          </p>
-          <button
-            type="button"
-            onClick={brief.refresh}
-            className="mt-2 min-h-[44px] px-4 text-[13px] font-bold text-brand-purple underline underline-offset-2"
-          >
-            Try again
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  if (brief.noOpenDay) {
-    return (
-      <>
-        {banner}
-        <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-8 text-center">
-          <p className="text-[14px] font-bold text-slate-700">No open days in the next ten days.</p>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {banner}
-      <TodayKpiRow dogsBooked={summary.dogsBooked} expectedRevenue={summary.expectedRevenue} />
-      {brief.bookings.length === 0 ? (
-        <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-8 text-center">
-          <p className="text-[14px] font-bold text-slate-700">Nothing booked in yet for {prettyDate(brief.dateStr)}.</p>
-        </div>
-      ) : (
-        <BookingFeed
-          groups={groups}
-          readOnly
-          ownerCounts={ownerCounts}
-          dogs={dogs}
-          resolve={resolve}
-          getWelfare={getWelfare}
-          paymentOf={paymentOf}
-        />
-      )}
-    </>
-  );
-}
-
 export function TodayView({
+  selectedDateObj,
+  selectedDateStr,
+  onOpenDatePicker,
+  onOpenDog,
+  onOpenHuman,
   bookingsByDate,
   bookingsLoading,
   bookingsError,
@@ -155,10 +63,10 @@ export function TodayView({
   onSendCollection,
   toggleImmediateSlot,
   onRefresh,
+  configPricing,
 }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const configPricing = useSalonPricing();
 
   // Re-tick every minute so "15 min overdue" / "waiting 25 min" stay live.
   const [now, setNow] = useState(() => new Date());
@@ -168,31 +76,55 @@ export function TodayView({
   }, []);
 
   const [showAvailability, setShowAvailability] = useState(false);
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [showNeedsActionOnly, setShowNeedsActionOnly] = useState(false);
 
-  const todayStr = londonDateStr(now);
-  const todaySettings = daySettings?.[todayStr] || {};
-  const todayBookings = useMemo(() => bookingsByDate?.[todayStr] || [], [bookingsByDate, todayStr]);
-  const activeSlots = useMemo(() => buildSlotGrid(todaySettings.extraSlots || []), [todaySettings.extraSlots]);
-  const immediateSet = useMemo(() => new Set(todaySettings.immediateSlots || []), [todaySettings.immediateSlots]);
-  const isDayOpen = dayOpenState?.[todayStr] !== false;
+  const realTodayStr = londonDateStr(now);
+  const dateStr = selectedDateStr || realTodayStr;
+  const dateObj = selectedDateObj || now;
+  const isToday = dateStr === realTodayStr;
+  const selectedSettings = daySettings?.[dateStr] || {};
+  const selectedBookings = useMemo(
+    () => bookingsByDate?.[dateStr] || [],
+    [bookingsByDate, dateStr],
+  );
+  const activeSlots = useMemo(
+    () => buildSlotGrid(selectedSettings.extraSlots || []),
+    [selectedSettings.extraSlots],
+  );
+  const immediateSet = useMemo(
+    () => new Set(selectedSettings.immediateSlots || []),
+    [selectedSettings.immediateSlots],
+  );
+  const isDayOpen = dayOpenState?.[dateStr] !== false;
 
-  // Closed days: the read-only next-open-day brief (fetches only when needed).
-  const brief = useNextOpenDayBrief(todayStr, !isDayOpen);
+  // Non-today availability must not inherit the real clock's elapsed slots.
+  // Anchor it to the selected date's start while retaining live cut-offs today.
+  const availabilityNow = useMemo(
+    () => dateStr === realTodayStr ? now : new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
+    [dateObj, dateStr, now, realTodayStr],
+  );
 
   // ---- Engine selectors ----
-  const summary = useMemo(() => buildDaySummary(todayBookings, dogs), [todayBookings, dogs]);
-  const takings = useMemo(() => buildTakingsByMethod(todayBookings), [todayBookings]);
-  const feed = useMemo(() => buildTodayFeed(todayBookings, now), [todayBookings, now]);
+  const summary = useMemo(
+    () => buildDaySummary(selectedBookings, dogs, configPricing),
+    [selectedBookings, dogs, configPricing],
+  );
+  const takings = useMemo(() => buildTakingsByMethod(selectedBookings), [selectedBookings]);
+  const feed = useMemo(
+    () => buildDailyBriefFeed(selectedBookings, dateStr, now),
+    [selectedBookings, dateStr, now],
+  );
   const opportunities = useMemo(
     () => buildSlotOpportunities({
-      bookings: todayBookings,
+      bookings: selectedBookings,
       activeSlots,
-      overrides: todaySettings.overrides || {},
-      immediateSlots: todaySettings.immediateSlots || [],
-      now,
-      todayStr,
+      overrides: selectedSettings.overrides || {},
+      immediateSlots: selectedSettings.immediateSlots || [],
+      now: availabilityNow,
+      todayStr: dateStr,
     }),
-    [todayBookings, activeSlots, todaySettings.overrides, todaySettings.immediateSlots, now, todayStr],
+    [selectedBookings, activeSlots, selectedSettings.overrides, selectedSettings.immediateSlots, availabilityNow, dateStr],
   );
   const availabilityView = useMemo(() => buildAvailabilityView(opportunities, immediateSet), [opportunities, immediateSet]);
 
@@ -204,55 +136,99 @@ export function TodayView({
   // ---- Per-day hides (local UI only; never mutates booking data). Only a
   // not-yet-arrived, non-owing booking offers "Hide until tomorrow" — money
   // never hides.
-  const dismissKey = `sd-today-dismissed-${todayStr}`;
-  const [dismissed, setDismissed] = useState(() => {
+  const dismissKey = `sd-today-dismissed-${dateStr}`;
+  const readDismissed = useCallback((key) => {
     try {
-      return new Set(JSON.parse(safeGet("local", dismissKey) || "[]"));
+      return new Set(JSON.parse(safeGet("local", key) || "[]"));
     } catch {
       return new Set();
     }
-  });
-  useEffect(() => {
-    safeSet("local", dismissKey, JSON.stringify([...dismissed]));
-  }, [dismissed, dismissKey]);
-  const onHideUntilTomorrow = useCallback((id) => setDismissed((prev) => new Set(prev).add(id)), []);
+  }, []);
+  const [dismissed, setDismissed] = useState(() => readDismissed(dismissKey));
+  useEffect(() => setDismissed(readDismissed(dismissKey)), [dismissKey, readDismissed]);
+  const onHideUntilTomorrow = useCallback((id) => {
+    setDismissed((previous) => {
+      const next = new Set(previous).add(id);
+      safeSet("local", dismissKey, JSON.stringify([...next]));
+      return next;
+    });
+  }, [dismissKey]);
 
   const visibleFeed = useMemo(() => feed.filter((e) => !dismissed.has(e.booking.id)), [feed, dismissed]);
   const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
-  // The sticky strip reads the same visible feed the diary renders from, so
-  // marking a dog arrived/ready/collected updates both in the same render.
-  const nowNext = useMemo(() => selectNowNext(visibleFeed, now), [visibleFeed, now]);
-  const groups = useMemo(() => groupFeedBySlot(visibleFeed), [visibleFeed]);
-  const ownerCounts = useMemo(() => countDogsPerOwner(visibleFeed, dogs), [visibleFeed, dogs]);
+  const displayedFeed = useMemo(
+    () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
+    [showNeedsActionOnly, visibleFeed],
+  );
+  useEffect(() => setShowNeedsActionOnly(false), [dateStr]);
+  useEffect(() => {
+    if (actionCount === 0) setShowNeedsActionOnly(false);
+  }, [actionCount]);
+  const liveFocus = useMemo(
+    () => (isToday ? selectLiveFocus(displayedFeed) : null),
+    [displayedFeed, isToday],
+  );
+  const liveContext = useMemo(
+    () => (liveFocus ? liveFocusContext(liveFocus, now) : null),
+    [liveFocus, now],
+  );
+  const liveFocusId = liveFocus?.booking.id ?? null;
+  const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
+  const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
 
-  // ---- Row expansion + "jump to row" from the sticky strip ----
-  const [expandedIds, setExpandedIds] = useState(() => new Set());
-  const onToggleExpand = useCallback((id) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  // Scrolling is permission-based: candidate changes alone never move the
+  // viewport. Initial/date loads and successful focused-booking resolutions
+  // issue an explicit request, while ticks, filters and refetches only update
+  // the marker in place.
+  const [scrollRequest, setScrollRequest] = useState(null);
+  const initialLoadDateRef = useRef(null);
+  const handledScrollRequestRef = useRef(0);
+  const requestLiveScroll = useCallback((focusId) => {
+    setScrollRequest((previous) => ({
+      sequence: (previous?.sequence ?? 0) + 1,
+      dateStr,
+      focusId,
+    }));
+  }, [dateStr]);
 
-  const [highlightId, setHighlightId] = useState(null);
-  const highlightTimer = useRef(null);
-  useEffect(() => () => clearTimeout(highlightTimer.current), []);
-  const onJumpTo = useCallback((id) => {
-    setExpandedIds((prev) => new Set(prev).add(id));
-    // Scroll + focus after the expanded row has rendered.
+  useEffect(() => {
+    if (!isToday) {
+      initialLoadDateRef.current = null;
+      return;
+    }
+    if (bookingsLoading || initialLoadDateRef.current === dateStr) return;
+    initialLoadDateRef.current = dateStr;
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, dateStr, isToday, liveFocusId, requestLiveScroll]);
+
+  useEffect(() => {
+    if (
+      !scrollRequest ||
+      !isToday ||
+      bookingsLoading ||
+      scrollRequest.dateStr !== dateStr ||
+      handledScrollRequestRef.current === scrollRequest.sequence
+    ) {
+      return;
+    }
+    handledScrollRequestRef.current = scrollRequest.sequence;
     requestAnimationFrame(() => {
-      const el = document.getElementById(`today-card-${id}`);
-      if (!el) return;
+      const el = document.getElementById(`today-card-${scrollRequest.focusId}`);
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-      document.getElementById(`today-card-${id}-toggle`)?.focus({ preventScroll: true });
+      el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
-    setHighlightId(id);
-    clearTimeout(highlightTimer.current);
-    highlightTimer.current = setTimeout(() => setHighlightId(null), 1600);
-  }, []);
+  }, [bookingsLoading, dateStr, isToday, scrollRequest]);
+
+  const [pendingResolvedFocusId, setPendingResolvedFocusId] = useState(null);
+  useEffect(() => {
+    if (!pendingResolvedFocusId || !isToday || bookingsLoading) return;
+    const resolvedEntry = visibleFeed.find(
+      (entry) => entry.booking.id === pendingResolvedFocusId,
+    );
+    if (resolvedEntry?.stage === "booked") return;
+    setPendingResolvedFocusId(null);
+    if (liveFocusId) requestLiveScroll(liveFocusId);
+  }, [bookingsLoading, isToday, liveFocusId, pendingResolvedFocusId, requestLiveScroll, visibleFeed]);
 
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
@@ -267,8 +243,8 @@ export function TodayView({
   }, [dogs]);
   const paymentOf = useCallback((b) => {
     const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-    return paymentState(b, dog?.customPrice ?? null);
-  }, [dogs]);
+    return paymentState(b, dog?.customPrice ?? null, configPricing);
+  }, [dogs, configPricing]);
 
   const unpaidTotal = useMemo(
     () => visibleFeed.filter((e) => e.owes).reduce((n, e) => n + (paymentOf(e.booking).amountDue ?? 0), 0),
@@ -276,67 +252,179 @@ export function TodayView({
   );
 
   // ---- Actions (reuse the exact update path the detail modal uses) ----
-  const patch = useCallback(async (b, changes, message) => {
-    // Everything on this page is today's booking; offline sample rows carry
-    // no _bookingDate, so fall back to today rather than silently no-opping.
-    const date = b._bookingDate || todayStr;
-    const result = await onUpdateBooking({ ...b, ...changes }, date, date);
-    if (result !== null && message) toast.show(message, "success");
-    return result;
-  }, [onUpdateBooking, toast, todayStr]);
-
-  const onMarkArrived = useCallback((b) => patch(b, { status: BOOKING_STATUS.CHECKED_IN }, `${b.dogName} checked in`), [patch]);
-  const onStartGroom = useCallback((b) => patch(b, { status: BOOKING_STATUS.IN_BATH }, `${b.dogName} — groom started`), [patch]);
-  const onMarkReady = useCallback((b) => patch(b, { status: BOOKING_STATUS.READY_FOR_PICKUP }, `${b.dogName} is ready to go home`), [patch]);
-  const onMarkCollected = useCallback((b) => patch(b, { status: BOOKING_STATUS.COMPLETED }, `${b.dogName} collected — lovely`), [patch]);
-  const onMarkPaid = useCallback(
-    (b, method) => {
-      const dog = getDogByIdOrName(dogs, b._dogId || b.dogName);
-      return patch(
-        b,
-        buildMarkPaidPatch(
-          {
-            service: b.service,
-            size: b.size,
-            addons: b.addons,
-            priceOverride: b.priceOverride ?? null,
-            customPrice: dog?.customPrice ?? null,
-            configPricing,
-          },
-          method ?? null,
+  const patch = useCallback(async (
+    b,
+    changes,
+    successMessage,
+    failureMessage = "Booking update could not be saved.",
+    { showFailureToast = true } = {},
+  ) => {
+    const date = b._bookingDate || dateStr;
+    let result;
+    try {
+      result = await onUpdateBooking({ ...b, ...changes }, date, date);
+    } catch {
+      result = null;
+    }
+    if (result !== null && result !== false) {
+      if (successMessage) toast.show(successMessage, "success");
+      return result;
+    }
+    if (showFailureToast) {
+      toast.show(failureMessage, "error", {
+        label: "Retry",
+        onClick: () => patch(
+          b,
+          changes,
+          successMessage,
+          failureMessage,
+          { showFailureToast },
         ),
-        `${b.dogName} — payment recorded`,
+      });
+    }
+    return null;
+  }, [onUpdateBooking, toast, dateStr]);
+
+  const authoriseResolvedFocusAdvance = useCallback((booking, result) => {
+    if (
+      result !== null &&
+      result !== false &&
+      booking.id === liveFocusId
+    ) {
+      setPendingResolvedFocusId(booking.id);
+    }
+    return result;
+  }, [liveFocusId]);
+
+  const updateStatus = useCallback(async (
+    booking,
+    status,
+    successMessage,
+    failureMessage,
+    options = {},
+  ) => {
+    const skipped = requiresCareSkipConfirmation(booking.status, status);
+    if (
+      skipped &&
+      !options.skipConfirmation &&
+      !window.confirm(`${booking.dogName} has not ${skipped}. Continue anyway?`)
+    ) {
+      return null;
+    }
+    const result = await patch(
+      booking,
+      {
+        status,
+        ...(options.skipCollectionPrompt ? { _skipCollectionPrompt: true } : {}),
+      },
+      successMessage,
+      failureMessage,
+    );
+    return options.advanceLiveFocus
+      ? authoriseResolvedFocusAdvance(booking, result)
+      : result;
+  }, [authoriseResolvedFocusAdvance, patch]);
+
+  const onJourneyAction = useCallback(async (booking, action) => {
+    if (action.completed && action.id !== "paid") return null;
+    if (action.id === "checkIn") {
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.CHECKED_IN,
+        `${booking.dogName} checked in`,
+        "Check-in could not be saved.",
+        { advanceLiveFocus: true },
       );
-    },
-    [patch, dogs, configPricing],
+    }
+    if (action.id === "startGroom") {
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.IN_BATH,
+        `${booking.dogName} — groom started`,
+        "Starting the groom could not be saved.",
+      );
+    }
+    if (action.id === "ready") {
+      const saved = await updateStatus(
+        booking,
+        BOOKING_STATUS.READY_FOR_PICKUP,
+        `${booking.dogName} is waiting to be collected`,
+        "Ready for collection could not be saved.",
+        { skipCollectionPrompt: true, skipConfirmation: true, advanceLiveFocus: true },
+      );
+      if (saved) {
+        onSendCollection({
+          ...booking,
+          ...saved,
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+        });
+      }
+      return saved;
+    }
+    if (action.id === "collected") {
+      return updateStatus(
+        booking,
+        BOOKING_STATUS.COMPLETED,
+        `${booking.dogName} collected`,
+        "Collection could not be saved.",
+        { advanceLiveFocus: true },
+      );
+    }
+    if (action.id === "paid") setInvoiceBooking(booking);
+    return null;
+  }, [onSendCollection, updateStatus]);
+
+  const onOpenDepositBooking = useCallback(
+    (booking) => onOpenBooking?.(booking.id),
+    [onOpenBooking],
   );
-  const onDidntShow = useCallback((b) => patch(b, { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" }, `${b.dogName} marked as a no-show`), [patch]);
+  const onOpenInvoice = useCallback((booking) => setInvoiceBooking(booking), []);
+  const onSaveInvoice = useCallback(
+    (booking, invoicePatch) => patch(
+      booking,
+      invoicePatch,
+      "Payment recorded",
+      "Payment could not be saved.",
+      { showFailureToast: false },
+    ),
+    [patch],
+  );
+  const onDidntShow = useCallback(
+    async (b) => authoriseResolvedFocusAdvance(
+      b,
+      await patch(
+        b,
+        { status: BOOKING_STATUS.CANCELLED, cancelReason: "No-show" },
+        `${b.dogName} marked as a no-show`,
+        "Marking this booking as a no-show could not be saved.",
+      ),
+    ),
+    [authoriseResolvedFocusAdvance, patch],
+  );
   const onMessageOwner = useCallback((b) => {
     if (b._ownerId) navigate(`/inbox?human=${b._ownerId}`);
     else toast.show("Messaging isn't available for this booking", "info");
   }, [navigate, toast]);
-  const onNewBookingSlot = useCallback((slot) => onNewBooking({ dateStr: todayStr, slot }), [onNewBooking, todayStr]);
+  const onNewBookingSlot = useCallback((slot) => onNewBooking({ dateStr, slot }), [onNewBooking, dateStr]);
   const onToggleImmediate = useCallback((slot) => toggleImmediateSlot(slot), [toggleImmediateSlot]);
-  const onOpenCalendar = useCallback(() => navigate("/"), [navigate]);
 
-  const dateLabel = new Date(now).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-  const isEmptyDay = todayBookings.length === 0;
+  const dateLabel = dateObj.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const isEmptyDay = feed.length === 0;
 
   const feedHandlers = {
-    resolve,
-    getWelfare,
-    paymentOf,
-    onTheWaySignals,
-    onMarkArrived,
-    onStartGroom,
-    onMarkReady,
-    onMarkCollected,
-    onSendCollection,
-    onMessageOwner,
-    onMarkPaid,
-    onDidntShow,
+    onOpenDog,
+    onOpenHuman,
     onOpenBooking,
+    onOpenInvoice,
+    onMessageOwner,
+    onJourneyAction,
+    onDidntShow,
     onHideUntilTomorrow,
+    onTheWaySignals,
   };
 
   return (
@@ -349,71 +437,76 @@ export function TodayView({
           unpaidTotal={unpaidTotal}
           nextOnlineSlot={availabilityView.nextOnlineSlot}
           isDayOpen={isDayOpen}
-          briefMode={!isDayOpen}
+          isToday={isToday}
+          onOpenDatePicker={onOpenDatePicker}
           onManageAvailability={() => setShowAvailability(true)}
+          actionFilterActive={showNeedsActionOnly}
+          onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
         />
+
+        {showNeedsActionOnly && (
+          <p
+            role="status"
+            className="rounded-xl border border-brand-purple/15 bg-brand-purple/5 px-3 py-2 text-[12px] font-medium text-brand-purple"
+          >
+            Showing {actionCount} {actionCount === 1 ? "booking" : "bookings"} needing action: {NEEDS_ACTION_DEFINITION.replace("Need action means ", "").replace(/\.$/, "").toLowerCase()}.
+          </p>
+        )}
 
         {bookingsError && (
           <div className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-4 py-3 text-[13px] text-brand-coral-dark flex items-center justify-between gap-3">
-            <span>Couldn&apos;t load today&apos;s bookings.</span>
+            <span>Couldn&apos;t load bookings for this date.</span>
             {onRefresh && <button type="button" onClick={onRefresh} className="min-h-[44px] font-bold underline">Retry</button>}
           </div>
         )}
 
-        {!isDayOpen ? (
-          <>
-            <ClosedDayBrief
-              brief={brief}
-              dogs={dogs}
-              resolve={resolve}
-              getWelfare={getWelfare}
-              paymentOf={paymentOf}
-              onOpenCalendar={onOpenCalendar}
-            />
-            {notesReady && <TodayBriefNotes todayStr={todayStr} onOpenReports={onOpenReports} />}
-          </>
-        ) : bookingsLoading && todayBookings.length === 0 ? (
+        {bookingsLoading && selectedBookings.length === 0 ? (
           <>
             <SectionSkeleton />
             <SectionSkeleton />
           </>
-        ) : isEmptyDay ? (
+        ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
             <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-10 text-center">
-              <p className="text-[16px] font-bold text-slate-700">No dogs booked in today.</p>
+              <p className="text-[16px] font-bold text-slate-700">No bookings on this date</p>
               <p className="text-[13px] text-slate-600 mt-1">
-                A quiet one — a good chance to catch up, or open a slot for last-minute bookings.
+                Use the calendar to choose another day, or manage availability here.
               </p>
             </div>
-            {notesReady && <TodayBriefNotes todayStr={todayStr} onOpenReports={onOpenReports} />}
+            {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
           </>
         ) : (
           <>
-            <TodayKpiRow dogsBooked={summary.dogsBooked} expectedRevenue={summary.expectedRevenue} />
-            <TodayNowStrip
-              selection={nowNext}
-              now={now}
-              resolve={resolve}
-              onJumpTo={onJumpTo}
-              onMarkArrived={onMarkArrived}
-              onStartGroom={onStartGroom}
-              onMarkReady={onMarkReady}
-              onMarkCollected={onMarkCollected}
-              onSendCollection={onSendCollection}
-              onMessageOwner={onMessageOwner}
-              onMarkPaid={onMarkPaid}
+            <TodayKpiRow
+              dogsBooked={summary.dogsBooked}
+              onSite={isToday ? summary.onSite : undefined}
+              expectedRevenue={summary.expectedRevenue}
             />
+            {isToday && (
+              <>
+                {!showNeedsActionOnly && (
+                  <AwaitingDepositsCard
+                    bookings={selectedBookings}
+                    now={now}
+                    onOpenBooking={onOpenDepositBooking}
+                  />
+                )}
+              </>
+            )}
             <BookingFeed
               groups={groups}
               ownerCounts={ownerCounts}
               dogs={dogs}
-              expandedIds={expandedIds}
-              onToggleExpand={onToggleExpand}
-              highlightId={highlightId}
+              resolve={resolve}
+              getWelfare={getWelfare}
+              paymentOf={paymentOf}
+              priceOf={(booking) => paymentOf(booking).subtotal}
+              liveFocusId={liveFocusId}
+              liveContext={liveContext}
               {...feedHandlers}
             />
-            <TodaySummaryStrip summary={summary} takings={takings} />
-            {notesReady && <TodayBriefNotes todayStr={todayStr} onOpenReports={onOpenReports} />}
+            <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
+            {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
               <p className="text-center text-[12px] text-slate-500">Offline preview — showing sample data.</p>
             )}
@@ -427,6 +520,15 @@ export function TodayView({
             dogsBooked={summary.dogsBooked}
             onToggleImmediate={onToggleImmediate}
             onNewBooking={(slot) => { setShowAvailability(false); onNewBookingSlot(slot); }}
+          />
+        )}
+        {invoiceBooking && (
+          <MiniInvoiceModal
+            booking={invoiceBooking}
+            dog={getDogByIdOrName(dogs, invoiceBooking._dogId || invoiceBooking.dogName)}
+            configPricing={configPricing}
+            onSave={(invoicePatch) => onSaveInvoice(invoiceBooking, invoicePatch)}
+            onClose={() => setInvoiceBooking(null)}
           />
         )}
       </div>

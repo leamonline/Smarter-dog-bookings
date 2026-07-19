@@ -3,7 +3,7 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../contexts/ToastContext.jsx", () => ({
   useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
@@ -11,6 +11,19 @@ vi.mock("../../contexts/ToastContext.jsx", () => ({
 vi.mock("../../supabase/client.js", () => ({ supabase: null }));
 
 import { SettingsView } from "./SettingsView.jsx";
+
+function setViewportMobile(mobile) {
+  window.matchMedia = vi.fn().mockImplementation((query) => ({
+    matches: mobile && query === "(max-width: 767px)",
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
 
 const baseProps = () => ({
   config: { businessName: "My Salon", businessPhone: "", businessEmail: "", businessAddress: "" },
@@ -21,6 +34,8 @@ const baseProps = () => ({
 });
 
 describe("SettingsView unsaved-changes guard", () => {
+  beforeEach(() => setViewportMobile(false));
+
   it("warns before leaving a tab with unsaved edits, and 'Keep editing' stays put", async () => {
     const user = userEvent.setup();
     render(<SettingsView {...baseProps()} />);
@@ -54,5 +69,44 @@ describe("SettingsView unsaved-changes guard", () => {
     await user.click(screen.getByRole("tab", { name: /booking rules/i }));
     expect(screen.queryByText(/discard unsaved changes/i)).not.toBeInTheDocument();
     expect(screen.getByText(/advance booking window/i)).toBeInTheDocument();
+  });
+
+  it("keeps the desktop tab order and moves from Hours to Account with ArrowRight", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView {...baseProps()} />);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Your Business",
+      "Hours & Closures",
+      "Your Account",
+      "Services & Pricing",
+      "Booking Rules",
+      "Capacity Engine",
+      "Customer Portal",
+      "Notifications",
+      "Calendar Sync",
+    ]);
+
+    await user.click(screen.getByRole("tab", { name: "Hours & Closures" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Your Account" })).toHaveFocus();
+  });
+
+  it("groups mobile settings and uses the existing dirty-state guard", async () => {
+    setViewportMobile(true);
+    const user = userEvent.setup();
+    render(<SettingsView {...baseProps()} />);
+
+    expect(screen.getByRole("navigation", { name: "Settings categories" })).toBeInTheDocument();
+    await user.type(screen.getByDisplayValue("My Salon"), "!");
+    await user.click(screen.getByRole("button", { name: "Bookings" }));
+    await user.click(screen.getByRole("button", { name: "Booking Rules" }));
+    expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("button", { name: "Salon" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Your Business" })).toHaveAttribute("aria-current", "page");
   });
 });

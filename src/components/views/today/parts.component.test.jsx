@@ -8,6 +8,8 @@ import {
   WaitBadge,
   waitTone,
   MoreMenu,
+  ActionTile,
+  PaymentMethodChooser,
   WAIT_AMBER_MINUTES,
   WAIT_RED_MINUTES,
 } from "./parts.jsx";
@@ -126,16 +128,54 @@ describe("MoreMenu", () => {
   });
 });
 
+describe("ActionTile", () => {
+  it("renders icon + short label with a full accessible name", () => {
+    const onClick = vi.fn();
+    render(<ActionTile icon="check" label="Collected" ariaLabel="Mark collected" onClick={onClick} />);
+    const btn = screen.getByRole("button", { name: "Mark collected" });
+    expect(btn).toHaveTextContent("Collected");
+    expect(btn.querySelector("svg")).not.toBeNull();
+    fireEvent.click(btn);
+    expect(onClick).toHaveBeenCalled();
+  });
+});
+
+describe("PaymentMethodChooser", () => {
+  it("offers every payment method and a cancel", () => {
+    const onPick = vi.fn();
+    const onCancel = vi.fn();
+    render(<PaymentMethodChooser onPick={onPick} onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole("button", { name: "Bank transfer" }));
+    expect(onPick).toHaveBeenCalledWith("bank_transfer");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("MoreMenu tile variant", () => {
+  it("renders a tile-shaped trigger that still opens the menu", () => {
+    const onA = vi.fn();
+    render(<MoreMenu tile menuLabel="More actions for Rex" items={[{ label: "Didn't show", onClick: onA }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Rex" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
+    expect(onA).toHaveBeenCalled();
+  });
+});
+
 describe("TodayKpiRow", () => {
-  it("shows dogs in, expected revenue and capacity from the same count", () => {
-    render(<TodayKpiRow dogsBooked={11} expectedRevenue={478.4} />);
-    expect(screen.getByText("Dogs in").parentElement).toHaveTextContent("11");
+  it("shows on-site dogs with the booked total and keeps capacity booked-based", () => {
+    render(<TodayKpiRow dogsBooked={11} onSite={3} expectedRevenue={478.4} />);
+    expect(screen.getByText("On site").parentElement).toHaveTextContent("3");
+    expect(screen.getByText("11 booked today")).toBeInTheDocument();
     expect(screen.getByText("£478")).toBeInTheDocument();
-    expect(screen.getByText("if all paid")).toBeInTheDocument();
-    expect(screen.getByText(/\/ 14/)).toBeInTheDocument();
     const bar = screen.getByRole("progressbar", { name: /capacity/i });
     expect(bar).toHaveAttribute("aria-valuenow", "11");
-    expect(bar).toHaveAttribute("aria-valuemax", "14");
+  });
+
+  it("shows a booked-only card when onSite is omitted for a future brief", () => {
+    render(<TodayKpiRow dogsBooked={6} expectedRevenue={252} />);
+    expect(screen.getByText("Booked").parentElement).toHaveTextContent("6");
+    expect(screen.queryByText("On site")).not.toBeInTheDocument();
   });
 
   it("caps the bar at 100% when over capacity", () => {

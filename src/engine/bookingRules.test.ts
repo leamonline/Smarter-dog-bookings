@@ -11,10 +11,27 @@ import {
   getHumanByIdOrName,
   getDogByIdOrName,
   computeBookingPricing,
+  validateDepositAmount,
   buildMarkPaidPatch,
   resolveBookingDisplay,
   looksLikeUuid,
 } from "./bookingRules";
+
+describe("validateDepositAmount", () => {
+  it("accepts non-deposit states and a positive deposit below the total", () => {
+    expect(validateDepositAmount("Due at Pick-up", 46, 46)).toBeNull();
+    expect(validateDepositAmount("Deposit Paid", 10, 46)).toBeNull();
+  });
+
+  it.each([
+    [0, "Enter a deposit above £0"],
+    [-5, "Enter a deposit above £0"],
+    [46, "Deposit must be less than the booking total"],
+    [50, "Deposit must be less than the booking total"],
+  ])("rejects deposit %s with shared copy", (deposit, message) => {
+    expect(validateDepositAmount("Deposit Paid", deposit, 46)).toBe(message);
+  });
+});
 
 // ── isServiceSupportedForSize ───────────────────────────────────
 

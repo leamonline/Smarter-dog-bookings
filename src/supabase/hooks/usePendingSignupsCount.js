@@ -20,8 +20,16 @@ import { supabase } from "../client.js";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 import { logger } from "../../lib/logger";
+import { e2eFixtureCount } from "./e2eFixtureCounts.js";
 
-let state = { count: 0, loading: true };
+const e2ePendingSignups = e2eFixtureCount(
+  import.meta.env.VITE_E2E_PENDING_SIGNUPS,
+  import.meta.env.VITE_FORCE_OFFLINE === "1",
+);
+let state = {
+  count: e2ePendingSignups,
+  loading: true,
+};
 let channel = null;
 const listeners = new Set();
 

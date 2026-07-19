@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount.js";
-import { PRIMARY_NAV } from "./navConfig.jsx";
+import { navTargetFor, PRIMARY_NAV } from "./navConfig.jsx";
 
 // Two-letter initials for the account avatar — prefers a display name,
 // falls back to the email local-part. Empty string → generic glyph.
@@ -22,7 +22,7 @@ const PawIcon = (
   </svg>
 );
 
-export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview }) {
+export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClient, onOpenOverview, currentDateStr }) {
   // openMenu is null | "tools" | "account" | "mobile" — only one dropdown
   // is open at a time, and outside-click clears whichever one is showing.
   const [openMenu, setOpenMenu] = useState(null);
@@ -61,7 +61,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
         {/* Primary nav — sits inline next to the logo to keep the right
             side clear for the New booking CTA. Each section keeps its own
             accent so staff recognise it by colour. */}
-        <nav className="flex items-center gap-1 ml-3" aria-label="Primary">
+        <nav className="flex items-center gap-1 ml-1 xl:ml-3" aria-label="Primary">
           {PRIMARY_NAV.map((item) => {
             const ariaLabel =
               item.to === "/inbox" && waUnread > 0
@@ -72,11 +72,11 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             return (
               <NavLink
                 key={item.to}
-                to={item.to}
+                to={navTargetFor(item, currentDateStr)}
                 end={item.to === "/"}
                 aria-label={ariaLabel}
                 className={({ isActive }) =>
-                  `group relative inline-flex items-center gap-1.5 h-10 px-3 rounded-xl no-underline transition-all duration-150 ${
+                  `group relative inline-flex items-center gap-1 xl:gap-1.5 h-10 px-0.5 xl:px-3 rounded-xl no-underline transition-all duration-150 ${
                     isActive
                       ? `${item.activeBg} font-bold`
                       : "bg-transparent text-white/85 hover:bg-white/10 hover:text-white font-semibold"

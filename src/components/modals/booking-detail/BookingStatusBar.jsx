@@ -9,6 +9,11 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
   // change land — the radiogroup's aria-checked moving isn't announced on
   // its own when the change is triggered programmatically (#299).
   const [announcement, setAnnouncement] = useState("");
+  const [savingStatus, setSavingStatus] = useState(null);
+  const currentIndex = BOOKING_STATUSES.findIndex((status) => status.id === currentStatus);
+  const nextStatusId = currentIndex >= 0 && currentIndex < BOOKING_STATUSES.length - 1
+    ? BOOKING_STATUSES[currentIndex + 1].id
+    : null;
 
   // Roving-tabindex keyboard nav. Arrows move FOCUS between steps but don't
   // commit — committing fires a server update + toast, so we never want that
@@ -44,6 +49,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
       >
         {BOOKING_STATUSES.map((status, idx) => {
           const isActive = currentStatus === status.id;
+          const isNext = status.id === nextStatusId;
           // Active step pulls the same colour the dashboard card pill uses for
           // this status, so the stepper colour-matches the card.
           const accent = getStatusDisplay(status.id);
@@ -55,38 +61,48 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
               type="button"
               role="radio"
               aria-checked={isActive}
+              aria-busy={savingStatus === status.id}
+              data-next={isNext ? "true" : undefined}
+              disabled={savingStatus !== null}
               tabIndex={isActive ? 0 : -1}
               aria-label={`Set status to ${status.label}`}
               onClick={async () => {
-                if (isActive) return;
+                if (isActive || savingStatus !== null) return;
                 // Capture the pre-change status so the undo callback
                 // reverts to the right value even if `currentStatus`
                 // changes between toast trigger and undo click.
                 const previousStatus = currentStatus;
-                const result = await onUpdate(
-                  { ...booking, status: status.id },
-                  currentDateStr,
-                  currentDateStr,
-                );
-                // updateBooking returns null on failure (server check or
-                // RLS error); the global error banner already surfaces the
-                // message, so suppress the success toast in that case.
-                if (result === null) return;
-                setAnnouncement(`All set — status updated to ${status.label}`);
-                const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
-                toast.show(
-                  `${status.label} — saved`,
-                  variant,
-                  () => onUpdate(
-                    { ...booking, status: previousStatus },
+                setSavingStatus(status.id);
+                try {
+                  const result = await onUpdate(
+                    { ...booking, status: status.id },
                     currentDateStr,
                     currentDateStr,
-                  ),
-                );
+                  );
+                  // updateBooking returns null on failure (server check or
+                  // RLS error); the global error banner already surfaces the
+                  // message, so suppress the success toast in that case.
+                  if (result === null) return;
+                  setAnnouncement(`All set — status updated to ${status.label}`);
+                  const variant = status.id === BOOKING_STATUS.CHECKED_IN || status.id === BOOKING_STATUS.READY_FOR_PICKUP ? "success" : "info";
+                  toast.show(
+                    `${status.label} — saved`,
+                    variant,
+                    () => onUpdate(
+                      { ...booking, status: previousStatus },
+                      currentDateStr,
+                      currentDateStr,
+                    ),
+                  );
+                } catch {
+                  toast.show("Couldn't update status — try again", "error");
+                } finally {
+                  setSavingStatus(null);
+                }
               }}
               className={`min-h-[44px] inline-flex items-center justify-center py-2 px-0.5 md:px-1 rounded-full text-[10px] md:text-[11px] font-bold text-center leading-tight whitespace-nowrap border-none cursor-pointer font-inherit transition-colors duration-150 ${
                 isActive ? "" : "bg-slate-100 text-slate-600 hover:text-slate-700 hover:bg-slate-200"
-              }`}
+              } ${isNext && !isActive ? "ring-1 ring-inset ring-slate-400" : ""}`}
               style={
                 isActive
                   ? { background: accent.border, color: accent.onAccent }

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { customerSupabase as supabase } from "../../supabase/customerClient.js";
-import { cancelCustomerBooking } from "../../supabase/repositories/bookingsRepo";
+import { cancelCustomerBooking, getDepositSettings } from "../../supabase/repositories/bookingsRepo";
+import { isAwaitingDeposit } from "../../engine/deposits";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { AddToCalendarButton } from "./AddToCalendarButton.tsx";
 import { ArrowRight, PawPrint, RefreshCw, Scissors, X } from "lucide-react";
@@ -13,9 +14,8 @@ import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js"
  * Two states:
  *   1. **Empty** — no upcoming groom. "Ready to book {dogName} in?" + green CTA.
  *   2. **Booked** — has an upcoming groom. Date, time, service, dog;
- *      Reschedule (modal-confirmed: navigates to /customer/book with route
- *      state — the wizard cancels the original *after* a new booking is
- *      successfully created, so abandoning the wizard preserves the slot)
+ *      Reschedule (modal-confirmed: carries the original booking ID in the
+ *      URL; the wizard swaps the visit through one atomic database command)
  *      and Cancel (inline reason form) as low-emphasis links.
  *
  * Replaces the old "Upcoming appointments empty state" + "Time for another
@@ -44,9 +44,41 @@ function friendlyCancellationError(error) {
   return "We couldn’t cancel your booking. Please try again, or contact us if it keeps happening.";
 }
 
+function formatDueBy(dueBy) {
+  if (!dueBy) return null;
+  return new Date(dueBy).toLocaleString("en-GB", {
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }) {
   const navigate = useNavigate();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
+  const [depositBank, setDepositBank] = useState(null);
+
+  // Raw snake_case row → the shape isAwaitingDeposit reads.
+  const nextBooking = upcomingBookings[0];
+  const awaitingDeposit = nextBooking
+    ? isAwaitingDeposit({
+        depositRequired: nextBooking.deposit_required === true,
+        depositReceivedAt: nextBooking.deposit_received_at ?? null,
+        payment: nextBooking.payment ?? null,
+        status: nextBooking.status ?? null,
+      })
+    : false;
+
+  useEffect(() => {
+    if (!awaitingDeposit || !supabase) return undefined;
+    let cancelled = false;
+    getDepositSettings(supabase).then((s) => {
+      if (!cancelled) setDepositBank(s.bank);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [awaitingDeposit]);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
   const [otherReason, setOtherReason] = useState("");
@@ -85,11 +117,11 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
   const timeStr = formatSlot(next.slot);
 
   const handleRescheduleConfirm = () => {
-    // Don't cancel anything yet — pass the booking context to the wizard via
-    // route state. The wizard cancels this booking only *after* a new one is
-    // successfully created, so abandoning the wizard preserves the slot.
+    // Keep the authoritative booking ID in the URL so refresh/auth navigation
+    // cannot turn this into a second ordinary booking. Route state supplies
+    // display labels only.
     setConfirmingReschedule(false);
-    navigate("/customer/book", {
+    navigate(`/customer/book?reschedule=${encodeURIComponent(next.id)}`, {
       state: {
         rescheduleFrom: {
           id: next.id,
@@ -174,6 +206,28 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
             </>
           )}
         </p>
+
+        {awaitingDeposit && (
+          <div
+            role="status"
+            aria-label="Deposit needed"
+            className="mt-1 mb-2 p-3.5 rounded-xl border-l-[3px] border-l-amber-400 bg-amber-50 text-[13px] text-[var(--sd-navy)]"
+          >
+            <strong>Deposit needed to hold this booking.</strong>{" "}
+            Send £{next.deposit_amount ?? 10}
+            {depositBank ? (
+              <>
+                {" "}to {depositBank.accountName} (sort code {depositBank.sortCode}, account{" "}
+                {depositBank.accountNumber})
+              </>
+            ) : null}{" "}
+            with reference <strong>{next.deposit_reference}</strong>
+            {next.deposit_due_by ? <> by {formatDueBy(next.deposit_due_by)}</> : null}.{" "}
+            Your booking is confirmed once your deposit arrives. Deposits are
+            non-refundable and can&apos;t be transferred to another date if you
+            don&apos;t show.
+          </div>
+        )}
 
         {!cancelling && (
           <div className="portal-booking-card-actions">

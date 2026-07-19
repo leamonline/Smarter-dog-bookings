@@ -130,7 +130,9 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
 
       if (err) {
         setError(err.message);
-        setRows([]);
+        // Keep the last confirmed schedule visible when a refresh fails.
+        // On the initial fetch rows is still null, so the derived view remains
+        // naturally empty while the error and retry state are exposed.
         setLoading(false);
         return;
       }
@@ -413,8 +415,6 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
     async (updatedBooking, _fromDateStr, toDateStrValue) => {
       if (!supabase) return updatedBooking;
 
-      setError(null);
-
       const pickupHumanId =
         updatedBooking._pickupById ||
         (updatedBooking.pickupBy
@@ -484,7 +484,6 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
         logger.error("Failed to update booking", err, {
           tags: { hook: "useBookings", op: "updateBooking" },
         });
-        setError(err.message);
         onErrorRef.current?.(err.message);
         return null;
       }
@@ -497,6 +496,7 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       // transition into Ready (not on edits to an already-Ready booking,
       // and not on undo, which sets status back to the previous value).
       if (
+        !updatedBooking._skipCollectionPrompt &&
         prevRow?.status !== BOOKING_STATUS.READY_FOR_PICKUP &&
         persisted.status === BOOKING_STATUS.READY_FOR_PICKUP
       ) {

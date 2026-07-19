@@ -12,12 +12,10 @@ import { Scissors } from "lucide-react";
 import { PanelShell } from "../shell/index.js";
 
 /**
- * Card 2 of the booking detail surface: services, add-ons and the price
- * breakdown. Edit mode exposes the service select, add-on checkboxes and
- * the custom base-price input; read mode itemises the charge, any
- * deposit/full payment already taken, and the resulting amount due.
- * All figures come from the pricing object computed by the orchestrator
- * (computeBookingPricing) so this card can never disagree with the header.
+ * Services and add-ons body for the booking detail surface. Edit mode exposes
+ * the service select, add-on checkboxes and custom base-price input; read mode
+ * lists only service charge rows. Embedded mode omits the panel wrapper so the
+ * body can be composed into ServicesPaymentCard without a nested region.
  */
 export function ServicesAddonsCard({
   booking,
@@ -30,18 +28,18 @@ export function ServicesAddonsCard({
   sizeTheme,
   pricing,
   activeAddons,
-  activePayment,
-  activeDepositAmount,
+  embedded = false,
 }) {
   const configPricing = useSalonPricing();
   const currentService = isEditing ? editData.service : booking.service;
   const serviceObj = SERVICES.find((s) => s.id === currentService);
   const activePrice = pricing.basePrice;
-  const amountDue = pricing.amountDue;
   // Mirror the size fallback used when the edit price is seeded
   // (useBookingEditState) so the standard-rate comparison and any
   // service-change reseed can't disagree if booking.size is missing.
   const sizeForPricing = booking.size || dogData?.size || "small";
+
+  let content;
 
   if (isEditing) {
     // The dog's usual price: its deliberately saved custom_price (>0), else
@@ -55,8 +53,8 @@ export function ServicesAddonsCard({
         : guidePrice;
     const isOneOffPrice = Number(editData.price) !== usualPrice;
 
-    return (
-      <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
+    content = (
+      <>
         <DetailRow
           label={<LogisticsLabel text="Service" />}
           value={serviceObj?.name || currentService}
@@ -109,48 +107,36 @@ export function ServicesAddonsCard({
           }
           isEditing={isEditing}
         />
-      </PanelShell>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
+          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
+            {serviceObj?.name || currentService}
+          </span>
+          <span className="text-[14px] text-slate-700 tabular-nums">{"£"}{activePrice}</span>
+        </div>
+        {activeAddons.map((addon) => (
+          <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
+            <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
+              {addon} <span className="text-slate-400 font-semibold normal-case tracking-normal">{"— Add-on"}</span>
+            </span>
+            <span className="text-[14px] text-slate-700 tabular-nums">
+              {getAddonPrice(addon) > 0 ? `£${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
+            </span>
+          </div>
+        ))}
+      </>
     );
   }
 
+  if (embedded) return content;
+
   return (
     <PanelShell eyebrow="Services & add-ons" icon={Scissors} accent="teal" className="mb-3">
-      <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-        <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
-          {serviceObj?.name || currentService}
-        </span>
-        <span className="text-[14px] text-slate-700 tabular-nums">{"£"}{activePrice}</span>
-      </div>
-      {activeAddons.map((addon) => (
-        <div key={addon} className="flex justify-between items-center py-2.5 border-b border-slate-100">
-          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
-            {addon} <span className="text-slate-400 font-semibold normal-case tracking-normal">{"— Add-on"}</span>
-          </span>
-          <span className="text-[14px] text-slate-700 tabular-nums">
-            {getAddonPrice(addon) > 0 ? `£${getAddonPrice(addon)}` : <span className="text-slate-400 font-medium italic">Included</span>}
-          </span>
-        </div>
-      ))}
-      {activePayment === "Deposit Paid" && (
-        <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">Deposit Paid</span>
-          <span className="text-[14px] text-slate-500 tabular-nums">{"−£"}{Number(activeDepositAmount || 0)}</span>
-        </div>
-      )}
-      {activePayment === "Paid in Full" && (
-        <div className="flex justify-between items-center py-2.5 border-b border-slate-100">
-          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">Paid in Full</span>
-          <span className="text-[14px] text-slate-500 tabular-nums">{"−£"}{pricing.subtotal}</span>
-        </div>
-      )}
-      <div className="flex justify-between items-center pt-3 pb-2.5">
-        <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-slate-500">
-          {activePayment === "Paid in Full" ? "Paid" : "Total Due"}
-        </span>
-        <span className="text-[20px] font-extrabold leading-none text-brand-purple tabular-nums">
-          {"£"}{Math.max(0, amountDue)}
-        </span>
-      </div>
+      {content}
     </PanelShell>
   );
 }

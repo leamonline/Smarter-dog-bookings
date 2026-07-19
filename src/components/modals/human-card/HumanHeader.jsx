@@ -1,4 +1,4 @@
-import { Check, Clock, Copy, Pencil, Phone, X } from "lucide-react";
+import { Check, Clock, Copy, PiggyBank, Pencil, Phone, X } from "lucide-react";
 import { titleCase } from "../../../utils/text";
 import { telLink, waLink } from "../dog-card/helpers.js";
 import { HeaderIconButton, OverflowMenu } from "../shell/index.js";
@@ -61,6 +61,23 @@ export function HumanHeader({
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                 <Clock size={10} strokeWidth={2.6} aria-hidden="true" />
                 Pending approval
+              </span>
+            )}
+            {human?.depositRequired && (
+              <span
+                title="Every booking for this customer awaits a bank-transfer deposit"
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+              >
+                <PiggyBank size={10} strokeWidth={2.6} aria-hidden="true" />
+                Deposit customer
+              </span>
+            )}
+            {(human?.blockedSlots?.length ?? 0) > 0 && (
+              <span
+                title={`Blocked times: ${human.blockedSlots.join(", ")}`}
+                className="inline-flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+              >
+                {human.blockedSlots.length} blocked {human.blockedSlots.length === 1 ? "time" : "times"}
               </span>
             )}
           </div>
