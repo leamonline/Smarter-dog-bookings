@@ -81,7 +81,7 @@ describe("Tranche 1 staging provision workflow", () => {
 
   it("pins the requested actions and uses access-token-only authentication", () => {
     expect(workflow).toContain("uses: actions/checkout@v7");
-    expect(workflow).toContain("uses: supabase/setup-cli@v2");
+    expect(workflow).toContain("uses: supabase/setup-cli@v3");
     expect(workflow).toContain("          version: 2.109.1");
 
     const secretNames = Array.from(
