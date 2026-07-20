@@ -25,14 +25,28 @@ function SecondaryAction({ children, className = "", icon: Icon, ...props }) {
 
 function OperationalFact({ label, value, valueClassName = "" }) {
   return (
-    <div className="flex min-h-14 min-w-0 flex-col justify-center border-r border-slate-200 px-2 py-1.5 last:border-r-0 sm:min-h-[3.75rem] lg:px-3">
-      <span className={`truncate text-[15px] font-black leading-tight tabular-nums text-brand-purple sm:text-[17px] ${valueClassName}`}>
+    <div className="flex min-h-12 min-w-0 flex-col justify-center border-r border-slate-200 px-2 py-1 last:border-r-0 lg:px-3">
+      <span className={`truncate text-[14px] font-black leading-tight tabular-nums text-brand-purple sm:text-[16px] ${valueClassName}`}>
         {value}
       </span>
-      <span className="mt-0.5 whitespace-nowrap text-[9px] font-bold uppercase leading-tight tracking-normal text-slate-500 min-[390px]:text-[10px] sm:text-[9px] lg:text-[10px]">
+      <span className="mt-0.5 whitespace-nowrap text-[9px] font-bold uppercase leading-tight tracking-normal text-slate-500 min-[390px]:text-[10px]">
         {label}
       </span>
     </div>
+  );
+}
+
+function SecondaryTotals({ dogsBooked, capacityTotal, unpaidTotal, expectedRevenue }) {
+  return (
+    <section
+      role="region"
+      aria-label="Daily Brief secondary totals"
+      className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600"
+    >
+      <span><strong className="font-bold text-slate-700 tabular-nums">{dogsBooked}/{capacityTotal}</strong> capacity</span>
+      <span><strong className="font-bold text-slate-700 tabular-nums">{unpaidTotal > 0 ? formatMoney(unpaidTotal) : "All paid"}</strong>{unpaidTotal > 0 ? " unpaid" : ""}</span>
+      <span><strong className="font-bold text-slate-700 tabular-nums">{formatMoney(expectedRevenue)}</strong> expected</span>
+    </section>
   );
 }
 
@@ -40,6 +54,8 @@ export function TodayHeader({
   dateLabel,
   dogsBooked,
   onSite = 0,
+  lateCount = 0,
+  readyCount = 0,
   actionCount,
   unpaidTotal = 0,
   expectedRevenue = 0,
@@ -78,44 +94,54 @@ export function TodayHeader({
 
         <div className="grid items-stretch gap-2 lg:grid-cols-[minmax(0,1fr)_max-content]">
           {!briefMode ? (
-            <section
-              role="region"
-              aria-label="Daily Brief operational status"
-              className="grid min-w-0 grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white [&>*:nth-child(-n+3)]:border-b [&>*:nth-child(3)]:border-r-0 sm:grid-cols-6 sm:[&>*:nth-child(-n+3)]:border-b-0 sm:[&>*:nth-child(3)]:border-r"
-            >
-              <OperationalFact label="Booked" value={dogsBooked} />
-              <OperationalFact label="On site" value={onSite} />
-              {actionCount > 0 ? (
-                <button
-                  type="button"
-                  aria-label={actionFilterActive
-                    ? `Show all bookings; ${actionCount} currently need action`
-                    : `Filter ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing action`}
-                  aria-describedby="needs-action-definition"
-                  aria-pressed={actionFilterActive}
-                  data-filter-selected={actionFilterActive ? "true" : "false"}
-                  title={NEEDS_ACTION_DEFINITION}
-                  onClick={onToggleActionFilter}
-                  className={`flex min-h-14 min-w-0 flex-col justify-center border-r border-slate-200 px-2 py-1.5 text-left outline-none transition last:border-r-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:min-h-[3.75rem] sm:px-3 ${
-                    actionFilterActive
-                      ? "bg-brand-purple text-white"
-                      : "bg-brand-coral/[0.08] text-brand-coral-text hover:bg-brand-coral/[0.14]"
-                  }`}
-                >
-                  <span className="truncate text-[15px] font-black leading-tight tabular-nums sm:text-[17px]">
-                    {actionFilterActive ? "Filtering" : actionCount}
-                  </span>
-                  <span className={`mt-0.5 truncate text-[10px] font-bold uppercase tracking-[0.04em] sm:text-[11px] ${actionFilterActive ? "text-white/80" : "text-brand-coral-text"}`}>
-                    {actionFilterActive ? `${actionCount} need action` : "Need action"}
-                  </span>
-                </button>
-              ) : (
-                <OperationalFact label="Action" value="All calm" valueClassName="text-brand-teal-text" />
-              )}
-              <OperationalFact label="Unpaid" value={unpaidTotal > 0 ? formatMoney(unpaidTotal) : "All paid"} />
-              <OperationalFact label="Expected revenue" value={formatMoney(expectedRevenue)} />
-              <OperationalFact label="Capacity" value={`${dogsBooked}/${capacityTotal}`} />
-            </section>
+            <div className="grid min-w-0 gap-1.5">
+              <section
+                role="region"
+                aria-label="Daily Brief operational status"
+                className="grid min-w-0 grid-cols-4 overflow-hidden rounded-xl border border-slate-200 bg-white"
+              >
+                <OperationalFact
+                  label="Late"
+                  value={lateCount > 0 ? lateCount : "All on time"}
+                  valueClassName={lateCount > 0 ? "text-brand-coral-text" : "text-[11px] text-brand-teal-text sm:text-[13px]"}
+                />
+                <OperationalFact label="On site" value={onSite} />
+                <OperationalFact label="Ready" value={readyCount} />
+                {actionCount > 0 ? (
+                  <button
+                    type="button"
+                    aria-label={actionFilterActive
+                      ? `Show all bookings; ${actionCount} currently need action`
+                      : `Filter ${actionCount} ${actionCount === 1 ? "booking" : "bookings"} needing action`}
+                    aria-describedby="needs-action-definition"
+                    aria-pressed={actionFilterActive}
+                    data-filter-selected={actionFilterActive ? "true" : "false"}
+                    title={NEEDS_ACTION_DEFINITION}
+                    onClick={onToggleActionFilter}
+                    className={`flex min-h-12 min-w-0 flex-col justify-center px-2 py-1 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple sm:px-3 ${
+                      actionFilterActive
+                        ? "bg-brand-purple text-white"
+                        : "bg-brand-coral/[0.08] text-brand-coral-text hover:bg-brand-coral/[0.14]"
+                    }`}
+                  >
+                    <span className="truncate text-[14px] font-black leading-tight tabular-nums sm:text-[16px]">
+                      {actionFilterActive ? "Filtering" : actionCount}
+                    </span>
+                    <span className={`mt-0.5 truncate text-[9px] font-bold uppercase min-[390px]:text-[10px] ${actionFilterActive ? "text-white/80" : "text-brand-coral-text"}`}>
+                      {actionFilterActive ? `${actionCount} need action` : "Need action"}
+                    </span>
+                  </button>
+                ) : (
+                  <OperationalFact label="Action" value="All calm" valueClassName="text-[12px] text-brand-teal-text sm:text-[14px]" />
+                )}
+              </section>
+              <SecondaryTotals
+                dogsBooked={dogsBooked}
+                capacityTotal={capacityTotal}
+                unpaidTotal={unpaidTotal}
+                expectedRevenue={expectedRevenue}
+              />
+            </div>
           ) : <span aria-hidden="true" />}
 
           <div className="grid shrink-0 grid-cols-2 items-center gap-2 lg:grid-cols-[max-content_max-content]">
