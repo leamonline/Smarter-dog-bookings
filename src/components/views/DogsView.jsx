@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { MessageCircle } from "lucide-react";
-import { IconSearch } from "../icons/index.jsx";
+import { MessageCircle, Plus } from "lucide-react";
 import { FloatingDecor } from "../decor/index.jsx";
 import { AddDogModal } from "../modals/AddDogModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -11,9 +10,20 @@ import { safeGet, safeSet } from "../../lib/storage";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
-import { Button, Badge, EmptyState, SafetyAlertChip } from "../ui/index.js";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  PageHeader,
+  PageHeaderAction,
+  PageHeaderPill,
+  PageHeaderSearch,
+  PageHeaderSegmented,
+  SafetyAlertChip,
+} from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 import { DogSizeMark, ProfileArrow } from "./directory/IdentityMarker.jsx";
+import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -225,6 +235,11 @@ const SIZE_FILTERS = [
   { value: "unset", label: "Unset" },
 ];
 
+const VIEW_OPTIONS = [
+  { value: "grid", label: "Grid" },
+  { value: "list", label: "List" },
+];
+
 export function DogsView({
   dogs,
   humans,
@@ -382,54 +397,46 @@ export function DogsView({
       {/* Colourful dog-silhouette backdrop — same brand decor the dashboard
           uses (sits -z-10, shows through the gaps around cards). */}
       <FloatingDecor />
-      {/* One connected shell keeps the page identity, search and directory
-          controls on the same grid instead of stacking separate systems. */}
+      {/* The shared toolbar carries the primary directory tasks. */}
       <section
         data-testid="dogs-directory-shell"
         aria-label="Dogs directory controls"
-        className="mb-4 overflow-hidden rounded-xl border border-brand-paper-line bg-white shadow-card-resting"
       >
-        <div className="bg-sd-sky-tint px-5 py-4 md:px-6">
-          <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="m-0 font-display text-2xl font-black text-brand-purple md:text-display">Dogs Directory</h1>
-              <div className="mt-0.5 min-h-[1.25rem] text-sm font-semibold text-ink-muted">
-                {isInitialLoading && displayList.length === 0 ? (
-                  <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
-                ) : (
-                  headerCountText
-                )}
-              </div>
-            </div>
-            <div className="flex max-w-[420px] flex-1 items-center gap-2.5">
-              <div className="relative flex-1">
-                <div className="absolute left-3.5 top-1/2 flex -translate-y-1/2">
-                  <IconSearch size={16} colour="#64748b" />
-                </div>
-                <input
-                  type="search"
-                  aria-label="Search dogs by name, breed or owner"
-                  placeholder="Search by name, breed or owner..."
-                  value={searchQuery}
-                  onChange={(e) => onSearch(e.target.value)}
-                  className="w-full rounded-control border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 shadow-sm outline-none transition-colors placeholder:text-slate-500 focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/15"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="min-h-11 whitespace-nowrap rounded-control border-none bg-brand-purple px-4 py-2.5 text-body font-bold text-white shadow-sm transition-colors hover:bg-brand-purple-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-yellow-dark"
-              >
-                + Add Dog
-              </button>
-            </div>
-          </div>
-        </div>
+        <PageHeader title="Dogs Directory">
+          <PageHeaderSegmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={VIEW_OPTIONS}
+            ariaLabel="Directory view"
+          />
+          <PageHeaderPill className="hidden lg:inline-flex">
+            {isInitialLoading && displayList.length === 0 ? (
+              <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+            ) : (
+              headerCountText
+            )}
+          </PageHeaderPill>
+          <div className="hidden flex-1 md:block" />
+          <PageHeaderSearch
+            value={searchQuery}
+            onChange={(event) => onSearch(event.target.value)}
+            onClear={() => onSearch("")}
+            ariaLabel="Search dogs by name, breed or owner"
+            placeholder="Search by name, breed or owner..."
+          />
+          <DirectoryHeaderKey />
+          <PageHeaderAction
+            icon={Plus}
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add dog"
+          >
+            Add dog
+          </PageHeaderAction>
+        </PageHeader>
 
-      {/* One toolbar, one control language. Size remains written on each card,
-          so there is no duplicate legend competing with these filters. */}
-      <div className="border-t border-brand-paper-line px-5 py-3 md:px-6">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {showRailAndSort && (
+        <div className="mb-4 rounded-xl border border-brand-paper-line bg-white px-5 py-3 md:px-6">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter dogs">
@@ -506,36 +513,9 @@ export function DogsView({
             </div>
           )}
 
-          {/* View switcher pushed right; leading divider when controls precede it. */}
-          {showRailAndSort && (
-            <span className="hidden sm:block h-5 w-px bg-slate-200 ml-auto" aria-hidden="true" />
-          )}
-          <div
-              className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}
-              role="group"
-              aria-label="Directory view"
-            >
-            <span className="text-label text-ink-muted">View</span>
-            <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
-              {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setViewMode(mode)}
-                  aria-pressed={viewMode === mode}
-                  className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
-                    viewMode === mode
-                      ? "bg-brand-yellow text-brand-purple"
-                      : "text-slate-500 hover:text-brand-purple"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
-      </div>
+        )}
       </section>
 
       {/* Mobile A–Z strip */}

@@ -516,14 +516,14 @@ describe("useBookings", () => {
     );
 
     render(<DailyBriefUpdateHarness />);
-    const checkIn = await screen.findByRole("button", { name: "Check-in" });
+    const checkIn = await screen.findByRole("button", { name: "Check in Bella" });
     fireEvent.click(checkIn);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check-in could not be saved.",
     );
     expect(screen.queryByText("Couldn't load bookings for this date.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check-in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check in Bella" })).toBeInTheDocument();
   });
 
   it("removeBooking deletes optimistically and reports success", async () => {

@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { getSizeForBreed } from "../../constants/index";
-import { MessageCircle } from "lucide-react";
-import { IconSearch } from "../icons/index.jsx";
+import { MessageCircle, Plus } from "lucide-react";
 import { FloatingDecor } from "../decor/index.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
 import { filterHumansForDirectory } from "../../utils/directorySearch";
@@ -9,9 +8,19 @@ import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
 import { safeGet, safeSet } from "../../lib/storage";
-import { Button, EmptyState, SafetyAlertChip } from "../ui/index.js";
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  PageHeaderAction,
+  PageHeaderPill,
+  PageHeaderSearch,
+  PageHeaderSegmented,
+  SafetyAlertChip,
+} from "../ui/index.js";
 import { telLink, waLink } from "../modals/dog-card/helpers.js";
 import { HumanInitials, ProfileArrow } from "./directory/IdentityMarker.jsx";
+import { DirectoryHeaderKey } from "./directory/DirectoryHeaderKey.jsx";
 
 const AZ_LETTERS = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -98,29 +107,6 @@ function DogChips({ dogs: dogList, max, dim }) {
 // Key for the size dots — reuses SizeDot so the legend can never drift from the
 // real colours. Decorative for screen readers (each dog already carries its own
 // size label via SizeDot on the cards).
-function SizeLegend({ className = "" }) {
-  const items = [
-    ["small", "Small"],
-    ["medium", "Medium"],
-    ["large", "Large"],
-    [null, "Unknown"],
-  ];
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex items-center gap-x-3 gap-y-1 flex-wrap text-micro text-ink-muted ${className}`}
-    >
-      <span className="font-bold uppercase tracking-wide">Size</span>
-      {items.map(([size, label]) => (
-        <span key={label} className="inline-flex items-center gap-1">
-          <SizeDot size={size} dim={12} />
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function ContactLines({ human }) {
   return (
     <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-micro text-slate-500">
@@ -235,6 +221,11 @@ const FILTER_CHIPS = [
   { key: "noDogs", label: "No dogs" },
   { key: "noPhone", label: "No phone" },
   { key: "whatsapp", label: "WhatsApp" },
+];
+
+const VIEW_OPTIONS = [
+  { value: "grid", label: "Grid" },
+  { value: "list", label: "List" },
 ];
 
 export function HumansView({
@@ -398,47 +389,45 @@ export function HumansView({
       {/* Colourful dog-silhouette backdrop — same brand decor the dashboard
           uses (sits -z-10, shows through the gaps around cards). */}
       <FloatingDecor />
-      {/* Header banner */}
-      <div className="bg-gradient-to-br from-brand-purple to-brand-purple-light py-4 px-5 md:px-7 rounded-xl relative overflow-hidden mb-5">
-        <svg className="absolute right-6 top-1 w-20 h-20 opacity-[0.06] -rotate-[15deg] pointer-events-none select-none" viewBox="0 0 24 24" fill="white"><ellipse cx="8" cy="6" rx="2.5" ry="3" /><ellipse cx="16" cy="6" rx="2.5" ry="3" /><ellipse cx="4.5" cy="12" rx="2" ry="2.5" /><ellipse cx="19.5" cy="12" rx="2" ry="2.5" /><ellipse cx="12" cy="16.5" rx="5" ry="4" /></svg>
-        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-display font-black text-white font-display m-0">Humans Directory</h1>
-            <div className="text-sm font-semibold text-white/70 mt-0.5 min-h-[1.25rem]">
-              {isInitialLoading && displayList.length === 0 ? (
-                <SkeletonBlock className="h-4 w-32 bg-white/20" />
-              ) : (
-                headerCountText
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2.5 items-center flex-1 max-w-[420px]">
-            <div className="relative flex-1">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex">
-                <IconSearch size={16} colour="#64748b" />
-              </div>
-              <input
-                type="text"
-                aria-label="Search humans"
-                placeholder="Search rolodex..."
-                value={searchQuery}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-3.5 rounded-control border border-white/40 bg-white text-sm font-inherit outline-none text-slate-800 placeholder:text-slate-500 transition-colors focus:border-white shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-              />
-            </div>
-            {onNewClient && (
-              <Button variant="primary" onClick={onNewClient} aria-label="Add client">
-                + Add client
-              </Button>
+      {/* Page identity and directory controls share a compact two-row system. */}
+      <section
+        data-testid="humans-directory-shell"
+        aria-label="Humans directory controls"
+      >
+        <PageHeader title="Humans Directory">
+          <PageHeaderSegmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={VIEW_OPTIONS}
+            ariaLabel="Human directory view"
+          />
+          <PageHeaderPill className="hidden lg:inline-flex">
+            {isInitialLoading && displayList.length === 0 ? (
+              <SkeletonBlock className="h-4 w-32 bg-brand-purple/10" />
+            ) : (
+              headerCountText
             )}
-          </div>
-        </div>
-      </div>
+          </PageHeaderPill>
+          <div className="hidden flex-1 md:block" />
+          <PageHeaderSearch
+            value={searchQuery}
+            onChange={(event) => onSearch(event.target.value)}
+            onClear={() => onSearch("")}
+            ariaLabel="Search humans"
+            placeholder="Search clients..."
+          />
+          <DirectoryHeaderKey />
+          {onNewClient && (
+            <PageHeaderAction icon={Plus} onClick={onNewClient} aria-label="Add client">
+              Add client
+            </PageHeaderAction>
+          )}
+        </PageHeader>
 
-      {/* Toolbar: filters + sort + view unified into one control row, with a
-          size key beneath so the dot/strip colours read as dog size. */}
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {/* Less frequent filters and sorting stay below the primary toolbar. */}
+        {showRailAndSort && (
+        <div className="mb-4 rounded-xl border border-brand-paper-line bg-white px-5 py-3 md:px-6">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {showRailAndSort && onToggleFilter && (
             <>
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
@@ -450,7 +439,7 @@ export function HumansView({
                       type="button"
                       onClick={() => onToggleFilter(key)}
                       aria-pressed={active}
-                      className={`text-micro font-bold px-3 py-1 rounded-full border transition-colors ${
+                      className={`min-h-11 rounded-full border px-3 text-micro font-bold transition-colors ${
                         active
                           ? "bg-brand-yellow text-brand-purple border-brand-yellow"
                           : "bg-white text-slate-500 border-slate-200 hover:border-brand-purple hover:text-brand-purple"
@@ -488,34 +477,10 @@ export function HumansView({
             </div>
           )}
 
-          {/* View switcher pushed right; leading divider when controls precede it. */}
-          {showRailAndSort && (
-            <span className="hidden sm:block h-5 w-px bg-slate-200 ml-auto" aria-hidden="true" />
-          )}
-          <div className={`inline-flex items-center gap-2 ${showRailAndSort ? "" : "ml-auto"}`}>
-            <span className="text-label text-ink-muted">View</span>
-            <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5">
-              {[["grid", "Grid"], ["list", "List"]].map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setViewMode(mode)}
-                  aria-pressed={viewMode === mode}
-                  className={`px-2.5 py-1 max-sm:px-3 max-sm:py-2 rounded-[6px] text-micro font-bold transition-colors ${
-                    viewMode === mode
-                      ? "bg-brand-yellow text-brand-purple"
-                      : "text-slate-500 hover:text-brand-purple"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
-
-        {displayList.length > 0 && <SizeLegend className="mt-2.5" />}
-      </div>
+        )}
+      </section>
 
       {/* Mobile A–Z strip */}
       {showRailAndSort && (

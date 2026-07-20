@@ -29,7 +29,6 @@ import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
 import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
-import { TodayKpiRow } from "./today/TodayKpiRow.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
 
 function BoardSkeleton() {
@@ -55,7 +54,7 @@ const BOARD_LANE_BY_STATUS = {
 };
 
 const BOARD_LANE_LABEL = {
-  due: "Due and late",
+  due: "Arriving",
   withUs: "With us",
   ready: "Ready to go",
   home: "Home today",
@@ -189,6 +188,7 @@ export function TodayView({
       ready: fullBoard.ready.filter(keepActionable),
       home: fullBoard.home.filter(keepActionable),
       excludedCount: fullBoard.excludedCount,
+      excludedBookings: fullBoard.excludedBookings,
     };
   }, [fullBoard, showNeedsActionOnly]);
   useEffect(() => setShowNeedsActionOnly(false), [dateStr]);
@@ -541,8 +541,10 @@ export function TodayView({
       <TodayHeader
         dateLabel={dateLabel}
         dogsBooked={summary.dogsBooked}
+        onSite={summary.onSite}
         actionCount={actionCount}
         unpaidTotal={unpaidTotal}
+        expectedRevenue={summary.expectedRevenue}
         nextOnlineSlot={availabilityView.nextOnlineSlot}
         isDayOpen={isDayOpen}
         isToday={isToday}
@@ -586,11 +588,6 @@ export function TodayView({
           </>
         ) : (
           <>
-            <TodayKpiRow
-              dogsBooked={summary.dogsBooked}
-              onSite={isToday ? summary.onSite : undefined}
-              expectedRevenue={summary.expectedRevenue}
-            />
             {isToday && (
               <>
                 {!showNeedsActionOnly && (

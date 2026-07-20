@@ -888,22 +888,6 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           }}
         />
 
-        <AppContextRow
-          dateLabel={currentDateObj.toLocaleDateString("en-GB", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-          isOpen={currentSettings.isOpen}
-          dayTone={
-            !currentSettings.isOpen
-              ? "closed"
-              : (bookingsByDate[currentDateStr] || []).length >= DAY_CAPACITY
-                ? "full"
-                : "open"
-          }
-        />
         <MobileNavStrip currentDateStr={currentDateStr} />
 
         <SalonProvider
@@ -926,6 +910,27 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <main id="main-content">
+                <AppContextRow
+                  dateLabel={currentDateObj.toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                  isOpen={currentSettings.isOpen}
+                  dayTone={
+                    !currentSettings.isOpen
+                      ? "closed"
+                      : (bookingsByDate[currentDateStr] || []).length >= DAY_CAPACITY
+                        ? "full"
+                        : "open"
+                  }
+                  onNavigateDay={(delta) => {
+                    const target = new Date(currentDateObj);
+                    target.setDate(target.getDate() + delta);
+                    handleDatePick(target);
+                  }}
+                />
                 <Routes>
                   <Route path="/settings" element={
                     <SettingsView

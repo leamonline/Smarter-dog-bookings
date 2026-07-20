@@ -218,9 +218,9 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(screen.getByRole("button", { name: "Take £50 from Jack" })).toBeInTheDocument();
-    const summary = screen.getByRole("list", { name: "Selected date summary" });
-    expect(within(summary).getAllByRole("listitem")[2]).toHaveTextContent("£50 unpaid");
-    expect(screen.getByText("Expected", { selector: "p" }).parentElement).toHaveTextContent("£50");
+    const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
+    expect(within(summary).getByText("Unpaid").parentElement).toHaveTextContent("£50");
+    expect(within(summary).getByText("Expected revenue").parentElement).toHaveTextContent("£50");
 
     fireEvent.click(screen.getByRole("button", { name: "Take £50 from Jack" }));
     expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
@@ -393,8 +393,8 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.queryByRole("region", { name: "Happening now" })).not.toBeInTheDocument();
     expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
     expect(screen.queryByText(/due in|overdue|booked today|taken today/i)).not.toBeInTheDocument();
-    const kpiRow = screen.getByRole("progressbar", { name: "Capacity used" }).parentElement.parentElement;
-    expect(within(kpiRow).getByText("Booked").parentElement).toHaveTextContent("2");
+    const operationalStatus = screen.getByRole("region", { name: "Daily Brief operational status" });
+    expect(within(operationalStatus).getByText("Booked").parentElement).toHaveTextContent("2");
     expect(screen.getByText("Taken £42")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Check in/ })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
@@ -850,16 +850,20 @@ describe("TodayView — selected-date operations", () => {
 
 describe("TodayHeader", () => {
   it("keeps the page heading accessible without repeating it and groups the day controls", () => {
+    const onToggleActionFilter = vi.fn();
     render(
       <TodayHeader
         dateLabel="Tuesday 14 July"
         dogsBooked={11}
+        onSite={3}
         actionCount={6}
         unpaidTotal={482}
+        expectedRevenue={638}
         nextOnlineSlot={null}
         isDayOpen
         onOpenDatePicker={vi.fn()}
         onManageAvailability={vi.fn()}
+        onToggleActionFilter={onToggleActionFilter}
       />,
     );
     expect(screen.getByRole("heading", { name: "Daily Brief" })).toHaveClass("sr-only");
@@ -877,14 +881,18 @@ describe("TodayHeader", () => {
       "text-brand-purple",
     );
     expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass("bg-brand-purple");
-    expect(screen.getByText("No online slots available")).toHaveClass("h-11");
-    const summary = screen.getByRole("list", { name: "Today's summary" });
-    const items = within(summary).getAllByRole("listitem");
-    expect(items).toHaveLength(4);
-    expect(items[0]).toHaveTextContent("11 dogs booked");
-    expect(items[1]).toHaveTextContent("6 need action");
-    expect(items[2]).toHaveTextContent("£482 unpaid");
-    expect(items[3]).toHaveTextContent("No online slots available");
+    expect(screen.getByText("No online slots available")).toBeInTheDocument();
+    const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
+    expect(within(summary).getByText("Booked").parentElement).toHaveTextContent("11");
+    expect(within(summary).getByText("On site").parentElement).toHaveTextContent("3");
+    expect(within(summary).getByText("Unpaid").parentElement).toHaveTextContent("£482");
+    expect(within(summary).getByText("Expected revenue").parentElement).toHaveTextContent("£638");
+    expect(within(summary).getByText("Capacity").parentElement).toHaveTextContent("11/14");
+    const filter = within(summary).getByRole("button", { name: "Filter 6 bookings needing action" });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    expect(filter).toHaveAttribute("data-filter-selected", "false");
+    fireEvent.click(filter);
+    expect(onToggleActionFilter).toHaveBeenCalledTimes(1);
   });
 
   it("uses a clear empty-slot message and keeps all four summary positions", () => {
@@ -900,10 +908,32 @@ describe("TodayHeader", () => {
       />,
     );
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
-    const summary = screen.getByRole("list", { name: "Today's summary" });
-    expect(within(summary).getAllByRole("listitem")).toHaveLength(4);
+    const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
     expect(within(summary).getByText("All calm")).toBeInTheDocument();
     expect(within(summary).getByText("All paid")).toBeInTheDocument();
+  });
+
+  it("gives the action filter an explicit visible selected state", () => {
+    render(
+      <TodayHeader
+        dateLabel="Tuesday 14 July"
+        dogsBooked={11}
+        onSite={0}
+        actionCount={6}
+        unpaidTotal={482}
+        expectedRevenue={638}
+        isDayOpen
+        actionFilterActive
+        onOpenDatePicker={noop}
+        onManageAvailability={noop}
+        onToggleActionFilter={noop}
+      />,
+    );
+
+    const filter = screen.getByRole("button", { name: "Show all bookings; 6 currently need action" });
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(filter).toHaveAttribute("data-filter-selected", "true");
+    expect(filter).toHaveTextContent("Filtering");
   });
 
   it("reads calm and opens the availability modal", () => {
@@ -911,7 +941,7 @@ describe("TodayHeader", () => {
     render(
       <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen onManageAvailability={onManage} />,
     );
-    expect(screen.getByRole("list", { name: "Today's summary" }).firstElementChild).toHaveTextContent("1 dog booked");
+    expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("1Booked");
     expect(screen.getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
     expect(onManage).toHaveBeenCalled();
@@ -966,23 +996,30 @@ describe("BookingFeed — accessible journey rows", () => {
     owner: "David Law",
   };
 
-  it("renders one left-gutter marker beside the focused booking", () => {
-    renderFeed([group("09:00", [entry(booking)])], {
-      liveFocusId: "b1",
+  it("renders one full-width live divider before the focused time group", () => {
+    const { container } = renderFeed([group("09:00", [
+      entry({ ...booking, id: "b3", dogName: "Clover" }),
+      entry({ ...booking, id: "b1", dogName: "Jack" }),
+      entry({ ...booking, id: "b2", dogName: "Bertie" }),
+    ])], {
+      liveFocusId: "b2",
       liveContext: {
         text: "Due to arrive in 5 mins",
         tone: "live",
-        ariaLabel: "Jack — due to arrive in 5 mins",
+        ariaLabel: "Bertie — due to arrive in 5 mins",
       },
     });
 
-    expect(screen.getByLabelText("Jack — due to arrive in 5 mins")).toHaveTextContent(
+    const divider = screen.getByLabelText("Bertie — due to arrive in 5 mins");
+    expect(divider).toHaveTextContent(
       "Due to arrive in 5 mins",
     );
-    expect(screen.getByTestId("live-arrival-arrow")).toBeInTheDocument();
-    expect(screen.getAllByTestId("live-arrival-arrow")).toHaveLength(1);
-    expect(screen.getByTestId("live-arrival-label")).toHaveClass("font-handwriting");
-    expect(screen.getByTestId("live-day-timeline")).toBeInTheDocument();
+    expect(divider).toHaveAttribute("data-testid", "live-arrival-divider");
+    expect(screen.queryByTestId("live-arrival-arrow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("live-day-timeline")).not.toBeInTheDocument();
+    const cards = screen.getAllByRole("article");
+    expect(divider.compareDocumentPosition(cards[0]) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(container.querySelectorAll("[data-booking-feed-card-shell]")).toHaveLength(3);
   });
 
   it.each([
@@ -1269,14 +1306,15 @@ describe("AvailabilityModal", () => {
 describe("TodaySummaryStrip", () => {
   const summary = { total: 4, arrived: 3, expected: 1, ready: 1, collected: 1, unpaidCount: 2, dogsBooked: 4, capacityUsedPct: 29, expectedRevenue: 168, collectedRevenue: 84 };
 
-  it("shows the five status counters without restating expected revenue (the KPI row owns it)", () => {
+  it("keeps lifecycle progress without repeating the operational-header metrics", () => {
     render(<TodaySummaryStrip summary={summary} />);
     expect(screen.getByText("Daily progress")).toBeInTheDocument();
-    expect(screen.getByText("1 of 4 collected")).toBeInTheDocument();
-    expect(screen.queryByText(/expected revenue/)).not.toBeInTheDocument();
-    for (const label of ["Booked", "Arrived", "Expected", "Ready", "Collected"]) {
+    expect(screen.getByText("1 collected")).toBeInTheDocument();
+    for (const label of ["Arrived", "Ready", "Collected"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.queryByText("Booked")).not.toBeInTheDocument();
+    expect(screen.queryByText("Expected")).not.toBeInTheDocument();
   });
 
   it("keeps the takings-by-method row", () => {

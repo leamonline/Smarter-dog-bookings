@@ -10,6 +10,13 @@ export { EmptyState } from "./EmptyState.jsx";
 export { Spinner } from "./Spinner.jsx";
 export { StatusPill } from "./StatusPill.jsx";
 export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
+export {
+  PageHeader,
+  PageHeaderSearch,
+  PageHeaderAction,
+  PageHeaderPill,
+  PageHeaderSegmented,
+} from "./PageHeader.jsx";
 
 // Existing primitives reused as-is
 export { SizeDot } from "./SizeDot.jsx";

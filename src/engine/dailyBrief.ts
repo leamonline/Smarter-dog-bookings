@@ -13,6 +13,7 @@ import {
   timeInSalonMinutes,
 } from "./today";
 import type { TodayFeedEntry } from "./today";
+import type { NeedActionReason } from "./today";
 import { computeBookingPricing, validateDepositAmount } from "./bookingRules";
 import type { BookingPricingInput } from "./bookingRules";
 
@@ -182,10 +183,18 @@ export function buildDailyBriefFeed(
     const rank = statusRank(entry.booking.status);
     const isUnconfirmed = rank === 0 && needsConfirmation(entry.booking);
     const owes = isPaymentOutstanding(entry.booking);
-    const needsAction =
-      entry.stage === "ready" || isUnconfirmed || (rank >= 1 && owes);
+    const actionReasons: NeedActionReason[] = [];
+    if (isUnconfirmed) actionReasons.push("confirmation");
+    if (entry.stage === "ready") actionReasons.push("collection");
+    if (rank >= 1 && owes) actionReasons.push("payment");
 
-    return { ...entry, isUnconfirmed, owes, needsAction };
+    return {
+      ...entry,
+      isUnconfirmed,
+      owes,
+      needsAction: actionReasons.length > 0,
+      actionReasons,
+    };
   });
 }
 
@@ -203,6 +212,7 @@ export interface DailyBriefBoard {
   ready: DailyBriefBoardEntry[];
   home: DailyBriefBoardEntry[];
   excludedCount: number;
+  excludedBookings: Booking[];
 }
 
 const BOARD_LANE_BY_STATUS: Record<string, DailyBriefLane> = {
@@ -303,6 +313,10 @@ export function buildDailyBriefBoard(
   now: Date,
 ): DailyBriefBoard {
   const included = bookings.filter((booking) => !!BOARD_LANE_BY_STATUS[booking.status]);
+  const excludedBookings = bookings.filter(
+    (booking) => !BOARD_LANE_BY_STATUS[booking.status]
+      && booking.status !== BOOKING_STATUS.CANCELLED,
+  );
   const feed = buildDailyBriefFeed(included, selectedDateStr, now);
   const isToday = selectedDateStr === londonDateStr(now);
   const board: DailyBriefBoard = {
@@ -310,7 +324,8 @@ export function buildDailyBriefBoard(
     withUs: [],
     ready: [],
     home: [],
-    excludedCount: bookings.length - included.length,
+    excludedCount: excludedBookings.length,
+    excludedBookings,
   };
 
   for (const entry of feed) {

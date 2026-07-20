@@ -1,7 +1,9 @@
 import { useLocation } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread.js";
 import { useTomorrowReminders } from "../../supabase/hooks/useTomorrowReminders.js";
 import { sectionTitleFor } from "./navConfig.jsx";
+import { PageHeader, PageHeaderPill } from "../ui/PageHeader.jsx";
 
 // ── Context row ───────────────────────────────────────────────────
 // Sits directly under the header and gives the screen its identity:
@@ -19,17 +21,10 @@ const TONE = {
 };
 
 function StatusPill({ tone, children }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-bold whitespace-nowrap ${TONE[tone]}`}
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
-      {children}
-    </span>
-  );
+  return <PageHeaderPill dot className={TONE[tone]}>{children}</PageHeaderPill>;
 }
 
-export function AppContextRow({ dateLabel, isOpen }) {
+export function AppContextRow({ dateLabel, isOpen, dayTone, onNavigateDay }) {
   const location = useLocation();
   const sectionTitle = sectionTitleFor(location.pathname);
   const isBookings = sectionTitle === "Bookings";
@@ -37,11 +32,9 @@ export function AppContextRow({ dateLabel, isOpen }) {
   const { unread } = useWhatsAppUnread();
   const { sentCount, totalCount, loading: remindersLoading } = useTomorrowReminders();
 
-  // Every view except Bookings owns its heading (Today and Inbox carry live
-  // counts; the directories, Reports, and Settings each render their own
-  // title), so the context row stands down everywhere but Bookings — one
-  // heading per screen, not two, and one less row of chrome on a phone.
-  // (After the hooks: they must run unconditionally on every render.)
+  // Every view except Bookings owns its shared PageHeader, so the context row
+  // stands down elsewhere. Keep this after the hooks: they must run
+  // unconditionally on every render.
   if (!isBookings) return null;
 
   // Live status chips for the Bookings day. Same semantics as the
@@ -59,39 +52,45 @@ export function AppContextRow({ dateLabel, isOpen }) {
         ? { tone: "amber", label: "All reminders are out" }
         : { tone: "amber", label: `${sentCount}/${totalCount} reminders sent` };
 
+  const localTone = !isOpen ? "closed" : dayTone === "full" ? "full" : "open";
+  const localLabel = !isOpen ? "Closed today" : dayTone === "full" ? "Full today" : "Open today";
+
   return (
-    <>
-      {/* Desktop (lg+) — a calm strip attached under the header. */}
-      <div className="hidden lg:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 -mx-4 sm:-mx-6 mb-4 px-4 sm:px-6 py-3 bg-white/90 border border-slate-200 border-t-0 rounded-b-2xl shadow-card-resting">
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="font-display text-xl font-extrabold text-brand-purple whitespace-nowrap m-0">
-            {sectionTitle}
-          </h1>
-          {isBookings && (
-            <>
-              <span className="text-sm font-semibold text-brand-purple-light truncate">
-                {dateLabel}
-              </span>
-              <StatusPill tone={isOpen ? "open" : "closed"}>
-                {isOpen ? "Open today" : "Closed today"}
-              </StatusPill>
-            </>
+    <PageHeader title={sectionTitle}>
+      <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-4">
+        <div className="order-2 flex min-w-0 items-center gap-2 overflow-x-auto md:order-1">
+          <StatusPill tone={localTone}>{localLabel}</StatusPill>
+          <StatusPill tone={inboxChip.tone}>{inboxChip.label}</StatusPill>
+        </div>
+
+        <div className="order-1 flex min-w-0 items-center justify-center gap-1 md:order-2">
+          <button
+            type="button"
+            onClick={() => onNavigateDay?.(-1)}
+            aria-label="Previous day"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+          >
+            <ChevronLeft aria-hidden="true" size={20} strokeWidth={2.5} />
+          </button>
+          <strong className="min-w-0 px-1 text-center font-display text-base font-extrabold leading-tight text-brand-purple sm:text-lg">
+            {dateLabel}
+          </strong>
+          <button
+            type="button"
+            onClick={() => onNavigateDay?.(1)}
+            aria-label="Next day"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-brand-purple transition-colors hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-1"
+          >
+            <ChevronRight aria-hidden="true" size={20} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        <div className="order-3 hidden min-w-0 items-center justify-end gap-2 overflow-x-auto lg:flex">
+          {remindersChip && (
+            <StatusPill tone={remindersChip.tone}>{remindersChip.label}</StatusPill>
           )}
         </div>
-        {isBookings && (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <StatusPill tone={inboxChip.tone}>{inboxChip.label}</StatusPill>
-            {remindersChip && (
-              <StatusPill tone={remindersChip.tone}>{remindersChip.label}</StatusPill>
-            )}
-          </div>
-        )}
       </div>
-
-      {/* Mobile/tablet (below lg): no identity block. The nav strip already
-          highlights the active section, and the calendar carries the day, so
-          a separate title+date row was one row of chrome too many on a phone.
-          The desktop strip above (with its live status chips) still stands. */}
-    </>
+    </PageHeader>
   );
 }

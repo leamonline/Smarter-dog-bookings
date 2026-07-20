@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { Check, MoveRight, Phone } from "lucide-react";
+import { Fragment, useState } from "react";
+import { Check, Phone } from "lucide-react";
 import { BOOKING_STATUS, SERVICES, getStatusDisplay } from "../../../constants/index";
+import { LiveArrivalDivider } from "./LiveArrivalDivider.jsx";
 import { MoreMenu, OnTheWayChip, WelfareChips, formatMoney } from "./parts.jsx";
 
 const LANE_META = {
   due: {
-    title: "Due and late",
-    purpose: "Arrivals waiting to enter the salon flow.",
+    title: "Arriving",
+    purpose: "Dogs expected to arrive.",
     accent: "border-t-brand-yellow",
     count: "bg-brand-yellow/25 text-amber-900",
   },
@@ -58,24 +59,18 @@ const primaryClass =
 const secondaryClass =
   "inline-flex min-h-11 items-center justify-center rounded-xl border border-brand-purple/20 bg-white px-3.5 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
-function LiveArrivalMarker({ context }) {
-  const tone = context.tone === "overdue"
-    ? "bg-brand-coral text-white"
-    : "bg-brand-yellow text-brand-purple";
-  return (
-    <div
-      aria-label={context.ariaLabel}
-      data-testid="live-arrival-label"
-      className={`relative z-10 flex min-h-12 w-full items-center justify-center gap-1 px-2 pr-4 text-center font-handwriting text-[17px] font-bold leading-[0.95] shadow-sm [clip-path:polygon(0_0,calc(100%_-_0.75rem)_0,100%_50%,calc(100%_-_0.75rem)_100%,0_100%)] ${tone}`}
-    >
-      <span className="min-w-0">{context.text}</span>
-      <MoveRight size={15} strokeWidth={2.5} className="shrink-0" aria-hidden="true" />
-    </div>
-  );
-}
-
-function ConfirmationSignal({ confirmedAt }) {
+function ConfirmationSignal({ confirmedAt, needsConfirmation }) {
   const time = formatConfirmedAt(confirmedAt);
+  if (needsConfirmation) {
+    return (
+      <span
+        data-action-reason="confirmation"
+        className="inline-flex min-h-6 items-center rounded-full border border-brand-yellow-dark/20 bg-brand-yellow/25 px-2 text-[11px] font-bold text-amber-900"
+      >
+        Needs confirmation
+      </span>
+    );
+  }
   if (!time) return null;
   return (
     <span
@@ -90,7 +85,7 @@ function ConfirmationSignal({ confirmedAt }) {
   );
 }
 
-function PaymentState({ payment }) {
+function PaymentState({ payment, actionReason = false }) {
   if (!payment) return null;
   if (payment.kind === "paid") {
     return (
@@ -101,13 +96,19 @@ function PaymentState({ payment }) {
   }
   if (payment.amountDue != null) {
     return (
-      <span className="inline-flex min-h-6 items-center rounded-full bg-brand-yellow/25 px-2 text-[11px] font-bold text-amber-900">
+      <span
+        data-action-reason={actionReason ? "payment" : undefined}
+        className="inline-flex min-h-6 items-center rounded-full bg-brand-yellow/25 px-2 text-[11px] font-bold text-amber-900"
+      >
         {formatMoney(payment.amountDue)} due
       </span>
     );
   }
   return (
-    <span className="inline-flex min-h-6 items-center rounded-full bg-slate-100 px-2 text-[11px] font-bold text-slate-600">
+    <span
+      data-action-reason={actionReason ? "payment" : undefined}
+      className="inline-flex min-h-6 items-center rounded-full bg-slate-100 px-2 text-[11px] font-bold text-slate-600"
+    >
       {payment.label}
     </span>
   );
@@ -206,7 +207,7 @@ function CardActions({ entry, display, payment, handlers }) {
   );
 }
 
-function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, liveContext, handlers, onTheWaySignals }) {
+function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, handlers, onTheWaySignals }) {
   const booking = entry.booking;
   const display = resolve(booking);
   const payment = paymentOf(booking);
@@ -216,14 +217,25 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, l
   const successTone = confirmedAt || progressed
     ? "border-emerald-200 bg-emerald-50/45"
     : "border-brand-paper-line bg-white";
-  const live = Boolean(liveContext);
+  const actionReasons = entry.actionReasons || [];
+  const isConfirmationAction = actionReasons.includes("confirmation");
+  const isPaymentAction = actionReasons.includes("payment");
+  const isCollectionAction = actionReasons.includes("collection");
+  const timingActionReason = entry.isLate
+    ? "late"
+    : entry.lane === "ready" && isCollectionAction && entry.timingLabel
+      ? "collection"
+      : undefined;
+  const statusLabel = entry.lane === "due" && !entry.isLate && entry.timingLabel !== "Due now"
+    ? "Upcoming"
+    : getStatusDisplay(booking.status).label;
 
   return (
-    <div className={live ? "grid grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-2" : "pl-0"}>
-      {live ? <LiveArrivalMarker context={liveContext} /> : null}
+    <div data-status-card-shell className="w-full">
       <article
         id={`today-card-${booking.id}`}
         data-booking-id={booking.id}
+        data-needs-action={entry.needsAction ? "true" : "false"}
         tabIndex={-1}
         aria-label={`${display.dogName}, ${booking.slot || "Time missing"}, ${laneTitle}`}
         className={`min-w-0 rounded-2xl border px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:px-4 ${successTone}`}
@@ -260,14 +272,22 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, l
             </div>
             <p className="mt-1 text-[13px] text-slate-600">
               {serviceLabel(booking.service)}
-              {entry.timingLabel ? <><span aria-hidden="true"> · </span><strong className={entry.isLate ? "text-brand-coral-text" : "text-slate-700"}>{entry.timingLabel}</strong></> : null}
+              {entry.timingLabel ? <><span aria-hidden="true"> · </span><strong data-action-reason={timingActionReason} className={entry.isLate ? "text-brand-coral-text" : "text-slate-700"}>{entry.timingLabel}</strong></> : null}
             </p>
             <p className="mt-1 text-[12px] font-bold text-slate-700">
-              {entry.isLate && entry.lane === "due" ? "Late · " : ""}{getStatusDisplay(booking.status).label}
+              {statusLabel}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <ConfirmationSignal confirmedAt={confirmedAt} />
-              <PaymentState payment={payment} />
+              <ConfirmationSignal confirmedAt={confirmedAt} needsConfirmation={isConfirmationAction} />
+              <PaymentState payment={payment} actionReason={isPaymentAction} />
+              {entry.lane === "ready" && isCollectionAction && !entry.timingLabel ? (
+                <span
+                  data-action-reason="collection"
+                  className="inline-flex min-h-6 items-center rounded-full bg-brand-purple/10 px-2 text-[11px] font-bold text-brand-purple"
+                >
+                  Waiting for collection
+                </span>
+              ) : null}
               <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
             </div>
             <WelfareChips {...welfare} />
@@ -284,13 +304,25 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, l
 function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId, liveContext, handlers, onTheWaySignals }) {
   const meta = LANE_META[lane];
   const count = entries.length;
-  const hasLive = entries.some((entry) => entry.booking.id === liveFocusId && liveContext);
+  const focusedEntry = liveContext
+    ? entries.find((entry) => entry.booking.id === liveFocusId)
+    : null;
+  const markerIndex = focusedEntry
+    ? entries.findIndex((entry) => {
+      const focusedHasTime = Number.isFinite(focusedEntry.slotMinutes);
+      const entryHasTime = Number.isFinite(entry.slotMinutes);
+      return focusedHasTime && entryHasTime
+        ? entry.slotMinutes === focusedEntry.slotMinutes
+        : !focusedHasTime && !entryHasTime;
+    })
+    : -1;
   return (
     <section
       aria-label={`${meta.title}, ${dogCountLabel(count)}`}
-      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""}`}
+      data-lane-populated={count > 0 ? "true" : "false"}
+      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:h-[min(58vh,42rem)] xl:min-h-0 xl:flex-col" : ""}`}
     >
-      <header className="flex min-h-[76px] items-start gap-3 border-b border-slate-100 px-4 py-3">
+      <header className="flex min-h-[76px] shrink-0 items-start gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-[20px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
           <p className="mt-1 text-[12px] text-slate-600">{meta.purpose}</p>
@@ -299,27 +331,25 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
           {dogCountLabel(count)}
         </span>
       </header>
-      <div className={`relative space-y-2 p-2.5 sm:p-3 ${hasLive ? "status-board-live-lane" : ""}`}>
-        {hasLive ? (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute bottom-4 left-[3.35rem] top-4 z-0 w-0.5 rounded-full bg-gradient-to-b from-brand-purple via-brand-purple/35 to-brand-yellow"
-          />
-        ) : null}
+      <div
+        data-testid={`${lane}-lane-body`}
+        className={`relative space-y-2 p-2.5 sm:p-3 ${count > 0 ? "xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain" : ""}`}
+      >
         {entries.length === 0 ? (
           <p className="px-2 py-2 text-[12px] font-medium text-slate-500">No dogs in this lane</p>
-        ) : entries.map((entry) => (
-          <StatusBookingCard
-            key={entry.booking.id}
-            entry={entry}
-            laneTitle={meta.title}
-            resolve={resolve}
-            getWelfare={getWelfare}
-            paymentOf={paymentOf}
-            liveContext={entry.booking.id === liveFocusId ? liveContext : null}
-            handlers={handlers}
-            onTheWaySignals={onTheWaySignals}
-          />
+        ) : entries.map((entry, index) => (
+          <Fragment key={entry.booking.id}>
+            {index === markerIndex ? <LiveArrivalDivider context={liveContext} /> : null}
+            <StatusBookingCard
+              entry={entry}
+              laneTitle={meta.title}
+              resolve={resolve}
+              getWelfare={getWelfare}
+              paymentOf={paymentOf}
+              handlers={handlers}
+              onTheWaySignals={onTheWaySignals}
+            />
+          </Fragment>
         ))}
       </div>
     </section>
@@ -350,12 +380,16 @@ function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
             const display = resolve(booking);
             const payment = paymentOf(booking);
             return (
-              <li key={booking.id} className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 py-2 text-[13px]">
+              <li
+                key={booking.id}
+                data-needs-action={entry.needsAction ? "true" : "false"}
+                className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 py-2 text-[13px]"
+              >
                 <button type="button" onClick={() => handlers.onOpenDog?.(booking._dogId)} className="font-display text-[15px] font-bold text-brand-purple hover:underline">
                   {display.dogName}
                 </button>
                 <span className="text-slate-500">{entry.timingLabel || "Collected"}</span>
-                <span className="ml-auto"><PaymentState payment={payment} /></span>
+                <span className="ml-auto"><PaymentState payment={payment} actionReason={entry.actionReasons?.includes("payment")} /></span>
                 <button type="button" onClick={() => handlers.onOpenBooking?.(booking.id)} className="min-h-11 px-2 text-[12px] font-bold text-brand-purple underline">
                   Open booking
                 </button>
@@ -364,6 +398,59 @@ function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
           })}
         </ul>
       )}
+    </section>
+  );
+}
+
+function safeDogName(booking, resolve) {
+  const display = resolve(booking);
+  const candidates = [display?.dogName, booking.dogName, booking.dogNameSnapshot];
+  const privateIds = new Set([booking.id, booking._dogId, booking._ownerId].filter(Boolean));
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i;
+  return candidates.find((candidate) => {
+    const value = String(candidate || "").trim();
+    return value && !privateIds.has(value) && !uuidPattern.test(value);
+  }) || "Unknown dog";
+}
+
+function UnknownStatusRecovery({ bookings, resolve, onOpenBooking }) {
+  if (bookings.length === 0) return null;
+  return (
+    <section
+      role="alert"
+      className="rounded-2xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-3 text-brand-coral-text sm:px-4"
+    >
+      <h2 className="text-[13px] font-extrabold">
+        {bookings.length === 1
+          ? "1 booking needs its status fixed"
+          : `${bookings.length} bookings need their status fixed`}
+      </h2>
+      <p className="mt-0.5 text-[12px] font-medium">
+        Fix each status to place the booking in the right lane.
+      </p>
+      <ul className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {bookings.map((booking) => {
+          const dogName = safeDogName(booking, resolve);
+          const time = booking.slot || "Time missing";
+          return (
+            <li key={booking.id} className="flex min-w-0 items-center gap-2 rounded-xl border border-brand-coral/20 bg-white/80 px-3 py-2">
+              <span className="min-w-0 flex-1 text-[12px] font-semibold text-slate-700">
+                <strong className="text-brand-purple">{dogName}</strong>
+                <span aria-hidden="true"> · </span>
+                {time}
+              </span>
+              <button
+                type="button"
+                aria-label={`Fix ${dogName}'s ${time} booking`}
+                onClick={() => onOpenBooking?.(booking.id)}
+                className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-brand-purple px-3 text-[12px] font-bold text-white outline-none hover:bg-brand-purple-light focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+              >
+                Fix booking
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -386,11 +473,11 @@ export function StatusBoard({
       tabIndex={-1}
       className="space-y-3 outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
     >
-      {board.excludedCount > 0 ? (
-        <p role="alert" className="rounded-xl border border-brand-coral/30 bg-brand-coral/[0.06] px-3 py-2 text-[12px] font-semibold text-brand-coral-text">
-          {board.excludedCount} {board.excludedCount === 1 ? "booking has" : "bookings have"} an unknown status and cannot be placed. Open the booking to correct it.
-        </p>
-      ) : null}
+      <UnknownStatusRecovery
+        bookings={board.excludedBookings || []}
+        resolve={resolve}
+        onOpenBooking={handlers.onOpenBooking}
+      />
       <div className="grid min-w-0 grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         <StatusLane lane="due" entries={board.due} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />
         <StatusLane lane="withUs" entries={board.withUs} resolve={resolve} getWelfare={getWelfare} paymentOf={paymentOf} liveFocusId={liveFocusId} liveContext={liveContext} handlers={handlers} onTheWaySignals={onTheWaySignals} />

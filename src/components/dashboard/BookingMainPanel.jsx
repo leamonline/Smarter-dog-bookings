@@ -1,4 +1,3 @@
-import { DayHeader } from "./DayHeader.jsx";
 import { EmptyDayPanel } from "./EmptyDayPanel.jsx";
 import { BookingGridControls } from "./BookingGridControls.jsx";
 import { SlotGrid } from "../booking/SlotGrid.jsx";
@@ -17,9 +16,6 @@ export function BookingMainPanel({
   overrides,
   immediateSlots,
   draftPick,
-  onNavigateDay,
-  onOpenCalendar,
-  onOpenOverview,
   onOpenNewBooking,
   onMoveBooking,
   onOverride,
@@ -49,12 +45,6 @@ export function BookingMainPanel({
       className="flex flex-col gap-3 min-w-0 lg:flex-1 lg:min-h-0 lg:h-full"
       aria-label="Booking schedule"
     >
-      <DayHeader
-        currentDateObj={currentDateObj}
-        onNavigateDay={onNavigateDay}
-        onOpenCalendar={onOpenOverview || onOpenCalendar}
-      />
-
       {/* Controls row renders on closed days too — staff still need the
           status pill and Day settings (to reopen) without leaving the day. */}
       <BookingGridControls

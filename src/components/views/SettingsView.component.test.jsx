@@ -94,19 +94,17 @@ describe("SettingsView unsaved-changes guard", () => {
     expect(screen.getByRole("tab", { name: "Your Account" })).toHaveFocus();
   });
 
-  it("groups mobile settings and uses the existing dirty-state guard", async () => {
+  it("keeps every section in the mobile header and uses the existing dirty-state guard", async () => {
     setViewportMobile(true);
     const user = userEvent.setup();
     render(<SettingsView {...baseProps()} />);
 
-    expect(screen.getByRole("navigation", { name: "Settings categories" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Settings sections" })).toBeInTheDocument();
     await user.type(screen.getByDisplayValue("My Salon"), "!");
-    await user.click(screen.getByRole("button", { name: "Bookings" }));
-    await user.click(screen.getByRole("button", { name: "Booking Rules" }));
+    await user.click(screen.getByRole("tab", { name: "Booking Rules" }));
     expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByRole("button", { name: "Salon" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Your Business" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("tab", { name: "Your Business" })).toHaveAttribute("aria-selected", "true");
   });
 });

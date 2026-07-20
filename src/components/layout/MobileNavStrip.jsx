@@ -17,7 +17,7 @@ export function MobileNavStrip({ currentDateStr }) {
 
   return (
     <nav
-      className="lg:hidden -mx-4 sm:-mx-6 mb-3 px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-brand-purple shadow-md"
+      className="lg:hidden -mx-4 sm:-mx-6 px-1.5 sm:px-3 py-1.5 flex items-stretch gap-1 bg-brand-purple shadow-md"
       aria-label="Primary"
     >
       {MOBILE_NAV.map((item) => {

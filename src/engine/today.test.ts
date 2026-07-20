@@ -631,6 +631,16 @@ describe("selectLiveFocus", () => {
     expect(focus?.booking.id).toBe("next");
   });
 
+  it("keeps slotless arrival focus deterministic across input permutations", () => {
+    const alpha = bk({ id: "alpha", _bookingDate: TODAY, slot: "", status: "Booked" });
+    const zulu = bk({ id: "zulu", _bookingDate: TODAY, slot: "not-a-time", status: "Booked" });
+
+    expect([
+      selectLiveFocus(feedOf([alpha, zulu]))?.booking.id,
+      selectLiveFocus(feedOf([zulu, alpha]))?.booking.id,
+    ]).toEqual(["alpha", "alpha"]);
+  });
+
   it("falls back from arrivals to longest-waiting ready, then longest in-salon", () => {
     const ready = selectLiveFocus(feedOf([
       bk({ id: "bath", status: "In bath", checkedInAt: "2026-07-02T08:30:00Z" }),
@@ -828,7 +838,7 @@ describe("groupFeedBySlot", () => {
     ({ id, slot, status: "Booked", dogName: "Rex" }) as unknown as Booking;
   const entryFor = (booking: Booking, slotMinutes: number): ReturnType<typeof buildTodayFeed>[0] => ({
     booking, slotMinutes, stage: "booked", isNext: false, isLate: false,
-    isUnconfirmed: false, owes: false, needsAction: false, overdueMinutes: 0, waitMinutes: null,
+    isUnconfirmed: false, owes: false, needsAction: false, actionReasons: [], overdueMinutes: 0, waitMinutes: null,
   });
 
   it("groups chronological entries by slot, preserving order", () => {
@@ -887,7 +897,7 @@ describe("countDogsPerOwner", () => {
   const e = (dogId: string | null, status = "Booked"): ReturnType<typeof buildTodayFeed>[0] => ({
     booking: { id: dogId ?? "x", _dogId: dogId, status } as unknown as Booking,
     slotMinutes: 0, stage: "booked", isNext: false, isLate: false, isUnconfirmed: false,
-    owes: false, needsAction: false, overdueMinutes: 0, waitMinutes: null,
+    owes: false, needsAction: false, actionReasons: [], overdueMinutes: 0, waitMinutes: null,
   });
 
   it("counts by stable owner id across entries", () => {
