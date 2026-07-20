@@ -63,7 +63,7 @@ function renderBoard(bookings, overrides = {}) {
     onDidntShow: vi.fn(),
     ...overrides.handlers,
   };
-  render(
+  const view = render(
     <StatusBoard
       board={board}
       resolve={(item) => displayById[item.id] || {
@@ -80,7 +80,7 @@ function renderBoard(bookings, overrides = {}) {
       handlers={handlers}
     />,
   );
-  return { board, handlers };
+  return { board, handlers, ...view };
 }
 
 describe("StatusBoard", () => {
@@ -93,12 +93,12 @@ describe("StatusBoard", () => {
       booking({ id: "home", status: BOOKING_STATUS.COMPLETED, completedAt: "2026-07-14T09:30:00Z" }),
     ]);
 
-    expect(screen.getByRole("region", { name: "Due and late, 1 dog" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "With us, 2 dogs" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Ready to go, 1 dog" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Home today, 1 dog" })).toBeInTheDocument();
 
-    const maxCard = screen.getByRole("article", { name: "Max, 11:00, Due and late" });
+    const maxCard = screen.getByRole("article", { name: "Max, 11:00, Arriving" });
     expect(within(maxCard).getByRole("heading", { level: 3, name: "Max" })).toBeInTheDocument();
     expect(within(maxCard).getByRole("button", { name: "Open Dave Smith's human file" })).toHaveClass("text-slate-600");
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
@@ -148,7 +148,7 @@ describe("StatusBoard", () => {
     expect(handlers.onDidntShow).toHaveBeenCalledWith(expect.objectContaining({ id: "late" }));
   });
 
-  it("preserves the customer-confirmed signal and one live marker", () => {
+  it("preserves the customer-confirmed signal and one live divider", () => {
     renderBoard(
       [booking({ id: "confirmed", reminderConfirmedAt: "2026-07-14T08:05:00Z" })],
       {
@@ -163,18 +163,98 @@ describe("StatusBoard", () => {
 
     expect(screen.getByLabelText("Customer confirmed at 09:05")).toBeInTheDocument();
     expect(screen.getByLabelText("Rosie — due to arrive in 45 mins")).toBeInTheDocument();
-    expect(screen.getAllByTestId("live-arrival-label")).toHaveLength(1);
+    expect(screen.getAllByTestId("live-arrival-divider")).toHaveLength(1);
+    expect(screen.queryByTestId("live-arrival-arrow")).not.toBeInTheDocument();
   });
 
-  it("keeps all lane headings present when active lanes are empty", () => {
+  it("places the live divider before the complete same-time group without narrowing cards", () => {
+    const { container } = renderBoard(
+      [
+        booking({ id: "same-c", dogName: "Clover", slot: "11:00", payment: "Paid in Full" }),
+        booking({ id: "same-a", dogName: "Alfie", slot: "11:00", payment: "Paid in Full" }),
+        booking({ id: "same-b", dogName: "Bertie", slot: "11:00", payment: "Paid in Full" }),
+      ],
+      {
+        liveFocusId: "same-b",
+        liveContext: {
+          text: "Due to arrive in 45 mins",
+          tone: "live",
+          ariaLabel: "Bertie — due to arrive in 45 mins",
+        },
+      },
+    );
+
+    const lane = screen.getByRole("region", { name: "Arriving, 3 dogs" });
+    const divider = within(lane).getByTestId("live-arrival-divider");
+    const cards = within(lane).getAllByRole("article");
+    expect(divider.compareDocumentPosition(cards[0]) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(container.querySelectorAll("[data-status-card-shell]")).toHaveLength(3);
+    for (const shell of container.querySelectorAll("[data-status-card-shell]")) {
+      expect(shell).toHaveClass("w-full");
+    }
+  });
+
+  it("shows the row-level reason that puts every actionable booking in the filter", () => {
     renderBoard([
-      booking({ id: "home", status: BOOKING_STATUS.COMPLETED }),
-      booking({ id: "unknown", status: "Awaiting magic" }),
+      booking({ id: "upcoming", dogName: "Olive", slot: "12:00", payment: "Paid in Full" }),
+      booking({
+        id: "unconfirmed",
+        dogName: "Pip",
+        slot: "11:00",
+        payment: "Paid in Full",
+        reminderState: "sent",
+        confirmationChannel: "whatsapp",
+      }),
+      booking({ id: "late", dogName: "Luna", slot: "09:00", payment: "Paid in Full" }),
+      booking({ id: "checked", dogName: "Bella", status: BOOKING_STATUS.CHECKED_IN }),
+      booking({
+        id: "ready",
+        dogName: "Daisy",
+        status: BOOKING_STATUS.READY_FOR_PICKUP,
+        readyAt: null,
+        payment: "Paid in Full",
+      }),
     ]);
 
-    expect(screen.getByRole("region", { name: "Due and late, 0 dogs" })).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Olive, 12:00, Arriving" })).getByText("Upcoming")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Pip, 11:00, Arriving" })).getByText("Needs confirmation")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Luna, 09:00, Arriving" })).getByText("1 hr 15 mins late")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Bella, 11:00, With us" })).getByText("£42 due")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).getByText("Waiting for collection")).toBeInTheDocument();
+  });
+
+  it("opens each unknown-status booking directly and does not flag cancelled bookings", () => {
+    const { handlers } = renderBoard([
+      booking({ id: "home", status: BOOKING_STATUS.COMPLETED }),
+      booking({ id: "cancelled", dogName: "Finn", status: BOOKING_STATUS.CANCELLED }),
+      booking({ id: "unknown-a", dogName: "Rufus", slot: "12:30", status: "Awaiting magic" }),
+      booking({ id: "unknown-b", dogName: "Nell", slot: "", status: "" }),
+    ]);
+
+    expect(screen.getByRole("region", { name: "Arriving, 0 dogs" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "With us, 0 dogs" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Ready to go, 0 dogs" })).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("1 booking has an unknown status");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("2 bookings need their status fixed");
+    expect(alert).toHaveTextContent("Rufus");
+    expect(alert).toHaveTextContent("12:30");
+    expect(alert).toHaveTextContent("Nell");
+    expect(alert).toHaveTextContent("Time missing");
+    expect(alert).not.toHaveTextContent("Finn");
+
+    fireEvent.click(within(alert).getByRole("button", { name: "Fix Rufus's 12:30 booking" }));
+    expect(handlers.onOpenBooking).toHaveBeenCalledWith("unknown-a");
+  });
+
+  it("bounds populated desktop lanes while empty lanes keep their natural height", () => {
+    renderBoard([booking({ id: "due" })]);
+
+    const arriving = screen.getByRole("region", { name: "Arriving, 1 dog" });
+    const emptyWithUs = screen.getByRole("region", { name: "With us, 0 dogs" });
+    expect(arriving).toHaveAttribute("data-lane-populated", "true");
+    expect(arriving).toHaveClass("xl:h-[min(58vh,42rem)]", "xl:flex", "xl:min-h-0");
+    expect(within(arriving).getByTestId("due-lane-body")).toHaveClass("xl:overflow-y-auto", "xl:min-h-0", "xl:flex-1");
+    expect(emptyWithUs).toHaveAttribute("data-lane-populated", "false");
+    expect(emptyWithUs).not.toHaveClass("xl:h-[min(58vh,42rem)]");
   });
 });

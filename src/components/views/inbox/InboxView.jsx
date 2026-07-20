@@ -25,10 +25,16 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { useWhatsAppInbox } from "../../../supabase/hooks/useWhatsAppInbox.js";
 import { useToast } from "../../../contexts/ToastContext.jsx";
 import { LoadingSpinner } from "../../ui/LoadingSpinner.jsx";
 import { Spinner } from "../../ui/Spinner.jsx";
+import {
+  PageHeader,
+  PageHeaderAction,
+  PageHeaderSearch,
+} from "../../ui/index.js";
 import {
   displayName,
   formatDayToken,
@@ -501,92 +507,29 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     lastScrolledConvRef.current = selectedId;
   }, [selectedId, loadingDetail, detailError, messages.length, bookingActions.length]);
 
+  const conversationSummary = isSearching
+    ? searchingMessages
+      ? `Searching all messages for “${trimmedQuery}”…`
+      : `${displayedConversations.length} result${displayedConversations.length === 1 ? "" : "s"} for “${trimmedQuery}”`
+    : listFilter === "all"
+      ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
+      : listFilter === "done"
+        ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
+        : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`;
+
   return (
     <div
       ref={rootRef}
       style={fillHeight ? { height: `${fillHeight}px` } : undefined}
-      className="py-2.5 flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
+      className="flex flex-col gap-3 min-h-[60dvh] h-[calc(100dvh-180px)]"
     >
-      <div className="flex flex-col gap-3">
-        {/* Top line — title + New message on the left, message search on
-            the far right. */}
-        <div className="flex justify-between items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-            </span>
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold m-0 text-brand-purple font-display leading-tight truncate">
-                Inbox
-              </h1>
-              <div className="text-[11px] text-slate-600 mt-0.5">
-                {isSearching
-                  ? searchingMessages
-                    ? `Searching all messages for “${trimmedQuery}”…`
-                    : `${displayedConversations.length} result${displayedConversations.length === 1 ? "" : "s"} for “${trimmedQuery}”`
-                  : listFilter === "all"
-                    ? `${activeConversations.length} active conversation${activeConversations.length === 1 ? "" : "s"}`
-                    : listFilter === "done"
-                      ? `${closedConversations.length} closed conversation${closedConversations.length === 1 ? "" : "s"}`
-                      : `Filtered: ${FILTER_LABELS[listFilter]} · ${filteredConversations.length} of ${activeConversations.length}`}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setComposeOpen(true)}
-              title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-yellow text-brand-purple text-[12px] font-bold cursor-pointer hover:bg-brand-yellow-dark transition-colors font-[inherit]"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              New message
-            </button>
-          </div>
-
-          {/* Search box — far right of the New message line. Searches the
-              full message history, not just the visible last-message
-              preview (see useInboxMessageSearch). */}
-          <div className="relative w-full sm:w-auto sm:min-w-[240px] md:w-[300px]">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search all messages…"
-              aria-label="Search all messages"
-              className="w-full h-9 pl-9 pr-9 rounded-full border border-slate-200 bg-white text-[13px] text-brand-purple placeholder:text-slate-400 focus:outline-none focus:border-brand-yellow font-[inherit]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-full text-slate-400 hover:text-brand-purple hover:bg-slate-100 transition-colors text-[16px] leading-none cursor-pointer"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter chips — single non-wrapping, horizontally-scrollable
-            strip so the header keeps a fixed height on phone/iPad (never
-            wrapping to extra rows). -mx/px keeps focus rings off the clip
-            edge. */}
-        <div
-          className="flex items-center gap-2 flex-nowrap overflow-x-auto w-full min-w-0 -mx-1 px-1 [scrollbar-width:thin]"
+      <div className="flex shrink-0 flex-col">
+        <PageHeader title="Inbox" className="xl:flex-nowrap">
+          <div
+          className="flex min-w-0 basis-full items-center gap-2 overflow-x-auto px-1 [scrollbar-width:thin] md:basis-auto md:flex-1"
           role="group"
           aria-label="Filter conversations"
-        >
+          >
           <InboxFilterChip
             label="All"
             count={activeConversations.length}
@@ -636,7 +579,24 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
             color="slate"
             hint="Show conversations that have been marked complete. They reopen automatically if the customer messages again."
           />
-        </div>
+          </div>
+          <PageHeaderSearch
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onClear={() => setSearchQuery("")}
+            placeholder="Search all messages…"
+            ariaLabel="Search all messages"
+          />
+          <PageHeaderAction
+            type="button"
+            onClick={() => setComposeOpen(true)}
+            title="Start a new WhatsApp thread with a customer. Meta requires an approved template for first contact."
+            icon={Plus}
+          >
+            New message
+          </PageHeaderAction>
+          <span className="sr-only" role="status">{conversationSummary}</span>
+        </PageHeader>
       </div>
 
       <div className="flex-1 flex bg-white rounded-2xl border border-gray-100 shadow-card-resting overflow-hidden">

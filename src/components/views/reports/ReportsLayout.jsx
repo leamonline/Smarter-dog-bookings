@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { PageHeader } from "../../ui/index.js";
 
 const REPORT_SECTIONS = [
   { to: "/reports/cash-up", label: "Cash-up" },
@@ -9,23 +10,22 @@ export function ReportsLayout() {
   const location = useLocation();
 
   return (
-    <div className="py-2.5 flex flex-col gap-3 sm:gap-4">
-      <h1 className="text-lg sm:text-xl md:text-[22px] font-extrabold m-0 text-slate-800 font-display leading-tight">
-        Reports
-      </h1>
-      <nav aria-label="Report sections" className="inline-flex self-start rounded-control bg-slate-100 p-1">
-        {REPORT_SECTIONS.map((section) => (
-          <NavLink
-            key={section.to}
-            to={{ pathname: section.to, search: location.search }}
-            className={({ isActive }) => isActive
-              ? "min-h-[44px] inline-flex items-center rounded-md bg-white px-4 text-sm font-bold text-brand-purple shadow-sm no-underline"
-              : "min-h-[44px] inline-flex items-center rounded-md px-4 text-sm font-semibold text-slate-600 no-underline hover:text-slate-800"}
-          >
-            {section.label}
-          </NavLink>
-        ))}
-      </nav>
+    <div className="flex flex-col">
+      <PageHeader title="Reports">
+        <nav aria-label="Report sections" className="grid w-full grid-cols-2 gap-3">
+          {REPORT_SECTIONS.map((section) => (
+            <NavLink
+              key={section.to}
+              to={{ pathname: section.to, search: location.search }}
+              className={({ isActive }) => isActive
+                ? "inline-flex h-14 items-center justify-center rounded-control bg-brand-purple px-5 text-base font-extrabold text-white shadow-sm no-underline"
+                : "inline-flex h-14 items-center justify-center rounded-control border border-slate-200 bg-slate-100 px-5 text-base font-bold text-brand-purple no-underline transition-colors hover:border-brand-purple/30 hover:bg-brand-purple/5"}
+            >
+              {section.label}
+            </NavLink>
+          ))}
+        </nav>
+      </PageHeader>
       <Outlet />
     </div>
   );

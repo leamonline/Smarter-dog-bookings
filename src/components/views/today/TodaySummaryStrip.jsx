@@ -1,9 +1,5 @@
-// The daily-progress footer. Compact and skimmable: money on its own line
-// (never mixed into a dog-count label), then the five status counters, then
-// the takings-by-method row when anything has been taken. Reads from the same
-// buildDaySummary/buildTakingsByMethod selectors as everything else on the
-// page, so it can never disagree with the cards above it.
-import { DAY_CAPACITY } from "../../../engine/utilisation";
+// The daily-progress footer keeps lifecycle outcomes and recorded takings
+// reachable without repeating the headline booking, revenue or capacity facts.
 import { formatMoney } from "./parts.jsx";
 
 function Stat({ label, value, hint }) {
@@ -22,20 +18,15 @@ export function TodaySummaryStrip({ summary, takings, isToday = true }) {
       aria-label="Daily progress"
       className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]"
     >
-      {/* Header: the day at a glance — money kept apart from dog counts. */}
       <div className="flex items-baseline justify-between gap-2 flex-wrap px-3.5 pt-2.5 pb-2 border-b border-slate-100">
         <h2 className="text-[13px] font-bold text-slate-800">Daily progress</h2>
         <span className="text-[12px] text-slate-600 tabular-nums">
-          {summary.collected} of {summary.total} collected
+          {summary.collected} collected
         </span>
       </div>
-      {/* Expected revenue is NOT restated here — the KPI row owns it. */}
 
-      {/* Status counters — one per lifecycle stage, always five across. */}
-      <div className="grid grid-cols-5 divide-x divide-slate-100">
-        <Stat label="Booked" value={summary.total} hint={`of ${DAY_CAPACITY}`} />
+      <div className="grid grid-cols-3 divide-x divide-slate-100">
         <Stat label="Arrived" value={summary.arrived} />
-        <Stat label="Expected" value={summary.expected} />
         <Stat label="Ready" value={summary.ready} />
         <Stat label="Collected" value={summary.collected} />
       </div>

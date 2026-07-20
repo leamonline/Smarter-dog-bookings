@@ -626,6 +626,7 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
 
 /** A dog's lifecycle stage, collapsed from its status rank. */
 export type FeedStage = "booked" | "inSalon" | "ready" | "collected";
+export type NeedActionReason = "late" | "confirmation" | "collection" | "payment";
 
 const STAGE_BY_RANK: Record<number, FeedStage> = {
   0: "booked",
@@ -656,6 +657,8 @@ export interface TodayFeedEntry {
   owes: boolean;
   /** On the act-now queue — drives the "Needs action" chip + header count. */
   needsAction: boolean;
+  /** Exact reasons behind `needsAction`, shared by the count and row-level UI. */
+  actionReasons: NeedActionReason[];
   overdueMinutes: number;
   /** Minutes waiting to be collected (only meaningful when stage === "ready"). */
   waitMinutes: number | null;
@@ -685,7 +688,11 @@ export function buildTodayFeed(
     // A freshly-Ready dog is calm; it only "needs action" once it has waited
     // (or has no ready_at stamp to judge by — legacy rows surface, not hide).
     const readyNeedsAction = stage === "ready" && (waitMinutes == null || waitMinutes >= readyEscalation);
-    const needsAction = isLate || readyNeedsAction || isUnconfirmed || (rank >= 1 && owes);
+    const actionReasons: NeedActionReason[] = [];
+    if (isLate) actionReasons.push("late");
+    if (isUnconfirmed) actionReasons.push("confirmation");
+    if (readyNeedsAction) actionReasons.push("collection");
+    if (rank >= 1 && owes) actionReasons.push("payment");
     entries.push({
       booking: b,
       slotMinutes: b.slot ? slotToMinutes(b.slot) : Number.POSITIVE_INFINITY,
@@ -694,7 +701,8 @@ export function buildTodayFeed(
       isLate,
       isUnconfirmed,
       owes,
-      needsAction,
+      needsAction: actionReasons.length > 0,
+      actionReasons,
       overdueMinutes: minutesOverdue(b, now),
       waitMinutes,
     });
@@ -770,6 +778,7 @@ export function buildFutureDayFeed(bookings: Booking[]): TodayFeedEntry[] {
       isUnconfirmed: false,
       owes: false,
       needsAction: false,
+      actionReasons: [],
       overdueMinutes: 0,
       waitMinutes: null,
     });
@@ -874,17 +883,20 @@ function compareSlotThenId(a: TodayFeedEntry, b: TodayFeedEntry): number {
 export function selectLiveFocus(entries: TodayFeedEntry[]): TodayFeedEntry | null {
   const overdue = entries
     .filter((entry) => entry.stage === "booked" && entry.isLate)
-    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+    .sort(compareSlotThenId);
   if (overdue[0]) return overdue[0];
 
   const upcoming = entries
     .filter((entry) => entry.stage === "booked" && !entry.isLate)
-    .sort((a, b) => a.slotMinutes - b.slotMinutes);
+    .sort(compareSlotThenId);
   if (upcoming[0]) return upcoming[0];
 
   const ready = entries
     .filter((entry) => entry.stage === "ready")
-    .sort((a, b) => (b.waitMinutes ?? 0) - (a.waitMinutes ?? 0));
+    .sort((a, b) => {
+      const waitDifference = (b.waitMinutes ?? 0) - (a.waitMinutes ?? 0);
+      return waitDifference || compareSlotThenId(a, b);
+    });
   if (ready[0]) return ready[0];
 
   return entries

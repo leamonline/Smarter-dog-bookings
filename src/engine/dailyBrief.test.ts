@@ -176,11 +176,50 @@ describe("Daily Brief journey", () => {
       isUnconfirmed: true,
       owes: true,
       needsAction: true,
+      actionReasons: ["confirmation"],
       isLate: false,
       isNext: false,
       overdueMinutes: 0,
       waitMinutes: null,
     });
+  });
+
+  it("derives the action count and row reasons from the same rules", () => {
+    const now = new Date("2026-07-14T10:15:00+01:00");
+    const feed = buildDailyBriefFeed(
+      [
+        booking({ id: "late", slot: "09:00", payment: "Paid in Full" }),
+        booking({
+          id: "confirmation",
+          slot: "11:00",
+          payment: "Paid in Full",
+          reminderState: "sent",
+          confirmationChannel: "whatsapp",
+        }),
+        booking({
+          id: "collection",
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          readyAt: "2026-07-14T08:00:00Z",
+          payment: "Paid in Full",
+        }),
+        booking({ id: "payment", status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "calm", slot: "12:00", payment: "Paid in Full" }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(
+      Object.fromEntries(feed.map((entry) => [entry.booking.id, entry.actionReasons])),
+    ).toEqual({
+      late: ["late"],
+      confirmation: ["confirmation"],
+      collection: ["collection"],
+      payment: ["payment"],
+      calm: [],
+    });
+    expect(feed.filter((entry) => entry.needsAction)).toHaveLength(4);
+    expect(feed.every((entry) => entry.needsAction === (entry.actionReasons.length > 0))).toBe(true);
   });
 });
 
@@ -209,7 +248,8 @@ describe("Daily Brief status board", () => {
     ]);
     expect(board.ready.map((entry) => entry.booking.id)).toEqual(["ready"]);
     expect(board.home.map((entry) => entry.booking.id)).toEqual(["home"]);
-    expect(board.excludedCount).toBe(2);
+    expect(board.excludedCount).toBe(1);
+    expect(board.excludedBookings.map((entry) => entry.id)).toEqual(["unknown"]);
   });
 
   it("orders overdue arrivals first, then upcoming arrivals, with a stable id tie-break", () => {
@@ -235,6 +275,28 @@ describe("Daily Brief status board", () => {
     expect(board.due[0].timingLabel).toBe("1 hr 15 mins late");
     expect(board.due[2].timingLabel).toBe("Due in 45 mins");
     expect(board.due[4].timingLabel).toBe("Time missing");
+  });
+
+  it("keeps multiple slotless arrivals stable after every finite appointment", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({ id: "slotless-z", slot: "" }),
+        booking({ id: "finite", slot: "11:00" }),
+        booking({ id: "slotless-a", slot: "not-a-time" }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.due.map((entry) => entry.booking.id)).toEqual([
+      "finite",
+      "slotless-a",
+      "slotless-z",
+    ]);
+    expect(board.due.slice(1).map((entry) => entry.timingLabel)).toEqual([
+      "Time missing",
+      "Time missing",
+    ]);
   });
 
   it("orders dogs on site and ready by the longest elapsed wait", () => {

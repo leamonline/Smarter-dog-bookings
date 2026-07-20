@@ -40,7 +40,7 @@ test("Daily Brief keeps the status board usable at every supported width", async
     ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   }
 
-  const dueLane = page.getByRole("region", { name: "Due and late, 2 dogs" });
+  const dueLane = page.getByRole("region", { name: "Arriving, 2 dogs" });
   const withUsLane = page.getByRole("region", { name: "With us, 2 dogs" });
   const readyLane = page.getByRole("region", { name: "Ready to go, 1 dog" });
   const home = page.getByRole("region", { name: "Home on this date, 1 dog" });
@@ -50,7 +50,7 @@ test("Daily Brief keeps the status board usable at every supported width", async
   await expect(home).toBeVisible();
   await expect(page.getByRole("tablist")).toHaveCount(0);
   await expect(page.getByTestId("booking-journey-grid")).toHaveCount(0);
-  await expect(page.getByRole("alert").filter({ hasText: "unknown status" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "status fixed" })).toBeVisible();
 
   const maxCard = bookingCard(page, "Max");
   const bellaCard = bookingCard(page, "Bella");
@@ -76,6 +76,17 @@ test("Daily Brief keeps the status board usable at every supported width", async
     getComputedStyle(element).gridTemplateColumns.split(" ").length,
   );
   expect(activeLaneColumns).toBe(testInfo.project.name === "desktop" ? 3 : testInfo.project.name === "tablet" ? 2 : 1);
+
+  const dueLaneBody = dueLane.locator('[data-testid="due-lane-body"]');
+  const dueLaneBodyCount = await dueLaneBody.count();
+  expect(dueLaneBodyCount).toBe(1);
+  const laneOverflow = await dueLaneBody.evaluate((element) => getComputedStyle(element).overflowY);
+  expect(laneOverflow).toBe(testInfo.project.name === "desktop" ? "auto" : "visible");
+  if (testInfo.project.name === "desktop") {
+    expect(await dueLane.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(
+      Math.round((await page.evaluate(() => window.innerHeight)) * 0.59) + 2,
+    );
+  }
 
   await page.getByRole("button", { name: /Choose date/ }).click();
   const datePicker = page.getByRole("dialog", { name: "July 2026" });
@@ -118,14 +129,60 @@ test("live arrival follows the focused dog without a duplicate Now panel", async
   const liveMarker = page.getByLabel(/due now|due to arrive|overdue/i).first();
   await expect(liveMarker).toBeVisible();
   await expect(page.getByRole("region", { name: "Happening now" })).toHaveCount(0);
-  await expect(page.getByTestId("live-arrival-label")).toHaveCount(1);
+  await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
   await expect(bookingCard(page, "Coco")).toContainText("45 mins late");
 
   await bookingCard(page, "Coco").getByRole("button", { name: "Check in Coco" }).click();
-  await expect(page.getByRole("region", { name: "Due and late, 2 dogs" })).toContainText("Teddy");
+  await expect(page.getByRole("region", { name: "Arriving, 2 dogs" })).toContainText("Teddy");
   await expect(page.getByRole("region", { name: "With us, 1 dog" })).toContainText("Coco");
-  await expect(page.getByTestId("live-arrival-label")).toHaveCount(1);
+  await expect(page.getByTestId("live-arrival-divider")).toHaveCount(1);
   await expect(page.getByLabel("Teddy — 15 mins overdue")).toBeVisible();
+});
+
+test("early morning keeps every booked arrival upcoming", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-14T06:30:00+01:00"));
+  await page.goto("/today?date=2026-07-14");
+
+  const arriving = page.getByRole("region", { name: "Arriving, 3 dogs" });
+  await expect(arriving.getByText("Upcoming")).toHaveCount(3);
+  await expect(arriving.locator('[data-action-reason="late"]')).toHaveCount(0);
+});
+
+test("unknown-status warning opens the affected booking directly", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  const warning = page.getByRole("alert").filter({ hasText: "status fixed" });
+  await expect(warning).toContainText("Milo");
+  await expect(warning).toContainText("10:00");
+  const fixBooking = warning.getByRole("button", { name: "Fix Milo's 10:00 booking" });
+  await expect(fixBooking).toBeVisible();
+  await fixBooking.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: /Milo/i })).toBeVisible();
+});
+
+test("Need action exposes its selected state and visible row reasons by keyboard", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-14");
+
+  const filter = page.getByRole("button", { name: /Filter .* bookings needing action/ });
+  await expect(filter).toHaveAttribute("aria-pressed", "false");
+  await filter.focus();
+  await page.keyboard.press("Enter");
+  const selectedFilter = page.getByRole("button", { name: /Show all bookings/ });
+  await expect(selectedFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(selectedFilter).toHaveAttribute("data-filter-selected", "true");
+  await expect(selectedFilter).toContainText("Filtering");
+  await expect(page.getByRole("status")).toContainText("Showing");
+
+  const visibleActionCards = page.locator('[data-needs-action="true"]:visible');
+  const actionCardCount = await visibleActionCards.count();
+  expect(actionCardCount).toBeGreaterThan(0);
+  const missingReasons = await page.locator(
+    '[data-needs-action="true"]:visible:not(:has([data-action-reason]))',
+  ).count();
+  expect(missingReasons).toBe(0);
 });
 
 test("dog and human files preserve the selected Daily Brief and restore focus", async ({
