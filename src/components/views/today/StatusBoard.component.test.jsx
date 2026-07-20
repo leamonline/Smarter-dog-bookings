@@ -96,12 +96,30 @@ describe("StatusBoard", () => {
     expect(screen.getByRole("region", { name: "Arriving, 1 dog" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "With us, 2 dogs" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Ready to go, 1 dog" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Home today, 1 dog" })).toBeInTheDocument();
+    const home = screen.getByRole("region", { name: "Home today, 1 dog" });
+    const homeToggle = within(home).getByRole("button", { name: "Show 1 dog sent home" });
+    expect(homeToggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(home).queryByRole("list")).not.toBeInTheDocument();
+    fireEvent.click(homeToggle);
+    expect(homeToggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(home).getByRole("button", { name: "Milo" })).toBeInTheDocument();
 
     const maxCard = screen.getByRole("article", { name: "Max, 11:00, Arriving" });
     expect(within(maxCard).getByRole("heading", { level: 3, name: "Max" })).toBeInTheDocument();
     expect(within(maxCard).getByRole("button", { name: "Open Dave Smith's human file" })).toHaveClass("text-slate-600");
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("uses lane context instead of repeating physical status on every card", () => {
+    renderBoard([
+      booking({ id: "due" }),
+      booking({ id: "checked", status: BOOKING_STATUS.CHECKED_IN }),
+      booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:00:00Z" }),
+    ]);
+
+    expect(within(screen.getByRole("article", { name: "Max, 11:00, Arriving" })).queryByText("Booked", { exact: true })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Bella, 11:00, With us" })).queryByText("Checked in", { exact: true })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).queryByText("Ready", { exact: true })).not.toBeInTheDocument();
   });
 
   it("shows one outcome-led primary action for each active status", () => {
@@ -124,13 +142,15 @@ describe("StatusBoard", () => {
     expect(screen.queryByText("Next step")).not.toBeInTheDocument();
   });
 
-  it("keeps payment separate with a calculated secondary action only when due", () => {
+  it("keeps payment separate and moves collection payment into the overflow", () => {
     const { handlers } = renderBoard([
       booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:00:00Z" }),
       booking({ id: "paid", status: BOOKING_STATUS.READY_FOR_PICKUP, readyAt: "2026-07-14T09:30:00Z", payment: "Paid in Full" }),
     ]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Daisy" }));
+    expect(screen.queryByRole("button", { name: "Take £42 from Daisy" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Daisy" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
     expect(handlers.onOpenInvoice).toHaveBeenCalledWith(expect.objectContaining({ id: "ready" }));
     expect(screen.queryByRole("button", { name: /Take £.* from Ralph/ })).not.toBeInTheDocument();
     expect(screen.getByText("£42 due")).toBeInTheDocument();
@@ -138,11 +158,14 @@ describe("StatusBoard", () => {
   });
 
   it("offers a real call action for a late dog and keeps no-show manual", () => {
-    const { handlers } = renderBoard([
+    const { handlers, container } = renderBoard([
       booking({ id: "late", slot: "09:00" }),
     ]);
 
     expect(screen.getByRole("link", { name: "Call Emma about Luna" })).toHaveAttribute("href", "tel:07111222333");
+    expect(screen.getByRole("button", { name: "Check in Luna" })).toHaveAttribute("data-primary-action", "true");
+    expect(container.querySelectorAll('[data-primary-action="true"]')).toHaveLength(1);
+    expect(within(screen.getByRole("region", { name: "Arriving, 1 dog" })).getByText("1 late")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More actions for Luna" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Didn't show" }));
     expect(handlers.onDidntShow).toHaveBeenCalledWith(expect.objectContaining({ id: "late" }));
@@ -216,11 +239,12 @@ describe("StatusBoard", () => {
       }),
     ]);
 
-    expect(within(screen.getByRole("article", { name: "Olive, 12:00, Arriving" })).getByText("Upcoming")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Olive, 12:00, Arriving" })).queryByText("Upcoming")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Olive, 12:00, Arriving" })).getByText(/Due in/)).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Pip, 11:00, Arriving" })).getByText("Needs confirmation")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Luna, 09:00, Arriving" })).getByText("1 hr 15 mins late")).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: "Bella, 11:00, With us" })).getByText("£42 due")).toBeInTheDocument();
-    expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).getByText("Waiting for collection")).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Daisy, 11:00, Ready to go" })).getByText("Waiting")).toBeInTheDocument();
   });
 
   it("opens each unknown-status booking directly and does not flag cancelled bookings", () => {
@@ -252,9 +276,9 @@ describe("StatusBoard", () => {
     const arriving = screen.getByRole("region", { name: "Arriving, 1 dog" });
     const emptyWithUs = screen.getByRole("region", { name: "With us, 0 dogs" });
     expect(arriving).toHaveAttribute("data-lane-populated", "true");
-    expect(arriving).toHaveClass("xl:h-[min(58vh,42rem)]", "xl:flex", "xl:min-h-0");
+    expect(arriving).toHaveClass("xl:h-[min(66vh,44rem)]", "xl:flex", "xl:min-h-0");
     expect(within(arriving).getByTestId("due-lane-body")).toHaveClass("xl:overflow-y-auto", "xl:min-h-0", "xl:flex-1");
     expect(emptyWithUs).toHaveAttribute("data-lane-populated", "false");
-    expect(emptyWithUs).not.toHaveClass("xl:h-[min(58vh,42rem)]");
+    expect(emptyWithUs).not.toHaveClass("xl:h-[min(66vh,44rem)]");
   });
 });

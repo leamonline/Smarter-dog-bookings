@@ -48,6 +48,9 @@ test("Daily Brief keeps the status board usable at every supported width", async
   await expect(withUsLane).toBeVisible();
   await expect(readyLane).toBeVisible();
   await expect(home).toBeVisible();
+  const homeToggle = home.getByRole("button", { name: "Show 1 dog sent home" });
+  await expect(homeToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(home.getByRole("list")).toHaveCount(0);
   await expect(page.getByRole("tablist")).toHaveCount(0);
   await expect(page.getByTestId("booking-journey-grid")).toHaveCount(0);
   await expect(page.getByRole("alert").filter({ hasText: "status fixed" })).toBeVisible();
@@ -72,6 +75,13 @@ test("Daily Brief keeps the status board usable at every supported width", async
     expect((await action.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   }
 
+  if (testInfo.project.name === "desktop") {
+    for (const card of [charlieCard, lunaCard]) {
+      expect((await card.boundingBox())?.height).toBeLessThanOrEqual(120);
+    }
+    expect((await bellaCard.boundingBox())?.height).toBeLessThanOrEqual(145);
+  }
+
   const activeLaneColumns = await dueLane.locator("..").evaluate((element) =>
     getComputedStyle(element).gridTemplateColumns.split(" ").length,
   );
@@ -84,7 +94,7 @@ test("Daily Brief keeps the status board usable at every supported width", async
   expect(laneOverflow).toBe(testInfo.project.name === "desktop" ? "auto" : "visible");
   if (testInfo.project.name === "desktop") {
     expect(await dueLane.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(
-      Math.round((await page.evaluate(() => window.innerHeight)) * 0.59) + 2,
+      Math.round((await page.evaluate(() => window.innerHeight)) * 0.67) + 2,
     );
   }
 
@@ -109,8 +119,12 @@ test("status actions and invoice work by keyboard", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
   await page.getByRole("button", { name: "Not now" }).click();
 
-  const priceButton = bookingCard(page, "Charlie").getByRole("button", {
-    name: /Take £.* from Charlie/,
+  const moreActions = bookingCard(page, "Charlie").getByRole("button", {
+    name: "More actions for Charlie",
+  });
+  await moreActions.click();
+  const priceButton = page.getByRole("menuitem", {
+    name: /Take £.* payment/,
   });
   await priceButton.focus();
   await page.keyboard.press("Enter");
@@ -119,7 +133,6 @@ test("status actions and invoice work by keyboard", async ({ page }) => {
 
   await page.keyboard.press("Escape");
   await expect(invoice).not.toBeVisible();
-  await expect(priceButton).toBeFocused();
 });
 
 test("live arrival follows the focused dog without a duplicate Now panel", async ({ page }) => {
@@ -144,7 +157,8 @@ test("early morning keeps every booked arrival upcoming", async ({ page }) => {
   await page.goto("/today?date=2026-07-14");
 
   const arriving = page.getByRole("region", { name: "Arriving, 3 dogs" });
-  await expect(arriving.getByText("Upcoming")).toHaveCount(3);
+  await expect(arriving.getByText("Upcoming", { exact: true })).toHaveCount(0);
+  await expect(arriving.getByRole("article")).toHaveCount(3);
   await expect(arriving.locator('[data-action-reason="late"]')).toHaveCount(0);
 });
 

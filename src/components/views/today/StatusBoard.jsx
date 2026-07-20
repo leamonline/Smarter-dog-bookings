@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
-import { Check, Phone } from "lucide-react";
-import { BOOKING_STATUS, SERVICES, getStatusDisplay } from "../../../constants/index";
+import { Check, ChevronDown, Phone } from "lucide-react";
+import { BOOKING_STATUS, SERVICES } from "../../../constants/index";
 import { LiveArrivalDivider } from "./LiveArrivalDivider.jsx";
 import { MoreMenu, OnTheWayChip, WelfareChips, formatMoney } from "./parts.jsx";
 
@@ -9,19 +9,19 @@ const LANE_META = {
     title: "Arriving",
     purpose: "Dogs expected to arrive.",
     accent: "border-t-brand-yellow",
-    count: "bg-brand-yellow/25 text-amber-900",
+    countText: "text-amber-900",
   },
   withUs: {
     title: "With us",
     purpose: "Dogs physically in the salon.",
     accent: "border-t-brand-teal",
-    count: "bg-brand-teal/10 text-brand-teal-text",
+    countText: "text-brand-teal-text",
   },
   ready: {
     title: "Ready to go",
     purpose: "Finished dogs waiting for collection.",
     accent: "border-t-brand-purple",
-    count: "bg-brand-purple/10 text-brand-purple",
+    countText: "text-brand-purple",
   },
 };
 
@@ -55,32 +55,33 @@ function formatConfirmedAt(iso) {
 }
 
 const primaryClass =
-  "inline-flex min-h-11 items-center justify-center rounded-xl bg-brand-yellow px-4 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-yellow-dark focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
-const secondaryClass =
-  "inline-flex min-h-11 items-center justify-center rounded-xl border border-brand-purple/20 bg-white px-3.5 text-[13px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+  "inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-yellow px-3 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-yellow-dark focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
+const contactClass =
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 text-[12px] font-bold text-brand-purple outline-none transition-colors hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2";
 
-function ConfirmationSignal({ confirmedAt, needsConfirmation }) {
+function ConfirmationException({ needsConfirmation }) {
+  if (!needsConfirmation) return null;
+  return (
+    <span
+      data-action-reason="confirmation"
+      className="inline-flex items-center text-[11px] font-bold text-amber-900"
+    >
+      Needs confirmation
+    </span>
+  );
+}
+
+function ConfirmedMark({ confirmedAt }) {
   const time = formatConfirmedAt(confirmedAt);
-  if (needsConfirmation) {
-    return (
-      <span
-        data-action-reason="confirmation"
-        className="inline-flex min-h-6 items-center rounded-full border border-brand-yellow-dark/20 bg-brand-yellow/25 px-2 text-[11px] font-bold text-amber-900"
-      >
-        Needs confirmation
-      </span>
-    );
-  }
   if (!time) return null;
   return (
     <span
       role="img"
       aria-label={`Customer confirmed at ${time}`}
       title={`Confirmed via WhatsApp at ${time}`}
-      className="inline-flex min-h-6 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-bold text-emerald-700"
+      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700"
     >
       <Check size={13} strokeWidth={3} aria-hidden="true" />
-      Confirmed
     </span>
   );
 }
@@ -89,7 +90,7 @@ function PaymentState({ payment, actionReason = false }) {
   if (!payment) return null;
   if (payment.kind === "paid") {
     return (
-      <span className="inline-flex min-h-6 items-center rounded-full bg-emerald-50 px-2 text-[11px] font-bold text-emerald-700">
+      <span className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-emerald-700">
         Paid
       </span>
     );
@@ -98,7 +99,7 @@ function PaymentState({ payment, actionReason = false }) {
     return (
       <span
         data-action-reason={actionReason ? "payment" : undefined}
-        className="inline-flex min-h-6 items-center rounded-full bg-brand-yellow/25 px-2 text-[11px] font-bold text-amber-900"
+        className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-amber-900"
       >
         {formatMoney(payment.amountDue)} due
       </span>
@@ -107,7 +108,7 @@ function PaymentState({ payment, actionReason = false }) {
   return (
     <span
       data-action-reason={actionReason ? "payment" : undefined}
-      className="inline-flex min-h-6 items-center rounded-full bg-slate-100 px-2 text-[11px] font-bold text-slate-600"
+      className="inline-flex items-center whitespace-nowrap text-[11px] font-bold text-slate-600"
     >
       {payment.label}
     </span>
@@ -119,6 +120,7 @@ function CardActions({ entry, display, payment, handlers }) {
   const name = display.dogName;
   const contactName = firstName(display.owner);
   const phoneHref = telephoneHref(display.ownerPhone);
+  const needsContact = entry.isLate || entry.actionReasons?.includes("confirmation");
   const journey = (id) => handlers.onJourneyAction?.(booking, { id, completed: false, next: true });
   const commonMore = [
     { label: `Message ${contactName}`, onClick: () => handlers.onMessageOwner?.(booking) },
@@ -126,40 +128,37 @@ function CardActions({ entry, display, payment, handlers }) {
   ];
 
   if (entry.lane === "due") {
-    if (entry.isLate) {
-      return (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {phoneHref ? (
-            <a href={phoneHref} aria-label={`Call ${contactName} about ${name}`} className={primaryClass}>
-              <Phone size={15} className="mr-1.5" aria-hidden="true" />
-              Call {contactName}
-            </a>
-          ) : (
-            <button type="button" onClick={() => handlers.onMessageOwner?.(booking)} className={primaryClass}>
-              Contact {contactName}
-            </button>
-          )}
-          <button type="button" aria-label={`Check in ${name}`} onClick={() => journey("checkIn")} className={secondaryClass}>
-            Check in
-          </button>
-          <MoreMenu
-            menuLabel={`More actions for ${name}`}
-            items={[
-              ...commonMore,
-              { label: "Didn't show", onClick: () => handlers.onDidntShow?.(booking) },
-              { label: "Cancel booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
-              { label: "Reschedule booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
-            ]}
-          />
-        </div>
-      );
-    }
     return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <button type="button" aria-label={`Check in ${name}`} onClick={() => journey("checkIn")} className={primaryClass}>
+      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
+        <button data-primary-action="true" type="button" aria-label={`Check in ${name}`} onClick={() => journey("checkIn")} className={primaryClass}>
           Check in
         </button>
-        <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
+        {needsContact ? (
+          phoneHref ? (
+            <a href={phoneHref} aria-label={`Call ${contactName} about ${name}`} className={contactClass}>
+              <Phone size={14} aria-hidden="true" />
+              Call
+            </a>
+          ) : (
+            <button
+              type="button"
+              aria-label={`Contact ${contactName} about ${name}`}
+              onClick={() => handlers.onMessageOwner?.(booking)}
+              className={contactClass}
+            >
+              Contact
+            </button>
+          )
+        ) : null}
+        <MoreMenu
+          menuLabel={`More actions for ${name}`}
+          items={[
+            ...commonMore,
+            { label: "Didn't show", onClick: () => handlers.onDidntShow?.(booking) },
+            { label: "Cancel booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
+            { label: "Reschedule booking", onClick: () => handlers.onOpenBooking?.(booking.id) },
+          ]}
+        />
       </div>
     );
   }
@@ -167,8 +166,9 @@ function CardActions({ entry, display, payment, handlers }) {
   if (entry.lane === "withUs") {
     const checkedIn = booking.status === BOOKING_STATUS.CHECKED_IN;
     return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
         <button
+          data-primary-action="true"
           type="button"
           aria-label={checkedIn ? `Start ${name}'s groom` : `Mark ${name} ready for collection`}
           onClick={() => journey(checkedIn ? "startGroom" : "ready")}
@@ -182,19 +182,13 @@ function CardActions({ entry, display, payment, handlers }) {
   }
 
   const amountDue = payment?.amountDue;
+  const readyMore = amountDue != null && amountDue > 0
+    ? [{ label: `Take ${formatMoney(amountDue)} payment`, onClick: () => handlers.onOpenInvoice?.(booking) }, ...commonMore]
+    : commonMore;
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {amountDue != null && amountDue > 0 ? (
-        <button
-          type="button"
-          aria-label={`Take ${formatMoney(amountDue)} from ${name}`}
-          onClick={() => handlers.onOpenInvoice?.(booking)}
-          className={secondaryClass}
-        >
-          Take {formatMoney(amountDue)}
-        </button>
-      ) : null}
+    <div className="flex w-full flex-wrap items-center justify-end gap-1.5">
       <button
+        data-primary-action="true"
         type="button"
         aria-label={`Mark ${name} collected`}
         onClick={() => handlers.onRequestCollected?.(booking)}
@@ -202,7 +196,7 @@ function CardActions({ entry, display, payment, handlers }) {
       >
         Mark collected
       </button>
-      <MoreMenu menuLabel={`More actions for ${name}`} items={commonMore} />
+      <MoreMenu menuLabel={`More actions for ${name}`} items={readyMore} />
     </div>
   );
 }
@@ -221,14 +215,13 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
   const isConfirmationAction = actionReasons.includes("confirmation");
   const isPaymentAction = actionReasons.includes("payment");
   const isCollectionAction = actionReasons.includes("collection");
+  const displayTiming = entry.timingLabel
+    || (entry.lane === "ready" && isCollectionAction ? "Waiting" : null);
   const timingActionReason = entry.isLate
     ? "late"
-    : entry.lane === "ready" && isCollectionAction && entry.timingLabel
+    : entry.lane === "ready" && isCollectionAction && displayTiming
       ? "collection"
       : undefined;
-  const statusLabel = entry.lane === "due" && !entry.isLate && entry.timingLabel !== "Due now"
-    ? "Upcoming"
-    : getStatusDisplay(booking.status).label;
 
   return (
     <div data-status-card-shell className="w-full">
@@ -238,62 +231,64 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
         data-needs-action={entry.needsAction ? "true" : "false"}
         tabIndex={-1}
         aria-label={`${display.dogName}, ${booking.slot || "Time missing"}, ${laneTitle}`}
-        className={`min-w-0 rounded-2xl border px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:px-4 ${successTone}`}
+        className={`min-w-0 rounded-xl border px-2.5 py-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] sm:px-3 ${successTone}`}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 items-start gap-2">
           <button
             type="button"
             aria-label={`Open ${booking.slot || "unscheduled"} booking`}
             onClick={() => handlers.onOpenBooking?.(booking.id)}
-            className={`flex size-11 shrink-0 items-center justify-center rounded-full text-[12px] font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${entry.isLate ? "bg-brand-coral text-white" : "bg-brand-purple text-white"}`}
+            className={`flex min-h-11 min-w-[3.25rem] shrink-0 items-center justify-center rounded-lg px-1.5 text-[12px] font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2 ${entry.isLate ? "bg-brand-coral text-white" : "bg-brand-purple text-white"}`}
           >
             {booking.slot || "—"}
           </button>
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <h3 className="min-w-0 font-display text-[20px] font-bold leading-tight text-brand-purple">
+          <div className="min-w-0 flex-1 py-0.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h3 className="min-w-0 truncate font-display text-[18px] font-bold leading-tight text-brand-purple">
                 <button
                   type="button"
                   aria-label={`Open ${display.dogName}'s dog file`}
                   onClick={() => handlers.onOpenDog?.(booking._dogId)}
-                  className="rounded-sm text-left outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
+                  className="max-w-full truncate rounded-sm text-left outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
                 >
                   {display.dogName}
                 </button>
               </h3>
+              <ConfirmedMark confirmedAt={confirmedAt} />
+              {displayTiming ? (
+                <strong
+                  data-action-reason={timingActionReason}
+                  className={`ml-auto shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums ${entry.isLate ? "text-brand-coral-text" : "text-slate-700"}`}
+                >
+                  {displayTiming}
+                </strong>
+              ) : null}
+            </div>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-tight text-slate-600">
+              <span className="shrink-0">{serviceLabel(booking.service)}</span>
+              <span aria-hidden="true">·</span>
               <button
                 type="button"
                 aria-label={`Open ${display.owner}'s human file`}
                 onClick={() => handlers.onOpenHuman?.(booking._ownerId)}
-                className="min-h-6 rounded-sm text-left text-[13px] font-medium text-slate-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
+                className="min-w-0 truncate rounded-sm text-left font-medium text-slate-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-purple"
               >
                 {display.owner}
               </button>
+              <span className="ml-auto shrink-0">
+                <PaymentState payment={payment} actionReason={isPaymentAction} />
+              </span>
             </div>
-            <p className="mt-1 text-[13px] text-slate-600">
-              {serviceLabel(booking.service)}
-              {entry.timingLabel ? <><span aria-hidden="true"> · </span><strong data-action-reason={timingActionReason} className={entry.isLate ? "text-brand-coral-text" : "text-slate-700"}>{entry.timingLabel}</strong></> : null}
-            </p>
-            <p className="mt-1 text-[12px] font-bold text-slate-700">
-              {statusLabel}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <ConfirmationSignal confirmedAt={confirmedAt} needsConfirmation={isConfirmationAction} />
-              <PaymentState payment={payment} actionReason={isPaymentAction} />
-              {entry.lane === "ready" && isCollectionAction && !entry.timingLabel ? (
-                <span
-                  data-action-reason="collection"
-                  className="inline-flex min-h-6 items-center rounded-full bg-brand-purple/10 px-2 text-[11px] font-bold text-brand-purple"
-                >
-                  Waiting for collection
-                </span>
-              ) : null}
-              <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
-            </div>
+            {isConfirmationAction || onTheWaySignals?.[booking.id] ? (
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <ConfirmationException needsConfirmation={isConfirmationAction} />
+                <OnTheWayChip signal={onTheWaySignals?.[booking.id]} />
+              </div>
+            ) : null}
             <WelfareChips {...welfare} />
           </div>
         </div>
-        <div className="mt-3 border-t border-slate-200/80 pt-3">
+        <div className="mt-1 flex min-h-11 items-center border-t border-slate-200/70 pt-1">
           <CardActions entry={entry} display={display} payment={payment} handlers={handlers} />
         </div>
       </article>
@@ -301,9 +296,31 @@ function StatusBookingCard({ entry, laneTitle, resolve, getWelfare, paymentOf, h
   );
 }
 
+function laneWarning(lane, entries) {
+  const count = (reason) => entries.filter((entry) => entry.actionReasons?.includes(reason)).length;
+  if (lane === "due") {
+    const late = entries.filter((entry) => entry.isLate).length;
+    if (late > 0) return `${late} late`;
+    const confirmations = count("confirmation");
+    if (confirmations > 0) return `${confirmations} to confirm`;
+  }
+  if (lane === "withUs") {
+    const payments = count("payment");
+    if (payments > 0) return `${payments} unpaid`;
+  }
+  if (lane === "ready") {
+    const collections = count("collection");
+    if (collections > 0) return `${collections} waiting`;
+    const payments = count("payment");
+    if (payments > 0) return `${payments} unpaid`;
+  }
+  return null;
+}
+
 function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId, liveContext, handlers, onTheWaySignals }) {
   const meta = LANE_META[lane];
   const count = entries.length;
+  const warning = laneWarning(lane, entries);
   const focusedEntry = liveContext
     ? entries.find((entry) => entry.booking.id === liveFocusId)
     : null;
@@ -320,20 +337,25 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
     <section
       aria-label={`${meta.title}, ${dogCountLabel(count)}`}
       data-lane-populated={count > 0 ? "true" : "false"}
-      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:h-[min(58vh,42rem)] xl:min-h-0 xl:flex-col" : ""}`}
+      className={`min-w-0 overflow-visible rounded-2xl border border-slate-200 border-t-4 bg-white ${meta.accent} ${lane === "ready" ? "md:col-span-2 xl:col-span-1" : ""} ${count > 0 ? "xl:flex xl:h-[min(66vh,44rem)] xl:min-h-0 xl:flex-col" : ""}`}
     >
-      <header className="flex min-h-[76px] shrink-0 items-start gap-3 border-b border-slate-100 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-display text-[20px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
-          <p className="mt-1 text-[12px] text-slate-600">{meta.purpose}</p>
-        </div>
-        <span className={`inline-flex min-h-7 shrink-0 items-center rounded-full px-2.5 text-[11px] font-bold ${meta.count}`}>
+      <header className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-slate-100 px-3 py-1.5">
+        <h2 className="font-display text-[18px] font-bold leading-tight text-brand-purple">{meta.title}</h2>
+        <span aria-hidden="true" className="text-slate-300">·</span>
+        <span className={`shrink-0 text-[11px] font-bold ${meta.countText}`}>
           {dogCountLabel(count)}
         </span>
+        {warning ? (
+          <>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span className="truncate text-[11px] font-bold text-brand-coral-text">{warning}</span>
+          </>
+        ) : null}
+        <p className="sr-only">{meta.purpose}</p>
       </header>
       <div
         data-testid={`${lane}-lane-body`}
-        className={`relative space-y-2 p-2.5 sm:p-3 ${count > 0 ? "xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain" : ""}`}
+        className={`relative space-y-1.5 p-2 ${count > 0 ? "xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain" : ""}`}
       >
         {entries.length === 0 ? (
           <p className="px-2 py-2 text-[12px] font-medium text-slate-500">No dogs in this lane</p>
@@ -358,24 +380,31 @@ function StatusLane({ lane, entries, resolve, getWelfare, paymentOf, liveFocusId
 
 function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
   const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? entries : entries.slice(0, 3);
   const title = isToday ? "Home today" : "Home on this date";
+  const toggleLabel = `${expanded ? "Hide" : "Show"} ${dogCountLabel(entries.length)} sent home`;
   return (
-    <section aria-label={`${title}, ${dogCountLabel(entries.length)}`} className="rounded-2xl border border-slate-200 bg-white">
-      <header className="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-2.5">
-        <h2 className="font-display text-[18px] font-bold text-brand-purple">{title}</h2>
+    <section aria-label={`${title}, ${dogCountLabel(entries.length)}`} className="rounded-xl border border-slate-200 bg-white/80">
+      <header className={`flex min-h-11 items-center gap-2 px-3 py-1 ${expanded ? "border-b border-slate-100" : ""}`}>
+        <h2 className="font-display text-[16px] font-bold text-brand-purple">{title}</h2>
         <span className="text-[12px] font-bold text-slate-500">{dogCountLabel(entries.length)}</span>
-        {entries.length > 3 ? (
-          <button type="button" onClick={() => setExpanded((value) => !value)} className="ml-auto min-h-11 px-2 text-[12px] font-bold text-brand-purple underline">
-            {expanded ? "Show less" : "View all"}
+        {entries.length > 0 ? (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={toggleLabel}
+            onClick={() => setExpanded((value) => !value)}
+            className="ml-auto inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-[12px] font-bold text-brand-purple outline-none hover:bg-brand-purple/5 focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2"
+          >
+            {expanded ? "Hide" : "Show"}
+            <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
         ) : null}
       </header>
       {entries.length === 0 ? (
         <p className="px-4 py-3 text-[12px] text-slate-500">No dogs have gone home yet.</p>
-      ) : (
+      ) : expanded ? (
         <ul className="divide-y divide-slate-100 px-4">
-          {visible.map((entry) => {
+          {entries.map((entry) => {
             const booking = entry.booking;
             const display = resolve(booking);
             const payment = paymentOf(booking);
@@ -397,7 +426,7 @@ function HomeToday({ entries, resolve, paymentOf, isToday, handlers }) {
             );
           })}
         </ul>
-      )}
+      ) : null}
     </section>
   );
 }

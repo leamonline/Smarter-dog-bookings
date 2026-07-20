@@ -152,7 +152,8 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
@@ -217,12 +218,13 @@ describe("TodayView — selected-date operations", () => {
       configPricing: { "full-groom": { small: 5000 } },
     });
 
-    expect(screen.getByRole("button", { name: "Take £50 from Jack" })).toBeInTheDocument();
-    const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
-    expect(within(summary).getByText("Unpaid").parentElement).toHaveTextContent("£50");
-    expect(within(summary).getByText("Expected revenue").parentElement).toHaveTextContent("£50");
+    expect(screen.queryByRole("button", { name: "Take £50 from Jack" })).not.toBeInTheDocument();
+    const secondary = screen.getByRole("region", { name: "Daily Brief secondary totals" });
+    expect(secondary).toHaveTextContent("£50 unpaid");
+    expect(secondary).toHaveTextContent("£50 expected");
 
-    fireEvent.click(screen.getByRole("button", { name: "Take £50 from Jack" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take £50 payment" }));
     expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
     expect(screen.getAllByText("£50", { selector: "dd" })).toHaveLength(2);
   });
@@ -393,8 +395,7 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.queryByRole("region", { name: "Happening now" })).not.toBeInTheDocument();
     expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
     expect(screen.queryByText(/due in|overdue|booked today|taken today/i)).not.toBeInTheDocument();
-    const operationalStatus = screen.getByRole("region", { name: "Daily Brief operational status" });
-    expect(within(operationalStatus).getByText("Booked").parentElement).toHaveTextContent("2");
+    expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("2/14 capacity");
     expect(screen.getByText("Taken £42")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Check in/ })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
@@ -444,7 +445,8 @@ describe("TodayView — selected-date operations", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Jack's dog file" }));
     fireEvent.click(screen.getByRole("button", { name: "Open 09:00 booking" }));
     fireEvent.click(screen.getByRole("button", { name: "Open David Law's human file" }));
-    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
     fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Message David" }));
 
@@ -464,7 +466,8 @@ describe("TodayView — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take £42 payment" }));
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
@@ -856,6 +859,8 @@ describe("TodayHeader", () => {
         dateLabel="Tuesday 14 July"
         dogsBooked={11}
         onSite={3}
+        lateCount={2}
+        readyCount={4}
         actionCount={6}
         unpaidTotal={482}
         expectedRevenue={638}
@@ -883,11 +888,14 @@ describe("TodayHeader", () => {
     expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass("bg-brand-purple");
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
-    expect(within(summary).getByText("Booked").parentElement).toHaveTextContent("11");
+    expect(within(summary).getByText("Late").parentElement).toHaveTextContent("2");
     expect(within(summary).getByText("On site").parentElement).toHaveTextContent("3");
-    expect(within(summary).getByText("Unpaid").parentElement).toHaveTextContent("£482");
-    expect(within(summary).getByText("Expected revenue").parentElement).toHaveTextContent("£638");
-    expect(within(summary).getByText("Capacity").parentElement).toHaveTextContent("11/14");
+    expect(within(summary).getByText("Ready").parentElement).toHaveTextContent("4");
+    expect(within(summary).queryByText("Booked")).not.toBeInTheDocument();
+    const secondary = screen.getByRole("region", { name: "Daily Brief secondary totals" });
+    expect(secondary).toHaveTextContent("11/14 capacity");
+    expect(secondary).toHaveTextContent("£482 unpaid");
+    expect(secondary).toHaveTextContent("£638 expected");
     const filter = within(summary).getByRole("button", { name: "Filter 6 bookings needing action" });
     expect(filter).toHaveAttribute("aria-pressed", "false");
     expect(filter).toHaveAttribute("data-filter-selected", "false");
@@ -900,6 +908,8 @@ describe("TodayHeader", () => {
       <TodayHeader
         dateLabel="Thursday 2 July"
         dogsBooked={1}
+        lateCount={0}
+        readyCount={0}
         actionCount={0}
         unpaidTotal={0}
         nextOnlineSlot={null}
@@ -909,8 +919,9 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Daily Brief operational status" });
+    expect(within(summary).getByText("All on time")).toBeInTheDocument();
     expect(within(summary).getByText("All calm")).toBeInTheDocument();
-    expect(within(summary).getByText("All paid")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("All paid");
   });
 
   it("gives the action filter an explicit visible selected state", () => {
@@ -939,9 +950,10 @@ describe("TodayHeader", () => {
   it("reads calm and opens the availability modal", () => {
     const onManage = vi.fn();
     render(
-      <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} actionCount={0} isDayOpen onManageAvailability={onManage} />,
+      <TodayHeader dateLabel="Thursday 2 July" dogsBooked={1} lateCount={0} readyCount={0} actionCount={0} isDayOpen onManageAvailability={onManage} />,
     );
-    expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("1Booked");
+    expect(screen.getByRole("region", { name: "Daily Brief operational status" })).toHaveTextContent("All on time");
+    expect(screen.getByRole("region", { name: "Daily Brief secondary totals" })).toHaveTextContent("1/14 capacity");
     expect(screen.getByText(/all calm/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Manage availability/ }));
     expect(onManage).toHaveBeenCalled();

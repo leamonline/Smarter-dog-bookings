@@ -542,6 +542,8 @@ export function TodayView({
         dateLabel={dateLabel}
         dogsBooked={summary.dogsBooked}
         onSite={summary.onSite}
+        lateCount={fullBoard.due.filter((entry) => entry.isLate).length}
+        readyCount={fullBoard.ready.length}
         actionCount={actionCount}
         unpaidTotal={unpaidTotal}
         expectedRevenue={summary.expectedRevenue}
