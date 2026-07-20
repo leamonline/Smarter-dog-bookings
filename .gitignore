@@ -30,3 +30,10 @@ test-results/
 # Local design-alignment working directory — not shipping code
 design-alignment/
 .env*
+
+# design-sync: staged converter scripts + regenerated build output + machine state
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
