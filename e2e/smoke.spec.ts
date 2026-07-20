@@ -25,11 +25,14 @@ test.describe("Smoke", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Daily Brief" }),
     ).toBeVisible();
-    // Open days (Mon–Wed) show the live "N dogs booked" subline; closed days
+    // Open days expose one labelled operational-status region; closed days
     // show the read-only next-open-day brief banner instead. The smoke runs
     // on real wall-clock dates, so it must accept either state.
     await expect(
-      page.getByText(/dogs? booked/i).or(page.getByText(/closed today/i)).first(),
+      page
+        .getByRole("region", { name: "Daily Brief operational status" })
+        .or(page.getByText(/closed today/i))
+        .first(),
     ).toBeVisible();
     // The primary nav is labelled, not icon-only.
     await expect(
