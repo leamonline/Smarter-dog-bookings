@@ -4,11 +4,15 @@ import type { Booking } from "../types/index";
 import {
   buildFutureDayFeed,
   buildTodayFeed,
+  collectionWaitMinutes,
   isPaymentOutstanding,
   londonDateStr,
+  minutesUntilSlot,
   needsConfirmation,
   statusRank,
+  timeInSalonMinutes,
 } from "./today";
+import type { TodayFeedEntry } from "./today";
 import { computeBookingPricing, validateDepositAmount } from "./bookingRules";
 import type { BookingPricingInput } from "./bookingRules";
 
@@ -183,4 +187,158 @@ export function buildDailyBriefFeed(
 
     return { ...entry, isUnconfirmed, owes, needsAction };
   });
+}
+
+export type DailyBriefLane = "due" | "withUs" | "ready" | "home";
+
+export interface DailyBriefBoardEntry extends TodayFeedEntry {
+  lane: DailyBriefLane;
+  sortMinutes: number;
+  timingLabel: string | null;
+}
+
+export interface DailyBriefBoard {
+  due: DailyBriefBoardEntry[];
+  withUs: DailyBriefBoardEntry[];
+  ready: DailyBriefBoardEntry[];
+  home: DailyBriefBoardEntry[];
+  excludedCount: number;
+}
+
+const BOARD_LANE_BY_STATUS: Record<string, DailyBriefLane> = {
+  [BOOKING_STATUS.BOOKED]: "due",
+  [BOOKING_STATUS.CHECKED_IN]: "withUs",
+  [BOOKING_STATUS.IN_BATH]: "withUs",
+  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
+  [BOOKING_STATUS.COMPLETED]: "home",
+};
+
+function finiteSlot(entry: TodayFeedEntry): number {
+  return Number.isFinite(entry.slotMinutes)
+    ? entry.slotMinutes
+    : Number.POSITIVE_INFINITY;
+}
+
+function validTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareId(a: DailyBriefBoardEntry, b: DailyBriefBoardEntry): number {
+  return String(a.booking.id ?? "").localeCompare(String(b.booking.id ?? ""));
+}
+
+function compareTimestamp(
+  a: DailyBriefBoardEntry,
+  b: DailyBriefBoardEntry,
+  field: "checkedInAt" | "readyAt" | "completedAt",
+  direction: "asc" | "desc" = "asc",
+): number {
+  const aTime = validTimestamp(a.booking[field]);
+  const bTime = validTimestamp(b.booking[field]);
+  if (aTime !== null && bTime === null) return -1;
+  if (aTime === null && bTime !== null) return 1;
+  if (aTime !== null && bTime !== null && aTime !== bTime) {
+    return direction === "asc" ? aTime - bTime : bTime - aTime;
+  }
+  const aSlot = finiteSlot(a);
+  const bSlot = finiteSlot(b);
+  if (aSlot !== bSlot) return aSlot < bSlot ? -1 : 1;
+  return compareId(a, b);
+}
+
+function durationLabel(minutes: number): string {
+  const whole = Math.max(0, Math.floor(minutes));
+  if (whole < 60) return `${whole} ${whole === 1 ? "min" : "mins"}`;
+  const hours = Math.floor(whole / 60);
+  const remainder = whole % 60;
+  const hourLabel = `${hours} ${hours === 1 ? "hr" : "hrs"}`;
+  return remainder
+    ? `${hourLabel} ${remainder} ${remainder === 1 ? "min" : "mins"}`
+    : hourLabel;
+}
+
+function collectedTimeLabel(completedAt: string | null | undefined): string | null {
+  const timestamp = validTimestamp(completedAt);
+  if (timestamp === null) return null;
+  const time = new Date(timestamp).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+  return `Collected ${time}`;
+}
+
+function boardTimingLabel(
+  entry: TodayFeedEntry,
+  lane: DailyBriefLane,
+  isToday: boolean,
+  now: Date,
+): string | null {
+  if (lane === "home") return collectedTimeLabel(entry.booking.completedAt);
+  if (!isToday) return null;
+  if (lane === "due") {
+    if (!entry.booking.slot || !Number.isFinite(entry.slotMinutes)) return "Time missing";
+    if (entry.isLate) return `${durationLabel(entry.overdueMinutes)} late`;
+    const until = minutesUntilSlot(entry.booking.slot, now);
+    return until <= 0 ? "Due now" : `Due in ${durationLabel(until)}`;
+  }
+  if (lane === "withUs") {
+    const elapsed = timeInSalonMinutes(entry.booking, now);
+    return elapsed == null ? null : `On site ${durationLabel(elapsed)}`;
+  }
+  const wait = collectionWaitMinutes(entry.booking, now);
+  return wait == null ? null : `Ready ${durationLabel(wait)}`;
+}
+
+/**
+ * Derive the three active Daily Brief lanes and compact completed history from
+ * the existing booking statuses. Lanes are UI state only: no booking data is
+ * mutated and payment never affects placement.
+ */
+export function buildDailyBriefBoard(
+  bookings: Booking[],
+  selectedDateStr: string,
+  now: Date,
+): DailyBriefBoard {
+  const included = bookings.filter((booking) => !!BOARD_LANE_BY_STATUS[booking.status]);
+  const feed = buildDailyBriefFeed(included, selectedDateStr, now);
+  const isToday = selectedDateStr === londonDateStr(now);
+  const board: DailyBriefBoard = {
+    due: [],
+    withUs: [],
+    ready: [],
+    home: [],
+    excludedCount: bookings.length - included.length,
+  };
+
+  for (const entry of feed) {
+    const lane = BOARD_LANE_BY_STATUS[entry.booking.status];
+    if (!lane) continue;
+    const elapsed = lane === "withUs"
+      ? timeInSalonMinutes(entry.booking, now)
+      : lane === "ready"
+        ? collectionWaitMinutes(entry.booking, now)
+        : null;
+    board[lane].push({
+      ...entry,
+      lane,
+      sortMinutes: elapsed ?? finiteSlot(entry),
+      timingLabel: boardTimingLabel(entry, lane, isToday, now),
+    });
+  }
+
+  board.due.sort((a, b) => {
+    if (a.isLate !== b.isLate) return a.isLate ? -1 : 1;
+    const aSlot = finiteSlot(a);
+    const bSlot = finiteSlot(b);
+    if (aSlot !== bSlot) return aSlot < bSlot ? -1 : 1;
+    return compareId(a, b);
+  });
+  board.withUs.sort((a, b) => compareTimestamp(a, b, "checkedInAt"));
+  board.ready.sort((a, b) => compareTimestamp(a, b, "readyAt"));
+  board.home.sort((a, b) => compareTimestamp(a, b, "completedAt", "desc"));
+
+  return board;
 }

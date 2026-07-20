@@ -27,15 +27,15 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
     { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_PICKUP, payment: "Paid in Full" },
     { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.IN_BATH, payment: "Deposit Paid" },
     { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full" },
-    // Deliberately bare (no status/payment) — exercises the Today view + report
-    // defaulting a missing status to Booked and a missing payment to "".
+    // Deliberately bare (no status/payment) — exercises the board's recoverable
+    // unknown-status warning without making the whole demo day unusable.
     { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor" },
-    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson" },
+    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson", status: BOOKING_STATUS.BOOKED },
   ],
   tue: [
-    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke" },
-    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel" },
-    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright" },
+    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED },
+    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED },
+    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED },
   ],
   wed: [
     // A cancelled booking on an open day — exercises the rule that cancelled

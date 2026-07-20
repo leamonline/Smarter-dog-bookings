@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BOOKING_STATUS } from "../constants/index";
 import type { Booking } from "../types/index";
 import {
+  buildDailyBriefBoard,
   buildDailyBriefFeed,
   buildJourneyActions,
   buildMiniInvoicePatch,
@@ -180,6 +181,155 @@ describe("Daily Brief journey", () => {
       overdueMinutes: 0,
       waitMinutes: null,
     });
+  });
+});
+
+describe("Daily Brief status board", () => {
+  const now = new Date("2026-07-14T10:15:00+01:00");
+
+  it("maps only the canonical active statuses into one operational lane", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({ id: "due", status: BOOKING_STATUS.BOOKED }),
+        booking({ id: "checked-in", status: BOOKING_STATUS.CHECKED_IN }),
+        booking({ id: "in-bath", status: BOOKING_STATUS.IN_BATH }),
+        booking({ id: "ready", status: BOOKING_STATUS.READY_FOR_PICKUP }),
+        booking({ id: "home", status: BOOKING_STATUS.COMPLETED }),
+        booking({ id: "cancelled", status: BOOKING_STATUS.CANCELLED }),
+        booking({ id: "unknown", status: "Awaiting magic" as Booking["status"] }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.due.map((entry) => entry.booking.id)).toEqual(["due"]);
+    expect(board.withUs.map((entry) => entry.booking.id)).toEqual([
+      "checked-in",
+      "in-bath",
+    ]);
+    expect(board.ready.map((entry) => entry.booking.id)).toEqual(["ready"]);
+    expect(board.home.map((entry) => entry.booking.id)).toEqual(["home"]);
+    expect(board.excludedCount).toBe(2);
+  });
+
+  it("orders overdue arrivals first, then upcoming arrivals, with a stable id tie-break", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({ id: "upcoming", slot: "11:00" }),
+        booking({ id: "late-b", slot: "09:00" }),
+        booking({ id: "late-a", slot: "09:00" }),
+        booking({ id: "later-upcoming", slot: "12:00" }),
+        booking({ id: "missing-time", slot: "" }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.due.map((entry) => entry.booking.id)).toEqual([
+      "late-a",
+      "late-b",
+      "upcoming",
+      "later-upcoming",
+      "missing-time",
+    ]);
+    expect(board.due[0].timingLabel).toBe("1 hr 15 mins late");
+    expect(board.due[2].timingLabel).toBe("Due in 45 mins");
+    expect(board.due[4].timingLabel).toBe("Time missing");
+  });
+
+  it("orders dogs on site and ready by the longest elapsed wait", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({
+          id: "on-site-recent",
+          status: BOOKING_STATUS.CHECKED_IN,
+          checkedInAt: "2026-07-14T09:00:00Z",
+          slot: "09:30",
+        }),
+        booking({
+          id: "on-site-longest",
+          status: BOOKING_STATUS.IN_BATH,
+          checkedInAt: "2026-07-14T07:30:00Z",
+          slot: "08:30",
+        }),
+        booking({
+          id: "on-site-unstamped",
+          status: BOOKING_STATUS.CHECKED_IN,
+          checkedInAt: null,
+          slot: "08:00",
+        }),
+        booking({
+          id: "ready-recent",
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          readyAt: "2026-07-14T09:00:00Z",
+        }),
+        booking({
+          id: "ready-longest",
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          readyAt: "2026-07-14T08:00:00Z",
+        }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.withUs.map((entry) => entry.booking.id)).toEqual([
+      "on-site-longest",
+      "on-site-recent",
+      "on-site-unstamped",
+    ]);
+    expect(board.withUs[0].timingLabel).toBe("On site 1 hr 45 mins");
+    expect(board.ready.map((entry) => entry.booking.id)).toEqual([
+      "ready-longest",
+      "ready-recent",
+    ]);
+    expect(board.ready[0].timingLabel).toBe("Ready 1 hr 15 mins");
+  });
+
+  it("orders completed bookings most recently collected first", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({
+          id: "earlier",
+          status: BOOKING_STATUS.COMPLETED,
+          completedAt: "2026-07-14T10:15:00Z",
+        }),
+        booking({
+          id: "latest",
+          status: BOOKING_STATUS.COMPLETED,
+          completedAt: "2026-07-14T13:22:00Z",
+        }),
+        booking({ id: "unstamped", status: BOOKING_STATUS.COMPLETED, completedAt: null }),
+      ],
+      "2026-07-14",
+      now,
+    );
+
+    expect(board.home.map((entry) => entry.booking.id)).toEqual([
+      "latest",
+      "earlier",
+      "unstamped",
+    ]);
+    expect(board.home[0].timingLabel).toBe("Collected 14:22");
+  });
+
+  it("does not fabricate clock-relative timing for a non-today board", () => {
+    const board = buildDailyBriefBoard(
+      [
+        booking({ id: "due", slot: "09:00", _bookingDate: "2026-07-15" }),
+        booking({
+          id: "ready",
+          status: BOOKING_STATUS.READY_FOR_PICKUP,
+          readyAt: "2026-07-15T08:00:00Z",
+          _bookingDate: "2026-07-15",
+        }),
+      ],
+      "2026-07-15",
+      now,
+    );
+
+    expect(board.due[0]).toMatchObject({ isLate: false, timingLabel: null });
+    expect(board.ready[0]).toMatchObject({ waitMinutes: null, timingLabel: null });
   });
 });
 

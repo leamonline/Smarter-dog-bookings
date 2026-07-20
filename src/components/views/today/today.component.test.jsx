@@ -143,15 +143,17 @@ describe("TodayView — selected-date operations", () => {
     expect(onNewBooking).toHaveBeenCalledWith({ dateStr: "2026-07-16", slot: "08:30" });
   });
 
-  it("confirms a skipped care stage but does not confirm payment", () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    renderToday();
+  it("offers only the next care outcome and keeps payment independent", () => {
+    const confirm = vi.spyOn(window, "confirm");
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }],
+      },
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Start groom" }));
-    expect(confirm).toHaveBeenCalledWith("Jack has not been checked in. Continue anyway?");
-
-    fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
+    expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
   });
 
@@ -162,9 +164,15 @@ describe("TodayView — selected-date operations", () => {
     }));
     const onSendCollection = vi.fn();
     const confirm = vi.spyOn(window, "confirm");
-    renderToday({ onUpdateBooking, onSendCollection });
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "In bath" }],
+      },
+      onUpdateBooking,
+      onSendCollection,
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Ready for collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Jack ready for collection" }));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
     expect(onUpdateBooking).toHaveBeenCalledWith(
@@ -187,9 +195,15 @@ describe("TodayView — selected-date operations", () => {
   it("does not open collection messaging when Ready fails to save", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(null);
     const onSendCollection = vi.fn();
-    renderToday({ onUpdateBooking, onSendCollection });
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "In bath" }],
+      },
+      onUpdateBooking,
+      onSendCollection,
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Ready for collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Jack ready for collection" }));
 
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onSendCollection).not.toHaveBeenCalled();
@@ -197,17 +211,42 @@ describe("TodayView — selected-date operations", () => {
 
   it("uses one configured guide price for the row, unpaid summary and mini invoice", () => {
     renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }],
+      },
       configPricing: { "full-groom": { small: 5000 } },
     });
 
-    expect(screen.getByRole("button", { name: "Open £50 invoice" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take £50 from Jack" })).toBeInTheDocument();
     const summary = screen.getByRole("list", { name: "Selected date summary" });
     expect(within(summary).getAllByRole("listitem")[2]).toHaveTextContent("£50 unpaid");
     expect(screen.getByText("Expected", { selector: "p" }).parentElement).toHaveTextContent("£50");
 
-    fireEvent.click(screen.getByRole("button", { name: "Open £50 invoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £50 from Jack" }));
     expect(screen.getByLabelText("Base groom price")).toHaveValue(50);
     expect(screen.getAllByText("£50", { selector: "dd" })).toHaveLength(2);
+  });
+
+  it("warns about an unpaid balance without blocking collection", async () => {
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }],
+      },
+      onUpdateBooking,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark Jack collected" }));
+    expect(screen.getByRole("heading", { name: "£42 is still due for Jack" })).toBeInTheDocument();
+    expect(onUpdateBooking).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark collected anyway" }));
+    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
+    expect(onUpdateBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "b-selected", status: "Completed", payment: "Due at Pick-up" }),
+      "2026-07-16",
+      "2026-07-16",
+    );
   });
 
   it("shows a load failure without also claiming the date is empty", () => {
@@ -283,10 +322,10 @@ describe("TodayView — selected-date operations", () => {
       .mockResolvedValueOnce(selectedBooking);
     renderToday({ onUpdateBooking });
 
-    fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check in Jack" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Check-in could not be saved.");
-    expect(screen.getByRole("button", { name: "Check-in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check in Jack" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
   });
@@ -307,7 +346,7 @@ describe("TodayView — selected-date operations", () => {
       onUpdateBooking,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check in Jack" }));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
       expect.objectContaining({ id: "b-past", status: "Checked in" }),
@@ -354,10 +393,11 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.queryByRole("region", { name: "Happening now" })).not.toBeInTheDocument();
     expect(screen.queryByText("Awaiting deposit")).not.toBeInTheDocument();
     expect(screen.queryByText(/due in|overdue|booked today|taken today/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Booked", { selector: "p" }).parentElement).toHaveTextContent("2");
+    const kpiRow = screen.getByRole("progressbar", { name: "Capacity used" }).parentElement.parentElement;
+    expect(within(kpiRow).getByText("Booked").parentElement).toHaveTextContent("2");
     expect(screen.getByText("Taken £42")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Check-in" })).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "Start groom" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /Check in/ })).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: /Start .*groom/ })).not.toBeInTheDocument();
   });
 
   it("opens an awaiting-deposit booking by id", () => {
@@ -388,32 +428,43 @@ describe("TodayView — selected-date operations", () => {
     expect(onOpenBooking).toHaveBeenCalledWith("awaiting-today");
   });
 
-  it("routes dog, service, time, human, price and owner-message destinations", () => {
+  it("routes dog, time, human, payment and owner-message destinations", () => {
     const onOpenDog = vi.fn();
     const onOpenHuman = vi.fn();
     const onOpenBooking = vi.fn();
-    renderToday({ onOpenDog, onOpenHuman, onOpenBooking });
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }],
+      },
+      onOpenDog,
+      onOpenHuman,
+      onOpenBooking,
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Open Jack's dog file" }));
-    fireEvent.click(screen.getByRole("button", { name: "Open Full Groom booking" }));
     fireEvent.click(screen.getByRole("button", { name: "Open 09:00 booking" }));
     fireEvent.click(screen.getByRole("button", { name: "Open David Law's human file" }));
-    fireEvent.click(screen.getByRole("button", { name: "Open £42 invoice" }));
-    fireEvent.click(screen.getByRole("button", { name: "Message David Law" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Jack" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Message David" }));
 
     expect(onOpenDog).toHaveBeenCalledWith("d1");
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
-    expect(onOpenBooking).toHaveBeenNthCalledWith(1, "b-selected");
-    expect(onOpenBooking).toHaveBeenNthCalledWith(2, "b-selected");
+    expect(onOpenBooking).toHaveBeenCalledWith("b-selected");
     expect(screen.getByRole("heading", { name: "Invoice · Jack" })).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "Current route" })).toHaveTextContent("/inbox?human=h1");
   });
 
   it("saves the mini invoice through the selected-date booking mutation", async () => {
     const onUpdateBooking = vi.fn().mockResolvedValue(true);
-    renderToday({ onUpdateBooking });
+    renderToday({
+      bookingsByDate: {
+        "2026-07-16": [{ ...selectedBooking, status: "Ready for pick-up" }],
+      },
+      onUpdateBooking,
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Open £42 invoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take £42 from Jack" }));
     fireEvent.click(screen.getByRole("radio", { name: "Card" }));
     fireEvent.click(screen.getByRole("button", { name: "Save payment" }));
 
@@ -590,7 +641,7 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getAllByRole("button", { name: "Check-in" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Check in Jack" }));
     expect(onUpdateBooking).toHaveBeenCalledTimes(1);
     await act(async () => Promise.resolve());
     rerender(todayTree({
@@ -605,7 +656,7 @@ describe("TodayView — selected-date operations", () => {
     expect(screen.getByRole("button", { name: "Open 08:30 booking" })).not.toHaveFocus();
   });
 
-  it("scrolls exactly once to the next focus after the focused booking is marked Ready", async () => {
+  it("repositions exactly once after the focused in-salon dog is marked Ready", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
     vi.stubGlobal("requestAnimationFrame", (callback) => callback());
@@ -616,59 +667,8 @@ describe("TodayView — selected-date operations", () => {
       ...selectedBooking,
       id: "b-jack",
       slot: "08:00",
-      _bookingDate: "2026-07-15",
-    };
-    const ruby = {
-      ...selectedBooking,
-      id: "b-ruby",
-      dogName: "Ruby",
-      _dogId: "d-ruby",
-      slot: "08:30",
-      _bookingDate: "2026-07-15",
-    };
-    const props = {
-      selectedDateObj: new Date(2026, 6, 15),
-      selectedDateStr: "2026-07-15",
-      dogs: {
-        ...selectedViewProps.dogs,
-        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
-      },
-      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
-      dayOpenState: { "2026-07-15": true },
-      onUpdateBooking,
-    };
-    const { rerender } = renderToday({
-      ...props,
-      bookingsByDate: { "2026-07-15": [jack, ruby] },
-    });
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getAllByRole("button", { name: "Ready for collection" })[0]);
-    await act(async () => Promise.resolve());
-    rerender(todayTree({
-      ...props,
-      bookingsByDate: {
-        "2026-07-15": [{ ...jack, status: "Ready for pick-up" }, ruby],
-      },
-    }));
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    expect(screen.getByLabelText("Ruby — due to arrive in 5 mins")).toBeInTheDocument();
-  });
-
-  it("scrolls exactly once to the next focus after the focused booking is Collected", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
-    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const onUpdateBooking = vi.fn().mockResolvedValue(true);
-    const jack = {
-      ...selectedBooking,
-      id: "b-jack",
-      slot: "08:00",
-      status: "Ready for pick-up",
-      readyAt: "2026-07-15T06:00:00Z",
+      status: "In bath",
+      checkedInAt: "2026-07-15T06:30:00Z",
       _bookingDate: "2026-07-15",
     };
     const ruby = {
@@ -698,10 +698,63 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    fireEvent.click(within(screen.getByRole("article", { name: "Jack booking" })).getByRole(
-      "button",
-      { name: "Collected" },
-    ));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Jack ready for collection" }));
+    await act(async () => Promise.resolve());
+    rerender(todayTree({
+      ...props,
+      bookingsByDate: {
+        "2026-07-15": [{ ...jack, status: "Ready for pick-up" }, ruby],
+      },
+    }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText(/Jack — waiting for collection/i)).toBeInTheDocument();
+  });
+
+  it("scrolls exactly once to the next focus after the focused booking is Collected", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T08:25:00+01:00"));
+    vi.stubGlobal("requestAnimationFrame", (callback) => callback());
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onUpdateBooking = vi.fn().mockResolvedValue(true);
+    const jack = {
+      ...selectedBooking,
+      id: "b-jack",
+      slot: "08:00",
+      status: "Ready for pick-up",
+      readyAt: "2026-07-15T06:00:00Z",
+      payment: "Paid in Full",
+      _bookingDate: "2026-07-15",
+    };
+    const ruby = {
+      ...selectedBooking,
+      id: "b-ruby",
+      dogName: "Ruby",
+      _dogId: "d-ruby",
+      slot: "08:30",
+      status: "In bath",
+      checkedInAt: "2026-07-15T07:00:00Z",
+      _bookingDate: "2026-07-15",
+    };
+    const props = {
+      selectedDateObj: new Date(2026, 6, 15),
+      selectedDateStr: "2026-07-15",
+      dogs: {
+        ...selectedViewProps.dogs,
+        "d-ruby": { id: "d-ruby", name: "Ruby", size: "small", _humanId: "h1" },
+      },
+      daySettings: { "2026-07-15": { extraSlots: [], immediateSlots: [] } },
+      dayOpenState: { "2026-07-15": true },
+      onUpdateBooking,
+    };
+    const { rerender } = renderToday({
+      ...props,
+      bookingsByDate: { "2026-07-15": [jack, ruby] },
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Mark Jack collected" }));
     await act(async () => Promise.resolve());
     rerender(todayTree({
       ...props,
@@ -733,6 +786,8 @@ describe("TodayView — selected-date operations", () => {
       dogName: "Ruby",
       _dogId: "d-ruby",
       slot: "08:30",
+      status: "In bath",
+      checkedInAt: "2026-07-15T07:00:00Z",
       _bookingDate: "2026-07-15",
     };
     const props = {
@@ -752,10 +807,7 @@ describe("TodayView — selected-date operations", () => {
     });
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    fireEvent.click(within(screen.getByRole("article", { name: "Ruby booking" })).getByRole(
-      "button",
-      { name: "Ready for collection" },
-    ));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Ruby ready for collection" }));
     await act(async () => Promise.resolve());
     rerender(todayTree({
       ...props,
@@ -797,7 +849,7 @@ describe("TodayView — selected-date operations", () => {
 });
 
 describe("TodayHeader", () => {
-  it("visually leads with a full-width mobile date control while retaining an accessible page heading", () => {
+  it("keeps the page heading accessible without repeating it and groups the day controls", () => {
     render(
       <TodayHeader
         dateLabel="Tuesday 14 July"
@@ -811,35 +863,31 @@ describe("TodayHeader", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Daily Brief" })).toHaveClass("sr-only");
+    expect(screen.getByTestId("daily-brief-date")).toHaveClass(
+      "text-2xl",
+      "font-black",
+    );
     const dateControl = screen.getByRole("button", {
       name: /Choose date, Tuesday 14 July/i,
     });
     expect(dateControl).toHaveClass(
-      "w-full",
-      "justify-center",
-      "border-2",
-      "border-brand-yellow",
-      "bg-brand-yellow",
-      "text-black",
+      "min-h-11",
+      "border-slate-300",
+      "bg-white",
+      "text-brand-purple",
     );
-    expect(dateControl).not.toHaveClass("sm:w-auto", "sm:bg-transparent");
-    expect(screen.getByText("No online slots available")).toHaveClass(
-      "w-full",
-      "text-center",
-    );
-    expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass(
-      "w-full",
-      "justify-center",
-    );
+    expect(screen.getByRole("button", { name: "Manage availability" })).toHaveClass("bg-brand-purple");
+    expect(screen.getByText("No online slots available")).toHaveClass("h-11");
     const summary = screen.getByRole("list", { name: "Today's summary" });
     const items = within(summary).getAllByRole("listitem");
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).toHaveTextContent("11 dogs booked");
     expect(items[1]).toHaveTextContent("6 need action");
     expect(items[2]).toHaveTextContent("£482 unpaid");
+    expect(items[3]).toHaveTextContent("No online slots available");
   });
 
-  it("uses a clear empty-slot message and keeps all three summary positions", () => {
+  it("uses a clear empty-slot message and keeps all four summary positions", () => {
     render(
       <TodayHeader
         dateLabel="Thursday 2 July"
@@ -853,7 +901,7 @@ describe("TodayHeader", () => {
     );
     expect(screen.getByText("No online slots available")).toBeInTheDocument();
     const summary = screen.getByRole("list", { name: "Today's summary" });
-    expect(within(summary).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(summary).getAllByRole("listitem")).toHaveLength(4);
     expect(within(summary).getByText("All calm")).toBeInTheDocument();
     expect(within(summary).getByText("All paid")).toBeInTheDocument();
   });
@@ -933,6 +981,8 @@ describe("BookingFeed — accessible journey rows", () => {
     );
     expect(screen.getByTestId("live-arrival-arrow")).toBeInTheDocument();
     expect(screen.getAllByTestId("live-arrival-arrow")).toHaveLength(1);
+    expect(screen.getByTestId("live-arrival-label")).toHaveClass("font-handwriting");
+    expect(screen.getByTestId("live-day-timeline")).toBeInTheDocument();
   });
 
   it.each([
