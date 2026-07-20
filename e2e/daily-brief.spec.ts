@@ -1,90 +1,30 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const SAMPLE_NOW = new Date("2026-07-14T09:15:00+01:00");
 
-function firstJourneyRow(page: Page) {
-  return page
-    .getByRole("article")
-    .filter({ has: page.getByRole("button", { name: "Check-in" }) })
-    .first();
+function bookingCard(page: Page, dogName: string) {
+  return page.getByRole("article", { name: new RegExp(`^${dogName},`) });
 }
 
-async function tabTo(page: Page, target: Locator, maxTabs: number) {
-  for (let index = 0; index < maxTabs; index += 1) {
-    await page.keyboard.press("Tab");
-    if (await target.evaluate((element) => element === document.activeElement)) {
-      return;
-    }
-  }
-
-  await expect(target).toBeFocused();
-}
-
-test("Daily Brief keeps its core journey usable at every supported width", async ({
+test("Daily Brief keeps the status board usable at every supported width", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name === "tablet") {
     await page.setViewportSize({ width: 1024, height: 1366 });
   }
   await page.clock.setFixedTime(SAMPLE_NOW);
-  await page.goto("/today?date=2026-07-14");
+  await page.goto("/today?date=2026-07-13");
 
   const pageHeading = page.getByRole("heading", { level: 1, name: "Daily Brief" });
   await expect(pageHeading).toBeAttached();
   await expect(pageHeading).toHaveClass(/sr-only/);
-  await expect(page).toHaveURL(/\/today\?date=2026-07-14/);
+  await expect(page).toHaveURL(/\/today\?date=2026-07-13/);
   const dateControl = page.getByRole("button", {
-    name: "Choose date, Tuesday 14 July",
+    name: "Choose date, Monday 13 July",
   });
   await expect(dateControl).toBeVisible();
-  expect(
-    await dateControl.evaluate((element) => {
-      const styles = getComputedStyle(element);
-      return {
-        backgroundColor: styles.backgroundColor,
-        borderColor: styles.borderColor,
-        borderWidth: styles.borderWidth,
-        color: styles.color,
-        justifyContent: styles.justifyContent,
-        fillsParent: element.getBoundingClientRect().width ===
-          element.parentElement?.getBoundingClientRect().width,
-      };
-    }),
-  ).toEqual({
-    backgroundColor: "rgb(254, 204, 19)",
-    borderColor: "rgb(254, 204, 19)",
-    borderWidth: "2px",
-    color: "rgb(0, 0, 0)",
-    justifyContent: "center",
-    fillsParent: true,
-  });
-
   const availability = page.getByRole("button", { name: "Manage availability" });
-  const noSlots = page.getByText("No online slots available");
   await expect(availability).toBeVisible();
-  await expect(noSlots).toBeVisible();
-  await expect(availability).toHaveCSS("justify-content", "center");
-  await expect(noSlots).toHaveCSS("text-align", "center");
-  expect(
-    await availability.evaluate(
-      (element) => {
-        const parent = element.parentElement;
-        if (!parent) return false;
-        const parentStyles = getComputedStyle(parent);
-        const contentWidth =
-          parent.clientWidth -
-          Number.parseFloat(parentStyles.paddingLeft) -
-          Number.parseFloat(parentStyles.paddingRight);
-        return Math.abs(element.getBoundingClientRect().width - contentWidth) < 1;
-      },
-    ),
-  ).toBe(true);
-  await expect(
-    page.getByRole("link", { name: "Humans — 7 new customers awaiting approval" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Inbox — 12 to reply" }),
-  ).toBeVisible();
   expect(
     await page.evaluate(() => ({
       documentFits:
@@ -100,67 +40,42 @@ test("Daily Brief keeps its core journey usable at every supported width", async
     ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   }
 
-  const allJourneyRows = page.getByRole("article").filter({
-    has: page.getByTestId("booking-journey-grid"),
-  });
+  const dueLane = page.getByRole("region", { name: "Due and late, 2 dogs" });
+  const withUsLane = page.getByRole("region", { name: "With us, 2 dogs" });
+  const readyLane = page.getByRole("region", { name: "Ready to go, 1 dog" });
+  const home = page.getByRole("region", { name: "Home on this date, 1 dog" });
+  await expect(dueLane).toBeVisible();
+  await expect(withUsLane).toBeVisible();
+  await expect(readyLane).toBeVisible();
+  await expect(home).toBeVisible();
+  await expect(page.getByRole("tablist")).toHaveCount(0);
+  await expect(page.getByTestId("booking-journey-grid")).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ hasText: "unknown status" })).toBeVisible();
 
-  const actionKey = page.getByRole("button", { name: "Show booking action key" });
-  if (testInfo.project.name === "desktop") {
-    await expect(actionKey).toBeHidden();
-  } else {
-    await expect(actionKey).toBeVisible();
-    await actionKey.click();
-    await expect(page.getByRole("region", { name: "Booking action key" })).toBeVisible();
-    await page.getByRole("button", { name: "Hide booking action key" }).click();
+  const maxCard = bookingCard(page, "Max");
+  const bellaCard = bookingCard(page, "Bella");
+  const charlieCard = bookingCard(page, "Charlie");
+  const lunaCard = bookingCard(page, "Luna");
+  await expect(maxCard.getByRole("button", { name: "Open Max's dog file" })).toBeVisible();
+  await expect(maxCard.getByRole("button", { name: "Open Dave Smith's human file" })).toBeVisible();
+  await expect(maxCard.getByRole("button", { name: "Check in Max" })).toBeVisible();
+  await expect(bellaCard.getByRole("button", { name: "Start Bella's groom" })).toBeVisible();
+  await expect(charlieCard.getByRole("button", { name: "Mark Charlie ready for collection" })).toBeVisible();
+  await expect(lunaCard.getByRole("button", { name: "Mark Luna collected" })).toBeVisible();
+
+  for (const action of [
+    maxCard.getByRole("button", { name: "Check in Max" }),
+    bellaCard.getByRole("button", { name: "Start Bella's groom" }),
+    charlieCard.getByRole("button", { name: "Mark Charlie ready for collection" }),
+    lunaCard.getByRole("button", { name: "Mark Luna collected" }),
+  ]) {
+    expect((await action.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   }
 
-  const firstJourney = firstJourneyRow(page);
-  await expect(
-    firstJourney.getByRole("button", { name: /Open .*'s dog file/ }),
-  ).toBeVisible();
-  await expect(
-    firstJourney.getByRole("button", { name: "Check-in" }),
-  ).toBeVisible();
-  const journeyRows = allJourneyRows;
-  const rowCount = await journeyRows.count();
-  expect(rowCount).toBeGreaterThan(1);
-  for (let index = 0; index < rowCount; index += 1) {
-    const row = journeyRows.nth(index);
-    const time = row.getByRole("button", { name: /Open \d{2}:\d{2} booking/ });
-    const message = row.locator(
-      'button[aria-label^="Message "]:not([data-testid="journey-action"])',
-    );
-    await expect(time).toHaveCSS("width", "44px");
-    await expect(time).toHaveCSS("height", "44px");
-    const appointmentState = await time.getAttribute("data-appointment-state");
-    const expectedTimeColour = appointmentState === "late"
-      ? "rgb(231, 84, 108)"
-      : appointmentState === "blocked"
-        ? "rgb(254, 204, 19)"
-        : "rgb(45, 0, 75)";
-    await expect(time).toHaveCSS("background-color", expectedTimeColour);
-    await expect(message).toHaveCSS("width", "44px");
-    await expect(message).toHaveCSS("height", "44px");
-    await expect(message).toHaveClass(/bg-brand-purple\/5/);
-    await expect(message.locator(".lucide-message-circle")).toBeVisible();
-    const actionCount = await row.getByTestId("journey-action").count();
-    expect(actionCount).toBeGreaterThan(0);
-    await expect(row.getByRole("checkbox")).toHaveCount(0);
-    for (let actionIndex = 0; actionIndex < actionCount; actionIndex += 1) {
-      await expect(row.getByTestId("journey-action").nth(actionIndex)).toHaveAttribute(
-        "aria-pressed",
-        /true|false/,
-      );
-    }
-  }
-
-  await firstJourney
-    .getByRole("button", { name: /Open £.* invoice/ })
-    .click();
-  const invoice = page.getByRole("dialog", { name: /Invoice/ });
-  await expect(invoice).toBeVisible();
-  await invoice.getByRole("button", { name: "Cancel" }).click();
-  await expect(invoice).not.toBeVisible();
+  const activeLaneColumns = await dueLane.locator("..").evaluate((element) =>
+    getComputedStyle(element).gridTemplateColumns.split(" ").length,
+  );
+  expect(activeLaneColumns).toBe(testInfo.project.name === "desktop" ? 3 : testInfo.project.name === "tablet" ? 2 : 1);
 
   await page.getByRole("button", { name: /Choose date/ }).click();
   const datePicker = page.getByRole("dialog", { name: "July 2026" });
@@ -171,20 +86,22 @@ test("Daily Brief keeps its core journey usable at every supported width", async
   await expect(page.getByText("No bookings on this date")).toBeVisible();
 });
 
-test("journey and invoice work by keyboard", async ({ page }) => {
+test("status actions and invoice work by keyboard", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
-  await page.goto("/today?date=2026-07-14");
+  await page.goto("/today?date=2026-07-13");
 
-  const firstJourney = firstJourneyRow(page);
-  const dateButton = page.getByRole("button", { name: /Choose date/ });
-  const priceButton = firstJourney.getByRole("button", {
-    name: /Open £.* invoice/,
+  const ready = bookingCard(page, "Charlie").getByRole("button", {
+    name: "Mark Charlie ready for collection",
   });
+  await ready.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
+  await page.getByRole("button", { name: "Not now" }).click();
 
-  await dateButton.focus();
-  await expect(dateButton).toBeFocused();
-  await tabTo(page, priceButton, 12);
-
+  const priceButton = bookingCard(page, "Charlie").getByRole("button", {
+    name: /Take £.* from Charlie/,
+  });
+  await priceButton.focus();
   await page.keyboard.press("Enter");
   const invoice = page.getByRole("dialog", { name: /Invoice/ });
   await expect(invoice).toBeVisible();
@@ -192,51 +109,23 @@ test("journey and invoice work by keyboard", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(invoice).not.toBeVisible();
   await expect(priceButton).toBeFocused();
-
-  const checkIn = firstJourney.getByRole("button", { name: "Check-in" });
-  await tabTo(page, checkIn, 3);
-  await expect(firstJourney.getByText("Check-in", { exact: true })).toHaveCSS(
-    "opacity",
-    "1",
-  );
 });
 
-test("live arrival advances without a duplicate Now panel", async ({ page }) => {
+test("live arrival follows the focused dog without a duplicate Now panel", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
 
-  const liveMarker = page.getByLabel(/due now|due to arrive|overdue/i);
+  const liveMarker = page.getByLabel(/due now|due to arrive|overdue/i).first();
   await expect(liveMarker).toBeVisible();
   await expect(page.getByRole("region", { name: "Happening now" })).toHaveCount(0);
+  await expect(page.getByTestId("live-arrival-label")).toHaveCount(1);
+  await expect(bookingCard(page, "Coco")).toContainText("45 mins late");
 
-  const initialLiveJourney = liveMarker.locator("..").getByRole("article");
-  const liveJourneyId = await initialLiveJourney.getAttribute("id");
-  if (!liveJourneyId) throw new Error("Live journey row is missing its booking ID");
-  const liveJourney = page.locator(`[id="${liveJourneyId}"]`);
-  const liveJourneyGrid = liveJourney.getByTestId("booking-journey-grid");
-  await expect(liveJourneyGrid).toHaveCount(1);
-  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
-  const readyActions = liveJourney.getByRole("button", {
-    name: "Ready for collection",
-  });
-  await expect(readyActions).toHaveCount(1);
-  await readyActions.click();
-
-  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
-  await page.getByRole("button", { name: "Not now" }).click();
-  await expect(liveJourney).toHaveAttribute("data-journey-tone", "success");
-  const waiting = liveJourney.getByRole("button", {
-    name: "Waiting to be collected",
-  });
-  await expect(waiting).toBeVisible();
-  await expect(waiting).toHaveAttribute("aria-pressed", "true");
-  await expect(waiting).toHaveClass(/border-brand-teal/);
-  await expect(liveJourneyGrid).toHaveCount(1);
-  await expect(liveJourneyGrid).toHaveAttribute("data-centres", "7");
-  await expect(liveMarker.locator("..").getByRole("article")).not.toHaveAttribute(
-    "id",
-    liveJourneyId,
-  );
+  await bookingCard(page, "Coco").getByRole("button", { name: "Check in Coco" }).click();
+  await expect(page.getByRole("region", { name: "Due and late, 2 dogs" })).toContainText("Teddy");
+  await expect(page.getByRole("region", { name: "With us, 1 dog" })).toContainText("Coco");
+  await expect(page.getByTestId("live-arrival-label")).toHaveCount(1);
+  await expect(page.getByLabel("Teddy — 15 mins overdue")).toBeVisible();
 });
 
 test("dog and human files preserve the selected Daily Brief and restore focus", async ({

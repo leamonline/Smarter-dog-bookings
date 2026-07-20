@@ -13,19 +13,18 @@ import {
   buildAvailabilityView,
   liveFocusContext,
   selectLiveFocus,
-  groupFeedBySlot,
-  countDogsPerOwner,
 } from "../../engine/today";
 import {
+  buildDailyBriefBoard,
   buildDailyBriefFeed,
   requiresCareSkipConfirmation,
 } from "../../engine/dailyBrief";
 import { BOOKING_STATUS } from "../../constants/index";
-import { safeGet, safeSet } from "../../lib/storage";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
 import { NEEDS_ACTION_DEFINITION, TodayHeader } from "./today/TodayHeader.jsx";
-import { BookingFeed } from "./today/BookingFeed.jsx";
+import { StatusBoard } from "./today/StatusBoard.jsx";
+import { UnpaidCollectionModal } from "./today/UnpaidCollectionModal.jsx";
 import { MiniInvoiceModal } from "./today/MiniInvoiceModal.jsx";
 import { AwaitingDepositsCard } from "./today/AwaitingDepositsCard.jsx";
 import { AvailabilityModal } from "./today/AvailabilityModal.jsx";
@@ -33,13 +32,46 @@ import { TodaySummaryStrip } from "./today/TodaySummaryStrip.jsx";
 import { TodayKpiRow } from "./today/TodayKpiRow.jsx";
 import { TodayBriefNotes } from "./today/TodayBriefNotes.jsx";
 
-function SectionSkeleton() {
+function BoardSkeleton() {
   return (
-    <div className="rounded-2xl border border-brand-paper-line bg-white p-4 motion-safe:animate-pulse">
-      <div className="h-4 w-40 bg-slate-100 rounded mb-3" />
-      <div className="h-14 bg-slate-50 rounded mb-2" />
-      <div className="h-14 bg-slate-50 rounded" />
+    <div aria-label="Loading booking status board" className="grid grid-cols-1 gap-3 motion-safe:animate-pulse md:grid-cols-2 xl:grid-cols-3">
+      {[0, 1, 2].map((lane) => (
+        <div key={lane} className="rounded-2xl border border-brand-paper-line bg-white p-4">
+          <div className="mb-4 h-5 w-36 rounded bg-slate-100" />
+          <div className="mb-2 h-28 rounded-xl bg-slate-50" />
+          <div className="h-28 rounded-xl bg-slate-50" />
+        </div>
+      ))}
     </div>
+  );
+}
+
+const BOARD_LANE_BY_STATUS = {
+  [BOOKING_STATUS.BOOKED]: "due",
+  [BOOKING_STATUS.CHECKED_IN]: "withUs",
+  [BOOKING_STATUS.IN_BATH]: "withUs",
+  [BOOKING_STATUS.READY_FOR_PICKUP]: "ready",
+  [BOOKING_STATUS.COMPLETED]: "home",
+};
+
+const BOARD_LANE_LABEL = {
+  due: "Due and late",
+  withUs: "With us",
+  ready: "Ready to go",
+  home: "Home today",
+  history: "history",
+};
+
+function bookingLane(status) {
+  return BOARD_LANE_BY_STATUS[status] || null;
+}
+
+function boardLaneEntries(board) {
+  return ["due", "withUs", "ready", "home"].flatMap((lane) =>
+    board[lane].map((entry) => [entry.booking.id, {
+      lane,
+      dogName: entry.booking.dogName || "Booking",
+    }]),
   );
 }
 
@@ -77,7 +109,12 @@ export function TodayView({
 
   const [showAvailability, setShowAvailability] = useState(false);
   const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [collectionDueBooking, setCollectionDueBooking] = useState(null);
   const [showNeedsActionOnly, setShowNeedsActionOnly] = useState(false);
+  const [boardAnnouncement, setBoardAnnouncement] = useState("");
+  const localLaneMutationIdsRef = useRef(new Set());
+  const previousBoardLanesRef = useRef(null);
+  const focusedBookingIdRef = useRef(null);
 
   const realTodayStr = londonDateStr(now);
   const dateStr = selectedDateStr || realTodayStr;
@@ -133,37 +170,38 @@ export function TodayView({
   const readyBookings = useMemo(() => feed.filter((e) => e.stage === "ready").map((e) => e.booking), [feed]);
   const onTheWaySignals = useOnTheWaySignals(readyBookings);
 
-  // ---- Per-day hides (local UI only; never mutates booking data). Only a
-  // not-yet-arrived, non-owing booking offers "Hide until tomorrow" — money
-  // never hides.
-  const dismissKey = `sd-today-dismissed-${dateStr}`;
-  const readDismissed = useCallback((key) => {
-    try {
-      return new Set(JSON.parse(safeGet("local", key) || "[]"));
-    } catch {
-      return new Set();
-    }
-  }, []);
-  const [dismissed, setDismissed] = useState(() => readDismissed(dismissKey));
-  useEffect(() => setDismissed(readDismissed(dismissKey)), [dismissKey, readDismissed]);
-  const onHideUntilTomorrow = useCallback((id) => {
-    setDismissed((previous) => {
-      const next = new Set(previous).add(id);
-      safeSet("local", dismissKey, JSON.stringify([...next]));
-      return next;
-    });
-  }, [dismissKey]);
-
-  const visibleFeed = useMemo(() => feed.filter((e) => !dismissed.has(e.booking.id)), [feed, dismissed]);
+  const visibleFeed = feed;
   const actionCount = useMemo(() => visibleFeed.filter((e) => e.needsAction).length, [visibleFeed]);
   const displayedFeed = useMemo(
     () => showNeedsActionOnly ? visibleFeed.filter((e) => e.needsAction) : visibleFeed,
     [showNeedsActionOnly, visibleFeed],
   );
+  const fullBoard = useMemo(
+    () => buildDailyBriefBoard(selectedBookings, dateStr, now),
+    [dateStr, now, selectedBookings],
+  );
+  const board = useMemo(() => {
+    if (!showNeedsActionOnly) return fullBoard;
+    const keepActionable = (entry) => entry.needsAction;
+    return {
+      due: fullBoard.due.filter(keepActionable),
+      withUs: fullBoard.withUs.filter(keepActionable),
+      ready: fullBoard.ready.filter(keepActionable),
+      home: fullBoard.home.filter(keepActionable),
+      excludedCount: fullBoard.excludedCount,
+    };
+  }, [fullBoard, showNeedsActionOnly]);
   useEffect(() => setShowNeedsActionOnly(false), [dateStr]);
   useEffect(() => {
     if (actionCount === 0) setShowNeedsActionOnly(false);
   }, [actionCount]);
+  useEffect(() => {
+    if (fullBoard.excludedCount === 0 || !import.meta.env?.DEV) return;
+    // eslint-disable-next-line no-console -- development-only data recovery signal
+    console.warn(
+      `Daily Brief excluded ${fullBoard.excludedCount} booking(s) with an unknown or missing status.`,
+    );
+  }, [fullBoard.excludedCount]);
   const liveFocus = useMemo(
     () => (isToday ? selectLiveFocus(displayedFeed) : null),
     [displayedFeed, isToday],
@@ -173,8 +211,66 @@ export function TodayView({
     [liveFocus, now],
   );
   const liveFocusId = liveFocus?.booking.id ?? null;
-  const groups = useMemo(() => groupFeedBySlot(displayedFeed), [displayedFeed]);
-  const ownerCounts = useMemo(() => countDogsPerOwner(displayedFeed, dogs), [displayedFeed, dogs]);
+
+  useEffect(() => {
+    const onFocusIn = (event) => {
+      focusedBookingIdRef.current = event.target
+        ?.closest?.("[data-booking-id]")
+        ?.getAttribute("data-booking-id") || null;
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, []);
+
+  useEffect(() => {
+    const current = new Map(boardLaneEntries(fullBoard));
+    const previousState = previousBoardLanesRef.current;
+    previousBoardLanesRef.current = { dateStr, lanes: current };
+    if (!previousState || previousState.dateStr !== dateStr) {
+      localLaneMutationIdsRef.current.clear();
+      return;
+    }
+
+    const selectedById = new Map(selectedBookings.map((booking) => [booking.id, booking]));
+    const changes = [];
+    for (const [id, next] of current) {
+      const previous = previousState.lanes.get(id);
+      if (previous && previous.lane !== next.lane) {
+        changes.push({ id, dogName: next.dogName, from: previous.lane, to: next.lane });
+      }
+    }
+    for (const [id, previous] of previousState.lanes) {
+      if (current.has(id)) continue;
+      const booking = selectedById.get(id);
+      if (booking?.status === BOOKING_STATUS.CANCELLED) {
+        changes.push({ id, dogName: previous.dogName, from: previous.lane, to: "history" });
+      }
+    }
+    if (changes.length === 0) return;
+
+    const remote = changes.filter((change) => {
+      if (!localLaneMutationIdsRef.current.has(change.id)) return true;
+      localLaneMutationIdsRef.current.delete(change.id);
+      return false;
+    });
+    if (remote.length === 0) return;
+
+    const message = remote.length === 1
+      ? `${remote[0].dogName} moved from ${BOARD_LANE_LABEL[remote[0].from]} to ${BOARD_LANE_LABEL[remote[0].to]}.`
+      : `${remote.length} bookings moved to their latest status.`;
+    setBoardAnnouncement("");
+    requestAnimationFrame(() => setBoardAnnouncement(message));
+    toast.show(message, "info");
+
+    const focusedMove = remote.find((change) => change.id === focusedBookingIdRef.current);
+    if (focusedMove) {
+      requestAnimationFrame(() => {
+        const target = document.querySelector(`[data-booking-id="${focusedMove.id}"]`)
+          || document.querySelector("[data-status-board-root]");
+        target?.focus?.({ preventScroll: true });
+      });
+    }
+  }, [dateStr, fullBoard, selectedBookings, toast]);
 
   // Scrolling is permission-based: candidate changes alone never move the
   // viewport. Initial/date loads and successful focused-booking resolutions
@@ -260,6 +356,9 @@ export function TodayView({
     { showFailureToast = true } = {},
   ) => {
     const date = b._bookingDate || dateStr;
+    const movesLane = changes.status
+      && bookingLane(changes.status) !== bookingLane(b.status);
+    if (movesLane) localLaneMutationIdsRef.current.add(b.id);
     let result;
     try {
       result = await onUpdateBooking({ ...b, ...changes }, date, date);
@@ -270,6 +369,7 @@ export function TodayView({
       if (successMessage) toast.show(successMessage, "success");
       return result;
     }
+    if (movesLane) localLaneMutationIdsRef.current.delete(b.id);
     if (showFailureToast) {
       toast.show(failureMessage, "error", {
         label: "Retry",
@@ -374,6 +474,15 @@ export function TodayView({
     return null;
   }, [onSendCollection, updateStatus]);
 
+  const onRequestCollected = useCallback((booking) => {
+    const payment = paymentOf(booking);
+    if (payment.amountDue != null && payment.amountDue > 0) {
+      setCollectionDueBooking(booking);
+      return;
+    }
+    onJourneyAction(booking, { id: "collected", completed: false });
+  }, [onJourneyAction, paymentOf]);
+
   const onOpenDepositBooking = useCallback(
     (booking) => onOpenBooking?.(booking.id),
     [onOpenBooking],
@@ -422,27 +531,30 @@ export function TodayView({
     onOpenInvoice,
     onMessageOwner,
     onJourneyAction,
+    onRequestCollected,
     onDidntShow,
-    onHideUntilTomorrow,
     onTheWaySignals,
   };
 
   return (
     <div className="min-h-full bg-brand-paper">
-      <div className="mx-auto w-full max-w-3xl px-3 sm:px-4 pt-3 pb-6 flex flex-col gap-3">
-        <TodayHeader
-          dateLabel={dateLabel}
-          dogsBooked={summary.dogsBooked}
-          actionCount={actionCount}
-          unpaidTotal={unpaidTotal}
-          nextOnlineSlot={availabilityView.nextOnlineSlot}
-          isDayOpen={isDayOpen}
-          isToday={isToday}
-          onOpenDatePicker={onOpenDatePicker}
-          onManageAvailability={() => setShowAvailability(true)}
-          actionFilterActive={showNeedsActionOnly}
-          onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
-        />
+      <TodayHeader
+        dateLabel={dateLabel}
+        dogsBooked={summary.dogsBooked}
+        actionCount={actionCount}
+        unpaidTotal={unpaidTotal}
+        nextOnlineSlot={availabilityView.nextOnlineSlot}
+        isDayOpen={isDayOpen}
+        isToday={isToday}
+        onOpenDatePicker={onOpenDatePicker}
+        onManageAvailability={() => setShowAvailability(true)}
+        actionFilterActive={showNeedsActionOnly}
+        onToggleActionFilter={() => setShowNeedsActionOnly((active) => !active)}
+      />
+
+      <div className="mx-auto flex w-full max-w-[96rem] flex-col gap-3 px-3 pb-6 sm:px-4">
+
+        <p className="sr-only" aria-live="polite" aria-atomic="true">{boardAnnouncement}</p>
 
         {showNeedsActionOnly && (
           <p
@@ -461,10 +573,7 @@ export function TodayView({
         )}
 
         {bookingsLoading && selectedBookings.length === 0 ? (
-          <>
-            <SectionSkeleton />
-            <SectionSkeleton />
-          </>
+          <BoardSkeleton />
         ) : bookingsError && selectedBookings.length === 0 ? null : isEmptyDay ? (
           <>
             <div className="rounded-2xl border border-brand-paper-line bg-white px-6 py-10 text-center">
@@ -493,17 +602,16 @@ export function TodayView({
                 )}
               </>
             )}
-            <BookingFeed
-              groups={groups}
-              ownerCounts={ownerCounts}
-              dogs={dogs}
+            <StatusBoard
+              board={board}
               resolve={resolve}
               getWelfare={getWelfare}
               paymentOf={paymentOf}
-              priceOf={(booking) => paymentOf(booking).subtotal}
               liveFocusId={liveFocusId}
               liveContext={liveContext}
-              {...feedHandlers}
+              isToday={isToday}
+              handlers={feedHandlers}
+              onTheWaySignals={onTheWaySignals}
             />
             <TodaySummaryStrip summary={summary} takings={takings} isToday={isToday} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
@@ -529,6 +637,22 @@ export function TodayView({
             configPricing={configPricing}
             onSave={(invoicePatch) => onSaveInvoice(invoiceBooking, invoicePatch)}
             onClose={() => setInvoiceBooking(null)}
+          />
+        )}
+        {collectionDueBooking && (
+          <UnpaidCollectionModal
+            booking={collectionDueBooking}
+            amountDue={paymentOf(collectionDueBooking).amountDue ?? 0}
+            onTakePayment={() => {
+              setInvoiceBooking(collectionDueBooking);
+              setCollectionDueBooking(null);
+            }}
+            onMarkCollected={async () => {
+              const booking = collectionDueBooking;
+              setCollectionDueBooking(null);
+              await onJourneyAction(booking, { id: "collected", completed: false });
+            }}
+            onClose={() => setCollectionDueBooking(null)}
           />
         )}
       </div>
