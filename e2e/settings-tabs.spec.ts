@@ -3,8 +3,8 @@ import { LARGE_DOG_SLOTS } from "../src/constants/salon";
 
 // Regression guard for UX-AUDIT-REPORT Top 5 #2: the Settings page used to
 // render blank below the first two sections (long-scroll layout painting
-// bug). It was rebuilt with desktop tabs and grouped mobile navigation
-// (5d7c53f); these tests walk every section and assert each panel actually
+// bug). It was rebuilt with one responsive, horizontally scrollable tablist;
+// these tests walk every section and assert each panel actually
 // surfaces content, so a blank panel can never quietly ship again.
 //
 // The e2e harness runs with VITE_FORCE_OFFLINE=1 (sample data, no Supabase),
@@ -25,36 +25,8 @@ const TABS_WITH_CONTROLS = [
 
 const INTERACTIVE = "button, input, select, textarea, [role='switch']";
 
-const MOBILE_GROUP_BY_SECTION: Record<string, string> = {
-  "Your Business": "Salon",
-  "Hours & Closures": "Salon",
-  "Services & Pricing": "Salon",
-  "Booking Rules": "Bookings",
-  "Capacity Engine": "Bookings",
-  "Customer Portal": "Tools & connections",
-  Notifications: "Tools & connections",
-  "Calendar Sync": "Tools & connections",
-  "Your Account": "Account",
-};
-
 async function openSettingsSection(page: Page, label: string) {
-  const isMobile = (page.viewportSize()?.width ?? Number.POSITIVE_INFINITY) <= 767;
-
-  if (isMobile) {
-    const group = page.getByRole("button", {
-      name: MOBILE_GROUP_BY_SECTION[label],
-      exact: true,
-    });
-    await group.click();
-    await expect(group).toHaveAttribute("aria-pressed", "true");
-
-    const section = page.getByRole("button", { name: label, exact: true });
-    await section.click();
-    await expect(section).toHaveAttribute("aria-current", "page");
-    return;
-  }
-
-  const tab = page.getByRole("tab", { name: label });
+  const tab = page.getByRole("tab", { name: label, exact: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
 }
