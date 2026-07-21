@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -77,7 +77,7 @@ jobs:
         run: echo "Skipping Playwright e2e on pull requests to conserve Actions minutes — it runs on push to main and via workflow_dispatch."
       - uses: actions/checkout@v7
         if: github.event_name != 'pull_request'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: github.event_name != 'pull_request'
         with:
           node-version: 20
