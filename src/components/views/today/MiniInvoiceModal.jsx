@@ -3,6 +3,7 @@ import {
   AVAILABLE_ADDONS,
   PAYMENT_METHODS,
   SERVICES,
+  getAddonPrice,
   getAddonsTotal,
 } from "../../../constants/salon";
 import { computeBookingPricing } from "../../../engine/bookingRules";
@@ -11,7 +12,7 @@ import { ModalShell } from "../../modals/shell/ModalShell.jsx";
 import { formatMoney } from "./parts.jsx";
 
 const INPUT_CLASS =
-  "min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-[inherit] text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60";
+  "min-h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-2 font-[inherit] text-base font-bold tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 sm:text-sm";
 
 const SAVE_ERROR = "Payment could not be saved. Check your connection and try again.";
 
@@ -141,148 +142,212 @@ export function MiniInvoiceModal({ booking, dog, configPricing, onSave, onClose 
       titleId="mini-invoice-title"
       onClose={requestClose}
       dismissOnEscape={!saving}
-      widthClass="w-[min(520px,95vw)]"
-      bodyClassName="p-4 sm:p-5"
+      widthClass="w-[min(480px,95vw)]"
+      maxHeightClass="max-h-[calc(100dvh-1rem)] sm:max-h-[min(92dvh,600px)]"
+      bodyClassName="mini-invoice-body p-3 sm:p-4"
       mobilePresentation="sheet"
+      rootClassName="mini-invoice-modal"
       header={
-        <header className="px-5 pb-4 pt-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Mini invoice
-          </p>
-          <h2
-            id="mini-invoice-title"
-            className="font-display text-2xl font-bold text-brand-purple"
-          >
-            Invoice · {dogName}
-          </h2>
+        <header className="px-4 pb-2.5 pt-3.5 sm:px-5 sm:pt-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                Mini invoice
+              </p>
+              <h2
+                id="mini-invoice-title"
+                className="truncate font-display text-xl font-bold leading-tight text-brand-purple"
+              >
+                <span className="sr-only">Invoice ·</span> {dogName}
+              </h2>
+            </div>
+            <p className="max-w-[46%] pt-1 text-right text-xs font-semibold leading-snug text-slate-600">
+              {serviceName} · {booking.slot}
+            </p>
+          </div>
         </header>
       }
       footer={
-        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-5 py-3">
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={saving}
-            className="min-h-11 rounded-full border border-slate-200 font-bold disabled:cursor-wait disabled:opacity-60"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="mini-invoice-form"
-            disabled={saving}
-            className="min-h-11 rounded-full bg-brand-purple font-bold text-white disabled:cursor-wait disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save payment"}
-          </button>
+        <div className="border-t border-slate-100 bg-white px-4 py-2 sm:px-5">
+          {error ? (
+            <p
+              role="alert"
+              className="mb-2 rounded-lg bg-brand-coral-light px-2.5 py-1.5 text-xs font-semibold leading-snug text-brand-coral-text"
+            >
+              {error}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={requestClose}
+              disabled={saving}
+              className="min-h-11 rounded-full border border-slate-200 font-bold disabled:cursor-wait disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="mini-invoice-form"
+              disabled={saving}
+              className="min-h-11 rounded-full bg-brand-purple font-bold text-white disabled:cursor-wait disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save payment"}
+            </button>
+          </div>
         </div>
       }
     >
-      <form id="mini-invoice-form" onSubmit={submit} className="flex flex-col gap-4">
-        <p className="text-sm text-slate-600">
-          {serviceName} · {booking.slot}
-        </p>
-
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-slate-800">
-          Base groom price
-          <input
-            aria-label="Base groom price"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={basePrice}
-            onChange={updateBasePrice}
-            disabled={saving}
-            className={INPUT_CLASS}
-          />
-        </label>
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-bold text-slate-800">Additional services</legend>
-          {AVAILABLE_ADDONS.map((addon) => (
-            <label
-              key={addon}
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700"
-            >
+      <form id="mini-invoice-form" onSubmit={submit} className="flex flex-col gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="min-w-0 text-xs font-bold text-slate-800">
+            Base price
+            <span className="relative mt-1 block">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-500"
+              >
+                £
+              </span>
               <input
-                type="checkbox"
-                checked={addons.includes(addon)}
-                onChange={() => toggleAddon(addon)}
+                aria-label="Base groom price"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                value={basePrice}
+                onChange={updateBasePrice}
                 disabled={saving}
-                className="h-5 w-5 accent-brand-purple"
+                className={INPUT_CLASS}
               />
-              {addon}
-            </label>
-          ))}
+            </span>
+          </label>
+
+          <label className="min-w-0 text-xs font-bold text-slate-800">
+            Deposit
+            <span className="relative mt-1 block">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-500"
+              >
+                £
+              </span>
+              <input
+                aria-label="Deposit received"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={depositAmount}
+                onChange={updateDepositAmount}
+                disabled={saving}
+                className={INPUT_CLASS}
+              />
+            </span>
+          </label>
+        </div>
+
+        <fieldset aria-label="Additional services">
+          <legend className="mb-1.5 text-xs font-bold text-slate-800">Add-ons</legend>
+          <div className="grid grid-cols-3 gap-1.5">
+            {AVAILABLE_ADDONS.map((addon) => {
+              const selected = addons.includes(addon);
+              const price = getAddonPrice(addon);
+              return (
+                <button
+                  key={addon}
+                  type="button"
+                  aria-label={price > 0 ? `${addon}, £${price}` : addon}
+                  aria-pressed={selected}
+                  onClick={() => toggleAddon(addon)}
+                  disabled={saving}
+                  className={`min-h-11 rounded-lg border px-1.5 py-1 text-center text-[11px] font-bold leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-60 ${
+                    selected
+                      ? "border-brand-purple bg-brand-purple text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {addon}
+                  {price > 0 ? <span className="ml-1 whitespace-nowrap">+£{price}</span> : null}
+                </button>
+              );
+            })}
+          </div>
         </fieldset>
 
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-slate-800">
-          Deposit received
-          <input
-            aria-label="Deposit received"
-            type="number"
-            min="0"
-            step="0.01"
-            value={depositAmount}
-            onChange={updateDepositAmount}
-            disabled={saving}
-            className={INPUT_CLASS}
-          />
-        </label>
-
-        <dl className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-          <div className="flex items-center justify-between gap-4">
+        <dl
+          aria-label="Invoice summary"
+          className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+        >
+          <div className="flex items-center justify-between gap-2 border-r border-slate-200 pr-3">
             <dt className="font-semibold text-slate-600">Total</dt>
-            <dd className="font-bold tabular-nums text-slate-900">{formatMoney(totals.subtotal)}</dd>
+            <dd className="font-bold tabular-nums text-slate-900">
+              {formatMoney(totals.subtotal)}
+            </dd>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-100 pt-2">
-            <dt className="font-semibold text-slate-600">Outstanding balance</dt>
-            <dd className="font-bold tabular-nums text-slate-900">{formatMoney(totals.amountDue)}</dd>
+          <div className="flex items-center justify-between gap-2 pl-3">
+            <dt className="font-semibold text-slate-600">Balance</dt>
+            <dd className="font-bold tabular-nums text-brand-purple">
+              {formatMoney(totals.amountDue)}
+            </dd>
           </div>
         </dl>
 
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-slate-800">
-          Payment received
-          <input
-            aria-label="Payment received"
-            type="number"
-            min="0"
-            step="0.01"
-            value={paymentReceived}
-            onChange={updatePaymentReceived}
-            disabled={saving}
-            className={INPUT_CLASS}
-          />
-        </label>
-
-        <fieldset>
-          <legend className="mb-2 text-sm font-bold text-slate-800">Payment method</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {PAYMENT_METHODS.map((method) => (
-              <label
-                key={method.id}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 text-center text-sm font-bold text-slate-700"
+        <div className="grid grid-cols-[minmax(88px,0.8fr)_minmax(0,2fr)] items-end gap-2">
+          <label className="min-w-0 text-xs font-bold text-slate-800">
+            Take now
+            <span className="relative mt-1 block">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-500"
               >
-                <input
-                  type="radio"
-                  name="payment-method"
-                  value={method.id}
-                  checked={paymentMethod === method.id}
-                  onChange={() => choosePaymentMethod(method.id)}
-                  disabled={saving}
-                  className="h-4 w-4 accent-brand-purple"
-                />
-                {method.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+                £
+              </span>
+              <input
+                aria-label="Payment received"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={paymentReceived}
+                onChange={updatePaymentReceived}
+                disabled={saving}
+                className={INPUT_CLASS}
+              />
+            </span>
+          </label>
 
-        {error ? (
-          <p role="alert" className="text-sm font-semibold text-brand-coral-text">
-            {error}
-          </p>
-        ) : null}
+          <fieldset aria-label="Payment method" className="min-w-0">
+            <legend className="mb-1 text-xs font-bold text-slate-800">Method</legend>
+            <div className="grid grid-cols-3 gap-1">
+              {PAYMENT_METHODS.map((method) => {
+                const selected = paymentMethod === method.id;
+                return (
+                  <label
+                    key={method.id}
+                    className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 text-center text-[11px] font-bold leading-tight outline-none transition-colors focus-within:ring-2 focus-within:ring-brand-teal focus-within:ring-offset-1 ${
+                      selected
+                        ? "border-brand-purple bg-brand-purple text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    } ${saving ? "cursor-wait opacity-60" : ""}`}
+                  >
+                    <input
+                      aria-label={method.label}
+                      type="radio"
+                      name="payment-method"
+                      value={method.id}
+                      checked={selected}
+                      onChange={() => choosePaymentMethod(method.id)}
+                      disabled={saving}
+                      className="sr-only"
+                    />
+                    {method.label}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        </div>
       </form>
     </ModalShell>
   );

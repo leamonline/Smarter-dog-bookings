@@ -49,6 +49,30 @@ describe("MiniInvoiceModal", () => {
     );
   });
 
+  it("keeps the compact add-on and method controls fully operable", () => {
+    render(
+      <MiniInvoiceModal
+        booking={bookingFixture}
+        dog={dogFixture}
+        configPricing={null}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const fleaBath = screen.getByRole("button", { name: "Flea Bath, £10" });
+    expect(fleaBath).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(fleaBath);
+
+    expect(fleaBath).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Payment received")).toHaveValue(52);
+    expect(screen.getAllByText("£52")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Card" }));
+    expect(screen.getByRole("radio", { name: "Card" })).toBeChecked();
+  });
+
   it("preserves an existing paid booking and its retained deposit when saved unchanged", async () => {
     const onSave = vi.fn().mockResolvedValue({ id: "b1" });
     render(
