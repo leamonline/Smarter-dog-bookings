@@ -66,6 +66,9 @@ Each test wraps itself in `begin … rollback`, so it never persists data.
 - `125_merge_humans_opt_outs.test.sql` — behavioural: a staff duplicate merge
   keeps active SMS, WhatsApp and email suppressions, including their timestamp
   and reason evidence, when the losing human record is deleted.
+- `135_humans_directory_visibility.test.sql` — behavioural: the Humans
+  directory includes genuine customers and submitted self-signups while
+  excluding unfinished onboarding shells.
 
 ### Planned (behavioural — follow-up)
 
