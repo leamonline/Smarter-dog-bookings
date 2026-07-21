@@ -135,6 +135,69 @@ test("status actions and invoice work by keyboard", async ({ page }) => {
   await expect(invoice).not.toBeVisible();
 });
 
+test("mini invoice fits without scrolling at every supported viewport", async ({
+  page,
+}, testInfo) => {
+  const viewport =
+    testInfo.project.name === "mobile"
+      ? { width: 320, height: 568 }
+      : testInfo.project.name === "tablet"
+        ? { width: 768, height: 1024 }
+        : { width: 1280, height: 640 };
+
+  await page.setViewportSize(viewport);
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today?date=2026-07-13");
+
+  const charlieCard = bookingCard(page, "Charlie");
+  await charlieCard
+    .getByRole("button", { name: "Mark Charlie ready for collection" })
+    .click();
+  await page.getByRole("button", { name: "Not now" }).click();
+  await charlieCard
+    .getByRole("button", { name: "More actions for Charlie" })
+    .click();
+  await page.getByRole("menuitem", { name: /Take £.* payment/ }).click();
+
+  const invoice = page.getByRole("dialog", { name: "Invoice · Charlie" });
+  const invoiceBody = invoice.locator(".mini-invoice-body");
+  await expect(invoice).toBeVisible();
+  await expect(invoiceBody).toBeVisible();
+  await expect(invoice.getByRole("button", { name: "Save payment" })).toBeInViewport();
+  await expect
+    .poll(() => invoice.evaluate((element) => element.getBoundingClientRect().bottom))
+    .toBeLessThanOrEqual(viewport.height + 1);
+
+  const geometry = await invoice.evaluate((element) => {
+    const body = element.querySelector(".mini-invoice-body");
+    const bounds = element.getBoundingClientRect();
+    if (!(body instanceof HTMLElement)) throw new Error("Mini invoice body missing");
+    return {
+      bodyClientHeight: body.clientHeight,
+      bodyScrollHeight: body.scrollHeight,
+      bottom: bounds.bottom,
+      top: bounds.top,
+    };
+  });
+
+  expect(geometry.bodyScrollHeight).toBeLessThanOrEqual(geometry.bodyClientHeight + 1);
+  expect(geometry.top).toBeGreaterThanOrEqual(0);
+  expect(geometry.bottom).toBeLessThanOrEqual(viewport.height + 1);
+
+  await invoice.getByRole("button", { name: "Save payment" }).click();
+  await expect(invoice.getByRole("alert")).toContainText(
+    "Choose Cash, Card or Bank transfer",
+  );
+  await expect
+    .poll(() =>
+      invoiceBody.evaluate((element) => element.scrollHeight - element.clientHeight),
+    )
+    .toBeLessThanOrEqual(1);
+  await expect
+    .poll(() => invoice.evaluate((element) => element.getBoundingClientRect().top))
+    .toBeGreaterThanOrEqual(0);
+});
+
 test("live arrival follows the focused dog without a duplicate Now panel", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today?date=2026-07-14");
