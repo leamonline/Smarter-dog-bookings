@@ -8,6 +8,7 @@ import {
   computeRetentionCandidates,
   actualGroomMinutes,
   computeCollectedByMethod,
+  isLateCancellation,
   OUTCOME_HISTORY_START,
   type AnalyticsBooking,
   type AnalyticsEvent,
@@ -302,5 +303,92 @@ describe("computeRetentionCandidates (2D)", () => {
     expect(forward.candidates.length).toBe(0); // excluded (newer) wins
     expect(reversed.candidates.length).toBe(0); // same regardless of row order
     expect(forward.excludedCount).toBe(1);
+  });
+});
+
+describe("late cancellation classification", () => {
+  it("uses the visit's own stored deadline rather than a rolling 24 hours", () => {
+    // A v1 visit: the deadline is 3:00 pm the previous day, which is far more
+    // than 24 hours before a 13:00 slot would suggest under the old rule.
+    const onTime = isLateCancellation({
+      event_type: "cancelled",
+      occurred_at: "2026-09-06T13:00:00Z",
+      booking_date: "2026-09-07",
+      slot: "13:00",
+      visit_id: "v1",
+      deadline_at: "2026-09-06T14:00:00Z",
+      requested_at: "2026-09-06T13:00:00Z",
+    });
+    expect(onTime).toBe(false);
+
+    const late = isLateCancellation({
+      event_type: "cancelled",
+      occurred_at: "2026-09-06T15:00:00Z",
+      booking_date: "2026-09-07",
+      slot: "13:00",
+      visit_id: "v1",
+      deadline_at: "2026-09-06T14:00:00Z",
+      requested_at: "2026-09-06T15:00:00Z",
+    });
+    expect(late).toBe(true);
+  });
+
+  it("treats exactly the deadline as on time", () => {
+    expect(
+      isLateCancellation({
+        event_type: "cancelled",
+        occurred_at: "2026-09-06T14:00:00Z",
+        booking_date: "2026-09-07",
+        slot: "08:30",
+        visit_id: "v1",
+        deadline_at: "2026-09-06T14:00:00.000Z",
+        requested_at: "2026-09-06T14:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(
+      isLateCancellation({
+        event_type: "cancelled",
+        occurred_at: "2026-09-06T14:00:00Z",
+        booking_date: "2026-09-07",
+        slot: "08:30",
+        visit_id: "v1",
+        deadline_at: "2026-09-06T14:00:00.000Z",
+        requested_at: "2026-09-06T14:00:00.001Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not reclassify a delayed but on-time request using processing time", () => {
+    // The webhook was signed before the deadline but only processed after it.
+    expect(
+      isLateCancellation({
+        event_type: "cancelled",
+        occurred_at: "2026-09-06T18:00:00Z", // committed late
+        booking_date: "2026-09-07",
+        slot: "08:30",
+        visit_id: "v1",
+        deadline_at: "2026-09-06T14:00:00Z",
+        requested_at: "2026-09-06T12:00:00Z", // expressed on time
+      }),
+    ).toBe(false);
+  });
+
+  it("falls back to the rolling 24 hours for pre-visit history", () => {
+    expect(
+      isLateCancellation({
+        event_type: "cancelled",
+        occurred_at: "2026-09-07T00:00:00Z",
+        booking_date: "2026-09-07",
+        slot: "08:30",
+      }),
+    ).toBe(true);
+    expect(
+      isLateCancellation({
+        event_type: "cancelled",
+        occurred_at: "2026-09-01T00:00:00Z",
+        booking_date: "2026-09-07",
+        slot: "08:30",
+      }),
+    ).toBe(false);
   });
 });
