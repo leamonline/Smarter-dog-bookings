@@ -17,6 +17,7 @@ import {
   type FlowDb,
   type GroupBookingItem,
   type GroupInsertResult,
+  type RescheduleSelector,
   type HumanRow,
   type InsertResult,
   type LargeDogDay,
@@ -225,6 +226,44 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         ? (data as Array<{ id: string }>).map((r) => r.id)
         : [];
       return { ids };
+    },
+
+    // Atomic reschedule. One RPC cancels the old visit and creates the
+    // replacement in a single transaction, so a partial failure can never
+    // leave two active appointments. Errors are returned, not thrown, so the
+    // caller keeps its existing slot-taken retry behaviour.
+    async rescheduleBookingGroup(
+      items: GroupBookingItem[],
+      dateStr: string,
+      humanId: string,
+      old: RescheduleSelector,
+    ): Promise<GroupInsertResult> {
+      const payload = items.map((it) => ({
+        dog_id: it.dog_id,
+        slot: it.slot,
+        service: it.service,
+        size: it.size,
+        addons: it.addons,
+      }));
+      const { data, error } = await supabase.rpc("reschedule_whatsapp_booking_group", {
+        p_bookings: payload,
+        p_booking_date: dateStr,
+        p_human_id: humanId,
+        p_old_group_id: old.groupId ?? null,
+        p_old_booking_id: old.bookingId ?? null,
+        p_expected_old_ids: old.expectedOldIds?.length ? old.expectedOldIds : null,
+        p_reason: "Rescheduled via WhatsApp",
+      });
+      if (error) {
+        return { errorCode: error.code, errorMessage: error.message };
+      }
+      const row = (Array.isArray(data) ? data[0] : data) as
+        | { new_booking_ids?: string[]; cancelled_booking_ids?: string[] }
+        | null;
+      return {
+        ids: row?.new_booking_ids ?? [],
+        cancelledIds: row?.cancelled_booking_ids ?? [],
+      };
     },
   };
 }

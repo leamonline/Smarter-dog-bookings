@@ -54,7 +54,6 @@ import {
 import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
 import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
 import {
-  cancelOldBookingForReschedule,
   completeSession,
   createServiceClient,
   failSession,
@@ -413,31 +412,35 @@ async function handleConfirm(
     dateStr: state.date,
     dropOff: state.drop_off,
     dogs: dogIds.map((id) => ({ dogId: id, serviceId: services[id], addons: addons[id] ?? [] })),
+    // A reschedule cancels the old visit and creates the replacement in ONE
+    // database transaction. There is no window in which both exist.
+    ...(isReschedule
+      ? {
+          replaces: {
+            groupId: state.reschedule_group_id ?? null,
+            bookingId: state.reschedule_booking_id ?? null,
+            expectedOldIds: state.old_booking_ids ?? [],
+          },
+        }
+      : {}),
   });
 
   if (res.ok) {
-    // Reschedule: new booking created — NOW cancel the old visit (new-first,
-    // cancel-old-second so a failure never loses the original). A partial
-    // cancel leaves a duplicate, logged loudly for staff (visible in the
-    // calendar); the customer still sees their confirmed new booking.
-    if (isReschedule) {
-      const sel = state.reschedule_group_id
-        ? { groupId: state.reschedule_group_id }
-        : { bookingId: state.reschedule_booking_id };
-      const cancelled = await cancelOldBookingForReschedule(supabase, session.human_id, sel);
-      const expected = (state.old_booking_ids ?? []).length || 1;
-      if (cancelled.cancelledCount < expected) {
-        console.error(
-          `[reschedule] DUPLICATE-RISK: new booking ${res.bookingIds.join(",")} created but only ` +
-            `${cancelled.cancelledCount}/${expected} old rows cancelled ` +
-            `(group=${state.reschedule_group_id ?? "-"} booking=${state.reschedule_booking_id ?? "-"} ` +
-            `human=${session.human_id}). Staff must remove the old booking.`,
-        );
-      }
-    }
+    // The old visit was already cancelled inside the same transaction that
+    // created these rows, so there is nothing left to do here and no
+    // duplicate to warn about.
     // Store the first booking id as the idempotency marker for re-confirms.
     await completeSession(supabase, session.flow_token, res.bookingIds[0]);
     return successResponse(res.bookingIds, state, { rescheduled: isReschedule });
+  }
+
+  // The old visit disappeared or changed between opening the Flow and
+  // confirming. Nothing was created and nothing was cancelled: the customer
+  // still has exactly the appointment they started with.
+  if (res.kind === "old_visit_unavailable") {
+    await logFlowDenial(supabase, session, state, res.message, false);
+    await failSession(supabase, session.flow_token);
+    return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
 
   if (res.kind === "slot_taken" && allowRetry) {

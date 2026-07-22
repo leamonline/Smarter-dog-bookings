@@ -19,6 +19,7 @@ import {
   type GroupBookingItem,
   type GroupInsertResult,
   groupSlotOptions,
+  type RescheduleSelector,
   type HumanRow,
   type InsertResult,
   listPetOptions,
@@ -41,6 +42,13 @@ interface GroupInsertCall {
   humanId: string;
 }
 
+interface RescheduleCall {
+  items: GroupBookingItem[];
+  dateStr: string;
+  humanId: string;
+  old: RescheduleSelector;
+}
+
 interface FakeOpts {
   smallMed?: { booking_date: string; slot: string }[];
   largeDays?: { booking_date: string; has_capacity: boolean }[];
@@ -49,6 +57,14 @@ interface FakeOpts {
   // Multi-dog path: existing occupancy per date, and the group-insert result.
   bookingsByDate?: Record<string, ExistingBooking[]>;
   groupInsert?: (items: GroupBookingItem[], dateStr: string, humanId: string) => GroupInsertResult;
+  // Atomic reschedule result. Default mirrors the RPC: new rows created and
+  // the reviewed old rows cancelled in the same transaction.
+  groupReschedule?: (
+    items: GroupBookingItem[],
+    dateStr: string,
+    humanId: string,
+    old: RescheduleSelector,
+  ) => GroupInsertResult;
   // Staff seat blocks per date (already-sanitised day_settings.overrides).
   overridesByDate?: Record<string, Record<string, SlotOverrides>>;
   // Today's flagged last-minute slots (get_immediate_slots rows).
@@ -59,9 +75,11 @@ function makeDb(opts: FakeOpts = {}): {
   db: FlowDb;
   inserted: BookingInsert[];
   groupInserts: GroupInsertCall[];
+  reschedules: RescheduleCall[];
 } {
   const inserted: BookingInsert[] = [];
   const groupInserts: GroupInsertCall[] = [];
+  const reschedules: RescheduleCall[] = [];
   const dogs = opts.dogs ?? DOGS;
   const db: FlowDb = {
     getHumanByPhone: async (phone) => (phone === HUMAN.phone ? HUMAN : null),
@@ -83,8 +101,17 @@ function makeDb(opts: FakeOpts = {}): {
         ? opts.groupInsert(items, dateStr, humanId)
         : { ids: items.map((_, i) => `grp-${i}`) };
     },
+    rescheduleBookingGroup: async (items, dateStr, humanId, old) => {
+      reschedules.push({ items, dateStr, humanId, old });
+      return opts.groupReschedule
+        ? opts.groupReschedule(items, dateStr, humanId, old)
+        : {
+            ids: items.map((_, i) => `new-${i}`),
+            cancelledIds: old.expectedOldIds ?? ["old-0"],
+          };
+    },
   };
-  return { db, inserted, groupInserts };
+  return { db, inserted, groupInserts, reschedules };
 }
 
 describe("option builders", () => {
@@ -545,5 +572,140 @@ describe("bookingGroupSummary", () => {
     expect(summary).toContain("Bella — Full Groom (from £42)");
     expect(summary).toContain("Coco — Bath & Brush (from £38)");
     expect(summary).toContain("Add-ons: Flea Bath");
+  });
+});
+
+// ── Regression: the WhatsApp reschedule duplicate-booking defect ──────
+//
+// The previous implementation created the replacement and THEN cancelled the
+// old visit in a second statement. When that cancel failed it logged
+// "DUPLICATE-RISK" and still reported success, leaving the customer with two
+// live appointments. These tests pin the fixed contract: one atomic call, and
+// no path that creates without cancelling.
+describe("confirmGroupBooking — atomic reschedule", () => {
+  const baseTwo = {
+    humanId: "h1",
+    dateStr: "2026-06-02",
+    dropOff: "09:00",
+    dogs: [
+      { dogId: "s1", serviceId: "full-groom", addons: ["Flea Bath"] },
+      { dogId: "s2", serviceId: "bath-and-brush", addons: [] },
+    ],
+  };
+  const replaces = {
+    groupId: "old-group-1",
+    bookingId: null,
+    expectedOldIds: ["old-a", "old-b"],
+  };
+
+  it("routes a reschedule through the atomic RPC and never the plain insert", async () => {
+    const { db, groupInserts, reschedules } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+    });
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(true);
+    // The non-atomic create path must not be used for a reschedule at all.
+    expect(groupInserts).toHaveLength(0);
+    expect(reschedules).toHaveLength(1);
+    expect(reschedules[0].old).toEqual(replaces);
+    if (res.ok) {
+      expect(res.bookingIds).toHaveLength(2);
+      // The same call reports what it cancelled, so success genuinely means
+      // "moved", not "created and hopefully cancelled".
+      expect(res.cancelledBookingIds).toEqual(["old-a", "old-b"]);
+    }
+  });
+
+  it("passes the reviewed old booking ids so a mid-Flow staff edit is caught", async () => {
+    const { db, reschedules } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+    });
+    await confirmGroupBooking(db, { ...baseTwo, replaces });
+    expect(reschedules[0].old.expectedOldIds).toEqual(["old-a", "old-b"]);
+  });
+
+  it("reports old_visit_unavailable and creates nothing when the old visit changed", async () => {
+    const { db, groupInserts } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({
+        errorCode: "P0002",
+        errorMessage: "reschedule_old_visit_changed",
+      }),
+    });
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.kind).toBe("old_visit_unavailable");
+      // Never a success message, and never a capacity retry that would tempt
+      // the customer into booking a second appointment.
+      expect(res.kind).not.toBe("slot_taken");
+    }
+    expect(groupInserts).toHaveLength(0);
+  });
+
+  it("still maps capacity rejection to slot_taken, having cancelled nothing", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ errorCode: "P0001", errorMessage: "Slot is full" }),
+    });
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+    expect(res.ok).toBe(false);
+    // The retry screen must still work: the whole transaction rolled back, so
+    // the customer keeps the appointment they already had.
+    if (!res.ok) expect(res.kind).toBe("slot_taken");
+  });
+
+  it("never reports success when the RPC returns no new rows", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: [], cancelledIds: [] }),
+    });
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+    expect(res.ok).toBe(false);
+  });
+
+  it("leaves an ordinary booking on the plain insert path", async () => {
+    const { db, groupInserts, reschedules } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+    });
+    const res = await confirmGroupBooking(db, baseTwo);
+    expect(res.ok).toBe(true);
+    expect(groupInserts).toHaveLength(1);
+    expect(reschedules).toHaveLength(0);
+  });
+
+  it("applies ownership and allocation checks before any reschedule write", async () => {
+    const { db, reschedules } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+    });
+    const strangerDog = await confirmGroupBooking(db, {
+      ...baseTwo,
+      replaces,
+      dogs: [
+        { dogId: "s1", serviceId: "full-groom", addons: [] },
+        { dogId: "stranger", serviceId: "full-groom", addons: [] },
+      ],
+    });
+    expect(strangerDog.ok).toBe(false);
+    if (!strangerDog.ok) expect(strangerDog.kind).toBe("ownership");
+
+    const badSlot = await confirmGroupBooking(db, {
+      ...baseTwo,
+      replaces,
+      dropOff: "07:00",
+    });
+    expect(badSlot.ok).toBe(false);
+
+    // Neither rejection reached the database, so nothing was cancelled.
+    expect(reschedules).toHaveLength(0);
   });
 });
