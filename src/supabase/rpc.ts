@@ -618,3 +618,117 @@ export function mergeHumans(
     p_loser: params.loserId,
   });
 }
+
+// ── Visit-level policy commands (previous_day_1500_v1) ────────────────
+//
+// Every command returns one typed receipt; decode it with
+// decodeCustomerVisitReceipt so a malformed or transport-failed response can
+// never be mistaken for a committed outcome. While the policy is inactive
+// these return a `policy_not_active` blocked receipt and mutate nothing.
+
+export function previewCustomerCancelVisit(
+  client: SupabaseClient,
+  params: { visitId: string },
+) {
+  return client.rpc("preview_customer_cancel_visit", {
+    p_visit_id: params.visitId,
+  });
+}
+
+export function cancelCustomerBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    reviewId: string;
+    idempotencyKey: string;
+    reason?: string | null;
+    paidDepositOutcome?: "refund" | "credit";
+  },
+) {
+  return client.rpc("cancel_customer_booking_visit", {
+    p_visit_id: params.visitId,
+    p_review_id: params.reviewId,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+    p_paid_deposit_outcome: params.paidDepositOutcome ?? "refund",
+  });
+}
+
+export function withdrawCustomerBookingVisit(
+  client: SupabaseClient,
+  params: { visitId: string; idempotencyKey: string; reason?: string | null },
+) {
+  return client.rpc("withdraw_customer_booking_visit", {
+    p_visit_id: params.visitId,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function withdrawCustomerBookingChangeRequest(
+  client: SupabaseClient,
+  params: { requestId: string; idempotencyKey: string },
+) {
+  return client.rpc("withdraw_customer_booking_change_request", {
+    p_request_id: params.requestId,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function getCustomerBookingVisitCapabilities(
+  client: SupabaseClient,
+  params: { visitId: string },
+) {
+  return client.rpc("get_customer_booking_visit_capabilities", {
+    p_visit_id: params.visitId,
+  });
+}
+
+export function getCustomerCreditBalance(client: SupabaseClient) {
+  return client.rpc("get_customer_credit_balance");
+}
+
+export function requestCustomerCreditRefund(
+  client: SupabaseClient,
+  params: { amountPence: number; idempotencyKey: string },
+) {
+  return client.rpc("request_customer_credit_refund", {
+    p_amount_pence: params.amountPence,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function cancelCustomerCreditRefund(
+  client: SupabaseClient,
+  params: { refundDueId: string; idempotencyKey: string },
+) {
+  return client.rpc("cancel_customer_credit_refund", {
+    p_refund_due_id: params.refundDueId,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+// Customer-safe booking rules: intake availability, horizon, portal switches,
+// the generic Terms link and a read-only deadline description. Never bank
+// details, publication hashes or auto-confirm configuration.
+export function getCustomerBookingRules(client: SupabaseClient) {
+  return client.rpc("current_customer_booking_rules");
+}
+
+// Staff-only full Booking Rules, and the audited owner-only save.
+export function getBookingRules(client: SupabaseClient) {
+  return client.rpc("current_booking_rules");
+}
+
+export function updateBookingRules(
+  client: SupabaseClient,
+  params: { rules: Record<string, unknown> },
+) {
+  return client.rpc("update_booking_rules", { p_rules: params.rules });
+}
+
+// The policy runtime status a client may poll to know when to refetch.
+// Browser time never authorises a mutation; the server decides.
+export function getBookingPolicyRuntimeStatus(client: SupabaseClient) {
+  return client.rpc("booking_policy_runtime_status");
+}
