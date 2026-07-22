@@ -161,6 +161,12 @@ export interface RescheduleSelector {
   // completions and to replay a committed result instead of creating a second
   // replacement.
   flowToken?: string | null;
+  // Material facts the customer reviewed when the Flow opened, revalidated by
+  // the database inside the lock so an in-place staff edit that keeps the same
+  // booking ids is still caught.
+  expectedOldDate?: string | null;
+  expectedOldSlot?: string | null;
+  expectedServices?: Record<string, string> | null;
 }
 
 // ── Flow option shape (RadioButtons/Checkbox data-source) ───────

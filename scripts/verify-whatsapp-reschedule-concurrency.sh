@@ -10,6 +10,17 @@
 # Expected: one session reports replayed=f, the other replayed=t, with one
 # live booking for the customer.
 #
+# Advisory lock: the RPC takes pg_advisory_xact_lock(hashtextextended(
+# 'wa_resched|' || flow_token, 0)). It is TRANSACTION-scoped, so PostgreSQL
+# always releases it on commit or rollback — no explicit unlock, no leak on
+# error. The key is derived solely from the flow_token, so two different
+# tokens take two different locks and never serialise against each other in
+# the normal case. A hash collision between two tokens is possible in theory
+# and would cause the two to serialise unnecessarily (a harmless slowdown),
+# but it can NEVER return one token'"'"'s receipt for another: the receipt lookup
+# and the idempotency-hash check are both keyed on the exact flow_token text,
+# not on the lock. The lock only orders the work; the token identifies it.
+#
 # Usage (supported environment):
 #   supabase start
 #   PGPORT=54322 PGDATABASE=postgres bash scripts/verify-whatsapp-reschedule-concurrency.sh
@@ -54,16 +65,42 @@ echo "live bookings on target date: $($PSQL -c "select count(*) from public.book
 echo "total live for customer: $($PSQL -c "select count(*) from public.bookings b join public.dogs d on d.id=b.dog_id where d.human_id='99000000-0000-4000-8000-0000000000b1' and b.status='Booked'")"
 echo "receipts: $($PSQL -c "select count(*) from public.whatsapp_reschedule_receipts where flow_token='race-token'")"
 
-# Assert, so the script is usable as a CI/merge gate rather than eyeballed.
-A=$(tr -d ' \n' < /tmp/race_a.out | tail -c 1)
+# ── Assertions — the five failure conditions, each fails non-zero ────
+A=$(tr -d ' \n' < /tmp/race_a.out | tail -c 1)   # replayed flag: f or t
 B=$(tr -d ' \n' < /tmp/race_b.out | tail -c 1)
+FAIL=0
+
+# 1. Both sessions must NOT both perform the reschedule (one f, one t).
+if [ "$A$B" != "ft" ] && [ "$A$B" != "tf" ]; then
+  echo "FAIL: both sessions performed the reschedule (A=$A B=$B)" >&2; FAIL=1
+fi
+
+# 2. Exactly one receipt.
+RECEIPTS=$($PSQL -c "select count(*) from public.whatsapp_reschedule_receipts where flow_token='race-token'")
+if [ "$RECEIPTS" != "1" ]; then
+  echo "FAIL: expected 1 receipt, found $RECEIPTS" >&2; FAIL=1
+fi
+
+# 3. Exactly one replacement group (one live booking for the customer).
 LIVE=$($PSQL -c "select count(*) from public.bookings b join public.dogs d on d.id=b.dog_id where d.human_id='99000000-0000-4000-8000-0000000000b1' and b.status='Booked'")
 if [ "$LIVE" != "1" ]; then
-  echo "FAIL: expected exactly 1 live booking, found $LIVE" >&2
-  exit 1
+  echo "FAIL: expected exactly 1 live booking, found $LIVE" >&2; FAIL=1
 fi
-if [ "$A$B" != "ft" ] && [ "$A$B" != "tf" ]; then
-  echo "FAIL: expected one fresh reschedule and one replay, got A=$A B=$B" >&2
-  exit 1
+
+# 4. The original must NOT remain active after a successful reschedule.
+ORIG=$($PSQL -c "select count(*) from public.bookings where id='99000000-0000-4000-8000-0000000000d1' and status='Booked'")
+if [ "$ORIG" != "0" ]; then
+  echo "FAIL: the original booking is still active after the reschedule" >&2; FAIL=1
 fi
-echo "PASS: one reschedule, one replay, one live booking."
+
+# 5. The replay must return the SAME booking ids as the committed receipt.
+STORED=$($PSQL -c "select array_to_string(new_booking_ids,',') from public.whatsapp_reschedule_receipts where flow_token='race-token'")
+LIVEID=$($PSQL -c "select array_to_string(array_agg(b.id order by b.id),',') from public.bookings b join public.dogs d on d.id=b.dog_id where d.human_id='99000000-0000-4000-8000-0000000000b1' and b.status='Booked'")
+if [ "$STORED" != "$LIVEID" ]; then
+  echo "FAIL: replay/committed booking ids differ (receipt=$STORED live=$LIVEID)" >&2; FAIL=1
+fi
+
+if [ "$FAIL" != "0" ]; then
+  echo "CONCURRENCY GATE FAILED" >&2; exit 1
+fi
+echo "PASS: one reschedule, one replay, one receipt, one live booking, original cancelled, ids match."

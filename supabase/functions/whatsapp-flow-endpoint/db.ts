@@ -254,6 +254,9 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_expected_old_ids: old.expectedOldIds?.length ? old.expectedOldIds : null,
         p_reason: "Rescheduled via WhatsApp",
         p_flow_token: old.flowToken ?? null,
+        p_expected_old_date: old.expectedOldDate ?? null,
+        p_expected_old_slot: old.expectedOldSlot ?? null,
+        p_expected_services: old.expectedServices ?? null,
       });
       if (error) {
         return { errorCode: error.code, errorMessage: error.message };

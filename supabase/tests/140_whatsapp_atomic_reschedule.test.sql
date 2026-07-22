@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(45);
 
 insert into auth.users (id) values ('14000000-0000-4000-8000-0000000000a1');
 insert into public.staff_profiles (user_id, role, display_name) values
@@ -388,6 +388,141 @@ select throws_ok(
   $f$, pg_temp.open_day(86)),
   'P0002', 'reschedule_old_visit_changed',
   'a staff edit after the Flow opened is refused');
+
+-- ── 34-36: in-place staff edit (same booking IDs) ──────────────────
+--
+-- Set equality of ids cannot see an edit that keeps the same rows. These
+-- prove the material facts are revalidated inside the locked transaction.
+
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('14000000-0000-4000-8000-0000000000d7', pg_temp.open_day(93), '09:00',
+   '14000000-0000-4000-8000-0000000000c1', 'small', 'full-groom', 'Booked',
+   '14000000-0000-4000-8000-0000000000e5', 'whatsapp_flow');
+
+-- Staff move the SAME booking row to a later slot while the Flow is open.
+update public.bookings set slot = '11:00'
+ where id = '14000000-0000-4000-8000-0000000000d7';
+
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e5', null,
+      array['14000000-0000-4000-8000-0000000000d7']::uuid[],
+      'Rescheduled via WhatsApp', null,
+      %L::date, '09:00', null)
+  $f$, pg_temp.open_day(100), pg_temp.open_day(93)),
+  'P0002', 'reschedule_old_visit_changed',
+  'IN-PLACE EDIT: a staff move of the same booking id is refused');
+
+select is(
+  (select status from public.bookings
+    where id = '14000000-0000-4000-8000-0000000000d7'),
+  'Booked', 'IN-PLACE EDIT: the edited booking is not moved again');
+
+-- A staff service change on the same row is refused too.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e5', null,
+      array['14000000-0000-4000-8000-0000000000d7']::uuid[],
+      'Rescheduled via WhatsApp', null,
+      %L::date, '11:00',
+      jsonb_build_object('14000000-0000-4000-8000-0000000000c1','bath-and-brush'))
+  $f$, pg_temp.open_day(100), pg_temp.open_day(93)),
+  'P0002', 'reschedule_old_visit_changed',
+  'IN-PLACE EDIT: a staff service change is refused');
+
+-- ── 37-41: observable side effects of the internal cancellation ────
+--
+-- The reschedule reaches the same triggers the previous create-then-cancel
+-- implementation reached. These pin what is observable in the database.
+
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('14000000-0000-4000-8000-0000000000d8', pg_temp.open_day(107), '09:00',
+   '14000000-0000-4000-8000-0000000000c1', 'small', 'full-groom', 'Booked',
+   '14000000-0000-4000-8000-0000000000e6', 'whatsapp_flow');
+
+select lives_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e6', null, null)
+  $f$, pg_temp.open_day(114)),
+  'the side-effect fixture reschedule commits');
+
+-- The cancellation carries the distinguishing reason. Nothing consumes it
+-- today, but it is the hook a future suppression would key on, and it is what
+-- separates this row from an ordinary customer cancellation in the record.
+select is(
+  (select cancel_reason from public.bookings
+    where id = '14000000-0000-4000-8000-0000000000d8'),
+  'Rescheduled via WhatsApp',
+  'the internal cancellation is marked as a reschedule, not a plain cancel');
+
+-- Capacity: released only as part of this transaction, and exactly once.
+select is(
+  (select count(*)::int from public.bookings b
+    join public.dogs d on d.id = b.dog_id
+   where d.human_id = '14000000-0000-4000-8000-0000000000b1'
+     and b.status = 'Booked'
+     and b.booking_date in (pg_temp.open_day(107), pg_temp.open_day(114))),
+  1, 'capacity moves atomically: one live row across old and new dates');
+
+-- booking_events: the old row records a cancellation and the new row a
+-- creation. There is no in-place date change, so no 'rescheduled' event is
+-- emitted. This matches the previous implementation exactly.
+select is(
+  (select count(*)::int from public.booking_events
+    where booking_id = '14000000-0000-4000-8000-0000000000d8'
+      and event_type = 'cancelled'),
+  1, 'exactly one cancellation event for the old row, never one per retry');
+
+select is(
+  (select count(*)::int from public.booking_events
+    where booking_id = '14000000-0000-4000-8000-0000000000d8'
+      and event_type = 'rescheduled'),
+  0,
+  'no in-place rescheduled event: the move is a cancel plus a create, as before');
+
+-- ── 42-45: durable receipt hardening ──────────────────────────────
+
+select is(
+  (select count(*)::int from information_schema.table_privileges
+    where table_name = 'whatsapp_reschedule_receipts'
+      and grantee in ('anon','authenticated','public')),
+  0, 'no application role has any access to the receipt table');
+
+-- One receipt per flow_token (the primary key).
+select col_is_pk('public', 'whatsapp_reschedule_receipts', 'flow_token',
+  'flow_token is the unique durable receipt key');
+
+-- The committed result is immutable: an accidental update is a loud error.
+select throws_ok(
+  $$ update public.whatsapp_reschedule_receipts
+        set new_booking_ids = '{}'::uuid[] where flow_token = 'tok-dup-1' $$,
+  'P0001', 'whatsapp_reschedule_receipts rows are immutable (update not allowed)',
+  'a committed receipt cannot be altered');
+
+-- DELETE is permitted so retention pruning can run: a receipt older than the
+-- 24h session lifetime can never be replayed against, so removing it is safe.
+select lives_ok(
+  $$ delete from public.whatsapp_reschedule_receipts where flow_token = 'tok-dup-1' $$,
+  'a committed receipt can be pruned for retention but not altered');
 
 select * from finish();
 rollback;

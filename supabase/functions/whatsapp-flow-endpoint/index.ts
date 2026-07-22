@@ -423,6 +423,12 @@ async function handleConfirm(
             // Durable idempotency: a duplicate completion replays the stored
             // receipt instead of creating a second replacement.
             flowToken: session.flow_token,
+            // The frozen snapshot the customer reviewed. The database rejects
+            // the move if staff edited these on the same booking rows while
+            // the Flow was open.
+            expectedOldDate: state.old_date ?? null,
+            expectedOldSlot: state.old_slot ?? null,
+            expectedServices: state.service_snapshot ?? null,
           },
         }
       : {}),
