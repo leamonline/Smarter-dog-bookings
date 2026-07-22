@@ -420,6 +420,9 @@ async function handleConfirm(
             groupId: state.reschedule_group_id ?? null,
             bookingId: state.reschedule_booking_id ?? null,
             expectedOldIds: state.old_booking_ids ?? [],
+            // Durable idempotency: a duplicate completion replays the stored
+            // receipt instead of creating a second replacement.
+            flowToken: session.flow_token,
           },
         }
       : {}),

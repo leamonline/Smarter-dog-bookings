@@ -28,6 +28,42 @@
 -- Idempotent: create or replace.
 -- ============================================================
 
+-- ── Durable idempotency receipt ──────────────────────────────────────
+--
+-- whatsapp_flow_sessions.flow_token is already the Flow's durable identity,
+-- so it is the idempotency key. The endpoint's existing session.booking_id
+-- check is a fast path only: two concurrent completions both read it as null,
+-- so it cannot serialise a retry on its own, and it stores one id where a
+-- multi-dog visit has several.
+--
+-- This table stores the complete committed result. Combined with the advisory
+-- lock taken at the top of the function, a duplicate submission either waits
+-- for the first to commit and then replays its exact receipt, or (if it
+-- carries different data) is rejected rather than silently answered with
+-- someone else's result.
+create table if not exists public.whatsapp_reschedule_receipts (
+  flow_token            text primary key,
+  human_id              uuid not null references public.humans(id),
+  request_hash          text not null,
+  new_booking_ids       uuid[] not null,
+  cancelled_booking_ids uuid[] not null,
+  created_at            timestamptz not null default now()
+);
+
+alter table public.whatsapp_reschedule_receipts enable row level security;
+revoke all on public.whatsapp_reschedule_receipts from public;
+revoke all on public.whatsapp_reschedule_receipts from anon, authenticated;
+
+comment on table public.whatsapp_reschedule_receipts is
+  'Durable idempotency receipts for committed WhatsApp Flow reschedules, keyed by flow_token. A retry replays the stored booking ids instead of creating a second replacement. No foreign key to bookings: a later cancellation must not erase the recorded response.';
+
+-- An earlier in-development revision of this function had no p_flow_token
+-- argument. It was never merged or deployed, but drop it defensively so a
+-- checkout that ran the earlier file cannot end up with two overloads and an
+-- ambiguous call. Harmless where it never existed.
+drop function if exists public.reschedule_whatsapp_booking_group(
+  jsonb, date, uuid, uuid, uuid, uuid[], text);
+
 create or replace function public.reschedule_whatsapp_booking_group(
   p_bookings         jsonb,
   p_booking_date     date,
@@ -35,11 +71,13 @@ create or replace function public.reschedule_whatsapp_booking_group(
   p_old_group_id     uuid    default null,
   p_old_booking_id   uuid    default null,
   p_expected_old_ids uuid[]  default null,
-  p_reason           text    default 'Rescheduled via WhatsApp'
+  p_reason           text    default 'Rescheduled via WhatsApp',
+  p_flow_token       text    default null
 )
 returns table (
   new_booking_ids       uuid[],
-  cancelled_booking_ids uuid[]
+  cancelled_booking_ids uuid[],
+  replayed              boolean
 )
 language plpgsql
 security definer
@@ -51,6 +89,10 @@ declare
   v_new_ids     uuid[];
   v_lock_keys   text[];
   v_lock_key    text;
+  v_prior       public.whatsapp_reschedule_receipts%rowtype;
+  v_hash        text;
+  v_group_ids   uuid[];
+  v_group_id    uuid;
 begin
   if p_human_id is null then
     raise exception 'human_id is required' using errcode = '22023';
@@ -60,35 +102,89 @@ begin
       using errcode = '22023';
   end if;
 
+  -- ── 0. Serialise and replay on the Flow's durable token ──
+  --
+  -- The advisory lock is what makes two concurrent completions safe: the
+  -- second blocks here until the first commits, then finds its receipt below
+  -- and replays it instead of creating a second replacement.
+  if p_flow_token is not null then
+    perform pg_advisory_xact_lock(hashtextextended('wa_resched|' || p_flow_token, 0));
+
+    v_hash := md5(
+      coalesce(p_bookings::text, '') || '|' || coalesce(p_booking_date::text, '') || '|' ||
+      coalesce(p_human_id::text, '') || '|' || coalesce(p_old_group_id::text, '') || '|' ||
+      coalesce(p_old_booking_id::text, ''));
+
+    select * into v_prior from public.whatsapp_reschedule_receipts
+     where flow_token = p_flow_token;
+
+    if found then
+      if v_prior.request_hash <> v_hash or v_prior.human_id <> p_human_id then
+        -- A retry that carries different details is a bug or an attack, never
+        -- an ordinary redelivery. Refuse rather than answer it with the
+        -- earlier customer's result.
+        raise exception 'reschedule_idempotency_conflict' using errcode = 'P0002';
+      end if;
+      new_booking_ids := v_prior.new_booking_ids;
+      cancelled_booking_ids := v_prior.cancelled_booking_ids;
+      replayed := true;
+      return next;
+      return;
+    end if;
+  end if;
+
   -- ── 1. Resolve and lock the old visit's still-Booked owned rows ──
   --
   -- Ownership is via dogs.human_id, exactly as the existing cancel RPCs do.
   -- FOR UPDATE on bookings holds the rows for the whole transaction so a
   -- concurrent staff edit cannot slip between the check and the cancel.
+  -- ── 1a. Resolve a single booking id up to its whole group ──
+  --
+  -- Cancelling one dog out of a multi-dog group would leave the rest of the
+  -- family booked on the old date while the replacement covers everyone. When
+  -- the caller names one row, the group it belongs to is the real source.
+  if p_old_group_id is null and p_old_booking_id is not null then
+    select b.group_id into v_group_id
+      from public.bookings b
+      join public.dogs d on d.id = b.dog_id
+     where b.id = p_old_booking_id
+       and d.human_id = p_human_id
+       and b.status = 'Booked';
+  else
+    v_group_id := p_old_group_id;
+  end if;
+
   -- Two steps by necessity: FOR UPDATE cannot be combined with an aggregate.
   -- Take the row locks first, then read the locked set — holding the locks
-  -- makes that second read stable for the rest of the transaction.
+  -- makes that second read stable for the rest of the transaction and blocks
+  -- a concurrent attempt on the same source group.
   perform 1
     from public.bookings b
     join public.dogs d on d.id = b.dog_id
    where d.human_id = p_human_id
      and b.status = 'Booked'
      and (
-       (p_old_group_id is not null and b.group_id = p_old_group_id)
-       or (p_old_group_id is null and b.id = p_old_booking_id)
+       (v_group_id is not null and b.group_id = v_group_id)
+       or (v_group_id is null and b.id = p_old_booking_id)
      )
    for update of b;
 
-  select coalesce(array_agg(b.id order by b.id), '{}'::uuid[])
-    into v_old_ids
+  select coalesce(array_agg(b.id order by b.id), '{}'::uuid[]),
+         coalesce(array_agg(distinct b.group_id) filter (where b.group_id is not null), '{}'::uuid[])
+    into v_old_ids, v_group_ids
     from public.bookings b
     join public.dogs d on d.id = b.dog_id
    where d.human_id = p_human_id
      and b.status = 'Booked'
      and (
-       (p_old_group_id is not null and b.group_id = p_old_group_id)
-       or (p_old_group_id is null and b.id = p_old_booking_id)
+       (v_group_id is not null and b.group_id = v_group_id)
+       or (v_group_id is null and b.id = p_old_booking_id)
      );
+
+  -- The active source must be exactly one group (or one ungrouped row).
+  if cardinality(v_group_ids) > 1 then
+    raise exception 'reschedule_old_visit_changed' using errcode = 'P0002';
+  end if;
 
   if cardinality(v_old_ids) = 0 then
     -- Nothing cancellable: the visit was already cancelled, already moved, or
@@ -103,6 +199,10 @@ begin
   -- added or removed a dog, cancelling "the visit" would cancel something the
   -- customer never reviewed, so refuse and let them start again.
   if p_expected_old_ids is not null and cardinality(p_expected_old_ids) > 0 then
+    -- Set equality, deliberately in both directions. `@>` alone would accept
+    -- an incomplete subset of a multi-dog group (cancelling dogs the customer
+    -- did review while leaving others behind), and would also accept extra
+    -- ids the customer never saw.
     if not (v_old_ids @> p_expected_old_ids and p_expected_old_ids @> v_old_ids) then
       raise exception 'reschedule_old_visit_changed' using errcode = 'P0002';
     end if;
@@ -164,19 +264,27 @@ begin
     raise exception 'reschedule_create_failed' using errcode = 'P0002';
   end if;
 
+  -- ── 6. Record the receipt so a retry replays instead of re-running ──
+  if p_flow_token is not null then
+    insert into public.whatsapp_reschedule_receipts
+      (flow_token, human_id, request_hash, new_booking_ids, cancelled_booking_ids)
+    values (p_flow_token, p_human_id, v_hash, v_new_ids, v_cancelled);
+  end if;
+
   new_booking_ids := v_new_ids;
   cancelled_booking_ids := v_cancelled;
+  replayed := false;
   return next;
 end;
 $$;
 
-comment on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text) is
+comment on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text, text) is
   'Atomic service-role WhatsApp reschedule. Cancels the old owned Booked rows and creates the replacement in ONE transaction, so a failure can never leave two active appointments. Cancels first so freed seats are available to the replacement; delegates creation to create_whatsapp_booking_group, inheriting its ownership, size-authority and all three BEFORE-INSERT gates. Raises P0002 reschedule_old_visit_unavailable / reschedule_old_visit_changed when the old visit is gone or no longer matches the reviewed snapshot, and lets capacity P0001 propagate so the caller can offer another time. Contains no booking-policy or deadline logic.';
 
 -- Supabase auto-grants EXECUTE to anon/authenticated on new public functions,
 -- so revoke explicitly and grant only the service role (the Flow endpoint and
 -- the WhatsApp agent), matching create_whatsapp_booking_group.
-revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text) from public;
-revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text) from anon;
-revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text) from authenticated;
-grant execute on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text) to service_role;
+revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text, text) from public;
+revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text, text) from anon;
+revoke all on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text, text) from authenticated;
+grant execute on function public.reschedule_whatsapp_booking_group(jsonb, date, uuid, uuid, uuid, uuid[], text, text) to service_role;

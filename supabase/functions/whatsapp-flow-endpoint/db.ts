@@ -253,16 +253,22 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_old_booking_id: old.bookingId ?? null,
         p_expected_old_ids: old.expectedOldIds?.length ? old.expectedOldIds : null,
         p_reason: "Rescheduled via WhatsApp",
+        p_flow_token: old.flowToken ?? null,
       });
       if (error) {
         return { errorCode: error.code, errorMessage: error.message };
       }
       const row = (Array.isArray(data) ? data[0] : data) as
-        | { new_booking_ids?: string[]; cancelled_booking_ids?: string[] }
+        | {
+            new_booking_ids?: string[];
+            cancelled_booking_ids?: string[];
+            replayed?: boolean;
+          }
         | null;
       return {
         ids: row?.new_booking_ids ?? [],
         cancelledIds: row?.cancelled_booking_ids ?? [],
+        replayed: row?.replayed ?? false,
       };
     },
   };

@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(33);
 
 insert into auth.users (id) values ('14000000-0000-4000-8000-0000000000a1');
 insert into public.staff_profiles (user_id, role, display_name) values
@@ -220,6 +220,174 @@ select throws_ok(
        '[]'::jsonb, current_date + 30, '14000000-0000-4000-8000-0000000000b1',
        null, null, null) $$,
   '22023', null, 'the old visit must be identified');
+
+-- ── 20-23: RPC security ────────────────────────────────────────────
+
+select is(
+  (select count(*)::int from information_schema.role_routine_grants
+    where routine_name = 'reschedule_whatsapp_booking_group'
+      and grantee = 'service_role'),
+  1, 'the intended server role can execute it');
+
+select ok(
+  (select p.proconfig @> array['search_path=public, pg_temp']
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'reschedule_whatsapp_booking_group' and n.nspname = 'public'),
+  'SECURITY DEFINER runs with an explicitly safe search_path');
+
+select ok(
+  (select p.prosecdef from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'reschedule_whatsapp_booking_group' and n.nspname = 'public'),
+  'the function is SECURITY DEFINER as intended');
+
+-- A customer session must not be able to reach the RPC at all, which is what
+-- stops it being used to bypass the Edge Function's validation.
+set local role authenticated;
+select throws_ok(
+  $$ select public.reschedule_whatsapp_booking_group(
+       '[]'::jsonb, current_date + 30, '14000000-0000-4000-8000-0000000000b1',
+       '14000000-0000-4000-8000-0000000000e2', null, null) $$,
+  '42501', null, 'an authenticated customer cannot execute the RPC');
+reset role;
+
+-- ── 24-28: idempotency and duplicate submission ────────────────────
+
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('14000000-0000-4000-8000-0000000000d4', pg_temp.open_day(58), '09:00',
+   '14000000-0000-4000-8000-0000000000c1', 'small', 'full-groom', 'Booked',
+   '14000000-0000-4000-8000-0000000000e3', 'whatsapp_flow');
+
+create or replace function pg_temp.do_reschedule(p_token text, p_offset int)
+returns table (new_ids uuid[], cancelled_ids uuid[], replayed boolean)
+language plpgsql as $$
+begin
+  return query
+  select r.new_booking_ids, r.cancelled_booking_ids, r.replayed
+    from public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      pg_temp.open_day(p_offset), '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e3', null, null,
+      'Rescheduled via WhatsApp', p_token) r;
+end;
+$$;
+
+select is(
+  (select replayed from pg_temp.do_reschedule('tok-dup-1', 65)),
+  false, 'the first submission performs the reschedule');
+
+select is(
+  (select replayed from pg_temp.do_reschedule('tok-dup-1', 65)),
+  true, 'an identical resubmission is answered from the stored receipt');
+
+select is(
+  (select count(*)::int from public.bookings b
+    join public.dogs d on d.id = b.dog_id
+   where d.human_id = '14000000-0000-4000-8000-0000000000b1'
+     and b.status = 'Booked'
+     and b.booking_date = pg_temp.open_day(65)),
+  1, 'DUPLICATE: a resubmission creates no second replacement');
+
+select is(
+  (select new_ids from pg_temp.do_reschedule('tok-dup-1', 65)),
+  (select new_booking_ids from public.whatsapp_reschedule_receipts
+    where flow_token = 'tok-dup-1'),
+  'the replay returns the original booking ids, not a failure');
+
+select is(
+  (select count(*)::int from public.bookings b
+    where b.status = 'Booked'
+      and b.id = any (
+        (select r.new_booking_ids
+           from public.whatsapp_reschedule_receipts r
+          where r.flow_token = 'tok-dup-1')::uuid[])),
+  1, 'DUPLICATE: the replay never cancels the replacement it already made');
+
+-- A retry carrying different details is refused rather than answered with
+-- the earlier result.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','11:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e3', null, null,
+      'Rescheduled via WhatsApp', 'tok-dup-1')
+  $f$, pg_temp.open_day(72)),
+  'P0002', 'reschedule_idempotency_conflict',
+  'a retry with different details is refused, not silently answered');
+
+-- ── 30-33: source drift and partial-group protection ───────────────
+
+-- A two-dog group named by ONE booking id must resolve to the whole group,
+-- never cancel just that dog.
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('14000000-0000-4000-8000-0000000000d5', pg_temp.open_day(79), '09:00',
+   '14000000-0000-4000-8000-0000000000c1', 'small', 'full-groom', 'Booked',
+   '14000000-0000-4000-8000-0000000000e4', 'whatsapp_flow'),
+  ('14000000-0000-4000-8000-0000000000d6', pg_temp.open_day(79), '09:00',
+   '14000000-0000-4000-8000-0000000000c2', 'small', 'bath-and-brush', 'Booked',
+   '14000000-0000-4000-8000-0000000000e4', 'whatsapp_flow');
+
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      null, '14000000-0000-4000-8000-0000000000d5',
+      array['14000000-0000-4000-8000-0000000000d5']::uuid[])
+  $f$, pg_temp.open_day(86)),
+  'P0002', 'reschedule_old_visit_changed',
+  'PARTIAL GROUP: naming one dog of a two-dog group is refused');
+
+select is(
+  (select count(*)::int from public.bookings
+    where group_id = '14000000-0000-4000-8000-0000000000e4'
+      and status = 'Booked'),
+  2, 'PARTIAL GROUP: both dogs remain booked after the refusal');
+
+-- Expected ids drawn from two different groups.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e4', null,
+      array['14000000-0000-4000-8000-0000000000d5',
+            '14000000-0000-4000-8000-0000000000d6',
+            '14000000-0000-4000-8000-0000000000d3']::uuid[])
+  $f$, pg_temp.open_day(86)),
+  'P0002', 'reschedule_old_visit_changed',
+  'ids spanning different groups are refused');
+
+-- Staff add a dog after the Flow opened: the reviewed snapshot no longer
+-- matches the live group.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e4', null,
+      array['14000000-0000-4000-8000-0000000000d5',
+            '14000000-0000-4000-8000-0000000000d6',
+            '14000000-0000-4000-8000-000000000aaa']::uuid[])
+  $f$, pg_temp.open_day(86)),
+  'P0002', 'reschedule_old_visit_changed',
+  'a staff edit after the Flow opened is refused');
 
 select * from finish();
 rollback;

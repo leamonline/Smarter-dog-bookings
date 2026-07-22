@@ -103,6 +103,7 @@ export interface GroupInsertResult {
   // Populated by an atomic reschedule: the rows cancelled in the same
   // transaction that created `ids`.
   cancelledIds?: string[];
+  replayed?: boolean;
   errorCode?: string;
   errorMessage?: string;
 }
@@ -156,6 +157,10 @@ export interface RescheduleSelector {
   groupId?: string | null;
   bookingId?: string | null;
   expectedOldIds?: string[];
+  // The Flow's durable token. The database uses it to serialise concurrent
+  // completions and to replay a committed result instead of creating a second
+  // replacement.
+  flowToken?: string | null;
 }
 
 // ── Flow option shape (RadioButtons/Checkbox data-source) ───────
@@ -469,7 +474,14 @@ export interface GroupConfirmInput {
 }
 
 export type GroupConfirmResult =
-  | { ok: true; bookingIds: string[]; cancelledBookingIds?: string[] }
+  | {
+      ok: true;
+      bookingIds: string[];
+      cancelledBookingIds?: string[];
+      // True when this was a duplicate submission answered from the stored
+      // receipt rather than a fresh reschedule.
+      replayed?: boolean;
+    }
   | {
       ok: false;
       kind: "slot_taken" | "ownership" | "error" | "old_visit_unavailable";
@@ -537,7 +549,12 @@ export async function confirmGroupBooking(
     ? await db.rescheduleBookingGroup!(items, input.dateStr, input.humanId, input.replaces)
     : await db.insertBookingGroup(items, input.dateStr, input.humanId);
   if (res.ids?.length) {
-    return { ok: true, bookingIds: res.ids, cancelledBookingIds: res.cancelledIds };
+    return {
+      ok: true,
+      bookingIds: res.ids,
+      cancelledBookingIds: res.cancelledIds,
+      replayed: res.replayed ?? false,
+    };
   }
 
   // The old visit is gone or no longer matches what the customer reviewed.
