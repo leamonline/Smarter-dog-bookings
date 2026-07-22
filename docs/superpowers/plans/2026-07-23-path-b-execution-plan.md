@@ -183,9 +183,15 @@ receipt decoder tests already exist and are extended.
 accept on-time requests too.
 
 **Acceptance criteria**
-- On-time **cancellation** still commits immediately through the existing
-  `cancel_customer_booking_visit`: it is unambiguous and reversible only by
-  rebooking, and the deposit outcome is already decided by the customer.
+- On-time **cancellation** commits immediately through
+  `cancel_customer_booking_visit`. Every one of these is enforced server-side
+  at the moment of commitment, inside the same transaction, or the command
+  refuses: the visit is still eligible for self-service cancellation; the
+  deadline has not passed; the booking has not changed since the customer
+  reviewed it (the review token); the whole visit is cancelled atomically; no
+  non-deposit prepayment requires staff review; the customer chose an allowed
+  deposit outcome; the submission is idempotent; capacity is released only as
+  part of the successful transaction; and a typed receipt is returned.
 - **Rescheduling is always a request** in this release, on time or late. It
   never creates a destination, never holds capacity and never consumes a move.
 - The customer sees plainly that the original appointment remains booked.
@@ -220,6 +226,21 @@ amounts and dogs before acting.
 
 ---
 
+### Task 6b — Refund calendar warning surface *(done — migration landed)*
+
+`20260723150000_refund_calendar_coverage_warnings.sql` retains the coverage
+table, seeds England-and-Wales bank holidays through 2029, adds
+`refund_due_at_verified()` which fails loudly outside verified coverage, and
+adds `booking_refund_calendar_status()` escalating at 180/90/30 days.
+Maintenance is one owner-only SQL call, documented in
+[the refund calendar runbook](../runbooks/2026-07-23-refund-calendar-maintenance.md).
+
+**Remaining for Task 7:** surface `booking_refund_calendar_status()` in
+Settings, and switch the refund-creating commands from `refund_due_at()` to
+`refund_due_at_verified()` so an unbacked date can never be written.
+
+---
+
 ### Task 7 — Deposit outcomes, incidents and manual refunds
 
 **Files:** new `src/components/views/staff/DepositReconciliation.jsx`,
@@ -236,6 +257,11 @@ migration for a staff refund-queue projection.
 - **Settling a refund is manual and recorded:** the owner makes the bank
   transfer, then records actual paid time and bank reference. The system never
   moves money.
+- **The receipt distinguishes three states and never conflates them:**
+  *cancellation completed*; *refund recorded as due, with its date*; *refund
+  sent and reconciled*. The customer is never told money has been refunded
+  merely because the obligation was recorded. A test asserts the middle state's
+  copy contains no past-tense "refunded".
 - Incidents and waivers are staff-only, one per visit, each with a reason.
 - Customers see the resulting deposit requirement in plain language, never a
   strike count.
