@@ -90,6 +90,75 @@ Confirming stamps the legacy policy (`legacy_24h`) and its rolling deadline.
 A completed visit can never be made unconfirmed. Only valid for commercial
 items.
 
+## Legacy opening money
+
+Structural reconciliation (above) never touches money. Money on a backfilled
+legacy visit is decided separately, through its own paired commands:
+
+```
+preview_legacy_visit_opening_money(p_visit_id, p_classification, p_evidence)
+record_legacy_visit_opening_money(p_visit_id, p_expected_hash, p_classification,
+                                  p_evidence, p_reason, p_idempotency_key)
+```
+
+Both are staff-only and take the visit and ledger locks. Preview is read-only
+and returns the complete source-field evidence (`deposit_required`,
+`deposit_reference`, `deposit_due_by`, `deposit_received_at`, `payment`,
+`payment_method`, `paid_at`, `paid_amount` per child row), any blockers, and
+the `expectedHash` that record must echo.
+
+Permitted classifications:
+
+| Classification | Use when | Required evidence |
+|---|---|---|
+| `no_deposit` | The visit never required a deposit. | — |
+| `awaiting_10_deposit` | A £10 deposit was required and is still unpaid. | `depositReference`, `dueAt` |
+| `received_10_deposit` | Exactly one visit-level £10 deposit was received. | `bankReceivedAt` |
+| `service_prepayment` | The money was payment for the groom, not a deposit. | `amountPence` |
+| `received_liability` | £10 arrived but the visit will not confirm. | `bankReceivedAt` |
+
+Rules the command enforces, and that you must not work around:
+
+- Never infer £10 from `Paid in Full`; a full service settlement is not a
+  deposit.
+- Never sum duplicated per-dog deposit flags. Duplicated rows are evidence of
+  the *same* payment only when reference, time, method and amount agree.
+- Never fabricate a receipt time. If no receipt time is evidenced, the visit
+  is not `received_10_deposit`.
+- Repeated historical references are legitimate (the deployed format can
+  repeat for one customer and date) and are preserved. Uniqueness is enforced
+  only on newly generated `visit_v1` references.
+- `service_prepayment` opens a service-prepayment reconciliation task;
+  `received_liability` opens a deposit-money reconciliation and does **not**
+  confirm the visit.
+
+### Activation blockers
+
+Every unresolved `legacy_import` deposit in `awaiting_terms`,
+`awaiting_payment`, `received_liability` or `reconciliation_required` blocks
+activation: it has no accepted immutable v1 Terms publication and therefore
+cannot confirm after cutover. Resolve them while the legacy runtime is still
+authoritative.
+
+Activation readiness query — must return zero:
+
+```sql
+select count(*)
+from public.booking_visit_deposits
+where origin = 'legacy_import'
+  and state in ('awaiting_terms','awaiting_payment',
+                'received_liability','reconciliation_required');
+```
+
+## Refund calendar maintenance
+
+`booking_refund_non_working_days` holds England-and-Wales bank holidays and
+`booking_refund_calendar_coverage` records exactly which range has been
+verified. A missing row must never be read as an ordinary weekday. Extend both
+annually, at least to the activation horizon plus five working days, and treat
+a refund request falling outside coverage as a defect to resolve, not a
+routine event.
+
 ## After every apply
 
 - The immutable audit row (actor, reason, before/after graphs, hash,
