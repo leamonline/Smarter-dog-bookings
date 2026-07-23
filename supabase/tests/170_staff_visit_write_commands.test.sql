@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(45);
 
 insert into auth.users (id) values
   ('17000000-0000-4000-8000-000000000001'),   -- owner staff
@@ -266,6 +266,164 @@ select is(
              statement_timestamp(), 'active') ->> 'visit_id')
    from k),
   true, 'a retried key replays the same visit rather than creating a second');
+
+-- ── 29-33: Terms notice vs customer acceptance ─────────────────────
+
+select pg_temp.mk(72,'08:30');
+
+select is(
+  (select terms_acknowledgement from public.booking_visits
+    where booking_date = pg_temp.open_day(72)),
+  'staff_notice',
+  'a staff-created visit records NOTICE, never a portal acceptance');
+
+select ok(
+  (select terms_publication_id is not null from public.booking_visits
+    where booking_date = pg_temp.open_day(72)),
+  'the governing Terms publication is frozen onto the visit');
+
+select is(
+  (select d.terms_accepted_at from public.booking_visit_deposits d
+     join public.booking_visits v on v.id = d.visit_id
+    where v.booking_date = pg_temp.open_day(72)),
+  null::timestamptz,
+  'no acceptance timestamp is fabricated for a staff-created booking');
+
+-- Publishing newer Terms must not retroactively change the governing version.
+select public.update_booking_rules(
+  ('{"depositTermsVersion":"2026-08 v2","depositTermsContentHash":"' || repeat('d',64) || '"}')::jsonb);
+
+select isnt(
+  (select terms_publication_id from public.booking_visits
+    where booking_date = pg_temp.open_day(72)),
+  (select current_terms_publication_id from public.booking_policy_settings where singleton),
+  'a later publication does not become the governing Terms of an existing visit');
+
+select throws_ok(
+  format($f$ update public.booking_visits set terms_acknowledgement = 'customer_accepted'
+              where booking_date = %L $f$, pg_temp.open_day(72)),
+  'P0001', null,
+  'the acknowledgement basis cannot be rewritten to claim acceptance');
+
+-- ── 34-45: prepaid cancellation dispositions ───────────────────────
+
+create or replace function pg_temp.prepaid_visit(p_offset int) returns uuid
+language plpgsql as $$
+declare v uuid;
+begin
+  perform pg_temp.mk(p_offset, '08:30');
+  select id into v from public.booking_visits
+   where booking_date = pg_temp.open_day(p_offset) and lifecycle_state = 'active';
+  update public.bookings set payment = 'Paid in Full', paid_amount = 45
+   where visit_id = v and dog_id = '17000000-0000-4000-8000-000000000011';
+  return v;
+end;
+$$;
+
+create or replace function pg_temp.cancel_prepaid(
+  p_visit uuid, p_handling text, p_target uuid, p_due timestamptz)
+returns jsonb language sql as $$
+  select smarter_dog_private.cancel_staff_visit_dispatch(
+    p_visit, (select revision from public.booking_visits where id = p_visit),
+    gen_random_uuid(), 'customer moved away', 'refund', p_handling, false, null,
+    statement_timestamp(), 'active', p_target, p_due);
+$$;
+
+-- refund_due without a staff-supplied date is refused: the server must not
+-- invent the deposit's five-working-day promise for service prepayment.
+select is(
+  (pg_temp.cancel_prepaid(pg_temp.prepaid_visit(79), 'refund_due', null, null))
+    ->> 'block_reason',
+  'prepayment_refund_date_required',
+  'a prepayment refund without a promised date is refused');
+
+select is(
+  (select lifecycle_state from public.booking_visits
+    where booking_date = pg_temp.open_day(79)),
+  'active', 'the refused refund left the visit and its money untouched');
+
+-- refund_due WITH a date records a DUE obligation, not a payment.
+select is(
+  (pg_temp.cancel_prepaid(
+     (select id from public.booking_visits
+       where booking_date = pg_temp.open_day(79) and lifecycle_state = 'active'),
+     'refund_due', null, now() + interval '7 days'))
+    -> 'detail' -> 'financial' -> 'servicePrepayment' ->> 'kind',
+  'refund_due', 'a dated prepayment refund records an obligation');
+
+select is(
+  (select count(*)::int from public.booking_financial_ledger
+    where event_kind = 'refund_due' and refund_origin = 'service_prepayment'
+      and refund_deadline_basis = 'staff_explicit'),
+  1, 'exactly one service-prepayment obligation, with the staff-explicit basis');
+
+select is(
+  (select count(*)::int from public.booking_financial_ledger
+    where event_kind = 'refund_paid'),
+  0, 'a refund is DUE, never recorded as already paid');
+
+select is(
+  (select state from public.booking_service_prepayment_reconciliations r
+     join public.booking_visits v on v.id = r.visit_id
+    where v.booking_date = pg_temp.open_day(79)),
+  'refund_due', 'the reconciliation records the external payment outcome');
+
+-- transfer to an invalid target changes nothing.
+select is(
+  (pg_temp.cancel_prepaid(pg_temp.prepaid_visit(86), 'transfer',
+     '17000000-0000-4000-8000-0000000000ff', null)) ->> 'block_reason',
+  'prepayment_transfer_target_invalid',
+  'an unknown transfer target is refused');
+
+select is(
+  (select lifecycle_state from public.booking_visits
+    where booking_date = pg_temp.open_day(86)),
+  'active', 'an invalid transfer leaves the original visit and money unchanged');
+
+-- transfer to a valid same-customer active visit.
+select pg_temp.mk(93,'08:30');
+select is(
+  (pg_temp.cancel_prepaid(
+     (select id from public.booking_visits
+       where booking_date = pg_temp.open_day(86) and lifecycle_state = 'active'),
+     'transfer',
+     (select id from public.booking_visits
+       where booking_date = pg_temp.open_day(93) and lifecycle_state = 'active'),
+     null))
+    -> 'detail' -> 'financial' -> 'servicePrepayment' ->> 'kind',
+  'transferred', 'a valid transfer records the carry-forward');
+
+select is(
+  (select count(*)::int from public.booking_financial_ledger
+    where event_kind = 'service_prepayment_transferred'),
+  1, 'the transfer writes exactly one ledger event naming the destination');
+
+-- Nothing prepaid may sit on a cancelled visit without a visible state.
+select is(
+  (select count(*)::int
+     from public.booking_visits v
+     join public.bookings b on b.visit_id = v.id
+    where v.lifecycle_state = 'cancelled'
+      and v.runtime_generation = 'visit_v1'
+      and coalesce(b.paid_amount,0) > 0
+      and not exists (select 1 from public.booking_service_prepayment_reconciliations r
+                       where r.visit_id = v.id)),
+  0, 'no prepaid amount is left on a cancelled visit without a reconciliation');
+
+-- Idempotent: a repeated staff submission does not double-record money.
+select is(
+  (with k as (select gen_random_uuid() u),
+        vis as (select id from public.booking_visits
+                 where booking_date = pg_temp.open_day(72) and lifecycle_state = 'active')
+   select (smarter_dog_private.cancel_staff_visit_dispatch(
+             vis.id, (select revision from public.booking_visits where id = vis.id),
+             k.u, 'dup', 'refund', null, false, null,
+             statement_timestamp(), 'active', null, null) ->> 'outcome_key')
+        = (smarter_dog_private.cancel_staff_visit_dispatch(
+             vis.id, null, k.u, 'dup', 'refund', null, false, null,
+             statement_timestamp(), 'active', null, null) ->> 'outcome_key')
+   from k, vis),
+  true, 'a repeated staff cancellation replays rather than acting twice');
 
 select * from finish();
 rollback;
