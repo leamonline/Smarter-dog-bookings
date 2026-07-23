@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(48);
 
 insert into auth.users (id) values ('14000000-0000-4000-8000-0000000000a1');
 insert into public.staff_profiles (user_id, role, display_name) values
@@ -523,6 +523,70 @@ select throws_ok(
 select lives_ok(
   $$ delete from public.whatsapp_reschedule_receipts where flow_token = 'tok-dup-1' $$,
   'a committed receipt can be pruned for retention but not altered');
+
+-- ── 46-48: retention pruning must not weaken idempotency ───────────
+--
+-- 1. complete a reschedule; 2. expire the session; 3. prune the receipt;
+-- 4. resubmit the original token; 5. prove no second reschedule occurs.
+-- After pruning, the authoritative protection is the completed Flow session,
+-- not the continued existence of the receipt.
+
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('14000000-0000-4000-8000-0000000000d9', pg_temp.open_day(121), '09:00',
+   '14000000-0000-4000-8000-0000000000c1', 'small', 'full-groom', 'Booked',
+   '14000000-0000-4000-8000-0000000000e7', 'whatsapp_flow');
+
+insert into public.whatsapp_flow_sessions
+  (flow_token, phone_e164, human_id, flow_type, status)
+values ('tok-retention', '+447700900999', '14000000-0000-4000-8000-0000000000b1',
+        'cancel_reschedule', 'active');
+
+select lives_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e7', null, null,
+      'Rescheduled via WhatsApp', 'tok-retention')
+  $f$, pg_temp.open_day(128)),
+  'step 1: the reschedule completes and writes a receipt');
+
+-- Steps 2 and 3: the session is completed and expired, then retention prunes
+-- the receipt.
+update public.whatsapp_flow_sessions
+   set status = 'completed', expires_at = now() - interval '2 days',
+       booking_id = (select new_booking_ids[1]
+                       from public.whatsapp_reschedule_receipts
+                      where flow_token = 'tok-retention')
+ where flow_token = 'tok-retention';
+delete from public.whatsapp_reschedule_receipts where flow_token = 'tok-retention';
+
+-- Step 4 and 5: the original token is resubmitted with the receipt gone.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      jsonb_build_array(
+        jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
+                           'slot','10:00','service','full-groom')),
+      %L::date, '14000000-0000-4000-8000-0000000000b1',
+      '14000000-0000-4000-8000-0000000000e7', null, null,
+      'Rescheduled via WhatsApp', 'tok-retention')
+  $f$, pg_temp.open_day(135)),
+  'P0002', 'reschedule_already_completed',
+  'RETENTION: a pruned receipt does not reopen the door to a second reschedule');
+
+select is(
+  (select count(*)::int from public.bookings b
+    join public.dogs d on d.id = b.dog_id
+   where d.human_id = '14000000-0000-4000-8000-0000000000b1'
+     and b.status = 'Booked'
+     and b.booking_date in (pg_temp.open_day(121), pg_temp.open_day(128),
+                            pg_temp.open_day(135))),
+  1, 'RETENTION: still exactly one live booking after the replay attempt');
 
 select * from finish();
 rollback;

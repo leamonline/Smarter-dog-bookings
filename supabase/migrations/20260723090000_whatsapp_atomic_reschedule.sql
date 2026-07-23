@@ -55,7 +55,7 @@ revoke all on public.whatsapp_reschedule_receipts from public;
 revoke all on public.whatsapp_reschedule_receipts from anon, authenticated;
 
 comment on table public.whatsapp_reschedule_receipts is
-  'Durable idempotency receipts for committed WhatsApp Flow reschedules, keyed by flow_token. A retry replays the stored booking ids instead of creating a second replacement. Deliberately NO foreign key to bookings: a later cancellation of either the old or new booking must not cascade-delete or null the recorded response, or a retry after that cancellation would re-run the reschedule. Stores only booking ids and the request hash — no name, phone or other customer PII. Retention: prune rows older than the Flow session lifetime (24h) plus a safety margin; a monthly cron deleting rows older than 30 days is sufficient and is out of scope for this hotfix.';
+  'Durable idempotency receipts for committed WhatsApp Flow reschedules, keyed by flow_token. A retry replays the stored booking ids instead of creating a second replacement. Deliberately NO foreign key to bookings: a later cancellation of either the old or new booking must not cascade-delete or null the recorded response, or a retry after that cancellation would re-run the reschedule. Stores only booking ids and the request hash — no name, phone or other customer PII. Retention: 30 days (see the PR for the reasoning). A pruned receipt cannot reopen a second reschedule because the completed Flow session is checked as a backstop.';
 
 -- The committed result is immutable: once written, a receipt is only ever read
 -- (to replay). This trigger turns an accidental UPDATE into a loud error
@@ -153,8 +153,25 @@ begin
       coalesce(p_expected_old_slot, '') || '|' ||
       coalesce(p_expected_services::text, ''));
 
+    -- Layered protection. The receipt is the SHORT-TERM replay record; the
+    -- Flow session is the durable one. A receipt pruned by retention must not
+    -- reopen the door to a second reschedule, so a session already marked
+    -- completed refuses outright rather than re-running. (The endpoint also
+    -- short-circuits on session.booking_id before ever calling this; this is
+    -- the database-level backstop for any other caller.)
     select * into v_prior from public.whatsapp_reschedule_receipts
      where flow_token = p_flow_token;
+
+    if not found then
+      if exists (
+        select 1 from public.whatsapp_flow_sessions fs
+         where fs.flow_token = p_flow_token
+           and fs.booking_id is not null
+      ) then
+        raise exception 'reschedule_already_completed' using errcode = 'P0002',
+          detail = 'this Flow session already completed a reschedule; its receipt has been pruned by retention';
+      end if;
+    end if;
 
     if found then
       if v_prior.request_hash <> v_hash or v_prior.human_id <> p_human_id then
