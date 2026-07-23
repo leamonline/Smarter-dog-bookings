@@ -963,6 +963,11 @@ export function createStaffBookingVisit(
     bookingDate: string;
     humanId: string;
     idempotencyKey: string;
+    // How staff gave the customer notice of the Terms. Required — the server
+    // never defaults it, because bookings are taken in person, by phone and
+    // over WhatsApp. This records that staff GAVE notice; it is not customer
+    // acceptance.
+    termsNoticeMethod: "in_person" | "phone" | "whatsapp" | "email" | "other";
     source?: string;
   },
 ) {
@@ -971,6 +976,7 @@ export function createStaffBookingVisit(
     p_booking_date: params.bookingDate,
     p_human_id: params.humanId,
     p_idempotency_key: params.idempotencyKey,
+    p_terms_notice_method: params.termsNoticeMethod,
     p_source: params.source ?? "staff",
   });
 }
@@ -988,6 +994,12 @@ export function cancelStaffBookingVisit(
     // Required when the visit carries non-deposit prepayment: the money is
     // never silently stranded.
     prepaymentHandling?: "reconciliation_required" | "refund_due" | "transfer" | null;
+    // Required for a `transfer`: a same-customer active destination visit.
+    prepaymentTargetVisitId?: string | null;
+    // Required for a `refund_due`: the date staff promised the customer. Must
+    // be in the future — the server never invents the deposit's
+    // five-working-day promise for service prepayment.
+    prepaymentRefundDueAt?: string | null;
     recordIncident?: boolean;
     incidentKind?: string | null;
   },
@@ -1001,6 +1013,8 @@ export function cancelStaffBookingVisit(
     p_prepayment_handling: params.prepaymentHandling ?? null,
     p_record_incident: params.recordIncident ?? false,
     p_incident_kind: params.incidentKind ?? null,
+    p_prepayment_target_visit_id: params.prepaymentTargetVisitId ?? null,
+    p_prepayment_refund_due_at: params.prepaymentRefundDueAt ?? null,
   });
 }
 

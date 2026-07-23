@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(57);
 
 insert into auth.users (id) values
   ('17000000-0000-4000-8000-000000000001'),   -- owner staff
@@ -57,7 +57,8 @@ select set_config('request.jwt.claims',
 select throws_ok(
   format($f$ select public.create_staff_booking_visit(
     pg_temp.two_dog_payload('08:30'), %L::date,
-    '17000000-0000-4000-8000-000000000010', gen_random_uuid()) $f$, pg_temp.open_day(30)),
+    '17000000-0000-4000-8000-000000000010', gen_random_uuid(), 'phone') $f$,
+    pg_temp.open_day(30)),
   '42501', null, 'a customer cannot use the staff create command');
 select set_config('request.jwt.claims',
   '{"sub":"17000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -67,7 +68,7 @@ select is(public.booking_policy_runtime(), 'inactive', 'the runtime is inactive'
 select is(
   (public.create_staff_booking_visit(
      pg_temp.two_dog_payload('08:30'), pg_temp.open_day(30),
-     '17000000-0000-4000-8000-000000000010', gen_random_uuid()) ->> 'outcome'),
+     '17000000-0000-4000-8000-000000000010', gen_random_uuid(), 'phone') ->> 'outcome'),
   'policy_not_active',
   'the v1 staff create is inert while the policy is inactive');
 
@@ -78,7 +79,7 @@ returns jsonb language sql as $$
   select smarter_dog_private.create_staff_visit_dispatch(
     pg_temp.two_dog_payload(p_slot), pg_temp.open_day(p_offset),
     '17000000-0000-4000-8000-000000000010', gen_random_uuid(), 'staff',
-    statement_timestamp(), 'active');
+    statement_timestamp(), 'active', 'phone');
 $$;
 
 select is((pg_temp.mk(30,'08:30')) ->> 'outcome', 'created',
@@ -259,11 +260,11 @@ select is(
    select (smarter_dog_private.create_staff_visit_dispatch(
              pg_temp.two_dog_payload('10:00'), pg_temp.open_day(65),
              '17000000-0000-4000-8000-000000000010', k.u, 'staff',
-             statement_timestamp(), 'active') ->> 'visit_id')
+             statement_timestamp(), 'active', 'phone') ->> 'visit_id')
         = (smarter_dog_private.create_staff_visit_dispatch(
              pg_temp.two_dog_payload('10:00'), pg_temp.open_day(65),
              '17000000-0000-4000-8000-000000000010', k.u, 'staff',
-             statement_timestamp(), 'active') ->> 'visit_id')
+             statement_timestamp(), 'active', 'phone') ->> 'visit_id')
    from k),
   true, 'a retried key replays the same visit rather than creating a second');
 
@@ -276,6 +277,43 @@ select is(
     where booking_date = pg_temp.open_day(72)),
   'staff_notice',
   'a staff-created visit records NOTICE, never a portal acceptance');
+
+-- The notice is DECLARED, never assumed. Omitting it creates nothing.
+select is(
+  (smarter_dog_private.create_staff_visit_dispatch(
+     pg_temp.two_dog_payload('08:30'), pg_temp.open_day(100),
+     '17000000-0000-4000-8000-000000000010', gen_random_uuid(), 'staff',
+     statement_timestamp(), 'active', null)) ->> 'block_reason',
+  'terms_notice_required',
+  'no notice declaration is refused with a typed error');
+
+select is(
+  (select count(*)::int from public.booking_visits
+    where booking_date = pg_temp.open_day(100)),
+  0, 'no visit is created when notice was not declared');
+
+select is(
+  (smarter_dog_private.create_staff_visit_dispatch(
+     pg_temp.two_dog_payload('08:30'), pg_temp.open_day(100),
+     '17000000-0000-4000-8000-000000000010', gen_random_uuid(), 'staff',
+     statement_timestamp(), 'active', 'carrier_pigeon')) ->> 'block_reason',
+  'terms_notice_required',
+  'an unrecognised notice method is refused, never coerced');
+
+select is(
+  (select terms_notice_method from public.booking_visits
+    where booking_date = pg_temp.open_day(72)),
+  'phone', 'the declared notice method is preserved, not hard-coded to in person');
+
+select ok(
+  (select terms_notice_at is not null and terms_notice_by is not null
+     from public.booking_visits where booking_date = pg_temp.open_day(72)),
+  'the notice records when it was given and by whom');
+
+select throws_ok(
+  format($f$ update public.booking_visits set terms_notice_method = 'email'
+              where booking_date = %L $f$, pg_temp.open_day(72)),
+  'P0001', null, 'the recorded notice is write-once');
 
 select ok(
   (select terms_publication_id is not null from public.booking_visits
@@ -393,11 +431,6 @@ select is(
     -> 'detail' -> 'financial' -> 'servicePrepayment' ->> 'kind',
   'transferred', 'a valid transfer records the carry-forward');
 
-select is(
-  (select count(*)::int from public.booking_financial_ledger
-    where event_kind = 'service_prepayment_transferred'),
-  1, 'the transfer writes exactly one ledger event naming the destination');
-
 -- Nothing prepaid may sit on a cancelled visit without a visible state.
 select is(
   (select count(*)::int
@@ -424,6 +457,67 @@ select is(
              statement_timestamp(), 'active', null, null) ->> 'outcome_key')
    from k, vis),
   true, 'a repeated staff cancellation replays rather than acting twice');
+
+-- ── prepaid refund date bounds and two-leg transfer ────────────────
+
+select is(
+  (pg_temp.cancel_prepaid(pg_temp.prepaid_visit(107), 'refund_due', null,
+     now() - interval '1 day')) ->> 'block_reason',
+  'prepayment_refund_date_in_past',
+  'a promised refund date in the past is refused');
+
+select is(
+  (select lifecycle_state from public.booking_visits
+    where booking_date = pg_temp.open_day(107)),
+  'active', 'the past-dated refund attempt changed nothing');
+
+-- The transfer writes two equal, linked, immutable legs.
+select pg_temp.mk(114,'08:30');
+select is(
+  (pg_temp.cancel_prepaid(
+     (select id from public.booking_visits
+       where booking_date = pg_temp.open_day(107) and lifecycle_state = 'active'),
+     'transfer',
+     (select id from public.booking_visits
+       where booking_date = pg_temp.open_day(114) and lifecycle_state = 'active'),
+     null))
+    -> 'detail' -> 'financial' -> 'servicePrepayment' ->> 'kind',
+  'transferred', 'a valid transfer commits');
+
+-- Scoped to THIS transfer: the suite performs more than one.
+select is(
+  (select count(*)::int from public.booking_financial_ledger l
+     join public.booking_visits src on src.id = l.visit_id
+     join public.booking_visits dst on dst.id = l.related_visit_id
+    where l.event_kind = 'service_prepayment_transferred'
+      and pg_temp.open_day(107) in (src.booking_date, dst.booking_date)
+      and pg_temp.open_day(114) in (src.booking_date, dst.booking_date)),
+  2, 'a transfer is two linked legs, not a single row');
+
+select is(
+  (select count(distinct l.amount_pence)::int from public.booking_financial_ledger l
+     join public.booking_visits src on src.id = l.visit_id
+     join public.booking_visits dst on dst.id = l.related_visit_id
+    where l.event_kind = 'service_prepayment_transferred'
+      and pg_temp.open_day(107) in (src.booking_date, dst.booking_date)
+      and pg_temp.open_day(114) in (src.booking_date, dst.booking_date)),
+  1, 'the out and in legs carry equal amounts');
+
+select ok(
+  (select bool_and(l.related_visit_id is not null)
+     from public.booking_financial_ledger l
+    where l.event_kind = 'service_prepayment_transferred'),
+  'each leg names its counterpart visit');
+
+-- Retrying the same transfer cannot move the money twice: the ledger's
+-- unique idempotency key rejects the second attempt and rolls it back.
+select throws_ok(
+  $$ insert into public.booking_financial_ledger
+       (human_id, visit_id, event_kind, amount_pence, reason, idempotency_key)
+     select human_id, visit_id, event_kind, amount_pence, reason, idempotency_key
+       from public.booking_financial_ledger
+      where event_kind = 'service_prepayment_transferred' limit 1 $$,
+  '23505', null, 'the same transfer leg cannot be written twice');
 
 select * from finish();
 rollback;

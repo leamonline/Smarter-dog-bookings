@@ -30,7 +30,27 @@ function productionSources(): Array<{ path: string; text: string }> {
     .map((p) => ({ path: p, text: readFileSync(join(root, p), "utf8") }));
 }
 
-// Commands that return policy_not_active while the policy is inactive.
+// WHAT THIS GUARD IS FOR, AND WHEN IT CHANGES
+//
+// It targets exactly one hazard: wiring a screen or hook to a v1 *mutation*
+// that refuses with policy_not_active while the policy is inactive. It is not
+// a general prohibition on touching booking-policy code.
+//
+// Explicitly NOT blocked, and deliberately absent from the list below:
+//   * read-only projections (Task 2): list_customer_booking_visits,
+//     list_staff_booking_policy_attention, list_staff_booking_visit and their
+//     repository/hook wrappers. Reading is safe in every runtime state.
+//   * Settings status reads: booking_policy_runtime_status,
+//     current_booking_rules, booking_refund_calendar_status.
+//   * the legacy staff and customer write paths, which stay authoritative.
+//
+// HOW IT CHANGES: at the activation task, the UI is deliberately wired to
+// these commands. At that point remove the specific command from
+// V1_ONLY_COMMANDS **in the same commit that adds its caller**, so the change
+// is visible in review as "this command is now live" rather than as a deleted
+// test. Deleting this file, or emptying the list wholesale, is never the
+// right change — a reviewer should always be able to see which v1 mutations
+// are considered live and which are still dark.
 const V1_ONLY_COMMANDS = [
   "createStaffBookingVisit",
   "cancelStaffBookingVisit",
@@ -58,6 +78,23 @@ describe("the inactive policy does not reach production consumers", () => {
     // with policy_not_active. Either the policy is being activated (in which
     // case update this list deliberately) or the wiring is premature.
     expect(offenders).toEqual([]);
+  });
+
+  it("does not block read-only projections or status reads", () => {
+    // These names must never be added to the guard list: they are safe in
+    // every runtime state and Task 2 depends on being able to call them.
+    const readOnly = [
+      "list_customer_booking_visits",
+      "list_staff_booking_policy_attention",
+      "list_staff_booking_visit",
+      "booking_policy_runtime_status",
+      "current_booking_rules",
+      "booking_refund_calendar_status",
+      "get_customer_booking_visit_capabilities",
+    ];
+    for (const name of readOnly) {
+      expect(V1_ONLY_COMMANDS).not.toContain(name);
+    }
   });
 
   it("leaves the staff booking UI on the legacy path", () => {
