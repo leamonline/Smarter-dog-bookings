@@ -74,8 +74,12 @@ select is(
 select ok(
   public.refund_calendar_coverage_for(timestamptz '2026-09-01 09:00:00 Europe/London') is not null,
   'the activation horizon is inside recorded calendar coverage');
+-- Derive the uncovered date from the CURRENT maximum coverage so extending
+-- the seeded calendar cannot silently invalidate this assertion.
 select ok(
-  public.refund_calendar_coverage_for(timestamptz '2029-09-01 09:00:00 Europe/London') is null,
+  public.refund_calendar_coverage_for(
+    ((select max(covers_to) + 30 from public.booking_refund_calendar_coverage)::text
+      || ' 09:00')::timestamp at time zone 'Europe/London') is null,
   'an uncovered date returns no coverage rather than a silent weekday guess');
 select throws_ok(
   $$ insert into public.booking_financial_ledger

@@ -948,3 +948,98 @@ export function getStaffCustomerCreditBalance(
 export function getBookingVisitBackfillReview(client: SupabaseClient) {
   return client.rpc("get_booking_visit_backfill_review");
 }
+
+// ── Staff visit write commands (Path B) ───────────────────────────────
+//
+// The v1 staff write path. Whole-visit, idempotent and audited. Staff moves
+// consume no customer reschedule allowance and create no incident unless one
+// is deliberately recorded. While the policy is inactive these return
+// `policy_not_active` and staff continue using createStaffBookingGroup.
+
+export function createStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    bookings: unknown[];
+    bookingDate: string;
+    humanId: string;
+    idempotencyKey: string;
+    source?: string;
+  },
+) {
+  return client.rpc("create_staff_booking_visit", {
+    p_bookings: params.bookings,
+    p_booking_date: params.bookingDate,
+    p_human_id: params.humanId,
+    p_idempotency_key: params.idempotencyKey,
+    p_source: params.source ?? "staff",
+  });
+}
+
+// `expectedRevision` is the visit revision the staff member had on screen. A
+// mismatch returns `stale_review` so a concurrent edit is never overwritten.
+export function cancelStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    idempotencyKey: string;
+    reason?: string | null;
+    paidDepositOutcome?: "refund" | "credit";
+    // Required when the visit carries non-deposit prepayment: the money is
+    // never silently stranded.
+    prepaymentHandling?: "reconciliation_required" | "refund_due" | "transfer" | null;
+    recordIncident?: boolean;
+    incidentKind?: string | null;
+  },
+) {
+  return client.rpc("cancel_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+    p_paid_deposit_outcome: params.paidDepositOutcome ?? "refund",
+    p_prepayment_handling: params.prepaymentHandling ?? null,
+    p_record_incident: params.recordIncident ?? false,
+    p_incident_kind: params.incidentKind ?? null,
+  });
+}
+
+export function rescheduleStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    bookingDate: string;
+    slotAssignments: Array<{ dog_id: string; slot: string }>;
+    idempotencyKey: string;
+    reason?: string | null;
+  },
+) {
+  return client.rpc("reschedule_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_booking_date: params.bookingDate,
+    p_slot_assignments: params.slotAssignments,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function updateStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    changes: Array<{ bookingId: string; service?: string; addons?: string[] }>;
+    idempotencyKey: string;
+    reason: string;
+  },
+) {
+  return client.rpc("update_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_changes: params.changes,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason,
+  });
+}
