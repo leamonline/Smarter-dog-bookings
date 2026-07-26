@@ -46,9 +46,10 @@ export interface FlowState {
   drop_off?: string;
   // ── Reschedule mode (pre-seeded by the agent) ──
   // When flow_mode==='reschedule' the Flow opens on SELECT_DATE with the dogs
-  // + services above already pinned; on CONFIRM the endpoint creates the new
-  // booking group, then cancels the old visit. The *_snapshot fields freeze
-  // the old visit so CONFIRM can detect it changing underneath the customer.
+  // + services above already pinned; on CONFIRM one atomic database command
+  // cancels the old visit and creates the replacement. The *_snapshot fields
+  // freeze the old visit so CONFIRM can detect it changing underneath the
+  // customer.
   flow_mode?: "reschedule";
   reschedule_group_id?: string | null;
   reschedule_booking_id?: string;
@@ -58,6 +59,13 @@ export interface FlowState {
   old_start_at?: string;
   service_snapshot?: Record<string, string>;
   dog_snapshot?: string[];
+  old_booking_snapshot?: Array<{
+    booking_id: string;
+    dog_id: string;
+    booking_date: string;
+    slot: string;
+    service: string | null;
+  }>;
 }
 
 export interface FlowSessionRow {
@@ -257,6 +265,7 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         p_expected_old_date: old.expectedOldDate ?? null,
         p_expected_old_slot: old.expectedOldSlot ?? null,
         p_expected_services: old.expectedServices ?? null,
+        p_expected_old_snapshot: old.expectedOldSnapshot ?? null,
       });
       if (error) {
         return { errorCode: error.code, errorMessage: error.message };
@@ -304,7 +313,8 @@ export async function saveSession(
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update(update)
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("saveSession failed:", error.message);
 }
 
@@ -316,7 +326,8 @@ export async function completeSession(
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update({ status: "completed", booking_id: bookingId, updated_at: new Date().toISOString() })
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("completeSession failed:", error.message);
 }
 
@@ -324,8 +335,32 @@ export async function failSession(supabase: SupabaseClient, flowToken: string): 
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update({ status: "failed", updated_at: new Date().toISOString() })
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("failSession failed:", error.message);
+}
+
+/** Replay the durable multi-row result of an already committed reschedule.
+ * The SECURITY DEFINER RPC binds token to human and takes the same advisory
+ * token lock as the writer before returning this private receipt. */
+export async function loadCommittedRescheduleReceipt(
+  supabase: SupabaseClient,
+  flowToken: string,
+  humanId: string,
+): Promise<string[] | null> {
+  const { data, error } = await supabase.rpc("replay_whatsapp_reschedule_receipt", {
+    p_flow_token: flowToken,
+    p_human_id: humanId,
+  });
+  if (error) {
+    console.error("replay_whatsapp_reschedule_receipt failed:", error.message);
+    return null;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { new_booking_ids?: string[] }
+    | null;
+  const ids = row?.new_booking_ids ?? [];
+  return ids.length ? ids : null;
 }
 
 // ── Reschedule helpers (re-validate + cancel the old visit) ────
@@ -346,7 +381,7 @@ export interface OldBookingRow {
 export async function getActiveOwnedBookings(
   supabase: SupabaseClient,
   humanId: string,
-  sel: { groupId?: string | null; bookingId?: string },
+  sel: { groupId?: string | null; bookingId?: string; bookingDate?: string | null },
 ): Promise<OldBookingRow[]> {
   let q = supabase
     .from("bookings")
@@ -356,6 +391,7 @@ export async function getActiveOwnedBookings(
   if (sel.groupId) q = q.eq("group_id", sel.groupId);
   else if (sel.bookingId) q = q.eq("id", sel.bookingId);
   else return [];
+  if (sel.bookingDate) q = q.eq("booking_date", sel.bookingDate);
   const { data, error } = await q;
   if (error) {
     console.error("getActiveOwnedBookings failed:", error.message);

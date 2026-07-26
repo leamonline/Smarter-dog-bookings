@@ -596,6 +596,23 @@ describe("confirmGroupBooking — atomic reschedule", () => {
     groupId: "old-group-1",
     bookingId: null,
     expectedOldIds: ["old-a", "old-b"],
+    flowToken: "flow-reschedule-1",
+    expectedOldSnapshot: [
+      {
+        booking_id: "old-a",
+        dog_id: "s1",
+        booking_date: "2026-06-01",
+        slot: "09:00",
+        service: "full-groom",
+      },
+      {
+        booking_id: "old-b",
+        dog_id: "s2",
+        booking_date: "2026-06-01",
+        slot: "09:30",
+        service: "bath-and-brush",
+      },
+    ],
   };
 
   it("routes a reschedule through the atomic RPC and never the plain insert", async () => {
@@ -740,6 +757,18 @@ describe("confirmGroupBooking — atomic reschedule", () => {
       bookingsByDate: { "2026-06-02": [] },
       groupReschedule: () => ({ ids: ["new-a", "new-b"], cancelledIds: ["old-a", "some-other-old-row"] }),
     });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("fails safely when the atomic reschedule adapter is unavailable", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+    });
+    db.rescheduleBookingGroup = undefined;
 
     const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
 

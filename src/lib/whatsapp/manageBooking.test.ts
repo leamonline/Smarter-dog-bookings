@@ -122,6 +122,22 @@ describe("buildRescheduleInitialState", () => {
     expect(state.services).toEqual({ d1: "bath-and-deshed", d2: "full-groom" });
     expect(state.service_snapshot).toEqual({ d1: "bath-and-deshed", d2: "full-groom" });
     expect(state.dog_snapshot).toEqual(["d1", "d2"]);
+    expect(state.old_booking_snapshot).toEqual([
+      {
+        booking_id: "b1",
+        dog_id: "d1",
+        booking_date: "2026-06-24",
+        slot: "08:30",
+        service: "bath-and-deshed",
+      },
+      {
+        booking_id: "b2",
+        dog_id: "d2",
+        booking_date: "2026-06-24",
+        slot: "08:30",
+        service: "full-groom",
+      },
+    ]);
     expect(state.dog_meta.d1).toEqual({ name: "Alfie", size: "small" });
   });
 });

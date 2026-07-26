@@ -167,6 +167,13 @@ export interface RescheduleSelector {
   expectedOldDate?: string | null;
   expectedOldSlot?: string | null;
   expectedServices?: Record<string, string> | null;
+  expectedOldSnapshot?: Array<{
+    booking_id: string;
+    dog_id: string;
+    booking_date: string;
+    slot: string;
+    service: string | null;
+  }> | null;
 }
 
 // ── Flow option shape (RadioButtons/Checkbox data-source) ───────
@@ -509,6 +516,29 @@ export async function confirmGroupBooking(
     return { ok: false, kind: "error", message: "Pick between 1 and 4 dogs." };
   }
 
+  if (input.replaces) {
+    const token = input.replaces.flowToken?.trim() ?? "";
+    const expectedIds = input.replaces.expectedOldIds ?? [];
+    const snapshot = input.replaces.expectedOldSnapshot ?? [];
+    const snapshotIds = snapshot.map((row) => row.booking_id);
+    const uniqueExpectedIds = new Set(expectedIds);
+    const uniqueSnapshotIds = new Set(snapshotIds);
+    const hasSelector = Boolean(input.replaces.groupId || input.replaces.bookingId);
+    const exactSnapshotIds =
+      expectedIds.length > 0 &&
+      uniqueExpectedIds.size === expectedIds.length &&
+      snapshot.length === expectedIds.length &&
+      uniqueSnapshotIds.size === snapshot.length &&
+      [...uniqueExpectedIds].every((id) => uniqueSnapshotIds.has(id));
+    if (!token || !hasSelector || !exactSnapshotIds) {
+      return {
+        ok: false,
+        kind: "old_visit_unavailable",
+        message: "That booking snapshot is incomplete. Please start again.",
+      };
+    }
+  }
+
   // Re-resolve every dog under the service role (RLS-bypassing): pins the
   // authoritative size and re-checks ownership. Never trust the session's
   // claimed size.
@@ -551,10 +581,46 @@ export async function confirmGroupBooking(
   // A reschedule writes through the atomic RPC so a failure can never leave
   // the customer with both the old and the new appointment. Everything above
   // this line — ownership, authoritative size, allocation — is shared.
-  const res = input.replaces
-    ? await db.rescheduleBookingGroup!(items, input.dateStr, input.humanId, input.replaces)
-    : await db.insertBookingGroup(items, input.dateStr, input.humanId);
-  if (res.ids?.length) {
+  let res: GroupInsertResult;
+  if (input.replaces) {
+    const rescheduleBookingGroup = db.rescheduleBookingGroup;
+    if (!rescheduleBookingGroup) {
+      return {
+        ok: false,
+        kind: "error",
+        message: "Rescheduling is temporarily unavailable.",
+      };
+    }
+    res = await rescheduleBookingGroup(
+      items,
+      input.dateStr,
+      input.humanId,
+      input.replaces,
+    );
+  } else {
+    res = await db.insertBookingGroup(items, input.dateStr, input.humanId);
+  }
+  if (input.replaces) {
+    const newIds = res.ids ?? [];
+    const cancelledIds = res.cancelledIds ?? [];
+    const expectedCancelled = new Set(input.replaces.expectedOldIds ?? []);
+    const uniqueNew = new Set(newIds);
+    const uniqueCancelled = new Set(cancelledIds);
+    const exactNewCardinality =
+      newIds.length === items.length && uniqueNew.size === items.length;
+    const exactCancelledSet =
+      cancelledIds.length === expectedCancelled.size &&
+      uniqueCancelled.size === expectedCancelled.size &&
+      [...expectedCancelled].every((id) => uniqueCancelled.has(id));
+    if (exactNewCardinality && exactCancelledSet) {
+      return {
+        ok: true,
+        bookingIds: newIds,
+        cancelledBookingIds: cancelledIds,
+        replayed: res.replayed ?? false,
+      };
+    }
+  } else if (res.ids?.length) {
     return {
       ok: true,
       bookingIds: res.ids,

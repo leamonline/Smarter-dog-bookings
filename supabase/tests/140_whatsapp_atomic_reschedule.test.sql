@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(77);
 
 select vault.create_secret('http://localhost:54321', 'supabase_url');
 select vault.create_secret('pgtap-test-secret', 'webhook_secret');
@@ -67,18 +67,104 @@ values
    '14000000-0000-4000-8000-0000000000c2', 'small', 'bath-and-brush', 'Booked',
    '14000000-0000-4000-8000-0000000000e1', 'whatsapp_flow');
 
--- ── 1-2: the function exists and is locked to the service role ─────
+-- Fixture helper for tests whose target is not snapshot drift. The dedicated
+-- drift cases below keep hand-written pre-edit snapshots.
+create or replace function pg_temp.reviewed_snapshot(p_ids uuid[])
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'booking_id', b.id,
+        'dog_id', b.dog_id,
+        'booking_date', b.booking_date,
+        'slot', b.slot,
+        'service', b.service
+      )
+      order by b.id
+    ),
+    '[]'::jsonb
+  )
+  from public.bookings b
+  where b.id = any(p_ids);
+$$;
+
+-- ── 1-8: the functions exist and are locked to the service role ─────
 
 select has_function('public', 'reschedule_whatsapp_booking_group',
   'the atomic reschedule RPC exists');
 
-select is(
-  (select count(*)::int from information_schema.role_routine_grants
-    where routine_name = 'reschedule_whatsapp_booking_group'
-      and grantee in ('anon','authenticated','public')),
-  0, 'no application role may execute the reschedule RPC');
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.reschedule_whatsapp_booking_group(jsonb,date,uuid,uuid,uuid,uuid[],text,text,date,text,jsonb,jsonb)'::regprocedure,
+    'EXECUTE'),
+  'anon cannot execute the exact reschedule RPC');
 
--- ── 3-8: the happy path moves the whole visit atomically ───────────
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.reschedule_whatsapp_booking_group(jsonb,date,uuid,uuid,uuid,uuid[],text,text,date,text,jsonb,jsonb)'::regprocedure,
+    'EXECUTE'),
+  'authenticated cannot execute the exact reschedule RPC');
+
+select is(
+  (select count(*)::int
+     from pg_proc p
+     cross join lateral aclexplode(
+       coalesce(p.proacl, acldefault('f', p.proowner))
+     ) acl
+    where p.oid =
+      'public.reschedule_whatsapp_booking_group(jsonb,date,uuid,uuid,uuid,uuid[],text,text,date,text,jsonb,jsonb)'::regprocedure
+      and acl.grantee = 0
+      and acl.privilege_type = 'EXECUTE'),
+  0,
+  'PUBLIC has no effective EXECUTE ACL on the exact reschedule RPC');
+
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.reschedule_whatsapp_booking_group(jsonb,date,uuid,uuid,uuid,uuid[],text,text,date,text,jsonb,jsonb)'::regprocedure,
+    'EXECUTE'),
+  'service_role can execute the exact reschedule RPC');
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.replay_whatsapp_reschedule_receipt(text,uuid)'::regprocedure,
+    'EXECUTE'),
+  'anon cannot execute the exact receipt replay RPC');
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.replay_whatsapp_reschedule_receipt(text,uuid)'::regprocedure,
+    'EXECUTE'),
+  'authenticated cannot execute the exact receipt replay RPC');
+
+select is(
+  (select count(*)::int
+     from pg_proc p
+     cross join lateral aclexplode(
+       coalesce(p.proacl, acldefault('f', p.proowner))
+     ) acl
+    where p.oid =
+      'public.replay_whatsapp_reschedule_receipt(text,uuid)'::regprocedure
+      and acl.grantee = 0
+      and acl.privilege_type = 'EXECUTE'),
+  0,
+  'PUBLIC has no effective EXECUTE ACL on the exact receipt replay RPC');
+
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.replay_whatsapp_reschedule_receipt(text,uuid)'::regprocedure,
+    'EXECUTE'),
+  'service_role can execute the exact receipt replay RPC');
+
+-- ── 9-14: the happy path moves the whole visit atomically ──────────
 
 select lives_ok(
   format($f$
@@ -92,7 +178,11 @@ select lives_ok(
       '14000000-0000-4000-8000-0000000000e1', null,
       array['14000000-0000-4000-8000-0000000000d1',
             '14000000-0000-4000-8000-0000000000d2']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-happy-path')
+      'Rescheduled via WhatsApp', 'tok-happy-path',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d1',
+        '14000000-0000-4000-8000-0000000000d2']::uuid[]))
   $f$, pg_temp.open_day(37)),
   'a well-formed reschedule commits');
 
@@ -129,7 +219,7 @@ select is(
      and b.status = 'Booked'),
   1, 'the replacement rows share one new group');
 
--- ── 9-12: THE REGRESSION — a failed create must cancel nothing ─────
+-- ── 15-18: THE REGRESSION — a failed create must cancel nothing ────
 --
 -- The old implementation created first and cancelled second, so a failure
 -- left both visits live. Here the create is made to fail (a dog belonging to
@@ -149,11 +239,15 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c3',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e2', null, null,
-      'Rescheduled via WhatsApp', 'tok-expected-failure')
+      '14000000-0000-4000-8000-0000000000e2', null,
+      array['14000000-0000-4000-8000-0000000000d3']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-expected-failure',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
   $f$, pg_temp.open_day(51)),
-  '42704', null,
-  'a replacement naming another customer''s dog is rejected');
+  'P0002', 'reschedule_replacement_dog_mismatch',
+  'a replacement naming a different dog set is rejected before cancellation');
 
 select is(
   (select status from public.bookings
@@ -174,8 +268,12 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','99:99','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e2', null, null,
-      'Rescheduled via WhatsApp', 'tok-expected-failure')
+      '14000000-0000-4000-8000-0000000000e2', null,
+      array['14000000-0000-4000-8000-0000000000d3']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-expected-failure',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
   $f$, pg_temp.open_day(51)),
   null, 'an invalid destination slot is rejected');
 
@@ -196,7 +294,19 @@ select throws_ok(
       '14000000-0000-4000-8000-0000000000e2', null,
       array['14000000-0000-4000-8000-0000000000d3',
             '14000000-0000-4000-8000-000000000fff']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-expected-failure')
+      'Rescheduled via WhatsApp', 'tok-expected-failure',
+      null, null, null,
+      jsonb_build_array(
+        jsonb_build_object(
+          'booking_id','14000000-0000-4000-8000-0000000000d3',
+          'dog_id','14000000-0000-4000-8000-0000000000c1',
+          'booking_date',pg_temp.open_day(44),
+          'slot','09:00','service','full-groom'),
+        jsonb_build_object(
+          'booking_id','14000000-0000-4000-8000-000000000fff',
+          'dog_id','14000000-0000-4000-8000-0000000000c2',
+          'booking_date',pg_temp.open_day(44),
+          'slot','09:00','service','bath-and-brush')))
   $f$, pg_temp.open_day(51)),
   'P0002', 'reschedule_old_visit_changed',
   'a visit that no longer matches the reviewed snapshot is refused');
@@ -213,8 +323,15 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-000000000eee', null, null,
-      'Rescheduled via WhatsApp', 'tok-expected-failure')
+      '14000000-0000-4000-8000-000000000eee', null,
+      array['14000000-0000-4000-8000-000000000eee']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-expected-failure',
+      null, null, null,
+      jsonb_build_array(jsonb_build_object(
+        'booking_id','14000000-0000-4000-8000-000000000eee',
+        'dog_id','14000000-0000-4000-8000-0000000000c1',
+        'booking_date',pg_temp.open_day(44),
+        'slot','09:00','service','full-groom')))
   $f$, pg_temp.open_day(51)),
   'P0002', 'reschedule_old_visit_unavailable',
   'an unknown old visit is refused rather than silently creating a booking');
@@ -229,8 +346,12 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c3',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b2',
-      '14000000-0000-4000-8000-0000000000e2', null, null,
-      'Rescheduled via WhatsApp', 'tok-stranger-attempt')
+      '14000000-0000-4000-8000-0000000000e2', null,
+      array['14000000-0000-4000-8000-0000000000d3']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-stranger-attempt',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
   $f$, pg_temp.open_day(51)),
   'P0002', 'reschedule_old_visit_unavailable',
   'a different customer cannot move someone else''s visit');
@@ -243,16 +364,85 @@ select is(
 select throws_ok(
   $$ select public.reschedule_whatsapp_booking_group(
        '[]'::jsonb, current_date + 30, '14000000-0000-4000-8000-0000000000b1',
-       null, null, null, 'Rescheduled via WhatsApp', 'tok-expected-failure') $$,
+       null, null,
+       array['14000000-0000-4000-8000-0000000000d3']::uuid[],
+       'Rescheduled via WhatsApp', 'tok-expected-failure',
+       null, null, null,
+       pg_temp.reviewed_snapshot(array[
+         '14000000-0000-4000-8000-0000000000d3']::uuid[])) $$,
   '22023', null, 'the old visit must be identified');
 
--- ── 20-23: RPC security ────────────────────────────────────────────
+-- Missing exact-review facts are invalid even though the trailing defaults
+-- remain in the function signature for API compatibility.
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      p_bookings => jsonb_build_array(jsonb_build_object(
+        'dog_id','14000000-0000-4000-8000-0000000000c3',
+        'slot','10:00','service','full-groom')),
+      p_booking_date => %L::date,
+      p_human_id => '14000000-0000-4000-8000-0000000000b1',
+      p_old_group_id => '14000000-0000-4000-8000-0000000000e2',
+      p_expected_old_ids => null,
+      p_flow_token => 'tok-expected-failure',
+      p_expected_old_snapshot => pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
+  $f$, pg_temp.open_day(51)),
+  '22023', 'expected_old_ids is required',
+  'EXACT REVIEW: null expected booking ids are rejected at the boundary');
 
-select is(
-  (select count(*)::int from information_schema.role_routine_grants
-    where routine_name = 'reschedule_whatsapp_booking_group'
-      and grantee = 'service_role'),
-  1, 'the intended server role can execute it');
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      p_bookings => jsonb_build_array(jsonb_build_object(
+        'dog_id','14000000-0000-4000-8000-0000000000c3',
+        'slot','10:00','service','full-groom')),
+      p_booking_date => %L::date,
+      p_human_id => '14000000-0000-4000-8000-0000000000b1',
+      p_old_group_id => '14000000-0000-4000-8000-0000000000e2',
+      p_expected_old_ids => '{}'::uuid[],
+      p_flow_token => 'tok-expected-failure',
+      p_expected_old_snapshot => pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
+  $f$, pg_temp.open_day(51)),
+  '22023', 'expected_old_ids must not be empty',
+  'EXACT REVIEW: empty expected booking ids are rejected at the boundary');
+
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      p_bookings => jsonb_build_array(jsonb_build_object(
+        'dog_id','14000000-0000-4000-8000-0000000000c3',
+        'slot','10:00','service','full-groom')),
+      p_booking_date => %L::date,
+      p_human_id => '14000000-0000-4000-8000-0000000000b1',
+      p_old_group_id => '14000000-0000-4000-8000-0000000000e2',
+      p_expected_old_ids => array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[],
+      p_flow_token => 'tok-expected-failure',
+      p_expected_old_snapshot => null)
+  $f$, pg_temp.open_day(51)),
+  '22023', 'expected_old_snapshot is required',
+  'EXACT REVIEW: null expected row snapshot is rejected at the boundary');
+
+select throws_ok(
+  format($f$
+    select public.reschedule_whatsapp_booking_group(
+      p_bookings => jsonb_build_array(jsonb_build_object(
+        'dog_id','14000000-0000-4000-8000-0000000000c3',
+        'slot','10:00','service','full-groom')),
+      p_booking_date => %L::date,
+      p_human_id => '14000000-0000-4000-8000-0000000000b1',
+      p_old_group_id => '14000000-0000-4000-8000-0000000000e2',
+      p_expected_old_ids => array[
+        '14000000-0000-4000-8000-0000000000d3']::uuid[],
+      p_flow_token => 'tok-expected-failure',
+      p_expected_old_snapshot => '[]'::jsonb)
+  $f$, pg_temp.open_day(51)),
+  '22023', 'expected_old_snapshot must not be empty',
+  'EXACT REVIEW: empty expected row snapshot is rejected at the boundary');
+
+-- ── RPC security ───────────────────────────────────────────────────
 
 select ok(
   (select p.proconfig @> array['search_path=public, pg_temp']
@@ -273,8 +463,12 @@ set local role authenticated;
 select throws_ok(
   $$ select public.reschedule_whatsapp_booking_group(
        '[]'::jsonb, current_date + 30, '14000000-0000-4000-8000-0000000000b1',
-       '14000000-0000-4000-8000-0000000000e2', null, null,
-       'Rescheduled via WhatsApp', 'tok-expected-failure') $$,
+       '14000000-0000-4000-8000-0000000000e2', null,
+       array['14000000-0000-4000-8000-0000000000d3']::uuid[],
+       'Rescheduled via WhatsApp', 'tok-expected-failure',
+       null, null, null,
+       pg_temp.reviewed_snapshot(array[
+         '14000000-0000-4000-8000-0000000000d3']::uuid[])) $$,
   '42501', null, 'an authenticated customer cannot execute the RPC');
 reset role;
 
@@ -298,8 +492,12 @@ begin
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','10:00','service','full-groom')),
       pg_temp.open_day(p_offset), '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e3', null, null,
-      'Rescheduled via WhatsApp', p_token) r;
+      '14000000-0000-4000-8000-0000000000e3', null,
+      array['14000000-0000-4000-8000-0000000000d4']::uuid[],
+      'Rescheduled via WhatsApp', p_token,
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d4']::uuid[])) r;
 end;
 $$;
 
@@ -343,8 +541,12 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','11:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e3', null, null,
-      'Rescheduled via WhatsApp', 'tok-dup-1')
+      '14000000-0000-4000-8000-0000000000e3', null,
+      array['14000000-0000-4000-8000-0000000000d4']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-dup-1',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d4']::uuid[]))
   $f$, pg_temp.open_day(72)),
   'P0002', 'reschedule_idempotency_conflict',
   'a retry with different details is refused, not silently answered');
@@ -372,7 +574,10 @@ select throws_ok(
       %L::date, '14000000-0000-4000-8000-0000000000b1',
       null, '14000000-0000-4000-8000-0000000000d5',
       array['14000000-0000-4000-8000-0000000000d5']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-source-drift')
+      'Rescheduled via WhatsApp', 'tok-source-drift',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d5']::uuid[]))
   $f$, pg_temp.open_day(86)),
   'P0002', 'reschedule_old_visit_changed',
   'PARTIAL GROUP: naming one dog of a two-dog group is refused');
@@ -395,7 +600,12 @@ select throws_ok(
       array['14000000-0000-4000-8000-0000000000d5',
             '14000000-0000-4000-8000-0000000000d6',
             '14000000-0000-4000-8000-0000000000d3']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-source-drift')
+      'Rescheduled via WhatsApp', 'tok-source-drift',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d5',
+        '14000000-0000-4000-8000-0000000000d6',
+        '14000000-0000-4000-8000-0000000000d3']::uuid[]))
   $f$, pg_temp.open_day(86)),
   'P0002', 'reschedule_old_visit_changed',
   'ids spanning different groups are refused');
@@ -413,7 +623,16 @@ select throws_ok(
       array['14000000-0000-4000-8000-0000000000d5',
             '14000000-0000-4000-8000-0000000000d6',
             '14000000-0000-4000-8000-000000000aaa']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-source-drift')
+      'Rescheduled via WhatsApp', 'tok-source-drift',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d5',
+        '14000000-0000-4000-8000-0000000000d6']::uuid[])
+      || jsonb_build_array(jsonb_build_object(
+        'booking_id','14000000-0000-4000-8000-000000000aaa',
+        'dog_id','14000000-0000-4000-8000-0000000000c3',
+        'booking_date',pg_temp.open_day(79),
+        'slot','09:00','service','full-groom')))
   $f$, pg_temp.open_day(86)),
   'P0002', 'reschedule_old_visit_changed',
   'a staff edit after the Flow opened is refused');
@@ -444,8 +663,13 @@ select throws_ok(
       '14000000-0000-4000-8000-0000000000e5', null,
       array['14000000-0000-4000-8000-0000000000d7']::uuid[],
       'Rescheduled via WhatsApp', 'tok-source-drift',
-      %L::date, '09:00', null)
-  $f$, pg_temp.open_day(100), pg_temp.open_day(93)),
+      %L::date, '09:00', null,
+      jsonb_build_array(jsonb_build_object(
+        'booking_id','14000000-0000-4000-8000-0000000000d7',
+        'dog_id','14000000-0000-4000-8000-0000000000c1',
+        'booking_date',%L::date,
+        'slot','09:00','service','full-groom')))
+  $f$, pg_temp.open_day(100), pg_temp.open_day(93), pg_temp.open_day(93)),
   'P0002', 'reschedule_old_visit_changed',
   'IN-PLACE EDIT: a staff move of the same booking id is refused');
 
@@ -466,8 +690,13 @@ select throws_ok(
       array['14000000-0000-4000-8000-0000000000d7']::uuid[],
       'Rescheduled via WhatsApp', 'tok-source-drift',
       %L::date, '11:00',
-      jsonb_build_object('14000000-0000-4000-8000-0000000000c1','bath-and-brush'))
-  $f$, pg_temp.open_day(100), pg_temp.open_day(93)),
+      jsonb_build_object('14000000-0000-4000-8000-0000000000c1','bath-and-brush'),
+      jsonb_build_array(jsonb_build_object(
+        'booking_id','14000000-0000-4000-8000-0000000000d7',
+        'dog_id','14000000-0000-4000-8000-0000000000c1',
+        'booking_date',%L::date,
+        'slot','11:00','service','bath-and-brush')))
+  $f$, pg_temp.open_day(100), pg_temp.open_day(93), pg_temp.open_day(93)),
   'P0002', 'reschedule_old_visit_changed',
   'IN-PLACE EDIT: a staff service change is refused');
 
@@ -490,8 +719,12 @@ select lives_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e6', null, null,
-      'Rescheduled via WhatsApp', 'tok-side-effects')
+      '14000000-0000-4000-8000-0000000000e6', null,
+      array['14000000-0000-4000-8000-0000000000d8']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-side-effects',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d8']::uuid[]))
   $f$, pg_temp.open_day(114)),
   'the side-effect fixture reschedule commits');
 
@@ -580,8 +813,12 @@ select lives_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e7', null, null,
-      'Rescheduled via WhatsApp', 'tok-retention')
+      '14000000-0000-4000-8000-0000000000e7', null,
+      array['14000000-0000-4000-8000-0000000000d9']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-retention',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d9']::uuid[]))
   $f$, pg_temp.open_day(128)),
   'step 1: the reschedule completes and writes a receipt');
 
@@ -607,8 +844,12 @@ select throws_ok(
         jsonb_build_object('dog_id','14000000-0000-4000-8000-0000000000c1',
                            'slot','10:00','service','full-groom')),
       %L::date, '14000000-0000-4000-8000-0000000000b1',
-      '14000000-0000-4000-8000-0000000000e7', null, null,
-      'Rescheduled via WhatsApp', 'tok-retention')
+      '14000000-0000-4000-8000-0000000000e7', null,
+      array['14000000-0000-4000-8000-0000000000d9']::uuid[],
+      'Rescheduled via WhatsApp', 'tok-retention',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-0000000000d9']::uuid[]))
   $f$, pg_temp.open_day(135)),
   'P0002', 'reschedule_already_completed',
   'RETENTION: completed status blocks replay even when booking_id was nulled');
@@ -664,7 +905,10 @@ select lives_ok(
       %L::date, '09:00',
       jsonb_build_object(
         '14000000-0000-4000-8000-0000000000c1','full-groom',
-        '14000000-0000-4000-8000-0000000000c2','bath-and-brush'))
+        '14000000-0000-4000-8000-0000000000c2','bath-and-brush'),
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-000000000101',
+        '14000000-0000-4000-8000-000000000102']::uuid[]))
   $f$, pg_temp.open_day(156), pg_temp.open_day(142)),
   'RECURRING GROUP: one occurrence can be rescheduled independently');
 
@@ -767,7 +1011,11 @@ select throws_ok(
       '14000000-0000-4000-8000-0000000000f3', null,
       array['14000000-0000-4000-8000-000000000121',
             '14000000-0000-4000-8000-000000000122']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-incomplete-destination')
+      'Rescheduled via WhatsApp', 'tok-incomplete-destination',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-000000000121',
+        '14000000-0000-4000-8000-000000000122']::uuid[]))
   $f$, pg_temp.open_day(184)),
   'P0002', 'reschedule_replacement_dog_mismatch',
   'COMPLETE REPLACEMENT: a two-dog source cannot become a one-dog destination');
@@ -805,7 +1053,10 @@ select throws_ok(
       %L::date, '14000000-0000-4000-8000-0000000000b1',
       '14000000-0000-4000-8000-0000000000f4', null,
       array['14000000-0000-4000-8000-000000000131']::uuid[],
-      'Rescheduled via WhatsApp', null)
+      'Rescheduled via WhatsApp', null,
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-000000000131']::uuid[]))
   $f$, pg_temp.open_day(198)),
   '22023', 'flow_token is required',
   'FLOW TOKEN: an absent token is rejected before source mutation');
@@ -819,7 +1070,10 @@ select throws_ok(
       %L::date, '14000000-0000-4000-8000-0000000000b1',
       '14000000-0000-4000-8000-0000000000f4', null,
       array['14000000-0000-4000-8000-000000000131']::uuid[],
-      'Rescheduled via WhatsApp', '   ')
+      'Rescheduled via WhatsApp', '   ',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-000000000131']::uuid[]))
   $f$, pg_temp.open_day(198)),
   '22023', 'flow_token is required',
   'FLOW TOKEN: a blank token is rejected before source mutation');
@@ -833,7 +1087,10 @@ select throws_ok(
       %L::date, '14000000-0000-4000-8000-0000000000b1',
       '14000000-0000-4000-8000-0000000000f5', null,
       array['14000000-0000-4000-8000-000000000132']::uuid[],
-      'Rescheduled via WhatsApp', 'tok-bound-to-stranger')
+      'Rescheduled via WhatsApp', 'tok-bound-to-stranger',
+      null, null, null,
+      pg_temp.reviewed_snapshot(array[
+        '14000000-0000-4000-8000-000000000132']::uuid[]))
   $f$, pg_temp.open_day(212)),
   'P0002', 'reschedule_flow_session_mismatch',
   'FLOW TOKEN: a token bound to another human is rejected');
@@ -943,6 +1200,32 @@ select is(
       and c.contype = 'f'
       and c.confrelid = 'public.humans'::regclass),
   0, 'DATA MINIMISATION: receipt retention cannot block human deletion');
+
+-- Flow tokens are opaque identities. Surrounding whitespace is invalid only
+-- when the entire token is blank; a nonblank token must otherwise be matched
+-- and locked verbatim by both writer and replay paths.
+insert into public.whatsapp_flow_sessions
+  (flow_token, phone_e164, human_id, flow_type, status)
+values
+  ('  tok-opaque-whitespace  ', '+447700901006',
+   '14000000-0000-4000-8000-0000000000b1', 'cancel_reschedule', 'completed');
+
+insert into public.whatsapp_reschedule_receipts
+  (flow_token, request_hash, new_booking_ids, cancelled_booking_ids)
+values
+  ('  tok-opaque-whitespace  ', md5('opaque-token-fixture'),
+   array['14000000-0000-4000-8000-000000000151']::uuid[],
+   array['14000000-0000-4000-8000-000000000152']::uuid[]);
+
+select results_eq(
+  $$ select new_booking_ids, cancelled_booking_ids
+       from public.replay_whatsapp_reschedule_receipt(
+         '  tok-opaque-whitespace  ',
+         '14000000-0000-4000-8000-0000000000b1') $$,
+  $$ values (
+       array['14000000-0000-4000-8000-000000000151']::uuid[],
+       array['14000000-0000-4000-8000-000000000152']::uuid[]) $$,
+  'OPAQUE TOKEN: replay preserves surrounding whitespace and returns the exact receipt');
 
 select * from finish();
 rollback;

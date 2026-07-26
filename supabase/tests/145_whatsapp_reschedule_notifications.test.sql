@@ -135,6 +135,28 @@ values
    '14500000-0000-4000-8000-0000000000c2', 'small', 'bath-and-brush', 'Booked',
    '14500000-0000-4000-8000-0000000000e3', 'whatsapp_flow');
 
+create or replace function pg_temp.reviewed_snapshot(p_ids uuid[])
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'booking_id', b.id,
+        'dog_id', b.dog_id,
+        'booking_date', b.booking_date,
+        'slot', b.slot,
+        'service', b.service
+      )
+      order by b.id
+    ),
+    '[]'::jsonb
+  )
+  from public.bookings b
+  where b.id = any(p_ids);
+$$;
+
 truncate pg_temp.notification_probe_events;
 
 -- ── 1-8: one confirmation and one cancellation trigger per dog ───
@@ -158,7 +180,14 @@ select is(
          '14500000-0000-4000-8000-0000000000d2'
        ]::uuid[],
        'Rescheduled via WhatsApp',
-       'notification-probe-success')),
+       'notification-probe-success',
+       null,
+       null,
+       null,
+       pg_temp.reviewed_snapshot(array[
+         '14500000-0000-4000-8000-0000000000d1',
+         '14500000-0000-4000-8000-0000000000d2'
+       ]::uuid[]))),
   false,
   'the first two-dog notification fixture performs the reschedule');
 
@@ -249,7 +278,14 @@ select is(
          '14500000-0000-4000-8000-0000000000d2'
        ]::uuid[],
        'Rescheduled via WhatsApp',
-       'notification-probe-success')),
+       'notification-probe-success',
+       null,
+       null,
+       null,
+       pg_temp.reviewed_snapshot(array[
+         '14500000-0000-4000-8000-0000000000d1',
+         '14500000-0000-4000-8000-0000000000d2'
+       ]::uuid[]))),
   true,
   'an identical submission is replayed from the durable receipt');
 
@@ -286,7 +322,14 @@ select throws_ok(
         '14500000-0000-4000-8000-0000000000d4'
       ]::uuid[],
       'Rescheduled via WhatsApp',
-      'notification-probe-failure')
+      'notification-probe-failure',
+      null,
+      null,
+      null,
+      pg_temp.reviewed_snapshot(array[
+        '14500000-0000-4000-8000-0000000000d3',
+        '14500000-0000-4000-8000-0000000000d4'
+      ]::uuid[]))
   $f$, pg_temp.open_day(58)),
   null,
   'a replacement failure after the first insert is rejected');
@@ -347,7 +390,18 @@ select throws_ok(
         '14500000-0000-4000-8000-000000000fff'
       ]::uuid[],
       'Rescheduled via WhatsApp',
-      'notification-probe-stale')
+      'notification-probe-stale',
+      null,
+      null,
+      null,
+      pg_temp.reviewed_snapshot(array[
+        '14500000-0000-4000-8000-0000000000d5'
+      ]::uuid[])
+      || jsonb_build_array(jsonb_build_object(
+        'booking_id','14500000-0000-4000-8000-000000000fff',
+        'dog_id','14500000-0000-4000-8000-0000000000c2',
+        'booking_date',pg_temp.open_day(79),
+        'slot','09:00','service','bath-and-brush')))
   $f$, pg_temp.open_day(86)),
   'P0002',
   'reschedule_old_visit_changed',

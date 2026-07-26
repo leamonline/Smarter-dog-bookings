@@ -9,10 +9,25 @@
 # waiting on the expected advisory lock.
 #
 # Direct usage:
-#   bash scripts/verify-whatsapp-reschedule-concurrency.sh
+#   CONCURRENCY_LOCAL_STACK_CONFIRMED=1 \
+#     bash scripts/verify-whatsapp-reschedule-concurrency.sh
 #
-# The defaults target `supabase start`; every value remains overridable.
+# This destructive test is pinned to the exact local `supabase start`
+# connection identity. It refuses all connection overrides.
 set -euo pipefail
+
+if [ "${CONCURRENCY_LOCAL_STACK_CONFIRMED:-}" != "1" ]; then
+  echo "FAIL: set CONCURRENCY_LOCAL_STACK_CONFIRMED=1 to opt in to the destructive local concurrency gate." >&2
+  exit 2
+fi
+
+if [ -n "${PGHOSTADDR:-}" ] ||
+   [ -n "${PGSERVICE:-}" ] ||
+   [ -n "${PGSERVICEFILE:-}" ] ||
+   [ -n "${PGSYSCONFDIR:-}" ]; then
+  echo "FAIL: libpq connection indirection variables PGHOSTADDR, PGSERVICE, PGSERVICEFILE, and PGSYSCONFDIR must be unset." >&2
+  exit 2
+fi
 
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-54322}"
@@ -22,14 +37,31 @@ PGPASSWORD="${PGPASSWORD:-postgres}"
 PSQL_BIN="${PSQL_BIN:-psql}"
 export PGPASSWORD
 
-case "$PGHOST" in
-  127.0.0.1|localhost|::1) ;;
-  *)
-    echo "FAIL: concurrency gate only accepts a loopback PGHOST; got '$PGHOST'." >&2
-    echo "Refusing to install test fixtures or enqueue notifications on a remote database." >&2
-    exit 2
-    ;;
-esac
+if [ "$PGHOST" != "127.0.0.1" ] ||
+   [ "$PGPORT" != "54322" ] ||
+   [ "$PGDATABASE" != "postgres" ] ||
+   [ "$PGUSER" != "postgres" ] ||
+   [ "$PGPASSWORD" != "postgres" ]; then
+  echo "FAIL: concurrency gate requires the exact local Supabase connection identity 127.0.0.1:54322/postgres as postgres with the default local password." >&2
+  echo "Refusing to connect or mutate because one or more PG* values differ." >&2
+  exit 2
+fi
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+if ! command -v supabase >/dev/null 2>&1; then
+  echo "FAIL: required Supabase CLI was not found in PATH; cannot verify the local stack." >&2
+  exit 2
+fi
+if ! (
+  cd -- "$REPO_ROOT"
+  env -u SUPABASE_ACCESS_TOKEN -u SUPABASE_DB_PASSWORD supabase status \
+    >/dev/null 2>&1
+); then
+  echo "FAIL: supabase status did not confirm a running local stack for this checkout." >&2
+  exit 2
+fi
 
 if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
   echo "FAIL: required PostgreSQL client '$PSQL_BIN' was not found in PATH." >&2
@@ -73,7 +105,9 @@ DELAY_SECONDS="${CONCURRENCY_DELAY_SECONDS:-15}"
 POLL_ATTEMPTS="${CONCURRENCY_POLL_ATTEMPTS:-100}"
 POLL_INTERVAL="${CONCURRENCY_POLL_INTERVAL:-0.1}"
 RPC_TIMEOUT_SECONDS="${CONCURRENCY_RPC_TIMEOUT_SECONDS:-45}"
-VAULT_DESCRIPTION="ci-wa-reschedule-concurrency"
+BOOKING_INSERT_TRIGGER_MODE=""
+BOOKING_CANCEL_TRIGGER_MODE=""
+STAFF_PUSH_TRIGGER_MODE=""
 
 if [[ ! "$DELAY_SECONDS" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
    [[ ! "$POLL_ATTEMPTS" =~ ^[1-9][0-9]*$ ]] ||
@@ -93,8 +127,6 @@ FIRST_PID=""
 SECOND_PID=""
 MEMBERSHIP_RESCHEDULE_PID=""
 MEMBERSHIP_STAFF_PID=""
-TEST_URL_SECRET_ID=""
-TEST_WEBHOOK_SECRET_ID=""
 DB_SETUP_STARTED=0
 
 sql() {
@@ -140,6 +172,24 @@ terminate_named_backends() {
          '$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP'
        );" \
     >/dev/null
+}
+
+restore_trigger_mode() {
+  local table_name=$1
+  local trigger_name=$2
+  local trigger_mode=$3
+  local action
+  case "$trigger_mode" in
+    O) action="enable" ;;
+    D) action="disable" ;;
+    R) action="enable replica" ;;
+    A) action="enable always" ;;
+    *)
+      echo "FAIL: cannot restore unknown trigger mode '$trigger_mode' for $table_name.$trigger_name." >&2
+      return 1
+      ;;
+  esac
+  sql --command="alter table public.$table_name $action trigger $trigger_name;" >/dev/null
 }
 
 cleanup() {
@@ -260,15 +310,35 @@ cleanup() {
       echo "FAIL: concurrency fixture state was not restored (remaining rows=$FIXTURE_REMAINS)." >&2
       cleanup_failed=1
     fi
-  fi
 
-  if [ -n "$TEST_URL_SECRET_ID" ]; then
-    sql --command="delete from vault.secrets where id = '$TEST_URL_SECRET_ID'::uuid;" \
-      >/dev/null || cleanup_failed=1
-  fi
-  if [ -n "$TEST_WEBHOOK_SECRET_ID" ]; then
-    sql --command="delete from vault.secrets where id = '$TEST_WEBHOOK_SECRET_ID'::uuid;" \
-      >/dev/null || cleanup_failed=1
+    restore_trigger_mode bookings trg_notify_booking_insert \
+      "$BOOKING_INSERT_TRIGGER_MODE" || cleanup_failed=1
+    restore_trigger_mode bookings notify_booking_cancelled_trigger \
+      "$BOOKING_CANCEL_TRIGGER_MODE" || cleanup_failed=1
+    restore_trigger_mode booking_events trg_staff_push_booking_event \
+      "$STAFF_PUSH_TRIGGER_MODE" || cleanup_failed=1
+
+    RESTORED_TRIGGER_MODES="$(
+      sql --command="
+        select string_agg(t.tgenabled::text, '' order by expected.ordinality)
+          from unnest(array[
+                 'public.bookings.trg_notify_booking_insert',
+                 'public.bookings.notify_booking_cancelled_trigger',
+                 'public.booking_events.trg_staff_push_booking_event'
+               ]) with ordinality expected(qualified_name, ordinality)
+          join pg_trigger t
+            on t.tgname = split_part(expected.qualified_name, '.', 3)
+          join pg_class c on c.oid = t.tgrelid
+          join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = split_part(expected.qualified_name, '.', 1)
+           and c.relname = split_part(expected.qualified_name, '.', 2)
+           and not t.tgisinternal;" | trim
+    )"
+    if [ "$RESTORED_TRIGGER_MODES" != \
+         "$BOOKING_INSERT_TRIGGER_MODE$BOOKING_CANCEL_TRIGGER_MODE$STAFF_PUSH_TRIGGER_MODE" ]; then
+      echo "FAIL: outbound trigger enabled modes were not restored exactly." >&2
+      cleanup_failed=1
+    fi
   fi
 
   rm -f -- "$FIRST_OUT" "$SECOND_OUT" \
@@ -294,7 +364,7 @@ fi
 
 # Fixed fixture identities make assertions and cleanup simple, but they must
 # never be treated as permission to destroy pre-existing local data. Refuse
-# before writing Vault or touching fixtures if any identity/object is occupied.
+# before touching fixtures if any identity/object is occupied.
 FIXTURE_COLLISIONS="$(
   sql --command="
     select coalesce(string_agg(collision, ',' order by collision), '')
@@ -392,42 +462,54 @@ if [ -n "$FIXTURE_COLLISIONS" ]; then
   exit 2
 fi
 
-# Keep every production business and outbound network trigger active. The
-# loopback-only Vault fixture makes calls harmless while the pre/post pg_net
-# snapshots below make those requests an observable RED contract.
-EXISTING_VAULT_NAMES="$(
-  sql --command="
-    select count(*)
-      from vault.secrets
-     where name in ('supabase_url', 'webhook_secret');" | trim
-)"
-if [ "$EXISTING_VAULT_NAMES" != "0" ]; then
-  echo "FAIL: local Vault already contains supabase_url or webhook_secret." >&2
-  echo "The gate refuses to read or overwrite existing credentials; use a fresh 'supabase start' stack." >&2
-  exit 2
-fi
-
-TEST_URL_SECRET_ID="$(
-  sql --command="
-    select vault.create_secret(
-      'http://127.0.0.1:1',
-      'supabase_url',
-      '$VAULT_DESCRIPTION'
-    );" | trim
-)"
-TEST_WEBHOOK_SECRET_ID="$(
-  sql --command="
-    select vault.create_secret(
-      'ci-not-a-credential',
-      'webhook_secret',
-      '$VAULT_DESCRIPTION'
-    );" | trim
-)"
-
+# Snapshot pg_net before changing trigger state. The exact three outbound
+# notification triggers are disabled for this local fixture; every business
+# trigger (capacity, calendar, lifecycle and booking-event emission) remains
+# active and is asserted below.
 NET_QUEUE_BEFORE="$(sql --command='select count(*) from net.http_request_queue;' | trim)"
 NET_RESPONSE_BEFORE="$(sql --command='select count(*) from net._http_response;' | trim)"
 
+BOOKING_INSERT_TRIGGER_MODE="$(
+  sql --command="
+    select t.tgenabled
+      from pg_trigger t
+     where t.tgrelid = 'public.bookings'::regclass
+       and t.tgname = 'trg_notify_booking_insert'
+       and not t.tgisinternal;" | trim
+)"
+BOOKING_CANCEL_TRIGGER_MODE="$(
+  sql --command="
+    select t.tgenabled
+      from pg_trigger t
+     where t.tgrelid = 'public.bookings'::regclass
+       and t.tgname = 'notify_booking_cancelled_trigger'
+       and not t.tgisinternal;" | trim
+)"
+STAFF_PUSH_TRIGGER_MODE="$(
+  sql --command="
+    select t.tgenabled
+      from pg_trigger t
+     where t.tgrelid = 'public.booking_events'::regclass
+       and t.tgname = 'trg_staff_push_booking_event'
+       and not t.tgisinternal;" | trim
+)"
+for trigger_mode in \
+  "$BOOKING_INSERT_TRIGGER_MODE" \
+  "$BOOKING_CANCEL_TRIGGER_MODE" \
+  "$STAFF_PUSH_TRIGGER_MODE"; do
+  if [[ ! "$trigger_mode" =~ ^[ODRA]$ ]]; then
+    echo "FAIL: one of the exact outbound notification triggers is missing or has an unknown enabled mode." >&2
+    exit 2
+  fi
+done
+
 DB_SETUP_STARTED=1
+sql --command="
+  alter table public.bookings disable trigger trg_notify_booking_insert;
+  alter table public.bookings disable trigger notify_booking_cancelled_trigger;
+  alter table public.booking_events disable trigger trg_staff_push_booking_event;" \
+  >/dev/null
+
 sql <<SQL
 delete from public.booking_capacity_audit
  where booking_id in (
@@ -554,10 +636,7 @@ sql --command="
   values
     ('$ORIGINAL_BOOKING'::uuid, '$SOURCE_DATE'::date, '09:00',
      '$FIXTURE_DOG'::uuid, 'small', 'full-groom', 'Booked',
-     '$ORIGINAL_GROUP'::uuid, 'whatsapp_flow'),
-    ('$MEMBERSHIP_SOURCE_BOOKING'::uuid, '$SOURCE_DATE'::date, '09:00',
-     '$MEMBERSHIP_SOURCE_DOG'::uuid, 'small', 'full-groom', 'Booked',
-     '$MEMBERSHIP_GROUP'::uuid, 'whatsapp_flow');" >/dev/null
+     '$ORIGINAL_GROUP'::uuid, 'whatsapp_flow');" >/dev/null
 
 CALL_SQL="
 do \$claims\$
@@ -582,9 +661,21 @@ select replayed
     '$FIXTURE_HUMAN'::uuid,
     '$ORIGINAL_GROUP'::uuid,
     null,
-    null,
+    array['$ORIGINAL_BOOKING'::uuid],
     'Rescheduled via WhatsApp',
-    '$FLOW_TOKEN'
+    '$FLOW_TOKEN',
+    '$SOURCE_DATE'::date,
+    '09:00',
+    jsonb_build_object('$FIXTURE_DOG', 'full-groom'),
+    jsonb_build_array(
+      jsonb_build_object(
+        'booking_id', '$ORIGINAL_BOOKING',
+        'dog_id', '$FIXTURE_DOG',
+        'booking_date', '$SOURCE_DATE'::date,
+        'slot', '09:00',
+        'service', 'full-groom'
+      )
+    )
   );"
 
 run_rpc() {
@@ -786,6 +877,26 @@ if [ -z "$STORED_IDS" ] || [ "$STORED_IDS" != "$LIVE_IDS" ]; then
   FAIL=1
 fi
 
+# Install the second scenario only after the original duplicate-submission
+# assertions, so its independent live source cannot contaminate their
+# one-surviving-booking invariant.
+sql --command="
+  do \$claims\$
+  begin
+    perform set_config(
+      'request.jwt.claims',
+      '{\"sub\":\"$FIXTURE_USER\",\"role\":\"authenticated\"}',
+      false
+    );
+  end
+  \$claims\$;
+  insert into public.bookings
+    (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+  values
+    ('$MEMBERSHIP_SOURCE_BOOKING'::uuid, '$SOURCE_DATE'::date, '09:00',
+     '$MEMBERSHIP_SOURCE_DOG'::uuid, 'small', 'full-groom', 'Booked',
+     '$MEMBERSHIP_GROUP'::uuid, 'whatsapp_flow');" >/dev/null
+
 # A distinct two-session race: the reschedule must take the same exact
 # group/date membership lock used by the booking write trigger. The staff
 # writer below is a real INSERT through that trigger, not a hand-acquired or
@@ -821,7 +932,16 @@ select replayed
     '$MEMBERSHIP_FLOW_TOKEN',
     '$SOURCE_DATE'::date,
     '09:00',
-    jsonb_build_object('$MEMBERSHIP_SOURCE_DOG', 'full-groom')
+    jsonb_build_object('$MEMBERSHIP_SOURCE_DOG', 'full-groom'),
+    jsonb_build_array(
+      jsonb_build_object(
+        'booking_id', '$MEMBERSHIP_SOURCE_BOOKING',
+        'dog_id', '$MEMBERSHIP_SOURCE_DOG',
+        'booking_date', '$SOURCE_DATE'::date,
+        'slot', '09:00',
+        'service', 'full-groom'
+      )
+    )
   );"
 
 MEMBERSHIP_STAFF_SQL="

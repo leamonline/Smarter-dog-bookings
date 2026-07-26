@@ -9,9 +9,9 @@
 //   - list-row id encode/parse (manage:<nonce>:<visit_key>)
 //   - visit summaries + the reschedule Flow pre-seed
 //
-// Granularity is the whole VISIT: every booking row sharing a group_id is one
-// visit; a single-dog booking is a visit of one. Cancel/reschedule never act
-// on an individual dog within a group.
+// Granularity is the whole VISIT: every booking row sharing a group_id on one
+// booking date is one visit; a single-dog booking is a visit of one.
+// Cancel/reschedule never act on an individual dog within a visit.
 // ============================================================
 
 import { type DogSize, SERVICES, slotLabel } from "./salonConstants.ts";
@@ -43,6 +43,15 @@ export interface VisitService {
   serviceName?: string;
 }
 
+/** Exact material facts from one booking row that the customer reviewed. */
+export interface ReviewedBookingSnapshot {
+  booking_id: string;
+  dog_id: string;
+  booking_date: string;
+  slot: string;
+  service: string | null;
+}
+
 /** One upcoming visit (the whole group / single booking). `key` is the stable
  *  routing token; execution always anchors on a real bookingId. */
 export interface UpcomingVisit {
@@ -54,6 +63,7 @@ export interface UpcomingVisit {
   startAt: string; // absolute ISO instant of the salon-local drop-off
   dogs: VisitDog[];
   services: VisitService[];
+  bookingSnapshot: ReviewedBookingSnapshot[];
   label: string; // "Alfie & Tipi's groom on Wed 24 Jun at 9:30"
 }
 
@@ -152,8 +162,10 @@ export function summariseVisit(dogs: VisitDog[], dateStr: string, slot: string):
 export function groupUpcomingBookings(rows: ManageBookingRow[]): UpcomingVisit[] {
   const byKey = new Map<string, ManageBookingRow[]>();
   for (const r of rows) {
-    // Whole-visit key: the real group_id, or a per-booking solo key.
-    const key = r.group_id ?? `solo:${r.id}`;
+    // A recurring import can legitimately reuse one group id on later dates.
+    // A visit is therefore the group on one booking date, never every row
+    // that has ever shared that group id.
+    const key = r.group_id ? `group:${r.group_id}:${r.booking_date}` : `solo:${r.id}`;
     const arr = byKey.get(key) ?? [];
     arr.push(r);
     byKey.set(key, arr);
@@ -180,6 +192,13 @@ export function groupUpcomingBookings(rows: ManageBookingRow[]): UpcomingVisit[]
       startAt: visitStartInstant(date, slot).toISOString(),
       dogs,
       services,
+      bookingSnapshot: sorted.map((r) => ({
+        booking_id: r.id,
+        dog_id: r.dog_id,
+        booking_date: r.booking_date,
+        slot: r.slot,
+        service: r.service,
+      })),
       label: summariseVisit(dogs, date, slot),
     });
   }
@@ -221,6 +240,7 @@ export interface RescheduleInitialState {
   // Frozen snapshot for strict re-validation at CONFIRM.
   service_snapshot: Record<string, string>;
   dog_snapshot: string[];
+  old_booking_snapshot: ReviewedBookingSnapshot[];
 }
 
 export function buildRescheduleInitialState(
@@ -248,5 +268,6 @@ export function buildRescheduleInitialState(
     old_start_at: visit.startAt,
     service_snapshot: { ...services },
     dog_snapshot: [...visit.dogs.map((d) => d.id)].sort(),
+    old_booking_snapshot: visit.bookingSnapshot.map((row) => ({ ...row })),
   };
 }
