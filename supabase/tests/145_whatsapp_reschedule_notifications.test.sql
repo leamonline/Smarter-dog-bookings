@@ -8,9 +8,10 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(20);
 
 create temporary table notification_probe_events (
+  ordinal             bigint not null,
   event_type          text not null,
   booking_id          uuid not null,
   group_id            uuid,
@@ -29,11 +30,11 @@ security definer
 set search_path = pg_temp, public
 as $$
 begin
-  perform nextval('pg_temp.notification_probe_attempt_seq'::regclass);
   insert into pg_temp.notification_probe_events
-    (event_type, booking_id, group_id, cancellation_reason)
+    (ordinal, event_type, booking_id, group_id, cancellation_reason)
   values
-    ('booking_confirmed', new.id, new.group_id, new.cancel_reason);
+    (nextval('pg_temp.notification_probe_attempt_seq'::regclass),
+     'booking_confirmed', new.id, new.group_id, new.cancel_reason);
   return new;
 end;
 $$;
@@ -45,11 +46,11 @@ security definer
 set search_path = pg_temp, public
 as $$
 begin
-  perform nextval('pg_temp.notification_probe_attempt_seq'::regclass);
   insert into pg_temp.notification_probe_events
-    (event_type, booking_id, group_id, cancellation_reason)
+    (ordinal, event_type, booking_id, group_id, cancellation_reason)
   values
-    ('booking_cancelled', new.id, new.group_id, new.cancel_reason);
+    (nextval('pg_temp.notification_probe_attempt_seq'::regclass),
+     'booking_cancelled', new.id, new.group_id, new.cancel_reason);
   return new;
 end;
 $$;
@@ -79,6 +80,16 @@ values
    '14500000-0000-4000-8000-0000000000b1'),
   ('14500000-0000-4000-8000-0000000000c3', 'Otto', 'Collie', 'small',
    '14500000-0000-4000-8000-0000000000b2');
+
+insert into public.whatsapp_flow_sessions
+  (flow_token, phone_e164, human_id, flow_type, status)
+values
+  ('notification-probe-success', '+447700902001',
+   '14500000-0000-4000-8000-0000000000b1', 'cancel_reschedule', 'active'),
+  ('notification-probe-failure', '+447700902002',
+   '14500000-0000-4000-8000-0000000000b1', 'cancel_reschedule', 'active'),
+  ('notification-probe-stale', '+447700902003',
+   '14500000-0000-4000-8000-0000000000b1', 'cancel_reschedule', 'active');
 
 create or replace function pg_temp.open_day(p_offset int)
 returns date
@@ -206,7 +217,18 @@ select is(
   2,
   'every old-row cancellation notification is marked as a WhatsApp reschedule');
 
--- ── 9-10: replay returns the receipt without firing triggers ──────
+select is(
+  (select array_agg(event_type order by ordinal)
+     from pg_temp.notification_probe_events),
+  array[
+    'booking_confirmed',
+    'booking_confirmed',
+    'booking_cancelled',
+    'booking_cancelled'
+  ]::text[],
+  'customer notification enqueue attempts confirm replacements before cancelling old rows');
+
+-- ── 10-11: replay returns the receipt without firing triggers ─────
 
 select is(
   (select replayed
@@ -236,14 +258,15 @@ select is(
   4,
   'the replay creates no additional notification probe events');
 
--- ── 11-15: a late replacement failure rolls all effects back ─────
+-- ── 12-16: a late replacement failure rolls all effects back ─────
 
 truncate pg_temp.notification_probe_events;
 select setval('pg_temp.notification_probe_attempt_seq'::regclass, 1, false);
 
--- The first replacement dog is valid and reaches the INSERT trigger. The
--- second belongs to another customer and fails afterward, proving the probe
--- rows from both the prior cancellation and partial replacement roll back.
+-- Both destination dogs exactly match the source set. The first replacement
+-- is valid and reaches its INSERT trigger; the second has an invalid slot and
+-- fails afterward. With cancellation notifications deferred, only the first
+-- confirmation is attempted before the statement rolls back.
 select throws_ok(
   format($f$
     select public.reschedule_whatsapp_booking_group(
@@ -252,8 +275,8 @@ select throws_ok(
           'dog_id', '14500000-0000-4000-8000-0000000000c1',
           'slot', '10:00', 'service', 'full-groom'),
         jsonb_build_object(
-          'dog_id', '14500000-0000-4000-8000-0000000000c3',
-          'slot', '10:00', 'service', 'full-groom')),
+          'dog_id', '14500000-0000-4000-8000-0000000000c2',
+          'slot', '99:99', 'service', 'bath-and-brush')),
       %L::date,
       '14500000-0000-4000-8000-0000000000b1',
       '14500000-0000-4000-8000-0000000000e2',
@@ -261,17 +284,18 @@ select throws_ok(
       array[
         '14500000-0000-4000-8000-0000000000d3',
         '14500000-0000-4000-8000-0000000000d4'
-      ]::uuid[])
+      ]::uuid[],
+      'Rescheduled via WhatsApp',
+      'notification-probe-failure')
   $f$, pg_temp.open_day(58)),
-  '42704',
   null,
   'a replacement failure after the first insert is rejected');
 
 select is(
   (select case when is_called then last_value::int else 0 end
      from pg_temp.notification_probe_attempt_seq),
-  3,
-  'the late failure attempted two cancellations and one confirmation');
+  1,
+  'the late failure attempts one confirmation while deferred cancellations stay unqueued');
 
 select is(
   (select count(*)::int from pg_temp.notification_probe_events),
@@ -300,7 +324,7 @@ select is(
   0,
   'the failed replacement rolls back the first replacement insert');
 
--- ── 16-19: stale-source refusal does no notification work ─────────
+-- ── 17-20: stale-source refusal does no notification work ─────────
 
 select setval('pg_temp.notification_probe_attempt_seq'::regclass, 1, false);
 
@@ -321,7 +345,9 @@ select throws_ok(
       array[
         '14500000-0000-4000-8000-0000000000d5',
         '14500000-0000-4000-8000-000000000fff'
-      ]::uuid[])
+      ]::uuid[],
+      'Rescheduled via WhatsApp',
+      'notification-probe-stale')
   $f$, pg_temp.open_day(86)),
   'P0002',
   'reschedule_old_visit_changed',

@@ -31,6 +31,30 @@ describe("groupUpcomingBookings", () => {
     expect(visits[0].label).toContain("Tipi");
   });
 
+  it("keeps recurring uses of one group_id scoped to their own visit date", () => {
+    const recurringRows: ManageBookingRow[] = [
+      { id: "june-a", group_id: "recurring-group", booking_date: "2026-06-24", slot: "08:30", service: "full-groom", dog_id: "d1", dog_name: "Alfie", size: "small" },
+      { id: "june-b", group_id: "recurring-group", booking_date: "2026-06-24", slot: "09:00", service: "bath-and-brush", dog_id: "d2", dog_name: "Tipi", size: "small" },
+      { id: "july-a", group_id: "recurring-group", booking_date: "2026-07-01", slot: "08:30", service: "full-groom", dog_id: "d1", dog_name: "Alfie", size: "small" },
+      { id: "july-b", group_id: "recurring-group", booking_date: "2026-07-01", slot: "09:00", service: "bath-and-brush", dog_id: "d2", dog_name: "Tipi", size: "small" },
+    ];
+
+    const visits = groupUpcomingBookings(recurringRows);
+
+    expect(visits).toHaveLength(2);
+    expect(visits.map((visit) => ({
+      date: visit.date,
+      bookingIds: [...visit.bookingIds].sort(),
+    }))).toEqual([
+      { date: "2026-06-24", bookingIds: ["june-a", "june-b"] },
+      { date: "2026-07-01", bookingIds: ["july-a", "july-b"] },
+    ]);
+
+    const juneState = buildRescheduleInitialState(visits[0], { d1: "small", d2: "small" });
+    expect(juneState.old_date).toBe("2026-06-24");
+    expect([...juneState.old_booking_ids].sort()).toEqual(["june-a", "june-b"]);
+  });
+
   it("treats a single booking without group_id as a visit of one (solo key)", () => {
     const visits = groupUpcomingBookings(ROWS);
     const solo = visits[1];
