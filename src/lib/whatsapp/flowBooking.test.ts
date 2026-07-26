@@ -671,6 +671,81 @@ describe("confirmGroupBooking — atomic reschedule", () => {
     expect(res.ok).toBe(false);
   });
 
+  it("refuses an incomplete replacement-id set from the atomic RPC", async () => {
+    // A two-dog visit has exactly two replacement rows. Treating a partial
+    // RPC response as success tells the customer that both dogs were moved
+    // when only one durable id was returned.
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a"], cancelledIds: ["old-a", "old-b"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("refuses duplicate replacement ids from the atomic RPC", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a", "new-a"], cancelledIds: ["old-a", "old-b"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("refuses an unexpected extra replacement id from the atomic RPC", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a", "new-b", "new-c"], cancelledIds: ["old-a", "old-b"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("refuses an incomplete cancelled-id set from the atomic RPC", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a", "new-b"], cancelledIds: ["old-a"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("refuses duplicate cancelled ids from the atomic RPC", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a", "new-b"], cancelledIds: ["old-a", "old-a"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("refuses a cancelled-id set that does not match the reviewed visit", async () => {
+    const { db } = makeDb({
+      dogs: TWO_SMALL,
+      bookingsByDate: { "2026-06-02": [] },
+      groupReschedule: () => ({ ids: ["new-a", "new-b"], cancelledIds: ["old-a", "some-other-old-row"] }),
+    });
+
+    const res = await confirmGroupBooking(db, { ...baseTwo, replaces });
+
+    expect(res.ok).toBe(false);
+  });
+
   it("leaves an ordinary booking on the plain insert path", async () => {
     const { db, groupInserts, reschedules } = makeDb({
       dogs: TWO_SMALL,
