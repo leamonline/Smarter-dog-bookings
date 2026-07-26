@@ -132,6 +132,7 @@ jobs:
         run: supabase test db
 
       - name: Prove atomic reschedule concurrency
+        timeout-minutes: 5
         run: npm run test:db:concurrency
 
       - name: Dump diagnostics on failure

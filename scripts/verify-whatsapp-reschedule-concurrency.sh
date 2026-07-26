@@ -35,6 +35,10 @@ if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
   echo "FAIL: required PostgreSQL client '$PSQL_BIN' was not found in PATH." >&2
   exit 2
 fi
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "FAIL: required GNU timeout command was not found in PATH." >&2
+  exit 2
+fi
 
 PSQL=(
   "$PSQL_BIN"
@@ -60,12 +64,14 @@ SECOND_APP="ci_wa_reschedule_second"
 DELAY_SECONDS="${CONCURRENCY_DELAY_SECONDS:-15}"
 POLL_ATTEMPTS="${CONCURRENCY_POLL_ATTEMPTS:-100}"
 POLL_INTERVAL="${CONCURRENCY_POLL_INTERVAL:-0.1}"
+RPC_TIMEOUT_SECONDS="${CONCURRENCY_RPC_TIMEOUT_SECONDS:-45}"
 VAULT_DESCRIPTION="ci-wa-reschedule-concurrency"
 
 if [[ ! "$DELAY_SECONDS" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
    [[ ! "$POLL_ATTEMPTS" =~ ^[1-9][0-9]*$ ]] ||
-   [[ ! "$POLL_INTERVAL" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-  echo "FAIL: delay/interval must be non-negative numbers and poll attempts a positive integer." >&2
+   [[ ! "$POLL_INTERVAL" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+   [[ ! "$RPC_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "FAIL: delay/interval must be non-negative numbers; poll attempts and RPC timeout must be positive integers." >&2
   exit 2
 fi
 
@@ -98,6 +104,22 @@ dump_activity() {
      order by application_name;" >&2 || true
 }
 
+dump_client_outputs() {
+  echo "FIRST CLIENT OUTPUT:" >&2
+  cat "$FIRST_OUT" >&2 || true
+  echo "SECOND CLIENT OUTPUT:" >&2
+  cat "$SECOND_OUT" >&2 || true
+}
+
+terminate_named_backends() {
+  sql --command="
+    select pg_terminate_backend(pid)
+      from pg_stat_activity
+     where pid <> pg_backend_pid()
+       and application_name in ('$FIRST_APP', '$SECOND_APP');" \
+    >/dev/null
+}
+
 cleanup() {
   local result=$?
   local cleanup_failed=0
@@ -105,12 +127,7 @@ cleanup() {
   set +e
 
   if [ "$DB_SETUP_STARTED" = "1" ]; then
-    sql --command="
-      select pg_terminate_backend(pid)
-        from pg_stat_activity
-       where pid <> pg_backend_pid()
-         and application_name in ('$FIRST_APP', '$SECOND_APP');" \
-      >/dev/null || cleanup_failed=1
+    terminate_named_backends || cleanup_failed=1
   fi
 
   if [ -n "$SECOND_PID" ]; then
@@ -128,6 +145,13 @@ cleanup() {
       drop function if exists public.zz_ci_wa_reschedule_delay();" \
       >/dev/null || cleanup_failed=1
     sql --command="
+      delete from public.booking_capacity_audit
+       where booking_id = '$ORIGINAL_BOOKING'::uuid
+          or booking_id = any (
+               select unnest(new_booking_ids)
+                 from public.whatsapp_reschedule_receipts
+                where flow_token = '$FLOW_TOKEN'
+             );
       delete from public.booking_events
        where booking_id = '$ORIGINAL_BOOKING'::uuid
           or booking_id = any (
@@ -172,6 +196,89 @@ if ! sql --command='select 1;' >/dev/null 2>&1; then
   exit 2
 fi
 
+# Fixed fixture identities make assertions and cleanup simple, but they must
+# never be treated as permission to destroy pre-existing local data. Refuse
+# before writing Vault or touching fixtures if any identity/object is occupied.
+FIXTURE_COLLISIONS="$(
+  sql --command="
+    select coalesce(string_agg(collision, ',' order by collision), '')
+      from (
+        select 'delay-trigger' as collision
+         where exists (
+           select 1
+             from pg_trigger t
+             join pg_class c on c.oid = t.tgrelid
+             join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and c.relname = 'bookings'
+              and t.tgname = 'zz_ci_wa_reschedule_delay'
+              and not t.tgisinternal
+         )
+        union all
+        select 'delay-function'
+         where to_regprocedure('public.zz_ci_wa_reschedule_delay()') is not null
+        union all
+        select 'auth-user' where exists (
+          select 1 from auth.users where id = '$FIXTURE_USER'::uuid
+        )
+        union all
+        select 'staff-profile' where exists (
+          select 1 from public.staff_profiles where user_id = '$FIXTURE_USER'::uuid
+        )
+        union all
+        select 'human' where exists (
+          select 1 from public.humans where id = '$FIXTURE_HUMAN'::uuid
+        )
+        union all
+        select 'dog' where exists (
+          select 1 from public.dogs where id = '$FIXTURE_DOG'::uuid
+        )
+        union all
+        select 'booking' where exists (
+          select 1
+            from public.bookings
+           where id = '$ORIGINAL_BOOKING'::uuid
+              or dog_id = '$FIXTURE_DOG'::uuid
+              or group_id = '$ORIGINAL_GROUP'::uuid
+        )
+        union all
+        select 'receipt' where exists (
+          select 1
+            from public.whatsapp_reschedule_receipts
+           where flow_token = '$FLOW_TOKEN'
+        )
+        union all
+        select 'flow-session' where exists (
+          select 1
+            from public.whatsapp_flow_sessions
+           where flow_token = '$FLOW_TOKEN'
+        )
+        union all
+        select 'booking-event' where exists (
+          select 1
+            from public.booking_events
+           where booking_id = '$ORIGINAL_BOOKING'::uuid
+        )
+        union all
+        select 'capacity-audit' where exists (
+          select 1
+            from public.booking_capacity_audit
+           where booking_id = '$ORIGINAL_BOOKING'::uuid
+        )
+        union all
+        select 'named-session' where exists (
+          select 1
+            from pg_stat_activity
+           where application_name in ('$FIRST_APP', '$SECOND_APP')
+        )
+      ) collisions;" | trim
+)"
+if [ -n "$FIXTURE_COLLISIONS" ]; then
+  echo "FAIL: fixed concurrency fixture identities are already in use: $FIXTURE_COLLISIONS." >&2
+  echo "Refusing to drop or delete pre-existing local state; use a fresh local stack." >&2
+  exit 2
+fi
+
 # Do not inspect, reuse, or overwrite any existing credential. CI's disposable
 # stack has no Vault data after pgTAP rolls back. If a developer's local stack
 # does, stop rather than risk turning this fixture into a production request.
@@ -209,8 +316,13 @@ TEST_WEBHOOK_SECRET_ID="$(
 
 DB_SETUP_STARTED=1
 sql <<SQL
-drop trigger if exists zz_ci_wa_reschedule_delay on public.bookings;
-drop function if exists public.zz_ci_wa_reschedule_delay();
+delete from public.booking_capacity_audit
+ where booking_id = '$ORIGINAL_BOOKING'::uuid
+    or booking_id = any (
+         select unnest(new_booking_ids)
+           from public.whatsapp_reschedule_receipts
+          where flow_token = '$FLOW_TOKEN'
+       );
 delete from public.booking_events
  where booking_id = '$ORIGINAL_BOOKING'::uuid
     or booking_id = any (
@@ -329,7 +441,17 @@ select replayed
     '$FLOW_TOKEN'
   );"
 
-PGAPPNAME="$FIRST_APP" sql --command="$CALL_SQL" >"$FIRST_OUT" 2>&1 &
+run_rpc() {
+  local application_name=$1
+  PGAPPNAME="$application_name" timeout \
+    --signal=TERM \
+    --kill-after=5s \
+    "${RPC_TIMEOUT_SECONDS}s" \
+    "${PSQL[@]}" \
+    --command="$CALL_SQL"
+}
+
+run_rpc "$FIRST_APP" >"$FIRST_OUT" 2>&1 &
 FIRST_PID=$!
 
 FIRST_READY=0
@@ -366,7 +488,7 @@ if [ "$FIRST_READY" != "1" ]; then
   exit 1
 fi
 
-PGAPPNAME="$SECOND_APP" sql --command="$CALL_SQL" >"$SECOND_OUT" 2>&1 &
+run_rpc "$SECOND_APP" >"$SECOND_OUT" 2>&1 &
 SECOND_PID=$!
 
 CONTENTION_PROVED=0
@@ -408,18 +530,48 @@ if [ "$CONTENTION_PROVED" != "1" ]; then
   exit 1
 fi
 
+# Give both named RPC sessions a fresh bounded window to commit/replay after
+# contention has been proven. This makes the waits below observational only:
+# they cannot be reached while a database client is still active indefinitely.
+COMPLETION_DEADLINE=$((SECONDS + RPC_TIMEOUT_SECONDS))
+while :; do
+  ACTIVE_RPC_SESSIONS="$(
+    sql --command="
+      select count(*)
+        from pg_stat_activity
+       where application_name in ('$FIRST_APP', '$SECOND_APP');" | trim
+  )"
+  if [ "$ACTIVE_RPC_SESSIONS" = "0" ]; then
+    break
+  fi
+  if ((SECONDS >= COMPLETION_DEADLINE)); then
+    echo "FAIL: post-contention RPC completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $ACTIVE_RPC_SESSIONS named session(s) active." >&2
+    dump_activity
+    dump_client_outputs
+    terminate_named_backends || true
+    exit 1
+  fi
+  sleep "$POLL_INTERVAL"
+done
+
 set +e
 wait "$FIRST_PID"
 FIRST_STATUS=$?
-FIRST_PID=""
 wait "$SECOND_PID"
 SECOND_STATUS=$?
+FIRST_PID=""
 SECOND_PID=""
 set -e
+if [ "$FIRST_STATUS" = "124" ] || [ "$SECOND_STATUS" = "124" ]; then
+  echo "FAIL: RPC completion deadline of ${RPC_TIMEOUT_SECONDS}s expired (first=$FIRST_STATUS second=$SECOND_STATUS)." >&2
+  dump_activity
+  dump_client_outputs
+  terminate_named_backends || true
+  exit 1
+fi
 if [ "$FIRST_STATUS" != "0" ] || [ "$SECOND_STATUS" != "0" ]; then
   echo "FAIL: RPC caller exited non-zero (first=$FIRST_STATUS second=$SECOND_STATUS)." >&2
-  echo "FIRST: $(tr '\n' ' ' < "$FIRST_OUT")" >&2
-  echo "SECOND: $(tr '\n' ' ' < "$SECOND_OUT")" >&2
+  dump_client_outputs
   exit 1
 fi
 
