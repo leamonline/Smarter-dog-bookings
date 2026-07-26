@@ -3,10 +3,10 @@
 # Deterministic duplicate-submission gate for the atomic WhatsApp reschedule.
 #
 # pgTAP runs each file in one transaction, so it cannot prove that two database
-# sessions contend on the production flow-token lock. This script creates a
-# local-only fixture, pauses the first caller from a test-only BEFORE UPDATE
-# trigger (after the RPC has taken its token lock), then proves via
-# pg_stat_activity that the second caller is waiting on that advisory lock.
+# sessions contend on the production advisory locks. This script creates a
+# local-only fixture, pauses a caller from a test-only BEFORE UPDATE trigger,
+# then proves via pg_stat_activity that the other real database session is
+# waiting on the expected advisory lock.
 #
 # Direct usage:
 #   bash scripts/verify-whatsapp-reschedule-concurrency.sh
@@ -59,8 +59,16 @@ FIXTURE_DOG="99000000-0000-4000-8000-0000000000c1"
 ORIGINAL_BOOKING="99000000-0000-4000-8000-0000000000d1"
 ORIGINAL_GROUP="99000000-0000-4000-8000-0000000000e1"
 FLOW_TOKEN="ci-wa-reschedule-race-token"
+MEMBERSHIP_SOURCE_DOG="99000000-0000-4000-8000-0000000000c2"
+MEMBERSHIP_PHANTOM_DOG="99000000-0000-4000-8000-0000000000c3"
+MEMBERSHIP_SOURCE_BOOKING="99000000-0000-4000-8000-0000000000d2"
+MEMBERSHIP_PHANTOM_BOOKING="99000000-0000-4000-8000-0000000000d3"
+MEMBERSHIP_GROUP="99000000-0000-4000-8000-0000000000e2"
+MEMBERSHIP_FLOW_TOKEN="ci-wa-reschedule-membership-race-token"
 FIRST_APP="ci_wa_reschedule_first"
 SECOND_APP="ci_wa_reschedule_second"
+MEMBERSHIP_RESCHEDULE_APP="ci_wa_reschedule_membership"
+MEMBERSHIP_STAFF_APP="ci_wa_reschedule_staff"
 DELAY_SECONDS="${CONCURRENCY_DELAY_SECONDS:-15}"
 POLL_ATTEMPTS="${CONCURRENCY_POLL_ATTEMPTS:-100}"
 POLL_INTERVAL="${CONCURRENCY_POLL_INTERVAL:-0.1}"
@@ -79,8 +87,12 @@ TMP_ROOT="${TMPDIR:-/tmp}"
 RUN_DIR="$(mktemp -d "$TMP_ROOT/wa-reschedule-concurrency.XXXXXX")"
 FIRST_OUT="$RUN_DIR/first.out"
 SECOND_OUT="$RUN_DIR/second.out"
+MEMBERSHIP_RESCHEDULE_OUT="$RUN_DIR/membership-reschedule.out"
+MEMBERSHIP_STAFF_OUT="$RUN_DIR/membership-staff.out"
 FIRST_PID=""
 SECOND_PID=""
+MEMBERSHIP_RESCHEDULE_PID=""
+MEMBERSHIP_STAFF_PID=""
 TEST_URL_SECRET_ID=""
 TEST_WEBHOOK_SECRET_ID=""
 DB_SETUP_STARTED=0
@@ -100,7 +112,10 @@ dump_activity() {
            coalesce(wait_event_type, '-'), coalesce(wait_event, '-'),
            coalesce(array_to_string(pg_blocking_pids(pid), ','), '-')
       from pg_stat_activity
-     where application_name in ('$FIRST_APP', '$SECOND_APP')
+     where application_name in (
+       '$FIRST_APP', '$SECOND_APP',
+       '$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP'
+     )
      order by application_name;" >&2 || true
 }
 
@@ -109,6 +124,10 @@ dump_client_outputs() {
   cat "$FIRST_OUT" >&2 || true
   echo "SECOND CLIENT OUTPUT:" >&2
   cat "$SECOND_OUT" >&2 || true
+  echo "MEMBERSHIP RESCHEDULE CLIENT OUTPUT:" >&2
+  cat "$MEMBERSHIP_RESCHEDULE_OUT" >&2 || true
+  echo "MEMBERSHIP STAFF CLIENT OUTPUT:" >&2
+  cat "$MEMBERSHIP_STAFF_OUT" >&2 || true
 }
 
 terminate_named_backends() {
@@ -116,7 +135,10 @@ terminate_named_backends() {
     select pg_terminate_backend(pid)
       from pg_stat_activity
      where pid <> pg_backend_pid()
-       and application_name in ('$FIRST_APP', '$SECOND_APP');" \
+       and application_name in (
+         '$FIRST_APP', '$SECOND_APP',
+         '$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP'
+       );" \
     >/dev/null
 }
 
@@ -134,6 +156,14 @@ cleanup() {
     kill "$SECOND_PID" 2>/dev/null || true
     wait "$SECOND_PID" 2>/dev/null || true
   fi
+  if [ -n "$MEMBERSHIP_STAFF_PID" ]; then
+    kill "$MEMBERSHIP_STAFF_PID" 2>/dev/null || true
+    wait "$MEMBERSHIP_STAFF_PID" 2>/dev/null || true
+  fi
+  if [ -n "$MEMBERSHIP_RESCHEDULE_PID" ]; then
+    kill "$MEMBERSHIP_RESCHEDULE_PID" 2>/dev/null || true
+    wait "$MEMBERSHIP_RESCHEDULE_PID" 2>/dev/null || true
+  fi
   if [ -n "$FIRST_PID" ]; then
     kill "$FIRST_PID" 2>/dev/null || true
     wait "$FIRST_PID" 2>/dev/null || true
@@ -146,25 +176,90 @@ cleanup() {
       >/dev/null || cleanup_failed=1
     sql --command="
       delete from public.booking_capacity_audit
-       where booking_id = '$ORIGINAL_BOOKING'::uuid
+       where booking_id in (
+               '$ORIGINAL_BOOKING'::uuid,
+               '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+               '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+             )
           or booking_id = any (
                select unnest(new_booking_ids)
                  from public.whatsapp_reschedule_receipts
-                where flow_token = '$FLOW_TOKEN'
+                where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
              );
       delete from public.booking_events
-       where booking_id = '$ORIGINAL_BOOKING'::uuid
+       where booking_id in (
+               '$ORIGINAL_BOOKING'::uuid,
+               '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+               '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+             )
           or booking_id = any (
                select unnest(new_booking_ids)
                  from public.whatsapp_reschedule_receipts
-                where flow_token = '$FLOW_TOKEN'
+                where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
              );
-      delete from public.whatsapp_reschedule_receipts where flow_token = '$FLOW_TOKEN';
-      delete from public.bookings where dog_id = '$FIXTURE_DOG'::uuid;
-      delete from public.dogs where id = '$FIXTURE_DOG'::uuid;
+      delete from public.whatsapp_reschedule_receipts
+       where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN');
+      delete from public.whatsapp_flow_sessions
+       where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN');
+      delete from public.bookings
+       where dog_id in (
+         '$FIXTURE_DOG'::uuid,
+         '$MEMBERSHIP_SOURCE_DOG'::uuid,
+         '$MEMBERSHIP_PHANTOM_DOG'::uuid
+       );
+      delete from public.dogs
+       where id in (
+         '$FIXTURE_DOG'::uuid,
+         '$MEMBERSHIP_SOURCE_DOG'::uuid,
+         '$MEMBERSHIP_PHANTOM_DOG'::uuid
+       );
       delete from public.humans where id = '$FIXTURE_HUMAN'::uuid;
       delete from public.staff_profiles where user_id = '$FIXTURE_USER'::uuid;
       delete from auth.users where id = '$FIXTURE_USER'::uuid;" >/dev/null || cleanup_failed=1
+
+    FIXTURE_REMAINS="$(
+      sql --command="
+        select count(*)
+          from (
+            select 1 from auth.users where id = '$FIXTURE_USER'::uuid
+            union all
+            select 1 from public.humans where id = '$FIXTURE_HUMAN'::uuid
+            union all
+            select 1 from public.dogs where id in (
+              '$FIXTURE_DOG'::uuid,
+              '$MEMBERSHIP_SOURCE_DOG'::uuid,
+              '$MEMBERSHIP_PHANTOM_DOG'::uuid
+            )
+            union all
+            select 1 from public.bookings where id in (
+              '$ORIGINAL_BOOKING'::uuid,
+              '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+              '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+            )
+            union all
+            select 1 from public.whatsapp_reschedule_receipts
+             where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
+            union all
+            select 1 from public.whatsapp_flow_sessions
+             where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
+            union all
+            select 1
+              from pg_trigger t
+              join pg_class c on c.oid = t.tgrelid
+              join pg_namespace n on n.oid = c.relnamespace
+             where n.nspname = 'public'
+               and c.relname = 'bookings'
+               and t.tgname = 'zz_ci_wa_reschedule_delay'
+               and not t.tgisinternal
+            union all
+            select 1
+             where to_regprocedure('public.zz_ci_wa_reschedule_delay()') is not null
+          ) fixture_rows;" | trim
+    )"
+    if [ "$FIXTURE_REMAINS" != "0" ]; then
+      echo "FAIL: concurrency fixture state was not restored (remaining rows=$FIXTURE_REMAINS)." >&2
+      cleanup_failed=1
+    fi
   fi
 
   if [ -n "$TEST_URL_SECRET_ID" ]; then
@@ -176,7 +271,8 @@ cleanup() {
       >/dev/null || cleanup_failed=1
   fi
 
-  rm -f -- "$FIRST_OUT" "$SECOND_OUT"
+  rm -f -- "$FIRST_OUT" "$SECOND_OUT" \
+    "$MEMBERSHIP_RESCHEDULE_OUT" "$MEMBERSHIP_STAFF_OUT"
   rmdir -- "$RUN_DIR" 2>/dev/null || true
 
   if [ "$cleanup_failed" = "1" ]; then
@@ -231,27 +327,41 @@ FIXTURE_COLLISIONS="$(
         )
         union all
         select 'dog' where exists (
-          select 1 from public.dogs where id = '$FIXTURE_DOG'::uuid
+          select 1
+            from public.dogs
+           where id in (
+             '$FIXTURE_DOG'::uuid,
+             '$MEMBERSHIP_SOURCE_DOG'::uuid,
+             '$MEMBERSHIP_PHANTOM_DOG'::uuid
+           )
         )
         union all
         select 'booking' where exists (
           select 1
             from public.bookings
-           where id = '$ORIGINAL_BOOKING'::uuid
-              or dog_id = '$FIXTURE_DOG'::uuid
-              or group_id = '$ORIGINAL_GROUP'::uuid
+           where id in (
+                 '$ORIGINAL_BOOKING'::uuid,
+                 '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+                 '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+               )
+              or dog_id in (
+                '$FIXTURE_DOG'::uuid,
+                '$MEMBERSHIP_SOURCE_DOG'::uuid,
+                '$MEMBERSHIP_PHANTOM_DOG'::uuid
+              )
+              or group_id in ('$ORIGINAL_GROUP'::uuid, '$MEMBERSHIP_GROUP'::uuid)
         )
         union all
         select 'receipt' where exists (
           select 1
             from public.whatsapp_reschedule_receipts
-           where flow_token = '$FLOW_TOKEN'
+           where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
         )
         union all
         select 'flow-session' where exists (
           select 1
             from public.whatsapp_flow_sessions
-           where flow_token = '$FLOW_TOKEN'
+           where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
         )
         union all
         select 'booking-event' where exists (
@@ -269,7 +379,10 @@ FIXTURE_COLLISIONS="$(
         select 'named-session' where exists (
           select 1
             from pg_stat_activity
-           where application_name in ('$FIRST_APP', '$SECOND_APP')
+           where application_name in (
+             '$FIRST_APP', '$SECOND_APP',
+             '$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP'
+           )
         )
       ) collisions;" | trim
 )"
@@ -279,9 +392,9 @@ if [ -n "$FIXTURE_COLLISIONS" ]; then
   exit 2
 fi
 
-# Do not inspect, reuse, or overwrite any existing credential. CI's disposable
-# stack has no Vault data after pgTAP rolls back. If a developer's local stack
-# does, stop rather than risk turning this fixture into a production request.
+# Keep every production business and outbound network trigger active. The
+# loopback-only Vault fixture makes calls harmless while the pre/post pg_net
+# snapshots below make those requests an observable RED contract.
 EXISTING_VAULT_NAMES="$(
   sql --command="
     select count(*)
@@ -294,9 +407,6 @@ if [ "$EXISTING_VAULT_NAMES" != "0" ]; then
   exit 2
 fi
 
-# Keep every production business trigger active, including booking_events.
-# Notification triggers therefore execute their real paths, but all requests
-# are directed to a closed loopback port and carry a test-only token.
 TEST_URL_SECRET_ID="$(
   sql --command="
     select vault.create_secret(
@@ -314,25 +424,49 @@ TEST_WEBHOOK_SECRET_ID="$(
     );" | trim
 )"
 
+NET_QUEUE_BEFORE="$(sql --command='select count(*) from net.http_request_queue;' | trim)"
+NET_RESPONSE_BEFORE="$(sql --command='select count(*) from net._http_response;' | trim)"
+
 DB_SETUP_STARTED=1
 sql <<SQL
 delete from public.booking_capacity_audit
- where booking_id = '$ORIGINAL_BOOKING'::uuid
+ where booking_id in (
+         '$ORIGINAL_BOOKING'::uuid,
+         '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+         '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+       )
     or booking_id = any (
          select unnest(new_booking_ids)
            from public.whatsapp_reschedule_receipts
-          where flow_token = '$FLOW_TOKEN'
+          where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
        );
 delete from public.booking_events
- where booking_id = '$ORIGINAL_BOOKING'::uuid
+ where booking_id in (
+         '$ORIGINAL_BOOKING'::uuid,
+         '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
+         '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+       )
     or booking_id = any (
          select unnest(new_booking_ids)
            from public.whatsapp_reschedule_receipts
-          where flow_token = '$FLOW_TOKEN'
+          where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
        );
-delete from public.whatsapp_reschedule_receipts where flow_token = '$FLOW_TOKEN';
-delete from public.bookings where dog_id = '$FIXTURE_DOG'::uuid;
-delete from public.dogs where id = '$FIXTURE_DOG'::uuid;
+delete from public.whatsapp_reschedule_receipts
+ where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN');
+delete from public.whatsapp_flow_sessions
+ where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN');
+delete from public.bookings
+ where dog_id in (
+   '$FIXTURE_DOG'::uuid,
+   '$MEMBERSHIP_SOURCE_DOG'::uuid,
+   '$MEMBERSHIP_PHANTOM_DOG'::uuid
+ );
+delete from public.dogs
+ where id in (
+   '$FIXTURE_DOG'::uuid,
+   '$MEMBERSHIP_SOURCE_DOG'::uuid,
+   '$MEMBERSHIP_PHANTOM_DOG'::uuid
+ );
 delete from public.humans where id = '$FIXTURE_HUMAN'::uuid;
 delete from public.staff_profiles where user_id = '$FIXTURE_USER'::uuid;
 delete from auth.users where id = '$FIXTURE_USER'::uuid;
@@ -347,7 +481,16 @@ insert into public.humans (id, name, surname)
 values ('$FIXTURE_HUMAN'::uuid, 'Concurrency', 'Fixture');
 
 insert into public.dogs (id, name, breed, size, human_id)
-values ('$FIXTURE_DOG'::uuid, 'Race', 'Poodle', 'small', '$FIXTURE_HUMAN'::uuid);
+values
+  ('$FIXTURE_DOG'::uuid, 'Race', 'Poodle', 'small', '$FIXTURE_HUMAN'::uuid),
+  ('$MEMBERSHIP_SOURCE_DOG'::uuid, 'Membership Source', 'Poodle', 'small', '$FIXTURE_HUMAN'::uuid),
+  ('$MEMBERSHIP_PHANTOM_DOG'::uuid, 'Membership Phantom', 'Poodle', 'small', '$FIXTURE_HUMAN'::uuid);
+
+insert into public.whatsapp_flow_sessions
+  (flow_token, phone_e164, human_id, flow_type, status)
+values
+  ('$FLOW_TOKEN', '+447700900001', '$FIXTURE_HUMAN'::uuid, 'cancel_reschedule', 'active'),
+  ('$MEMBERSHIP_FLOW_TOKEN', '+447700900002', '$FIXTURE_HUMAN'::uuid, 'cancel_reschedule', 'active');
 
 create function public.zz_ci_wa_reschedule_delay()
 returns trigger
@@ -355,8 +498,8 @@ language plpgsql
 set search_path = pg_catalog, public
 as \$delay\$
 begin
-  if current_setting('application_name', true) = '$FIRST_APP'
-     and old.id = '$ORIGINAL_BOOKING'::uuid
+  if current_setting('application_name', true) in ('$FIRST_APP', '$MEMBERSHIP_RESCHEDULE_APP')
+     and old.id in ('$ORIGINAL_BOOKING'::uuid, '$MEMBERSHIP_SOURCE_BOOKING'::uuid)
      and old.status is distinct from new.status
      and new.status = 'Cancelled'
   then
@@ -411,7 +554,10 @@ sql --command="
   values
     ('$ORIGINAL_BOOKING'::uuid, '$SOURCE_DATE'::date, '09:00',
      '$FIXTURE_DOG'::uuid, 'small', 'full-groom', 'Booked',
-     '$ORIGINAL_GROUP'::uuid, 'whatsapp_flow');" >/dev/null
+     '$ORIGINAL_GROUP'::uuid, 'whatsapp_flow'),
+    ('$MEMBERSHIP_SOURCE_BOOKING'::uuid, '$SOURCE_DATE'::date, '09:00',
+     '$MEMBERSHIP_SOURCE_DOG'::uuid, 'small', 'full-groom', 'Booked',
+     '$MEMBERSHIP_GROUP'::uuid, 'whatsapp_flow');" >/dev/null
 
 CALL_SQL="
 do \$claims\$
@@ -640,9 +786,240 @@ if [ -z "$STORED_IDS" ] || [ "$STORED_IDS" != "$LIVE_IDS" ]; then
   FAIL=1
 fi
 
+# A distinct two-session race: the reschedule must take the same exact
+# group/date membership lock used by the booking write trigger. The staff
+# writer below is a real INSERT through that trigger, not a hand-acquired or
+# sequential approximation. It must wait on the first caller's advisory lock;
+# after the reschedule commits, the trigger's post-lock revalidation must reject
+# the attempted Booked member instead of letting a phantom survive in the old
+# visit.
+MEMBERSHIP_CALL_SQL="
+do \$claims\$
+begin
+  perform set_config(
+    'request.jwt.claims',
+    '{\"sub\":\"$FIXTURE_USER\",\"role\":\"authenticated\"}',
+    false
+  );
+end
+\$claims\$;
+select replayed
+  from public.reschedule_whatsapp_booking_group(
+    jsonb_build_array(
+      jsonb_build_object(
+        'dog_id', '$MEMBERSHIP_SOURCE_DOG',
+        'slot', '11:00',
+        'service', 'full-groom'
+      )
+    ),
+    '$TARGET_DATE'::date,
+    '$FIXTURE_HUMAN'::uuid,
+    '$MEMBERSHIP_GROUP'::uuid,
+    null,
+    array['$MEMBERSHIP_SOURCE_BOOKING'::uuid],
+    'Rescheduled via WhatsApp',
+    '$MEMBERSHIP_FLOW_TOKEN',
+    '$SOURCE_DATE'::date,
+    '09:00',
+    jsonb_build_object('$MEMBERSHIP_SOURCE_DOG', 'full-groom')
+  );"
+
+MEMBERSHIP_STAFF_SQL="
+do \$claims\$
+begin
+  perform set_config(
+    'request.jwt.claims',
+    '{\"sub\":\"$FIXTURE_USER\",\"role\":\"authenticated\"}',
+    false
+  );
+end
+\$claims\$;
+insert into public.bookings
+  (id, booking_date, slot, dog_id, size, service, status, group_id, source)
+values
+  ('$MEMBERSHIP_PHANTOM_BOOKING'::uuid, '$SOURCE_DATE'::date, '10:00',
+   '$MEMBERSHIP_PHANTOM_DOG'::uuid, 'small', 'full-groom', 'Booked',
+   '$MEMBERSHIP_GROUP'::uuid, 'staff');"
+
+run_membership_reschedule() {
+  PGAPPNAME="$MEMBERSHIP_RESCHEDULE_APP" timeout \
+    --signal=TERM \
+    --kill-after=5s \
+    "${RPC_TIMEOUT_SECONDS}s" \
+    "${PSQL[@]}" \
+    --command="$MEMBERSHIP_CALL_SQL"
+}
+
+run_membership_staff_insert() {
+  PGAPPNAME="$MEMBERSHIP_STAFF_APP" timeout \
+    --signal=TERM \
+    --kill-after=5s \
+    "${RPC_TIMEOUT_SECONDS}s" \
+    "${PSQL[@]}" \
+    --command="$MEMBERSHIP_STAFF_SQL"
+}
+
+run_membership_reschedule >"$MEMBERSHIP_RESCHEDULE_OUT" 2>&1 &
+MEMBERSHIP_RESCHEDULE_PID=$!
+
+MEMBERSHIP_FIRST_READY=0
+MEMBERSHIP_FIRST_STATE="missing"
+for ((attempt = 1; attempt <= POLL_ATTEMPTS; attempt++)); do
+  MEMBERSHIP_FIRST_STATE="$(
+    sql --command="
+      select coalesce(
+        (
+          select case
+                   when wait_event_type = 'Timeout' and wait_event = 'PgSleep'
+                     then 'sleeping'
+                   else coalesce(state, '-') || '/' ||
+                        coalesce(wait_event_type, '-') || '/' ||
+                        coalesce(wait_event, '-')
+                 end
+            from pg_stat_activity
+           where application_name = '$MEMBERSHIP_RESCHEDULE_APP'
+           limit 1
+        ),
+        'missing'
+      );" | trim
+  )"
+  if [ "$MEMBERSHIP_FIRST_STATE" = "sleeping" ]; then
+    MEMBERSHIP_FIRST_READY=1
+    break
+  fi
+  sleep "$POLL_INTERVAL"
+done
+if [ "$MEMBERSHIP_FIRST_READY" != "1" ]; then
+  echo "FAIL: membership reschedule never reached the test delay (last state: $MEMBERSHIP_FIRST_STATE)." >&2
+  dump_client_outputs
+  dump_activity
+  exit 1
+fi
+
+run_membership_staff_insert >"$MEMBERSHIP_STAFF_OUT" 2>&1 &
+MEMBERSHIP_STAFF_PID=$!
+
+MEMBERSHIP_CONTENTION_PROVED=0
+MEMBERSHIP_STAFF_STATE="missing"
+for ((attempt = 1; attempt <= POLL_ATTEMPTS; attempt++)); do
+  MEMBERSHIP_STAFF_STATE="$(
+    sql --command="
+      select coalesce(
+        (
+          select case
+                   when contender.wait_event_type = 'Lock'
+                    and contender.wait_event = 'advisory'
+                    and blocker.pid = any(pg_blocking_pids(contender.pid))
+                     then 'waiting-on-membership-advisory'
+                   else coalesce(contender.state, '-') || '/' ||
+                        coalesce(contender.wait_event_type, '-') || '/' ||
+                        coalesce(contender.wait_event, '-')
+                 end
+            from pg_stat_activity contender
+            join pg_stat_activity blocker
+              on blocker.application_name = '$MEMBERSHIP_RESCHEDULE_APP'
+           where contender.application_name = '$MEMBERSHIP_STAFF_APP'
+           limit 1
+        ),
+        'missing'
+      );" | trim
+  )"
+  if [ "$MEMBERSHIP_STAFF_STATE" = "waiting-on-membership-advisory" ]; then
+    MEMBERSHIP_CONTENTION_PROVED=1
+    break
+  fi
+  sleep "$POLL_INTERVAL"
+done
+if [ "$MEMBERSHIP_CONTENTION_PROVED" != "1" ]; then
+  echo "FAIL: no bounded pg_stat_activity proof that the staff INSERT waited on the reschedule's exact customer_booking_cancellation group/date advisory lock (last state: $MEMBERSHIP_STAFF_STATE)." >&2
+  dump_client_outputs
+  dump_activity
+  FAIL=1
+fi
+
+MEMBERSHIP_COMPLETION_DEADLINE=$((SECONDS + RPC_TIMEOUT_SECONDS))
+while :; do
+  ACTIVE_MEMBERSHIP_SESSIONS="$(
+    sql --command="
+      select count(*)
+        from pg_stat_activity
+       where application_name in ('$MEMBERSHIP_RESCHEDULE_APP', '$MEMBERSHIP_STAFF_APP');" | trim
+  )"
+  if [ "$ACTIVE_MEMBERSHIP_SESSIONS" = "0" ]; then
+    break
+  fi
+  if ((SECONDS >= MEMBERSHIP_COMPLETION_DEADLINE)); then
+    echo "FAIL: membership race completion deadline of ${RPC_TIMEOUT_SECONDS}s expired with $ACTIVE_MEMBERSHIP_SESSIONS named session(s) active." >&2
+    dump_activity
+    dump_client_outputs
+    terminate_named_backends || true
+    exit 1
+  fi
+  sleep "$POLL_INTERVAL"
+done
+
+set +e
+wait "$MEMBERSHIP_RESCHEDULE_PID"
+MEMBERSHIP_RESCHEDULE_STATUS=$?
+wait "$MEMBERSHIP_STAFF_PID"
+MEMBERSHIP_STAFF_STATUS=$?
+MEMBERSHIP_RESCHEDULE_PID=""
+MEMBERSHIP_STAFF_PID=""
+set -e
+if [ "$MEMBERSHIP_RESCHEDULE_STATUS" = "124" ] || [ "$MEMBERSHIP_STAFF_STATUS" = "124" ]; then
+  echo "FAIL: membership race completion deadline of ${RPC_TIMEOUT_SECONDS}s expired (reschedule=$MEMBERSHIP_RESCHEDULE_STATUS staff=$MEMBERSHIP_STAFF_STATUS)." >&2
+  dump_client_outputs
+  exit 1
+fi
+if [ "$MEMBERSHIP_RESCHEDULE_STATUS" != "0" ]; then
+  echo "FAIL: membership reschedule caller exited non-zero ($MEMBERSHIP_RESCHEDULE_STATUS)." >&2
+  dump_client_outputs
+  FAIL=1
+fi
+if [ "$MEMBERSHIP_STAFF_STATUS" = "0" ] ||
+   ! rg -q 'booking_visit_already_cancelled' "$MEMBERSHIP_STAFF_OUT"; then
+  echo "FAIL: staff insert was not refused after membership-lock revalidation (status=$MEMBERSHIP_STAFF_STATUS)." >&2
+  cat "$MEMBERSHIP_STAFF_OUT" >&2 || true
+  FAIL=1
+fi
+
+MEMBERSHIP_SOURCE_LIVE="$(
+  sql --command="
+    select count(*)
+      from public.bookings
+     where id = '$MEMBERSHIP_SOURCE_BOOKING'::uuid
+       and status = 'Booked';" | trim
+)"
+if [ "$MEMBERSHIP_SOURCE_LIVE" != "0" ]; then
+  echo "FAIL: membership source booking is still active after the reschedule." >&2
+  FAIL=1
+fi
+
+MEMBERSHIP_PHANTOM_LIVE="$(
+  sql --command="
+    select count(*)
+      from public.bookings
+     where id = '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
+       and group_id = '$MEMBERSHIP_GROUP'::uuid
+       and booking_date = '$SOURCE_DATE'::date
+       and status = 'Booked';" | trim
+)"
+if [ "$MEMBERSHIP_PHANTOM_LIVE" != "0" ]; then
+  echo "FAIL: staff insert left a Booked phantom in the exact old group/date (count=$MEMBERSHIP_PHANTOM_LIVE)." >&2
+  FAIL=1
+fi
+
+NET_QUEUE_AFTER="$(sql --command='select count(*) from net.http_request_queue;' | trim)"
+NET_RESPONSE_AFTER="$(sql --command='select count(*) from net._http_response;' | trim)"
+if [ "$NET_QUEUE_AFTER" != "$NET_QUEUE_BEFORE" ] ||
+   [ "$NET_RESPONSE_AFTER" != "$NET_RESPONSE_BEFORE" ]; then
+  echo "FAIL: committed concurrency gate changed pg_net queue/response state (queue $NET_QUEUE_BEFORE->$NET_QUEUE_AFTER, response $NET_RESPONSE_BEFORE->$NET_RESPONSE_AFTER)." >&2
+  FAIL=1
+fi
+
 if [ "$FAIL" != "0" ]; then
   echo "CONCURRENCY GATE FAILED" >&2
   exit 1
 fi
 
-echo "PASS: advisory contention observed; one perform, one replay, one receipt, one live replacement, original cancelled, IDs match."
+echo "PASS: flow-token and exact membership advisory contention observed; no Booked old-visit phantom or pg_net delta."
