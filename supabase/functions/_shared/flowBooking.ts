@@ -100,6 +100,10 @@ export interface GroupBookingItem {
 
 export interface GroupInsertResult {
   ids?: string[];
+  // Populated by an atomic reschedule: the rows cancelled in the same
+  // transaction that created `ids`.
+  cancelledIds?: string[];
+  replayed?: boolean;
   errorCode?: string;
   errorMessage?: string;
 }
@@ -131,6 +135,45 @@ export interface FlowDb {
     dateStr: string,
     humanId: string,
   ): Promise<GroupInsertResult>;
+  // Atomic reschedule: cancels the old visit and creates the replacement in
+  // one transaction. Optional because only the Flow endpoint implements it.
+  rescheduleBookingGroup?(
+    items: GroupBookingItem[],
+    dateStr: string,
+    humanId: string,
+    old: RescheduleSelector,
+  ): Promise<GroupInsertResult>;
+}
+
+/**
+ * Identifies the visit a reschedule is replacing.
+ *
+ * `expectedOldIds` is the set of booking rows the customer actually reviewed
+ * when the Flow opened. The database refuses the move if the visit no longer
+ * matches, so a staff edit made mid-Flow cannot cancel dogs the customer never
+ * saw.
+ */
+export interface RescheduleSelector {
+  groupId?: string | null;
+  bookingId?: string | null;
+  expectedOldIds?: string[];
+  // The Flow's durable token. The database uses it to serialise concurrent
+  // completions and to replay a committed result instead of creating a second
+  // replacement.
+  flowToken?: string | null;
+  // Material facts the customer reviewed when the Flow opened, revalidated by
+  // the database inside the lock so an in-place staff edit that keeps the same
+  // booking ids is still caught.
+  expectedOldDate?: string | null;
+  expectedOldSlot?: string | null;
+  expectedServices?: Record<string, string> | null;
+  expectedOldSnapshot?: Array<{
+    booking_id: string;
+    dog_id: string;
+    booking_date: string;
+    slot: string;
+    service: string | null;
+  }> | null;
 }
 
 // ── Flow option shape (RadioButtons/Checkbox data-source) ───────
@@ -438,11 +481,25 @@ export interface GroupConfirmInput {
   dogs: GroupConfirmDog[]; // in the order the customer selected them
   dateStr: string;
   dropOff: string; // the chosen drop-off time
+  // When present this confirm is a reschedule: the old visit is cancelled and
+  // the replacement created in a single database transaction.
+  replaces?: RescheduleSelector;
 }
 
 export type GroupConfirmResult =
-  | { ok: true; bookingIds: string[] }
-  | { ok: false; kind: "slot_taken" | "ownership" | "error"; message: string };
+  | {
+      ok: true;
+      bookingIds: string[];
+      cancelledBookingIds?: string[];
+      // True when this was a duplicate submission answered from the stored
+      // receipt rather than a fresh reschedule.
+      replayed?: boolean;
+    }
+  | {
+      ok: false;
+      kind: "slot_taken" | "ownership" | "error" | "old_visit_unavailable";
+      message: string;
+    };
 
 /**
  * Create a 1-4 dog booking group. Re-resolves every dog server-side (pins
@@ -457,6 +514,29 @@ export async function confirmGroupBooking(
 ): Promise<GroupConfirmResult> {
   if (!input.dogs.length || input.dogs.length > 4) {
     return { ok: false, kind: "error", message: "Pick between 1 and 4 dogs." };
+  }
+
+  if (input.replaces) {
+    const token = input.replaces.flowToken?.trim() ?? "";
+    const expectedIds = input.replaces.expectedOldIds ?? [];
+    const snapshot = input.replaces.expectedOldSnapshot ?? [];
+    const snapshotIds = snapshot.map((row) => row.booking_id);
+    const uniqueExpectedIds = new Set(expectedIds);
+    const uniqueSnapshotIds = new Set(snapshotIds);
+    const hasSelector = Boolean(input.replaces.groupId || input.replaces.bookingId);
+    const exactSnapshotIds =
+      expectedIds.length > 0 &&
+      uniqueExpectedIds.size === expectedIds.length &&
+      snapshot.length === expectedIds.length &&
+      uniqueSnapshotIds.size === snapshot.length &&
+      [...uniqueExpectedIds].every((id) => uniqueSnapshotIds.has(id));
+    if (!token || !hasSelector || !exactSnapshotIds) {
+      return {
+        ok: false,
+        kind: "old_visit_unavailable",
+        message: "That booking snapshot is incomplete. Please start again.",
+      };
+    }
   }
 
   // Re-resolve every dog under the service role (RLS-bypassing): pins the
@@ -498,9 +578,65 @@ export async function confirmGroupBooking(
     };
   });
 
-  const res = await db.insertBookingGroup(items, input.dateStr, input.humanId);
-  if (res.ids?.length) {
-    return { ok: true, bookingIds: res.ids };
+  // A reschedule writes through the atomic RPC so a failure can never leave
+  // the customer with both the old and the new appointment. Everything above
+  // this line — ownership, authoritative size, allocation — is shared.
+  let res: GroupInsertResult;
+  if (input.replaces) {
+    const rescheduleBookingGroup = db.rescheduleBookingGroup;
+    if (!rescheduleBookingGroup) {
+      return {
+        ok: false,
+        kind: "error",
+        message: "Rescheduling is temporarily unavailable.",
+      };
+    }
+    res = await rescheduleBookingGroup(
+      items,
+      input.dateStr,
+      input.humanId,
+      input.replaces,
+    );
+  } else {
+    res = await db.insertBookingGroup(items, input.dateStr, input.humanId);
+  }
+  if (input.replaces) {
+    const newIds = res.ids ?? [];
+    const cancelledIds = res.cancelledIds ?? [];
+    const expectedCancelled = new Set(input.replaces.expectedOldIds ?? []);
+    const uniqueNew = new Set(newIds);
+    const uniqueCancelled = new Set(cancelledIds);
+    const exactNewCardinality =
+      newIds.length === items.length && uniqueNew.size === items.length;
+    const exactCancelledSet =
+      cancelledIds.length === expectedCancelled.size &&
+      uniqueCancelled.size === expectedCancelled.size &&
+      [...expectedCancelled].every((id) => uniqueCancelled.has(id));
+    if (exactNewCardinality && exactCancelledSet) {
+      return {
+        ok: true,
+        bookingIds: newIds,
+        cancelledBookingIds: cancelledIds,
+        replayed: res.replayed ?? false,
+      };
+    }
+  } else if (res.ids?.length) {
+    return {
+      ok: true,
+      bookingIds: res.ids,
+      cancelledBookingIds: res.cancelledIds,
+      replayed: res.replayed ?? false,
+    };
+  }
+
+  // The old visit is gone or no longer matches what the customer reviewed.
+  // Nothing was created and nothing was cancelled.
+  if (res.errorCode === RESCHEDULE_UNAVAILABLE_SQLSTATE) {
+    return {
+      ok: false,
+      kind: "old_visit_unavailable",
+      message: "That booking has changed since you opened this. Please start again.",
+    };
   }
 
   if (res.errorCode === CAPACITY_TRIGGER_SQLSTATE) {
@@ -531,6 +667,9 @@ export type ConfirmResult =
   | { ok: false; kind: "slot_taken" | "ownership" | "error"; message: string };
 
 const CAPACITY_TRIGGER_SQLSTATE = "P0001";
+// reschedule_whatsapp_booking_group raises P0002 when the old visit is
+// unavailable or no longer matches the reviewed snapshot.
+const RESCHEDULE_UNAVAILABLE_SQLSTATE = "P0002";
 
 export async function confirmBooking(db: FlowDb, input: ConfirmInput): Promise<ConfirmResult> {
   // Re-resolve the dog server-side: it pins the size (not client-supplied)

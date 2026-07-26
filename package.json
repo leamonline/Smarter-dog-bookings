@@ -12,6 +12,7 @@
     "test:logic": "vitest run --project=logic",
     "test:component": "vitest run --project=component",
     "test:db": "supabase test db",
+    "test:db:concurrency": "PGHOST=${PGHOST:-127.0.0.1} PGPORT=${PGPORT:-54322} PGDATABASE=${PGDATABASE:-postgres} PGUSER=${PGUSER:-postgres} PGPASSWORD=${PGPASSWORD:-postgres} bash scripts/verify-whatsapp-reschedule-concurrency.sh",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "e2e": "playwright test",

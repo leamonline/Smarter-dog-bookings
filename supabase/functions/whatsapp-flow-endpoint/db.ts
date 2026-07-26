@@ -17,6 +17,7 @@ import {
   type FlowDb,
   type GroupBookingItem,
   type GroupInsertResult,
+  type RescheduleSelector,
   type HumanRow,
   type InsertResult,
   type LargeDogDay,
@@ -45,9 +46,10 @@ export interface FlowState {
   drop_off?: string;
   // ── Reschedule mode (pre-seeded by the agent) ──
   // When flow_mode==='reschedule' the Flow opens on SELECT_DATE with the dogs
-  // + services above already pinned; on CONFIRM the endpoint creates the new
-  // booking group, then cancels the old visit. The *_snapshot fields freeze
-  // the old visit so CONFIRM can detect it changing underneath the customer.
+  // + services above already pinned; on CONFIRM one atomic database command
+  // cancels the old visit and creates the replacement. The *_snapshot fields
+  // freeze the old visit so CONFIRM can detect it changing underneath the
+  // customer.
   flow_mode?: "reschedule";
   reschedule_group_id?: string | null;
   reschedule_booking_id?: string;
@@ -57,6 +59,13 @@ export interface FlowState {
   old_start_at?: string;
   service_snapshot?: Record<string, string>;
   dog_snapshot?: string[];
+  old_booking_snapshot?: Array<{
+    booking_id: string;
+    dog_id: string;
+    booking_date: string;
+    slot: string;
+    service: string | null;
+  }>;
 }
 
 export interface FlowSessionRow {
@@ -226,6 +235,54 @@ export function makeFlowDb(supabase: SupabaseClient): FlowDb {
         : [];
       return { ids };
     },
+
+    // Atomic reschedule. One RPC cancels the old visit and creates the
+    // replacement in a single transaction, so a partial failure can never
+    // leave two active appointments. Errors are returned, not thrown, so the
+    // caller keeps its existing slot-taken retry behaviour.
+    async rescheduleBookingGroup(
+      items: GroupBookingItem[],
+      dateStr: string,
+      humanId: string,
+      old: RescheduleSelector,
+    ): Promise<GroupInsertResult> {
+      const payload = items.map((it) => ({
+        dog_id: it.dog_id,
+        slot: it.slot,
+        service: it.service,
+        size: it.size,
+        addons: it.addons,
+      }));
+      const { data, error } = await supabase.rpc("reschedule_whatsapp_booking_group", {
+        p_bookings: payload,
+        p_booking_date: dateStr,
+        p_human_id: humanId,
+        p_old_group_id: old.groupId ?? null,
+        p_old_booking_id: old.bookingId ?? null,
+        p_expected_old_ids: old.expectedOldIds?.length ? old.expectedOldIds : null,
+        p_reason: "Rescheduled via WhatsApp",
+        p_flow_token: old.flowToken ?? null,
+        p_expected_old_date: old.expectedOldDate ?? null,
+        p_expected_old_slot: old.expectedOldSlot ?? null,
+        p_expected_services: old.expectedServices ?? null,
+        p_expected_old_snapshot: old.expectedOldSnapshot ?? null,
+      });
+      if (error) {
+        return { errorCode: error.code, errorMessage: error.message };
+      }
+      const row = (Array.isArray(data) ? data[0] : data) as
+        | {
+            new_booking_ids?: string[];
+            cancelled_booking_ids?: string[];
+            replayed?: boolean;
+          }
+        | null;
+      return {
+        ids: row?.new_booking_ids ?? [],
+        cancelledIds: row?.cancelled_booking_ids ?? [],
+        replayed: row?.replayed ?? false,
+      };
+    },
   };
 }
 
@@ -256,7 +313,8 @@ export async function saveSession(
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update(update)
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("saveSession failed:", error.message);
 }
 
@@ -268,7 +326,8 @@ export async function completeSession(
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update({ status: "completed", booking_id: bookingId, updated_at: new Date().toISOString() })
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("completeSession failed:", error.message);
 }
 
@@ -276,8 +335,32 @@ export async function failSession(supabase: SupabaseClient, flowToken: string): 
   const { error } = await supabase
     .from("whatsapp_flow_sessions")
     .update({ status: "failed", updated_at: new Date().toISOString() })
-    .eq("flow_token", flowToken);
+    .eq("flow_token", flowToken)
+    .eq("status", "active");
   if (error) console.error("failSession failed:", error.message);
+}
+
+/** Replay the durable multi-row result of an already committed reschedule.
+ * The SECURITY DEFINER RPC binds token to human and takes the same advisory
+ * token lock as the writer before returning this private receipt. */
+export async function loadCommittedRescheduleReceipt(
+  supabase: SupabaseClient,
+  flowToken: string,
+  humanId: string,
+): Promise<string[] | null> {
+  const { data, error } = await supabase.rpc("replay_whatsapp_reschedule_receipt", {
+    p_flow_token: flowToken,
+    p_human_id: humanId,
+  });
+  if (error) {
+    console.error("replay_whatsapp_reschedule_receipt failed:", error.message);
+    return null;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { new_booking_ids?: string[] }
+    | null;
+  const ids = row?.new_booking_ids ?? [];
+  return ids.length ? ids : null;
 }
 
 // ── Reschedule helpers (re-validate + cancel the old visit) ────
@@ -298,7 +381,7 @@ export interface OldBookingRow {
 export async function getActiveOwnedBookings(
   supabase: SupabaseClient,
   humanId: string,
-  sel: { groupId?: string | null; bookingId?: string },
+  sel: { groupId?: string | null; bookingId?: string; bookingDate?: string | null },
 ): Promise<OldBookingRow[]> {
   let q = supabase
     .from("bookings")
@@ -308,6 +391,7 @@ export async function getActiveOwnedBookings(
   if (sel.groupId) q = q.eq("group_id", sel.groupId);
   else if (sel.bookingId) q = q.eq("id", sel.bookingId);
   else return [];
+  if (sel.bookingDate) q = q.eq("booking_date", sel.bookingDate);
   const { data, error } = await q;
   if (error) {
     console.error("getActiveOwnedBookings failed:", error.message);

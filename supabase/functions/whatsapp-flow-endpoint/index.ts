@@ -54,7 +54,6 @@ import {
 import { type DogSize, slotLabel } from "../_shared/salonConstants.ts";
 import { isInsideManageCutoff, visitStartInstant } from "../_shared/manageBooking.ts";
 import {
-  cancelOldBookingForReschedule,
   completeSession,
   createServiceClient,
   failSession,
@@ -62,10 +61,16 @@ import {
   type FlowSessionRow,
   type FlowState,
   getActiveOwnedBookings,
+  loadCommittedRescheduleReceipt,
   loadSession,
   makeFlowDb,
   saveSession,
 } from "./db.ts";
+import {
+  gateFlowSession,
+  handleRescheduleConfirm,
+  reviewedBookingSnapshotsEqual,
+} from "./rescheduleConfirm.ts";
 
 // Reschedule fail-safe copy (the old booking is left untouched in these cases).
 const RESCHEDULE_CHANGED_MSG =
@@ -272,10 +277,25 @@ async function validateRescheduleOld(
   state: FlowState,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const sel = state.reschedule_group_id
-    ? { groupId: state.reschedule_group_id }
-    : { bookingId: state.reschedule_booking_id };
+    ? { groupId: state.reschedule_group_id, bookingDate: state.old_date }
+    : { bookingId: state.reschedule_booking_id, bookingDate: state.old_date };
   const oldRows = await getActiveOwnedBookings(supabase, humanId, sel);
   if (!oldRows.length) return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+
+  const liveSnapshot = oldRows.map((row) => ({
+    booking_id: row.id,
+    dog_id: row.dog_id,
+    booking_date: row.booking_date,
+    slot: row.slot,
+    service: row.service,
+  }));
+  const reviewedSnapshot = state.old_booking_snapshot ?? [];
+  if (
+    reviewedSnapshot.length === 0 ||
+    !reviewedBookingSnapshotsEqual(liveSnapshot, reviewedSnapshot)
+  ) {
+    return { ok: false, message: RESCHEDULE_CHANGED_MSG };
+  }
 
   // Same dogs as the snapshot?
   const dogSet = [...new Set(oldRows.map((r) => r.dog_id))].sort();
@@ -375,8 +395,133 @@ async function handleConfirm(
   const allowRetry = opts.allowRetry ?? true;
   const isReschedule = state.flow_mode === "reschedule";
 
-  // Idempotency: a duplicate confirm returns the existing booking group.
-  if (session.booking_id) return successResponse([session.booking_id], state, { rescheduled: isReschedule });
+  // Ordinary booking sessions retain the historical single-id marker. A
+  // reschedule must use its durable receipt so a multi-dog replay returns all
+  // replacement ids.
+  if (!isReschedule && session.booking_id) {
+    return successResponse([session.booking_id], state);
+  }
+
+  if (isReschedule) {
+    const result = await handleRescheduleConfirm({
+      inMemorySession: {
+        flowToken: session.flow_token,
+        status: session.status,
+      },
+      loadCommittedReceipt: () =>
+        session.human_id
+          ? loadCommittedRescheduleReceipt(supabase, session.flow_token, session.human_id)
+          : Promise.resolve(null),
+      runAtomicReschedule: async () => {
+        const dogIds = state.dog_ids ?? [];
+        const services = state.services ?? {};
+        const addons = state.addons ?? {};
+        if (
+          !session.human_id || !dogIds.length || dogIds.length > 4 ||
+          !state.date || !state.drop_off || !dogIds.every((id) => services[id])
+        ) {
+          return {
+            ok: false as const,
+            kind: "error" as const,
+            message: "Some details were missing. Please start again.",
+          };
+        }
+
+        if (
+          !(state.dog_snapshot?.length) ||
+          !(state.reschedule_group_id || state.reschedule_booking_id) ||
+          !state.service_snapshot ||
+          !(state.old_booking_ids?.length) ||
+          !(state.old_booking_snapshot?.length)
+        ) {
+          return {
+            ok: false as const,
+            kind: "old_visit_unavailable" as const,
+            message: RESCHEDULE_CHANGED_MSG,
+          };
+        }
+
+        const validation = await validateRescheduleOld(supabase, session.human_id, state);
+        if (!validation.ok) {
+          return {
+            ok: false as const,
+            kind: "old_visit_unavailable" as const,
+            message: validation.message,
+          };
+        }
+
+        return confirmGroupBooking(db, {
+          humanId: session.human_id,
+          dateStr: state.date,
+          dropOff: state.drop_off,
+          dogs: dogIds.map((id) => ({
+            dogId: id,
+            serviceId: services[id],
+            addons: addons[id] ?? [],
+          })),
+          replaces: {
+            groupId: state.reschedule_group_id ?? null,
+            bookingId: state.reschedule_booking_id ?? null,
+            expectedOldIds: state.old_booking_ids,
+            flowToken: session.flow_token,
+            expectedOldDate: state.old_date ?? null,
+            expectedOldSlot: state.old_slot ?? null,
+            expectedServices: state.service_snapshot,
+            expectedOldSnapshot: state.old_booking_snapshot,
+          },
+        });
+      },
+      // The SQL transaction already marks the session completed. This
+      // conditional endpoint write only preserves compatibility for older
+      // deployments and cannot demote or partially redefine the result.
+      completeSession: async (bookingIds) => {
+        if (bookingIds[0]) {
+          await completeSession(supabase, session.flow_token, bookingIds[0]);
+        }
+      },
+      failSession: () => failSession(supabase, session.flow_token),
+    });
+
+    if (result.ok) {
+      return successResponse(result.bookingIds, state, { rescheduled: true });
+    }
+
+    if (result.kind === "old_visit_unavailable") {
+      await logFlowDenial(supabase, session, state, result.message, false);
+      return screenResponse("BOOKING_FAILED", {
+        message: result.message === RESCHEDULE_CUTOFF_MSG
+          ? RESCHEDULE_CUTOFF_MSG
+          : RESCHEDULE_CHANGED_MSG,
+      });
+    }
+
+    if (result.kind === "slot_taken" && allowRetry) {
+      await logFlowDenial(supabase, session, state, result.message, true);
+      const slots = await groupSlotOptions(db, dogsFromState(state), state.date ?? "");
+      await saveSession(supabase, session.flow_token, {
+        screen: "SELECT_TIME_RETRY",
+        state,
+      });
+      return screenResponse("SELECT_TIME_RETRY", {
+        date_label: state.date ? formatDateLong(state.date) : "",
+        time_heading: state.date
+          ? `No worries — pick another time on ${formatDateLong(state.date)}`
+          : "Pick another time",
+        time_slots: slots.length
+          ? slots
+          : [{ id: state.drop_off ?? "", title: slotLabel(state.drop_off ?? "") }],
+        error_message: result.message,
+      });
+    }
+
+    if (result.kind === "slot_taken" && !allowRetry) {
+      await failSession(supabase, session.flow_token);
+    }
+    await logFlowDenial(supabase, session, state, result.message, false);
+    return screenResponse("BOOKING_FAILED", {
+      message: result.message ?? "Couldn't save the booking.",
+    });
+  }
 
   const dogIds = state.dog_ids ?? [];
   const services = state.services ?? {};
@@ -388,26 +533,6 @@ async function handleConfirm(
     return screenResponse("BOOKING_FAILED", { message: "Some details were missing. Please start again." });
   }
 
-  // Reschedule: re-validate the OLD visit BEFORE creating the new one, so a
-  // stale/changed/late old visit never produces a new booking.
-  if (isReschedule) {
-    // Guard: a reschedule session must carry its old-visit snapshot. If the
-    // pre-seed was incomplete, fail safe rather than booking a duplicate.
-    if (
-      !(state.dog_snapshot?.length) ||
-      !(state.reschedule_group_id || state.reschedule_booking_id) ||
-      !state.service_snapshot
-    ) {
-      await failSession(supabase, session.flow_token);
-      return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
-    }
-    const v = await validateRescheduleOld(supabase, session.human_id, state);
-    if (!v.ok) {
-      await failSession(supabase, session.flow_token);
-      return screenResponse("BOOKING_FAILED", { message: v.message });
-    }
-  }
-
   const res = await confirmGroupBooking(db, {
     humanId: session.human_id,
     dateStr: state.date,
@@ -416,28 +541,18 @@ async function handleConfirm(
   });
 
   if (res.ok) {
-    // Reschedule: new booking created — NOW cancel the old visit (new-first,
-    // cancel-old-second so a failure never loses the original). A partial
-    // cancel leaves a duplicate, logged loudly for staff (visible in the
-    // calendar); the customer still sees their confirmed new booking.
-    if (isReschedule) {
-      const sel = state.reschedule_group_id
-        ? { groupId: state.reschedule_group_id }
-        : { bookingId: state.reschedule_booking_id };
-      const cancelled = await cancelOldBookingForReschedule(supabase, session.human_id, sel);
-      const expected = (state.old_booking_ids ?? []).length || 1;
-      if (cancelled.cancelledCount < expected) {
-        console.error(
-          `[reschedule] DUPLICATE-RISK: new booking ${res.bookingIds.join(",")} created but only ` +
-            `${cancelled.cancelledCount}/${expected} old rows cancelled ` +
-            `(group=${state.reschedule_group_id ?? "-"} booking=${state.reschedule_booking_id ?? "-"} ` +
-            `human=${session.human_id}). Staff must remove the old booking.`,
-        );
-      }
-    }
-    // Store the first booking id as the idempotency marker for re-confirms.
+    // Store the first ordinary-booking id as the historical idempotency marker
+    // for re-confirms.
     await completeSession(supabase, session.flow_token, res.bookingIds[0]);
-    return successResponse(res.bookingIds, state, { rescheduled: isReschedule });
+    return successResponse(res.bookingIds, state);
+  }
+
+  // Defensive fallback for an adapter that reports a reschedule-only error on
+  // this ordinary booking path.
+  if (res.kind === "old_visit_unavailable") {
+    await logFlowDenial(supabase, session, state, res.message, false);
+    await failSession(supabase, session.flow_token);
+    return screenResponse("BOOKING_FAILED", { message: RESCHEDULE_CHANGED_MSG });
   }
 
   if (res.kind === "slot_taken" && allowRetry) {
@@ -568,7 +683,26 @@ async function handleFlow(req: DecryptedFlowRequest): Promise<unknown> {
 
   const supabase = createServiceClient();
   const session = await loadSession(supabase, token);
-  if (!session || session.status !== "active" || new Date(session.expires_at) < new Date()) {
+  if (!session) {
+    return screenResponse("BOOKING_FAILED", {
+      message: 'This booking session has expired. Reply "book" to start again.',
+    });
+  }
+  const sessionGate = await gateFlowSession({
+    session: {
+      flowMode: session.state.flow_mode,
+      status: session.status,
+    },
+    expired: new Date(session.expires_at) < new Date(),
+    loadCommittedReceipt: () =>
+      session.human_id
+        ? loadCommittedRescheduleReceipt(supabase, session.flow_token, session.human_id)
+        : Promise.resolve(null),
+  });
+  if (sessionGate.action === "replay") {
+    return successResponse(sessionGate.bookingIds, session.state, { rescheduled: true });
+  }
+  if (sessionGate.action === "reject") {
     return screenResponse("BOOKING_FAILED", {
       message: 'This booking session has expired. Reply "book" to start again.',
     });
