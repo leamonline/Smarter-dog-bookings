@@ -132,6 +132,9 @@ jobs:
         run: supabase test db
 
       - name: Prove atomic reschedule concurrency
+        # RED-phase harness: run the independent two-session proof even while
+        # the new pgTAP contracts above are intentionally failing.
+        if: always()
         timeout-minutes: 5
         run: npm run test:db:concurrency
 
