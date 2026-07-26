@@ -1739,6 +1739,11 @@ end;
 $$;
 revoke all on function public.run_legacy_deposit_auto_release() from public, anon, authenticated;
 
+-- Production already has pg_cron from the legacy deposit migration. Declare
+-- the dependency here as well so schema-only restore environments (including
+-- disposable database CI) can recreate the guarded schedule independently.
+create extension if not exists pg_cron;
+
 select cron.unschedule(jobid) from cron.job where jobname = 'deposit-auto-release';
 select cron.schedule(
   'deposit-auto-release',

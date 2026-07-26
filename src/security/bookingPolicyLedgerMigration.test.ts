@@ -45,6 +45,12 @@ describe("visit deposits, incidents and credits migration", () => {
     expect(sql).not.toMatch(/credit_refunded/);
     // The guarded legacy sweep must never touch a visit_v1 aggregate.
     expect(sql).toMatch(/runtime_generation\s*=\s*'legacy_compat'/);
+    // A schema-only baseline does not carry extension-owned cron relations.
+    // The candidate migration must recreate that dependency before replacing
+    // the guarded legacy schedule.
+    expect(sql.indexOf("create extension if not exists pg_cron")).toBeLessThan(
+      sql.indexOf("select cron.unschedule"),
+    );
   });
 
   it("adds the resolver, refund calendar helper and legacy money commands", () => {
