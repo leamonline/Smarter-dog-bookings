@@ -125,6 +125,9 @@ function renderToday(props = {}) {
 
 describe("TodayView — selected-date operations", () => {
   it("uses a closed selected date for the heading, empty state and new bookings", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T09:15:00Z"));
+
     const onOpenDatePicker = vi.fn();
     const onNewBooking = vi.fn();
     renderToday({
