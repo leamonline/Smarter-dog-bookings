@@ -6,6 +6,7 @@ import { resolveBookingDisplay, getDogByIdOrName } from "../../engine/bookingRul
 import { buildSlotGrid } from "../../engine/slotGrid";
 import {
   londonDateStr,
+  londonWallClockToUtcMs,
   paymentState,
   buildDaySummary,
   buildTakingsByMethod,
@@ -137,8 +138,10 @@ export function TodayView({
   // Non-today availability must not inherit the real clock's elapsed slots.
   // Anchor it to the selected date's start while retaining live cut-offs today.
   const availabilityNow = useMemo(
-    () => dateStr === realTodayStr ? now : new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
-    [dateObj, dateStr, now, realTodayStr],
+    () => dateStr === realTodayStr
+      ? now
+      : new Date(londonWallClockToUtcMs(dateStr, "00:00")),
+    [dateStr, now, realTodayStr],
   );
 
   // ---- Engine selectors ----
