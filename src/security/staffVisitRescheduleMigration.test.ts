@@ -27,9 +27,39 @@ describe("staff visit reschedule migration", () => {
     expect(body).toContain("active_slots_for(p_booking_date)");
     expect(body).toContain("v_source_dog_count");
     expect(body).toContain("v_assignment_dog_count");
-    expect(body).toContain(
-      "if case\n      when jsonb_typeof(v_elem) <> 'object' then true",
+    const containerGuard = body.indexOf(
+      "or jsonb_typeof(p_slot_assignments) <> 'array' then",
     );
+    const containerGuardEnd = body.indexOf("end if;", containerGuard);
+    const emptyGuard = body.indexOf(
+      "if jsonb_array_length(p_slot_assignments) = 0 then",
+    );
+    const arrayElements = body.indexOf(
+      "for v_elem in select * from jsonb_array_elements(p_slot_assignments) loop",
+    );
+    const objectGuard = body.indexOf(
+      "if jsonb_typeof(v_elem) <> 'object' then",
+    );
+    const objectGuardEnd = body.indexOf("end if;", objectGuard);
+    const objectOperators = body.indexOf(
+      "if (v_elem - 'dog_id' - 'slot') <> '{}'::jsonb",
+    );
+    for (const index of [
+      containerGuard,
+      containerGuardEnd,
+      emptyGuard,
+      arrayElements,
+      objectGuard,
+      objectGuardEnd,
+      objectOperators,
+    ]) {
+      expect(index).toBeGreaterThanOrEqual(0);
+    }
+    expect(emptyGuard).toBeGreaterThan(containerGuardEnd);
+    expect(arrayElements).toBeGreaterThan(emptyGuard);
+    expect(objectGuard).toBeGreaterThan(arrayElements);
+    expect(objectOperators).toBeGreaterThan(objectGuardEnd);
+    expect(body).not.toMatch(/\bif\s+case\b/i);
     expect(body.indexOf("'invalid_slot_assignments'")).toBeLessThan(
       body.indexOf("set lifecycle_state = 'superseded'"),
     );
@@ -91,11 +121,53 @@ describe("staff visit update migration", () => {
     expect(updateBody).toContain(
       "if jsonb_array_length(p_changes) = 0 then",
     );
-    expect(updateBody).toMatch(
-      /case\s+when jsonb_typeof\(v_elem->'addons'\) <> 'array' then true/,
+    const containerGuard = updateBody.indexOf(
+      "or jsonb_typeof(p_changes) <> 'array' then",
     );
-    expect(updateBody).toContain(
-      "if case\n      when jsonb_typeof(v_elem) <> 'object' then true",
+    const containerGuardEnd = updateBody.indexOf("end if;", containerGuard);
+    const emptyGuard = updateBody.indexOf(
+      "if jsonb_array_length(p_changes) = 0 then",
     );
+    const arrayElements = updateBody.indexOf(
+      "for v_elem in select * from jsonb_array_elements(p_changes) loop",
+    );
+    const objectGuard = updateBody.indexOf(
+      "if jsonb_typeof(v_elem) <> 'object' then",
+    );
+    const objectGuardEnd = updateBody.indexOf("end if;", objectGuard);
+    const objectOperators = updateBody.indexOf(
+      "if coalesce(v_elem->>'bookingId','') !~*",
+    );
+    const addonsArrayGuard = updateBody.indexOf(
+      "and jsonb_typeof(v_elem->'addons') <> 'array'",
+    );
+    const addonsArrayGuardEnd = updateBody.indexOf(
+      "end if;",
+      addonsArrayGuard,
+    );
+    const addonsArrayUse = updateBody.indexOf(
+      "from jsonb_array_elements(v_elem->'addons') add_on",
+    );
+    for (const index of [
+      containerGuard,
+      containerGuardEnd,
+      emptyGuard,
+      arrayElements,
+      objectGuard,
+      objectGuardEnd,
+      objectOperators,
+      addonsArrayGuard,
+      addonsArrayGuardEnd,
+      addonsArrayUse,
+    ]) {
+      expect(index).toBeGreaterThanOrEqual(0);
+    }
+    expect(emptyGuard).toBeGreaterThan(containerGuardEnd);
+    expect(arrayElements).toBeGreaterThan(emptyGuard);
+    expect(objectGuard).toBeGreaterThan(arrayElements);
+    expect(objectOperators).toBeGreaterThan(objectGuardEnd);
+    expect(addonsArrayGuard).toBeGreaterThan(objectOperators);
+    expect(addonsArrayUse).toBeGreaterThan(addonsArrayGuardEnd);
+    expect(updateBody).not.toMatch(/\bif\s+case\b/i);
   });
 });

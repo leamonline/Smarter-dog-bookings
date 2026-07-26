@@ -488,17 +488,16 @@ begin
   end if;
 
   for v_elem in select * from jsonb_array_elements(p_slot_assignments) loop
-    if case
-      when jsonb_typeof(v_elem) <> 'object' then true
-      else (
-        (v_elem - 'dog_id' - 'slot') <> '{}'::jsonb
-        or coalesce(v_elem->>'dog_id','') !~*
-           '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        or jsonb_typeof(v_elem->'slot') <> 'string'
-        or nullif(trim(v_elem->>'slot'),'') is null
-        or not ((v_elem->>'slot') = any(public.active_slots_for(p_booking_date)))
-      )
-    end then
+    if jsonb_typeof(v_elem) <> 'object' then
+      return jsonb_build_object('outcome','blocked','block_reason','invalid_slot_assignments',
+                                'visit_id',p_visit_id,'revision',v.row_revision,'outcome_key',null);
+    end if;
+    if (v_elem - 'dog_id' - 'slot') <> '{}'::jsonb
+       or coalesce(v_elem->>'dog_id','') !~*
+          '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       or jsonb_typeof(v_elem->'slot') <> 'string'
+       or nullif(trim(v_elem->>'slot'),'') is null
+       or not ((v_elem->>'slot') = any(public.active_slots_for(p_booking_date))) then
       return jsonb_build_object('outcome','blocked','block_reason','invalid_slot_assignments',
                                 'visit_id',p_visit_id,'revision',v.row_revision,'outcome_key',null);
     end if;
@@ -766,33 +765,36 @@ begin
   -- Validate the complete edit set before touching any booking row. A bad
   -- member must not leave earlier members partially applied.
   for v_elem in select * from jsonb_array_elements(p_changes) loop
-    if case
-      when jsonb_typeof(v_elem) <> 'object' then true
-      else (
-        coalesce(v_elem->>'bookingId','') !~*
-          '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        or (v_elem - 'bookingId' - 'service' - 'addons') <> '{}'::jsonb
-        or not (v_elem ? 'service' or v_elem ? 'addons')
-        or (
-          v_elem ? 'service'
-          and (
-            jsonb_typeof(v_elem->'service') <> 'string'
-            or nullif(trim(v_elem->>'service'),'') is null
-          )
-        )
-        or (
-          v_elem ? 'addons'
-          and case
-            when jsonb_typeof(v_elem->'addons') <> 'array' then true
-            else exists (
-              select 1
-              from jsonb_array_elements(v_elem->'addons') add_on
-              where jsonb_typeof(add_on) <> 'string'
-            )
-          end
-        )
-      )
-    end then
+    if jsonb_typeof(v_elem) <> 'object' then
+      return jsonb_build_object(
+        'outcome','blocked','block_reason','invalid_changes',
+        'visit_id',p_visit_id,'revision',v.row_revision,'outcome_key',null);
+    end if;
+    if coalesce(v_elem->>'bookingId','') !~*
+         '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       or (v_elem - 'bookingId' - 'service' - 'addons') <> '{}'::jsonb
+       or not (v_elem ? 'service' or v_elem ? 'addons')
+       or (
+         v_elem ? 'service'
+         and (
+           jsonb_typeof(v_elem->'service') <> 'string'
+           or nullif(trim(v_elem->>'service'),'') is null
+         )
+       )
+       or (
+         v_elem ? 'addons'
+         and jsonb_typeof(v_elem->'addons') <> 'array'
+       ) then
+      return jsonb_build_object(
+        'outcome','blocked','block_reason','invalid_changes',
+        'visit_id',p_visit_id,'revision',v.row_revision,'outcome_key',null);
+    end if;
+    if v_elem ? 'addons'
+       and exists (
+         select 1
+         from jsonb_array_elements(v_elem->'addons') add_on
+         where jsonb_typeof(add_on) <> 'string'
+       ) then
       return jsonb_build_object(
         'outcome','blocked','block_reason','invalid_changes',
         'visit_id',p_visit_id,'revision',v.row_revision,'outcome_key',null);
