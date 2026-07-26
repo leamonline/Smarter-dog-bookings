@@ -74,3 +74,42 @@ additive):
 | `20260513130000_whatsapp_auto_send_default_off.sql` | Re-asserts the `auto_send_enabled = false` default and resets any seed/dev rows that had it on. |
 | `20260513140000_link_bookings_to_whatsapp.sql` | Adds `bookings.whatsapp_conversation_id` + `whatsapp_message_id` and re-issues `apply_whatsapp_booking_action` to populate them. |
 | `20260513150000_fix_null_surnames.sql` | Resets `humans.surname` rows that are the literal string "Null" and adds a CHECK constraint to prevent reintroduction. |
+
+## July 2026 — booking policy foundation
+
+Fourteen additive migrations introduce the inactive visit-level booking policy
+model and its read projections. GitHub Actions, Vercel and the Edge Function
+deployment do **not** apply database migrations: apply these manually, one file
+at a time, in the exact order below. They change **no** customer-visible
+behaviour: `previous_day_1500_v1` is seeded with a null `effective_at` and the
+legacy paths remain authoritative until a separately approved activation.
+Schema deployment does not authorise activation, Terms or Meta publication, or
+customer contact.
+
+| File | What it does |
+|---|---|
+| `20260726144000_booking_visit_foundation.sql` | `booking_visits`, `booking_lineages`, the immutable policy registry, nullable `bookings.visit_id` with a `legacy_compat` dual-write trigger, an idempotent backfill and the audited staff backfill-reconciliation commands. |
+| `20260726144001_authoritative_booking_policy_rules.sql` | Typed `booking_policy_settings` singleton with an audited owner-only write path, immutable Terms-publication and bank-instruction ledgers, the inactive/scheduled/active runtime seam, `change_deadline_for` and runtime-aware availability RPCs. |
+| `20260726144002_visit_deposits_incidents_credits.sql` | One deposit record per visit, the immutable financial ledger, incidents with audit, staff overrides, credit reservations, the working-day refund calendar, the deposit-requirement resolver and the guarded legacy deposit compatibility paths. |
+| `20260726144003_refund_calendar_coverage_warnings.sql` | Verified refund-calendar coverage, fail-loud due-date calculation, owner-only extensions and advance maintenance warnings. |
+| `20260726144004_customer_visit_commands.sql` | Idempotent customer visit commands returning typed receipts, single-use review tokens and the revoked private dispatch seam. |
+| `20260726144005_staff_visit_policy_commands.sql` | Staff approval, decline, manual deposit reconciliation, liability resolution, refund settlement, incidents, waivers and overrides. |
+| `20260726144006_visit_policy_events.sql` | Visit identity and the v1 vocabulary on `booking_events`, trusted `requested_at` for deadline classification, and aggregate completion synchronisation. |
+| `20260726144007_staff_visit_write_commands.sql` | Atomic staff visit create, update, cancel and reschedule commands with revision checks, idempotency and audit. |
+| `20260726144008_staff_prepayment_and_terms_notice.sql` | Complete staff prepayment dispositions and an explicit Terms-acknowledgement basis without fabricating customer acceptance. |
+| `20260726144009_staff_terms_notice_and_transfer_legs.sql` | Declared staff Terms-notice evidence and balanced two-legged prepayment transfers. |
+| `20260726144010_booking_visit_data_quality.sql` | Read-only visit authority classification and the supporting operational indexes. |
+| `20260726144011_customer_visit_projection.sql` | Owner-scoped customer visit projection with nested dogs, server actionability and safe unresolved history. |
+| `20260726144012_data_quality_local_only.sql` | Per-visit classifier correction so projection cost does not grow with a whole-table review scan. |
+| `20260726144013_staff_booking_policy_projections.sql` | Staff attention and visit-detail projections with all-open queues, revisions and exact due-time boundaries. |
+
+Deployment gates, verification queries and the activation blockers are in
+[docs/superpowers/runbooks/2026-07-22-booking-policy-foundation-rollout.md](superpowers/runbooks/2026-07-22-booking-policy-foundation-rollout.md).
+Backfill reconciliation is in
+[docs/superpowers/runbooks/2026-07-22-booking-policy-backfill-reconciliation.md](superpowers/runbooks/2026-07-22-booking-policy-backfill-reconciliation.md).
+
+Every new function ends with an explicit revoke block, per the convention
+above. The private `smarter_dog_private` schema — the runtime/time dispatch
+seam, the confirmation core and the review tokens — is revoked from `public`,
+`anon`, `authenticated` **and** `service_role`, so no application or Edge
+caller can inject a decision instant or claim the policy is active.

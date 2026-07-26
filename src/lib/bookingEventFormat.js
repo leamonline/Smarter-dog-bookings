@@ -92,6 +92,11 @@ export function eventSentence(event) {
       ? `${leadActor} completed ${dog}${breed}'s ${service} (${owner}).`
       : `${dog}${breed}'s ${service} for ${owner} was completed.`;
   }
+  if (event.event_type === "completion_reopened") {
+    return leadActor
+      ? `${leadActor} reopened ${owner}'s visit on ${date} — it's no longer finished.`
+      : `${owner}'s visit on ${date} was reopened — it's no longer finished.`;
+  }
   // created
   return leadActor
     ? `${leadActor} booked in ${dog}${breed} with ${owner} for a ${service} at ${date} at ${time}.`
@@ -123,5 +128,10 @@ export const EVENT_TONE = {
     dot: "bg-violet-500",
     pill: "text-violet-700",
     label: "Completed",
+  },
+  completion_reopened: {
+    dot: "bg-amber-500",
+    pill: "text-amber-700",
+    label: "Reopened",
   },
 };

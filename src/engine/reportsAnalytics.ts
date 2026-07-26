@@ -33,8 +33,41 @@ export const OUTCOME_HISTORY_START = "2026-05-20";
  *  completed booking within this many days after it (12 weeks). */
 export const REBOOK_WINDOW_DAYS = 84;
 
-/** A cancellation is "late" if it lands within this many hours before the slot. */
-const LATE_CANCEL_HOURS = 24;
+/**
+ * Legacy fallback only. A visit-level event carries the deadline that actually
+ * applied to it, so this rolling window is used solely for pre-visit history
+ * that has no stored deadline.
+ */
+const LEGACY_LATE_CANCEL_HOURS = 24;
+
+/**
+ * Was this cancellation late?
+ *
+ * Preferred: compare the trusted request instant against the deadline the
+ * visit was sold under. That keeps a legacy visit on its rolling 24 hours and
+ * a v1 visit on 3:00 pm the previous day, and never reclassifies a delayed but
+ * on-time request using the time we happened to process it. Exactly the
+ * deadline is on time.
+ *
+ * Fallback, for historical rows with no visit: the old rolling-24-hour window
+ * measured from the slot.
+ */
+export function isLateCancellation(event: AnalyticsEvent): boolean {
+  if (event.deadline_at && event.requested_at) {
+    const deadline = Date.parse(event.deadline_at);
+    const requested = Date.parse(event.requested_at);
+    if (Number.isNaN(deadline) || Number.isNaN(requested)) return false;
+    return requested > deadline;
+  }
+  if (!event.booking_date || !event.slot || !event.occurred_at) return false;
+  // The slot is a Europe/London wall-clock time; occurred_at is a real UTC
+  // instant. Resolve the slot to a true instant so the window is correct
+  // year-round (BST included), not an hour out.
+  const slotTs = londonWallClockToUtcMs(event.booking_date, event.slot);
+  const occ = Date.parse(event.occurred_at);
+  if (Number.isNaN(slotTs) || Number.isNaN(occ)) return false;
+  return occ <= slotTs && slotTs - occ <= LEGACY_LATE_CANCEL_HOURS * 3600 * 1000;
+}
 
 const SLOT_HOURS = 0.5; // the canonical grid is 30-minute slots
 
@@ -88,6 +121,16 @@ export interface AnalyticsEvent {
   cancel_reason?: string | null;
   previous_booking_date?: string | null;
   previous_slot?: string | null;
+  /**
+   * Visit-level policy fields. When present they are authoritative: the visit
+   * carries the deadline that actually applied to it (legacy rolling 24 hours
+   * or the previous-day 15:00 rule), and `requested_at` is the trusted instant
+   * the customer expressed the request — never the server commit time, so a
+   * delayed but signed on-time webhook is not reclassified as late.
+   */
+  visit_id?: string | null;
+  deadline_at?: string | null;
+  requested_at?: string | null;
 }
 
 export type IsOpenDate = (dateStr: string) => boolean;
@@ -355,16 +398,7 @@ export function computeOutcomes(
   const rescheduleCount = evInWindow.filter((e) => e.event_type === "rescheduled").length;
   const cancels = evInWindow.filter((e) => e.event_type === "cancelled");
   const noShowConfirmedCount = cancels.filter((e) => (e.cancel_reason || "").toLowerCase() === "no-show").length;
-  const lateCancelCount = cancels.filter((e) => {
-    if (!e.booking_date || !e.slot || !e.occurred_at) return false;
-    // The slot is a Europe/London wall-clock time; occurred_at is a real UTC
-    // instant. Resolve the slot to a true instant so the 24h window is correct
-    // year-round (BST included), not an hour out.
-    const slotTs = londonWallClockToUtcMs(e.booking_date, e.slot);
-    const occ = Date.parse(e.occurred_at);
-    if (Number.isNaN(slotTs) || Number.isNaN(occ)) return false;
-    return occ <= slotTs && slotTs - occ <= LATE_CANCEL_HOURS * 3600 * 1000;
-  }).length;
+  const lateCancelCount = cancels.filter(isLateCancellation).length;
 
   const bWindow = bookings.filter((b) => inCurrentWindow(b, cutoffStr, todayStr) && isOpen(b.booking_date));
   const confirmed = bWindow.filter((b) => b.reminder_confirmed_at);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { eventSentence } from "./bookingEventFormat";
+import { EVENT_TONE, eventSentence } from "./bookingEventFormat";
 
 describe("eventSentence", () => {
   const base = {
@@ -176,5 +176,37 @@ describe("eventSentence — actor attribution", () => {
         actor_name: "Catherine Green",
       }),
     ).toBe("Catherine Green reconfirmed the Full Groom for Alfie (Yorkshire Terrier).");
+  });
+});
+
+describe("visit completion events", () => {
+  it("describes a reopened visit without implying it is still finished", () => {
+    const line = eventSentence({
+      event_type: "completion_reopened",
+      customer_name: "Sam Taylor",
+      dog_name: "Kilo",
+      dog_breed: "Beagle",
+      service: "Full Groom",
+      booking_date: "2026-09-07",
+      slot: "08:30",
+    });
+    expect(line).toContain("reopened");
+    expect(line).not.toContain("completed");
+  });
+
+  it("leads with the staff member when one is recorded", () => {
+    const line = eventSentence({
+      event_type: "completion_reopened",
+      actor_name: "Bleep Jones",
+      actor_role: "staff",
+      customer_name: "Sam Taylor",
+      booking_date: "2026-09-07",
+    });
+    expect(line.startsWith("Bleep ")).toBe(true);
+  });
+
+  it("gives the reopened kind its own tone", () => {
+    expect(EVENT_TONE.completion_reopened.label).toBe("Reopened");
+    expect(EVENT_TONE.completed.label).toBe("Completed");
   });
 });

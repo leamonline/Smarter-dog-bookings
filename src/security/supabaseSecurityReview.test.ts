@@ -611,8 +611,10 @@ describe("Supabase security review regressions", () => {
     );
 
     // The customer-safe RPC remains the sole customer read path: returns only
-    // (setting_date, is_open).
-    const rpc = getMigrationBySql((sql) =>
+    // (setting_date, is_open). Re-issued by the booking-policy programme to
+    // add runtime-aware range validation, so check the LATEST definition —
+    // a later migration that widened the result shape would fail here.
+    const rpc = lastMigrationSqlMatching((sql) =>
       sql.includes("create or replace function public.get_open_days"),
     );
     expect(rpc).toMatch(
