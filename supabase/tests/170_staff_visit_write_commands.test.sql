@@ -133,8 +133,12 @@ select is(
 
 -- ── 10-11: create is blocked without a Terms publication ───────────
 
-select public.update_booking_rules(
-  '{"depositTermsVersion":null,"depositTermsContentHash":null}'::jsonb);
+-- The audited Settings RPC correctly refuses to clear Terms while the policy
+-- is active (covered in 145). Simulate damaged/out-of-band setup directly so
+-- the command's own defence remains executable and regression-tested.
+update public.booking_policy_settings
+   set current_terms_publication_id = null
+ where singleton;
 select is((pg_temp.mk(37,'08:30')) ->> 'block_reason', 'policy_setup_incomplete',
   'creation is blocked while no Terms publication exists');
 select is(

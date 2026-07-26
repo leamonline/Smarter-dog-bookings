@@ -63,6 +63,18 @@ as $$
     when (select count(*) from v) = 0 then 'structurally_inconsistent'
     when facts.n_included = 0 then 'structurally_inconsistent'
     when facts.n_mismatched > 0 then 'structurally_inconsistent'
+    -- Keep the authority contract from the first classifier definition while
+    -- making its legacy checks visit-local: a v1 label cannot substitute for
+    -- the commercial snapshots that make a confirmed decision reproducible.
+    when (select runtime_generation from v) = 'visit_v1'
+     and (select confirmation_state from v) = 'confirmed'
+     and (
+       (select commercial_eligibility_at from v) is null
+       or (select eligibility_policy_code from v) is null
+       or (select policy_code from v) is null
+       or (select customer_change_deadline_at from v) is null
+       or (select terms_publication_id from v) is null
+     ) then 'structurally_inconsistent'
     when facts.n_open_deposit_recon > 0
       or facts.n_open_prepay_recon > 0
       or facts.n_recon_deposit > 0 then 'reconciliation_required'
@@ -81,4 +93,4 @@ $$;
 revoke all on function public.booking_visit_data_quality(uuid) from public, anon, authenticated;
 
 comment on function public.booking_visit_data_quality(uuid) is
-  'Explicit authority level for ONE visit, derived only from that visit and its own children so cost does not grow with the table: v1_authoritative | legacy_trustworthy | legacy_incomplete | reconciliation_required | structurally_inconsistent. Read-only. booking_visit_backfill_review remains the staff worklist for the same conditions across all visits.';
+  'Explicit authority level for ONE visit, derived only from that visit and its own children so cost does not grow with the table: v1_authoritative | legacy_trustworthy | legacy_incomplete | reconciliation_required | structurally_inconsistent. A confirmed v1 visit is structurally inconsistent when its eligibility, policy, deadline or Terms snapshot is missing. Read-only. booking_visit_backfill_review remains the staff worklist for the same conditions across all visits.';
