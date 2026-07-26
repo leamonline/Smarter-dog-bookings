@@ -766,9 +766,10 @@ select is(
 
 select is(
   (select count(*)::int from information_schema.table_privileges
-    where table_name = 'whatsapp_reschedule_receipts'
-      and grantee in ('anon','authenticated','public')),
-  0, 'no application role has any access to the receipt table');
+    where table_schema = 'public'
+      and table_name = 'whatsapp_reschedule_receipts'
+      and grantee in ('anon','authenticated','service_role','public')),
+  0, 'no application or service role has any access to the receipt table');
 
 -- One receipt per flow_token (the primary key).
 select col_is_pk('public', 'whatsapp_reschedule_receipts', 'flow_token',

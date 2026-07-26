@@ -5,6 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(53);
+\ir fixtures/ensure_local_vault_secrets.psql
 
 -- ── Fixtures ────────────────────────────────────────────────────────
 

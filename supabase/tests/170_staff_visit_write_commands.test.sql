@@ -6,6 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(111);
+\ir fixtures/ensure_local_vault_secrets.psql
 
 insert into auth.users (id) values
   ('17000000-0000-4000-8000-000000000001'),   -- owner staff

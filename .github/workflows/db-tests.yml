@@ -108,11 +108,18 @@ jobs:
             -f /tmp/baseline.sql
           echo "baseline: $(wc -l < /tmp/baseline.sql) lines"
           # Replace the (non-rebuildable) migration history with the prod schema
-          # as a single baseline migration, so `supabase start` boots a faithful
-          # schema. The checkout is ephemeral — this does not touch the repo.
+          # as an ephemeral baseline, so `supabase start` boots a faithful
+          # schema. Supabase's schema-dump guidance requires revoking the
+          # target's default table grants before restore; otherwise locally
+          # created tables acquire anon/authenticated ACLs absent from prod.
+          # The dump can then restore every legitimate source grant explicitly.
+          # The checkout is ephemeral — this does not touch the repo.
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
+          printf '%s\n' \
+            'alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;' \
+            > supabase/migrations/00000000000000_target_acl_baseline.sql
+          cp /tmp/baseline.sql supabase/migrations/00000000000001_prod_baseline.sql
 
       - name: Restore PR-added candidate migrations
         if: github.event_name == 'pull_request'
