@@ -262,7 +262,7 @@ select is(
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000011','slot','09:00'),
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000012','slot','09:00')),
     '17000000-0000-4000-8000-000000000058',
-    'staff moved the day', statement_timestamp(), 'active') ->> 'visit_id',
+    'staff moved the day', statement_timestamp(), 'active') ->> 'visit_id'),
   (select id::text from public.booking_visits
     where booking_date = pg_temp.open_day(51)),
   'the reschedule receipt identifies the superseded source as visit_id');
@@ -275,7 +275,7 @@ select is(
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000011','slot','09:00'),
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000012','slot','09:00')),
     '17000000-0000-4000-8000-000000000058',
-    'staff moved the day', statement_timestamp(), 'active') ->> 'replacement_visit_id',
+    'staff moved the day', statement_timestamp(), 'active') ->> 'replacement_visit_id'),
   (select id::text from public.booking_visits
     where booking_date = pg_temp.open_day(58)),
   'the reschedule receipt identifies the active replacement separately');
