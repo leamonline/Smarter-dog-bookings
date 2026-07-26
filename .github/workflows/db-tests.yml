@@ -33,12 +33,16 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
+      - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
+      - 'package.json'
       - '.github/workflows/db-tests.yml'
   pull_request:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
+      - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
+      - 'package.json'
       - '.github/workflows/db-tests.yml'
   workflow_dispatch:
 
@@ -126,6 +130,9 @@ jobs:
 
       - name: Run pgTAP database tests
         run: supabase test db
+
+      - name: Prove atomic reschedule concurrency
+        run: npm run test:db:concurrency
 
       - name: Dump diagnostics on failure
         if: failure()
