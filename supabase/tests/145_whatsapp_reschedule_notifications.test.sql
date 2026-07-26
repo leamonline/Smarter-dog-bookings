@@ -8,7 +8,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 
 create temporary table notification_probe_events (
   event_type          text not null,
@@ -17,6 +17,11 @@ create temporary table notification_probe_events (
   cancellation_reason text
 ) on commit drop;
 
+-- nextval() is deliberately not rolled back by the savepoint throws_ok uses.
+-- It witnesses attempted trigger calls even when their probe-table rows and
+-- the booking statement itself are subsequently rolled back.
+create temporary sequence notification_probe_attempt_seq;
+
 create or replace function public.notify_on_booking_insert()
 returns trigger
 language plpgsql
@@ -24,6 +29,7 @@ security definer
 set search_path = pg_temp, public
 as $$
 begin
+  perform nextval('pg_temp.notification_probe_attempt_seq'::regclass);
   insert into pg_temp.notification_probe_events
     (event_type, booking_id, group_id, cancellation_reason)
   values
@@ -39,6 +45,7 @@ security definer
 set search_path = pg_temp, public
 as $$
 begin
+  perform nextval('pg_temp.notification_probe_attempt_seq'::regclass);
   insert into pg_temp.notification_probe_events
     (event_type, booking_id, group_id, cancellation_reason)
   values
@@ -229,9 +236,10 @@ select is(
   4,
   'the replay creates no additional notification probe events');
 
--- ── 11-14: a late replacement failure rolls all effects back ─────
+-- ── 11-15: a late replacement failure rolls all effects back ─────
 
 truncate pg_temp.notification_probe_events;
+select setval('pg_temp.notification_probe_attempt_seq'::regclass, 1, false);
 
 -- The first replacement dog is valid and reaches the INSERT trigger. The
 -- second belongs to another customer and fails afterward, proving the probe
@@ -260,6 +268,12 @@ select throws_ok(
   'a replacement failure after the first insert is rejected');
 
 select is(
+  (select case when is_called then last_value::int else 0 end
+     from pg_temp.notification_probe_attempt_seq),
+  3,
+  'the late failure attempted two cancellations and one confirmation');
+
+select is(
   (select count(*)::int from pg_temp.notification_probe_events),
   0,
   'the failed replacement rolls back all notification probe events');
@@ -276,12 +290,19 @@ select is(
 
 select is(
   (select count(*)::int
-     from public.bookings
-    where booking_date = pg_temp.open_day(58)),
+     from public.bookings b
+     join public.dogs d on d.id = b.dog_id
+    where b.booking_date = pg_temp.open_day(58)
+      and b.slot = '10:00'
+      and b.dog_id = '14500000-0000-4000-8000-0000000000c1'
+      and d.human_id = '14500000-0000-4000-8000-0000000000b1'
+      and b.source = 'whatsapp_flow'),
   0,
   'the failed replacement rolls back the first replacement insert');
 
--- ── 15-17: stale-source refusal does no notification work ─────────
+-- ── 16-19: stale-source refusal does no notification work ─────────
+
+select setval('pg_temp.notification_probe_attempt_seq'::regclass, 1, false);
 
 select throws_ok(
   format($f$
@@ -305,6 +326,12 @@ select throws_ok(
   'P0002',
   'reschedule_old_visit_changed',
   'a stale reviewed source is refused');
+
+select is(
+  (select case when is_called then last_value::int else 0 end
+     from pg_temp.notification_probe_attempt_seq),
+  0,
+  'the stale-source refusal attempts no notification trigger calls');
 
 select is(
   (select count(*)::int from pg_temp.notification_probe_events),
