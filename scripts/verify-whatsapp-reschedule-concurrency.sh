@@ -49,6 +49,7 @@ fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/whatsapp-reschedule-concurrency-helpers.sh"
 
 if ! command -v supabase >/dev/null 2>&1; then
   echo "FAIL: required Supabase CLI was not found in PATH; cannot verify the local stack." >&2
@@ -1097,7 +1098,9 @@ if [ "$MEMBERSHIP_RESCHEDULE_STATUS" != "0" ]; then
   FAIL=1
 fi
 if [ "$MEMBERSHIP_STAFF_STATUS" = "0" ] ||
-   ! rg -q 'booking_visit_already_cancelled' "$MEMBERSHIP_STAFF_OUT"; then
+   ! file_contains_fixed_string \
+       'booking_visit_already_cancelled' \
+       "$MEMBERSHIP_STAFF_OUT"; then
   echo "FAIL: staff insert was not refused after membership-lock revalidation (status=$MEMBERSHIP_STAFF_STATUS)." >&2
   cat "$MEMBERSHIP_STAFF_OUT" >&2 || true
   FAIL=1

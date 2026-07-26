@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,6 +11,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const script = "scripts/verify-whatsapp-reschedule-concurrency.sh";
+const concurrencyHelpers = join(
+  process.cwd(),
+  "scripts/whatsapp-reschedule-concurrency-helpers.sh",
+);
 
 function runGate(overrides: NodeJS.ProcessEnv = {}) {
   const env = { ...process.env };
@@ -33,6 +38,49 @@ function runGate(overrides: NodeJS.ProcessEnv = {}) {
 }
 
 describe("the destructive reschedule concurrency gate", () => {
+  it("recognizes the expected staff failure when ripgrep is unavailable", () => {
+    const stubRoot = mkdtempSync(join(tmpdir(), "wa-reschedule-output-check."));
+    const outputFile = join(stubRoot, "membership-staff.out");
+    try {
+      const grepLookup = spawnSync("/bin/sh", ["-c", "command -v grep"], {
+        encoding: "utf8",
+      });
+      expect(grepLookup.status).toBe(0);
+      symlinkSync(grepLookup.stdout.trim(), join(stubRoot, "grep"));
+      writeFileSync(
+        outputFile,
+        "ERROR: P0001: booking_visit_already_cancelled\n",
+      );
+
+      const env = { PATH: stubRoot };
+      const rgLookup = spawnSync("/bin/sh", ["-c", "command -v rg"], {
+        env,
+        encoding: "utf8",
+      });
+      expect(rgLookup.status).not.toBe(0);
+
+      const result = spawnSync(
+        "/bin/bash",
+        [
+          "-c",
+          'set -e; source "$1"; file_contains_fixed_string "$2" "$3"',
+          "bash",
+          concurrencyHelpers,
+          "booking_visit_already_cancelled",
+          outputFile,
+        ],
+        {
+          env,
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(stubRoot, { recursive: true, force: true });
+    }
+  });
+
   it("refuses to start without an explicit local-stack opt-in", () => {
     const result = runGate({
       PSQL_BIN: "psql-must-not-be-checked-before-opt-in",
