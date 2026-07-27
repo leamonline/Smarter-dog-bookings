@@ -30,6 +30,7 @@ export function SettingsView({
   bookingRules,
   bookingPolicyRuntime,
   bookingRulesLoading,
+  bookingRulesConfirmed,
   bookingRulesError,
   onUpdateBookingRules,
   user,
@@ -161,6 +162,7 @@ export function SettingsView({
             bookingRules={bookingRules}
             bookingPolicyRuntime={bookingPolicyRuntime}
             bookingPolicyLoading={bookingRulesLoading}
+            bookingPolicyConfirmed={bookingRulesConfirmed}
             bookingPolicyError={bookingRulesError}
             onUpdateConfig={onUpdateConfig}
             onUpdateBookingRules={onUpdateBookingRules}
@@ -171,6 +173,10 @@ export function SettingsView({
         {activeTab === "portal" && (
           <CustomerPortalSettings
             bookingRules={bookingRules}
+            bookingPolicyRuntime={bookingPolicyRuntime}
+            bookingRulesLoading={bookingRulesLoading}
+            bookingRulesConfirmed={bookingRulesConfirmed}
+            bookingRulesError={bookingRulesError}
             onUpdateBookingRules={onUpdateBookingRules}
             canEdit={canEdit}
           />

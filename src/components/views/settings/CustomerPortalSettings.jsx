@@ -13,6 +13,10 @@ const NOOP_SAVE = async () => ({ ok: true });
 
 export function CustomerPortalSettings({
   bookingRules,
+  bookingPolicyRuntime,
+  bookingRulesLoading = false,
+  bookingRulesConfirmed = Boolean(bookingRules),
+  bookingRulesError = null,
   onUpdateBookingRules = NOOP_SAVE,
   canEdit = true,
 }) {
@@ -20,6 +24,12 @@ export function CustomerPortalSettings({
   const portal =
     bookingRules?.customerPortal ||
     createDefaultBookingRules().customerPortal;
+  const runtime = bookingPolicyRuntime || {
+    state: "inactive",
+    scheduledEffectiveAt: null,
+  };
+  const policyLabel =
+    runtime.state === "active" ? "Current policy" : "Upcoming policy";
 
   const togglePortal = (key) => {
     if (!canEdit) return;
@@ -39,6 +49,32 @@ export function CustomerPortalSettings({
         right={<SaveStatus status={status} />}
       />
       <CardBody>
+        {!bookingRulesConfirmed ? (
+          bookingRulesError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+            >
+              {bookingRulesError}
+            </p>
+          ) : (
+            <p role="status" className="text-sm text-slate-600">
+              {bookingRulesLoading
+                ? "Loading booking policy…"
+                : "Waiting for the confirmed booking policy…"}
+            </p>
+          )
+        ) : (
+          <>
+        <div className="mb-2 text-label text-brand-teal-dark">
+          {policyLabel}
+        </div>
+        {runtime.state === "failed" && (
+          <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900">
+            Activation needs attention. These remain upcoming settings while
+            the current booking setup stays in force.
+          </p>
+        )}
         <p className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700">
           Upcoming visits are always visible so customers can see and act on
           unresolved bookings.
@@ -88,6 +124,8 @@ export function CustomerPortalSettings({
           }
           border={false}
         />
+          </>
+        )}
       </CardBody>
     </Card>
   );

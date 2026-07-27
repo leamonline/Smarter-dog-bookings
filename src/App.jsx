@@ -605,6 +605,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     bookingRules,
     bookingPolicyRuntime,
     bookingRulesLoading,
+    bookingRulesConfirmed,
     bookingRulesError,
     updateBookingRules,
   } = useSalonConfig({ canSeed: isOwner });
@@ -944,6 +945,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                       bookingRules={bookingRules}
                       bookingPolicyRuntime={bookingPolicyRuntime}
                       bookingRulesLoading={bookingRulesLoading}
+                      bookingRulesConfirmed={bookingRulesConfirmed}
                       bookingRulesError={bookingRulesError}
                       onUpdateBookingRules={updateBookingRules}
                       isOwner={isOwner}

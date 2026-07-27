@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingPolicyRules, BookingPolicyRuntimeStatus } from "../../types";
 import { createDefaultBookingRules } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
-import { supabase } from "../client.js";
+import { bookingPolicyClient } from "../client.js";
 import {
   getBookingPolicyRuntimeStatus,
   getBookingRules,
@@ -12,6 +13,11 @@ import {
   dbBookingPolicyRuntimeToApp,
   dbBookingRulesToApp,
 } from "../transforms";
+import { registerResume } from "../refreshOnResume.js";
+
+// The Playwright transport deliberately implements only the RPC surface this
+// hook calls. Production receives the full Supabase client.
+const policyClient = bookingPolicyClient as SupabaseClient | null;
 
 export type BookingRulesPatch = Partial<
   Omit<BookingPolicyRules, "customerPortal" | "depositBank">
@@ -24,6 +30,10 @@ const INACTIVE_RUNTIME: BookingPolicyRuntimeStatus = {
   state: "inactive",
   scheduledEffectiveAt: null,
 };
+
+const NON_ACTIVE_POLL_MS = 60_000;
+const BOUNDARY_POLL_MS = 5_000;
+const BOUNDARY_WINDOW_MS = 60_000;
 
 function applyPatch(
   current: BookingPolicyRules,
@@ -47,21 +57,26 @@ export function useBookingPolicyRuntime() {
   );
   const [runtime, setRuntime] =
     useState<BookingPolicyRuntimeStatus>(INACTIVE_RUNTIME);
-  const [loading, setLoading] = useState(Boolean(supabase));
+  const [loading, setLoading] = useState(Boolean(policyClient));
+  const [confirmed, setConfirmed] = useState(!policyClient);
   const [error, setError] = useState<string | null>(null);
+  const confirmedRef = useRef(!policyClient);
+  const inFlightRef = useRef<ReturnType<typeof reloadRequest> | null>(null);
 
-  const reload = useCallback(async () => {
-    if (!supabase) {
+  async function reloadRequest() {
+    if (!policyClient) {
       setLoading(false);
-      return { ok: true as const };
+      setConfirmed(true);
+      confirmedRef.current = true;
+      return { ok: true as const, runtime: INACTIVE_RUNTIME };
     }
 
-    setLoading(true);
+    if (!confirmedRef.current) setLoading(true);
     setError(null);
     try {
       const [runtimeResult, rulesResult] = await Promise.all([
-        getBookingPolicyRuntimeStatus(supabase),
-        getBookingRules(supabase),
+        getBookingPolicyRuntimeStatus(policyClient),
+        getBookingRules(policyClient),
       ]);
       const rpcError = runtimeResult.error || rulesResult.error;
       if (rpcError) {
@@ -69,9 +84,12 @@ export function useBookingPolicyRuntime() {
         setError(message);
         return { ok: false as const, error: message };
       }
-      setRuntime(dbBookingPolicyRuntimeToApp(runtimeResult.data));
+      const nextRuntime = dbBookingPolicyRuntimeToApp(runtimeResult.data);
+      setRuntime(nextRuntime);
       setRules(dbBookingRulesToApp(rulesResult.data));
-      return { ok: true as const };
+      confirmedRef.current = true;
+      setConfirmed(true);
+      return { ok: true as const, runtime: nextRuntime };
     } catch (caught) {
       const message =
         caught instanceof Error
@@ -82,25 +100,92 @@ export function useBookingPolicyRuntime() {
     } finally {
       setLoading(false);
     }
+  }
+
+  const reload = useCallback(async () => {
+    if (inFlightRef.current) return inFlightRef.current;
+    const request = reloadRequest();
+    inFlightRef.current = request;
+    try {
+      return await request;
+    } finally {
+      if (inFlightRef.current === request) inFlightRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    const refresh = () => {
+      void reload();
+    };
+    const unregisterResume = registerResume(refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      unregisterResume();
+      window.removeEventListener("focus", refresh);
+    };
+  }, [reload]);
+
+  useEffect(() => {
+    if (!policyClient || runtime.state === "active") return undefined;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const nextDelay = () => {
+      if (runtime.state !== "scheduled" || !runtime.scheduledEffectiveAt) {
+        return NON_ACTIVE_POLL_MS;
+      }
+      const untilBoundary =
+        Date.parse(runtime.scheduledEffectiveAt) - Date.now();
+      if (untilBoundary > BOUNDARY_WINDOW_MS) {
+        return Math.min(
+          NON_ACTIVE_POLL_MS,
+          untilBoundary - BOUNDARY_WINDOW_MS,
+        );
+      }
+      if (untilBoundary > 0) {
+        return Math.min(BOUNDARY_POLL_MS, untilBoundary);
+      }
+      return BOUNDARY_POLL_MS;
+    };
+
+    const schedule = () => {
+      timer = setTimeout(async () => {
+        const result = await reload();
+        if (
+          !cancelled &&
+          (result?.ok === false || result?.runtime?.state !== "active")
+        ) {
+          schedule();
+        }
+      }, nextDelay());
+    };
+
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [reload, runtime.scheduledEffectiveAt, runtime.state]);
+
   const updateRules = useCallback(
     async (patch: BookingRulesPatch) => {
       const previous = rules;
       setError(null);
 
-      if (!supabase) {
+      if (!policyClient) {
         setRules(applyPatch(previous, patch));
         return { ok: true as const };
       }
 
-      const { data, error: rpcError } = await updateBookingRules(supabase, {
-        rules: patch,
-      });
+      const { data, error: rpcError } = await updateBookingRules(
+        policyClient,
+        { rules: patch },
+      );
       if (rpcError) {
         const message = rpcError.message || "Couldn't save booking rules.";
         logger.error("Failed to update booking rules", rpcError, {
@@ -130,6 +215,7 @@ export function useBookingPolicyRuntime() {
     rules,
     runtime,
     loading,
+    confirmed,
     error,
     updateRules,
     reload,

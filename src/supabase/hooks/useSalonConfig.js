@@ -107,6 +107,7 @@ export function useSalonConfig({ canSeed = false } = {}) {
     bookingRules: bookingPolicy.rules,
     bookingPolicyRuntime: bookingPolicy.runtime,
     bookingRulesLoading: bookingPolicy.loading,
+    bookingRulesConfirmed: bookingPolicy.confirmed,
     bookingRulesError: bookingPolicy.error,
     updateBookingRules: bookingPolicy.updateRules,
     reloadBookingPolicy: bookingPolicy.reload,

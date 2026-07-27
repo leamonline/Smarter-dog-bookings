@@ -65,6 +65,7 @@ export function BookingRulesSettings({
   bookingRules,
   bookingPolicyRuntime,
   bookingPolicyLoading = false,
+  bookingPolicyConfirmed = Boolean(bookingRules),
   bookingPolicyError = null,
   onUpdateConfig = NOOP_SAVE,
   onUpdateBookingRules = NOOP_SAVE,
@@ -84,8 +85,12 @@ export function BookingRulesSettings({
     { canEdit },
   );
   const [formError, setFormError] = useState(null);
+  const [legacyError, setLegacyError] = useState(null);
   const [horizon, setHorizon] = useState(String(rules.bookingHorizonDays));
   const [bank, setBank] = useState(rules.depositBank);
+  const [legacyBank, setLegacyBank] = useState(
+    config?.depositBank || DEFAULT_BOOKING_RULES.depositBank,
+  );
   const [terms, setTerms] = useState({
     termsUrl: rules.termsUrl,
     version: rules.depositTermsVersion || "",
@@ -99,6 +104,9 @@ export function BookingRulesSettings({
     setBank(rules.depositBank);
   }, [rules.depositBank]);
   useEffect(() => {
+    setLegacyBank(config?.depositBank || DEFAULT_BOOKING_RULES.depositBank);
+  }, [config?.depositBank]);
+  useEffect(() => {
     setTerms({
       termsUrl: rules.termsUrl,
       version: rules.depositTermsVersion || "",
@@ -110,15 +118,56 @@ export function BookingRulesSettings({
     rules.depositTermsContentHash,
   ]);
 
-  const updateLegacyNumericField = (fieldName, raw) => {
+  const updateLegacyNumericField = (fieldName, raw, minimum = 0) => {
     const trimmed = String(raw).trim();
     const value = Number(trimmed);
-    if (trimmed === "" || !Number.isFinite(value) || value < 0) {
-      setFormError("Enter 0 or more.");
+    if (
+      trimmed === "" ||
+      !Number.isFinite(value) ||
+      !Number.isInteger(value) ||
+      value < minimum
+    ) {
+      setLegacyError(
+        minimum === 0
+          ? "Enter a whole number of 0 or more."
+          : `Enter a whole number of ${minimum} or more.`,
+      );
       return;
     }
-    setFormError(null);
+    setLegacyError(null);
     void saveLegacy((previous) => ({ ...previous, [fieldName]: value }));
+  };
+
+  const saveLegacyBank = async () => {
+    const trimmed = {
+      accountName: legacyBank.accountName.trim(),
+      sortCode: legacyBank.sortCode.trim(),
+      accountNumber: legacyBank.accountNumber.trim(),
+    };
+    const presentCount = Object.values(trimmed).filter(Boolean).length;
+    if (presentCount !== 0 && presentCount !== 3) {
+      setLegacyError("Enter all three current bank details or clear all three.");
+      return;
+    }
+    if (
+      presentCount === 3 &&
+      (!/^[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(trimmed.sortCode) ||
+        !/^[0-9]{8}$/.test(trimmed.accountNumber))
+    ) {
+      setLegacyError(
+        "Use a current sort code like 00-00-00 and an 8-digit account number.",
+      );
+      return;
+    }
+    setLegacyError(null);
+    const result = await saveLegacy((previous) => ({
+      ...previous,
+      depositBank: trimmed,
+    }));
+    if (result?.ok === false) {
+      setLegacyBank(config?.depositBank || DEFAULT_BOOKING_RULES.depositBank);
+      setLegacyError(result.error);
+    }
   };
 
   const saveHorizon = async () => {
@@ -234,7 +283,9 @@ export function BookingRulesSettings({
           ? "Not scheduled"
           : "Active";
   const visibleAlert =
-    formError || bookingPolicyError || readinessWarning(rules);
+    formError ||
+    (bookingPolicyConfirmed ? bookingPolicyError : null) ||
+    readinessWarning(rules);
 
   return (
     <Card id="settings-rules">
@@ -261,6 +312,80 @@ export function BookingRulesSettings({
               }
               disabled={!canEdit}
             />
+            <InlineField
+              label="Current deposit hold window"
+              sublabel="How long the live legacy booking keeps an unpaid deposit slot"
+              suffix="hours"
+              value={config?.depositReleaseHours ?? 12}
+              onChange={(event) =>
+                updateLegacyNumericField(
+                  "depositReleaseHours",
+                  event.target.value,
+                  1,
+                )
+              }
+              disabled={!canEdit}
+            />
+            <div className="py-4">
+              <div className="text-sm font-semibold text-slate-800">
+                Current deposit bank details
+              </div>
+              <p className="mb-2.5 mt-0.5 text-xs text-slate-500">
+                These details remain live until the server confirms the new
+                policy active.
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {field(
+                  "Current account name",
+                  legacyBank.accountName,
+                  (value) =>
+                    setLegacyBank((current) => ({
+                      ...current,
+                      accountName: value,
+                    })),
+                  {
+                    placeholder: "Smarter Dog Grooming",
+                    disabled: !canEdit,
+                  },
+                )}
+                {field(
+                  "Current sort code",
+                  legacyBank.sortCode,
+                  (value) =>
+                    setLegacyBank((current) => ({
+                      ...current,
+                      sortCode: value,
+                    })),
+                  { placeholder: "00-00-00", disabled: !canEdit },
+                )}
+                {field(
+                  "Current account number",
+                  legacyBank.accountNumber,
+                  (value) =>
+                    setLegacyBank((current) => ({
+                      ...current,
+                      accountNumber: value,
+                    })),
+                  { placeholder: "12345678", disabled: !canEdit },
+                )}
+              </div>
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={saveLegacyBank}
+                className="mt-3 rounded-control bg-brand-teal px-4 py-2.5 text-body font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                Save current bank details
+              </button>
+            </div>
+            {legacyError && (
+              <div
+                role="alert"
+                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+              >
+                {legacyError}
+              </div>
+            )}
             <div className="flex justify-end pt-1">
               <SaveStatus status={legacyStatus} />
             </div>
@@ -292,7 +417,22 @@ export function BookingRulesSettings({
             </span>
           </div>
 
-          {bookingPolicyLoading ? (
+          {!bookingPolicyConfirmed ? (
+            bookingPolicyError ? (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+              >
+                {bookingPolicyError}
+              </p>
+            ) : (
+              <p role="status" className="mt-4 text-sm text-slate-600">
+                {bookingPolicyLoading
+                  ? "Loading booking policy…"
+                  : "Waiting for the confirmed booking policy…"}
+              </p>
+            )
+          ) : bookingPolicyLoading ? (
             <p role="status" className="mt-4 text-sm text-slate-600">
               Loading booking policy…
             </p>

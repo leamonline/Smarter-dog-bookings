@@ -97,7 +97,15 @@ describe("BookingRulesSettings authoritative controls", () => {
     const onUpdateBookingRules = vi.fn().mockResolvedValue({ ok: true });
     render(
       <BookingRulesSettings
-        config={{ defaultPickupOffset: 120 }}
+        config={{
+          defaultPickupOffset: 120,
+          depositReleaseHours: 12,
+          depositBank: {
+            accountName: "Legacy Dog",
+            sortCode: "11-22-33",
+            accountNumber: "87654321",
+          },
+        }}
         bookingRules={BOOKING_RULES}
         bookingPolicyRuntime={INACTIVE_RUNTIME}
         onUpdateConfig={onUpdateConfig}
@@ -125,6 +133,23 @@ describe("BookingRulesSettings authoritative controls", () => {
     ).toBeInTheDocument();
   });
 
+  it("withholds v1 controls when no server projection has been confirmed", () => {
+    renderRules({
+      bookingPolicyConfirmed: false,
+      bookingPolicyError: "Couldn't load booking rules.",
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /couldn't load booking rules/i,
+    );
+    expect(
+      screen.queryByRole("spinbutton", { name: "Booking horizon" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Auto-confirm bookings" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the current pick-up offset wired to legacy config while v1 is inactive", async () => {
     const { onUpdateConfig } = renderRules();
 
@@ -138,6 +163,45 @@ describe("BookingRulesSettings authoritative controls", () => {
     expect(
       updater({ defaultPickupOffset: 120 }).defaultPickupOffset,
     ).toBe(150);
+  });
+
+  it("keeps current deposit timing and bank details editable while v1 is inactive", async () => {
+    const user = userEvent.setup();
+    const { onUpdateConfig } = renderRules();
+
+    const currentHold = screen.getByRole("spinbutton", {
+      name: "Current deposit hold window",
+    });
+    fireEvent.change(currentHold, { target: { value: "24" } });
+    await waitFor(() => expect(onUpdateConfig).toHaveBeenCalled());
+    const holdUpdater = onUpdateConfig.mock.calls.at(-1)[0];
+    expect(holdUpdater({ depositReleaseHours: 12 }).depositReleaseHours).toBe(
+      24,
+    );
+
+    await user.clear(screen.getByLabelText("Current account name"));
+    await user.type(
+      screen.getByLabelText("Current account name"),
+      "Current Smarter Dog",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Save current bank details" }),
+    );
+
+    const bankUpdater = onUpdateConfig.mock.calls.at(-1)[0];
+    expect(
+      bankUpdater({
+        depositBank: {
+          accountName: "Legacy Dog",
+          sortCode: "11-22-33",
+          accountNumber: "87654321",
+        },
+      }).depositBank,
+    ).toEqual({
+      accountName: "Current Smarter Dog",
+      sortCode: "11-22-33",
+      accountNumber: "87654321",
+    });
   });
 
   it("removes the legacy setup when the server reports v1 active", () => {
@@ -154,6 +218,10 @@ describe("BookingRulesSettings authoritative controls", () => {
     expect(
       screen.queryByText("Default pick-up offset", { exact: true }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Current deposit hold window"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Current account name")).not.toBeInTheDocument();
     expect(screen.getByText("Current policy", { exact: true })).toBeInTheDocument();
   });
 
@@ -293,6 +361,59 @@ describe("BookingRulesSettings authoritative controls", () => {
 });
 
 describe("CustomerPortalSettings authoritative controls", () => {
+  it("withholds policy switches until the server projection is confirmed", () => {
+    const { rerender } = render(
+      <CustomerPortalSettings
+        bookingRules={BOOKING_RULES}
+        bookingPolicyRuntime={INACTIVE_RUNTIME}
+        bookingRulesLoading
+        bookingRulesConfirmed={false}
+        onUpdateBookingRules={vi.fn()}
+        canEdit
+      />,
+    );
+
+    expect(screen.getByText(/loading booking policy/i)).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+
+    rerender(
+      <CustomerPortalSettings
+        bookingRules={BOOKING_RULES}
+        bookingPolicyRuntime={INACTIVE_RUNTIME}
+        bookingRulesError="Couldn't load booking rules."
+        bookingRulesConfirmed={false}
+        onUpdateBookingRules={vi.fn()}
+        canEdit
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /couldn't load booking rules/i,
+    );
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["inactive", "Upcoming policy"],
+    ["scheduled", "Upcoming policy"],
+    ["failed", "Upcoming policy"],
+    ["active", "Current policy"],
+  ])("labels %s portal rules as %s", (state, label) => {
+    render(
+      <CustomerPortalSettings
+        bookingRules={BOOKING_RULES}
+        bookingPolicyRuntime={{
+          state,
+          scheduledEffectiveAt:
+            state === "scheduled" ? "2026-08-01T14:00:00Z" : null,
+        }}
+        bookingRulesConfirmed
+        onUpdateBookingRules={vi.fn()}
+        canEdit
+      />,
+    );
+    expect(screen.getByText(label, { exact: true })).toBeInTheDocument();
+  });
+
   it("removes Show upcoming bookings and explains that upcoming visits remain visible", () => {
     const onUpdateBookingRules = vi.fn().mockResolvedValue({ ok: true });
     render(

@@ -10,6 +10,9 @@ vi.mock("../client.js", () => ({
   get supabase() {
     return globalThis.__supabaseMockSalonConfig;
   },
+  get bookingPolicyClient() {
+    return globalThis.__supabaseMockSalonConfig;
+  },
 }));
 
 vi.mock("../bootPrefetch.js", () => ({

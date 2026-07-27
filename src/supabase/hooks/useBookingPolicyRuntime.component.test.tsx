@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
 
 vi.mock("../client.js", () => ({
-  supabase: { rpc },
+  bookingPolicyClient: { rpc },
 }));
 
 const { useBookingPolicyRuntime } = await import("./useBookingPolicyRuntime");
@@ -49,6 +49,10 @@ function mockInitialLoad(
 
 beforeEach(() => {
   rpc.mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("useBookingPolicyRuntime", () => {
@@ -141,5 +145,136 @@ describe("useBookingPolicyRuntime", () => {
     });
 
     expect(result.current.rules.bookingHorizonDays).toBe(180);
+  });
+
+  it("polls every non-active state and stops only after the server confirms active", async () => {
+    vi.useFakeTimers();
+    let state: "inactive" | "active" = "inactive";
+    mockInitialLoad(state);
+
+    const { result } = renderHook(() => useBookingPolicyRuntime());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.runtime.state).toBe("inactive");
+
+    state = "active";
+    mockInitialLoad(state);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(result.current.runtime.state).toBe("active");
+
+    const confirmedCallCount = rpc.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(rpc).toHaveBeenCalledTimes(confirmedCallCount);
+  });
+
+  it("wakes at a scheduled boundary but remains scheduled until the server confirms activation", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T13:59:50Z"));
+    let state: "scheduled" | "active" = "scheduled";
+    let resolveStatus:
+      | ((value: {
+          data: { state: "active"; scheduledEffectiveAt: null };
+          error: null;
+        }) => void)
+      | undefined;
+
+    rpc.mockImplementation((name: string) => {
+      if (name === "booking_policy_runtime_status") {
+        if (state === "scheduled") {
+          return Promise.resolve({
+            data: {
+              state,
+              scheduledEffectiveAt: "2026-08-01T14:00:00Z",
+            },
+            error: null,
+          });
+        }
+        return new Promise((resolve) => {
+          resolveStatus = resolve;
+        });
+      }
+      if (name === "current_booking_rules") {
+        return Promise.resolve({ data: RULES, error: null });
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
+
+    const { result } = renderHook(() => useBookingPolicyRuntime());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.runtime.state).toBe("scheduled");
+
+    state = "active";
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(result.current.runtime.state).toBe("scheduled");
+
+    await act(async () => {
+      resolveStatus?.({
+        data: { state: "active", scheduledEffectiveAt: null },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+    expect(result.current.runtime.state).toBe("active");
+  });
+
+  it.each(["online", "focus"] as const)(
+    "reconciles after the browser emits %s",
+    async (eventName) => {
+      let state: "inactive" | "active" = "inactive";
+      mockInitialLoad(state);
+      const { result } = renderHook(() => useBookingPolicyRuntime());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      state = "active";
+      mockInitialLoad(state);
+      window.dispatchEvent(new Event(eventName));
+
+      await waitFor(() => expect(result.current.runtime.state).toBe("active"));
+    },
+  );
+
+  it("does not expose default rules as a confirmed server projection during initial load", async () => {
+    let resolveRuntime!: (value: {
+      data: { state: "inactive"; scheduledEffectiveAt: null };
+      error: null;
+    }) => void;
+    let resolveRules!: (value: { data: typeof RULES; error: null }) => void;
+    rpc.mockImplementation((name: string) => {
+      if (name === "booking_policy_runtime_status") {
+        return new Promise((resolve) => {
+          resolveRuntime = resolve;
+        });
+      }
+      if (name === "current_booking_rules") {
+        return new Promise((resolve) => {
+          resolveRules = resolve;
+        });
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
+
+    const { result } = renderHook(() => useBookingPolicyRuntime());
+    expect(result.current.confirmed).toBe(false);
+
+    await act(async () => {
+      resolveRuntime({
+        data: { state: "inactive", scheduledEffectiveAt: null },
+        error: null,
+      });
+      resolveRules({ data: RULES, error: null });
+      await Promise.resolve();
+    });
+    expect(result.current.confirmed).toBe(true);
   });
 });
