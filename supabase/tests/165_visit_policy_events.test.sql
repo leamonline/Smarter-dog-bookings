@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 \ir fixtures/ensure_local_vault_secrets.psql
 
 insert into auth.users (id) values ('16500000-0000-4000-8000-000000000001');
@@ -58,18 +58,28 @@ begin
 end;
 $$;
 
--- ── 1-4: additive schema, historical rows untouched ───────────────
+-- ── 1-5: additive schema, historical rows untouched ───────────────
 
 select has_column('public', 'booking_events', 'visit_id', 'booking_events gains visit_id');
 select has_column('public', 'booking_events', 'requested_at', 'booking_events gains requested_at');
 select has_column('public', 'booking_events', 'committed_at', 'booking_events gains committed_at');
 select ok(
   (select count(*) = 0 from public.booking_events
-    where event_type not in ('created','rescheduled','cancelled')
+    where event_type not in ('created','rescheduled','cancelled','reconfirmed','completed')
       and visit_id is null),
   'no historical row was rewritten into a v1 kind');
+select ok(
+  position(
+    'reconfirmed' in (
+      select pg_get_constraintdef(oid)
+      from pg_constraint
+      where conrelid = 'public.booking_events'::regclass
+        and conname = 'booking_events_event_type_check'
+    )
+  ) > 0,
+  'the v1 event vocabulary preserves the deployed reconfirmed event type');
 
--- ── 5-8: one event per visit outcome, not one per dog ─────────────
+-- ── 6-9: one event per visit outcome, not one per dog ─────────────
 
 select pg_temp.mk_visit('16500000-0000-4000-8000-000000000501',
   '16500000-0000-4000-8000-000000000301', 30, 2);
@@ -97,7 +107,7 @@ select is(
     where outcome_key = 'visit-confirmed:16500000-0000-4000-8000-000000000501'),
   1, 'the outcome key stays unique');
 
--- ── 9-12: deadline classification uses the trusted request instant ─
+-- ── 10-14: deadline classification uses the trusted request instant
 
 select is(
   (select was_late from public.booking_visit_policy_events
@@ -151,7 +161,7 @@ select is(
     where outcome_key = 'past-deadline:16500000-0000-4000-8000-000000000502'),
   true, 'one microsecond past the deadline is late');
 
--- ── 13-19: aggregate completion ────────────────────────────────────
+-- ── 15-22: aggregate completion ────────────────────────────────────
 
 select is(
   (select lifecycle_state from public.booking_visits
@@ -212,7 +222,7 @@ select is(
   'completed',
   'a removed child is excluded, so the remaining dog completes the visit');
 
--- ── 20: a terminal visit never reopens through a child edit ────────
+-- ── 23: a terminal visit never reopens through a child edit ────────
 
 update public.booking_visits
    set lifecycle_state = 'cancelled', cancelled_at = now(), completed_at = null

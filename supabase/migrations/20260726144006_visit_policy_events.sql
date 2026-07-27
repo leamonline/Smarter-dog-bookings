@@ -33,15 +33,15 @@ comment on column public.booking_events.committed_at is
 comment on column public.booking_events.occurred_at is
   'Legacy display timestamp for the existing activity feed. Compatibility data: new policy code reads requested_at/committed_at.';
 
--- The full v1 vocabulary, added without disturbing the deployed three kinds.
+-- The full v1 vocabulary, added without disturbing the deployed five kinds.
 alter table public.booking_events drop constraint if exists booking_events_event_type_check;
 alter table public.booking_events
   add constraint booking_events_event_type_check check (event_type in (
-    'created','rescheduled','cancelled',
+    'created','rescheduled','cancelled','reconfirmed','completed',
     'requested','approved','proposed','declined','withdrawn','confirmed',
     'deposit_received','deposit_not_received',
     'incident_recorded','incident_waived','credit_changed',
-    'completed','completion_reopened'
+    'completion_reopened'
   ));
 
 -- One event per visit outcome, not one per dog.
