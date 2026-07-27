@@ -52,3 +52,30 @@ export const supabase =
         },
       })
     : null;
+
+// Playwright's offline app shell can opt into a narrowly scoped booking-policy
+// RPC transport. The test intercepts this URL and owns the response state, so
+// a real page reload must refetch a server-shaped projection instead of merely
+// preserving React memory. This transport is absent from normal dev and
+// production builds.
+const e2eBookingPolicyRpc =
+  forceOffline && import.meta.env.VITE_E2E_BOOKING_POLICY_RPC === "1"
+    ? {
+        rpc: async (name, args) => {
+          const response = await fetch("/__e2e/booking-policy-rpc", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name, args }),
+          });
+          if (!response.ok) {
+            return {
+              data: null,
+              error: { message: "E2E booking-policy RPC failed." },
+            };
+          }
+          return response.json();
+        },
+      }
+    : null;
+
+export const bookingPolicyClient = supabase || e2eBookingPolicyRpc;

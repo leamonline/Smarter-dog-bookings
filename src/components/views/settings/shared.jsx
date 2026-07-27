@@ -101,6 +101,7 @@ export function InlineField({ label, sublabel, suffix, value, onChange, border =
             value={value}
             onChange={onChange}
             disabled={disabled}
+            aria-label={label}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errId : undefined}
             className={`py-2 px-3 rounded-lg border-[1.5px] text-body font-[inherit] text-slate-800 text-right outline-none w-20 transition-colors focus:border-brand-teal disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${

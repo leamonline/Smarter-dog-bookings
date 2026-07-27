@@ -10,6 +10,9 @@ vi.mock("../client.js", () => ({
   get supabase() {
     return globalThis.__supabaseMockSalonConfig;
   },
+  get bookingPolicyClient() {
+    return globalThis.__supabaseMockSalonConfig;
+  },
 }));
 
 vi.mock("../bootPrefetch.js", () => ({
@@ -31,6 +34,22 @@ const CONFIG_ROW = {
   settings: null,
 };
 
+const BOOKING_RULES = {
+  bookingHorizonDays: 180,
+  autoConfirm: true,
+  depositHoldHours: 12,
+  depositBank: { accountName: "", sortCode: "", accountNumber: "" },
+  termsUrl: "https://smarterdog.co.uk/terms",
+  depositTermsVersion: null,
+  depositTermsContentHash: null,
+  customerPortal: {
+    allowCancellations: true,
+    allowRescheduling: true,
+    allowRepeatBooking: false,
+    showHistory: true,
+  },
+};
+
 // The select chain is .select().limit().abortSignal().maybeSingle();
 // maybeSingle is the terminal.
 function makeStub({ selectResult } = {}) {
@@ -41,7 +60,21 @@ function makeStub({ selectResult } = {}) {
   builder.maybeSingle = vi.fn(() =>
     Promise.resolve(selectResult ?? { data: null, error: null }),
   );
-  return { from: vi.fn(() => builder) };
+  return {
+    from: vi.fn(() => builder),
+    rpc: vi.fn((name) => {
+      if (name === "booking_policy_runtime_status") {
+        return Promise.resolve({
+          data: { state: "inactive", scheduledEffectiveAt: null },
+          error: null,
+        });
+      }
+      if (name === "current_booking_rules") {
+        return Promise.resolve({ data: BOOKING_RULES, error: null });
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    }),
+  };
 }
 
 beforeEach(() => {
@@ -84,5 +117,20 @@ describe("useSalonConfig boot prefetch", () => {
     expect(stub.from).toHaveBeenCalledWith("salon_config");
     expect(result.current.config?.defaultPickupOffset).toBe(4);
     expect(result.current.error).toBeNull();
+  });
+
+  it("exposes authoritative booking rules separately from legacy salon config", async () => {
+    takeBootPrefetch.mockReturnValue(null);
+    const stub = makeStub({ selectResult: { data: CONFIG_ROW, error: null } });
+    setSupabase(stub);
+
+    const { result } = renderHook(() => useSalonConfig());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.bookingRulesLoading).toBe(false));
+    expect(result.current.config.advanceBookingWeeks).toBe(8);
+    expect(result.current.bookingRules.bookingHorizonDays).toBe(180);
+    expect(result.current.bookingPolicyRuntime.state).toBe("inactive");
+    expect(result.current.updateBookingRules).toEqual(expect.any(Function));
   });
 });

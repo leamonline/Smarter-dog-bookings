@@ -602,6 +602,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
     config: sbConfig,
     loading: cl,
     updateConfig: sbUpdateConfig,
+    bookingRules,
+    bookingPolicyRuntime,
+    bookingRulesLoading,
+    bookingRulesConfirmed,
+    bookingRulesError,
+    updateBookingRules,
   } = useSalonConfig({ canSeed: isOwner });
   const {
     daySettings: sbDaySettings,
@@ -936,6 +942,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                     <SettingsView
                       config={salonConfig}
                       onUpdateConfig={updateConfig}
+                      bookingRules={bookingRules}
+                      bookingPolicyRuntime={bookingPolicyRuntime}
+                      bookingRulesLoading={bookingRulesLoading}
+                      bookingRulesConfirmed={bookingRulesConfirmed}
+                      bookingRulesError={bookingRulesError}
+                      onUpdateBookingRules={updateBookingRules}
                       isOwner={isOwner}
                       canEdit={isOwner || !isOnline}
                       user={user}

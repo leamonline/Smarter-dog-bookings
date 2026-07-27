@@ -5,10 +5,12 @@ import { fetchSalonConfigRow } from "../queries/bootQueries.js";
 import { dbConfigToApp, appConfigToDb } from "../transforms";
 import { createDefaultSalonConfig } from "../../constants/salonSettings";
 import { logger } from "../../lib/logger";
+import { useBookingPolicyRuntime } from "./useBookingPolicyRuntime";
 
 // `canSeed` is true when the caller is an owner — only owners pass the
 // owner_insert_salon_config RLS check, so we only attempt the seed in that case.
 export function useSalonConfig({ canSeed = false } = {}) {
+  const bookingPolicy = useBookingPolicyRuntime();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -97,5 +99,17 @@ export function useSalonConfig({ canSeed = false } = {}) {
     [config]
   );
 
-  return { config, loading, error, updateConfig };
+  return {
+    config,
+    loading,
+    error,
+    updateConfig,
+    bookingRules: bookingPolicy.rules,
+    bookingPolicyRuntime: bookingPolicy.runtime,
+    bookingRulesLoading: bookingPolicy.loading,
+    bookingRulesConfirmed: bookingPolicy.confirmed,
+    bookingRulesError: bookingPolicy.error,
+    updateBookingRules: bookingPolicy.updateRules,
+    reloadBookingPolicy: bookingPolicy.reload,
+  };
 }

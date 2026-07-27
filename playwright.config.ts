@@ -47,6 +47,7 @@ export default defineConfig({
       VITE_FORCE_OFFLINE: "1",
       VITE_E2E_WHATSAPP_UNREAD: "12",
       VITE_E2E_PENDING_SIGNUPS: "7",
+      VITE_E2E_BOOKING_POLICY_RPC: "1",
     },
     url: baseURL,
     reuseExistingServer: !process.env.CI,

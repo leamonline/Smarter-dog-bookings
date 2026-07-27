@@ -24,7 +24,19 @@ const SECTIONS = [
   { id: "calendar", label: "Calendar Sync" },
 ];
 
-export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEdit = true }) {
+export function SettingsView({
+  config,
+  onUpdateConfig,
+  bookingRules,
+  bookingPolicyRuntime,
+  bookingRulesLoading,
+  bookingRulesConfirmed,
+  bookingRulesError,
+  onUpdateBookingRules,
+  user,
+  staffProfile,
+  canEdit = true,
+}) {
   const [activeTab, setActiveTab] = useState("business");
   const tablistRef = useRef(null);
   const keyboardNav = useRef(false);
@@ -144,9 +156,31 @@ export function SettingsView({ config, onUpdateConfig, user, staffProfile, canEd
         {activeTab === "hours" && <HoursSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} onDirtyChange={setDirty} />}
         {activeTab === "account" && <AccountSettings user={user} staffProfile={staffProfile} onDirtyChange={setDirty} />}
         {activeTab === "pricing" && <PricingSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
-        {activeTab === "rules" && <BookingRulesSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "rules" && (
+          <BookingRulesSettings
+            config={config}
+            bookingRules={bookingRules}
+            bookingPolicyRuntime={bookingPolicyRuntime}
+            bookingPolicyLoading={bookingRulesLoading}
+            bookingPolicyConfirmed={bookingRulesConfirmed}
+            bookingPolicyError={bookingRulesError}
+            onUpdateConfig={onUpdateConfig}
+            onUpdateBookingRules={onUpdateBookingRules}
+            canEdit={canEdit}
+          />
+        )}
         {activeTab === "capacity" && <CapacitySettings />}
-        {activeTab === "portal" && <CustomerPortalSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "portal" && (
+          <CustomerPortalSettings
+            bookingRules={bookingRules}
+            bookingPolicyRuntime={bookingPolicyRuntime}
+            bookingRulesLoading={bookingRulesLoading}
+            bookingRulesConfirmed={bookingRulesConfirmed}
+            bookingRulesError={bookingRulesError}
+            onUpdateBookingRules={onUpdateBookingRules}
+            canEdit={canEdit}
+          />
+        )}
         {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
         {activeTab === "calendar" && <CalendarSettings />}
       </div>
