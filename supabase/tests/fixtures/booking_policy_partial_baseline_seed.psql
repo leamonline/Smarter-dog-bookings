@@ -25,6 +25,12 @@ begin
     on conflict (singleton) do nothing;
   end if;
 
+  if to_regclass('public.ai_whatsapp_settings') is not null then
+    insert into public.ai_whatsapp_settings(singleton, enabled)
+    values (true, true)
+    on conflict (singleton) do nothing;
+  end if;
+
   if to_regclass('public.booking_refund_non_working_days') is not null
      and to_regclass('public.booking_refund_calendar_coverage') is not null then
     insert into public.booking_refund_non_working_days
