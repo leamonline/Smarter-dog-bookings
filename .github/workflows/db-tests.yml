@@ -154,7 +154,7 @@ jobs:
             'alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;' \
             > supabase/migrations/00000000000000_target_acl_baseline.sql
           cp /tmp/baseline.sql supabase/migrations/00000000000001_prod_baseline.sql
-          cp supabase/tests/fixtures/booking_policy_partial_baseline_seed.sql \
+          cp supabase/tests/fixtures/booking_policy_partial_baseline_seed.psql \
             supabase/migrations/00000000000002_booking_policy_partial_baseline_seed.sql
 
       - name: Restore PR-added candidate migrations
