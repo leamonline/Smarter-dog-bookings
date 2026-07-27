@@ -221,7 +221,9 @@ begin
 
   v_first_size := public.canonical_single_breed_size(v_parents[1]);
   v_second_size := public.canonical_single_breed_size(v_parents[2]);
-  if v_first_size not in ('small', 'medium')
+  if v_first_size is null
+     or v_second_size is null
+     or v_first_size not in ('small', 'medium')
      or v_second_size not in ('small', 'medium') then
     return null;
   end if;

@@ -517,7 +517,7 @@ select throws_ok(
        jsonb_build_array(jsonb_build_object(
          'dog_id', (select id from public.dogs
                     where human_id = '10000000-0000-4000-8000-000000000010'
-                      and name = 'Customer Pup Renamed'),
+                      and name = 'Unknown Breed'),
          'slot', '09:00',
          'service', 'full-groom',
          'size', 'small'
