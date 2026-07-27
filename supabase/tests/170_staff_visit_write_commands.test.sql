@@ -262,7 +262,7 @@ select is(
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000011','slot','09:00'),
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000012','slot','09:00')),
     '17000000-0000-4000-8000-000000000058',
-    'staff moved the day', statement_timestamp(), 'active') ->> 'visit_id',
+    'staff moved the day', statement_timestamp(), 'active') ->> 'visit_id'),
   (select id::text from public.booking_visits
     where booking_date = pg_temp.open_day(51)),
   'the reschedule receipt identifies the superseded source as visit_id');
@@ -275,7 +275,7 @@ select is(
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000011','slot','09:00'),
       jsonb_build_object('dog_id','17000000-0000-4000-8000-000000000012','slot','09:00')),
     '17000000-0000-4000-8000-000000000058',
-    'staff moved the day', statement_timestamp(), 'active') ->> 'replacement_visit_id',
+    'staff moved the day', statement_timestamp(), 'active') ->> 'replacement_visit_id'),
   (select id::text from public.booking_visits
     where booking_date = pg_temp.open_day(58)),
   'the reschedule receipt identifies the active replacement separately');
@@ -650,6 +650,7 @@ select smarter_dog_private.update_staff_visit_dispatch(
       (select b.id from public.bookings b
         join public.booking_visits v on v.id = b.visit_id
        where v.booking_date = pg_temp.open_day(121)
+         and b.dog_id = '17000000-0000-4000-8000-000000000011'
        order by b.id limit 1),
       'service',
       'Bath & Brush'
@@ -685,6 +686,7 @@ select is(
   (select b.service from public.bookings b
     join public.booking_visits v on v.id = b.visit_id
    where v.booking_date = pg_temp.open_day(121)
+     and b.dog_id = '17000000-0000-4000-8000-000000000011'
    order by b.id limit 1),
   'Bath & Brush',
   'the requested booking field actually changes'
@@ -1359,7 +1361,7 @@ select is(
        on source.visit_id = (move.result->>'sourceVisitId')::uuid
      join public.booking_visit_deposits destination
        on destination.visit_id =
-          (move.result->'receipt'->>'visit_id')::uuid),
+          (move.result->'receipt'->>'replacement_visit_id')::uuid),
   'received|transfer|true|true|true|true',
   'the destination has fresh transfer evidence and preserved bank/due/Terms snapshots'
 );
@@ -1369,7 +1371,7 @@ select is(
      from bank_deposit_move move
      join public.booking_visit_deposits destination
        on destination.visit_id =
-          (move.result->'receipt'->>'visit_id')::uuid
+          (move.result->'receipt'->>'replacement_visit_id')::uuid
      join public.booking_financial_ledger event
        on event.id = destination.satisfaction_event_id
     where event.event_kind = 'deposit_transferred'
@@ -1386,7 +1388,7 @@ select is(
      join public.booking_deposit_transfer_reservations reservation
        on reservation.source_visit_id = (move.result->>'sourceVisitId')::uuid
       and reservation.destination_visit_id =
-          (move.result->'receipt'->>'visit_id')::uuid
+          (move.result->'receipt'->>'replacement_visit_id')::uuid
       and reservation.source_satisfaction_event_id =
           (move.result->>'sourceEventId')::uuid
     where reservation.state = 'applied'
@@ -1448,7 +1450,7 @@ select is(
        on source.visit_id = (move.result->>'sourceVisitId')::uuid
      join public.booking_visit_deposits destination
        on destination.visit_id =
-          (move.result->'receipt'->>'visit_id')::uuid),
+          (move.result->'receipt'->>'replacement_visit_id')::uuid),
   'credit|transfer',
   'credit evidence stays on the source while the destination uses transfer evidence'
 );
@@ -1461,7 +1463,8 @@ select jsonb_build_object(
 ) as result
   from bank_deposit_move move
   join public.booking_visit_deposits destination
-    on destination.visit_id = (move.result->'receipt'->>'visit_id')::uuid;
+    on destination.visit_id =
+       (move.result->'receipt'->>'replacement_visit_id')::uuid;
 
 update transferred_deposit_move move
    set result = jsonb_set(
@@ -1492,7 +1495,7 @@ select is(
        on source.visit_id = (move.result->>'sourceVisitId')::uuid
      join public.booking_visit_deposits destination
        on destination.visit_id =
-          (move.result->'receipt'->>'visit_id')::uuid),
+          (move.result->'receipt'->>'replacement_visit_id')::uuid),
   'transfer|transfer',
   'a transfer chain retains each source event and creates a new destination event'
 );

@@ -258,6 +258,10 @@ cleanup() {
          '$MEMBERSHIP_SOURCE_DOG'::uuid,
          '$MEMBERSHIP_PHANTOM_DOG'::uuid
        );
+      delete from public.booking_visits
+       where human_id = '$FIXTURE_HUMAN'::uuid;
+      delete from public.booking_lineages
+       where human_id = '$FIXTURE_HUMAN'::uuid;
       delete from public.dogs
        where id in (
          '$FIXTURE_DOG'::uuid,
@@ -287,6 +291,12 @@ cleanup() {
               '$MEMBERSHIP_SOURCE_BOOKING'::uuid,
               '$MEMBERSHIP_PHANTOM_BOOKING'::uuid
             )
+            union all
+            select 1 from public.booking_visits
+             where human_id = '$FIXTURE_HUMAN'::uuid
+            union all
+            select 1 from public.booking_lineages
+             where human_id = '$FIXTURE_HUMAN'::uuid
             union all
             select 1 from public.whatsapp_reschedule_receipts
              where flow_token in ('$FLOW_TOKEN', '$MEMBERSHIP_FLOW_TOKEN')
@@ -395,6 +405,16 @@ FIXTURE_COLLISIONS="$(
         union all
         select 'human' where exists (
           select 1 from public.humans where id = '$FIXTURE_HUMAN'::uuid
+        )
+        union all
+        select 'booking-visit' where exists (
+          select 1 from public.booking_visits
+           where human_id = '$FIXTURE_HUMAN'::uuid
+        )
+        union all
+        select 'booking-lineage' where exists (
+          select 1 from public.booking_lineages
+           where human_id = '$FIXTURE_HUMAN'::uuid
         )
         union all
         select 'dog' where exists (
@@ -544,6 +564,10 @@ delete from public.bookings
    '$MEMBERSHIP_SOURCE_DOG'::uuid,
    '$MEMBERSHIP_PHANTOM_DOG'::uuid
  );
+delete from public.booking_visits
+ where human_id = '$FIXTURE_HUMAN'::uuid;
+delete from public.booking_lineages
+ where human_id = '$FIXTURE_HUMAN'::uuid;
 delete from public.dogs
  where id in (
    '$FIXTURE_DOG'::uuid,
