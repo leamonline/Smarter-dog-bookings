@@ -20,6 +20,19 @@ describe("AI WhatsApp operational controls", () => {
     expect(sql.match(/if not public\.is_staff\(\)/gi)?.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("restores the singleton in schema-only CI baselines", () => {
+    const fixture = read(
+      "supabase/tests/fixtures/booking_policy_partial_baseline_seed.psql",
+    );
+
+    expect(fixture).toMatch(
+      /if to_regclass\('public\.ai_whatsapp_settings'\) is not null then/i,
+    );
+    expect(fixture).toMatch(
+      /insert into public\.ai_whatsapp_settings\(singleton, enabled\)\s+values \(true, true\)\s+on conflict \(singleton\) do nothing/i,
+    );
+  });
+
   it("gates AI-labelled sends before dispatch while leaving manual sends outside the gate", () => {
     const send = read("supabase/functions/whatsapp-send/index.ts");
 
