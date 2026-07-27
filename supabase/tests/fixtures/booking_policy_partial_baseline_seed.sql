@@ -1,0 +1,90 @@
+-- CI-only reference data for a schema-only production baseline.
+--
+-- The release order applies migrations to production before their PR merges.
+-- During a partial rollout, db-tests therefore dump tables created by an
+-- already-applied candidate but (correctly) omit every row. Replaying that
+-- migration is unsafe when it contains one-shot CREATE TABLE statements, so
+-- this fixture restores only deterministic, non-customer reference rows.
+--
+-- Each block is conditional: a pre-rollout baseline has no candidate tables
+-- and the still-pending migrations seed themselves normally.
+
+do $seed$
+begin
+  if to_regclass('public.booking_policy_versions') is not null then
+    insert into public.booking_policy_versions(code, change_rule, effective_at)
+    values
+      ('legacy_24h', 'rolling_24h', '-infinity'::timestamptz),
+      ('previous_day_1500_v1', 'previous_day_1500', null)
+    on conflict (code) do nothing;
+  end if;
+
+  if to_regclass('public.booking_policy_settings') is not null then
+    insert into public.booking_policy_settings(singleton)
+    values (true)
+    on conflict (singleton) do nothing;
+  end if;
+
+  if to_regclass('public.booking_refund_non_working_days') is not null
+     and to_regclass('public.booking_refund_calendar_coverage') is not null then
+    insert into public.booking_refund_non_working_days
+      (holiday_date, label, calendar_source)
+    values
+      (date '2026-01-01', 'New Year''s Day', 'gov.uk/bank-holidays'),
+      (date '2026-04-03', 'Good Friday', 'gov.uk/bank-holidays'),
+      (date '2026-04-06', 'Easter Monday', 'gov.uk/bank-holidays'),
+      (date '2026-05-04', 'Early May bank holiday', 'gov.uk/bank-holidays'),
+      (date '2026-05-25', 'Spring bank holiday', 'gov.uk/bank-holidays'),
+      (date '2026-08-31', 'Summer bank holiday', 'gov.uk/bank-holidays'),
+      (date '2026-12-25', 'Christmas Day', 'gov.uk/bank-holidays'),
+      (date '2026-12-28', 'Boxing Day (substitute)', 'gov.uk/bank-holidays'),
+      (date '2027-01-01', 'New Year''s Day', 'gov.uk/bank-holidays'),
+      (date '2027-03-26', 'Good Friday', 'gov.uk/bank-holidays'),
+      (date '2027-03-29', 'Easter Monday', 'gov.uk/bank-holidays'),
+      (date '2027-05-03', 'Early May bank holiday', 'gov.uk/bank-holidays'),
+      (date '2027-05-31', 'Spring bank holiday', 'gov.uk/bank-holidays'),
+      (date '2027-08-30', 'Summer bank holiday', 'gov.uk/bank-holidays'),
+      (date '2027-12-27', 'Christmas Day (substitute)', 'gov.uk/bank-holidays'),
+      (date '2027-12-28', 'Boxing Day (substitute)', 'gov.uk/bank-holidays'),
+      (date '2028-01-03', 'New Year''s Day (substitute)', 'gov.uk/bank-holidays'),
+      (date '2028-04-14', 'Good Friday', 'gov.uk/bank-holidays'),
+      (date '2028-04-17', 'Easter Monday', 'gov.uk/bank-holidays'),
+      (date '2028-05-01', 'Early May bank holiday', 'gov.uk/bank-holidays'),
+      (date '2028-05-29', 'Spring bank holiday', 'gov.uk/bank-holidays'),
+      (date '2028-08-28', 'Summer bank holiday', 'gov.uk/bank-holidays'),
+      (date '2028-12-25', 'Christmas Day', 'gov.uk/bank-holidays'),
+      (date '2028-12-26', 'Boxing Day', 'gov.uk/bank-holidays'),
+      (date '2029-01-01', 'New Year''s Day', 'gov.uk/bank-holidays'),
+      (date '2029-03-30', 'Good Friday', 'gov.uk/bank-holidays'),
+      (date '2029-04-02', 'Easter Monday', 'gov.uk/bank-holidays'),
+      (date '2029-05-07', 'Early May bank holiday', 'gov.uk/bank-holidays'),
+      (date '2029-05-28', 'Spring bank holiday', 'gov.uk/bank-holidays'),
+      (date '2029-08-27', 'Summer bank holiday', 'gov.uk/bank-holidays'),
+      (date '2029-12-25', 'Christmas Day', 'gov.uk/bank-holidays'),
+      (date '2029-12-26', 'Boxing Day', 'gov.uk/bank-holidays')
+    on conflict (holiday_date) do nothing;
+
+    insert into public.booking_refund_calendar_coverage
+      (calendar_source, calendar_version, covers_from, covers_to)
+    values
+      ('gov.uk/bank-holidays', '2026-07-22',
+       date '2026-01-01', date '2027-12-31'),
+      ('gov.uk/bank-holidays', '2026-07-23',
+       date '2026-01-01', date '2029-12-31')
+    on conflict do nothing;
+  end if;
+
+  if to_regclass('cron.job') is not null
+     and to_regprocedure('public.run_legacy_deposit_auto_release()') is not null then
+    if not exists (
+      select 1 from cron.job where jobname = 'deposit-auto-release'
+    ) then
+      perform cron.schedule(
+        'deposit-auto-release',
+        '20 * * * *',
+        'select public.run_legacy_deposit_auto_release()'
+      );
+    end if;
+  end if;
+end
+$seed$;
