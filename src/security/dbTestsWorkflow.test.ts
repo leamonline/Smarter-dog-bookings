@@ -19,4 +19,18 @@ describe("DB Tests workflow authentication", () => {
     expect(workflow).not.toContain("SUPABASE_DB_PASSWORD");
     expect(workflow).not.toContain("steps.gate.outputs.run");
   });
+
+  it("removes target default table grants before restoring the schema dump", () => {
+    const revoke =
+      "alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;";
+    const aclBaseline =
+      "supabase/migrations/00000000000000_target_acl_baseline.sql";
+    const schemaBaseline =
+      "supabase/migrations/00000000000001_prod_baseline.sql";
+
+    expect(workflow).toContain(revoke);
+    expect(workflow.indexOf(aclBaseline)).toBeLessThan(
+      workflow.indexOf(schemaBaseline),
+    );
+  });
 });

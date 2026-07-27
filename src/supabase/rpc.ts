@@ -618,3 +618,482 @@ export function mergeHumans(
     p_loser: params.loserId,
   });
 }
+
+// ── Visit-level policy commands (previous_day_1500_v1) ────────────────
+//
+// Every command returns one typed receipt; decode it with
+// decodeCustomerVisitReceipt so a malformed or transport-failed response can
+// never be mistaken for a committed outcome. While the policy is inactive
+// these return a `policy_not_active` blocked receipt and mutate nothing.
+
+export function previewCustomerCancelVisit(
+  client: SupabaseClient,
+  params: { visitId: string },
+) {
+  return client.rpc("preview_customer_cancel_visit", {
+    p_visit_id: params.visitId,
+  });
+}
+
+export function cancelCustomerBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    reviewId: string;
+    idempotencyKey: string;
+    reason?: string | null;
+    paidDepositOutcome?: "refund" | "credit";
+  },
+) {
+  return client.rpc("cancel_customer_booking_visit", {
+    p_visit_id: params.visitId,
+    p_review_id: params.reviewId,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+    p_paid_deposit_outcome: params.paidDepositOutcome ?? "refund",
+  });
+}
+
+export function withdrawCustomerBookingVisit(
+  client: SupabaseClient,
+  params: { visitId: string; idempotencyKey: string; reason?: string | null },
+) {
+  return client.rpc("withdraw_customer_booking_visit", {
+    p_visit_id: params.visitId,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function withdrawCustomerBookingChangeRequest(
+  client: SupabaseClient,
+  params: { requestId: string; idempotencyKey: string },
+) {
+  return client.rpc("withdraw_customer_booking_change_request", {
+    p_request_id: params.requestId,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function getCustomerBookingVisitCapabilities(
+  client: SupabaseClient,
+  params: { visitId: string },
+) {
+  return client.rpc("get_customer_booking_visit_capabilities", {
+    p_visit_id: params.visitId,
+  });
+}
+
+export function getCustomerCreditBalance(client: SupabaseClient) {
+  return client.rpc("get_customer_credit_balance");
+}
+
+export function requestCustomerCreditRefund(
+  client: SupabaseClient,
+  params: { amountPence: number; idempotencyKey: string },
+) {
+  return client.rpc("request_customer_credit_refund", {
+    p_amount_pence: params.amountPence,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function cancelCustomerCreditRefund(
+  client: SupabaseClient,
+  params: { refundDueId: string; idempotencyKey: string },
+) {
+  return client.rpc("cancel_customer_credit_refund", {
+    p_refund_due_id: params.refundDueId,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+// Customer-safe booking rules: intake availability, horizon, portal switches,
+// the generic Terms link and a read-only deadline description. Never bank
+// details, publication hashes or auto-confirm configuration.
+export function getCustomerBookingRules(client: SupabaseClient) {
+  return client.rpc("current_customer_booking_rules");
+}
+
+// Staff-only full Booking Rules, and the audited owner-only save.
+export function getBookingRules(client: SupabaseClient) {
+  return client.rpc("current_booking_rules");
+}
+
+export function updateBookingRules(
+  client: SupabaseClient,
+  params: { rules: Record<string, unknown> },
+) {
+  return client.rpc("update_booking_rules", { p_rules: params.rules });
+}
+
+// The policy runtime status a client may poll to know when to refetch.
+// Browser time never authorises a mutation; the server decides.
+export function getBookingPolicyRuntimeStatus(client: SupabaseClient) {
+  return client.rpc("booking_policy_runtime_status");
+}
+
+// ── Staff visit policy commands ───────────────────────────────────────
+//
+// All staff-gated and idempotent. Staff-caused changes consume no customer
+// reschedule and create no incident; no command releases capacity on a timer.
+// `expectedVisitRevision` is always the projected optimistic row version from
+// `booking_visits.row_revision`; `booking_visits.revision` is the separate,
+// immutable lineage ordinal.
+
+export function approveBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    idempotencyKey: string;
+    reason?: string | null;
+  },
+) {
+  return client.rpc("approve_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function declineBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    customerReason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("decline_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_customer_reason: params.customerReason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+// The customer's bank receipt time decides punctuality — never the later
+// staff-check time.
+export function recordVisitDepositOutcome(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    outcome: "received" | "not_received";
+    bankReceivedAt?: string | null;
+    staffReference?: string | null;
+    idempotencyKey: string;
+    reason?: string | null;
+  },
+) {
+  return client.rpc("record_visit_deposit_outcome", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_outcome: params.outcome,
+    p_bank_received_at: params.bankReceivedAt ?? null,
+    p_staff_reference: params.staffReference ?? null,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function resolveVisitDepositMoney(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    resolution: "refund" | "credit";
+    idempotencyKey: string;
+    reason: string;
+  },
+) {
+  return client.rpc("resolve_visit_deposit_money", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_resolution: params.resolution,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason,
+  });
+}
+
+export function settleBookingRefundDue(
+  client: SupabaseClient,
+  params: {
+    refundDueId: string;
+    actualPaidAt: string;
+    bankReference: string;
+    idempotencyKey: string;
+    reason?: string | null;
+  },
+) {
+  return client.rpc("settle_booking_refund_due", {
+    p_refund_due_id: params.refundDueId,
+    p_actual_paid_at: params.actualPaidAt,
+    p_bank_reference: params.bankReference,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function waiveVisitDepositRequirement(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    reason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("waive_visit_deposit_requirement", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function recordBookingIncident(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    kind:
+      | "late_cancellation"
+      | "late_reschedule"
+      | "no_show"
+      | "late_arrival_unserviceable"
+      | "late_partial_change";
+    reason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("record_booking_incident", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_kind: params.kind,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+// Marking a no-show sends no automatic customer message.
+export function markBookingVisitNoShow(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    reason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("mark_booking_visit_no_show", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function setBookingIncidentWaiver(
+  client: SupabaseClient,
+  params: {
+    incidentId: string;
+    expectedIncidentRevision: number;
+    waived: boolean;
+    reason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("set_booking_incident_waiver", {
+    p_incident_id: params.incidentId,
+    p_expected_incident_revision: params.expectedIncidentRevision,
+    p_waived: params.waived,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function setCustomerDepositOverride(
+  client: SupabaseClient,
+  params: {
+    humanId: string;
+    mode: "required" | "waived" | "clear";
+    reason: string;
+    idempotencyKey: string;
+  },
+) {
+  return client.rpc("set_customer_deposit_override", {
+    p_human_id: params.humanId,
+    p_mode: params.mode,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+  });
+}
+
+export function recordCustomerBookingContact(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedVisitRevision: number;
+    channel: "website" | "whatsapp" | "phone" | "email" | "in_person";
+    contactedAt: string;
+    idempotencyKey: string;
+    providerMessageId?: string | null;
+  },
+) {
+  return client.rpc("record_customer_booking_contact", {
+    p_visit_id: params.visitId,
+    p_expected_visit_revision: params.expectedVisitRevision,
+    p_channel: params.channel,
+    p_contacted_at: params.contactedAt,
+    p_idempotency_key: params.idempotencyKey,
+    p_provider_message_id: params.providerMessageId ?? null,
+  });
+}
+
+export function decideBookingChangeRequest(
+  client: SupabaseClient,
+  params: {
+    requestId: string;
+    expectedRequestRevision: number;
+    decision: "accept" | "decline";
+    reason: string;
+    idempotencyKey: string;
+    recordIncident?: boolean;
+  },
+) {
+  return client.rpc("decide_booking_change_request", {
+    p_request_id: params.requestId,
+    p_expected_request_revision: params.expectedRequestRevision,
+    p_decision: params.decision,
+    p_reason: params.reason,
+    p_idempotency_key: params.idempotencyKey,
+    p_record_incident: params.recordIncident ?? true,
+  });
+}
+
+export function getStaffCustomerCreditBalance(
+  client: SupabaseClient,
+  params: { humanId: string },
+) {
+  return client.rpc("get_staff_customer_credit_balance", {
+    p_human_id: params.humanId,
+  });
+}
+
+export function getBookingVisitBackfillReview(client: SupabaseClient) {
+  return client.rpc("get_booking_visit_backfill_review");
+}
+
+// ── Staff visit write commands (Path B) ───────────────────────────────
+//
+// The v1 staff write path. Whole-visit, idempotent and audited. Staff moves
+// consume no customer reschedule allowance and create no incident unless one
+// is deliberately recorded. While the policy is inactive these return
+// `policy_not_active` and staff continue using createStaffBookingGroup.
+
+export function createStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    bookings: unknown[];
+    bookingDate: string;
+    humanId: string;
+    idempotencyKey: string;
+    // How staff gave the customer notice of the Terms. Required — the server
+    // never defaults it, because bookings are taken in person, by phone and
+    // over WhatsApp. This records that staff GAVE notice; it is not customer
+    // acceptance.
+    termsNoticeMethod: "in_person" | "phone" | "whatsapp" | "email" | "other";
+    source?: string;
+  },
+) {
+  return client.rpc("create_staff_booking_visit", {
+    p_bookings: params.bookings,
+    p_booking_date: params.bookingDate,
+    p_human_id: params.humanId,
+    p_idempotency_key: params.idempotencyKey,
+    p_terms_notice_method: params.termsNoticeMethod,
+    p_source: params.source ?? "staff",
+  });
+}
+
+// `expectedRevision` is the projected `booking_visits.row_revision` the staff
+// member had on screen. A mismatch returns `stale_review` so a concurrent edit
+// is never overwritten; it is never the immutable lineage ordinal.
+export function cancelStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    idempotencyKey: string;
+    reason?: string | null;
+    paidDepositOutcome?: "refund" | "credit";
+    // Required when the visit carries non-deposit prepayment: the money is
+    // never silently stranded.
+    prepaymentHandling?: "reconciliation_required" | "refund_due" | "transfer" | null;
+    // Required for a `transfer`: a same-customer active destination visit.
+    prepaymentTargetVisitId?: string | null;
+    // Required for a `refund_due`: the date staff promised the customer. Must
+    // be in the future — the server never invents the deposit's
+    // five-working-day promise for service prepayment.
+    prepaymentRefundDueAt?: string | null;
+    recordIncident?: boolean;
+    incidentKind?: string | null;
+  },
+) {
+  return client.rpc("cancel_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+    p_paid_deposit_outcome: params.paidDepositOutcome ?? "refund",
+    p_prepayment_handling: params.prepaymentHandling ?? null,
+    p_record_incident: params.recordIncident ?? false,
+    p_incident_kind: params.incidentKind ?? null,
+    p_prepayment_target_visit_id: params.prepaymentTargetVisitId ?? null,
+    p_prepayment_refund_due_at: params.prepaymentRefundDueAt ?? null,
+  });
+}
+
+export function rescheduleStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    bookingDate: string;
+    slotAssignments: Array<{ dog_id: string; slot: string }>;
+    idempotencyKey: string;
+    reason?: string | null;
+  },
+) {
+  return client.rpc("reschedule_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_booking_date: params.bookingDate,
+    p_slot_assignments: params.slotAssignments,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason ?? null,
+  });
+}
+
+export function updateStaffBookingVisit(
+  client: SupabaseClient,
+  params: {
+    visitId: string;
+    expectedRevision: number;
+    changes: Array<{ bookingId: string; service?: string; addons?: string[] }>;
+    idempotencyKey: string;
+    reason: string;
+  },
+) {
+  return client.rpc("update_staff_booking_visit", {
+    p_visit_id: params.visitId,
+    p_expected_revision: params.expectedRevision,
+    p_changes: params.changes,
+    p_idempotency_key: params.idempotencyKey,
+    p_reason: params.reason,
+  });
+}

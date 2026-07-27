@@ -63,12 +63,38 @@ jobs:
         shell: bash
         env:
           BASE_REF: ${{ github.base_ref }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin "$BASE_REF"
 
           candidate_root="$(mktemp -d)"
           echo "CANDIDATE_MIGRATIONS_DIR=$candidate_root" >> "$GITHUB_ENV"
+
+          # The safe release order applies migrations to prod before merge.
+          # Once that starts, the schema-only baseline already contains those
+          # objects, so replaying the same PR files can fail even though the
+          # remaining candidate is valid. Preserve only migrations not yet
+          # represented in prod history (matching the release gate's version
+          # OR MCP-generated-name rule).
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is required to identify migrations already present in the prod baseline."
+            exit 1
+          fi
+          history_response=$(curl -sS -X POST \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"query":"select version, name from supabase_migrations.schema_migrations"}')
+          history_rows=$(echo "$history_response" | jq -c \
+            'if type=="array" then . elif (type=="object" and has("result")) then .result else empty end' \
+            2>/dev/null || true)
+          if [ -z "$history_rows" ]; then
+            echo "::error::Could not read prod migration history before constructing the disposable baseline."
+            exit 1
+          fi
+          applied_versions=$(echo "$history_rows" | jq -r '.[].version // empty')
+          applied_names=$(echo "$history_rows" | jq -r '.[].name // empty')
 
           git diff --name-only --diff-filter=A -z \
             "origin/${BASE_REF}...HEAD" -- supabase/migrations/ \
@@ -80,6 +106,14 @@ jobs:
               *.sql) ;;
               *) continue ;;
             esac
+            base=$(basename "$migration" .sql)
+            version=${base%%_*}
+            name=${base#*_}
+            if grep -qxF "$version" <<<"$applied_versions" \
+              || grep -qxF "$name" <<<"$applied_names"; then
+              echo "Already represented in prod baseline: $base"
+              continue
+            fi
             destination="$candidate_root/$migration"
             mkdir -p "$(dirname "$destination")"
             cp -- "$migration" "$destination"
@@ -108,11 +142,20 @@ jobs:
             -f /tmp/baseline.sql
           echo "baseline: $(wc -l < /tmp/baseline.sql) lines"
           # Replace the (non-rebuildable) migration history with the prod schema
-          # as a single baseline migration, so `supabase start` boots a faithful
-          # schema. The checkout is ephemeral — this does not touch the repo.
+          # as an ephemeral baseline, so `supabase start` boots a faithful
+          # schema. Supabase's schema-dump guidance requires revoking the
+          # target's default table grants before restore; otherwise locally
+          # created tables acquire anon/authenticated ACLs absent from prod.
+          # The dump can then restore every legitimate source grant explicitly.
+          # The checkout is ephemeral — this does not touch the repo.
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          cp /tmp/baseline.sql supabase/migrations/00000000000000_prod_baseline.sql
+          printf '%s\n' \
+            'alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;' \
+            > supabase/migrations/00000000000000_target_acl_baseline.sql
+          cp /tmp/baseline.sql supabase/migrations/00000000000001_prod_baseline.sql
+          cp supabase/tests/fixtures/booking_policy_partial_baseline_seed.psql \
+            supabase/migrations/00000000000002_booking_policy_partial_baseline_seed.sql
 
       - name: Restore PR-added candidate migrations
         if: github.event_name == 'pull_request'
@@ -129,6 +172,7 @@ jobs:
         run: supabase start
 
       - name: Run pgTAP database tests
+        timeout-minutes: 5
         run: supabase test db
 
       - name: Prove atomic reschedule concurrency

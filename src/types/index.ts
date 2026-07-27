@@ -297,3 +297,23 @@ export interface SlotAllocation {
   assignments: Array<{ dogId: string; slot: string }>;
   groupId: string;
 }
+
+// Visit-level booking policy model (previous_day_1500_v1). PostgreSQL stays
+// authoritative for every deadline and permission decision.
+export type {
+  BookingPolicyRuntimeState,
+  BookingPolicyRuntimeStatus,
+  BookingVisit,
+  DepositSatisfactionSource,
+  DepositState,
+  IncidentKind,
+  StaffBookingChangeRequest,
+  StaffBookingPolicyIncident,
+  VisitActionability,
+  VisitApprovalState,
+  VisitCapabilities,
+  VisitConfirmationState,
+  VisitDeposit,
+  VisitLifecycleState,
+  VisitPolicyCode,
+} from "./bookingPolicy";
