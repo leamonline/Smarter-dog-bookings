@@ -33,6 +33,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_whatsapp_settings: {
+        Row: {
+          enabled: boolean
+          singleton: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       booking_capacity_audit: {
         Row: {
           auth_uid: string | null
@@ -729,6 +750,7 @@ export type Database = {
       humans: {
         Row: {
           address: string | null
+          ai_whatsapp_allowed: boolean
           approved_at: string | null
           approved_by: string | null
           archived_at: string | null
@@ -770,6 +792,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ai_whatsapp_allowed?: boolean
           approved_at?: string | null
           approved_by?: string | null
           archived_at?: string | null
@@ -811,6 +834,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ai_whatsapp_allowed?: boolean
           approved_at?: string | null
           approved_by?: string | null
           archived_at?: string | null
@@ -1959,6 +1983,14 @@ export type Database = {
           slot: string
         }[]
       }
+      get_ai_whatsapp_settings: {
+        Args: never
+        Returns: {
+          enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }[]
+      }
       get_dog_grooming_intervals: {
         Args: never
         Returns: {
@@ -2043,6 +2075,14 @@ export type Database = {
       is_large_dog_slot: { Args: { p_slot: string }; Returns: boolean }
       is_owner: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      set_ai_whatsapp_enabled: {
+        Args: { p_enabled: boolean }
+        Returns: {
+          enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }[]
+      }
       large_dog_can_fit_on_day: { Args: { p_date: string }; Returns: boolean }
       large_dog_can_share: { Args: { p_slot: string }; Returns: boolean }
       link_customer_to_human: {
@@ -2349,4 +2389,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

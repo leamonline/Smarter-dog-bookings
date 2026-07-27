@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(45);
 
 set local session_replication_role = replica;
 
@@ -258,17 +258,113 @@ select lives_ok(
 );
 
 select ok(
-  (select size is null and reported_size = 'small'
+  (select size = 'medium' and reported_size = 'small'
    from public.dogs
    where human_id = '10000000-0000-4000-8000-000000000010'
      and name = 'Customer Pup'),
-  'create_customer_dog keeps size unconfirmed and stores reported_size'
+  'create_customer_dog derives authoritative size from the canonical breed, not reported_size'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Small Cross', 'Pug x Shih Tzu', 'large',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts two recognised small parents'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Small Cross'),
+  'small'::text,
+  'two small parent breeds derive small without trusting the reported size'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Medium Cross', 'Cockapoo X Poodle', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts two recognised medium parents'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Medium Cross'),
+  'medium'::text,
+  'two medium parent breeds derive medium without trusting the reported size'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Mixed Cross', 'Pug x Poodle', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts recognised small and medium parents'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Mixed Cross'),
+  'medium'::text,
+  'a small and medium parent derive medium'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Large Cross', 'Pug x Labrador', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts a cross with a large parent for staff review'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Large Cross'),
+  null::text,
+  'a cross involving a large parent remains unconfirmed'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Unknown Cross', 'Pug x Mystery Hound', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts a cross with an unknown parent for staff review'
+);
+
+select is(
+  (select size from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Unknown Cross'),
+  null::text,
+  'a cross involving an unknown parent remains unconfirmed'
+);
+
+select lives_ok(
+  $$ select * from public.create_customer_dog(
+       'Unknown Breed', 'Mystery Hound', 'small',
+       '10000000-0000-4000-8000-000000000010'
+     ) $$,
+  'create_customer_dog accepts an unknown breed for staff review'
+);
+
+select ok(
+  (select size is null and reported_size = 'small'
+   from public.dogs
+   where human_id = '10000000-0000-4000-8000-000000000010'
+     and name = 'Unknown Breed'),
+  'an unknown breed cannot promote customer-reported size to authoritative size'
 );
 
 set local role postgres;
 update public.dogs
 set id = '1a000000-0000-4000-8000-000000000001',
-    size = 'medium'
+    size = 'large'
 where human_id = '10000000-0000-4000-8000-000000000010'
   and name = 'Customer Pup';
 
@@ -293,7 +389,7 @@ select is(
   (select size from public.dogs
    where human_id = '10000000-0000-4000-8000-000000000010'
      and name = 'Customer Pup Renamed'),
-  'medium'::text,
+  'large'::text,
   'a name-only customer edit preserves staff-confirmed size'
 );
 
@@ -308,15 +404,15 @@ select lives_ok(
 );
 
 select ok(
-  (select size is null and reported_size = 'large'
+  (select size = 'large' and reported_size = 'large'
    from public.dogs
    where human_id = '10000000-0000-4000-8000-000000000010'
      and name = 'Customer Pup Renamed'),
-  'a changed customer-reported size clears the authoritative size'
+  'a changed customer-reported size cannot overwrite or clear a staff-confirmed size'
 );
 
--- Self-signup accepts only one pending self_signup shell. Dog size remains
--- unverified until staff set dogs.size, and an approved shell cannot submit.
+-- Self-signup accepts only one pending self_signup shell. Recognised breeds
+-- derive authoritative size server-side; unknown breeds remain unverified.
 set local role postgres;
 select set_config(
   'request.jwt.claims',
@@ -328,17 +424,37 @@ set local role authenticated;
 select lives_ok(
   $$ select public.submit_customer_signup(
        '{"name":"New","surname":"Customer","address":"20 Signup Street","policies_version":"2026-07-test"}'::jsonb,
-       '[{"name":"Signup Pup","breed":"Poodle","size":"small","sex":"female","neutered":false}]'::jsonb
+       '[
+          {"name":"Signup Pup","breed":"Poodle","size":"small","sex":"female","neutered":false},
+          {"name":"Signup Cross","breed":"Pug x Shih Tzu","size":"large","sex":"male","neutered":false},
+          {"name":"Review Pup","breed":"Mystery Hound","size":"small","sex":"female","neutered":false}
+        ]'::jsonb
      ) $$,
   'a pending self-signup shell can submit once'
+);
+
+select ok(
+  (select d.size = 'medium' and d.reported_size = 'small'
+   from public.dogs d
+   where d.human_id = '10000000-0000-4000-8000-000000000020'
+     and d.name = 'Signup Pup'),
+  'self-signup derives a recognised breed from the canonical mapping'
+);
+
+select ok(
+  (select d.size = 'small' and d.reported_size = 'large'
+   from public.dogs d
+   where d.human_id = '10000000-0000-4000-8000-000000000020'
+     and d.name = 'Signup Cross'),
+  'self-signup derives an approved two-small-parent cross server-side'
 );
 
 select ok(
   (select d.size is null and d.reported_size = 'small'
    from public.dogs d
    where d.human_id = '10000000-0000-4000-8000-000000000020'
-     and d.name = 'Signup Pup'),
-  'self-signup dogs keep size unverified and store reported_size'
+     and d.name = 'Review Pup'),
+  'self-signup leaves an unknown breed unconfirmed for staff review'
 );
 
 select throws_ok(

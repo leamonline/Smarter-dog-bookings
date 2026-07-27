@@ -391,18 +391,6 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
               className="self-center inline-block w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-100 shrink-0"
             />
           )}
-          {booking.reminderConfirmedAt && (
-            <span
-              role="img"
-              aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
-              title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
-              className="self-center inline-flex items-center justify-center w-5 h-5 rounded-full text-emerald-700 bg-emerald-50 border border-emerald-200 shrink-0"
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </span>
-          )}
           {deliveryFailure && deliveryFailure.length > 0 && (
             <span
               role="img"
@@ -429,11 +417,27 @@ export function BookingCardNew({ booking, onClick, searchDimmed, draggable, onDr
           </span>
         </div>
 
-        {/* Row 2: owner (left) + price (far right) */}
-        <div className="flex items-baseline gap-2 pl-4 md:pl-5">
+        {/* Row 2: owner and reminder response (left) + price (far right).
+            The response is deliberately separate from appointment status
+            and payment so staff do not mistake one for another. */}
+        <div className="flex items-center gap-2 pl-4 md:pl-5">
           <div className="text-[10px] md:text-[11px] font-medium text-slate-500 min-w-0 truncate">
             {displayOwner}
           </div>
+          {booking.reminderConfirmedAt && (
+            <span
+              data-reminder-confirmation
+              role="status"
+              aria-label={`Customer confirmed at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+              title={`Confirmed via WhatsApp at ${formatConfirmedAt(booking.reminderConfirmedAt)}`}
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 md:text-[10px]"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Confirmed
+            </span>
+          )}
           {pricing.subtotal > 0 && (
             // Main number is always the full appointment value (service +
             // add-ons + custom price). Payment state is secondary: a "due"

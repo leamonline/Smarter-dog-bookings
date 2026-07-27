@@ -208,12 +208,27 @@ export { BREED_SIZE_MAP };
  */
 export function getSizeForBreed(breed: string | null | undefined): string | null {
   if (!breed || !breed.trim()) return null;
-  return BREED_SIZE_MAP[breed.trim().toLowerCase()] || null;
+  const normalisedBreed = breed.trim().toLowerCase();
+  const directSize = BREED_SIZE_MAP[normalisedBreed];
+  if (directSize) return directSize;
+
+  // A cross is authoritative only when the customer gives exactly two
+  // independently recognised small/medium parents using "A x B" syntax.
+  // Unknown parents, three-way crosses and any large parent stay unconfirmed.
+  const parents = normalisedBreed.split(/\s+[x×]\s+/i);
+  if (parents.length !== 2) return null;
+
+  const parentSizes = parents.map((parent) => BREED_SIZE_MAP[parent.trim()]);
+  if (parentSizes.some((size) => size !== "small" && size !== "medium")) {
+    return null;
+  }
+
+  return parentSizes.includes("medium") ? "medium" : "small";
 }
 
 /**
- * Common mixed / cross breeds that we don't auto-size from.
- * Staff still pick a size manually for these.
+ * Common mixed / cross breed autocomplete values. Only an exact two-parent
+ * small/medium value is auto-sized; all other crosses still need staff review.
  */
 const CROSS_BREEDS = [
   "Chorkie",

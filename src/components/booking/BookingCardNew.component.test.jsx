@@ -68,21 +68,37 @@ function renderCard(booking) {
 }
 
 describe("BookingCardNew — confirm tick", () => {
-  it("renders the green tick when reminderConfirmedAt is set", () => {
+  it("renders a compact customer-confirmed indicator when reminderConfirmedAt is set", () => {
     renderCard(bookingFixture({ reminderConfirmedAt: "2026-05-31T15:53:00Z" }));
-    const tick = screen.getByRole("img", { name: /customer confirmed/i });
-    expect(tick).toBeInTheDocument();
+    expect(
+      screen.getByText("Confirmed", { selector: "[data-reminder-confirmation]" }),
+    ).toBeInTheDocument();
   });
 
   it("includes the timestamp in the tooltip", () => {
     renderCard(bookingFixture({ reminderConfirmedAt: "2026-05-31T15:53:00Z" }));
-    const tick = screen.getByRole("img", { name: /customer confirmed/i });
-    expect(tick.getAttribute("title")).toMatch(/confirmed via whatsapp/i);
+    const indicator = screen.getByRole("status", { name: /customer confirmed/i });
+    expect(indicator.getAttribute("title")).toMatch(/confirmed via whatsapp/i);
   });
 
   it("does not render the tick when reminderConfirmedAt is null", () => {
     renderCard(bookingFixture({ reminderConfirmedAt: null }));
-    expect(screen.queryByRole("img", { name: /customer confirmed/i })).toBeNull();
+    expect(screen.queryByText("Confirmed")).toBeNull();
+  });
+
+  it("keeps reminder confirmation separate from appointment and payment status", () => {
+    renderCard(
+      bookingFixture({
+        reminderConfirmedAt: "2026-05-31T15:53:00Z",
+        status: "Booked",
+        payment: "Due at Pick-up",
+      }),
+    );
+
+    expect(screen.getByText("Confirmed")).toHaveAttribute(
+      "data-reminder-confirmation",
+    );
+    expect(screen.getByText("£42")).toBeInTheDocument();
   });
 });
 
