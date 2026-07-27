@@ -86,6 +86,7 @@ describe("SettingsView unsaved-changes guard", () => {
       "Capacity Engine",
       "Customer Portal",
       "Notifications",
+      "AI Messaging",
       "Calendar Sync",
     ]);
 

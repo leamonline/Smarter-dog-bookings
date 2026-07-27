@@ -133,6 +133,59 @@ describe("HumansView directory", () => {
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
   });
 
+  it("renders every linked dog inside a fixed, scrollable grid-card dog area", () => {
+    const linkedDogs = [
+      { id: "d1", name: "Minnie", breed: "Shih Tzu", size: "small" },
+      { id: "d2", name: "Bertie", breed: "Cockapoo", size: "medium" },
+      { id: "d3", name: "Rufus", breed: "Labrador", size: "large" },
+      { id: "d4", name: "Poppy", breed: "Pug", size: "small" },
+      { id: "d5", name: "Lola", breed: "Cavapoo", size: "medium" },
+      { id: "d6", name: "Teddy", breed: "Bichon Frise", size: "small" },
+    ];
+
+    renderView({
+      directoryHumans: [sarah],
+      dogsByHumanId: { h1: linkedDogs },
+    });
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    const dogArea = within(card).getByRole("list", { name: "6 linked dogs" });
+    for (const dog of linkedDogs) {
+      expect(within(dogArea).getByText(dog.name)).toBeInTheDocument();
+    }
+    expect(dogArea).toHaveClass("overflow-y-auto");
+    expect(card).toHaveClass("h-[216px]");
+    expect(within(card).queryByLabelText(/more dogs/i)).not.toBeInTheDocument();
+  });
+
+  it("uses equal-height grid tracks and keeps full contact text available", () => {
+    renderView({
+      directoryHumans: [{ ...sarah, email: "sarah.with.a.long.email@example.com" }],
+    });
+
+    const grid = screen.getByTestId("humans-directory-grid");
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    const email = within(card).getByRole("link", {
+      name: "sarah.with.a.long.email@example.com",
+    });
+    expect(grid).toHaveClass("auto-rows-fr", "items-stretch");
+    expect(email).not.toHaveClass("truncate");
+    expect(email).toHaveClass("break-all", "whitespace-normal");
+    expect(within(card).getByTestId("human-contact-strip")).toHaveClass("flex-wrap");
+  });
+
+  it("presents WhatsApp as a restrained secondary contact action", () => {
+    renderView({ directoryHumans: [sarah] });
+
+    const card = screen.getByRole("article", { name: "Sarah Jones" });
+    const contactStrip = within(card).getByTestId("human-contact-strip");
+    const whatsapp = within(contactStrip).getByRole("link", { name: "Open in WhatsApp" });
+    expect(contactStrip).toHaveClass("flex-wrap");
+    expect(whatsapp).toHaveClass("min-h-11", "min-w-11");
+    expect(whatsapp).not.toHaveClass("size-11", "border", "bg-emerald-50");
+    expect(within(whatsapp).getByText("WhatsApp")).toBeInTheDocument();
+  });
+
   it.each(["Grid", "List"])("keeps every direct %s card action at least 44px tall", (mode) => {
     renderView({
       directoryHumans: [{ ...sarah, email: "sarah@example.com", historyFlag: "Muzzle required" }],
@@ -143,7 +196,10 @@ describe("HumansView directory", () => {
     const card = screen.getByRole("article", { name: "Sarah Jones" });
     expect(within(card).getByRole("link", { name: "07700900111" })).toHaveClass("min-h-11");
     expect(within(card).getByRole("link", { name: "sarah@example.com" })).toHaveClass("min-h-11");
-    expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass("size-11");
+    expect(within(card).getByRole("link", { name: "Open in WhatsApp" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
     expect(within(card).getByRole("button", { name: "No dogs yet — add one?" })).toHaveClass("min-h-11");
     expect(within(card).getByRole("button", { name: "View profile for Sarah Jones" })).toHaveClass("size-11");
     expect(within(card).getByRole("button", { name: "Safety alert: Muzzle required" })).toHaveClass(

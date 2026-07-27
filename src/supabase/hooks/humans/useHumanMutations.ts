@@ -109,6 +109,8 @@ export function useHumanMutations({
         dbUpdates.blocked_slots = updates.blockedSlots;
       if (updates.depositRequired !== undefined)
         dbUpdates.deposit_required = updates.depositRequired;
+      if (updates.aiWhatsappAllowed !== undefined)
+        dbUpdates.ai_whatsapp_allowed = updates.aiWhatsappAllowed;
       if (updates.archivedAt !== undefined)
         dbUpdates.archived_at = updates.archivedAt;
 
@@ -193,6 +195,7 @@ export function useHumanMutations({
         preferredSlots: savedRow.preferred_slots || [],
         blockedSlots: savedRow.blocked_slots || [],
         depositRequired: savedRow.deposit_required === true,
+        aiWhatsappAllowed: savedRow.ai_whatsapp_allowed !== false,
         archivedAt: savedRow.archived_at || null,
         trustedIds: trustedNames,
         trustedContacts: savedTrustedContacts,

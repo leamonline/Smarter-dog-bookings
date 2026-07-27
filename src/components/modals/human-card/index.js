@@ -11,6 +11,7 @@ export { DogsPanel } from "./DogsPanel.jsx";
 export { LinkDogActions } from "./LinkDogActions.jsx";
 export { TrustedHumansPanel } from "./TrustedHumansPanel.jsx";
 export { RemindersPanel } from "./RemindersPanel.jsx";
+export { AiMessagingPanel } from "./AiMessagingPanel.jsx";
 export { BookingRulesPanel } from "./BookingRulesPanel.jsx";
 export { MergeHumanDialog } from "./MergeHumanDialog.jsx";
 export { HumanEditFooter } from "./HumanEditFooter.jsx";

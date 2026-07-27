@@ -9,6 +9,7 @@ import { CapacitySettings } from "./settings/CapacitySettings.jsx";
 import { CustomerPortalSettings } from "./settings/CustomerPortalSettings.jsx";
 import { NotificationSettings } from "./settings/NotificationSettings.jsx";
 import { CalendarSettings } from "./settings/CalendarSettings.jsx";
+import { AiWhatsAppSettings } from "./settings/AiWhatsAppSettings.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { PageHeader } from "../ui/index.js";
 
@@ -21,6 +22,7 @@ const SECTIONS = [
   { id: "capacity", label: "Capacity Engine" },
   { id: "portal", label: "Customer Portal" },
   { id: "notifs", label: "Notifications" },
+  { id: "aiMessaging", label: "AI Messaging" },
   { id: "calendar", label: "Calendar Sync" },
 ];
 
@@ -182,6 +184,7 @@ export function SettingsView({
           />
         )}
         {activeTab === "notifs" && <NotificationSettings config={config} onUpdateConfig={onUpdateConfig} canEdit={canEdit} />}
+        {activeTab === "aiMessaging" && <AiWhatsAppSettings />}
         {activeTab === "calendar" && <CalendarSettings />}
       </div>
 

@@ -1236,7 +1236,11 @@ async function dispatchIfEligible(
         "content-type": "application/json",
         "x-internal-secret": SEND_INTERNAL_SECRET,
       },
-      body: JSON.stringify({ mode: "draft", draft_id: draftId }),
+      body: JSON.stringify({
+        mode: "draft",
+        draft_id: draftId,
+        ai_initiated: true,
+      }),
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -1292,6 +1296,7 @@ async function dispatchBookEntry(
         to: phoneE164,
         conversation_id: conversationId,
         human_id: humanId,
+        ai_initiated: true,
       }),
     });
     if (!res.ok) {
@@ -1334,6 +1339,7 @@ async function dispatchBookingFlow(
         flow_type: "appointment_booking",
         body_text: bodyText,
         cta: "Book on WhatsApp",
+        ai_initiated: true,
       }),
     });
     if (!res.ok) {
@@ -1361,7 +1367,7 @@ async function callWhatsappSend(body: Record<string, unknown>): Promise<boolean>
     const res = await fetch(WHATSAPP_SEND_URL, {
       method: "POST",
       headers: { "content-type": "application/json", "x-internal-secret": SEND_INTERNAL_SECRET },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, ai_initiated: true }),
     });
     if (!res.ok) console.warn(`whatsapp-send ${body.mode} returned ${res.status}: ${await res.text()}`);
     return res.ok;
@@ -2204,6 +2210,7 @@ async function dispatchConfirmButtons(
         booking_action_id: actionRow.id,
         summary_text: summaryText,
         action_kind: actionKind,
+        ai_initiated: true,
       }),
     });
     if (!res.ok) {

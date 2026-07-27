@@ -3,7 +3,7 @@ import { getSizeForBreed } from "../../constants/index";
 import { MessageCircle, Plus } from "lucide-react";
 import { FloatingDecor } from "../decor/index.jsx";
 import { titleCase, normaliseSurname } from "../../utils/text";
-import { filterHumansForDirectory } from "../../utils/directorySearch";
+import { filterHumansForDirectory, getDogsForHuman } from "../../utils/directorySearch";
 import { CardGridSkeleton, SkeletonBlock } from "../ui/Skeleton.jsx";
 import { ErrorBanner } from "../ui/ErrorBanner.jsx";
 import { SizeDot } from "../ui/SizeDot.jsx";
@@ -77,29 +77,28 @@ function UnarchiveButton({ onUnarchive }) {
   );
 }
 
-function DogChips({ dogs: dogList, max, dim }) {
-  const visible = dogList.slice(0, max);
-  const overflow = dogList.length - visible.length;
-  if (visible.length === 0) {
+function DogChips({ dogs: dogList, dim }) {
+  if (dogList.length === 0) {
     return <span className="text-xs text-ink-muted italic">No dogs</span>;
   }
   return (
     <>
-      {visible.map((dog) => {
+      {dogList.map((dog) => {
         const dogSize = dog.size || getSizeForBreed(dog.breed);
         return (
-          <span key={dog.id} className="flex items-center gap-1.5 shrink-0">
+          <span
+            key={dog.id}
+            role="listitem"
+            className="flex min-w-0 items-start gap-1.5 py-0.5"
+          >
             <SizeDot size={dogSize} dim={dim} />
-            <span className="text-xs font-semibold text-slate-600">
+            <span className="min-w-0 text-micro font-semibold leading-4 text-slate-600">
               {titleCase(dog.name)}
               {dog.breed && <span className="font-medium text-ink-muted"> ({titleCase(dog.breed)})</span>}
             </span>
           </span>
         );
       })}
-      {overflow > 0 && (
-        <span aria-label={`${overflow} more dog${overflow === 1 ? "" : "s"}`} className="text-caption font-semibold text-ink-muted shrink-0">+{overflow}</span>
-      )}
     </>
   );
 }
@@ -109,7 +108,10 @@ function DogChips({ dogs: dogList, max, dim }) {
 // size label via SizeDot on the cards).
 function ContactLines({ human }) {
   return (
-    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-micro text-slate-500">
+    <div
+      data-testid="human-contact-strip"
+      className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0 text-micro text-slate-500"
+    >
       {human.phone ? (
         <>
           <a
@@ -124,9 +126,10 @@ function ContactLines({ human }) {
             rel="noopener noreferrer"
             title="Open in WhatsApp"
             aria-label="Open in WhatsApp"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 no-underline hover:bg-emerald-100"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-1.5 px-1 font-semibold text-emerald-700 no-underline hover:text-emerald-900"
           >
-            <MessageCircle size={18} aria-hidden="true" />
+            <MessageCircle size={15} aria-hidden="true" />
+            <span>WhatsApp</span>
           </a>
         </>
       ) : (
@@ -135,7 +138,7 @@ function ContactLines({ human }) {
       {human.email && (
         <a
           href={`mailto:${human.email}`}
-          className="inline-flex min-h-11 min-w-11 items-center truncate text-slate-400 no-underline hover:text-brand-purple"
+          className="inline-flex min-h-11 min-w-11 basis-full items-center break-all whitespace-normal text-slate-400 no-underline hover:text-brand-purple"
         >
           {human.email}
         </a>
@@ -158,8 +161,12 @@ function HumanDogs({ dogList, archived, onOpen }) {
   }
 
   return (
-    <div className="mt-1 flex max-h-[26px] flex-wrap items-center gap-2.5 overflow-hidden">
-      <DogChips dogs={dogList} max={4} dim={16} />
+    <div
+      role="list"
+      aria-label={`${dogList.length} linked dog${dogList.length === 1 ? "" : "s"}`}
+      className="mt-1 h-[50px] overflow-y-auto pr-1"
+    >
+      <DogChips dogs={dogList} dim={14} />
     </div>
   );
 }
@@ -169,14 +176,10 @@ function HumanDogs({ dogList, archived, onOpen }) {
 function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenHuman, onUnarchive }) {
   const cleanSurname = normaliseSurname(human.surname);
   const fullName = human.fullName || `${human.name || ""} ${cleanSurname}`.trim();
-  const humanDogs =
-    dogsByHumanId?.[human.id] ||
-    Object.values(dogs).filter(
-      (dog) => dog._humanId === human.id || dog.humanId === fullName,
-    );
+  const humanDogs = getDogsForHuman(human, dogs, dogsByHumanId);
   const open = () => onOpenHuman(human.id || fullName);
   const gridCardClass =
-    "group relative flex min-h-[112px] flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover";
+    `group relative flex ${showArchived ? "h-[276px]" : "h-[216px]"} flex-col items-start gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-card-resting transition-colors hover:border-brand-purple hover:shadow-card-hover`;
   const listCardClass =
     "group relative flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-brand-purple";
 
@@ -189,7 +192,7 @@ function DirectoryItem({ human, mode, dogs, dogsByHumanId, showArchived, onOpenH
         <HumanInitials fullName={fullName} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-title font-extrabold text-brand-purple">
+            <span className="break-words text-title font-extrabold leading-tight text-brand-purple">
               {titleCase(fullName)}
             </span>
             {human.historyFlag && (
@@ -520,10 +523,11 @@ export function HumansView({
             </div>
           ) : (
             <div
+              data-testid="humans-directory-grid"
               className={
                 viewMode === "list"
                   ? "flex flex-col gap-1.5"
-                  : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start"
+                  : "grid auto-rows-fr grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3"
               }
             >
               {displayList.map((human) => (

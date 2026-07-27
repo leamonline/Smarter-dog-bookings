@@ -72,6 +72,10 @@ import {
 } from "../_shared/confirmButtons.ts";
 import { buildFlowMetaBody, validateFlowMessageParams } from "../_shared/flowMessage.ts";
 import { SALON_LOCATION, TEMPLATES_WITH_LOCATION_HEADER } from "../_shared/salonConstants.ts";
+import {
+  decideAiMessagingSend,
+  type AiMessagingDecision,
+} from "../_shared/aiMessagingGate.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -175,7 +179,15 @@ interface ListMode {
   rows: Array<{ id: string; title: string; description?: string }>;
 }
 
-type SendBody = DraftMode | ManualMode | TemplateMode | ConfirmButtonsMode | FlowMode | BookEntryMode | ListMode;
+type SendBody = (
+  | DraftMode
+  | ManualMode
+  | TemplateMode
+  | ConfirmButtonsMode
+  | FlowMode
+  | BookEntryMode
+  | ListMode
+) & { ai_initiated?: boolean };
 
 interface MetaSendSuccess {
   messaging_product: "whatsapp";
@@ -306,6 +318,108 @@ async function authorise(req: Request): Promise<
   }
 
   return { ok: true, userId: userRes.user.id };
+}
+
+async function resolveAiSendHumanId(
+  supabase: SupabaseClient,
+  body: SendBody,
+): Promise<{ ok: true; humanId: string | null } | { ok: false }> {
+  if ("human_id" in body && typeof body.human_id === "string" && body.human_id) {
+    return { ok: true, humanId: body.human_id };
+  }
+
+  let conversationId =
+    "conversation_id" in body && typeof body.conversation_id === "string"
+      ? body.conversation_id
+      : null;
+
+  if (!conversationId && body.mode === "draft") {
+    const { data: draft, error } = await supabase
+      .from("whatsapp_drafts")
+      .select("conversation_id")
+      .eq("id", body.draft_id)
+      .single();
+    if (error || !draft?.conversation_id) {
+      return { ok: false };
+    }
+    conversationId = draft.conversation_id as string;
+  }
+
+  if (!conversationId) {
+    return { ok: true, humanId: null };
+  }
+
+  const { data: conversation, error } = await supabase
+    .from("whatsapp_conversations")
+    .select("human_id")
+    .eq("id", conversationId)
+    .single();
+  if (error || !conversation) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    humanId:
+      typeof conversation.human_id === "string" ? conversation.human_id : null,
+  };
+}
+
+async function checkAiMessagingPermission(
+  supabase: SupabaseClient,
+  body: SendBody,
+): Promise<AiMessagingDecision> {
+  if (body.ai_initiated !== true) {
+    return decideAiMessagingSend({
+      aiInitiated: false,
+      globalRead: { ok: false },
+      customerReadRequired: false,
+    });
+  }
+
+  const { data: globalSetting, error: globalError } = await supabase
+    .from("ai_whatsapp_settings")
+    .select("enabled")
+    .eq("singleton", true)
+    .single();
+
+  const resolvedHuman = await resolveAiSendHumanId(supabase, body);
+  if (!resolvedHuman.ok) {
+    return decideAiMessagingSend({
+      aiInitiated: true,
+      globalRead: {
+        ok: !globalError && globalSetting?.enabled === true,
+        value: globalSetting?.enabled,
+      },
+      customerReadRequired: true,
+      customerRead: { ok: false },
+    });
+  }
+
+  let customerRead:
+    | { ok: true; value: boolean }
+    | { ok: false }
+    | undefined;
+  if (resolvedHuman.humanId) {
+    const { data: human, error: humanError } = await supabase
+      .from("humans")
+      .select("ai_whatsapp_allowed")
+      .eq("id", resolvedHuman.humanId)
+      .single();
+    customerRead =
+      !humanError && typeof human?.ai_whatsapp_allowed === "boolean"
+        ? { ok: true, value: human.ai_whatsapp_allowed }
+        : { ok: false };
+  }
+
+  return decideAiMessagingSend({
+    aiInitiated: true,
+    globalRead:
+      !globalError && typeof globalSetting?.enabled === "boolean"
+        ? { ok: true, value: globalSetting.enabled }
+        : { ok: false },
+    customerReadRequired: resolvedHuman.humanId !== null,
+    customerRead,
+  });
 }
 
 async function handleDraftMode(
@@ -929,6 +1043,21 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
+    const aiMessagingPermission = await checkAiMessagingPermission(
+      supabase,
+      parsed,
+    );
+    if (!aiMessagingPermission.allowed) {
+      return json(
+        req,
+        {
+          error: "AI-initiated WhatsApp messaging is disabled",
+          reason: aiMessagingPermission.reason,
+        },
+        409,
+      );
+    }
+
     if (parsed.mode === "draft") {
       return await handleDraftMode(req, supabase, parsed, auth.userId);
     } else if (parsed.mode === "manual") {

@@ -133,6 +133,25 @@ describe("useHumanMutations updateHuman", () => {
     expect(result.current.humans["Sarah Jones"].notes).toBe("Prefers Saturdays");
   });
 
+  it("persists the per-customer AI WhatsApp preference", async () => {
+    const stub = makeStub((ctx) =>
+      ctx.table === "humans" && ctx.op === "update"
+        ? { data: { ...h1, ...ctx.payload }, error: null }
+        : undefined,
+    );
+    const { result } = renderMutations({ stub });
+
+    await act(async () => {
+      await result.current.updateHuman("h1", {
+        aiWhatsappAllowed: false,
+      });
+    });
+
+    const update = stub._fromCalls.find((call) => call.op === "update");
+    expect(update.payload).toEqual({ ai_whatsapp_allowed: false });
+    expect(result.current.humans["Sarah Jones"].aiWhatsappAllowed).toBe(false);
+  });
+
   it("rolls back the optimistic update and surfaces the error on failure", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const stub = makeStub((ctx) =>

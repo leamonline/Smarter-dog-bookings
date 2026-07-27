@@ -220,6 +220,19 @@ describe("dbHumansToMap", () => {
     expect(h.reminderChannels).toEqual(["whatsapp"]);
   });
 
+  it("maps the durable AI WhatsApp preference and defaults existing customers to allowed", () => {
+    expect(
+      dbHumansToMap([humanRow({ ai_whatsapp_allowed: false })], {})[
+        "Jane Smith"
+      ].aiWhatsappAllowed,
+    ).toBe(false);
+    expect(
+      dbHumansToMap([humanRow({ ai_whatsapp_allowed: undefined })], {})[
+        "Jane Smith"
+      ].aiWhatsappAllowed,
+    ).toBe(true);
+  });
+
   it("maps trustedIds from the trustedMap by human id", () => {
     const trusted = { "h-1": ["h-2", "h-3"] };
     const map = dbHumansToMap([humanRow()], trusted);

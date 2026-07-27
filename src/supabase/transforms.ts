@@ -42,6 +42,7 @@ interface DbHumanRow {
   preferred_slots?: string[] | null;
   blocked_slots?: string[] | null;
   deposit_required?: boolean | null;
+  ai_whatsapp_allowed?: boolean | null;
 }
 
 interface DbDogRow {
@@ -280,6 +281,7 @@ export function dbHumansToMap(
       historyFlag: row.history_flag || "",
       reminderHours: row.reminder_hours ?? 24,
       reminderChannels: row.reminder_channels || ["whatsapp"],
+      aiWhatsappAllowed: row.ai_whatsapp_allowed !== false,
       trustedIds: trustedMap[row.id] || [],
       trustedContacts: trustedContactsMap[row.id] || [],
     };

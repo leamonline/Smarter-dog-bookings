@@ -52,6 +52,8 @@ export interface Human {
   preferredSlots?: string[];
   blockedSlots?: string[];
   depositRequired?: boolean;
+  /** Staff-managed opt-out for AI-initiated WhatsApp messages. */
+  aiWhatsappAllowed?: boolean;
   trustedIds: string[];
   trustedContacts: TrustedContact[];
 }

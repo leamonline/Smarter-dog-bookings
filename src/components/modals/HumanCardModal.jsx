@@ -18,6 +18,7 @@ import {
   LinkDogActions,
   TrustedHumansPanel,
   RemindersPanel,
+  AiMessagingPanel,
   BookingRulesPanel,
   MergeHumanDialog,
   HumanEditFooter,
@@ -374,6 +375,7 @@ export function HumanCardModal({
                 searchHumansByTerm={searchHumansByTerm}
               />
               <RemindersPanel human={human} onUpdateHuman={onUpdateHuman} />
+              <AiMessagingPanel human={human} onUpdateHuman={onUpdateHuman} />
               <BookingRulesPanel human={human} onUpdateHuman={onUpdateHuman} />
               <NotesPanel
                 isEditing={isEditing}
