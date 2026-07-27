@@ -76,4 +76,135 @@ test.describe("Settings tabs", () => {
     ).toBeVisible();
     await expect(panel.getByText(/how to subscribe/i)).toBeVisible();
   });
+
+  test("Booking Rules renders only authoritative v1 controls", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    await openSettingsSection(page, "Booking Rules");
+
+    const panel = page.locator("#settings-panel");
+    await expect(panel.getByText("Upcoming policy", { exact: true })).toBeVisible();
+    await expect(
+      panel.getByText("previous_day_1500_v1", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      panel.getByText(/3:00 pm on the previous calendar day/i),
+    ).toBeVisible();
+    await expect(
+      panel.getByText("Advance booking window", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      panel.getByText("Minimum cancellation notice", { exact: true }),
+    ).toHaveCount(0);
+
+    const hold = panel.getByRole("combobox", {
+      name: "Deposit hold window",
+    });
+    await expect(hold.locator("option")).toHaveCount(5);
+    await expect(hold.locator("option")).toHaveText([
+      "6 hours",
+      "12 hours",
+      "24 hours",
+      "36 hours",
+      "48 hours",
+    ]);
+  });
+
+  test("Booking Rules saves and reloads every editable value offline", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    await openSettingsSection(page, "Booking Rules");
+    const panel = page.locator("#settings-panel");
+
+    await panel.getByRole("spinbutton", { name: "Default pick-up offset" }).fill("150");
+    await panel.getByRole("spinbutton", { name: "Booking horizon" }).fill("365");
+    await panel.getByRole("spinbutton", { name: "Booking horizon" }).press("Tab");
+    await panel.getByRole("switch", { name: "Auto-confirm bookings" }).click();
+    await panel.getByRole("combobox", { name: "Deposit hold window" }).selectOption("36");
+    await panel.getByLabel("Account name").fill("Smarter Dog");
+    await panel.getByLabel("Sort code").fill("12-34-56");
+    await panel.getByLabel("Account number").fill("12345678");
+    await panel.getByRole("button", { name: "Save bank details" }).click();
+    await panel.getByLabel("Deposit Terms version").fill("2026-07 v1");
+    await panel.getByLabel("Deposit Terms SHA-256").fill("a".repeat(64));
+    await panel.getByRole("button", { name: "Save Terms settings" }).click();
+
+    await openSettingsSection(page, "Your Business");
+    await openSettingsSection(page, "Booking Rules");
+
+    await expect(
+      panel.getByRole("spinbutton", { name: "Default pick-up offset" }),
+    ).toHaveValue("150");
+    await expect(
+      panel.getByRole("spinbutton", { name: "Booking horizon" }),
+    ).toHaveValue("365");
+    await expect(
+      panel.getByRole("switch", { name: "Auto-confirm bookings" }),
+    ).toHaveAttribute("aria-checked", "false");
+    await expect(
+      panel.getByRole("combobox", { name: "Deposit hold window" }),
+    ).toHaveValue("36");
+    await expect(panel.getByLabel("Account name")).toHaveValue("Smarter Dog");
+    await expect(panel.getByLabel("Deposit Terms version")).toHaveValue(
+      "2026-07 v1",
+    );
+    await expect(panel.getByLabel("Deposit Terms SHA-256")).toHaveValue(
+      "a".repeat(64),
+    );
+    await expect(
+      panel.getByText(/deposit-dependent bookings are blocked/i),
+    ).toHaveCount(0);
+  });
+
+  test("Customer Portal keeps upcoming visits visible without a switch", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    await openSettingsSection(page, "Customer Portal");
+
+    const panel = page.locator("#settings-panel");
+    await expect(
+      panel.getByText(/upcoming visits are always visible/i),
+    ).toBeVisible();
+    await expect(
+      panel.getByText("Show upcoming bookings", { exact: true }),
+    ).toHaveCount(0);
+    await expect(panel.getByRole("switch")).toHaveCount(4);
+  });
+
+  test("Customer Portal saves and reloads all four switches offline", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    await openSettingsSection(page, "Customer Portal");
+    const panel = page.locator("#settings-panel");
+
+    const labels = [
+      "Show past booking history",
+      "Allow repeat booking",
+      "Allow cancellations",
+      "Allow rescheduling",
+    ];
+    for (const label of labels) {
+      await panel.getByRole("switch", { name: label }).click();
+    }
+
+    await openSettingsSection(page, "Booking Rules");
+    await openSettingsSection(page, "Customer Portal");
+
+    await expect(
+      panel.getByRole("switch", { name: "Show past booking history" }),
+    ).toHaveAttribute("aria-checked", "false");
+    await expect(
+      panel.getByRole("switch", { name: "Allow repeat booking" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await expect(
+      panel.getByRole("switch", { name: "Allow cancellations" }),
+    ).toHaveAttribute("aria-checked", "false");
+    await expect(
+      panel.getByRole("switch", { name: "Allow rescheduling" }),
+    ).toHaveAttribute("aria-checked", "false");
+  });
 });

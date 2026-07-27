@@ -3,7 +3,16 @@
  * Components use name-keyed maps and camelCase; DB uses UUID FKs and snake_case.
  */
 
-import type { Human, Dog, Booking, SalonConfig, SalonSettings, TrustedContact } from "../types/index";
+import type {
+  BookingPolicyRules,
+  BookingPolicyRuntimeStatus,
+  Human,
+  Dog,
+  Booking,
+  SalonConfig,
+  SalonSettings,
+  TrustedContact,
+} from "../types/index";
 import { logger } from "../lib/logger";
 import { sanitiseFieldValue } from "../utils/sanitiseFieldValue";
 import { BOOKING_STATUS } from "../constants/salon";
@@ -478,6 +487,118 @@ export function appConfigToDb(config: SalonConfig): DbConfigOut {
     daily_dog_cap: config.dailyDogCap ?? defaults.dailyDogCap,
     large_dog_slots: config.largeDogSlots || defaults.largeDogSlots,
     settings,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function malformedBookingRules(): never {
+  throw new Error("Malformed booking rules response");
+}
+
+export function dbBookingRulesToApp(payload: unknown): BookingPolicyRules {
+  if (!isRecord(payload)) return malformedBookingRules();
+
+  const bank = payload.depositBank;
+  const portal = payload.customerPortal;
+  if (!isRecord(bank) || !isRecord(portal)) return malformedBookingRules();
+
+  const horizon = payload.bookingHorizonDays;
+  const hold = payload.depositHoldHours;
+  const bankValues = [bank.accountName, bank.sortCode, bank.accountNumber];
+  const hasEmptyBank = bankValues.every((value) => value === "");
+  const hasCompleteBank =
+    typeof bank.accountName === "string" &&
+    bank.accountName.trim().length > 0 &&
+    typeof bank.sortCode === "string" &&
+    /^[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(bank.sortCode) &&
+    typeof bank.accountNumber === "string" &&
+    /^[0-9]{8}$/.test(bank.accountNumber);
+  const termsVersion = payload.depositTermsVersion;
+  const termsHash = payload.depositTermsContentHash;
+  const termsAreEmpty = termsVersion === null && termsHash === null;
+  const termsAreComplete =
+    typeof termsVersion === "string" &&
+    termsVersion.trim().length > 0 &&
+    typeof termsHash === "string" &&
+    /^[0-9a-f]{64}$/.test(termsHash);
+
+  let termsUrlIsValid = false;
+  if (typeof payload.termsUrl === "string") {
+    try {
+      termsUrlIsValid = new URL(payload.termsUrl).protocol === "https:";
+    } catch {
+      termsUrlIsValid = false;
+    }
+  }
+
+  if (
+    !Number.isInteger(horizon) ||
+    (horizon as number) < 1 ||
+    (horizon as number) > 730 ||
+    typeof payload.autoConfirm !== "boolean" ||
+    ![6, 12, 24, 36, 48].includes(hold as number) ||
+    (!hasEmptyBank && !hasCompleteBank) ||
+    !termsUrlIsValid ||
+    (!termsAreEmpty && !termsAreComplete) ||
+    typeof portal.allowCancellations !== "boolean" ||
+    typeof portal.allowRescheduling !== "boolean" ||
+    typeof portal.allowRepeatBooking !== "boolean" ||
+    typeof portal.showHistory !== "boolean"
+  ) {
+    return malformedBookingRules();
+  }
+
+  return {
+    bookingHorizonDays: horizon as number,
+    autoConfirm: payload.autoConfirm,
+    depositHoldHours: hold as BookingPolicyRules["depositHoldHours"],
+    depositBank: {
+      accountName: bank.accountName as string,
+      sortCode: bank.sortCode as string,
+      accountNumber: bank.accountNumber as string,
+    },
+    termsUrl: payload.termsUrl as string,
+    depositTermsVersion: termsVersion as string | null,
+    depositTermsContentHash: termsHash as string | null,
+    customerPortal: {
+      allowCancellations: portal.allowCancellations,
+      allowRescheduling: portal.allowRescheduling,
+      allowRepeatBooking: portal.allowRepeatBooking,
+      showHistory: portal.showHistory,
+    },
+  };
+}
+
+export function dbBookingPolicyRuntimeToApp(
+  payload: unknown,
+): BookingPolicyRuntimeStatus {
+  if (!isRecord(payload)) {
+    throw new Error("Malformed booking policy runtime status response");
+  }
+
+  const state = payload.state;
+  const scheduledEffectiveAt = payload.scheduledEffectiveAt;
+  const scheduledDateIsValid =
+    typeof scheduledEffectiveAt === "string" &&
+    !Number.isNaN(Date.parse(scheduledEffectiveAt));
+  if (
+    !["inactive", "scheduled", "failed", "active"].includes(state as string) ||
+    (state === "scheduled" && !scheduledDateIsValid) ||
+    (state === "failed" &&
+      scheduledEffectiveAt !== null &&
+      !scheduledDateIsValid) ||
+    ((state === "inactive" || state === "active") &&
+      scheduledEffectiveAt !== null)
+  ) {
+    throw new Error("Malformed booking policy runtime status response");
+  }
+
+  return {
+    state: state as BookingPolicyRuntimeStatus["state"],
+    scheduledEffectiveAt: scheduledEffectiveAt as string | null,
   };
 }
 

@@ -20,6 +20,8 @@ import {
   dbBookingsToArray,
   dbConfigToApp,
   appConfigToDb,
+  dbBookingPolicyRuntimeToApp,
+  dbBookingRulesToApp,
   findHumanByIdOrName,
   findDogByIdOrName,
 } from "./transforms";
@@ -727,6 +729,69 @@ describe("appConfigToDb", () => {
     expect(restored!.customerPortal).toEqual(original.customerPortal);
     expect(restored!.notifications).toEqual(original.notifications);
     expect(restored!.services).toEqual(original.services);
+  });
+});
+
+describe("authoritative booking-policy transforms", () => {
+  const rulesPayload = {
+    bookingHorizonDays: 180,
+    autoConfirm: true,
+    depositHoldHours: 12,
+    depositBank: {
+      accountName: "Smarter Dog",
+      sortCode: "12-34-56",
+      accountNumber: "12345678",
+    },
+    termsUrl: "https://smarterdog.co.uk/terms",
+    depositTermsVersion: "2026-07 v1",
+    depositTermsContentHash: "a".repeat(64),
+    customerPortal: {
+      allowCancellations: true,
+      allowRescheduling: false,
+      allowRepeatBooking: true,
+      showHistory: false,
+    },
+  };
+
+  it("decodes the complete staff rules projection without using legacy settings", () => {
+    expect(dbBookingRulesToApp(rulesPayload)).toEqual(rulesPayload);
+  });
+
+  it.each([
+    [{ ...rulesPayload, bookingHorizonDays: 0 }],
+    [{ ...rulesPayload, depositHoldHours: 18 }],
+    [{ ...rulesPayload, depositBank: { ...rulesPayload.depositBank, accountNumber: "" } }],
+    [{ ...rulesPayload, depositTermsContentHash: "A".repeat(64) }],
+    [{ ...rulesPayload, customerPortal: { ...rulesPayload.customerPortal, showHistory: "yes" } }],
+  ])("rejects a malformed rules projection", (payload) => {
+    expect(() => dbBookingRulesToApp(payload)).toThrow(/booking rules/i);
+  });
+
+  it.each([
+    [
+      { state: "inactive", scheduledEffectiveAt: null },
+      { state: "inactive", scheduledEffectiveAt: null },
+    ],
+    [
+      { state: "scheduled", scheduledEffectiveAt: "2026-08-01T14:00:00Z" },
+      { state: "scheduled", scheduledEffectiveAt: "2026-08-01T14:00:00Z" },
+    ],
+    [
+      { state: "active", scheduledEffectiveAt: null },
+      { state: "active", scheduledEffectiveAt: null },
+    ],
+    [
+      { state: "failed", scheduledEffectiveAt: "2026-08-01T14:00:00Z" },
+      { state: "failed", scheduledEffectiveAt: "2026-08-01T14:00:00Z" },
+    ],
+  ])("decodes the %s runtime state", (payload, expected) => {
+    expect(dbBookingPolicyRuntimeToApp(payload)).toEqual(expected);
+  });
+
+  it("rejects an unknown runtime state", () => {
+    expect(() =>
+      dbBookingPolicyRuntimeToApp({ state: "maybe", scheduledEffectiveAt: null }),
+    ).toThrow(/runtime status/i);
   });
 });
 

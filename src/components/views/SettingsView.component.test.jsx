@@ -59,7 +59,7 @@ describe("SettingsView unsaved-changes guard", () => {
     await user.click(screen.getByRole("tab", { name: /booking rules/i }));
     await user.click(screen.getByRole("button", { name: /discard changes/i }));
 
-    expect(screen.getByText(/advance booking window/i)).toBeInTheDocument();
+    expect(screen.getByText(/upcoming policy/i)).toBeInTheDocument();
   });
 
   it("switches freely when there are no unsaved edits", async () => {
@@ -68,7 +68,7 @@ describe("SettingsView unsaved-changes guard", () => {
 
     await user.click(screen.getByRole("tab", { name: /booking rules/i }));
     expect(screen.queryByText(/discard unsaved changes/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/advance booking window/i)).toBeInTheDocument();
+    expect(screen.getByText(/upcoming policy/i)).toBeInTheDocument();
   });
 
   it("keeps the desktop tab order and moves from Hours to Account with ArrowRight", async () => {

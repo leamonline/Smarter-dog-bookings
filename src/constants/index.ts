@@ -20,6 +20,8 @@ export {
   DEFAULT_BUSINESS_HOURS,
   DEFAULT_CUSTOMER_PORTAL_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
+  BOOKING_DEPOSIT_HOLD_HOURS,
+  createDefaultBookingRules,
   createDefaultSalonConfig,
   createDefaultSalonSettings,
   mergeSalonSettings,

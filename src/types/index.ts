@@ -226,6 +226,28 @@ export interface CustomerPortalSettings {
   allowCancellations: boolean;
 }
 
+export interface BookingPolicyCustomerPortalSettings {
+  allowCancellations: boolean;
+  allowRescheduling: boolean;
+  allowRepeatBooking: boolean;
+  showHistory: boolean;
+}
+
+export interface BookingPolicyRules {
+  bookingHorizonDays: number;
+  autoConfirm: boolean;
+  depositHoldHours: 6 | 12 | 24 | 36 | 48;
+  depositBank: {
+    accountName: string;
+    sortCode: string;
+    accountNumber: string;
+  };
+  termsUrl: string;
+  depositTermsVersion: string | null;
+  depositTermsContentHash: string | null;
+  customerPortal: BookingPolicyCustomerPortalSettings;
+}
+
 export interface NotificationSetting {
   enabled: boolean;
   channels: string[];

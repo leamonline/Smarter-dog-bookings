@@ -1,5 +1,5 @@
 import { LARGE_DOG_SLOTS, PRICING, SERVICES, DAILY_DOG_CAP } from "./salon";
-import type { SalonConfig, SalonSettings } from "../types/index";
+import type { BookingPolicyRules, SalonConfig, SalonSettings } from "../types/index";
 
 export const DEFAULT_BUSINESS_NAME = "Smarter Dog Grooming";
 
@@ -36,6 +36,30 @@ export const DEFAULT_DEPOSIT_BANK: SalonSettings["depositBank"] = {
 };
 
 export const DEFAULT_DEPOSIT_RELEASE_HOURS = 12;
+
+export const BOOKING_DEPOSIT_HOLD_HOURS = [6, 12, 24, 36, 48] as const;
+
+export function createDefaultBookingRules(): BookingPolicyRules {
+  return {
+    bookingHorizonDays: 180,
+    autoConfirm: true,
+    depositHoldHours: 12,
+    depositBank: {
+      accountName: "",
+      sortCode: "",
+      accountNumber: "",
+    },
+    termsUrl: "https://smarterdog.co.uk/terms",
+    depositTermsVersion: null,
+    depositTermsContentHash: null,
+    customerPortal: {
+      allowCancellations: true,
+      allowRescheduling: true,
+      allowRepeatBooking: false,
+      showHistory: true,
+    },
+  };
+}
 
 export const DEFAULT_NOTIFICATION_SETTINGS: SalonSettings["notifications"] = {
   bookingConfirmation: { enabled: true, channels: ["whatsapp", "email"] },
