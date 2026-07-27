@@ -26,6 +26,10 @@ export type BookingRulesPatch = Partial<
   depositBank?: BookingPolicyRules["depositBank"];
 };
 
+type ReloadResult =
+  | { ok: true; runtime: BookingPolicyRuntimeStatus }
+  | { ok: false; error: string };
+
 const INACTIVE_RUNTIME: BookingPolicyRuntimeStatus = {
   state: "inactive",
   scheduledEffectiveAt: null,
@@ -34,6 +38,9 @@ const INACTIVE_RUNTIME: BookingPolicyRuntimeStatus = {
 const NON_ACTIVE_POLL_MS = 60_000;
 const BOUNDARY_POLL_MS = 5_000;
 const BOUNDARY_WINDOW_MS = 60_000;
+
+export const BOOKING_POLICY_INVALIDATED_EVENT =
+  "smarterdog:booking-policy-invalidated";
 
 function applyPatch(
   current: BookingPolicyRules,
@@ -51,6 +58,40 @@ function applyPatch(
   };
 }
 
+function sameBank(
+  left: BookingPolicyRules["depositBank"],
+  right: BookingPolicyRules["depositBank"],
+) {
+  return (
+    left.accountName === right.accountName &&
+    left.sortCode === right.sortCode &&
+    left.accountNumber === right.accountNumber
+  );
+}
+
+function preserveNestedIdentity(
+  current: BookingPolicyRules,
+  next: BookingPolicyRules,
+) {
+  const samePortal =
+    current.customerPortal.allowCancellations ===
+      next.customerPortal.allowCancellations &&
+    current.customerPortal.allowRescheduling ===
+      next.customerPortal.allowRescheduling &&
+    current.customerPortal.allowRepeatBooking ===
+      next.customerPortal.allowRepeatBooking &&
+    current.customerPortal.showHistory === next.customerPortal.showHistory;
+  return {
+    ...next,
+    depositBank: sameBank(current.depositBank, next.depositBank)
+      ? current.depositBank
+      : next.depositBank,
+    customerPortal: samePortal
+      ? current.customerPortal
+      : next.customerPortal,
+  };
+}
+
 export function useBookingPolicyRuntime() {
   const [rules, setRules] = useState<BookingPolicyRules>(
     createDefaultBookingRules,
@@ -61,9 +102,25 @@ export function useBookingPolicyRuntime() {
   const [confirmed, setConfirmed] = useState(!policyClient);
   const [error, setError] = useState<string | null>(null);
   const confirmedRef = useRef(!policyClient);
-  const inFlightRef = useRef<ReturnType<typeof reloadRequest> | null>(null);
+  const rulesRef = useRef(rules);
+  const runtimeRef = useRef(runtime);
+  const lastConfirmedRuntimeStateRef = useRef<
+    BookingPolicyRuntimeStatus["state"] | null
+  >(null);
+  const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const mutationPendingRef = useRef(0);
+  const mutationEpochRef = useRef(0);
+  const inFlightRef = useRef<Promise<ReloadResult> | null>(null);
 
-  async function reloadRequest() {
+  const commitRules = useCallback((next: BookingPolicyRules) => {
+    setRules((current) => {
+      const committed = preserveNestedIdentity(current, next);
+      rulesRef.current = committed;
+      return committed;
+    });
+  }, []);
+
+  const reloadRequest = useCallback(async (): Promise<ReloadResult> => {
     if (!policyClient) {
       setLoading(false);
       setConfirmed(true);
@@ -73,6 +130,7 @@ export function useBookingPolicyRuntime() {
 
     if (!confirmedRef.current) setLoading(true);
     setError(null);
+    const mutationEpochAtStart = mutationEpochRef.current;
     try {
       const [runtimeResult, rulesResult] = await Promise.all([
         getBookingPolicyRuntimeStatus(policyClient),
@@ -85,10 +143,24 @@ export function useBookingPolicyRuntime() {
         return { ok: false as const, error: message };
       }
       const nextRuntime = dbBookingPolicyRuntimeToApp(runtimeResult.data);
+      const nextRules = dbBookingRulesToApp(rulesResult.data);
+      if (mutationEpochAtStart !== mutationEpochRef.current) {
+        return { ok: true as const, runtime: runtimeRef.current };
+      }
+      const previousRuntimeState = lastConfirmedRuntimeStateRef.current;
+      runtimeRef.current = nextRuntime;
+      lastConfirmedRuntimeStateRef.current = nextRuntime.state;
       setRuntime(nextRuntime);
-      setRules(dbBookingRulesToApp(rulesResult.data));
+      commitRules(nextRules);
       confirmedRef.current = true;
       setConfirmed(true);
+      if (
+        previousRuntimeState !== null &&
+        previousRuntimeState !== "active" &&
+        nextRuntime.state === "active"
+      ) {
+        window.dispatchEvent(new Event(BOOKING_POLICY_INVALIDATED_EVENT));
+      }
       return { ok: true as const, runtime: nextRuntime };
     } catch (caught) {
       const message =
@@ -100,9 +172,12 @@ export function useBookingPolicyRuntime() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [commitRules]);
 
   const reload = useCallback(async () => {
+    if (mutationPendingRef.current > 0) {
+      return { ok: true as const, runtime: runtimeRef.current };
+    }
     if (inFlightRef.current) return inFlightRef.current;
     const request = reloadRequest();
     inFlightRef.current = request;
@@ -111,7 +186,7 @@ export function useBookingPolicyRuntime() {
     } finally {
       if (inFlightRef.current === request) inFlightRef.current = null;
     }
-  }, []);
+  }, [reloadRequest]);
 
   useEffect(() => {
     void reload();
@@ -173,42 +248,56 @@ export function useBookingPolicyRuntime() {
   }, [reload, runtime.scheduledEffectiveAt, runtime.state]);
 
   const updateRules = useCallback(
-    async (patch: BookingRulesPatch) => {
-      const previous = rules;
-      setError(null);
+    (patch: BookingRulesPatch) => {
+      mutationPendingRef.current += 1;
+      mutationEpochRef.current += 1;
 
-      if (!policyClient) {
-        setRules(applyPatch(previous, patch));
-        return { ok: true as const };
-      }
+      const execute = async () => {
+        const previous = rulesRef.current;
+        try {
+          setError(null);
 
-      const { data, error: rpcError } = await updateBookingRules(
-        policyClient,
-        { rules: patch },
+          if (!policyClient) {
+            commitRules(applyPatch(previous, patch));
+            return { ok: true as const };
+          }
+
+          const { data, error: rpcError } = await updateBookingRules(
+            policyClient,
+            { rules: patch },
+          );
+          if (rpcError) {
+            const message =
+              rpcError.message || "Couldn't save booking rules.";
+            logger.error("Failed to update booking rules", rpcError, {
+              tags: { hook: "useBookingPolicyRuntime", op: "updateRules" },
+            });
+            setError(message);
+            return { ok: false as const, error: message };
+          }
+
+          commitRules(dbBookingRulesToApp(data));
+          return { ok: true as const };
+        } catch (caught) {
+          const message =
+            caught instanceof Error
+              ? caught.message
+              : "Couldn't save booking rules.";
+          setError(message);
+          return { ok: false as const, error: message };
+        } finally {
+          mutationPendingRef.current -= 1;
+        }
+      };
+
+      const request = mutationQueueRef.current.then(execute, execute);
+      mutationQueueRef.current = request.then(
+        () => undefined,
+        () => undefined,
       );
-      if (rpcError) {
-        const message = rpcError.message || "Couldn't save booking rules.";
-        logger.error("Failed to update booking rules", rpcError, {
-          tags: { hook: "useBookingPolicyRuntime", op: "updateRules" },
-        });
-        setError(message);
-        return { ok: false as const, error: message };
-      }
-
-      try {
-        setRules(dbBookingRulesToApp(data));
-        return { ok: true as const };
-      } catch (caught) {
-        const message =
-          caught instanceof Error
-            ? caught.message
-            : "Couldn't reload booking rules.";
-        setRules(previous);
-        setError(message);
-        return { ok: false as const, error: message };
-      }
+      return request;
     },
-    [rules],
+    [commitRules],
   );
 
   return {

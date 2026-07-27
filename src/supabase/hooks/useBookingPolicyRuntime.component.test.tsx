@@ -7,7 +7,10 @@ vi.mock("../client.js", () => ({
   bookingPolicyClient: { rpc },
 }));
 
-const { useBookingPolicyRuntime } = await import("./useBookingPolicyRuntime");
+const {
+  BOOKING_POLICY_INVALIDATED_EVENT,
+  useBookingPolicyRuntime,
+} = await import("./useBookingPolicyRuntime");
 
 const RULES = {
   bookingHorizonDays: 180,
@@ -205,7 +208,9 @@ describe("useBookingPolicyRuntime", () => {
       throw new Error(`Unexpected RPC: ${name}`);
     });
 
-    const { result } = renderHook(() => useBookingPolicyRuntime());
+    const onInvalidated = vi.fn();
+    window.addEventListener(BOOKING_POLICY_INVALIDATED_EVENT, onInvalidated);
+    const { result, unmount } = renderHook(() => useBookingPolicyRuntime());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -217,6 +222,7 @@ describe("useBookingPolicyRuntime", () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
     expect(result.current.runtime.state).toBe("scheduled");
+    expect(onInvalidated).not.toHaveBeenCalled();
 
     await act(async () => {
       resolveStatus?.({
@@ -226,6 +232,12 @@ describe("useBookingPolicyRuntime", () => {
       await Promise.resolve();
     });
     expect(result.current.runtime.state).toBe("active");
+    expect(onInvalidated).toHaveBeenCalledTimes(1);
+    unmount();
+    window.removeEventListener(
+      BOOKING_POLICY_INVALIDATED_EVENT,
+      onInvalidated,
+    );
   });
 
   it.each(["online", "focus"] as const)(
@@ -276,5 +288,60 @@ describe("useBookingPolicyRuntime", () => {
       await Promise.resolve();
     });
     expect(result.current.confirmed).toBe(true);
+  });
+
+  it("serialises full-projection saves so an older response cannot replace a newer change", async () => {
+    mockInitialLoad("inactive");
+    const { result } = renderHook(() => useBookingPolicyRuntime());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const pendingUpdates: Array<
+      (value: { data: typeof RULES; error: null }) => void
+    > = [];
+    rpc.mockImplementation((name: string) => {
+      if (name === "update_booking_rules") {
+        return new Promise((resolve) => {
+          pendingUpdates.push(resolve);
+        });
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
+
+    let firstSave!: Promise<unknown>;
+    let secondSave!: Promise<unknown>;
+    await act(async () => {
+      firstSave = result.current.updateRules({ autoConfirm: false });
+      secondSave = result.current.updateRules({ depositHoldHours: 36 });
+      await Promise.resolve();
+    });
+    expect(
+      rpc.mock.calls.filter(([name]) => name === "update_booking_rules"),
+    ).toHaveLength(1);
+
+    await act(async () => {
+      pendingUpdates[0]({
+        data: { ...RULES, autoConfirm: false },
+        error: null,
+      });
+      await firstSave;
+      await Promise.resolve();
+    });
+    expect(
+      rpc.mock.calls.filter(([name]) => name === "update_booking_rules"),
+    ).toHaveLength(2);
+
+    await act(async () => {
+      pendingUpdates[1]({
+        data: {
+          ...RULES,
+          autoConfirm: false,
+          depositHoldHours: 36,
+        },
+        error: null,
+      });
+      await secondSave;
+    });
+    expect(result.current.rules.autoConfirm).toBe(false);
+    expect(result.current.rules.depositHoldHours).toBe(36);
   });
 });

@@ -30,6 +30,7 @@ const baseProps = () => ({
   onUpdateConfig: vi.fn().mockResolvedValue({ ok: true }),
   user: { email: "a@b.com" },
   staffProfile: { id: "s1", display_name: "Sarah", phone: "" },
+  bookingRulesConfirmed: true,
   canEdit: true,
 });
 

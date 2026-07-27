@@ -88,6 +88,7 @@ export function BookingRulesSettings({
   const [legacyError, setLegacyError] = useState(null);
   const [horizon, setHorizon] = useState(String(rules.bookingHorizonDays));
   const [bank, setBank] = useState(rules.depositBank);
+  const [bankDirty, setBankDirty] = useState(false);
   const [legacyBank, setLegacyBank] = useState(
     config?.depositBank || DEFAULT_BOOKING_RULES.depositBank,
   );
@@ -101,8 +102,8 @@ export function BookingRulesSettings({
     setHorizon(String(rules.bookingHorizonDays));
   }, [rules.bookingHorizonDays]);
   useEffect(() => {
-    setBank(rules.depositBank);
-  }, [rules.depositBank]);
+    if (!bankDirty) setBank(rules.depositBank);
+  }, [bankDirty, rules.depositBank]);
   useEffect(() => {
     setLegacyBank(config?.depositBank || DEFAULT_BOOKING_RULES.depositBank);
   }, [config?.depositBank]);
@@ -215,8 +216,11 @@ export function BookingRulesSettings({
     const result = await saveRules({ depositBank: trimmed });
     if (result?.ok === false) {
       setBank(rules.depositBank);
+      setBankDirty(false);
       setFormError(result.error);
+      return;
     }
+    setBankDirty(false);
   };
 
   const saveTerms = async () => {
@@ -296,6 +300,23 @@ export function BookingRulesSettings({
         right={<SaveStatus status={rulesStatus} />}
       />
       <CardBody>
+        {!bookingPolicyConfirmed ? (
+          bookingPolicyError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
+            >
+              {bookingPolicyError}
+            </p>
+          ) : (
+            <p role="status" className="text-sm text-slate-600">
+              {bookingPolicyLoading
+                ? "Loading booking policy…"
+                : "Waiting for the confirmed booking policy…"}
+            </p>
+          )
+        ) : (
+          <>
         {runtime.state !== "active" && (
           <>
             <div className={SECTION_LABEL_CLS}>Current booking setup</div>
@@ -417,22 +438,7 @@ export function BookingRulesSettings({
             </span>
           </div>
 
-          {!bookingPolicyConfirmed ? (
-            bookingPolicyError ? (
-              <p
-                role="alert"
-                className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900"
-              >
-                {bookingPolicyError}
-              </p>
-            ) : (
-              <p role="status" className="mt-4 text-sm text-slate-600">
-                {bookingPolicyLoading
-                  ? "Loading booking policy…"
-                  : "Waiting for the confirmed booking policy…"}
-              </p>
-            )
-          ) : bookingPolicyLoading ? (
+          {bookingPolicyLoading ? (
             <p role="status" className="mt-4 text-sm text-slate-600">
               Loading booking policy…
             </p>
@@ -529,7 +535,13 @@ export function BookingRulesSettings({
                   {field(
                     "Account name",
                     bank.accountName,
-                    (value) => setBank((current) => ({ ...current, accountName: value })),
+                    (value) => {
+                      setBankDirty(true);
+                      setBank((current) => ({
+                        ...current,
+                        accountName: value,
+                      }));
+                    },
                     {
                       placeholder: "Smarter Dog Grooming",
                       disabled: !canEdit,
@@ -538,14 +550,22 @@ export function BookingRulesSettings({
                   {field(
                     "Sort code",
                     bank.sortCode,
-                    (value) => setBank((current) => ({ ...current, sortCode: value })),
+                    (value) => {
+                      setBankDirty(true);
+                      setBank((current) => ({ ...current, sortCode: value }));
+                    },
                     { placeholder: "00-00-00", disabled: !canEdit },
                   )}
                   {field(
                     "Account number",
                     bank.accountNumber,
-                    (value) =>
-                      setBank((current) => ({ ...current, accountNumber: value })),
+                    (value) => {
+                      setBankDirty(true);
+                      setBank((current) => ({
+                        ...current,
+                        accountNumber: value,
+                      }));
+                    },
                     { placeholder: "12345678", disabled: !canEdit },
                   )}
                 </div>
@@ -609,6 +629,8 @@ export function BookingRulesSettings({
             </>
           )}
         </section>
+          </>
+        )}
       </CardBody>
     </Card>
   );

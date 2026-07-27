@@ -148,6 +148,15 @@ describe("BookingRulesSettings authoritative controls", () => {
     expect(
       screen.queryByRole("switch", { name: "Auto-confirm bookings" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Current booking setup", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Upcoming policy", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Current deposit hold window"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the current pick-up offset wired to legacy config while v1 is inactive", async () => {
@@ -320,6 +329,45 @@ describe("BookingRulesSettings authoritative controls", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       /bank details must be complete/i,
     );
+  });
+
+  it("does not erase an in-progress bank draft when a refresh returns the same projection", async () => {
+    const user = userEvent.setup();
+    const props = {
+      config: {
+        defaultPickupOffset: 120,
+        depositReleaseHours: 12,
+        depositBank: {
+          accountName: "Legacy Dog",
+          sortCode: "11-22-33",
+          accountNumber: "87654321",
+        },
+      },
+      bookingRules: BOOKING_RULES,
+      bookingPolicyRuntime: INACTIVE_RUNTIME,
+      onUpdateConfig: vi.fn().mockResolvedValue({ ok: true }),
+      onUpdateBookingRules: vi.fn().mockResolvedValue({ ok: true }),
+      canEdit: true,
+    };
+    const { rerender } = render(<BookingRulesSettings {...props} />);
+
+    await user.type(
+      screen.getByLabelText("Account name", { exact: true }),
+      "Smarter Dog",
+    );
+    rerender(
+      <BookingRulesSettings
+        {...props}
+        bookingRules={{
+          ...BOOKING_RULES,
+          depositBank: { ...BOOKING_RULES.depositBank },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByLabelText("Account name", { exact: true }),
+    ).toHaveValue("Smarter Dog");
   });
 
   it("saves or clears a Terms publication only as a complete version/hash pair", async () => {
