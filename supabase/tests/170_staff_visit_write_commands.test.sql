@@ -721,7 +721,9 @@ select
         order by created_at desc limit 1
       )) as audit_count;
 
-select pg_temp.mk(122, '09:00');
+-- Keep the foreign fixture a full week away. Adjacent offsets can collapse to
+-- the same open day when both land in the Thursday-to-Sunday closure window.
+select pg_temp.mk(128, '09:00');
 
 select is(
   smarter_dog_private.update_staff_visit_dispatch(
@@ -733,7 +735,7 @@ select is(
       'bookingId',
       (select b.id from public.bookings b
         join public.booking_visits v on v.id = b.visit_id
-       where v.booking_date = pg_temp.open_day(122)
+       where v.booking_date = pg_temp.open_day(128)
        order by b.id limit 1),
       'service',
       'Full Groom'

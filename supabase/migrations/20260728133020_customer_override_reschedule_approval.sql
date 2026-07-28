@@ -85,6 +85,7 @@ declare
   v_visit_id uuid;
   v_group_id uuid;
   v_booking_date date;
+  v_booking_status text;
   v_has_staff_override boolean;
 begin
   if v_uid is null then
@@ -102,55 +103,59 @@ begin
     )
   );
 
-  select b.visit_id, b.group_id, b.booking_date
-    into v_visit_id, v_group_id, v_booking_date
+  select b.visit_id, b.group_id, b.booking_date, b.status
+    into v_visit_id, v_group_id, v_booking_date, v_booking_status
     from public.bookings b
     join public.dogs d on d.id = b.dog_id
     join public.humans h on h.id = d.human_id
    where b.id = p_booking_id
-     and b.status = 'Booked'
      and h.customer_user_id = v_uid;
 
   if not found then
     raise exception 'booking_not_cancellable' using errcode = 'SDC03';
   end if;
 
-  perform b.id
-    from public.bookings b
-   where (
-       v_visit_id is not null
-       and b.visit_id = v_visit_id
-       and b.visit_membership_state = 'included'
-     )
-      or (
-       v_visit_id is null
-       and v_group_id is not null
-       and b.group_id = v_group_id
-       and b.booking_date = v_booking_date
-     )
-      or (v_visit_id is null and v_group_id is null and b.id = p_booking_id)
-   order by b.id
-   for update;
+  -- The unchanged direct implementation owns replay semantics. A completed
+  -- source may therefore reach it so an exact retry can return its original
+  -- receipt; only active visits need the new override gate.
+  if v_booking_status = 'Booked' then
+    perform b.id
+      from public.bookings b
+     where (
+         v_visit_id is not null
+         and b.visit_id = v_visit_id
+         and b.visit_membership_state = 'included'
+       )
+        or (
+         v_visit_id is null
+         and v_group_id is not null
+         and b.group_id = v_group_id
+         and b.booking_date = v_booking_date
+       )
+        or (v_visit_id is null and v_group_id is null and b.id = p_booking_id)
+     order by b.id
+     for update;
 
-  select coalesce(bool_or(b.staff_capacity_override), false)
-    into v_has_staff_override
-    from public.bookings b
-   where (
-       v_visit_id is not null
-       and b.visit_id = v_visit_id
-       and b.visit_membership_state = 'included'
-     )
-      or (
-       v_visit_id is null
-       and v_group_id is not null
-       and b.group_id = v_group_id
-       and b.booking_date = v_booking_date
-     )
-      or (v_visit_id is null and v_group_id is null and b.id = p_booking_id);
+    select coalesce(bool_or(b.staff_capacity_override), false)
+      into v_has_staff_override
+      from public.bookings b
+     where (
+         v_visit_id is not null
+         and b.visit_id = v_visit_id
+         and b.visit_membership_state = 'included'
+       )
+        or (
+         v_visit_id is null
+         and v_group_id is not null
+         and b.group_id = v_group_id
+         and b.booking_date = v_booking_date
+       )
+        or (v_visit_id is null and v_group_id is null and b.id = p_booking_id);
 
-  if v_has_staff_override then
-    raise exception 'staff_override_requires_approval'
-      using errcode = 'SDR01';
+    if v_has_staff_override then
+      raise exception 'staff_override_requires_approval'
+        using errcode = 'SDR01';
+    end if;
   end if;
 
   return query
