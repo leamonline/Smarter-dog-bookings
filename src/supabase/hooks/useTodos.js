@@ -11,11 +11,13 @@
 // useWhatsAppUnread / useWhatsAppSummary.
 //
 // Returns the same surface as before:
-//   { todos, loading, error, addTodo, addTodos, toggleTodo, removeTodo, moveTodo }
+//   { todos, loading, error, addTodo, addTodos, toggleTodo, removeTodo,
+//     moveTodo, decideRescheduleRequest }
 // ============================================================
 
 import { useSyncExternalStore, useMemo } from "react";
 import { supabase } from "../client.js";
+import { decideCustomerOverrideRescheduleRequest } from "../rpc";
 import { CHANNELS } from "../realtimeChannels";
 import { registerResume } from "../refreshOnResume.js";
 
@@ -208,9 +210,43 @@ async function moveTodo(index, direction) {
   return { ok: true };
 }
 
+async function decideRescheduleRequest(requestId, decision, reason) {
+  if (!supabase) {
+    return { ok: false, error: "Couldn't decide that request." };
+  }
+
+  const { error } = await decideCustomerOverrideRescheduleRequest(supabase, {
+    requestId,
+    decision,
+    reason,
+  });
+  if (error) {
+    return {
+      ok: false,
+      error: error.message || "Couldn't decide that request.",
+    };
+  }
+
+  setState({
+    todos: state.todos.map((todo) =>
+      todo.booking_change_request_id === requestId
+        ? { ...todo, done: true }
+        : todo,
+    ),
+  });
+  return { ok: true };
+}
+
 // Module-level refs — stable identity so consumers can pass them to
 // effect/memo deps without re-triggering.
-const actions = { addTodo, addTodos, toggleTodo, removeTodo, moveTodo };
+const actions = {
+  addTodo,
+  addTodos,
+  toggleTodo,
+  removeTodo,
+  moveTodo,
+  decideRescheduleRequest,
+};
 
 export function useTodos() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

@@ -13,6 +13,7 @@ interface BookingConfirmationProps {
   onBack: () => void;
   submitting: boolean;
   dogs: CustomerDog[];
+  approvalRequired?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -50,6 +51,7 @@ export function BookingConfirmation({
   onBack,
   submitting,
   dogs,
+  approvalRequired = false,
 }: BookingConfirmationProps) {
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
   const total = selectedDogs.reduce((sum, dog) => {
@@ -62,7 +64,9 @@ export function BookingConfirmation({
   return (
     <>
       <p className="wizard-helper">
-        One last check before we book it in.
+        {approvalRequired
+          ? "One last check before we send your preferred time to the team."
+          : "One last check before we book it in."}
       </p>
 
       <div className="wizard-card wizard-confirm-polaroid">
@@ -139,7 +143,13 @@ export function BookingConfirmation({
           onClick={onConfirm}
           disabled={submitting}
         >
-          {submitting ? "Booking…" : `Confirm booking${selectedDogs.length > 1 ? "s" : ""}`}
+          {submitting
+            ? approvalRequired
+              ? "Sending…"
+              : "Booking…"
+            : approvalRequired
+              ? "Send request"
+              : `Confirm booking${selectedDogs.length > 1 ? "s" : ""}`}
         </button>
       </div>
     </>

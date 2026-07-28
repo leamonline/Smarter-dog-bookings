@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   createMany: vi.fn(),
   cancelCustomerBooking: vi.fn(),
   rescheduleCustomerBooking: vi.fn(),
+  requestCustomerOverrideReschedule: vi.fn(),
   cancelMany: vi.fn(),
   listIdsInGroup: vi.fn(),
   listForHuman: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock("../../../supabase/repositories/bookingsRepo", () => ({
   createMany: mocks.createMany,
   cancelCustomerBooking: mocks.cancelCustomerBooking,
   rescheduleCustomerBooking: mocks.rescheduleCustomerBooking,
+  requestCustomerOverrideReschedule: mocks.requestCustomerOverrideReschedule,
   cancelMany: mocks.cancelMany,
   listIdsInGroup: mocks.listIdsInGroup,
   listOnDateForCapacity: vi.fn().mockResolvedValue({ bookings: [], error: null }),
@@ -108,6 +110,14 @@ describe("BookingWizard partial reschedule", () => {
     mocks.createMany.mockResolvedValue({ ids: ["new-1"], error: null });
     mocks.rescheduleCustomerBooking.mockResolvedValue({
       ids: ["50000000-0000-4000-8000-000000000001"],
+      error: null,
+    });
+    mocks.requestCustomerOverrideReschedule.mockResolvedValue({
+      request: {
+        requestId: "51000000-0000-4000-8000-000000000001",
+        status: "pending_staff",
+        replayed: false,
+      },
       error: null,
     });
     mocks.cancelCustomerBooking.mockResolvedValue({
@@ -227,5 +237,63 @@ describe("BookingWizard partial reschedule", () => {
     );
     expect(mocks.createMany).not.toHaveBeenCalled();
     expect(mocks.cancelCustomerBooking).not.toHaveBeenCalled();
+  });
+
+  it("submits an overridden booking as a staff approval request", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/customer/book?reschedule=40000000-0000-4000-8000-000000000001&approval=request",
+        ]}
+      >
+        <BookingWizard
+          humanRecord={{ id: "human-1", name: "Alex", surname: "Taylor" }}
+          onComplete={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm replacement" }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.requestCustomerOverrideReschedule).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          bookingId: "40000000-0000-4000-8000-000000000001",
+          bookingDate: "2099-06-15",
+        }),
+      ),
+    );
+    expect(mocks.rescheduleCustomerBooking).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: "Request sent" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/original appointment stays booked/i)).toBeInTheDocument();
+  });
+
+  it("does not enter request mode without a durable reschedule ID", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/customer/book?approval=request"]}>
+        <BookingWizard
+          humanRecord={{ id: "human-1", name: "Alex", surname: "Taylor" }}
+          onComplete={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm replacement" }),
+    );
+
+    await waitFor(() => expect(mocks.createMany).toHaveBeenCalledTimes(1));
+    expect(mocks.requestCustomerOverrideReschedule).not.toHaveBeenCalled();
+    expect(mocks.rescheduleCustomerBooking).not.toHaveBeenCalled();
   });
 });

@@ -5,18 +5,44 @@ import { describe, expect, it } from "vitest";
 const migrationsDir = join(process.cwd(), "supabase/migrations");
 
 function atomicRescheduleMigration(): string {
-  const file = readdirSync(migrationsDir)
+  const files = readdirSync(migrationsDir)
     .filter((name) => name.endsWith(".sql"))
     .sort()
-    .reverse()
-    .find((name) =>
-      readFileSync(join(migrationsDir, name), "utf8").includes(
-        "function public.reschedule_customer_booking",
-      ),
-    );
+    .reverse();
+  const fileIndex = files.findIndex((name) =>
+    readFileSync(join(migrationsDir, name), "utf8").includes(
+      "function public.reschedule_customer_booking",
+    ),
+  );
+  const file = files[fileIndex];
 
   expect(file, "expected an atomic customer reschedule migration").toBeTruthy();
-  return readFileSync(join(migrationsDir, file as string), "utf8");
+  const latest = readFileSync(join(migrationsDir, file as string), "utf8");
+
+  // A later safety wrapper may delegate ordinary visits to a renamed,
+  // browser-revoked copy of the original atomic implementation. Inspect both
+  // halves so this regression test still proves cancellation, replacement,
+  // receipts and public grants as one reachable command chain.
+  if (latest.includes("reschedule_customer_booking_direct_unchecked")) {
+    const implementationFile = files.slice(fileIndex + 1).find((name) => {
+      const sql = readFileSync(join(migrationsDir, name), "utf8");
+      return (
+        sql.includes("function public.reschedule_customer_booking") &&
+        sql.includes("public.cancel_customer_booking(") &&
+        sql.includes("public.create_customer_booking_group(")
+      );
+    });
+    expect(
+      implementationFile,
+      "expected the delegated atomic reschedule implementation",
+    ).toBeTruthy();
+    return `${latest}\n${readFileSync(
+      join(migrationsDir, implementationFile as string),
+      "utf8",
+    )}`;
+  }
+
+  return latest;
 }
 
 describe("atomic customer rescheduling", () => {

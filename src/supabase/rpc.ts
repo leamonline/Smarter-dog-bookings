@@ -444,6 +444,38 @@ export function rescheduleCustomerBooking(
   });
 }
 
+export function requestCustomerOverrideReschedule(
+  client: SupabaseClient,
+  params: {
+    bookingId: string;
+    bookingDate: string;
+    bookings: CreateBookingGroupRow[];
+    reason: string;
+  },
+) {
+  return client.rpc("request_customer_override_reschedule", {
+    p_booking_id: params.bookingId,
+    p_bookings: params.bookings,
+    p_booking_date: params.bookingDate,
+    p_reason: params.reason,
+  });
+}
+
+export function decideCustomerOverrideRescheduleRequest(
+  client: SupabaseClient,
+  params: {
+    requestId: string;
+    decision: "approve" | "deny";
+    reason: string;
+  },
+) {
+  return client.rpc("decide_customer_override_reschedule_request", {
+    p_request_id: params.requestId,
+    p_decision: params.decision,
+    p_reason: params.reason,
+  });
+}
+
 // Staff booking creation ------------------------------------------------
 
 // One row per dog in a same-date staff booking group. Unlike the customer
