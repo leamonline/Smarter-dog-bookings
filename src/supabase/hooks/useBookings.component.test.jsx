@@ -1203,6 +1203,7 @@ describe("useBookings", () => {
           {
             id: "hist-1",
             booking_date: "2026-04-20",
+            dog_id: "dog-1",
             slot: "09:00",
             service: "full-groom",
             status: "Completed",
@@ -1224,16 +1225,18 @@ describe("useBookings", () => {
     const history = await result.current.fetchBookingHistoryForDog("dog-1");
 
     expect(history).toEqual([
-      {
+      expect.objectContaining({
         id: "hist-1",
         date: "2026-04-20",
+        _bookingDate: "2026-04-20",
+        _dogId: "dog-1",
         slot: "09:00",
         service: "full-groom",
         status: "Completed",
         size: "small",
         addons: [],
         payment: "Paid",
-      },
+      }),
     ]);
   });
 

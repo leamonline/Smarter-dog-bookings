@@ -106,6 +106,33 @@ describe("DogCardModal", () => {
     expect(nameInput).toHaveValue("Bella");
   });
 
+  it("opens a grooming-history appointment with its full booking record", async () => {
+    const historyBooking = {
+      id: "history-1",
+      date: "2026-04-20",
+      _bookingDate: "2026-04-20",
+      _dogId: "dog-1",
+      dogName: "Bella",
+      service: "full-groom",
+      status: "Completed",
+      slot: "09:00",
+    };
+    const onOpenBooking = vi.fn();
+
+    renderModal({
+      fetchBookingHistoryForDog: vi.fn(() => Promise.resolve([historyBooking])),
+      onOpenBooking,
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Open appointment on 20-04-2026",
+      }),
+    );
+
+    expect(onOpenBooking).toHaveBeenCalledWith("history-1", historyBooking);
+  });
+
   it("archiving from edit mode soft-archives via onUpdateDog and closes", async () => {
     const onUpdateDog = vi.fn(() => Promise.resolve());
     const { onClose } = renderModal({ onUpdateDog });

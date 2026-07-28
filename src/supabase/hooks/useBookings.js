@@ -525,17 +525,13 @@ export function useBookings(weekStart, dogsById, humansById, { onError, onReadyF
       return [];
     }
 
-    return (data || []).map((row) => ({
-      id: row.id,
-      date: row.booking_date,
-      slot: row.slot,
-      service: row.service,
-      status: row.status,
-      size: row.size,
-      addons: row.addons || [],
-      payment: row.payment,
+    return dbBookingsToArray(data || [], dogsById, humansById).map((booking) => ({
+      ...booking,
+      // GroomingHistory keeps a display-friendly `date` field, while the
+      // appointment card uses the canonical `_bookingDate`.
+      date: booking._bookingDate,
     }));
-  }, []);
+  }, [dogsById, humansById]);
 
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
 

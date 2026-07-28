@@ -30,6 +30,7 @@ export function DogCardModal({
   dogId,
   onClose,
   onOpenHuman,
+  onOpenBooking,
   dogs,
   humans = {},
   onUpdateDog,
@@ -347,6 +348,7 @@ export function DogCardModal({
         <GroomingHistory
           dogId={resolvedDog.id}
           fetchBookingHistoryForDog={fetchBookingHistoryForDog}
+          onOpenBooking={onOpenBooking}
         />
 
         {lastBooking && !isEditing && (
