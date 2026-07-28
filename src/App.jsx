@@ -745,7 +745,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
   // The week calendar opens its own per-card BookingDetailModal; this is
   // the global entry point so any view can deep-open a booking.
   const handleOpenBooking = useCallback(
-    (bookingId) => {
+    (bookingId, fallbackBooking = null) => {
       if (!bookingId) return;
       for (const list of Object.values(bookingsByDate || {})) {
         const match = (list || []).find((b) => b.id === bookingId);
@@ -753,6 +753,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
           setSelectedBooking(match);
           return;
         }
+      }
+      // Dog grooming history is fetched independently of the currently
+      // loaded calendar week. It supplies the fully transformed booking so
+      // older appointments can still open in the shared appointment card.
+      if (fallbackBooking?.id === bookingId) {
+        setSelectedBooking(fallbackBooking);
       }
     },
     [bookingsByDate, setSelectedBooking],
@@ -1244,6 +1250,7 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   dogId={selectedDogId}
                   onClose={handleCloseDogProfile}
                   onOpenHuman={handleOpenHuman}
+                  onOpenBooking={handleOpenBooking}
                   dogs={dogs}
                   humans={humans}
                   onUpdateDog={updateDog}
@@ -1331,8 +1338,12 @@ function AuthedApp({ user, staffProfile, isOwner, signOut, isOnline }) {
                   onMessageOwner={(hid) => { setSelectedBooking(null); navigate(`/inbox?human=${hid}`); }}
                   onOpenDog={handleOpenDog}
                   onUpdate={handleUpdate}
-                  currentDateStr={currentDateStr}
-                  currentDateObj={currentDateObj}
+                  currentDateStr={selectedBooking._bookingDate || currentDateStr}
+                  currentDateObj={
+                    selectedBooking._bookingDate
+                      ? new Date(`${selectedBooking._bookingDate}T00:00:00`)
+                      : currentDateObj
+                  }
                   bookingsByDate={bookingsByDate}
                   dayOpenState={dayOpenState}
                   dogs={dogs}

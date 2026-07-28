@@ -1,12 +1,24 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { SERVICES, BOOKING_STATUS } from "../../../constants/index";
 import { logger } from "../../../lib/logger";
-import { Scissors } from "lucide-react";
+import { ChevronRight, Scissors } from "lucide-react";
 import { PanelShell } from "../shell/index.js";
 
 const COLLAPSED_ROWS = 5;
 
-export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
+function formatBookingDate(iso) {
+  if (!iso) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const [, year, month, day] = match;
+  return `${day}-${month}-${year}`;
+}
+
+export function GroomingHistory({
+  dogId,
+  fetchBookingHistoryForDog,
+  onOpenBooking,
+}) {
   const [history, setHistory] = useState([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -156,29 +168,58 @@ export function GroomingHistory({ dogId, fetchBookingHistoryForDog }) {
           ) : (
             (expanded ? history : history.slice(0, COLLAPSED_ROWS)).map((b, i, rows) => {
               const svc = SERVICES.find((s) => s.id === b.service);
-              return (
-                <div
-                  key={`${b.date}-${b.id || b.slot}-${i}`}
-                  className={`flex justify-between items-center py-2 text-xs ${
-                    i === rows.length - 1 ? "" : "border-b border-slate-100"
-                  }`}
-                >
-                  <div>
+              const formattedDate = formatBookingDate(b.date || b._bookingDate);
+              const canOpen = Boolean(onOpenBooking && b.id);
+              const content = (
+                <>
+                  <div className="min-w-0 flex-1">
                     <span className="font-semibold text-slate-800">
-                      {b.date?.split("-").reverse().join("-")}
+                      {formattedDate}
                     </span>
                     <span className="text-slate-500 ml-1.5">
                       {svc?.name || b.service}
                     </span>
                   </div>
                   <span
-                    className="font-semibold text-[11px]"
+                    className="font-semibold text-[11px] shrink-0"
                     style={{
                       color: b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "#16A34A" : undefined,
                     }}
                   >
                     {b.status === BOOKING_STATUS.READY_FOR_PICKUP ? "Finished" : b.status}
                   </span>
+                  {canOpen && (
+                    <ChevronRight
+                      size={13}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                      className="shrink-0 text-slate-300 group-hover/history-row:text-brand-teal transition-colors"
+                    />
+                  )}
+                </>
+              );
+
+              return (
+                <div
+                  key={`${b.date}-${b.id || b.slot}-${i}`}
+                  className={`group/history-row ${
+                    i === rows.length - 1 ? "" : "border-b border-slate-100"
+                  }`}
+                >
+                  {canOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenBooking(b.id, b)}
+                      aria-label={`Open appointment on ${formattedDate}`}
+                      className="w-full flex items-center gap-2 py-2 px-1 -mx-1 text-xs text-left font-inherit bg-transparent border-none cursor-pointer rounded transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal/60"
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 py-2 text-xs">
+                      {content}
+                    </div>
+                  )}
                 </div>
               );
             })
