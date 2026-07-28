@@ -1,5 +1,11 @@
 # WhatsApp Inbox — Two-Approval UX Coupling
 
+> **Superseded on 28 July 2026.** The paired frontend action described here
+> was not atomic: a booking write could succeed before the customer send
+> failed. The temporary integrity guard now requires staff to resolve the
+> booking proposal, check the diary, and then send the reply separately.
+> Restore a combined action only through one server-owned, idempotent command.
+
 **Date:** 2026-04-28
 **Approach:** Frontend-only gate with explicit override; no DB changes
 **Scope:** `src/components/views/WhatsAppInboxView.jsx` + `src/supabase/hooks/useWhatsAppInbox.js`

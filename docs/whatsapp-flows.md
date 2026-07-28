@@ -175,6 +175,15 @@ calendar triggers remain the hard guard.
 
 ## Not done yet (follow-ups)
 
+- **Known live behaviour for the Edge tranche — booking-intent re-entry.**
+  The fast path suppresses repeat booking prompts for only three minutes.
+  After that debounce, a recognised customer's free-text booking reply can
+  start booking entry again rather than creating a deterministic staff
+  hand-off. The planned longer-horizon copy may make replies such as
+  "yes, October please" more likely. No production incident was confirmed in
+  the bounded audit and volume was low, so this did not block the temporary
+  UI guard; the Edge tranche must add explicit routing, de-duplication and
+  hand-off behaviour before treating the journey as closed.
 - **`nfm_reply` handling** — the flow-completion receipt isn't parsed by the
   agent yet (booking already happens at CONFIRM, so this is cosmetic).
 - **Large-dog per-slot precision** — large dogs are offered the candidate

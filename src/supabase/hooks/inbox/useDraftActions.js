@@ -1,18 +1,10 @@
-// useDraftActions — the four reply-side callbacks on the inbox
+// useDraftActions — the three reply-side callbacks on the inbox
 // thread:
 //
 //   approveDraft({ editedText })
 //     POSTs the (optionally edited) draft via the whatsapp-send edge
 //     function. On success: clears the local draft + flips the
 //     conversation's has_pending_draft amber dot off.
-//
-//   approveDraftAndApply({ editedText })
-//     Sends + applies any AI-attached booking proposals as one click.
-//     Order: apply each action sequentially, stop on first error,
-//     THEN send the reply. If the send fails after a successful
-//     apply, the booking is real and the error tells staff to send
-//     manually. Falls through to approveDraft when no actions are
-//     attached.
 //
 //   rejectDraft({ reason })
 //     UPDATEs whatsapp_drafts: state='rejected'. Reason is optional,
@@ -29,17 +21,14 @@
 import { useCallback } from "react";
 import { supabase } from "../../client.js";
 import { logger } from "../../../lib/logger";
-import { applyWhatsappBookingAction } from "../../rpc";
 import { SEND_FUNCTION_PATH } from "./helpers.js";
 
 export function useDraftActions({
   draft,
-  attachedActions,
   actionInFlight,
   selectedId,
   setActionInFlight,
   setDraft,
-  setBookingActions,
   setConversations,
   selectedIdRef,
 }) {
@@ -80,88 +69,6 @@ export function useDraftActions({
       setActionInFlight(false);
     }
   }, [draft, actionInFlight, setActionInFlight, setDraft, setConversations, selectedIdRef]);
-
-  const approveDraftAndApply = useCallback(async ({ editedText } = {}) => {
-    if (!draft || actionInFlight) {
-      return { ok: false, reason: "no draft or action in flight" };
-    }
-    if (attachedActions.length === 0) {
-      return approveDraft({ editedText });
-    }
-
-    setActionInFlight(true);
-    try {
-      // 1. Apply each attached action sequentially. Stop on first error.
-      const applied = [];
-      for (const action of attachedActions) {
-        const { data: bookingId, error: applyError } = await applyWhatsappBookingAction(
-          supabase,
-          { actionId: action.id },
-        );
-        if (applyError) {
-          const dogLabel = action.payload?.dog_name ?? "booking";
-          return {
-            ok: false,
-            reason: `Apply failed for ${dogLabel}: ${applyError.message}`,
-            appliedSoFar: applied,
-          };
-        }
-        applied.push({ actionId: action.id, bookingId });
-      }
-
-      // 2. Optimistic: clear applied actions from local state.
-      setBookingActions((prev) =>
-        prev.filter((a) => !applied.some((x) => x.actionId === a.id)),
-      );
-
-      // 3. Send the reply.
-      const { data: sendData, error: sendError } = await supabase.functions
-        .invoke(SEND_FUNCTION_PATH, {
-          body: {
-            mode: "draft",
-            draft_id: draft.id,
-            ...(editedText ? { edited_text: editedText } : {}),
-          },
-        });
-      if (sendError || sendData?.error) {
-        const reason = sendError?.message ?? sendData?.error ?? "Send failed";
-        return {
-          ok: false,
-          reason: `${reason} (booking was applied — please send the reply manually)`,
-          appliedSoFar: applied,
-        };
-      }
-
-      // 4. Optimistic: clear the pending draft and flip both badges.
-      setDraft(null);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedIdRef.current
-            ? { ...c, has_pending_draft: false, has_pending_booking_action: false }
-            : c,
-        ),
-      );
-
-      return { ok: true, applied, sendResult: sendData };
-    } catch (err) {
-      logger.error("approveDraftAndApply failed", err, {
-        tags: { hook: "useDraftActions", op: "approveDraftAndApply" },
-      });
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    } finally {
-      setActionInFlight(false);
-    }
-  }, [
-    draft,
-    attachedActions,
-    actionInFlight,
-    approveDraft,
-    setActionInFlight,
-    setDraft,
-    setBookingActions,
-    setConversations,
-    selectedIdRef,
-  ]);
 
   const rejectDraft = useCallback(async ({ reason } = {}) => {
     if (!draft || actionInFlight) return { ok: false };
@@ -229,5 +136,5 @@ export function useDraftActions({
     }
   }, [selectedId, actionInFlight, setActionInFlight]);
 
-  return { approveDraft, approveDraftAndApply, rejectDraft, sendManualReply };
+  return { approveDraft, rejectDraft, sendManualReply };
 }

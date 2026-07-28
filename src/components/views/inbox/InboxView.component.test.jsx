@@ -53,7 +53,6 @@ function baseState(overrides = {}) {
     detailError: null,
     selectConversation: vi.fn(),
     approveDraft: vi.fn(),
-    approveDraftAndApply: vi.fn(),
     rejectDraft: vi.fn(),
     sendManualReply: vi.fn(),
     applyBookingAction: vi.fn(),

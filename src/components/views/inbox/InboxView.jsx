@@ -75,7 +75,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     detailError,
     selectConversation,
     approveDraft,
-    approveDraftAndApply,
     rejectDraft,
     sendManualReply,
     applyBookingAction,
@@ -107,12 +106,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
     if (res?.ok) toast.show("Reply sent", "success");
     return res;
   }, [approveDraft, toast]);
-
-  const handleApproveAndApply = useCallback(async (opts) => {
-    const res = await approveDraftAndApply(opts);
-    if (res?.ok) toast.show("Reply sent and booking added to the diary.", "success");
-    return res;
-  }, [approveDraftAndApply, toast]);
 
   const handleRejectDraft = useCallback(async (opts) => {
     const res = await rejectDraft(opts);
@@ -873,7 +866,6 @@ export function InboxView({ onOpenHuman, onOpenDog } = {}) {
                   conversation={selectedConversation}
                   attachedActions={attachedActions}
                   onApprove={handleApproveDraft}
-                  onApproveAndApply={handleApproveAndApply}
                   onReject={handleRejectDraft}
                   inFlight={actionInFlight}
                 />
