@@ -34,7 +34,6 @@ on:
       - 'supabase/tests/**'
       - 'supabase/config.toml'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
-      - 'package.json'
       - '.github/workflows/db-tests.yml'
   pull_request:
     paths:
@@ -42,7 +41,6 @@ on:
       - 'supabase/tests/**'
       - 'supabase/config.toml'
       - 'scripts/verify-whatsapp-reschedule-concurrency.sh'
-      - 'package.json'
       - '.github/workflows/db-tests.yml'
   workflow_dispatch:
 
@@ -179,7 +177,7 @@ jobs:
         timeout-minutes: 5
         env:
           CONCURRENCY_LOCAL_STACK_CONFIRMED: '1'
-        run: npm run test:db:concurrency
+        run: bash scripts/verify-whatsapp-reschedule-concurrency.sh
 
       - name: Dump diagnostics on failure
         if: failure()
