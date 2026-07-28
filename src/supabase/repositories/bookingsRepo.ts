@@ -16,6 +16,7 @@ import {
   getImmediateSlots,
   getOccupancyRange,
   getSlotOccupancy,
+  requestCustomerOverrideReschedule as requestCustomerOverrideRescheduleRpc,
   rescheduleCustomerBooking as rescheduleCustomerBookingRpc,
   type CustomerCancellationRpcRow,
 } from "../rpc";
@@ -250,6 +251,91 @@ export async function rescheduleCustomerBooking(
         code: "NETWORK_ERROR",
         message:
           cause instanceof Error ? cause.message : "The reschedule request failed.",
+        details: null,
+        hint: null,
+      },
+    };
+  }
+}
+
+export interface CustomerOverrideRescheduleRequestReceipt {
+  requestId: string;
+  status: "pending_staff";
+  replayed: boolean;
+}
+
+export async function requestCustomerOverrideReschedule(
+  client: SupabaseClient,
+  input: {
+    bookingId: string;
+    bookingDate: string;
+    reason: string;
+    bookings: Array<Omit<CreateBookingInput, "bookingDate">>;
+  },
+): Promise<{
+  request: CustomerOverrideRescheduleRequestReceipt | null;
+  error: CustomerCancellationError | null;
+}> {
+  try {
+    const { data, error } = await requestCustomerOverrideRescheduleRpc(client, {
+      bookingId: input.bookingId,
+      bookingDate: input.bookingDate,
+      reason: input.reason,
+      bookings: input.bookings.map((booking) => ({
+        dog_id: booking.dogId,
+        slot: booking.slot,
+        service: booking.service,
+        size: booking.size,
+        addons: booking.addons ?? [],
+        payment: booking.payment ?? "Due at Pick-up",
+      })),
+    });
+    if (error) {
+      return {
+        request: null,
+        error: error as CustomerCancellationError,
+      };
+    }
+
+    const row =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    if (
+      !row ||
+      typeof row.request_id !== "string" ||
+      !UUID_RE.test(row.request_id) ||
+      row.status !== "pending_staff" ||
+      typeof row.replayed !== "boolean"
+    ) {
+      return {
+        request: null,
+        error: {
+          code: "INVALID_RESCHEDULE_REQUEST_RECEIPT",
+          message: "The reschedule request response could not be verified.",
+          details: null,
+          hint: null,
+        },
+      };
+    }
+
+    return {
+      request: {
+        requestId: row.request_id,
+        status: row.status,
+        replayed: row.replayed,
+      },
+      error: null,
+    };
+  } catch (cause) {
+    return {
+      request: null,
+      error: {
+        code: "NETWORK_ERROR",
+        message:
+          cause instanceof Error
+            ? cause.message
+            : "The reschedule request failed.",
         details: null,
         hint: null,
       },

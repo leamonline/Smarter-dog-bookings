@@ -42,7 +42,10 @@ const receipt = {
   cancelledAt: "2026-07-12T14:30:00.000Z",
 };
 
-function renderCard(onBookingChanged = vi.fn().mockResolvedValue(undefined)) {
+function renderCard(
+  onBookingChanged = vi.fn().mockResolvedValue(undefined),
+  upcomingBookings = [booking],
+) {
   function LocationProbe() {
     const location = useLocation();
     return (
@@ -55,7 +58,7 @@ function renderCard(onBookingChanged = vi.fn().mockResolvedValue(undefined)) {
   render(
     <MemoryRouter>
       <BookingCard
-        upcomingBookings={[booking]}
+        upcomingBookings={upcomingBookings}
         dogs={[]}
         onBook={vi.fn()}
         onBookingChanged={onBookingChanged}
@@ -113,6 +116,59 @@ describe("BookingCard cancellation", () => {
     expect(screen.getByTestId("location")).toHaveTextContent(
       `/customer/book?reschedule=${booking.id}`,
     );
+  });
+
+  it("routes staff-overridden bookings into an approval request", async () => {
+    const user = userEvent.setup();
+    renderCard(
+      vi.fn().mockResolvedValue(undefined),
+      [{ ...booking, staff_capacity_override: true }],
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Request a change" }),
+    );
+
+    expect(screen.getByText(/current appointment stays booked/i)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Choose a preferred time" }),
+    );
+
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      `/customer/book?reschedule=${booking.id}&approval=request`,
+    );
+  });
+
+  it("treats an overridden sibling in the same visit as one approval request", async () => {
+    const visitId = "41000000-0000-4000-8000-000000000001";
+    renderCard(
+      vi.fn().mockResolvedValue(undefined),
+      [
+        {
+          ...booking,
+          group_id: null,
+          visit_id: visitId,
+          staff_capacity_override: false,
+        },
+        {
+          ...booking,
+          id: "40000000-0000-4000-8000-000000000002",
+          dog_id: "42000000-0000-4000-8000-000000000002",
+          group_id: null,
+          visit_id: visitId,
+          staff_capacity_override: true,
+          dogs: { name: "Mabel" },
+        },
+      ],
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Request a change" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reschedule" }),
+    ).not.toBeInTheDocument();
   });
 
   it.each([

@@ -15,7 +15,8 @@ import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js"
  *   1. **Empty** — no upcoming groom. "Ready to book {dogName} in?" + green CTA.
  *   2. **Booked** — has an upcoming groom. Date, time, service, dog;
  *      Reschedule (modal-confirmed: carries the original booking ID in the
- *      URL; the wizard swaps the visit through one atomic database command)
+ *      URL; ordinary visits move atomically, while staff-overridden visits
+ *      become a request that leaves the diary unchanged until staff decide)
  *      and Cancel (inline reason form) as low-emphasis links.
  *
  * Replaces the old "Upcoming appointments empty state" + "Time for another
@@ -88,6 +89,18 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
   const next = upcomingBookings[0];
   const dogName = next?.dogs?.name || dogs[0]?.name || "your pup";
+  const requiresStaffApproval = upcomingBookings.some((booking) => {
+    const sameVisit =
+      next?.visit_id && booking.visit_id && booking.visit_id === next.visit_id;
+    const sameLegacyGroup =
+      next?.group_id &&
+      booking.group_id === next.group_id &&
+      booking.booking_date === next.booking_date;
+    return (
+      booking.staff_capacity_override === true &&
+      (booking.id === next?.id || sameVisit || sameLegacyGroup)
+    );
+  });
 
   // ----- Empty state -----
   if (!next) {
@@ -121,16 +134,20 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
     // cannot turn this into a second ordinary booking. Route state supplies
     // display labels only.
     setConfirmingReschedule(false);
-    navigate(`/customer/book?reschedule=${encodeURIComponent(next.id)}`, {
-      state: {
-        rescheduleFrom: {
-          id: next.id,
-          dateLabel: dateStr,
-          timeLabel: timeStr,
-          dogName,
+    const approvalQuery = requiresStaffApproval ? "&approval=request" : "";
+    navigate(
+      `/customer/book?reschedule=${encodeURIComponent(next.id)}${approvalQuery}`,
+      {
+        state: {
+          rescheduleFrom: {
+            id: next.id,
+            dateLabel: dateStr,
+            timeLabel: timeStr,
+            dogName,
+          },
         },
       },
-    });
+    );
   };
 
   const startCancel = () => {
@@ -230,7 +247,13 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
         )}
 
         {!cancelling && (
-          <div className="portal-booking-card-actions">
+          <div
+            className={`portal-booking-card-actions ${
+              requiresStaffApproval
+                ? "portal-booking-card-actions--request"
+                : ""
+            }`}
+          >
             <AddToCalendarButton bookingId={next.id} pill />
             <button
               type="button"
@@ -239,7 +262,7 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
               disabled={saving}
             >
               <RefreshCw size={14} aria-hidden="true" />
-              Reschedule
+              {requiresStaffApproval ? "Request a change" : "Reschedule"}
             </button>
             <button
               type="button"
@@ -318,9 +341,21 @@ export function BookingCard({ upcomingBookings, dogs, onBook, onBookingChanged }
 
       {confirmingReschedule && (
         <ConfirmDialog
-          title="Reschedule this groom?"
-          message="Pick your new time and we'll swap you over once you confirm."
-          confirmLabel="Pick a new time"
+          title={
+            requiresStaffApproval
+              ? "Request a different time?"
+              : "Reschedule this groom?"
+          }
+          message={
+            requiresStaffApproval
+              ? "Choose the time you’d prefer. Your current appointment stays booked unless the team approves the change."
+              : "Pick your new time and we'll swap you over once you confirm."
+          }
+          confirmLabel={
+            requiresStaffApproval
+              ? "Choose a preferred time"
+              : "Pick a new time"
+          }
           cancelLabel="Keep this slot"
           variant="primary"
           onConfirm={handleRescheduleConfirm}

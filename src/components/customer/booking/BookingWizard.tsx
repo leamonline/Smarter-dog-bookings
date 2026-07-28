@@ -8,6 +8,7 @@ import {
   listBlockedSeats,
   listImmediateSlots,
   getDepositSettings,
+  requestCustomerOverrideReschedule,
   rescheduleCustomerBooking,
 } from "../../../supabase/repositories/bookingsRepo";
 import { listForHuman, type CustomerDog } from "../../../supabase/repositories/dogsRepo";
@@ -126,6 +127,8 @@ function ConfettiPaws() {
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
   const location = useLocation();
+  const approvalMode =
+    new URLSearchParams(location.search).get("approval");
   // Keep the original booking ID in the URL so a refresh or auth redirect
   // cannot silently turn a reschedule into an ordinary second booking. Route
   // state still carries the friendly labels, but is no longer authoritative.
@@ -145,6 +148,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       ? { id: state.rescheduleFrom.id, invalid: true }
       : null;
   });
+  const approvalRequired =
+    approvalMode === "request" &&
+    rescheduleFrom !== null &&
+    !rescheduleFrom.invalid;
 
   // Persist an in-progress booking to localStorage so navigating away (back
   // button, refresh) doesn't wipe the customer's selections. Disabled during a
@@ -169,6 +176,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [dogs, setDogs] = useState<CustomerDog[]>([]);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [dogsError, setDogsError] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
   const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>(() => draft?.selectedDogs ?? []);
   const [services, setServices] = useState<Record<string, ServiceId>>(() => draft?.services ?? {});
   const [selectedDate, setSelectedDate] = useState<string | null>(() => draft?.selectedDate ?? null);
@@ -427,6 +435,25 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       });
 
       const reason = `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`;
+      if (rescheduleFrom && approvalRequired) {
+        const { request, error: requestError } =
+          await requestCustomerOverrideReschedule(supabase, {
+            bookingId: rescheduleFrom.id,
+            bookingDate: selectedDate,
+            bookings: inputs,
+            reason,
+          });
+        if (requestError || !request) {
+          const err = new Error(
+            requestError?.message || "The reschedule request could not be saved.",
+          );
+          (err as { code?: string }).code = requestError?.code;
+          throw err;
+        }
+        setRequestSent(true);
+        return;
+      }
+
       const { ids: insertedIds, error: insertError } = rescheduleFrom
         ? await rescheduleCustomerBooking(supabase, {
             bookingId: rescheduleFrom.id,
@@ -499,6 +526,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       setError(
         cause?.code === "SDC02"
           ? "This appointment is within 24 hours, so it can’t be moved online. Please message us and the team will help."
+          : cause?.code === "SDR01"
+            ? "This appointment needs staff approval before it can move. Return to your dashboard and choose Request a change."
+          : cause?.code === "SDR02"
+            ? "You already have a change request waiting for the team."
           : cause?.code === "SDC04"
             ? "Please select the same dog or dogs as the groom you’re moving."
           : isTriggerError
@@ -548,7 +579,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   }
 
   // --- Success screens ---
-  if (booked || waitlistJoined) {
+  if (booked || waitlistJoined || requestSent) {
     const dateLabel = selectedDate
       ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "";
@@ -562,6 +593,34 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     const bookingRef = selectedDate
       ? `${selectedDate.replace(/-/g, "")}-${dropOff.replace(":", "")}`
       : "";
+
+    if (requestSent) {
+      return (
+        <div className="booking-success booking-success--waitlist">
+          <div className="booking-success-polaroid" aria-hidden="true">
+            <div className="booking-success-polaroid-photo">
+              <Clipboard size={48} />
+            </div>
+          </div>
+          <h1 className="booking-success-title">
+            Request sent
+            <ScribbleUnderline color="var(--sd-coral)" />
+          </h1>
+          <p className="booking-success-subtitle">
+            We&apos;ve sent your preferred time for {dogNameStr} on{" "}
+            <strong>{dateLabel}</strong> at{" "}
+            <strong>{fmtTime(dropOff)}</strong> to the team. Your original
+            appointment stays booked unless they approve the change.
+          </p>
+          <div className="booking-success-actions">
+            <button onClick={onComplete} className="wizard-btn wizard-btn--primary">
+              Back to dashboard
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     if (waitlistJoined && !booked) {
       return (
@@ -711,12 +770,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           <div role="status" className="portal-alert portal-alert--info">
             <span>
               <strong>
-                {rescheduleFrom.dogName && rescheduleFrom.dateLabel && rescheduleFrom.timeLabel
-                  ? <>Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.</>
-                  : <>Rescheduling your current groom.</>}
+                {approvalRequired
+                  ? <>Requesting a different time for your current groom.</>
+                  : rescheduleFrom.dogName && rescheduleFrom.dateLabel && rescheduleFrom.timeLabel
+                    ? <>Rescheduling {rescheduleFrom.dogName}&apos;s {rescheduleFrom.dateLabel}, {rescheduleFrom.timeLabel} slot.</>
+                    : <>Rescheduling your current groom.</>}
               </strong>
               {" "}
-              Your original booking stays held until you confirm a new time. Cancel out and nothing changes.
+              {approvalRequired
+                ? "Your original appointment stays booked until the team approves your preferred time. Cancel out and nothing changes."
+                : "Your original booking stays held until you confirm a new time. Cancel out and nothing changes."}
             </span>
           </div>
         )}
@@ -813,6 +876,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             onBack={() => setStep(4)}
             submitting={submitting}
             dogs={dogs}
+            approvalRequired={approvalRequired}
           />
         )}
       </div>
