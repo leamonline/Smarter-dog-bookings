@@ -7,6 +7,19 @@ draft a reply. It never sends to the customer directly and never mutates a
 booking — both go through guarded paths (`whatsapp-send` and the
 `apply_whatsapp_booking_action` RPC).
 
+## Staff approval integrity
+
+Once the staff inbox has loaded an attached pending booking proposal, its AI
+draft no longer exposes send controls. Staff must add or reject every attached
+proposal in the booking panel, check the diary, and only then return to review
+and send the reply.
+
+This is a temporary integrity guard. The previous **Approve & Apply** control
+performed the database write and customer send as two sequential client
+requests, so a later failure could leave the diary and the customer message
+disagreeing. A future server-owned, idempotent command may restore a combined
+action only when both outcomes and retries have one authoritative contract.
+
 **Drafting is on demand, not on every inbound.** A *known* customer's inbound
 message is persisted and the loop continues — no automatic Claude draft —
 until staff click **"Generate reply"** (the `force_draft` / `suggest_only`

@@ -2,11 +2,11 @@
 // src/components/views/inbox/thread/DraftPanel.jsx
 //
 // The pending AI-draft card. Renders the proposed reply with intent
-// + confidence + risk metadata, and a five-mode action bar:
+// + confidence + risk metadata, and a guarded action bar:
 //   - idle, no attached action: Approve & send / Edit first / Reject
-//   - idle, attached action:    Approve & Apply / Send reply only / Edit first / Reject
+//   - idle, attached action:    Resolve the booking first / Reject
 //   - editing, no attached:     Send edit / Cancel edit
-//   - editing, attached:        Send edit & Apply / Send edit only / Cancel edit
+//   - editing, attached:        Hold the edit until the booking is resolved
 //   - rejecting:                Confirm reject / Cancel
 //
 // Rejection reason is optional but persisted (whatsapp_drafts.rejected_reason).
@@ -17,7 +17,7 @@ import { confidenceLabel, formatShortDate } from "../helpers.js";
 import { RiskPill } from "../RiskPill.jsx";
 import { WhyHeldExplainer } from "./WhyHeldExplainer.jsx";
 
-export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onApproveAndApply, onReject, inFlight }) {
+export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onReject, inFlight }) {
   const [editing, setEditing] = useState(false);
   const [editedText, setEditedText] = useState(draft?.proposed_text ?? "");
   const [error, setError] = useState(null);
@@ -48,12 +48,6 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
   async function handleApprove(useEditedText) {
     setError(null);
     const res = await onApprove(useEditedText ? { editedText } : {});
-    if (!res.ok) setError(res.reason ?? "Send failed");
-  }
-
-  async function handleApproveAndApply(useEditedText) {
-    setError(null);
-    const res = await onApproveAndApply(useEditedText ? { editedText } : {});
     if (!res.ok) setError(res.reason ?? "Send failed");
   }
 
@@ -136,6 +130,13 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
               {action.payload?.slot ?? "?"}
             </div>
           ))}
+          <div
+            role="note"
+            aria-label="Safe booking and reply order"
+            className="mt-2 pt-2 border-t border-amber-300 font-semibold"
+          >
+            Apply or reject the booking below first. Check the diary, then come back here to send this reply.
+          </div>
         </div>
       )}
 
@@ -165,20 +166,6 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
       <div className="flex flex-wrap gap-2 mt-2">
         {mode === "editing" && hasAttached && (
           <>
-            <button
-              onClick={() => handleApproveAndApply(true)}
-              disabled={inFlight || !editedText.trim()}
-              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
-            >
-              Send edit &amp; Apply
-            </button>
-            <button
-              onClick={() => handleApprove(true)}
-              disabled={inFlight || !editedText.trim()}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-            >
-              Send edit only
-            </button>
             <button
               onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
               disabled={inFlight}
@@ -227,32 +214,11 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
         {mode === "idle" && hasAttached && (
           <>
             <button
-              onClick={() => handleApproveAndApply(false)}
-              disabled={inFlight}
-              className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-[13px] font-bold disabled:opacity-50"
-            >
-              Approve &amp; Apply
-            </button>
-            <button
-              onClick={() => handleApprove(false)}
-              disabled={inFlight}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-            >
-              Send reply only
-            </button>
-            <button
-              onClick={() => setEditing(true)}
-              disabled={inFlight}
-              className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 text-[13px]"
-            >
-              Edit first
-            </button>
-            <button
               onClick={() => setRejecting(true)}
               disabled={inFlight}
               className="px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-500 text-[13px]"
             >
-              Reject
+              Reject draft
             </button>
           </>
         )}

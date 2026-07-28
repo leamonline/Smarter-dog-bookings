@@ -49,8 +49,8 @@ const DETAIL_TIMEOUT_MS = 10_000;
 // Filters the bookingActions list down to the actions attached to the
 // current pending draft. An action is "attached" if its draft_id
 // matches the draft's id AND it's still pending. Used by the inbox
-// hook to gate the DraftPanel's Approve button on whether a booking
-// proposal is hanging off the same draft.
+// hook to withhold DraftPanel reply controls while a booking proposal
+// is hanging off the same draft.
 export function filterAttachedActions(draft, bookingActions) {
   if (!draft) return [];
   if (!Array.isArray(bookingActions)) return [];
@@ -253,9 +253,8 @@ export function useWhatsAppInbox() {
   const [actionInFlight, setActionInFlight] = useState(false);
 
   // Derived: actions attached to the currently-pending draft.
-  // The DraftPanel uses this to switch from single Approve to the
-  // Approve & Apply / Send reply only pair. See spec section
-  // "Architecture" in 2026-04-28-two-approval-ux-coupling-design.md.
+  // The DraftPanel uses this to withhold reply controls until staff
+  // explicitly resolve every attached proposal in BookingActionPanel.
   const attachedActions = useMemo(
     () => filterAttachedActions(draft, bookingActions),
     [draft, bookingActions],
@@ -368,17 +367,15 @@ export function useWhatsAppInbox() {
     });
 
   // Approve / reject / manual-reply actions on the thread's draft.
-  // approveDraftAndApply also runs the booking-action RPC when the
-  // draft has attached proposals.
-  const { approveDraft, approveDraftAndApply, rejectDraft, sendManualReply } =
+  // Attached booking proposals are resolved separately above so a
+  // booking write and customer send cannot masquerade as one operation.
+  const { approveDraft, rejectDraft, sendManualReply } =
     useDraftActions({
       draft,
-      attachedActions,
       actionInFlight,
       selectedId,
       setActionInFlight,
       setDraft,
-      setBookingActions,
       setConversations,
       selectedIdRef,
     });
@@ -678,7 +675,6 @@ export function useWhatsAppInbox() {
     // actions
     selectConversation,
     approveDraft,
-    approveDraftAndApply,
     rejectDraft,
     sendManualReply,
     applyBookingAction,

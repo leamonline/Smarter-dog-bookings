@@ -1,5 +1,10 @@
 # WhatsApp Inbox — Two-Approval UX Coupling — Implementation Plan
 
+> **Historical plan — superseded on 28 July 2026.** Do not reintroduce the
+> sequential client-side **Approve & Apply** path. The current temporary guard
+> requires separate booking resolution, diary verification and reply sending;
+> any future combined action needs one server-owned, idempotent command.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Close the trust footgun where staff can approve a draft reply (sending it to the customer) without applying the attached `booking_action` — by gating the Approve button with an inline banner and dual buttons ("Approve & Apply" default, "Send reply only" override) when an action is attached, and leaving everything else unchanged when no action is attached.
